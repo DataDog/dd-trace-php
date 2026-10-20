@@ -37,7 +37,7 @@ h3:target { text-decoration: underline var(--hl) .3em; }
 <p>This document states and proves the concurrency invariants of
 <code>shm_gen_cache</code>, the lock-free shared-memory generational cache of
 dd-trace-php, at shared layout version 12 (<code>LAYOUT_VERSION</code>,
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/lib.rs#L89"><code>lib.rs:89</code></a>).</p>
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/lib.rs#L89"><code>lib.rs:89</code></a>).</p>
 <p>Two artefacts back the claims made here:</p>
 <ul>
 <li><strong>This document</strong>: pen-and-paper proofs against the source.</li>
@@ -79,61 +79,61 @@ link to it at commit <code>d8fc7eb598</code>.</p>
 <tbody>
 <tr>
 <td>Insert: pin, reservation, chunks, record store, publication, unpin</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs"><code>cache/store.rs</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs"><code>cache/store.rs</code></a></td>
 </tr>
 <tr>
 <td>Rotation, rotation ownership, takeover, post-seal fence (<a class="ref ev" href="#ev-r1f">R1F</a>), pin scan, slot reaping, readiness certificate (<a class="ref ev" href="#ev-r3c">R3C</a>)</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs"><code>cache/rotation.rs</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs"><code>cache/rotation.rs</code></a></td>
 </tr>
 <tr>
 <td>Lookup and its validation; promotion readiness (certificate load, recheck, reprobe)</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs"><code>cache/lookup.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs"><code>arena/probe.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs"><code>cache/promotion.rs</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs"><code>cache/lookup.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs"><code>arena/probe.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs"><code>cache/promotion.rs</code></a></td>
 </tr>
 <tr>
 <td>Index publication and key check</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs"><code>arena/put.rs</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs"><code>arena/put.rs</code></a></td>
 </tr>
 <tr>
 <td>Record payload loads and stores</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/records.rs"><code>arena/records.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/util.rs"><code>util.rs</code></a> (<code>emit_*</code>)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/records.rs"><code>arena/records.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/util.rs"><code>util.rs</code></a> (<code>emit_*</code>)</td>
 </tr>
 <tr>
 <td>Participant slots: claim, release, steal</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs"><code>participant.rs</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs"><code>participant.rs</code></a></td>
 </tr>
 <tr>
 <td>Occupancy accounting (<a class="ref ev" href="#ev-w6">W6</a>, the <a class="ref ev" href="#ev-b0">B0</a> target check)</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/occupancy.rs"><code>occupancy.rs</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/occupancy.rs"><code>occupancy.rs</code></a></td>
 </tr>
 <tr>
 <td>Word encodings</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/ctl.rs"><code>arena/ctl.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/index.rs"><code>arena/index.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/records.rs"><code>arena/records.rs</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/ctl.rs"><code>arena/ctl.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/index.rs"><code>arena/index.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/records.rs"><code>arena/records.rs</code></a></td>
 </tr>
 <tr>
 <td>Initialisation, registration, <code>from_raw</code></td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs"><code>cache/mod.rs</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs"><code>cache/mod.rs</code></a></td>
 </tr>
 </tbody>
 </table></div>
 <p>Not covered:</p>
 <ul>
-<li>The C API (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/ffi.rs"><code>ffi.rs</code></a>), except as the place that enforces <a class="ref asm" href="#a2">A2</a>.</li>
+<li>The C API (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/ffi.rs"><code>ffi.rs</code></a>), except as the place that enforces <a class="ref asm" href="#a2">A2</a>.</li>
 <li>The benchmarks, and the configuration arithmetic beyond <a class="ref asm" href="#a5">A5</a>.</li>
-<li>The liveness backends (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/linux_pid.rs"><code>linux_pid.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/windows_pid.rs"><code>windows_pid.rs</code></a>). Their
+<li>The liveness backends (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/linux_pid.rs"><code>linux_pid.rs</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/windows_pid.rs"><code>windows_pid.rs</code></a>). Their
 contract is assumed: <a class="ref asm" href="#a3">A3</a> for safety, <a class="ref asm" href="#a9">A9</a> for robustness.</li>
-<li><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/wait.rs"><code>wait.rs</code></a> and futex wake-up delivery. Its loads only decide whether
+<li><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/wait.rs"><code>wait.rs</code></a> and futex wake-up delivery. Its loads only decide whether
 to sleep; they are liveness, outside the safety model.</li>
 <li>The staging writes of <code>test_access::stage_interrupted_reap</code>
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/test_access.rs#L188-L210"><code>test_access.rs:188-210</code></a>): test-only, not modelled.</li>
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/test_access.rs#L188-L210"><code>test_access.rs:188-210</code></a>): test-only, not modelled.</li>
 <li>The six <code>GetPid</code> test hooks (<code>reservation_epoch_hook</code>,
 <code>reservation_retry_hook</code>, <code>after_epoch_publication</code>,
 <code>after_arena_reset</code>,
 <code>after_record_publication</code>, <code>promotion_hook</code>;
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/pid.rs#L30-L54"><code>pid.rs:30-58</code></a>). They are called only under feature
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/pid.rs#L30-L54"><code>pid.rs:30-58</code></a>). They are called only under feature
 <code>verify</code>, default to empty functions and make no shared-memory access
 of their own; <code>promotion_hook</code> tells a GenMC program which way a lookup
 came to promote (section <a href="#15-genmc-cross-reference">15</a>).</li>
-<li><code>PromotionSampler</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L13-L38"><code>cache/promotion.rs:13-38</code></a>), which decides whether a
+<li><code>PromotionSampler</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L13-L38"><code>cache/promotion.rs:13-38</code></a>), which decides whether a
 lookup rechecks readiness. Every proof quantifies over both of its answers;
 it affects hit rate and liveness only.</li>
 </ul>
@@ -408,7 +408,7 @@ drawn from a per-registration SplitMix64 stream. A promotion is
 also dropped if the epoch moved on or the arena has no room, and when no
 index slot accepts it, without rotating. Once published, it triggers the
 same maintenance as an insert: a rotation at the occupancy target.
-The C API's lookup documentation (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/ffi.rs#L496-L504"><code>ffi.rs:496-504</code></a>, and the
+The C API's lookup documentation (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/ffi.rs#L496-L504"><code>ffi.rs:496-504</code></a>, and the
 generated <code>shm_gen_cache.h</code>) states the same contract, including that the
 reprobe's result, possibly a miss or <code>InsufficientCapacity</code>, replaces the hit.</p>
 <h3 id="32-terms">3.2 Terms</h3>
@@ -437,7 +437,7 @@ stamping <math><mi>e</mi></math>, or the initial value for <math><mrow><mi>e</mi
 <li>A <strong>pass</strong> is one iteration of <code>reserve()</code>'s loop, from <a class="ref ev" href="#ev-w1">W1</a> to the
 return of a reservation or to <a class="ref ev" href="#ev-w7">W7</a>. A <strong>store attempt</strong> <math><mi>w</mi></math> is a pass
 whose <a class="ref ev" href="#ev-b0">B0</a> saw <math><mrow><mo>(</mo><mi mathvariant="normal">stamp</mi><mspace width="0.3em"></mspace><msub><mi>e</mi><mi>w</mi></msub><mo>,</mo><mi mathvariant="normal">unsealed</mi><mo>)</mo></mrow></math>, extended through its record
-stores, <a class="ref ev" href="#ev-i2">I2</a> and <a class="ref ev" href="#ev-w6">W6</a> to its <a class="ref ev" href="#ev-w7">W7</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L175"><code>store.rs:175</code></a>, or <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L352"><code>store.rs:352</code></a> for an
+stores, <a class="ref ev" href="#ev-i2">I2</a> and <a class="ref ev" href="#ev-w6">W6</a> to its <a class="ref ev" href="#ev-w7">W7</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L175"><code>store.rs:175</code></a>, or <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L352"><code>store.rs:352</code></a> for an
 attempt that stops). Its <em>actions from <a class="ref ev" href="#ev-w2">W2</a> to <a class="ref ev" href="#ev-w7">W7</a></em> are the events of the
 pass from <a class="ref ev" href="#ev-w2">W2</a> on, and of the store that follows it, up to that <a class="ref ev" href="#ev-w7">W7</a> (or to
 the end, if the thread dies). An attempt may stop at the target check
@@ -492,7 +492,7 @@ publication belongs to one attempt (<a class="ref fact" href="#f2">F2</a>) of th
 <tr>
 <td><code>magic</code></td>
 <td>init CAS (<code>SeqCst</code>), init store (release)</td>
-<td>the init CAS reads the header word (<code>SeqCst</code>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L191"><code>cache/mod.rs:191</code></a>); <a class="ref asm" href="#a1">A1</a> abstracts completed initialization for concurrency proofs</td>
+<td>the init CAS reads the header word (<code>SeqCst</code>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L191"><code>cache/mod.rs:191</code></a>); <a class="ref asm" href="#a1">A1</a> abstracts completed initialization for concurrency proofs</td>
 </tr>
 <tr>
 <td>header parameters</td>
@@ -567,79 +567,79 @@ conventions and the renames.</p>
 <td>W1</td>
 <td>Load <code>global_epoch</code>, value <math><mi>e</mi></math>, at the start of every pass</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L264"><code>store.rs:264</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L264"><code>store.rs:264</code></a></td>
 </tr>
 <tr id="ev-w2">
 <td>W2</td>
 <td>Pin: <code>pinned_epoch := e</code></td>
 <td>release</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L272"><code>store.rs:272</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L272"><code>store.rs:272</code></a></td>
 </tr>
 <tr id="ev-w3">
 <td>W3</td>
 <td>Fence of the pass, in every pass, a rotator's included (the writer role): store-buffering partner of <a class="ref ev" href="#ev-r1f">R1F</a> (reuse and readiness scans) and of <a class="ref ev" href="#ev-c2">C2</a> (<a class="ref inv" href="#pn3-pin-visibility">PN3</a>), and the release fence <a class="ref ev" href="#ev-d6">D6</a> synchronises with (<a class="ref inv" href="#ht1-recycled-reads-are-caught">HT1</a>). The scan side of <a class="ref inv" href="#pn3-pin-visibility">PN3</a> is <a class="ref ev" href="#ev-r1f">R1F</a> or <a class="ref ev" href="#ev-c2">C2</a>, never a <a class="ref ev" href="#ev-w3">W3</a></td>
 <td><code>SeqCst</code></td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L284"><code>store.rs:284</code></a> (comment <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L274-L283">274-283</a>)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L284"><code>store.rs:284</code></a> (comment <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L274-L283">274-283</a>)</td>
 </tr>
 <tr id="ev-b0">
 <td>B0</td>
 <td>Precheck: load <math><mi mathvariant="normal">ctl</mi></math>, plus the occupancy target check (relaxed <code>exact_occupancy</code> load, or the estimator). The pass goes on only on <math><mrow><mo>(</mo><mi mathvariant="normal">stamp</mi><mspace width="0.3em"></mspace><mi>e</mi><mo>,</mo><mi mathvariant="normal">unsealed</mi><mo>)</mo></mrow></math> and target not reached</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L288"><code>store.rs:288</code></a> (checks <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L296-L301">296-301</a>); <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/occupancy.rs#L63"><code>occupancy.rs:63</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L288"><code>store.rs:288</code></a> (checks <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L296-L301">296-301</a>); <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/occupancy.rs#L63"><code>occupancy.rs:63</code></a></td>
 </tr>
 <tr id="ev-h1">
 <td>H1</td>
 <td>Chunk cut: load <code>chunk_epoch</code>, <code>chunk_cursor</code>, <code>chunk_end</code>; store <code>chunk_cursor := cursor + n</code> after the <code>u32</code> room check</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L303-L308"><code>store.rs:303-308</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L303-L308"><code>store.rs:303-308</code></a></td>
 </tr>
 <tr id="ev-b1">
 <td>B1</td>
 <td>Reservation: <code>fetch_add</code> on <code>ctl.bump</code> (bits 33-63; a carry out of bit 63 is discarded). Succeeds iff the old value is <math><mrow><mo>(</mo><mi mathvariant="normal">stamp</mi><mspace width="0.3em"></mspace><mi>e</mi><mo>,</mo><mi mathvariant="normal">unsealed</mi><mo>,</mo><mi mathvariant="normal">bump</mi><mo>+</mo><mi>n</mi><mo>≤</mo><mi mathvariant="normal">capacity</mi><mo>)</mo></mrow></math></td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L327-L331"><code>store.rs:327-331</code></a> (check <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L332">332</a>)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L327-L331"><code>store.rs:327-331</code></a> (check <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L332">332</a>)</td>
 </tr>
 <tr id="ev-h2">
 <td>H2</td>
 <td>Chunk claim after a successful <a class="ref ev" href="#ev-b1">B1</a> that claimed a chunk: <code>chunk_epoch := e</code>, <code>chunk_cursor := bump + n</code>, <code>chunk_end := min(bump + claim, capacity)</code></td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L333-L341"><code>store.rs:333-341</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L333-L341"><code>store.rs:333-341</code></a></td>
 </tr>
 <tr id="ev-w4">
 <td>W4</td>
 <td>Payload stores: lengths word, padded key words, padded value words</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L152"><code>store.rs:152</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L154"><code>154</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L155"><code>155</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/util.rs#L129"><code>util.rs:129</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/util.rs#L138"><code>138</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/util.rs#L161"><code>161</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L152"><code>store.rs:152</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L154"><code>154</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L155"><code>155</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/util.rs#L129"><code>util.rs:129</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/util.rs#L138"><code>138</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/util.rs#L161"><code>161</code></a></td>
 </tr>
 <tr id="ev-w5">
 <td>W5</td>
 <td>Record header <code>(e as u32, len)</code>, after the payload</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L158"><code>store.rs:158</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L158"><code>store.rs:158</code></a></td>
 </tr>
 <tr id="ev-i0">
 <td>I0</td>
 <td><code>table_put()</code>'s load of an index slot, on which the <a class="ref ev" href="#ev-i2">I2</a> CAS or store is predicated (a failed CAS re-reads the same slot)</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L60"><code>put.rs:60</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L60"><code>put.rs:60</code></a></td>
 </tr>
 <tr id="ev-i2">
 <td>I2</td>
 <td>Publication: CAS over an entry without the attempt's stamp, or (never for a promotion) store over an entry with it for the same key</td>
 <td>release</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L86-L88"><code>put.rs:86-88</code></a> (CAS), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L78"><code>put.rs:78</code></a> (store)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L86-L88"><code>put.rs:86-88</code></a> (CAS), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L78"><code>put.rs:78</code></a> (store)</td>
 </tr>
 <tr id="ev-w6">
 <td>W6</td>
 <td>End of publication: occupancy accounting <code>entry_published()</code> after <a class="ref ev" href="#ev-i2">I2</a> (exact counter <code>fetch_add</code> for a new entry, or a relaxed load of that same counter for an existing entry; the estimator touches no shared word). Both exact-mode accesses are W6 events at the fixed occupancy word. The verify hook <code>after_record_publication</code> follows, before <a class="ref ev" href="#ev-w7">W7</a>. No safety proof depends on its value; <a class="ref inv" href="#qu1-quiescence-before-reuse">QU1</a> orders it before the reusing <a class="ref ev" href="#ev-r4">R4</a></td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L230-L240"><code>store.rs:230-240</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/occupancy.rs#L67-L85"><code>occupancy.rs:67-85</code></a>; hook <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L173-L174"><code>store.rs:173-174</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L230-L240"><code>store.rs:230-240</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/occupancy.rs#L67-L85"><code>occupancy.rs:67-85</code></a>; hook <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L173-L174"><code>store.rs:173-174</code></a></td>
 </tr>
 <tr id="ev-w7">
 <td>W7</td>
 <td>Unpin: <code>pinned_epoch.swap(UNPINNED)</code>. Ends the pass, after publication or when the pass is abandoned before <code>rotate()</code>. The swap serves only the <code>ROTATION_WAITING</code> wake</td>
 <td>release</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L164-L168"><code>participant.rs:164-168</code></a>; called at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L175"><code>store.rs:175</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L352"><code>store.rs:352</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L164-L168"><code>participant.rs:164-168</code></a>; called at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L175"><code>store.rs:175</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L352"><code>store.rs:352</code></a></td>
 </tr>
 </tbody>
 </table></div>
@@ -659,43 +659,43 @@ conventions and the renames.</p>
 <td>id allocation</td>
 <td><code>next_registration_id()</code>: <code>fetch_add</code> on <code>registration_counter</code>, skipping 0 (<code>u32</code>, wraps); the source of the fresh ids <a class="ref asm" href="#a4">A4</a> relies on</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L21-L28"><code>participant.rs:21-28</code></a>; callers <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L268"><code>cache/mod.rs:268</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L208"><code>rotation.rs:210</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L237"><code>rotation.rs:239</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L21-L28"><code>participant.rs:21-28</code></a>; callers <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L268"><code>cache/mod.rs:268</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L208"><code>rotation.rs:210</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L237"><code>rotation.rs:239</code></a></td>
 </tr>
 <tr>
 <td><code>is_free</code> precheck</td>
 <td>Load a slot's state before trying <a class="ref ev" href="#ev-p1">P1</a>; no proof needs it</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L353"><code>participant.rs:353</code></a> via <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L271"><code>cache/mod.rs:271</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L353"><code>participant.rs:353</code></a> via <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L271"><code>cache/mod.rs:271</code></a></td>
 </tr>
 <tr id="ev-p1">
 <td>P1</td>
 <td>Claim: CAS <code>FREE -&gt; INITIALIZING(pid, id)</code></td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L201-L203"><code>participant.rs:201-203</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L201-L203"><code>participant.rs:201-203</code></a></td>
 </tr>
 <tr id="ev-t1">
 <td>T1</td>
 <td>Store the claimant's start time</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L211"><code>participant.rs:211</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L211"><code>participant.rs:211</code></a></td>
 </tr>
 <tr id="ev-h0">
 <td>H0</td>
 <td>Chunk reset <code>reset_chunk()</code>: store 0 to the three chunk words; in <code>claim()</code> between <a class="ref ev" href="#ev-p1">P1</a> and <a class="ref ev" href="#ev-p2">P2</a>, in <code>steal()</code> after <a class="ref ev" href="#ev-p6">P6</a>, and at slot initialisation. Only the <code>chunk_epoch</code> store matters</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L189-L193"><code>participant.rs:189-193</code></a>; calls at 182, 213, 346</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L189-L193"><code>participant.rs:189-193</code></a>; calls at 182, 213, 346</td>
 </tr>
 <tr id="ev-p2">
 <td>P2</td>
 <td>Register: CAS <code>INITIALIZING -&gt; REGISTERED</code></td>
 <td>release</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L216-L218"><code>participant.rs:216-218</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L216-L218"><code>participant.rs:216-218</code></a></td>
 </tr>
 <tr id="ev-p3">
 <td>P3</td>
 <td>Release the slot: load the own state, then CAS <code>REGISTERED -&gt; FREE</code></td>
 <td>relaxed load; release CAS</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L231"><code>participant.rs:231</code></a> (load), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L239-L241"><code>239-241</code></a> (CAS)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L231"><code>participant.rs:231</code></a> (load), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L239-L241"><code>239-241</code></a> (CAS)</td>
 </tr>
 </tbody>
 </table></div>
@@ -715,43 +715,43 @@ conventions and the renames.</p>
 <td>P0</td>
 <td>Load the slot state</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L280"><code>participant.rs:280</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L280"><code>participant.rs:280</code></a></td>
 </tr>
 <tr id="ev-t0">
 <td>T0</td>
 <td>Load the start time paired with the claim <a class="ref ev" href="#ev-p0">P0</a> read</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L295"><code>participant.rs:295</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L295"><code>participant.rs:295</code></a></td>
 </tr>
 <tr>
 <td><math><mi mathvariant="normal">vd</mi></math></td>
 <td>Backend verdict <code>is_live(pid)</code> (INITIALIZING) or <code>is_live_since(pid, st)</code> (REGISTERED) returning <code>Ok(false)</code>. Not a memory event: the target of <a class="ref asm" href="#a3">A3</a>'s <math><mi mathvariant="normal">asw</mi></math> edge</td>
 <td>-</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L297-L302"><code>participant.rs:297-302</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L297-L302"><code>participant.rs:297-302</code></a></td>
 </tr>
 <tr id="ev-p4">
 <td>P4</td>
 <td>Steal: CAS <code>current -&gt; INITIALIZING(me)</code>; a failure loads the newer state</td>
 <td>release; failure acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L314-L316"><code>participant.rs:314-316</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L314-L316"><code>participant.rs:314-316</code></a></td>
 </tr>
 <tr id="ev-t2">
 <td>T2</td>
 <td>Store the stealer's start time</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L322"><code>participant.rs:322</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L322"><code>participant.rs:322</code></a></td>
 </tr>
 <tr id="ev-p5">
 <td>P5</td>
 <td>Register: CAS <code>INITIALIZING -&gt; REGISTERED</code></td>
 <td>release</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L324-L326"><code>participant.rs:324-326</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L324-L326"><code>participant.rs:324-326</code></a></td>
 </tr>
 <tr id="ev-p6">
 <td>P6</td>
 <td>Clear the dead pin: <code>pinned_epoch := UNPINNED</code>, standing in for the dead <a class="ref ev" href="#ev-w7">W7</a>; then wake and <a class="ref ev" href="#ev-h0">H0</a></td>
 <td>release</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L338"><code>participant.rs:338</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L338"><code>participant.rs:338</code></a></td>
 </tr>
 </tbody>
 </table></div>
@@ -770,31 +770,31 @@ conventions and the renames.</p>
 <td>O0</td>
 <td>Epoch precheck before each ownership attempt; no proof needs it</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L281"><code>rotation.rs:283</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L301"><code>303</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L281"><code>rotation.rs:283</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L301"><code>303</code></a></td>
 </tr>
 <tr id="ev-o1">
 <td>O1</td>
 <td>Load the owner word (<code>WaitForOwner</code> only)</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L305"><code>rotation.rs:307</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L305"><code>rotation.rs:307</code></a></td>
 </tr>
 <tr id="ev-o2">
 <td>O2</td>
 <td>Take ownership from <code>NONE</code>: CAS</td>
 <td><code>AcqRel</code>; failure relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L287-L292"><code>rotation.rs:289-294</code></a> (<code>SkipBusyOwner</code>, no <a class="ref ev" href="#ev-o1">O1</a>), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L308-L310"><code>310-312</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L287-L292"><code>rotation.rs:289-294</code></a> (<code>SkipBusyOwner</code>, no <a class="ref ev" href="#ev-o1">O1</a>), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L308-L310"><code>310-312</code></a></td>
 </tr>
 <tr id="ev-o3">
 <td>O3</td>
 <td>Take over a dead owner: CAS <code>owner -&gt; me</code> after <code>reap_owner()</code> returned true</td>
 <td><code>Release</code>; failure relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L334-L336"><code>rotation.rs:336-338</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L334-L336"><code>rotation.rs:336-338</code></a></td>
 </tr>
 <tr id="ev-o4">
 <td>O4</td>
 <td>Release ownership: store <code>NONE</code></td>
 <td>release</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L258-L260"><code>rotation.rs:260-262</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L258-L260"><code>rotation.rs:260-262</code></a></td>
 </tr>
 </tbody>
 </table></div>
@@ -813,65 +813,65 @@ conventions and the renames.</p>
 <td>R0</td>
 <td>Recheck the epoch under ownership; the tenure goes on only if it reads <math><mi>e</mi></math></td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L89"><code>rotation.rs:89</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L89"><code>rotation.rs:89</code></a></td>
 </tr>
 <tr id="ev-r1">
 <td>R1</td>
 <td>Seal loop on the current arena's <math><mi mathvariant="normal">ctl</mi></math>: initial load, then CAS setting <code>SEALED</code> and keeping stamp and bump. Exits on its own seal or on a sealed word of stamp <math><mi>e</mi></math></td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L94"><code>rotation.rs:94</code></a> (load), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L96-L123"><code>96-123</code></a> (CAS <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L114-L119">115-120</a>)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L94"><code>rotation.rs:94</code></a> (load), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L96-L123"><code>96-123</code></a> (CAS <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L114-L119">115-120</a>)</td>
 </tr>
 <tr id="ev-z">
 <td><span class="m"><span class="ev">Z</span><math><mrow><mo>(</mo><mi>e</mi><mo>)</mo></mrow></math></span></td>
 <td>Notation, not a label: the successful <a class="ref ev" href="#ev-r1">R1</a> on the <math><mi mathvariant="normal">ctl</mi></math> word of stamp <math><mi>e</mi></math>, by whichever tenure (unique, <a class="ref inv" href="#ep2-seal-persistence">EP2</a>)</td>
 <td>-</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L114-L119"><code>rotation.rs:114-119</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L114-L119"><code>rotation.rs:114-119</code></a></td>
 </tr>
 <tr id="ev-r1f">
 <td>R1F</td>
 <td>Post-seal fence. It runs once the seal loop has exited, on the tenure's own successful <a class="ref ev" href="#ev-r1">R1</a> or on a <math><mi mathvariant="normal">ctl</mi></math> load (the initial load or a failed CAS) that returned stamp <math><mi>e</mi></math>, sealed, and before the first <a class="ref ev" href="#ev-r3">R3</a> load; no return lies in between. Store-buffering partner of every writer's <a class="ref ev" href="#ev-w3">W3</a>, for the reuse scan and for the readiness scan of <math><mi>e</mi></math> (<a class="ref inv" href="#pn3-pin-visibility">PN3</a>)</td>
 <td><code>SeqCst</code></td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L130"><code>rotation.rs:130</code></a> (comment <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L125-L129"><code>125-129</code></a>), in <code>rotate_owned()</code></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L130"><code>rotation.rs:130</code></a> (comment <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L125-L129"><code>125-129</code></a>), in <code>rotate_owned()</code></td>
 </tr>
 <tr id="ev-r3">
 <td>R3</td>
 <td>Scan: load every slot's pin; passes on <code>UNPINNED</code> or <math><mrow><mi mathvariant="normal">pin</mi><mo>≥</mo><mi>e</mi><mo>−</mo><mn>1</mn></mrow></math> (flag masked); reaps the slot after the wait budget. Every load, reloads in the wait and reap loop included, also tests whether the pinned epoch (flag masked) is <math><mi>e</mi></math>, and then clears the local readiness flag; an observation of <math><mi>e</mi></math> takes neither the wait nor the reap edge. A reap triggered by an older observation may clear a pin that changed meanwhile (<a class="ref inv" href="#rd1-certificate-soundness">RD1</a>)</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L132-L180"><code>rotation.rs:132-180</code></a> (flag <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L131"><code>131</code></a>, load <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L141"><code>141</code></a>, readiness test <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L143-L147"><code>143-147</code></a>, pass test <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L148-L150"><code>148-150</code></a>)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L132-L180"><code>rotation.rs:132-180</code></a> (flag <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L131"><code>131</code></a>, load <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L141"><code>141</code></a>, readiness test <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L143-L147"><code>143-147</code></a>, pass test <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L148-L150"><code>148-150</code></a>)</td>
 </tr>
 <tr id="ev-r3a">
 <td>R3A</td>
 <td>Announce, inside <a class="ref ev" href="#ev-r3">R3</a>'s wait loop: CAS <code>pin -&gt; pin | ROTATION_WAITING</code> before blocking; an RMW keeping the pinned epoch</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L157-L161"><code>rotation.rs:157-161</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L157-L161"><code>rotation.rs:157-161</code></a></td>
 </tr>
 <tr>
 <td><code>reap_pinner()</code></td>
 <td>Procedure, not a label: <code>steal()</code> then <a class="ref ev" href="#ev-p3">P3</a> of the stolen slot; the rotator briefly holds a second registration</td>
 <td>-</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L206-L213"><code>rotation.rs:208-215</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L206-L213"><code>rotation.rs:208-215</code></a></td>
 </tr>
 <tr id="ev-r3c">
 <td>R3C</td>
 <td>Rotation certificate: <code>promotion_ready_epoch.fetch_max(e, Release)</code> on arena <math><mrow><mi>e</mi><mo lspace="0.3em" rspace="0.3em">mod</mo><mn>3</mn></mrow></math>. It runs only if no <a class="ref ev" href="#ev-r3">R3</a> load after <a class="ref ev" href="#ev-r1f">R1F</a> returned pinned epoch <math><mi>e</mi></math>; after the scan, before <a class="ref ev" href="#ev-r4">R4</a> and <a class="ref ev" href="#ev-r5">R5</a>, with no error path in between</td>
 <td>release RMW</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L181-L185"><code>rotation.rs:181-185</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L74-L78"><code>promotion.rs:74-78</code></a> (<code>mark_promotion_ready()</code>)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L181-L185"><code>rotation.rs:181-185</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L74-L78"><code>promotion.rs:74-78</code></a> (<code>mark_promotion_ready()</code>)</td>
 </tr>
 <tr id="ev-r4">
 <td>R4</td>
 <td>Reset arena <math><mrow><mo>(</mo><mi>e</mi><mo>+</mo><mn>1</mn><mo>)</mo><mo lspace="0.3em" rspace="0.3em">mod</mo><mn>3</mn></mrow></math>: <code>exact_occupancy := 0</code> (exact mode), <math><mrow><mi mathvariant="normal">ctl</mi><mo>≔</mo><mo>(</mo><mi>e</mi><mo>+</mo><mn>1</mn><mo>,</mo><mi mathvariant="normal">unsealed</mi><mo>,</mo><mn>0</mn><mo>)</mo></mrow></math></td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L189-L194"><code>rotation.rs:189-194</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L189-L194"><code>rotation.rs:189-194</code></a></td>
 </tr>
 <tr id="ev-r5">
 <td>R5</td>
 <td>Publish <code>global_epoch := e + 1</code></td>
 <td>release</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L197"><code>rotation.rs:199</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L197"><code>rotation.rs:199</code></a></td>
 </tr>
 </tbody>
 </table></div>
-<p><strong>Takeover</strong>: <code>reap_owner()</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L232-L245"><code>rotation.rs:234-247</code></a>) is a procedure, not
+<p><strong>Takeover</strong>: <code>reap_owner()</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L232-L245"><code>rotation.rs:234-247</code></a>) is a procedure, not
 a label. It runs <code>steal()</code> restricted to the owner's registration id (<a class="ref ev" href="#ev-p0">P0</a>,
 <a class="ref ev" href="#ev-t0">T0</a>, <math><mi mathvariant="normal">vd</mi></math>, <a class="ref ev" href="#ev-p4">P4</a>, <a class="ref ev" href="#ev-t2">T2</a>, <a class="ref ev" href="#ev-p5">P5</a>, <a class="ref ev" href="#ev-p6">P6</a>, <a class="ref ev" href="#ev-h0">H0</a>), then <a class="ref ev" href="#ev-p3">P3</a> of a stolen slot; <a class="ref ev" href="#ev-o3">O3</a> follows
 unless the outcome is <code>Live</code>.</p>
@@ -891,106 +891,106 @@ unless the outcome is <code>Live</code>.</p>
 <td>V1</td>
 <td>Load <code>global_epoch</code>, value <math><mi>e</mi></math>; probe <math><mi>e</mi></math> then <math><mrow><mi>e</mi><mo>−</mo><mn>1</mn></mrow></math></td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L77"><code>lookup.rs:77</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L77"><code>lookup.rs:77</code></a></td>
 </tr>
 <tr id="ev-c0">
 <td>C0</td>
 <td>Readiness load, in <code>probe::&lt;true&gt;</code> only, which only the previous-generation probe of <code>lookup()</code> uses: load the probed arena's <code>promotion_ready_epoch</code> and compare it exactly, as a full 64-bit value, with the probed epoch <math><mrow><mi>e</mi><mo>−</mo><mn>1</mn></mrow></math>. Sequenced before the probe's home <a class="ref ev" href="#ev-i1">I1</a>, so before every load of the probe. Its result is the only thing that sets the hit's <code>promotion_ready</code> flag</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L74"><code>probe.rs:74</code></a>; called from <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L102-L113"><code>lookup.rs:102-113</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L74"><code>probe.rs:74</code></a>; called from <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L102-L113"><code>lookup.rs:102-113</code></a></td>
 </tr>
 <tr id="ev-i1">
 <td>I1</td>
 <td>Index load: home slot, group scan, sequential scan</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L99"><code>probe.rs:99</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L269"><code>269</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L220"><code>220</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L99"><code>probe.rs:99</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L269"><code>269</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L220"><code>220</code></a></td>
 </tr>
 <tr id="ev-i1f">
 <td>I1F</td>
 <td>Fence once <a class="ref ev" href="#ev-i1">I1</a> selected a candidate</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L151"><code>probe.rs:151</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L151"><code>probe.rs:151</code></a></td>
 </tr>
 <tr id="ev-d4">
 <td>D4</td>
 <td>Record header load, in <code>probe()</code> and in <code>entry_has_key()</code></td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L159"><code>probe.rs:159</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L125"><code>put.rs:125</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L159"><code>probe.rs:159</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L125"><code>put.rs:125</code></a></td>
 </tr>
 <tr id="ev-d5">
 <td>D5</td>
 <td>Payload loads: lengths word, key words, and in <code>probe()</code> the value copy</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L171"><code>probe.rs:171</code></a> (lengths), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L181"><code>181</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/records.rs#L99"><code>records.rs:99</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/records.rs#L108"><code>108</code></a> (key), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L191"><code>probe.rs:191</code></a> (value); <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L135"><code>put.rs:135</code></a> (lengths), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L146"><code>146</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/records.rs"><code>records.rs</code></a> (key)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L171"><code>probe.rs:171</code></a> (lengths), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L181"><code>181</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/records.rs#L99"><code>records.rs:99</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/records.rs#L108"><code>108</code></a> (key), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L191"><code>probe.rs:191</code></a> (value); <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L135"><code>put.rs:135</code></a> (lengths), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L146"><code>146</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/records.rs"><code>records.rs</code></a> (key)</td>
 </tr>
 <tr id="ev-d6">
 <td>D6</td>
 <td>Fence after the copy; <code>probe()</code> only</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L199"><code>probe.rs:199</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L199"><code>probe.rs:199</code></a></td>
 </tr>
 <tr id="ev-v2">
 <td>V2</td>
 <td>Reload the epoch; <code>Retry</code> when the <code>u32</code> age of the probed stamp exceeds 1</td>
 <td>relaxed</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L200-L204"><code>probe.rs:200-204</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L200-L204"><code>probe.rs:200-204</code></a></td>
 </tr>
 <tr id="ev-c1">
 <td>C1</td>
 <td>Recheck epoch load. Reached only after a validated hit in <math><mrow><mi>e</mi><mo>−</mo><mn>1</mn></mrow></math> whose <a class="ref ev" href="#ev-c0">C0</a> did not certify, and only when <code>PromotionSampler::should_recheck</code> returns true. The recheck goes on only if it reads <math><mi>e</mi></math>, <a class="ref ev" href="#ev-v1">V1</a>'s value</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L56"><code>promotion.rs:56</code></a>, via <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L182-L209"><code>lookup.rs:182-209</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L56"><code>promotion.rs:56</code></a>, via <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L182-L209"><code>lookup.rs:182-209</code></a></td>
 </tr>
 <tr id="ev-c2">
 <td>C2</td>
 <td>Recheck fence, after <a class="ref ev" href="#ev-c1">C1</a> and before <a class="ref ev" href="#ev-c3">C3</a></td>
 <td><code>SeqCst</code></td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L59"><code>promotion.rs:59</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L59"><code>promotion.rs:59</code></a></td>
 </tr>
 <tr id="ev-c3">
 <td>C3</td>
 <td>Recheck pin loads: one load of every slot's pin (<code>0..participant_capacity</code>). The recheck fails, without waiting or reaping, if any returns pinned epoch <math><mrow><mi>e</mi><mo>−</mo><mn>1</mn></mrow></math> (flag masked)</td>
 <td>acquire</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L60-L65"><code>promotion.rs:60-65</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L60-L65"><code>promotion.rs:60-65</code></a></td>
 </tr>
 <tr id="ev-c4">
 <td>C4</td>
 <td>Recheck certificate: <code>promotion_ready_epoch.fetch_max(e - 1, Release)</code> on arena <math><mrow><mo>(</mo><mi>e</mi><mo>−</mo><mn>1</mn><mo>)</mo><mo lspace="0.3em" rspace="0.3em">mod</mo><mn>3</mn></mrow></math>, after every <a class="ref ev" href="#ev-c3">C3</a> load passed; sequenced before the reprobe</td>
 <td>release RMW</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L66"><code>promotion.rs:66</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L74-L78"><code>promotion.rs:74-78</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L66"><code>promotion.rs:66</code></a> -&gt; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L74-L78"><code>promotion.rs:74-78</code></a></td>
 </tr>
 <tr>
 <td><code>reprobe_for_promotion()</code></td>
 <td>Procedure, not a label (the <em>reprobe</em>): the sampler, <a class="ref ev" href="#ev-c1">C1</a>-<a class="ref ev" href="#ev-c4">C4</a>, then a <code>probe::&lt;false&gt;</code> of <math><mrow><mi>e</mi><mo>−</mo><mn>1</mn></mrow></math>, which repeats <a class="ref ev" href="#ev-i1">I1</a>, <a class="ref ev" href="#ev-i1f">I1F</a>, <a class="ref ev" href="#ev-d4">D4</a>-<a class="ref ev" href="#ev-d6">D6</a> and <a class="ref ev" href="#ev-v2">V2</a> without <a class="ref ev" href="#ev-c0">C0</a>. Its result replaces the hit, the output words and the value length: <code>Ok</code> makes the lookup promote; <code>Retry</code> restarts the pass; <code>Miss</code> returns a miss; <code>InsufficientCapacity</code> goes to the caller. Out of line (<code>#[cold]</code>, <code>#[inline(never)]</code>) but on the lookup's thread, so sequenced after <a class="ref ev" href="#ev-v1">V1</a> and the first probes</td>
 <td>-</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L182-L209"><code>lookup.rs:182-209</code></a>, and the match in <code>lookup()</code>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L127-L147"><code>127-147</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L182-L209"><code>lookup.rs:182-209</code></a>, and the match in <code>lookup()</code>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L127-L147"><code>127-147</code></a></td>
 </tr>
 <tr id="ev-cert">
 <td><span class="m"><span class="ev">Cert</span><math><mrow><mo>(</mo><mi>n</mi><mo>)</mo></mrow></math></span></td>
 <td>Notation, not a label: any certificate for <math><mi>n</mi></math>, either the <a class="ref ev" href="#ev-r3c">R3C</a> of a tenure with <span class="m"><a class="ref ev" href="#ev-r0">R0</a> <math><mrow><mo>=</mo><mi>n</mi></mrow></math></span> or the <a class="ref ev" href="#ev-c4">C4</a> of a recheck whose <a class="ref ev" href="#ev-c1">C1</a> read <math><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></math>. Each is a release <code>fetch_max</code> with argument <math><mi>n</mi></math> on the readiness word of arena <math><mrow><mi>n</mi><mo lspace="0.3em" rspace="0.3em">mod</mo><mn>3</mn></mrow></math></td>
 <td>-</td>
-<td><code>mark_promotion_ready()</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L74-L78"><code>promotion.rs:74-78</code></a>), called at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L184"><code>rotation.rs:184</code></a> and <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L66"><code>promotion.rs:66</code></a></td>
+<td><code>mark_promotion_ready()</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L74-L78"><code>promotion.rs:74-78</code></a>), called at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L184"><code>rotation.rs:184</code></a> and <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L66"><code>promotion.rs:66</code></a></td>
 </tr>
 </tbody>
 </table></div>
 <p><strong>Initialisation</strong> (<math><mi mathvariant="normal">init</mi></math>, notation): <code>Cache::initialize</code> and
-<code>initialize_storage</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L172-L258"><code>cache/mod.rs:172-258</code></a>). Magic CAS, plain header
+<code>initialize_storage</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L172-L258"><code>cache/mod.rs:172-258</code></a>). Magic CAS, plain header
 parameters, <code>registration_counter := 1</code>, <code>global_epoch := 0</code>,
 <code>rotation_owner := 0</code>, slots (FREE, UNPINNED, start time 0, <a class="ref ev" href="#ev-h0">H0</a>;
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L178-L183"><code>participant.rs:178-183</code></a>), <math><mi mathvariant="normal">ctl</mi></math> words (arena 2: <math><mrow><mo>(</mo><mn>2</mn><mo>,</mo><mi mathvariant="normal">unsealed</mi><mo>,</mo><mn>0</mn><mo>)</mo></mrow></math>;
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L178-L183"><code>participant.rs:178-183</code></a>), <math><mi mathvariant="normal">ctl</mi></math> words (arena 2: <math><mrow><mo>(</mo><mn>2</mn><mo>,</mo><mi mathvariant="normal">unsealed</mi><mo>,</mo><mn>0</mn><mo>)</mo></mrow></math>;
 the others <math><mrow><mo>(</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">sealed</mi><mo>,</mo><mn>0</mn><mo>)</mo></mrow></math>), <code>promotion_ready_epoch := 0</code> for each
-arena (relaxed; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L246"><code>cache/mod.rs:246</code></a>; never reset afterwards, as <a class="ref ev" href="#ev-r4">R4</a>
+arena (relaxed; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L246"><code>cache/mod.rs:246</code></a>; never reset afterwards, as <a class="ref ev" href="#ev-r4">R4</a>
 does not write it), <code>exact_occupancy := 0</code>, zero fill of
-index and records, <code>global_epoch := 2</code> (release, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L256"><code>cache/mod.rs:256</code></a>),
-magic (release, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L257"><code>cache/mod.rs:257</code></a>). By <a class="ref asm" href="#a1">A1</a> it is abstracted as one write
+index and records, <code>global_epoch := 2</code> (release, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L256"><code>cache/mod.rs:256</code></a>),
+magic (release, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L257"><code>cache/mod.rs:257</code></a>). By <a class="ref asm" href="#a1">A1</a> it is abstracted as one write
 per word.</p>
 <p><strong>Accesses omitted from the concurrency event graph.</strong> The production-assertion loads of the caller's own
-pin (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L212"><code>participant.rs:212</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L238"><code>238</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L76"><code>rotation.rs:76</code></a>;
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/lock.rs#L147-L152"><code>lock.rs:150-155</code></a>) and the unconditional own-pin load in <code>UnpinOnExit::drop</code>
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/lock.rs#L175"><code>lock.rs:175</code></a>), and <code>registration_id()</code> building the owner word
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L360"><code>participant.rs:360</code></a>, via <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L278"><code>rotation.rs:280</code></a>) read words that only the
+pin (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L212"><code>participant.rs:212</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L238"><code>238</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L76"><code>rotation.rs:76</code></a>;
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/lock.rs#L147-L152"><code>lock.rs:150-155</code></a>) and the unconditional own-pin load in <code>UnpinOnExit::drop</code>
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/lock.rs#L175"><code>lock.rs:175</code></a>), and <code>registration_id()</code> building the owner word
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L360"><code>participant.rs:360</code></a>, via <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L278"><code>rotation.rs:280</code></a>) read words that only the
 caller writes: they are sequential. The <code>WordHalf::read</code> loads of <code>BoundedWait</code>
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/wait.rs#L81"><code>wait.rs:81</code></a>) only decide whether to sleep. Their addresses, and those of the own-slot
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/wait.rs#L81"><code>wait.rs:81</code></a>) only decide whether to sleep. Their addresses, and those of the own-slot
 loads above (the claim assertion uses the registration scan index), are nevertheless covered by BD2: the wait watches a range-loop
 participant pin or the header rotation-owner word, and own-slot loads use
 the slot retained from registration, a scan slot, or the slot decoded from
@@ -1000,7 +1000,7 @@ The initialization magic CAS reads the header word at byte 0 before the
 <a class="ref asm" href="#a1">A1</a> abstraction. On AArch64, <code>arm_wfet</code>'s
 <code>ldxr</code> reads the low half of a scan pin or the high half of the
 header rotation-owner word at byte 60
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/wait.rs#L1045-L1057"><code>wait.rs:1045-1057</code></a>).
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/wait.rs#L1045-L1057"><code>wait.rs:1045-1057</code></a>).
 <a class="ref ev" href="#ev-o0">O0</a> and the <code>is_free</code> precheck
 only short-cut: <a class="ref ev" href="#ev-r0">R0</a> and <a class="ref ev" href="#ev-p1">P1</a> are the accesses that decide.
 Besides <a class="ref ev" href="#ev-c0">C0</a>, only test code reads the readiness word: the unit tests in
@@ -1050,19 +1050,19 @@ of the source, checked by reading (and, where noted, by GenMC).</p>
 <tr id="a1">
 <td>A1</td>
 <td>Initialisation precedes use: every action of <code>Cache::initialize</code> happens before every other action on the mapping, the init store of 0 to the epoch included, so <math><mi mathvariant="normal">init</mi></math> is one write per word.</td>
-<td>Safety contract of <code>initialize</code>, <code>from_raw</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L168-L171"><code>cache/mod.rs:168-171</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L365-L369"><code>365-369</code></a>)</td>
+<td>Safety contract of <code>initialize</code>, <code>from_raw</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L168-L171"><code>cache/mod.rs:168-171</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L365-L369"><code>365-369</code></a>)</td>
 <td><a class="ref inv" href="#sl1-slot-serialisation">SL1</a>, <a class="ref inv" href="#pn1-pin-writes-are-release-serial">PN1</a>, <a class="ref inv" href="#ow2-ownership-is-a-lock-under-hb">OW2</a>, <a class="ref inv" href="#ep1-epoch-sequence">EP1</a>, <a class="ref inv" href="#ep2-seal-persistence">EP2</a></td>
 </tr>
 <tr id="a2">
 <td>A2</td>
 <td>Registrations are sequential: all actions on behalf of a registration are made by the claiming thread and totally ordered by <math><mi mathvariant="normal">sb</mi></math>. Never concurrent, never from a signal handler that interrupted the thread, never in a forked child; none follows its <a class="ref ev" href="#ev-p3">P3</a>. In particular an owner acts under ownership only before its <a class="ref ev" href="#ev-p3">P3</a>, and a rotator's actions under a second registration taken in <code>reap_pinner()</code> are on behalf of that registration (and <math><mi mathvariant="normal">sb</mi></math>-ordered with the rotator's own; section <a href="#32-terms">3.2</a>).</td>
-<td><code>ParticipantLock</code> is <code>!Send</code>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/ffi.rs#L139-L141"><code>ffi.rs:139-141</code></a>; fork guard <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/ffi.rs#L150-L169"><code>ffi.rs:150-169</code></a>; crate README "Limits"</td>
+<td><code>ParticipantLock</code> is <code>!Send</code>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/ffi.rs#L139-L141"><code>ffi.rs:139-141</code></a>; fork guard <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/ffi.rs#L150-L169"><code>ffi.rs:150-169</code></a>; crate README "Limits"</td>
 <td><a class="ref inv" href="#sl1-slot-serialisation">SL1</a>, <a class="ref inv" href="#ow1-takeover-handoff">OW1</a>, <a class="ref inv" href="#pn1-pin-writes-are-release-serial">PN1</a>, <a class="ref inv" href="#pn2-attempt-closure">PN2</a>, <a class="ref inv" href="#sp3-chunk-words-are-sequential">SP3</a></td>
 </tr>
 <tr id="a3">
 <td>A3</td>
 <td>Dead-verdict soundness: if <code>is_live(pid)</code> or <code>is_live_since(pid, st)</code> returns <code>Ok(false)</code> at <math><mi mathvariant="normal">vd</mi></math>, each matching thread incarnation already observed before the verdict has stopped and all its actions <math><mrow><mo lspace="0.3em" rspace="0.3em">hb</mo><mi mathvariant="normal">vd</mi></mrow></math> (an <math><mi mathvariant="normal">asw</mi></math> edge). Matching means the same pid and, when <math><mrow><mi mathvariant="normal">st</mi><mo>≠</mo><mn>0</mn></mrow></math>, the same start time. An incarnation is observed through a chain of <math><mi mathvariant="normal">rf</mi></math> edges from one of its actions to a read <math><mi mathvariant="normal">sb</mi></math>-before the verdict. Later incarnations reusing the pid are outside that verdict's scope. Thread ids are non-zero and below 2^31.</td>
-<td><code>GetPid</code> contract (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/pid.rs#L8-L13"><code>pid.rs:8-13</code></a>); Linux: <code>/proc/&lt;tid&gt;/stat</code> and <code>membarrier(GLOBAL)</code>; ids: <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/linux_pid.rs#L28"><code>linux_pid.rs:28</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/windows_pid.rs#L59"><code>windows_pid.rs:59</code></a></td>
+<td><code>GetPid</code> contract (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/pid.rs#L8-L13"><code>pid.rs:8-13</code></a>); Linux: <code>/proc/&lt;tid&gt;/stat</code> and <code>membarrier(GLOBAL)</code>; ids: <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/linux_pid.rs#L28"><code>linux_pid.rs:28</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/windows_pid.rs#L59"><code>windows_pid.rs:59</code></a></td>
 <td><a class="ref inv" href="#sl1-slot-serialisation">SL1</a>, <a class="ref inv" href="#ow1-takeover-handoff">OW1</a></td>
 </tr>
 <tr id="a4">
@@ -1074,19 +1074,19 @@ of the source, checked by reading (and, where noted, by GenMC).</p>
 <tr id="a5">
 <td>A5</td>
 <td>Configuration: the parameters passed <code>Config::resolve</code>: <code>reservation_adds_fit_bump</code> (record area plus one largest claim per slot below 2^31), a bucket count that is a power-of-two multiple of 8, a record area that is a multiple of 8 and below 2^31, and a largest record <code>max_record_size = 16 + align8(max_key_size) + align8(max_value_size)</code> and a chunk both at most the record area (so the area is at least 16 bytes).</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/config.rs#L81"><code>config.rs:81</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/config.rs#L116"><code>116</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/config.rs#L123-L134"><code>123-134</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/config.rs#L241-L256"><code>241-256</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/config.rs#L81"><code>config.rs:81</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/config.rs#L116"><code>116</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/config.rs#L123-L134"><code>123-134</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/config.rs#L241-L256"><code>241-256</code></a></td>
 <td><a class="ref inv" href="#sp2-bounded-bump-one-failure-per-slot">SP2</a>, <a class="ref inv" href="#sp4-disjoint-in-area-reservations">SP4</a>, <a class="ref inv" href="#bd1-stores-stay-in-the-mapping">BD1</a>, <a class="ref inv" href="#bd2-loads-stay-in-the-mapping-whatever-they-read">BD2</a></td>
 </tr>
 <tr id="a6">
 <td>A6</td>
 <td>Lifetime non-recurrence: an index load ordered after an epoch load returning <code>n</code> may observe an entry published at epoch <code>e</code> only if <code>n &lt; e + 2^32</code>; the zero fill counts as epoch 0. A lookup's final validation must read an epoch less than <code>e + 2^32</code>, where <code>e</code> is the epoch it probes. Both bounds are 2^32 epoch advances, independent of which arena holds the entry.</td>
-<td>Crate README "Limits"; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L138-L143"><code>probe.rs:138-143</code></a></td>
+<td>Crate README "Limits"; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L138-L143"><code>probe.rs:138-143</code></a></td>
 <td><a class="ref inv" href="#ht1-recycled-reads-are-caught">HT1</a>, <a class="ref inv" href="#ht2-hit-integrity">HT2</a>, <a class="ref inv" href="#rb3-key-check-exactness">RB3</a>, <a class="ref inv" href="#rb4-index-shape">RB4</a>, <a class="ref inv" href="#fr2-promotion-freshness">FR2</a>-<a class="ref inv" href="#fr4-retention-the-lookup-does-not-miss">FR4</a> (through <a class="ref inv" href="#ht2-hit-integrity">HT2</a>, and the exact stamps of <a class="ref inv" href="#fr3-read-after-insert-no-older-value">FR3</a> step 6)</td>
 </tr>
 <tr id="a7">
 <td>A7</td>
 <td>Shared parameters: every handle on a mapping uses the initialiser's parameters (<code>participant_capacity</code>, bucket count, record area size). The header copies are never read, so this holds only by the <code>from_raw</code> contract.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L365-L371"><code>cache/mod.rs:365-371</code></a>; crate README "Limits"</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L365-L371"><code>cache/mod.rs:365-371</code></a>; crate README "Limits"</td>
 <td><a class="ref inv" href="#qu1-quiescence-before-reuse">QU1</a> (<a class="ref ev" href="#ev-r3">R3</a> covers every slot), <a class="ref inv" href="#rd1-certificate-soundness">RD1</a> (<a class="ref ev" href="#ev-r3">R3</a>'s readiness test and <a class="ref ev" href="#ev-c3">C3</a> cover every slot), <a class="ref inv" href="#bd1-stores-stay-in-the-mapping">BD1</a>, <a class="ref inv" href="#bd2-loads-stay-in-the-mapping-whatever-they-read">BD2</a></td>
 </tr>
 <tr id="a8">
@@ -1123,91 +1123,91 @@ stamps (<a class="ref ev" href="#ev-d4">D4</a>'s stamp check is redundant with t
 <tr id="f1">
 <td>F1</td>
 <td>Pin discipline, in two parts. <em>(quiet)</em> The registrant makes no write to its pin strictly between a <a class="ref ev" href="#ev-w2">W2</a> and that pass's <a class="ref ev" href="#ev-w7">W7</a>: from <a class="ref ev" href="#ev-w2">W2</a>, <code>reserve()</code> reaches either a reservation exit (after <a class="ref ev" href="#ev-h1">H1</a> or a successful <a class="ref ev" href="#ev-b1">B1</a>), which returns to <code>store()</code> still pinned, or the <a class="ref ev" href="#ev-w7">W7</a> that ends an abandoned attempt; <code>store()</code> then runs <a class="ref ev" href="#ev-w4">W4</a>, <a class="ref ev" href="#ev-w5">W5</a>, <code>publish()</code> (<a class="ref ev" href="#ev-i2">I2</a>, <a class="ref ev" href="#ev-w6">W6</a>) and its <a class="ref ev" href="#ev-w7">W7</a>, none of which but the last writes the pin. <em>(exit)</em> If the registrant writes its pin again after a <a class="ref ev" href="#ev-w2">W2</a>, that pass has run its <a class="ref ev" href="#ev-w7">W7</a>. Per exit: a reservation exit returns pinned to <code>store()</code>, whose every return and repetition (<code>Ok</code>, the rotation after <code>Full</code>, the <code>FullRejected</code> promotion drop, the <code>FullRejected</code> retry) follows its <a class="ref ev" href="#ev-w7">W7</a>; an abandoned attempt runs <a class="ref ev" href="#ev-w7">W7</a> before the promotion <code>Ok(None)</code> exit, the rotation, the rotation's error return and the next pass's <a class="ref ev" href="#ev-w2">W2</a>; the promotion <code>Ok(None)</code> exit for a moved epoch returns before <a class="ref ev" href="#ev-w2">W2</a>, so its pass has none; and <code>store()</code> turns a <code>None</code> from <code>reserve()</code> into <code>Ok(())</code>, unpinned. The registrant writes its pin only at <a class="ref ev" href="#ev-w2">W2</a> and <a class="ref ev" href="#ev-w7">W7</a> (<code>lookup()</code> only through <code>store()</code>); <code>rotate()</code> and <code>release_claim()</code> are entered unpinned.</td>
-<td>(quiet) <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L272"><code>store.rs:272</code></a> (<a class="ref ev" href="#ev-w2">W2</a>), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L284-L346"><code>284-346</code></a> (reservation exits <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L308"><code>308</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L342"><code>342</code></a>), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L352"><code>352</code></a> (<a class="ref ev" href="#ev-w7">W7</a>); <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L147-L175"><code>147-175</code></a>. (exit) <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L142-L146"><code>store.rs:142-146</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L175-L203"><code>175-203</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L269-L271"><code>269-271</code></a> (before <a class="ref ev" href="#ev-w2">W2</a>), <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L352-L359"><code>352-359</code></a></td>
-<td>reading; <code>production_assert</code>s at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L76"><code>rotation.rs:76</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L238"><code>participant.rs:238</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/lock.rs#L147-L152"><code>lock.rs:150-155</code></a></td>
+<td>(quiet) <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L272"><code>store.rs:272</code></a> (<a class="ref ev" href="#ev-w2">W2</a>), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L284-L346"><code>284-346</code></a> (reservation exits <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L308"><code>308</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L342"><code>342</code></a>), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L352"><code>352</code></a> (<a class="ref ev" href="#ev-w7">W7</a>); <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L147-L175"><code>147-175</code></a>. (exit) <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L142-L146"><code>store.rs:142-146</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L175-L203"><code>175-203</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L269-L271"><code>269-271</code></a> (before <a class="ref ev" href="#ev-w2">W2</a>), <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L352-L359"><code>352-359</code></a></td>
+<td>reading; <code>production_assert</code>s at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L76"><code>rotation.rs:76</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L238"><code>participant.rs:238</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/lock.rs#L147-L152"><code>lock.rs:150-155</code></a></td>
 </tr>
 <tr id="f2">
 <td>F2</td>
 <td>Attempt shape: <a class="ref ev" href="#ev-w1">W1</a> (acquire) <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-w2">W2</a> <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-w3">W3</a> (<code>SeqCst</code>) <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-b0">B0</a>; <a class="ref ev" href="#ev-b1">B1</a>, <a class="ref ev" href="#ev-h1">H1</a> and <a class="ref ev" href="#ev-h2">H2</a> only after a <a class="ref ev" href="#ev-b0">B0</a> that read the epoch's stamp; each event belongs to one attempt and each pin store to one slot. <code>rotate(e)</code> is called unpinned. "Each event belongs to one attempt" is also a premise of <a class="ref inv" href="#fr3-read-after-insert-no-older-value">FR3</a>.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L264-L343"><code>store.rs:264-343</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L185"><code>185</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L198"><code>198</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L356"><code>356</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/test_access.rs#L216-L224"><code>test_access.rs:216-224</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L264-L343"><code>store.rs:264-343</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L185"><code>185</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L198"><code>198</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L356"><code>356</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/test_access.rs#L216-L224"><code>test_access.rs:216-224</code></a></td>
 <td>reading; GenMC</td>
 </tr>
 <tr id="f3">
 <td>F3</td>
-<td>Record stores: an attempt stores each word of its reservation once, inside the bytes it reserved (lengths and key/value <a class="ref ev" href="#ev-w4">W4</a>, then header <a class="ref ev" href="#ev-w5">W5</a>), and only then calls <code>table_put</code> (<a class="ref ev" href="#ev-i2">I2</a>) with its own offset, epoch and key. Sizes: <code>insert()</code> rejects a key or value above <code>max_key_size</code> or <code>max_value_size</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L90-L95"><code>store.rs:90-95</code></a>); a promotion's key is bounded at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L56"><code>lookup.rs:56</code></a> and its value at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L154"><code>154</code></a>. So the <code>u32</code> arithmetic of <code>payload_size()</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/records.rs#L75-L78"><code>records.rs:75-78</code></a>) does not wrap, the record takes exactly <code>8 + align8(8 + align8(key_len) + value_len)</code> bytes, and every record is at most <code>max_record_size</code>, hence at most the record area (<a class="ref asm" href="#a5">A5</a>).</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L90-L95"><code>store.rs:90-95</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L147-L169"><code>147-169</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L56"><code>lookup.rs:56</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L154"><code>154</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/records.rs#L75-L78"><code>records.rs:75-78</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/util.rs#L120-L166"><code>util.rs:120-166</code></a></td>
+<td>Record stores: an attempt stores each word of its reservation once, inside the bytes it reserved (lengths and key/value <a class="ref ev" href="#ev-w4">W4</a>, then header <a class="ref ev" href="#ev-w5">W5</a>), and only then calls <code>table_put</code> (<a class="ref ev" href="#ev-i2">I2</a>) with its own offset, epoch and key. Sizes: <code>insert()</code> rejects a key or value above <code>max_key_size</code> or <code>max_value_size</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L90-L95"><code>store.rs:90-95</code></a>); a promotion's key is bounded at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L56"><code>lookup.rs:56</code></a> and its value at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L154"><code>154</code></a>. So the <code>u32</code> arithmetic of <code>payload_size()</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/records.rs#L75-L78"><code>records.rs:75-78</code></a>) does not wrap, the record takes exactly <code>8 + align8(8 + align8(key_len) + value_len)</code> bytes, and every record is at most <code>max_record_size</code>, hence at most the record area (<a class="ref asm" href="#a5">A5</a>).</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L90-L95"><code>store.rs:90-95</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L147-L169"><code>147-169</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L56"><code>lookup.rs:56</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L154"><code>154</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/records.rs#L75-L78"><code>records.rs:75-78</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/util.rs#L120-L166"><code>util.rs:120-166</code></a></td>
 <td>reading</td>
 </tr>
 <tr id="f4">
 <td>F4</td>
 <td>Chunk words: written only by <math><mi mathvariant="normal">init</mi></math>, <a class="ref ev" href="#ev-h0">H0</a>, <a class="ref ev" href="#ev-h1">H1</a> and <a class="ref ev" href="#ev-h2">H2</a>. Every registration that pins has run <a class="ref ev" href="#ev-h0">H0</a> first: in <code>claim()</code> between <a class="ref ev" href="#ev-p1">P1</a> and <a class="ref ev" href="#ev-p2">P2</a>, in <code>steal()</code> after <a class="ref ev" href="#ev-p6">P6</a> (which covers a registrant that keeps a stolen slot).</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L182"><code>participant.rs:182</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L213"><code>213</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L346"><code>346</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L303-L308"><code>store.rs:303-308</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L333-L341"><code>333-341</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L182"><code>participant.rs:182</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L213"><code>213</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L346"><code>346</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L303-L308"><code>store.rs:303-308</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L333-L341"><code>333-341</code></a></td>
 <td>reading; GenMC <code>slot_reaping_resets_reservation_chunk</code></td>
 </tr>
 <tr id="f5">
 <td>F5</td>
 <td>Rotation shape: under ownership, <a class="ref ev" href="#ev-r0">R0</a> once; <a class="ref ev" href="#ev-r1">R1</a> an RMW keeping stamp and bump, sealing the arena of <a class="ref ev" href="#ev-r0">R0</a>'s epoch. The seal loop exits only on the tenure's own successful <a class="ref ev" href="#ev-r1">R1</a> or on a <math><mi mathvariant="normal">ctl</mi></math> load (the initial load or a failed CAS) returning stamp <a class="ref ev" href="#ev-r0">R0</a>, sealed, so a tenure reaches <a class="ref ev" href="#ev-r1f">R1F</a>, hence <a class="ref ev" href="#ev-r4">R4</a>, only after its own seal or a sealed word of stamp <a class="ref ev" href="#ev-r0">R0</a>; <a class="ref ev" href="#ev-r1f">R1F</a> (<code>SeqCst</code>) immediately follows the loop, with no return in between. <a class="ref ev" href="#ev-r3">R3</a> loads each slot at least once after <a class="ref ev" href="#ev-r1f">R1F</a> (acquire, passing only on <code>UNPINNED</code> or <span class="m"><math><mrow><mi mathvariant="normal">pin</mi><mo>≥</mo></mrow></math> <a class="ref ev" href="#ev-r0">R0</a> <math><mrow><mo>−</mo><mn>1</mn></mrow></math></span>; every load also tests whether the pinned epoch, flag masked, is <a class="ref ev" href="#ev-r0">R0</a>, and clears the readiness flag on a match) <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-r3c">R3C</a> (release <code>fetch_max</code> with argument <a class="ref ev" href="#ev-r0">R0</a> on the arena of <a class="ref ev" href="#ev-r0">R0</a>, only if no <a class="ref ev" href="#ev-r3">R3</a> load showed <a class="ref ev" href="#ev-r0">R0</a>) <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-r4">R4</a> <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-r5">R5</a>, one each per tenure; no <a class="ref ev" href="#ev-r3c">R3C</a> on an error path; <a class="ref ev" href="#ev-r5">R5</a> writes <a class="ref ev" href="#ev-r0">R0</a> + 1, release; <a class="ref ev" href="#ev-r3a">R3A</a> an RMW keeping the pinned epoch; <math><mi mathvariant="normal">ctl</mi></math> written only by <math><mi mathvariant="normal">init</mi></math>, <a class="ref ev" href="#ev-b1">B1</a>, <a class="ref ev" href="#ev-r1">R1</a>, <a class="ref ev" href="#ev-r4">R4</a>; the epoch only by <math><mi mathvariant="normal">init</mi></math> and <a class="ref ev" href="#ev-r5">R5</a>.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L89-L201"><code>rotation.rs:89-203</code></a> (seal loop <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L96-L123"><code>96-123</code></a>, <a class="ref ev" href="#ev-r1f">R1F</a> <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L130"><code>130</code></a>, scan <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L132-L180"><code>132-180</code></a>, <a class="ref ev" href="#ev-r3c">R3C</a> <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L181-L185"><code>181-185</code></a>)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L89-L201"><code>rotation.rs:89-203</code></a> (seal loop <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L96-L123"><code>96-123</code></a>, <a class="ref ev" href="#ev-r1f">R1F</a> <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L130"><code>130</code></a>, scan <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L132-L180"><code>132-180</code></a>, <a class="ref ev" href="#ev-r3c">R3C</a> <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L181-L185"><code>181-185</code></a>)</td>
 <td>reading</td>
 </tr>
 <tr id="f6">
 <td>F6</td>
 <td>Takeover control flow: before an <a class="ref ev" href="#ev-o3">O3</a>, <code>reap_owner()</code> returned true for the slot decoded from the owner value loaded at <a class="ref ev" href="#ev-o1">O1</a>, whose registration id it passes as the expected id; <a class="ref ev" href="#ev-o3">O3</a> expects that same owner value. The slot's acquire <a class="ref ev" href="#ev-p0">P0</a> is sequenced after <a class="ref ev" href="#ev-o1">O1</a> and before <a class="ref ev" href="#ev-o3">O3</a>. The true return paths are <code>Free</code> (<a class="ref ev" href="#ev-p0">P0</a> read zero), <code>Other</code> (the read state's high u32 differs from the expected id), <code>Stolen</code> (the id matched and, after a dead verdict, <a class="ref ev" href="#ev-p4">P4</a> succeeded with the full <a class="ref ev" href="#ev-p0">P0</a> word as its expected value), or <code>Lost</code> (the id matched and that strong <a class="ref ev" href="#ev-p4">P4</a> failed, reading a different word with acquire ordering). Both <a class="ref ev" href="#ev-p4">P4</a> outcomes precede <a class="ref ev" href="#ev-o3">O3</a>; <code>Stolen</code> also completes the steal and releases its claim before returning true. <code>Live</code> and errors do not proceed to this <a class="ref ev" href="#ev-o3">O3</a>.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L232-L245"><code>rotation.rs:232-245</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L305"><code>305</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L328-L336"><code>328-336</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L275-L348"><code>participant.rs:275-348</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L232-L245"><code>rotation.rs:232-245</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L305"><code>305</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L328-L336"><code>328-336</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L275-L348"><code>participant.rs:275-348</code></a></td>
 <td>reading; GenMC</td>
 </tr>
 <tr id="f7">
 <td>F7</td>
 <td>Steal shape: <a class="ref ev" href="#ev-p0">P0</a> (acquire) <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-t0">T0</a> <math><mi mathvariant="normal">sb</mi></math> <math><mi mathvariant="normal">vd</mi></math> <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-p4">P4</a> (release; failure acquire) <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-t2">T2</a> <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-p5">P5</a> (release) <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-p6">P6</a> (release) <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-h0">H0</a>. The verdict asks <code>is_live</code> for INITIALIZING and <code>is_live_since(st from <a class="ref ev" href="#ev-t0">T0</a>)</code> for REGISTERED.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L275-L348"><code>participant.rs:275-348</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L275-L348"><code>participant.rs:275-348</code></a></td>
 <td>reading</td>
 </tr>
 <tr id="f8">
 <td>F8</td>
 <td>Index writes: only the zero fill and <a class="ref ev" href="#ev-i2">I2</a> write index slots; a publication lies in its attempt's arena, encodes its own reservation's offset (a multiple of 8) and its epoch's 32-bit stamp; a CAS replaces only an entry without its stamp.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L53"><code>put.rs:53</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L61"><code>61</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L78"><code>78</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L86-L88"><code>86-88</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/index.rs#L88-L92"><code>index.rs:88-92</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L53"><code>put.rs:53</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L61"><code>61</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L78"><code>78</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L86-L88"><code>86-88</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/index.rs#L88-L92"><code>index.rs:88-92</code></a></td>
 <td>reading</td>
 </tr>
 <tr id="f9">
 <td>F9</td>
-<td><code>table_put</code> probing: it advances past a slot only after <a class="ref ev" href="#ev-i0">I0</a> found an entry with its stamp for another key there (a failed CAS re-reads the same slot); the probe visits each slot once; a store replaces only an entry with its stamp for which <code>entry_has_key</code> held. A promotion never stores: its <a class="ref ev" href="#ev-i2">I2</a> is always a CAS (the store, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L78"><code>put.rs:78</code></a>, is guarded by <code>if !promotion</code>; the empty-slot CAS, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L86-L88"><code>put.rs:86-88</code></a>, is shared by inserts and promotions). Used by <a class="ref inv" href="#rb4-index-shape">RB4</a>(d), hence by <a class="ref goal" href="#g4">G4</a>.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L57-L99"><code>put.rs:57-99</code></a></td>
+<td><code>table_put</code> probing: it advances past a slot only after <a class="ref ev" href="#ev-i0">I0</a> found an entry with its stamp for another key there (a failed CAS re-reads the same slot); the probe visits each slot once; a store replaces only an entry with its stamp for which <code>entry_has_key</code> held. A promotion never stores: its <a class="ref ev" href="#ev-i2">I2</a> is always a CAS (the store, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L78"><code>put.rs:78</code></a>, is guarded by <code>if !promotion</code>; the empty-slot CAS, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L86-L88"><code>put.rs:86-88</code></a>, is shared by inserts and promotions). Used by <a class="ref inv" href="#rb4-index-shape">RB4</a>(d), hence by <a class="ref goal" href="#g4">G4</a>.</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L57-L99"><code>put.rs:57-99</code></a></td>
 <td>reading</td>
 </tr>
 <tr id="f10">
 <td>F10</td>
 <td>Values: an insert stores the caller's key and value. A promotion pins only <a class="ref ev" href="#ev-v1">V1</a>'s epoch (<code>only_epoch</code>) and stores the caller's key and the copied padded value words of one of two hits, both in epoch <a class="ref ev" href="#ev-v1">V1</a> - 1, after a miss of the same pass in <a class="ref ev" href="#ev-v1">V1</a>'s epoch: (a) a hit of <code>probe::&lt;true&gt;</code> whose <a class="ref ev" href="#ev-c0">C0</a> returned <a class="ref ev" href="#ev-v1">V1</a> - 1, with <a class="ref ev" href="#ev-c0">C0</a> sequenced before its first <a class="ref ev" href="#ev-i1">I1</a>; or (b) the hit of a reprobe sequenced after a recheck that executed <a class="ref ev" href="#ev-c4">C4</a>. A hit in the current arena is never promoted (<code>probe::&lt;false&gt;</code> never sets the flag).</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L96-L104"><code>store.rs:96-104</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L269-L271"><code>269-271</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L76-L171"><code>lookup.rs:76-171</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L182-L209"><code>182-209</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L74"><code>probe.rs:74</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L96-L104"><code>store.rs:96-104</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L269-L271"><code>269-271</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L76-L171"><code>lookup.rs:76-171</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L182-L209"><code>182-209</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L74"><code>probe.rs:74</code></a></td>
 <td>reading; GenMC reaches both promotion paths (<code>PROMOTED_VIA_CERTIFICATE</code>, <code>PROMOTED_VIA_RECHECK</code> in <code>promotion_keeps_newer_stale_epoch_insert</code>)</td>
 </tr>
 <tr id="f11">
 <td>F11</td>
 <td>Reader checks: <code>probe()</code> and <code>entry_has_key()</code> load the header first, and load the lengths, key and value words only at addresses derived from the entry's offset and from a header and lengths word that passed the length checks (<code>u32</code> arithmetic exact under <a class="ref asm" href="#a5">A5</a>). The probed entry carries the probe's stamp, and the probe's record loads lie between <a class="ref ev" href="#ev-i1f">I1F</a> and <a class="ref ev" href="#ev-d6">D6</a>.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L144-L212"><code>probe.rs:144-212</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L111-L147"><code>put.rs:111-147</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/records.rs#L92-L114"><code>records.rs:92-114</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L144-L212"><code>probe.rs:144-212</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L111-L147"><code>put.rs:111-147</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/records.rs#L92-L114"><code>records.rs:92-114</code></a></td>
 <td>reading</td>
 </tr>
 <tr id="f12">
 <td>F12</td>
 <td>Arena words: index slots and record words are written only by the zero fill and by store attempts (<a class="ref ev" href="#ev-w4">W4</a>, <a class="ref ev" href="#ev-w5">W5</a>, <a class="ref ev" href="#ev-i2">I2</a>), each after its <a class="ref ev" href="#ev-w1">W1</a> and <a class="ref ev" href="#ev-w3">W3</a> and before its <a class="ref ev" href="#ev-w7">W7</a>; arena <math><mrow><mi>e</mi><mo lspace="0.3em" rspace="0.3em">mod</mo><mn>3</mn></mrow></math> serves epoch <math><mi>e</mi></math>, so two attempts writing one word have equal epochs or epochs at least 3 apart. <code>exact_occupancy</code> is not an arena word in this sense, and neither is the readiness word (<a class="ref fact" href="#f13">F13</a>).</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L147-L175"><code>store.rs:147-175</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L359-L361"><code>cache/mod.rs:359-361</code></a></td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L147-L175"><code>store.rs:147-175</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L359-L361"><code>cache/mod.rs:359-361</code></a></td>
 <td>reading</td>
 </tr>
 <tr id="f13">
 <td>F13</td>
 <td>Readiness word: <code>arena.promotion_ready_epoch</code> (the second word of <code>ArenaCtlLine</code>) is written only by <math><mi mathvariant="normal">init</mi></math> (0, relaxed); by <a class="ref ev" href="#ev-r3c">R3C</a> (<code>fetch_max</code> with argument <a class="ref ev" href="#ev-r0">R0</a>, release, after <a class="ref fact" href="#f5">F5</a>'s scan conditions); and by <a class="ref ev" href="#ev-c4">C4</a> (<code>fetch_max(e - 1)</code>, release; before it, <a class="ref ev" href="#ev-c1">C1</a> acquire-read <math><mi>e</mi></math>, then <a class="ref ev" href="#ev-c2">C2</a>, then <a class="ref ev" href="#ev-c3">C3</a> acquire-loaded all <code>participant_capacity</code> slots and found none pinned to <math><mrow><mi>e</mi><mo>−</mo><mn>1</mn></mrow></math>). Each <code>fetch_max</code> targets the arena of its argument (<code>arena_of(epoch)</code>). <a class="ref ev" href="#ev-r4">R4</a> never writes the word. Production code reads it only at <a class="ref ev" href="#ev-c0">C0</a> (acquire, exact comparison of the full 64-bit value with the probed epoch); Otherwise only test code reads it: the unit tests in <code>cache/promotion.rs</code> and <code>test_access::promotion_ready_epoch</code> (feature <code>verify</code>).</td>
-<td><code>ArenaCtlLine</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/mod.rs#L36-L41"><code>arena/mod.rs:36-41</code></a>); <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L44-L78"><code>promotion.rs:44-78</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L130-L185"><code>rotation.rs:130-185</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L74"><code>probe.rs:74</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L246"><code>cache/mod.rs:246</code></a></td>
+<td><code>ArenaCtlLine</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/mod.rs#L36-L41"><code>arena/mod.rs:36-41</code></a>); <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L44-L78"><code>promotion.rs:44-78</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L130-L185"><code>rotation.rs:130-185</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L74"><code>probe.rs:74</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L246"><code>cache/mod.rs:246</code></a></td>
 <td>reading; unit test <code>delayed_certificate_does_not_regress_or_truncate_the_epoch</code></td>
 </tr>
 <tr id="f14">
 <td>F14</td>
 <td>Probe outcomes, stated sequentially. Let <math><mi>s</mi></math> be an index slot of the probed arena and <math><mrow><mi>d</mi><mo>=</mo><mi mathvariant="normal">dist</mi><mo>(</mo><mi>k</mi><mo>,</mo><mi>s</mi><mo>)</mo></mrow></math> its distance from <math><mi>k</mi></math>'s home slot along the probe sequence. Suppose that, in a probe of key <math><mi>k</mi></math> at epoch <math><mi>E</mi></math>: (1) every <a class="ref ev" href="#ev-i1">I1</a> of a slot at distance <math><mrow><mo>&lt;</mo><mi>d</mi></mrow></math> that the probe makes returned an entry with stamp <math><mrow><mi>E</mi><mo lspace="0.3em" rspace="0.3em">mod</mo><msup><mn>2</mn><mn>32</mn></msup></mrow></math>; (2) for each such entry with <math><mi>k</mi></math>'s tag, the candidate's record loads (<a class="ref ev" href="#ev-d4">D4</a>, and the <a class="ref ev" href="#ev-d5">D5</a> lengths and key loads, after <a class="ref ev" href="#ev-i1f">I1F</a>) read the record of the attempt that published that entry; (3) the <a class="ref ev" href="#ev-i1">I1</a> of <math><mi>s</mi></math> returned an <math><mi>E</mi></math>-stamped entry with <math><mi>k</mi></math>'s tag, and its record loads read that entry's publisher's record, which is for <math><mi>k</mi></math>. Then the probe does not return <code>Miss</code>: it returns a hit, <code>Retry</code> or <code>InsufficientCapacity</code>, possibly at an earlier candidate. Contrapositive: a <code>Miss</code> implies that some <a class="ref ev" href="#ev-i1">I1</a> at distance <math><mrow><mo>≤</mo><mi>d</mi></mrow></math>, or some record load of a candidate at distance <math><mrow><mo>≤</mo><mi>d</mi></mrow></math>, read another value. A correctly read candidate whose key differs (a tag collision) is skipped, never a cause of <code>Miss</code>. All loads of a probe are sequenced before any later probe of the same pass, in particular before the <a class="ref ev" href="#ev-d6">D6</a> of the hit the pass returns.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs"><code>probe.rs</code></a>: home check <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L99-L108"><code>99-108</code></a>; group scans <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L109-L135"><code>109-135</code></a> (<code>find_candidate</code> returns the first candidate of its group, even past a terminator, so terminators in <math><mi>s</mi></math>'s group do not stop it); candidate validation <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L144-L212"><code>144-212</code></a> (<code>Miss</code> only from a <a class="ref ev" href="#ev-d4">D4</a> stamp mismatch, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L159-L162"><code>159-162</code></a>; key and length mismatches skip the candidate or give <code>Retry</code>); sequential continuation <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L214-L230"><code>214-230</code></a> (<code>Miss</code> only on a stamp mismatch or a distance beyond the mask)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs"><code>probe.rs</code></a>: home check <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L99-L108"><code>99-108</code></a>; group scans <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L109-L135"><code>109-135</code></a> (<code>find_candidate</code> returns the first candidate of its group, even past a terminator, so terminators in <math><mi>s</mi></math>'s group do not stop it); candidate validation <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L144-L212"><code>144-212</code></a> (<code>Miss</code> only from a <a class="ref ev" href="#ev-d4">D4</a> stamp mismatch, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L159-L162"><code>159-162</code></a>; key and length mismatches skip the candidate or give <code>Retry</code>); sequential continuation <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L214-L230"><code>214-230</code></a> (<code>Miss</code> only on a stamp mismatch or a distance beyond the mask)</td>
 <td>reading</td>
 </tr>
 <tr id="f15">
 <td>F15</td>
 <td>Insert operations: an insert's store attempts lie, in <math><mo lspace="0.3em" rspace="0.3em">sb</mo></math>, between its call and its return. <code>insert()</code> returns <code>Ok</code> only after one of its attempts made an <a class="ref ev" href="#ev-i2">I2</a> (<code>PutStatus::Ok</code> or <code>Full</code>), and that <a class="ref ev" href="#ev-i2">I2</a> is sequenced before the return; ordinary errors after publication do not turn into failure, <code>Corrupt</code> does. <code>insert()</code> returns an error only: (1) before <code>store()</code> (<code>KeyTooLarge</code>, <code>ValueTooLarge</code>), or from <code>reserve()</code>, whose passes make no <a class="ref ev" href="#ev-i2">I2</a>; (2) after a pass whose <code>table_put</code> returned <code>FullRejected</code>, when the following <code>rotate(.., WaitForOwner)</code> fails with an error other than <code>ConcurrentOperation</code>; (3) <code>Corrupt</code> after <code>Full</code>, that is, after the pass published. <code>store()</code>'s loop repeats only after <code>FullRejected</code>, and <code>table_put</code> returns <code>FullRejected</code> only after its probe loop, each of whose <a class="ref ev" href="#ev-i2">I2</a>s leaves the loop with <code>Ok</code> or <code>Full</code> (a failed CAS writes nothing): a <code>FullRejected</code> pass made no <a class="ref ev" href="#ev-i2">I2</a>. Exit (3) is outside the failed-insert guarantee. A promotion attempt belongs to a lookup, not to an insert.</td>
-<td><a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L176-L203"><code>store.rs:176-203</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L111"><code>111</code></a>; (1) <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L90-L95"><code>90-95</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L142-L143"><code>142-143</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L356-L359"><code>356-359</code></a>; (2) <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L190-L202"><code>190-202</code></a>; (3) <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L178-L189"><code>178-189</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L57-L99"><code>put.rs:57-99</code></a> (<a class="ref ev" href="#ev-i2">I2</a> at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L78"><code>78</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L86-L91"><code>86-91</code></a>; <code>FullRejected</code> at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L99"><code>99</code></a>)</td>
+<td><a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L176-L203"><code>store.rs:176-203</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L111"><code>111</code></a>; (1) <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L90-L95"><code>90-95</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L142-L143"><code>142-143</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L356-L359"><code>356-359</code></a>; (2) <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L190-L202"><code>190-202</code></a>; (3) <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L178-L189"><code>178-189</code></a>; <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L57-L99"><code>put.rs:57-99</code></a> (<a class="ref ev" href="#ev-i2">I2</a> at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L78"><code>78</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L86-L91"><code>86-91</code></a>; <code>FullRejected</code> at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L99"><code>99</code></a>)</td>
 <td>reading</td>
 </tr>
 </tbody>
@@ -1785,11 +1785,11 @@ claim being replaced. Ruling out an <em>earlier</em> claim's start time uses
 <math><mrow><mi mathvariant="normal">mo</mi><mo>(</mo><mi mathvariant="normal">state</mi><mo>)</mo></mrow></math> (<a class="ref asm" href="#a0">A0</a>).</p>
 <ol>
 <li><em>Shape (a).</em> After <math><mi mathvariant="normal">init</mi></math> every state write is a CAS (<a class="ref fact" href="#f7">F7</a> and
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L201-L241"><code>participant.rs:201-241</code></a>). A successful CAS reads its expected value
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L201-L241"><code>participant.rs:201-241</code></a>). A successful CAS reads its expected value
 and immediately follows that write (RMW). <a class="ref ev" href="#ev-p1">P1</a> expects FREE; <a class="ref ev" href="#ev-p2">P2</a> and <a class="ref ev" href="#ev-p5">P5</a>
 expect their own claim's INITIALIZING word; <a class="ref ev" href="#ev-p3">P3</a> expects its own
 REGISTERED word; <a class="ref ev" href="#ev-p4">P4</a> expects the word its <a class="ref ev" href="#ev-p0">P0</a> loaded, which is never
-FREE (<code>steal()</code> returns <code>Free</code> first, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L282"><code>participant.rs:282</code></a>). By <a class="ref asm" href="#a4">A4</a>
+FREE (<code>steal()</code> returns <code>Free</code> first, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L282"><code>participant.rs:282</code></a>). By <a class="ref asm" href="#a4">A4</a>
 each value INITIALIZING(<math><mi>c</mi></math>) and REGISTERED(<math><mi>c</mi></math>) is written once in
 the slot, by <math><mi>c</mi></math> and by its register. So after INITIALIZING(<math><mi>c</mi></math>)
 comes <math><mi>c</mi></math>'s register or a <a class="ref ev" href="#ev-p4">P4</a> stealing <math><mi>c</mi></math>; after REGISTERED(<math><mi>c</mi></math>)
@@ -1859,7 +1859,7 @@ would not see them.</p>
 <p><strong>Proof.</strong></p>
 <ol>
 <li>θ read the owner word value <code>ω = (slot_G, id_G)</code> at <a class="ref ev" href="#ev-o1">O1</a> (acquire,
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L305"><code>rotation.rs:307</code></a>), and <a class="ref ev" href="#ev-o3">O3</a> expects <math><mi>ω</mi></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L334-L336"><code>rotation.rs:336-338</code></a>). <a class="ref ev" href="#ev-o1">O1</a>
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L305"><code>rotation.rs:307</code></a>), and <a class="ref ev" href="#ev-o3">O3</a> expects <math><mi>ω</mi></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L334-L336"><code>rotation.rs:336-338</code></a>). <a class="ref ev" href="#ev-o1">O1</a>
 read some acquiring CAS <math><msup><mi>A</mi><mo>′</mo></msup></math> writing <math><mi>ω</mi></math>. By <a class="ref asm" href="#a4">A4</a>, <math><mi>ω</mi></math> names one
 registration, <math><mi>G</mi></math>; but <math><msup><mi>A</mi><mo>′</mo></msup></math> may be <math><msub><mi>A</mi><mi>t</mi></msub></math> or an earlier tenure of <math><mi>G</mi></math>
 (owner-word ABA: <math><mi>G</mi></math> released and reacquired), so the evidence is
@@ -1867,7 +1867,7 @@ about <math><mi>G</mi></math>, not about <math><mi>t</mi></math>. <math><msup><m
 register <math><mi>g</mi></math> (only a registered participant rotates:
 <code>ParticipantLock</code> is constructed after a successful P2/P5 and
 retains that registration until drop; its methods forward the slot and
-index into rotation. <code>registration_id()</code> reads that registration, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L359-L364"><code>participant.rs:359-364</code></a>). <math><msup><mi>A</mi><mo>′</mo></msup></math> is a
+index into rotation. <code>registration_id()</code> reads that registration, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L359-L364"><code>participant.rs:359-364</code></a>). <math><msup><mi>A</mi><mo>′</mo></msup></math> is a
 release (<a class="ref ev" href="#ev-o2">O2</a> is <code>AcqRel</code>, <a class="ref ev" href="#ev-o3">O3</a> <code>Release</code>), so <span class="m"><math><mrow><mi>g</mi><mo lspace="0.3em" rspace="0.3em">sb</mo><msup><mi>A</mi><mo>′</mo></msup><mo lspace="0.3em" rspace="0.3em">sw</mo></mrow></math> <a class="ref ev" href="#ev-o1">O1</a> <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-p0">P0</a></span>,
 and <a class="ref ev" href="#ev-p0">P0</a> reads <math><mi>g</mi></math> or a later state (COH-WR).</li>
 <li><em>Derive handoff evidence from the return paths</em> (<a class="ref fact" href="#f6">F6</a>) and step 1:
@@ -1899,7 +1899,7 @@ after <math><mi>E</mi></math> are RMWs, so <math><mi>w</mi></math> lies in <math
 them. Contradiction.</li>
 </ol>
 <p>In the code the <a class="ref ev" href="#ev-p3">P3</a> case cannot precede a successful <a class="ref ev" href="#ev-o3">O3</a>: <code>rotate()</code>
-installs a release guard immediately after acquiring ownership (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L78"><code>rotation.rs:78</code></a>).
+installs a release guard immediately after acquiring ownership (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L78"><code>rotation.rs:78</code></a>).
 Its destructor runs <a class="ref ev" href="#ev-o4">O4</a> on ordinary return and unwinding before the registration can execute <a class="ref ev" href="#ev-p3">P3</a>, so <span class="m"><a class="ref ev" href="#ev-o4">O4</a> <math><mi mathvariant="normal">sb</mi></math> <a class="ref ev" href="#ev-p3">P3</a></span>, and
 step 3 makes <a class="ref ev" href="#ev-o3">O3</a> fail. The proof does not need this. Nor does it use any
 acquire on <a class="ref ev" href="#ev-o3">O3</a>: the taker's edges come from <a class="ref ev" href="#ev-o1">O1</a>, from <code>reap_owner()</code>'s
@@ -1958,9 +1958,9 @@ successive loads of the epoch are non-decreasing.</p>
 serial; each <a class="ref ev" href="#ev-r0">R0</a> then reads the latest earlier <a class="ref ev" href="#ev-r5">R5</a>, and each <a class="ref ev" href="#ev-r5">R5</a> adds one.</p>
 <p><strong>Proof.</strong></p>
 <ol>
-<li>Epoch writes: <math><mi mathvariant="normal">init</mi></math> (the store of 0 at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L216"><code>cache/mod.rs:216</code></a> and of 2
-at <math><mn>254</mn></math>, one write by <a class="ref asm" href="#a1">A1</a>) and <a class="ref ev" href="#ev-r5">R5</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L197"><code>rotation.rs:199</code></a>), which writes
-<math><mrow><mi>e</mi><mo>+</mo><mn>1</mn></mrow></math> after <a class="ref ev" href="#ev-r0">R0</a> read <math><mi>e</mi></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L89"><code>rotation.rs:89</code></a>) (<a class="ref fact" href="#f5">F5</a>). <a class="ref ev" href="#ev-r0">R0</a> and <a class="ref ev" href="#ev-r5">R5</a> are
+<li>Epoch writes: <math><mi mathvariant="normal">init</mi></math> (the store of 0 at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L216"><code>cache/mod.rs:216</code></a> and of 2
+at <math><mn>254</mn></math>, one write by <a class="ref asm" href="#a1">A1</a>) and <a class="ref ev" href="#ev-r5">R5</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L197"><code>rotation.rs:199</code></a>), which writes
+<math><mrow><mi>e</mi><mo>+</mo><mn>1</mn></mrow></math> after <a class="ref ev" href="#ev-r0">R0</a> read <math><mi>e</mi></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L89"><code>rotation.rs:89</code></a>) (<a class="ref fact" href="#f5">F5</a>). <a class="ref ev" href="#ev-r0">R0</a> and <a class="ref ev" href="#ev-r5">R5</a> are
 under ownership, at most one each per tenure.</li>
 <li>By <a class="ref inv" href="#ow2-ownership-is-a-lock-under-hb">OW2</a>(b) every <a class="ref ev" href="#ev-r5">R5</a> of a tenure before <math><msup><mi>t</mi><mo>′</mo></msup></math> happens before <span class="m"><a class="ref ev" href="#ev-r0">R0</a><math><mrow><mo>(</mo><msup><mi>t</mi><mo>′</mo></msup><mo>)</mo></mrow></math></span>,
 and <span class="m"><a class="ref ev" href="#ev-r0">R0</a><math><mrow><mo>(</mo><msup><mi>t</mi><mo>′</mo></msup><mo>)</mo></mrow></math></span> happens before every <a class="ref ev" href="#ev-r5">R5</a> of a later tenure and its own
@@ -2008,7 +2008,7 @@ operation (<a class="ref asm" href="#a4">A4</a>).</li>
 For any tenure <math><msup><mi>t</mi><mo>′</mo></msup></math> with <span class="m"><a class="ref ev" href="#ev-r0">R0</a><math><mrow><mo>(</mo><msup><mi>t</mi><mo>′</mo></msup><mo>)</mo><mo>≥</mo><mi>e</mi><mo>&gt;</mo><mi>e</mi><mo>−</mo><mn>1</mn></mrow></math></span>, <a class="ref inv" href="#ep1-epoch-sequence">EP1</a> puts the <a class="ref ev" href="#ev-r4">R4</a>'s
 tenure before <math><msup><mi>t</mi><mo>′</mo></msup></math>.</li>
 <li><em>(ii).</em> <span class="m"><a class="ref ev" href="#ev-z">Z</a><math><mrow><mo>(</mo><mi>e</mi><mo>)</mo></mrow></math></span> is made by a tenure <math><msub><mi>t</mi><mi>Z</mi></msub></math> with <span class="m"><a class="ref ev" href="#ev-r0">R0</a> <math><mrow><mo>=</mo><mi>e</mi></mrow></math></span> (<a class="ref ev" href="#ev-r1">R1</a> seals only a word
-of stamp <a class="ref ev" href="#ev-r0">R0</a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L97"><code>rotation.rs:97</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L114-L119"><code>114-119</code></a>). By (i)
+of stamp <a class="ref ev" href="#ev-r0">R0</a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L97"><code>rotation.rs:97</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L114-L119"><code>114-119</code></a>). By (i)
 and <a class="ref inv" href="#ow2-ownership-is-a-lock-under-hb">OW2</a>(b), every <a class="ref ev" href="#ev-r4">R4</a> stamping <math><mi>e</mi></math> happens before <span class="m"><a class="ref ev" href="#ev-z">Z</a><math><mrow><mo>(</mo><mi>e</mi><mo>)</mo></mrow></math></span>, so it precedes
 <span class="m"><a class="ref ev" href="#ev-z">Z</a><math><mrow><mo>(</mo><mi>e</mi><mo>)</mo></mrow></math></span> in <math><mi mathvariant="normal">mo</mi></math> (COH-WW); so does <math><mi mathvariant="normal">init</mi></math> (<a class="ref asm" href="#a1">A1</a>). Walk along <math><mi mathvariant="normal">mo</mi></math> from <span class="m"><a class="ref ev" href="#ev-z">Z</a><math><mrow><mo>(</mo><mi>e</mi><mo>)</mo></mrow></math></span>:
 each later write with stamp <math><mi>e</mi></math> is a <a class="ref ev" href="#ev-b1">B1</a> or an <a class="ref ev" href="#ev-r1">R1</a>, an RMW reading its
@@ -2048,7 +2048,7 @@ acquires <math><mrow><mi>e</mi><mo>+</mo><mn>1</mn></mrow></math> acquires an <a
 <p><strong>Proof.</strong></p>
 <ol>
 <li><em>(ii).</em> Let <math><mi>t</mi></math> reach <a class="ref ev" href="#ev-r1f">R1F</a>, with <span class="m"><a class="ref ev" href="#ev-r0">R0</a><math><mrow><mo>(</mo><mi>t</mi><mo>)</mo><mo>=</mo><mi>e</mi></mrow></math></span>. It left the seal loop
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L96-L123"><code>rotation.rs:96-123</code></a>) either on its own successful <a class="ref ev" href="#ev-r1">R1</a>,
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L96-L123"><code>rotation.rs:96-123</code></a>) either on its own successful <a class="ref ev" href="#ev-r1">R1</a>,
 which is <span class="m"><a class="ref ev" href="#ev-z">Z</a><math><mrow><mo>(</mo><mi>e</mi><mo>)</mo></mrow></math></span> and sequenced before <a class="ref ev" href="#ev-r1f">R1F</a>, or on a load <math><mi>l</mi></math> under <math><mi>t</mi></math>,
 the initial load or a failed CAS, returning <math><mrow><mi>u</mi><mo>=</mo><mo>(</mo><mi mathvariant="normal">stamp</mi><mspace width="0.3em"></mspace><mi>e</mi><mo>,</mo><mi mathvariant="normal">sealed</mi><mo>)</mo></mrow></math>, with
 <math><mrow><mi>l</mi><mo lspace="0.3em" rspace="0.3em">sb</mo></mrow></math> <a class="ref ev" href="#ev-r1f">R1F</a> (<a class="ref fact" href="#f5">F5</a>). In the second case <math><mi>u</mi></math> is <span class="m"><a class="ref ev" href="#ev-z">Z</a><math><mrow><mo>(</mo><mi>e</mi><mo>)</mo></mrow></math></span> or <math><mo lspace="0.3em" rspace="0.3em">mo</mo></math>-after it
@@ -2185,7 +2185,7 @@ ownership.</p>
 <code>participant_capacity</code> slots) with an acquire load <math><mi mathvariant="normal">Sc</mi></math> after its
 <a class="ref ev" href="#ev-r1f">R1F</a> <math><mi>f</mi></math>, and the final load passed: pinned epoch <code>UNPINNED</code>
 or at least <span class="m"><a class="ref ev" href="#ev-r0">R0</a><math><mrow><mo>(</mo><mi>t</mi><mo>)</mo><mo>−</mo><mn>1</mn><mo>=</mo><msub><mi>e</mi><mi>w</mi></msub><mo>+</mo><mn>1</mn></mrow></math></span> (flag masked) (<a class="ref fact" href="#f5">F5</a>;
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs"><code>rotation.rs</code></a>: load <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L141"><code>141</code></a>, pass test <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L148"><code>148</code></a>). After a reap, the loop reloads, so the final
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs"><code>rotation.rs</code></a>: load <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L141"><code>141</code></a>, pass test <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L148"><code>148</code></a>). After a reap, the loop reloads, so the final
 load is the one that passed.</li>
 <li><a class="ref inv" href="#ep3-seal-before-reuse">EP3</a>(iii) gives <span class="m"><a class="ref ev" href="#ev-z">Z</a><math><mrow><mo>(</mo><msub><mi>e</mi><mi>w</mi></msub><mo>)</mo><mo lspace="0.3em" rspace="0.3em">hb</mo><mi>f</mi></mrow></math></span>, so <math><mi mathvariant="normal">Sc</mi></math> read <a class="ref ev" href="#ev-w2">W2</a> or a later write
 <math><mi>p</mi></math> (<a class="ref inv" href="#pn3-pin-visibility">PN3</a>(a)).</li>
@@ -2293,7 +2293,7 @@ and a record claim <math><mi>n</mi></math> is at most <code>max_record_size</cod
 </li>
 <li>
 <p>By <a class="ref inv" href="#sp1-b1-lands-in-its-incarnation">SP1</a>, <a class="ref ev" href="#ev-b1">B1</a> reads a value of stamp <math><mi>E</mi></math>. It succeeds iff that value is
-unsealed with <math><mrow><mi mathvariant="normal">bump</mi><mo>+</mo><mi>n</mi><mo>≤</mo><mi mathvariant="normal">capacity</mi></mrow></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L332"><code>store.rs:332</code></a>); otherwise it
+unsealed with <math><mrow><mi mathvariant="normal">bump</mi><mo>+</mo><mi>n</mi><mo>≤</mo><mi mathvariant="normal">capacity</mi></mrow></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L332"><code>store.rs:332</code></a>); otherwise it
 fails, leaving the value sealed, or with bump
 <math><mrow><mi mathvariant="normal">bump</mi><mo>+</mo><mi mathvariant="normal">claim</mi><mo>≥</mo><mi mathvariant="normal">bump</mi><mo>+</mo><mi>n</mi><mo>&gt;</mo><mi mathvariant="normal">capacity</mi></mrow></math> (no wrap, by the induction
 hypothesis for (b)).</p>
@@ -2308,7 +2308,7 @@ success follows a failure.</p>
 (<code>att_order</code>, from <a class="ref inv" href="#pn2-attempt-closure">PN2</a>), so its <a class="ref ev" href="#ev-b0">B0</a> reads that <a class="ref ev" href="#ev-b1">B1</a> or a later write
 (COH-WR). Seeing another stamp, or sealed, it stops before <a class="ref ev" href="#ev-h1">H1</a> and <a class="ref ev" href="#ev-b1">B1</a>;
 seeing <math><mrow><mi mathvariant="normal">bump</mi><mo>&gt;</mo><mi mathvariant="normal">capacity</mi></mrow></math>, it may still cut from its chunk at <a class="ref ev" href="#ev-h1">H1</a>, but
-stops at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L311-L313"><code>store.rs:311-313</code></a>, before <a class="ref ev" href="#ev-b1">B1</a>.</p>
+stops at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L311-L313"><code>store.rs:311-313</code></a>, before <a class="ref ev" href="#ev-b1">B1</a>.</p>
 </li>
 <li>
 <p><em>(b).</em> The base has bump 0; <a class="ref ev" href="#ev-r1">R1</a> keeps the bump (<code>seal_bump</code>); <a class="ref ev" href="#ev-b1">B1</a> adds
@@ -2326,7 +2326,7 @@ left the bump at most <math><mrow><mi mathvariant="normal">capacity</mi><mo>−<
 </ul>
 <p>Either way it stays at most <math><mrow><mi mathvariant="normal">capacity</mi><mo>+</mo><mi>P</mi><mo>·</mo><mi>C</mi><mo>−</mo><msub><mi>n</mi><mi>min</mi></msub></mrow></math>. <a class="ref asm" href="#a5">A5</a> checks
 <math><mrow><mi mathvariant="normal">capacity</mi><mo>+</mo><mi>P</mi><mo>·</mo><mi>C</mi><mo>&lt;</mo><msup><mn>2</mn><mn>31</mn></msup></mrow></math> (omitting the <math><msub><mi>n</mi><mi>min</mi></msub></math> slack,
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/config.rs#L241-L256"><code>config.rs:241-256</code></a>), so every <a class="ref ev" href="#ev-b1">B1</a> has <math><mrow><mi mathvariant="normal">bump</mi><mo>+</mo><mi mathvariant="normal">claim</mi><mo>&lt;</mo><msup><mn>2</mn><mn>31</mn></msup></mrow></math>.</p>
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/config.rs#L241-L256"><code>config.rs:241-256</code></a>), so every <a class="ref ev" href="#ev-b1">B1</a> has <math><mrow><mi mathvariant="normal">bump</mi><mo>+</mo><mi mathvariant="normal">claim</mi><mo>&lt;</mo><msup><mn>2</mn><mn>31</mn></msup></mrow></math>.</p>
 </li>
 </ol>
 <p>A failed <a class="ref ev" href="#ev-b1">B1</a>'s bytes are lost (an unindexed hole beyond capacity or in a
@@ -2428,8 +2428,8 @@ it and <span class="m"><math><mrow><mi>Y</mi><mo lspace="0.3em" rspace="0.3em">s
 <li>Both load the epoch: <a class="ref ev" href="#ev-v2">V2</a> reads <a class="ref ev" href="#ev-w1">W1<sub><i>x</i></sub></a>'s write or a later one (COH-RR),
 whose value is at least <math><msub><mi>e</mi><mi>x</mi></msub></math> (<a class="ref inv" href="#ep1-epoch-sequence">EP1</a>).</li>
 <li><a class="ref asm" href="#a6">A6</a> keeps <a class="ref ev" href="#ev-v2">V2</a> below <math><mrow><mi>E</mi><mo>+</mo><msup><mn>2</mn><mn>32</mn></msup></mrow></math>. With <math><mrow><msub><mi>e</mi><mi>x</mi></msub><mo>≥</mo><mi>E</mi><mo>+</mo><mn>3</mn></mrow></math>,
-<code>age_of(<a class="ref ev" href="#ev-v2">V2</a>, E as u32) = <a class="ref ev" href="#ev-v2">V2</a> - E &gt;= 3 &gt; 1</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/util.rs#L42-L44"><code>util.rs:42-44</code></a>,
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L200"><code>probe.rs:200</code></a>): <code>Retry</code>.</li>
+<code>age_of(<a class="ref ev" href="#ev-v2">V2</a>, E as u32) = <a class="ref ev" href="#ev-v2">V2</a> - E &gt;= 3 &gt; 1</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/util.rs#L42-L44"><code>util.rs:42-44</code></a>,
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L200"><code>probe.rs:200</code></a>): <code>Retry</code>.</li>
 </ol>
 <h3 id="ht2-hit-integrity">HT2. Hit integrity</h3>
 <p><strong>Statement.</strong> If <code>probe()</code> returns <code>Ok</code> for key <math><mi>k</mi></math> at epoch <math><mi>E</mi></math> (<math><mi>E</mi></math>
@@ -2480,11 +2480,11 @@ writer.</li>
 the entry's offset, which is <math><mi>w</mi></math>'s (<a class="ref inv" href="#ix1-publication-follows-the-record">IX1</a>), so by step 3 it reads <math><mi>w</mi></math>'s
 header and length <math><mi mathvariant="normal">len</mi></math>. The lengths word at offset + 8 is in <math><mi>w</mi></math>'s
 record and holds <math><mi>w</mi></math>'s lengths. The check
-<code>8 + align8(key_len) + value_len == len</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L173"><code>probe.rs:173</code></a>) then places
+<code>8 + align8(key_len) + value_len == len</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L173"><code>probe.rs:173</code></a>) then places
 the key words and the padded value words inside
 <code>[offset, offset + 8 + align8(len))</code>, which is <math><mi>w</mi></math>'s reservation
 (<a class="ref fact" href="#f3">F3</a>). Each of them reads <math><mi>w</mi></math>'s store by step 3.</li>
-<li>The key loads compare <math><mi>w</mi></math>'s key with <math><mi>k</mi></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L176-L183"><code>probe.rs:176-183</code></a>), and the
+<li>The key loads compare <math><mi>w</mi></math>'s key with <math><mi>k</mi></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L176-L183"><code>probe.rs:176-183</code></a>), and the
 value words copied are <math><mi>w</mi></math>'s, padding included.</li>
 </ol>
 <p>The order of step 4 matters: a recycled word can hold any bit pattern,
@@ -2524,18 +2524,18 @@ lies in the record area; every other store uses a masked or bounded
 index.</p>
 <p><strong>Proof.</strong> Record stores: <a class="ref fact" href="#f3">F3</a> (the stores lie in the reservation, whose size <math><mi>n</mi></math>
 is exact because <code>payload_size()</code> does not wrap, and at most <code>max_record_size</code>)
-and <a class="ref inv" href="#sp4-disjoint-in-area-reservations">SP4</a>. Index stores: <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L59"><code>put.rs:59</code></a>. Slots: every
-slot index is below <code>participant_capacity</code> (loops at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L231"><code>cache/mod.rs:231</code></a>,
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L269"><code>269</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L295"><code>295</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L132"><code>rotation.rs:132</code></a>, and the <a class="ref ev" href="#ev-c3">C3</a> loop, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L60"><code>promotion.rs:60</code></a>; the
-owner's slot is checked at <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L233"><code>rotation.rs:235</code></a>), and <code>arena_of</code> takes <code>epoch % 3</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L359-L361"><code>cache/mod.rs:359-361</code></a>). These indices address the mapping only under <a class="ref asm" href="#a7">A7</a>.</p>
+and <a class="ref inv" href="#sp4-disjoint-in-area-reservations">SP4</a>. Index stores: <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L59"><code>put.rs:59</code></a>. Slots: every
+slot index is below <code>participant_capacity</code> (loops at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L231"><code>cache/mod.rs:231</code></a>,
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L269"><code>269</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L295"><code>295</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L132"><code>rotation.rs:132</code></a>, and the <a class="ref ev" href="#ev-c3">C3</a> loop, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L60"><code>promotion.rs:60</code></a>; the
+owner's slot is checked at <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L233"><code>rotation.rs:235</code></a>), and <code>arena_of</code> takes <code>epoch % 3</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L359-L361"><code>cache/mod.rs:359-361</code></a>). These indices address the mapping only under <a class="ref asm" href="#a7">A7</a>.</p>
 <h3 id="bd2-loads-stay-in-the-mapping-whatever-they-read">BD2. Loads stay in the mapping, whatever they read</h3>
 <p><strong>Statement.</strong> Every shared load addresses a word inside the mapping,
 regardless of the values earlier loads returned:</p>
 <ul>
 <li>index loads are masked, or lie within a full group of 8:
-<code>find_candidate::&lt;false&gt;</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L112-L113"><code>probe.rs:112-113</code></a>) is used only when the
+<code>find_candidate::&lt;false&gt;</code> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L112-L113"><code>probe.rs:112-113</code></a>) is used only when the
 whole group fits by the explicit branch guard; the bucket count is a
-power-of-two multiple of 8 (<a class="ref asm" href="#a5">A5</a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/config.rs#L81"><code>config.rs:81</code></a>);</li>
+power-of-two multiple of 8 (<a class="ref asm" href="#a5">A5</a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/config.rs#L81"><code>config.rs:81</code></a>);</li>
 <li>every index value, stale ones included, encodes an offset with
 <code>offset + 16 &lt;= record_area_size</code>, so <a class="ref ev" href="#ev-d4">D4</a> and the lengths word are in
 bounds;</li>
@@ -2546,10 +2546,10 @@ before any key or value load;</li>
 The allocation bound assumes the caller supplies writable storage for
 <code>output_words</code> whole words with <code>output capacity &lt;= 8 * output_words</code>,
 as required by <code>ParticipantLock::lookup_raw</code>'s unsafe contract
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/lock.rs#L95-L97"><code>lock.rs:95-97</code></a>).
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/lock.rs#L95-L97"><code>lock.rs:95-97</code></a>).
 Safe <code>ParticipantLock::lookup</code> supplies this contract through <code>OutputBuffer</code>'s
 private fields and unconditional constructor assertion
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/output.rs#L14-L30"><code>output.rs:14-30</code></a>).
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/output.rs#L14-L30"><code>output.rs:14-30</code></a>).
 The internal <code>production_assert!</code> is omitted in release builds and does
 not establish this caller precondition.</li>
 </ul>
@@ -2572,16 +2572,16 @@ entry ever written, whatever its incarnation.</p>
 <li>Index values: zero fill (offset 0) or an <a class="ref ev" href="#ev-i2">I2</a>, whose offset is a
 reservation's (<a class="ref inv" href="#ix1-publication-follows-the-record">IX1</a>), so <math><mrow><mi mathvariant="normal">offset</mi><mo>+</mo><mi>n</mi><mo>≤</mo><mi mathvariant="normal">ras</mi></mrow></math> with <math><mrow><mi>n</mi><mo>≥</mo><mn>16</mn></mrow></math> (<a class="ref inv" href="#sp4-disjoint-in-area-reservations">SP4</a>; every
 record has a header and a lengths word). <math><mrow><mi mathvariant="normal">ras</mi><mo>≥</mo><mn>16</mn></mrow></math> (<a class="ref asm" href="#a5">A5</a>).</li>
-<li>The header check (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L165-L169"><code>probe.rs:165-169</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L129-L134"><code>put.rs:129-134</code></a>) computes
+<li>The header check (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L165-L169"><code>probe.rs:165-169</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L129-L134"><code>put.rs:129-134</code></a>) computes
 <math><mrow><mi mathvariant="normal">ras</mi><mo>−</mo><mi mathvariant="normal">offset</mi></mrow></math> in <code>u32</code>; since <math><mrow><mi mathvariant="normal">offset</mi><mo>+</mo><mn>8</mn><mo>≤</mo><mi mathvariant="normal">ras</mi><mo>&lt;</mo><msup><mn>2</mn><mn>31</mn></msup></mrow></math>, it is exact.
 As <math><mrow><mi mathvariant="normal">ras</mi><mo>−</mo><mi mathvariant="normal">offset</mi><mo>−</mo><mn>8</mn></mrow></math> is a multiple of 8, it also bounds
 <code>align8(len)</code>.</li>
-<li>The lengths check (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L173"><code>probe.rs:173</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L142"><code>put.rs:142</code></a>) is done in 64-bit
+<li>The lengths check (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L173"><code>probe.rs:173</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L142"><code>put.rs:142</code></a>) is done in 64-bit
 arithmetic and makes every key and value word lie in
 <code>[offset + 16, offset + 8 + align8(len))</code>.</li>
 <li>The value copy runs while <code>pos &lt; value_len &lt;= output_capacity</code>
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L186-L196"><code>probe.rs:186-196</code></a>); <code>output</code> holds <code>align8(output_capacity)</code> bytes
-(caller contract, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L37-L39"><code>lookup.rs:37-39</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L55"><code>55</code></a>).</li>
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L186-L196"><code>probe.rs:186-196</code></a>); <code>output</code> holds <code>align8(output_capacity)</code> bytes
+(caller contract, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L37-L39"><code>lookup.rs:37-39</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L55"><code>55</code></a>).</li>
 </ol>
 <h3 id="rb1-live-registrant-never-displaced">RB1. Live registrant never displaced</h3>
 <p><strong>Statement.</strong> A <a class="ref ev" href="#ev-p4">P4</a> never replaces a claim whose thread incarnation is
@@ -2642,7 +2642,7 @@ only an entry for its key (<a class="ref fact" href="#f9">F9</a>, <a class="ref 
 falls inside <math><mi>E</mi></math>'s block (<a class="ref inv" href="#qu2-incarnations-are-serial-blocks">QU2</a>(a), <a class="ref asm" href="#a6">A6</a>). So once a slot holds an entry of
 <math><mi>E</mi></math>, it keeps that key (induction on <math><mi mathvariant="normal">mo</mi></math>, <a class="ref asm" href="#a0">A0</a>). A writer advances past a
 slot only after finding there an entry of <math><mi>E</mi></math> for another key (<a class="ref fact" href="#f9">F9</a>; a
-failed CAS re-reads the same slot, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/put.rs#L93-L97"><code>put.rs:93-97</code></a>); its <a class="ref ev" href="#ev-i0">I0</a> acquired that
+failed CAS re-reads the same slot, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/put.rs#L93-L97"><code>put.rs:93-97</code></a>); its <a class="ref ev" href="#ev-i0">I0</a> acquired that
 entry, so the entry happens before the writer's <a class="ref ev" href="#ev-i2">I2</a>. With equal keys
 having equal hashes (<a class="ref asm" href="#a8">A8</a>) and each slot visited once (<code>dist_inj</code>), the key
 cannot also sit further on.</p>
@@ -2671,14 +2671,14 @@ included; <code>rotate()</code> and <code>release_claim()</code> are entered unp
 A cleanup guard on each public call also clears an outstanding pin on unwind,
 before a caller can catch the panic and reuse the registration. Dropping the
 registration runs the same cleanup before <code>release_claim()</code>.</p>
-<p><strong>Proof.</strong> By reading (<a class="ref fact" href="#f1">F1</a>): <code>reserve()</code> unpins (<a class="ref ev" href="#ev-w7">W7</a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L352"><code>store.rs:352</code></a>)
-before every non-reservation exit after <a class="ref ev" href="#ev-w2">W2</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L353-L359"><code>store.rs:353-359</code></a>), and
-returns before <a class="ref ev" href="#ev-w2">W2</a> when the promotion's epoch moved (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L269-L271"><code>store.rs:269-271</code></a>);
-<code>store()</code> unpins (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/store.rs#L175"><code>store.rs:175</code></a>) right after publication, before any
+<p><strong>Proof.</strong> By reading (<a class="ref fact" href="#f1">F1</a>): <code>reserve()</code> unpins (<a class="ref ev" href="#ev-w7">W7</a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L352"><code>store.rs:352</code></a>)
+before every non-reservation exit after <a class="ref ev" href="#ev-w2">W2</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L353-L359"><code>store.rs:353-359</code></a>), and
+returns before <a class="ref ev" href="#ev-w2">W2</a> when the promotion's epoch moved (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L269-L271"><code>store.rs:269-271</code></a>);
+<code>store()</code> unpins (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/store.rs#L175"><code>store.rs:175</code></a>) right after publication, before any
 <code>rotate()</code> or return. <code>lookup()</code> pins only through <code>store()</code>. A leaked
 pin would only stall reuse until <a class="ref ev" href="#ev-r3">R3</a> times out or reaps the slot.
-<code>production_assert</code>s check the entry conditions (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L76"><code>rotation.rs:76</code></a>,
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L238"><code>participant.rs:238</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/lock.rs#L147-L152"><code>lock.rs:150-155</code></a>).</p>
+<code>production_assert</code>s check the entry conditions (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L76"><code>rotation.rs:76</code></a>,
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L238"><code>participant.rs:238</code></a>, <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/lock.rs#L147-L152"><code>lock.rs:150-155</code></a>).</p>
 <p><code>UnpinOnExit</code> in <code>lock.rs</code> is installed before
 <code>assert_usable()</code> in <code>insert()</code> and <code>lookup_raw()</code>;
 <code>lookup()</code> delegates to the latter. Its destructor loads the pin
@@ -2735,7 +2735,7 @@ In the recheck case, if <math><mrow><mi>n</mi><mo>+</mo><mn>1</mn><mo>=</mo><mn>
 (every <a class="ref ev" href="#ev-w1">W1</a> reads at least 2, <a class="ref inv" href="#ep1-epoch-sequence">EP1</a>), so the statement is vacuous.</li>
 <li>Let <math><mi>w</mi></math> be an attempt for <math><mi>n</mi></math> in slot <math><mi>i</mi></math>. By <a class="ref asm" href="#a7">A7</a>, the certifier loads slot
 <math><mi>i</mi></math> at least once after <math><mi>f</mi></math> and before <math><mi>c</mi></math> (<a class="ref fact" href="#f5">F5</a>, <a class="ref fact" href="#f13">F13</a>). In the rotation case
-every <a class="ref ev" href="#ev-r3">R3</a> load of slot <math><mi>i</mi></math> is tested for pinned epoch <math><mi>n</mi></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L143-L147"><code>rotation.rs:143-147</code></a>), and <a class="ref ev" href="#ev-r3c">R3C</a> runs only if none matched: take any of them. In the recheck
+every <a class="ref ev" href="#ev-r3">R3</a> load of slot <math><mi>i</mi></math> is tested for pinned epoch <math><mi>n</mi></math> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L143-L147"><code>rotation.rs:143-147</code></a>), and <a class="ref ev" href="#ev-r3c">R3C</a> runs only if none matched: take any of them. In the recheck
 case take the <a class="ref ev" href="#ev-c3">C3</a> load of slot <math><mi>i</mi></math>. That load <math><mi mathvariant="normal">Sc</mi></math> is acquire and returned a
 pinned epoch other than <math><mi>n</mi></math>.</li>
 <li><a class="ref inv" href="#pn3-pin-visibility">PN3</a>, instance (b) or (c): <math><mi mathvariant="normal">Sc</mi></math> read <a class="ref ev" href="#ev-w2">W2</a> or a write <math><mi>p</mi></math> <math><mo lspace="0.3em" rspace="0.3em">mo</mo></math>-after it.</li>
@@ -2804,11 +2804,11 @@ hit, sequenced after a successful recheck: its <a class="ref ev" href="#ev-c4">C
 <code>reprobe_for_promotion()</code> returned a hit, which it does only after the
 recheck returned true, so after <a class="ref ev" href="#ev-c4">C4</a>.</li>
 <li><em><a class="ref ev" href="#ev-c0">C0</a> case.</em> By <a class="ref inv" href="#rd2-certificate-visibility">RD2</a>, every attempt action happens before <a class="ref ev" href="#ev-c0">C0</a>, and <a class="ref ev" href="#ev-c0">C0</a>
-is sequenced before the home <a class="ref ev" href="#ev-i1">I1</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L74"><code>probe.rs:74</code></a>, before line <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/arena/probe.rs#L99"><code>99</code></a>), which is
+is sequenced before the home <a class="ref ev" href="#ev-i1">I1</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L74"><code>probe.rs:74</code></a>, before line <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/arena/probe.rs#L99"><code>99</code></a>), which is
 the <a class="ref ev" href="#ev-i1">I1</a> that read <math><mi>H</mi></math>'s entry or is sequenced before it.</li>
 <li><em>Reprobe case.</em> By <a class="ref inv" href="#rd1-certificate-soundness">RD1</a>, every attempt action happens before <a class="ref ev" href="#ev-c4">C4</a>,
-and <a class="ref ev" href="#ev-c4">C4</a> is sequenced before the reprobe's first <a class="ref ev" href="#ev-i1">I1</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L66"><code>promotion.rs:66</code></a>,
-then <a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/lookup.rs#L198"><code>lookup.rs:198</code></a>), hence before the one that read <math><mi>H</mi></math>'s entry.</li>
+and <a class="ref ev" href="#ev-c4">C4</a> is sequenced before the reprobe's first <a class="ref ev" href="#ev-i1">I1</a> (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L66"><code>promotion.rs:66</code></a>,
+then <a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/lookup.rs#L198"><code>lookup.rs:198</code></a>), hence before the one that read <math><mi>H</mi></math>'s entry.</li>
 <li>Why the placement matters: a certificate learned after an <a class="ref ev" href="#ev-i1">I1</a> says
 nothing about what that <a class="ref ev" href="#ev-i1">I1</a> read, which need not follow the attempts.
 That is why <a class="ref ev" href="#ev-c0">C0</a> comes before the first <a class="ref ev" href="#ev-i1">I1</a>, and why the reprobe exists. A
@@ -3368,7 +3368,7 @@ counts. Programs by invariant:</p>
 whose promotion found arena 3 full. GenMC does not cover the sampler-declined
 path (every program uses 8 buckets, so <code>should_recheck</code> always returns
 true); the sampler is covered by the unit tests in
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/promotion.rs#L81-L140"><code>cache/promotion.rs</code></a> only.
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/promotion.rs#L81-L140"><code>cache/promotion.rs</code></a> only.
 <a class="ref inv" href="#fr4-retention-the-lookup-does-not-miss">FR4</a> is checked in one instance only, the final lookup of
 <code>promotion_keeps_newer_stale_epoch_insert</code>.</p>
 <h2 id="16-gaps-and-risks">16. Gaps and risks</h2>
@@ -3415,18 +3415,18 @@ retention.</p>
 <li>
 <p><strong><a class="ref asm" href="#a4">A4</a>: id spending and counter wrap.</strong> Registration ids come from a <code>u32</code>
 counter that wraps (zero skipped). The rotation reapers (<code>reap_pinner()</code>,
-<code>reap_owner()</code>) draw an id only after a dead verdict (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L208"><code>rotation.rs:210</code></a>,
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/rotation.rs#L237"><code>239</code></a>). A registration spends one id per
-<code>register_participant()</code> call, drawn before its scan (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L268"><code>cache/mod.rs:268</code></a>)
-and used for at most one successful claim or steal (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/cache/mod.rs#L298"><code>cache/mod.rs:298</code></a>). So
+<code>reap_owner()</code>) draw an id only after a dead verdict (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L208"><code>rotation.rs:210</code></a>,
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/rotation.rs#L237"><code>239</code></a>). A registration spends one id per
+<code>register_participant()</code> call, drawn before its scan (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L268"><code>cache/mod.rs:268</code></a>)
+and used for at most one successful claim or steal (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/cache/mod.rs#L298"><code>cache/mod.rs:298</code></a>). So
 ids are spent per registration call and per dead slot a rotation reaps. <a class="ref inv" href="#sl1-slot-serialisation">SL1</a>
 step 3 still needs a claim's word never to recur in its slot while held,
 which is why a taker never reuses its own id for the slot it steals.</p>
 </li>
 <li>
 <p><strong><a class="ref asm" href="#a2">A2</a> outside the C API.</strong> The fork guard (<code>fork_generation</code>) lives in
-<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/ffi.rs"><code>ffi.rs</code></a>; the C API also forbids use from a signal handler
-(<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/ffi.rs#L139-L141"><code>ffi.rs:139-141</code></a>). A Rust caller that forks while holding a
+<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/ffi.rs"><code>ffi.rs</code></a>; the C API also forbids use from a signal handler
+(<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/ffi.rs#L139-L141"><code>ffi.rs:139-141</code></a>). A Rust caller that forks while holding a
 <code>ParticipantLock</code>, or a signal handler that inserts on the interrupted
 thread's registration, has two flows of control acting for one
 registration, which voids <a class="ref inv" href="#sl1-slot-serialisation">SL1</a> (a handler's <a class="ref ev" href="#ev-w2">W2</a>'/<a class="ref ev" href="#ev-w7">W7</a>' can give a torn
@@ -3444,7 +3444,7 @@ not treated. Known holes:</p>
 <ul>
 <li>A claim that dies while INITIALIZING is identified by its TID alone;
 while a live thread reuses that TID, the slot cannot be reaped, nor
-its pin cleared (<a href="https://github.com/DataDog/dd-trace-php/blob/ba3c83be7d3c87461d75850ad22198000bc2c68c/shm_gen_cache/src/participant.rs#L268-L274"><code>participant.rs:268-274</code></a>).</li>
+its pin cleared (<a href="https://github.com/DataDog/dd-trace-php/blob/55a5a84cdfa0ed42021967189489c9fcb3e6ce83/shm_gen_cache/src/participant.rs#L268-L274"><code>participant.rs:268-274</code></a>).</li>
 <li>A FREE slot whose pin is not <code>UNPINNED</code> would block reuse for good:
 <code>steal()</code> reports <code>Free</code> and reaps nothing. The code keeps it from
 arising (<a class="ref ev" href="#ev-p3">P3</a> asserts an unpinned slot, <a class="ref ev" href="#ev-p6">P6</a> precedes a stealer's <a class="ref ev" href="#ev-p3">P3</a>),
