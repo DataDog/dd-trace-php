@@ -36,6 +36,7 @@ $cases = array(
     'null' => array(true, null),
     'boolean' => array(true, true),
     'array' => array(true, array()),
+    'object' => array(true, (object) array('timestamp' => '2026-10-19T12:00:00Z')),
     'empty' => array(true, ''),
     'malformed' => array(true, 'invalid'),
 );
@@ -74,6 +75,8 @@ boolean=fallback,INVALID_CONTEXT
 boolean_disabled=red
 array=fallback,INVALID_CONTEXT
 array_disabled=red
+object=fallback,INVALID_CONTEXT
+object_disabled=red
 empty=fallback,INVALID_CONTEXT
 empty_disabled=red
 malformed=fallback,INVALID_CONTEXT

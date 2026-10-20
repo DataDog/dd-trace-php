@@ -225,8 +225,8 @@ function evaluate_fixture_case($client, $variationType, $flag, $defaultValue, ar
 function values_match($actual, $expected, $variationType)
 {
     if ($variationType === 'NUMERIC') {
-        return is_numeric($actual)
-            && is_numeric($expected)
+        return (is_int($actual) || is_float($actual))
+            && (is_int($expected) || is_float($expected))
             && abs((float) $actual - (float) $expected) < 0.000001;
     }
 
@@ -307,5 +307,5 @@ function show($label, $value)
 config_loaded=true
 fixture_files=%d
 cases=%d
-immediate_cases=18
+immediate_cases=26
 failures=0

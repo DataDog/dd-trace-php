@@ -113,18 +113,19 @@ final class DataDogProviderTest extends TestCase
         self::assertSame([$details->getError()->getResolutionErrorMessage()], $logger->warnings());
     }
 
-    public function testInvalidOptOutValueIsNotDroppedFromContext(): void
+    /** @dataProvider invalidOptOutValues */
+    public function testInvalidOptOutValueIsNotDroppedFromContext($value): void
     {
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setInvalidContext('feature');
         $provider = $this->providerForEvaluator($evaluator);
         $details = $provider->resolveStringValue('feature', 'fallback', new EvaluationContext(
             'subject',
-            new Attributes(['dd_experimentation_opt_out_at' => null])
+            new Attributes(['dd_experimentation_opt_out_at' => $value])
         ));
 
         self::assertSame(
-            ['dd_experimentation_opt_out_at' => null],
+            ['dd_experimentation_opt_out_at' => $value],
             $evaluator->getCalls()[0]['attributes']
         );
         self::assertSame('fallback', $details->getValue());
@@ -132,6 +133,36 @@ final class DataDogProviderTest extends TestCase
             ErrorCode::INVALID_CONTEXT()->getValue(),
             $details->getError()->getResolutionErrorCode()->getValue()
         );
+    }
+
+    public static function invalidOptOutValues(): array
+    {
+        return [
+            'null' => [null],
+            'array' => [[]],
+            'object' => [(object) ['timestamp' => '2026-10-19T12:00:00Z']],
+        ];
+    }
+
+    /** @dataProvider invalidOptOutValues */
+    public function testNativeBridgePreservesInvalidOptOutValues($value): void
+    {
+        $class = new \ReflectionClass(\DDTrace\FeatureFlags\Internal\NativeEvaluator::class);
+        $evaluator = $class->newInstanceWithoutConstructor();
+        $mode = $class->getProperty('experimentationOptOutImmediate');
+        $mode->setAccessible(true);
+        $normalize = $class->getMethod('normalizeAttributes');
+        $normalize->setAccessible(true);
+        $attributes = ['dd_experimentation_opt_out_at' => $value, 'plan' => 'pro'];
+
+        $mode->setValue($evaluator, true);
+        self::assertSame(
+            ['dd_experimentation_opt_out_at' => '', 'plan' => 'pro'],
+            $normalize->invoke($evaluator, $attributes)
+        );
+        $mode->setValue($evaluator, false);
+        self::assertSame(['plan' => 'pro'], $normalize->invoke($evaluator, $attributes));
+        self::assertSame($value, $attributes['dd_experimentation_opt_out_at']);
     }
 
     public function testUnsupportedOptOutModeFailsDuringConstruction(): void
