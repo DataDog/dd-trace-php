@@ -6,10 +6,10 @@
 
 // clang-format off
 #include "entity_body.h"
+#include "body_parser.h"
 #include "ddappsec.h"
 #include "php_compat.h" // NOLINT (must come before entity_body_arginfo.h)
 #include "entity_body_arginfo.h"
-#include "body_parser.h"
 #include "logging.h"
 #include "php_objects.h"
 #include "string_helpers.h"
