@@ -41,8 +41,7 @@ typedef struct _dd_imsg {
 
 // if and only if this returns success, _imsg_destroy must be called
 static dd_result ATTR_WARN_UNUSED _imsg_recv(dd_imsg *nonnull imsg,
-    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer,
-    bool reconnect_sidecar);
+    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer, bool client_init);
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
@@ -85,7 +84,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
     }
 
     dd_imsg imsg = {0};
-    res = _imsg_recv(&imsg, conn, &omsg.buffer, spec->reconnect_sidecar);
+    res = _imsg_recv(&imsg, conn, &omsg.buffer, spec->client_init);
     _dump_out_msg(dd_log_trace, &omsg.buffer);
     _omsg_destroy(&omsg);
     if (res) {
@@ -241,13 +240,12 @@ static inline void _omsg_destroy(dd_omsg *nonnull omsg)
 
 // incoming
 static ATTR_WARN_UNUSED dd_result _imsg_recv(dd_imsg *nonnull imsg,
-    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer,
-    bool reconnect_sidecar)
+    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer, bool client_init)
 {
     mlog(dd_log_debug, "Will exchange message with helper");
 
     dd_result res = dd_conn_roundtrip(conn, buffer->data,
-        buffer->final_msg_size, reconnect_sidecar, &imsg->_response);
+        buffer->final_msg_size, client_init, &imsg->_response);
     if (res) {
         return res;
     }

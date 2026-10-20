@@ -1,13 +1,17 @@
+use crate::remote_config::RemoteConfigState;
+use crate::telemetry::ShmCacheMap;
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
+use datadog_sidecar::service::agent_info::AgentInfoReader;
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
 use datadog_sidecar::tracer::shm_limiter_path;
+use datadog_sidecar_ffi::AgentRemoteConfigReader;
 use lazy_static::lazy_static;
-use libdd_common::rate_limiter::{Limiter, LocalLimiter};
+use libdd_common::rate_limiter::LocalLimiter;
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
-use libdd_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
+use libdd_ipc::rate_limiter::{ShmLimiter, ShmLimiterMemory};
 use libdd_telemetry_ffi::try_c;
 #[cfg(windows)]
 use spawn_worker::{get_trampoline_target_data, LibDependency};
@@ -17,7 +21,7 @@ use std::ops::DerefMut;
 use std::os::unix::ffi::OsStrExt;
 #[cfg(target_os = "macos")]
 use std::sync::atomic::{AtomicI32, Ordering};
-use std::sync::{LazyLock, Mutex};
+use std::sync::Mutex;
 use std::time::Duration;
 
 #[cfg(php_shared_build)]
@@ -159,6 +163,17 @@ pub extern "C" fn ddog_sidecar_connect_master_php() -> MaybeError {
     datadog_sidecar_ffi::ddog_sidecar_connect_master()
 }
 
+/// # Safety
+/// Call in the child after fork, before starting threads. Inherited sidecar tasks
+/// and references to their state must not be used afterward.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_handle_fork_php() -> MaybeError {
+    #[cfg(unix)]
+    try_c!(unsafe { ddtrace_sidecar::after_fork() });
+
+    MaybeError::None
+}
+
 /// Ensures the connected sidecar's AppSec backend is started using the
 /// configuration captured from the PHP extension.
 #[no_mangle]
@@ -283,13 +298,58 @@ pub extern "C" fn datadog_sidecar_clear_reconnect_fn(transport: &mut Box<Sidecar
     transport.reconnect_fn = None;
 }
 
-static SHM_LIMITER: LazyLock<ShmLimiterMemory<()>> =
-    LazyLock::new(|| ShmLimiterMemory::new_reader(shm_limiter_path()));
+struct LimiterReaders {
+    probes: ShmLimiterMemory<()>,
+    exceptions: ExceptionHashRateLimiter,
+}
 
-static EXCEPTION_HASH_LIMITER: LazyLock<ExceptionHashRateLimiter> =
-    LazyLock::new(ExceptionHashRateLimiter::new_reader);
+static LIMITERS: LimiterReaders = LimiterReaders {
+    probes: ShmLimiterMemory::new_reader_with_path(shm_limiter_path),
+    exceptions: ExceptionHashRateLimiter::new_reader(),
+};
 
-pub struct MaybeShmLimiter(Option<AnyLimiter>);
+/// Retire mappings from a previous namespace so subsequent reads reopen them. To be called on
+/// every (re)connected transport: the connection may be to a new sidecar. Reconnects are rare,
+/// so the process-wide caches are simply reopened by every thread.
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_reconnect_readers(
+    telemetry: Option<&ShmCacheMap>,
+    remote_config: Option<&mut RemoteConfigState>,
+    agent_info: Option<&AgentInfoReader>,
+    agent_config: Option<&AgentRemoteConfigReader>,
+) {
+    LIMITERS.probes.reconnect();
+    LIMITERS.exceptions.reconnect();
+    crate::stats::ddog_span_concentrators_clear();
+    if let Some(telemetry) = telemetry {
+        telemetry.reconnect();
+    }
+    if let Some(remote_config) = remote_config {
+        remote_config.manager.reconnect();
+    }
+    if let Some(agent_info) = agent_info {
+        agent_info.reconnect();
+    }
+    if let Some(AgentRemoteConfigReader::Named(reader)) = agent_config {
+        reader.reconnect();
+    }
+}
+
+/// The fd of the transport's current connection; it changes on reconnect.
+#[cfg(unix)]
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_transport_raw_fd(transport: &Box<SidecarTransport>) -> i32 {
+    transport.as_raw_fd()
+}
+
+const SHM_LIMITER_GRANULARITY: Duration = Duration::from_secs(1);
+
+pub struct MaybeShmLimiter(Option<Limiter>);
+
+enum Limiter {
+    Local(LocalLimiter),
+    Shm(ShmLimiter<()>),
+}
 
 impl MaybeShmLimiter {
     pub fn open(index: u32) -> Self {
@@ -297,19 +357,20 @@ impl MaybeShmLimiter {
             None
         } else {
             Some(
-                SHM_LIMITER
+                LIMITERS
+                    .probes
                     .get(index)
-                    .map(AnyLimiter::Shm)
-                    .unwrap_or_else(|| AnyLimiter::Local(LocalLimiter::default())),
+                    .map(Limiter::Shm)
+                    .unwrap_or_else(|| Limiter::Local(LocalLimiter::default())),
             )
         })
     }
 
     pub fn inc(&self, limit: u32) -> bool {
-        if let Some(ref limiter) = self.0 {
-            limiter.inc(limit)
-        } else {
-            true
+        match &self.0 {
+            Some(Limiter::Local(limiter)) => limiter.inc(limit, SHM_LIMITER_GRANULARITY),
+            Some(Limiter::Shm(limiter)) => limiter.inc(limit, SHM_LIMITER_GRANULARITY),
+            None => true,
         }
     }
 }
@@ -325,10 +386,90 @@ pub extern "C" fn ddog_exception_hash_limiter_inc(
     hash: u64,
     granularity_seconds: u32,
 ) -> bool {
-    if let Some(limiter) = EXCEPTION_HASH_LIMITER.find(hash) {
+    let granularity = Duration::from_secs(granularity_seconds as u64);
+    if let Some(limiter) = LIMITERS.exceptions.find(hash, granularity) {
         return limiter.inc();
     }
-    let granularity = Duration::from_secs(granularity_seconds as u64);
     let _ = acquire_exception_hash_rate_limiter(connection, hash, granularity);
     true
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use crate::telemetry::{ddog_sidecar_telemetry_cache_new, ddog_sidecar_telemetry_config_sent};
+    use datadog_sidecar::service::telemetry::{path_for_telemetry, TelemetryCachedClientShmData};
+    use libdd_ipc::one_way_shared_memory::OneWayShmWriter;
+    use libdd_ipc::platform::NamedShmHandle;
+
+    #[test]
+    fn caches_follow_a_new_thread_master() {
+        const CHILD: &str = "DD_TEST_PHP_SHM_MASTER_CHANGE";
+        if std::env::var_os(CHILD).is_none() {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "sidecar::tests::caches_follow_a_new_thread_master",
+                ])
+                .env(CHILD, "1")
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{output:?}");
+            return;
+        }
+
+        datadog_sidecar::use_thread_sidecar_shm_namespace(Some(std::process::id()));
+        let mut old = ShmLimiterMemory::<()>::create(shm_limiter_path()).unwrap();
+        let old_slot = old.alloc().unwrap();
+        let reader = MaybeShmLimiter::open(old_slot.index());
+        for _ in 0..10 {
+            assert!(reader.inc(10));
+        }
+        assert!(!reader.inc(1));
+
+        let service = CharSlice::from("thread-promotion");
+        let env = CharSlice::from("test");
+        let mut cache = ddog_sidecar_telemetry_cache_new();
+        let old_telemetry =
+            OneWayShmWriter::<NamedShmHandle>::new(path_for_telemetry("thread-promotion", "test"))
+                .unwrap();
+        let sent = TelemetryCachedClientShmData {
+            config_sent: true,
+            ..Default::default()
+        };
+        assert!(old_telemetry.write(&bincode::serialize(&sent).unwrap()));
+        assert!(unsafe { ddog_sidecar_telemetry_config_sent(&mut cache, service, env) });
+
+        ddog_sidecar_reconnect_readers(Some(&cache), None, None, None);
+        assert!(!old.is_retired());
+        assert!(old_telemetry.write(&bincode::serialize(&sent).unwrap()));
+
+        // Stay outside the signed PID range to avoid another process's SHM.
+        let other_master = std::process::id() | (1 << 31);
+        datadog_sidecar::use_thread_sidecar_shm_namespace(Some(other_master));
+        ddog_sidecar_reconnect_readers(Some(&cache), None, None, None);
+        let mut new = ShmLimiterMemory::<()>::create(shm_limiter_path()).unwrap();
+        let new_slot = new.alloc().unwrap();
+        assert_eq!(old_slot.index(), new_slot.index());
+        let reader = MaybeShmLimiter::open(new_slot.index());
+        assert!(reader.inc(1), "the new arena has not been used yet");
+        assert!(new_slot.rate(SHM_LIMITER_GRANULARITY) > 0.);
+        assert!(!old.is_retired());
+        // Keep the last acknowledgement until the new sidecar publishes its state.
+        assert!(unsafe { ddog_sidecar_telemetry_config_sent(&mut cache, service, env) });
+
+        let new_telemetry =
+            OneWayShmWriter::<NamedShmHandle>::new(path_for_telemetry("thread-promotion", "test"))
+                .unwrap();
+        assert!(new_telemetry
+            .write(&bincode::serialize(&TelemetryCachedClientShmData::default()).unwrap()));
+        assert!(!unsafe { ddog_sidecar_telemetry_config_sent(&mut cache, service, env) });
+        assert!(new_telemetry.write(&bincode::serialize(&sent).unwrap()));
+        assert!(unsafe { ddog_sidecar_telemetry_config_sent(&mut cache, service, env) });
+        assert!(old_telemetry.write(&bincode::serialize(&sent).unwrap()));
+
+        ddog_sidecar_reconnect_readers(Some(&cache), None, None, None);
+        assert!(!new.is_retired());
+        assert!(new_telemetry.write(&bincode::serialize(&sent).unwrap()));
+    }
 }

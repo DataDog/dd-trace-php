@@ -47,6 +47,9 @@ INI_FILE := $(INI_DIR)/ddtrace.ini
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
+# run-tests.php has no -j before PHP 7.4: prefix the invocation with this to
+# run it as multiple concurrent run-tests.php processes instead.
+RUN_TESTS_PARALLELIZE := $(if $(RUN_TESTS_IS_PARALLEL),,$(PROJECT_ROOT)/tooling/parallelize-run-tests.sh -j$(MAX_TEST_PARALLELISM))
 
 # shuffle parallel tests to evenly distribute test load, avoiding a batch of 32 tests being request-replayer tests
 #
@@ -61,12 +64,13 @@ TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.
 SIDECAR_RUST_FILES = appsec/recommended.json $(shell find sidecar appsec/helper-rust appsec/third_party/libddwaf-rust \( -type l -o -type f \) \( -path "*/src*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -name '*.c' \) -not -path "*/target/*" -not -path "*/.git/*")
 RUST_SYMBOL_FILES = $(addprefix $(BUILD_DIR)/, \
 	components-rs/libdatadog-php.sym \
-	components-rs/libdatadog-php-unix.sym \
-	components-rs/libdatadog-php-linux.sym)
+	components-rs/libdatadog-php-unix.sym)
 RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(RUST_SYMBOL_FILES) $(shell find components-rs profiling -name '*.c' -o -name '*.h' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find tracer -name '*.rs' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog \( -type l -o -type f \) \( -name '*.rs' -o -path '*/src*' -o -path '*/examples*' -o -name 'Cargo.toml' \) -not -path '*/target/*' -not -path '*/.git/*') $(SIDECAR_RUST_FILES)
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '*.inc' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+# Canonical FFE fixtures (git submodule) read by tests/ext/ffe/system_test_data_evaluate.phpt; shipped in the PECL package only
+FFE_FIXTURE_FILES = $(shell find tests/FeatureFlags/ffe-system-test-data -name '*.json' -not -path '*/.git/*')
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
 XDEBUG_SO_FILE = $(shell find $(shell php-config --extension-dir) -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
@@ -229,7 +233,7 @@ test_extension_ci_normal: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DI
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
-	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
+	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_PARALLELIZE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
 	)
 
 test_extension_ci_valgrind: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
@@ -238,7 +242,7 @@ test_extension_ci_valgrind: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=5000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=5000 $(RUN_TESTS_PARALLELIZE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 # Recursive $(MAKE), not prerequisites: under `make -jN` prerequisites would run
@@ -562,7 +566,7 @@ $(PACKAGES_BUILD_DIR)/datadog-setup.php: $(PACKAGES_BUILD_DIR)
 		$(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
-	$(file >.pecl-files,$(subst $(BUILD_DIR)/,,$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock))
+	$(file >.pecl-files,$(subst $(BUILD_DIR)/,,$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock) $(FFE_FIXTURE_FILES))
 	tooling/bin/pecl-build < .pecl-files
 	@rm -f .pecl-files
 

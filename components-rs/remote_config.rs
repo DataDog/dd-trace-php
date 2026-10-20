@@ -2,7 +2,7 @@ use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
 use crate::sidecar::MaybeShmLimiter;
 use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
 use datadog_sidecar::service::blocking::SidecarTransport;
-use datadog_sidecar::service::{InstanceId, QueueId};
+use datadog_sidecar::service::InstanceId;
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
 use itertools::Itertools;
@@ -93,7 +93,7 @@ fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>)
 }
 
 pub struct RemoteConfigState {
-    manager: RemoteConfigManager,
+    pub(crate) manager: RemoteConfigManager,
     live_debugger: LiveDebuggerState,
     dynamic_config: DynamicConfig,
 }
@@ -415,9 +415,8 @@ pub extern "C" fn ddog_remote_config_current_generation(remote_config: &RemoteCo
 pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState) -> *const c_char {
     remote_config
         .manager
-        .active_reader
-        .as_ref()
-        .map(|r| r.get_path().as_ptr())
+        .get_path()
+        .map(|path| path.as_ptr())
         .unwrap_or(std::ptr::null())
 }
 
@@ -888,7 +887,6 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
     remote_config_state: &RemoteConfigState,
     transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,
-    queue_id: QueueId,
     probe: &'a Probe,
     timestamp: u64,
 ) -> MaybeError {
@@ -915,5 +913,5 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
         serde_json::to_string(&payload).unwrap()
     );
 
-    ddog_sidecar_send_debugger_diagnostics(transport, instance_id, queue_id, payload)
+    ddog_sidecar_send_debugger_diagnostics(transport, payload)
 }

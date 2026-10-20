@@ -30,7 +30,7 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 class Laminas33Tests {
 
     /**
-     * Laminas MVC 3.3.x supports PHP 7.3–8.1 per composer constraints in www/laminas33.
+     * Laminas MVC 3.3.x supports PHP 7.3–8.1 per composer constraints in the shared framework.
      */
     static boolean expectedVersion =
             ['7.3', '7.4', '8.0', '8.1'].contains(getPhpVersion()) && !getVariant().contains('zts')
@@ -47,7 +47,7 @@ class Laminas33Tests {
                     baseTag: 'apache2-mod-php',
                     phpVersion: getPhpVersion(),
                     phpVariant: getVariant(),
-                    www: 'laminas33',
+                    www: '../../../tests/Frameworks/Laminas/Mvc/Version_3_3',
             )
 
     static void main(String[] args) {
@@ -81,13 +81,28 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 26
+        assert endpoints.size() == 33
         assert endpoints.find { it.path == '/' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /' } != null
         assert endpoints.find {
             it.path == '/application[/:action]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /application[/:action]'
         } != null
         assert endpoints.find { it.path == '/authenticate' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /authenticate' } != null
         assert endpoints.find { it.path == '/behind-auth' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /behind-auth' } != null
+        assert endpoints.find {
+            it.path == '/simple[/:key][/:pwd]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /simple[/:key][/:pwd]'
+        } != null
+        assert endpoints.find {
+            it.path == '/simple_view[/:key][/:pwd]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /simple_view[/:key][/:pwd]'
+        } != null
+        assert endpoints.find {
+            it.path == '/error[/:key][/:pwd]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /error[/:key][/:pwd]'
+        } != null
+        assert endpoints.find { it.path == '/login/auth' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /login/auth' } != null
+        assert endpoints.find { it.path == '/login/signup' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /login/signup' } != null
+        assert endpoints.find { it.path == '/behind_auth' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /behind_auth' } != null
+        assert endpoints.find {
+            it.path == '/dynamic_route[/:param01[/static[/:param02]]]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /dynamic_route[/:param01[/static[/:param02]]]'
+        } != null
         assert endpoints.find {
             it.path == '/dynamic-path[/:param01]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /dynamic-path[/:param01]'
         } != null

@@ -2,6 +2,8 @@
 
 # Common functions used to test the installation process
 
+github_releases_base_url="${GITHUB_RELEASES_MIRROR:-https://github.com}"
+
 assert_file_contains() {
     output=$(cat ${1})
     if [ -z "${output##*$2*}" ]; then
@@ -204,7 +206,7 @@ assert_world_readable_tree() {
 install_legacy_ddtrace() (
     version=$1
     curl -L --output "/tmp/legacy-${version}.tar.gz" \
-        "https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-php-tracer-${version}.x86_64.tar.gz"
+        "${github_releases_base_url}/DataDog/dd-trace-php/releases/download/${version}/datadog-php-tracer-${version}.x86_64.tar.gz"
     tar -xf  "/tmp/legacy-${version}.tar.gz" -C /
     /opt/datadog-php/bin/post-install.sh
 )
@@ -235,13 +237,12 @@ fetch_setup_for_version() (
 
     mkdir -vp "${destdir?}"
     cd "${destdir}"
-    curl -OL https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php
+    curl -OL "${github_releases_base_url}/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php"
     cd -
 )
 
 run_released_installer() (
-    unset DD_TEST_INSTALLER_REPO
-    php "$@"
+    DD_TEST_INSTALLER_REPO="${github_releases_base_url}/DataDog/dd-trace-php" php "$@"
 )
 
 parse_appsec_version() {

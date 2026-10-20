@@ -496,3 +496,20 @@ INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
+INTERCEPTOR_TEST_CASE("bailout in yielded from generator runs end handlers of delegating generators", {
+    INSTALL_HOOK("bailoutOuterGenerator");
+    INSTALL_HOOK("bailoutInnerGenerator");
+
+    zval result;
+    zai_str fn_name = ZAI_STRL("runBailoutYieldFromGenerator");
+    REQUIRE(!zai_test_call_global_with_0_params(fn_name, &result));
+    REQUIRE(CG(unclean_shutdown));
+
+#if PHP_VERSION_ID < 80000
+    php_call_shutdown_functions();
+#endif
+
+    CHECK(zai_hook_test_begin_invocations == 2);
+    CHECK(zai_hook_test_end_invocations == 2);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});

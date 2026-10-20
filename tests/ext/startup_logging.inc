@@ -12,7 +12,9 @@ function dd_get_php_cgi()
         }
     }
     if (file_exists($executable) && is_executable($executable)) {
-        $args = getenv('TEST_PHP_ARGS');
+        // run-tests.php folds TEST_PHP_ARGS into TEST_PHP_EXTRA_ARGS (appended by the caller); passing both
+        // loads every -d extension=... twice. Only fall back to it for run-tests.php versions predating PHP 7.2.
+        $args = getenv('TEST_PHP_EXTRA_ARGS') === false ? getenv('TEST_PHP_ARGS') : '';
         return $args ? "$executable $args" : "$executable";
     }
     return '';

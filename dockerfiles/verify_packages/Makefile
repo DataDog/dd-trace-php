@@ -9,6 +9,7 @@ INSTALLER_DOCKER_RUN = docker run --rm -i \
 	--env-file $(shell pwd)/.env \
 	$(INSTALLER_DOCKER_ARGS) \
 	-e CIRCLECI \
+	-e GITHUB_RELEASES_MIRROR \
 	--workdir=/app
 
 .PHONY: $(CENTOS6_PHP_VERSIONS)
@@ -56,7 +57,7 @@ verify_debian:
 # Asserts the request is served and traced, that the agent-response shared memory is owned by
 # and named for the worker user, and that the sidecar threads dropped while FPM's own main
 # thread did not. Linux only: per-thread credentials are a Linux facility.
-#   Example: make verify_fpm_thread_sidecar_uid DOCKER_IMAGE=datadog/dd-trace-ci:php-8.3_bookworm INSTALL_MODE=sury PHP_VERSION=8.3
+#   Example: make verify_fpm_thread_sidecar_uid DOCKER_IMAGE=datadog/dd-trace-ci:php-8.3_bookworm-11 INSTALL_MODE=sury PHP_VERSION=8.3
 verify_fpm_thread_sidecar_uid:
 	docker-compose run --rm \
 		-e INSTALL_MODE="$(INSTALL_MODE)" \

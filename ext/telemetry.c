@@ -57,7 +57,7 @@ void datadog_telemetry_lifecycle_end() {
     }
 
     datadog_ffi_try("Failed ending sidecar lifecycle",
-                    ddog_sidecar_lifecycle_end(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id)));
+                    ddog_sidecar_lifecycle_end(&DATADOG_G(sidecar)));
 }
 
 void datadog_telemetry_finalize() {
@@ -171,7 +171,7 @@ void datadog_telemetry_finalize() {
     dd_commit_metrics();
 
     datadog_ffi_try("Failed flushing filtered telemetry buffer",
-        ddog_sidecar_telemetry_filter_flush(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), buffer, datadog_telemetry_cache(), service_name, env_name));
+        ddog_sidecar_telemetry_filter_flush(&DATADOG_G(sidecar), buffer, datadog_telemetry_cache(), service_name, env_name));
 
     ddog_sidecar_telemetry_buffer_drop(buffer);
 }
@@ -214,7 +214,6 @@ static void dd_commit_metrics(void) {
         return;
     }
 
-    ddog_sidecar_telemetry_buffer_flush(
-        &DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), DATADOG_G(metrics_buffer));
+    ddog_sidecar_telemetry_buffer_flush(&DATADOG_G(sidecar), DATADOG_G(metrics_buffer));
     DATADOG_G(metrics_buffer) = NULL;
 }

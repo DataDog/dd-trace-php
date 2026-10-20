@@ -17,6 +17,15 @@ use datadog_sidecar::service::telemetry::InProcessTelemetryClientFactory;
 
 pub use client::{on_disconnect, on_message, MessageResponse};
 
+/// Discard the parent's helper state.
+///
+/// # Safety
+/// Call in the child after fork, before starting any new threads.
+pub unsafe fn after_fork() {
+    client::clear_inherited_state();
+    rc_notify::unregister_for_rc_notifications();
+}
+
 #[cfg(feature = "coverage")]
 pub fn initialize_coverage() {
     unsafe extern "C" {

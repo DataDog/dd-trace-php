@@ -98,4 +98,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once ABSPATH . 'wp-settings.php';
 
 //Appsec mock. This wont be needed on customer apps since this functions will be exposed by appsec
-require __DIR__.'/../../../Appsec/Mock.php';
+if (file_exists(__DIR__.'/../../../Appsec/Mock.php')) {
+	require __DIR__.'/../../../Appsec/Mock.php';
+}

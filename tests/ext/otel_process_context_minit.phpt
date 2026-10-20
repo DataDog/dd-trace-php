@@ -20,7 +20,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 <?php
 
 $php = getenv('TEST_PHP_EXECUTABLE');
-$args = trim(getenv('TEST_PHP_ARGS') . ' ' . getenv('TEST_PHP_EXTRA_ARGS'));
+$args = trim((string) getenv('TEST_PHP_EXTRA_ARGS'));
 
 // PHP versions before 8.0 do not let the CLI server bind to port zero.
 $listener = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);

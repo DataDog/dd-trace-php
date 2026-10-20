@@ -30,22 +30,24 @@ class TraceSerializationBench
             throw new \RuntimeException('Trace serialization benchmark requires a ready agent /info response');
         }
 
-        // Sampling rates are published after a trace response. Exercise automatic sampling
-        // and the real sender, without changing the priority of the measured trace.
-        $span = \DDTrace\start_trace_span();
-        $span->name = 'bench.trace_serialization.warmup';
-        \DDTrace\close_span();
-        \DDTrace\flush();
-
+        // Sampling rates are published after a trace response. Retry the trace as well as the
+        // shared-memory read: a transient send failure would otherwise leave the worker polling
+        // data that cannot change.
         $deadline = microtime(true) + 5;
         do {
-            // Trace enqueueing is asynchronous, so the first flush can precede it.
-            \dd_trace_synchronous_flush(5000);
+            // Exercise automatic sampling and the real sender, without changing the priority of
+            // the measured trace. Trace enqueueing is asynchronous, so flush both layers.
+            $span = \DDTrace\start_trace_span();
+            $span->name = 'bench.trace_serialization.warmup';
+            \DDTrace\close_span();
+            \DDTrace\flush();
+            \dd_trace_synchronous_flush(1000);
+
             $config = \dd_trace_internal_fn('get_agent_sampling_config');
             if (isset($config['rate_by_service']) && is_array($config['rate_by_service'])) {
                 return;
             }
-            usleep(10000);
+            usleep(100000);
         } while (microtime(true) < $deadline);
 
         throw new \RuntimeException('Trace serialization benchmark requires agent sampling rates');

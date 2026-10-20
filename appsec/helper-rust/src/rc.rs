@@ -675,8 +675,62 @@ mod tests {
         ConfigPoller::new(Path::new(OsStr::from_bytes(name.as_bytes())))
     }
 
-    /// A poller holding a directory must move on when its writer is replaced - by a restarted
-    /// sidecar, say - even though the new directory's sequence starts over below the old one.
+    #[test]
+    fn a_poller_retries_a_missing_directory() -> anyhow::Result<()> {
+        let name = writer_name("missing");
+        let mut poller = poller_for(&name);
+        assert!(poller.poll()?.is_none());
+
+        let writer = OneWayShmWriter::<NamedShmHandle>::new(name)?;
+        assert!(writer.write(b"runtime\n"));
+        assert_eq!(
+            poller
+                .poll()?
+                .context("published directory")?
+                .runtime_id()?,
+            "runtime"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_poller_reports_open_errors() -> anyhow::Result<()> {
+        let name = CString::new(format!("/{}", "x".repeat(256)))?;
+        let mut poller = poller_for(&name);
+        for _ in 0..2 {
+            let error = poller
+                .poll()
+                .err()
+                .context("open failure must reach the caller")?;
+            assert_eq!(
+                error
+                    .downcast_ref::<std::io::Error>()
+                    .and_then(std::io::Error::raw_os_error),
+                Some(libc::ENAMETOOLONG)
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_poller_retries_an_uninitialized_directory() -> anyhow::Result<()> {
+        let name = writer_name("uninit");
+        let _pending = NamedShmHandle::create(name.clone(), 0x1000)?;
+        let mut poller = poller_for(&name);
+        assert!(poller.poll()?.is_none());
+
+        let writer = OneWayShmWriter::<NamedShmHandle>::new(name)?;
+        assert!(writer.write(b"runtime\n"));
+        assert_eq!(
+            poller
+                .poll()?
+                .context("initialized directory")?
+                .runtime_id()?,
+            "runtime"
+        );
+        Ok(())
+    }
+
     #[test]
     fn a_poller_follows_a_replaced_directory() -> anyhow::Result<()> {
         use libdd_ipc::one_way_shared_memory::OneWayShmWriter;

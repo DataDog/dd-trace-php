@@ -182,12 +182,10 @@ requirements_json_test:
 # dd-trace-php release packaging
 "prepare code":
   stage: prepare
-  image: registry.ddbuild.io/images/mirror/composer:2
+  image: registry.ddbuild.io/images/mirror/composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
-    # Upgrading composer
-    - composer self-update --no-interaction
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
@@ -310,7 +308,7 @@ if ($suffix == "-alpine") {
 <?php
  }
 ?>
-    - .gitlab/build-appsec.sh <?= $suffix ?>
+    - .gitlab/build-appsec.sh <?= $suffix ?> || exit $?
 
   artifacts:
     paths:
@@ -819,6 +817,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script:
+    - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
     - installable_bundle=$(find packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
@@ -897,7 +896,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - .gitlab/run-with-retryable-download.sh apt-get update
     - .gitlab/run-with-retryable-download.sh apt install -y php git make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
+    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - docker network create randomized_tests_baseservices
@@ -917,6 +916,8 @@ endforeach;
 "randomized tests: [amd64, no-asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "docker-in-docker:amd64" ]
+  variables:
+    RANDOMIZED_RESTRICT_PLATFORMS: centos7
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -927,6 +928,8 @@ endforeach;
 "randomized tests: [amd64, asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "docker-in-docker:amd64" ]
+  variables:
+    RANDOMIZED_RESTRICT_PLATFORMS: buster
   needs:
     - job: "package extension asan"
       artifacts: true
@@ -941,6 +944,7 @@ endforeach;
 #   tags: [ "docker-in-docker:arm64" ]
 #   variables:
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
+#     RANDOMIZED_RESTRICT_PLATFORMS: centos7
 #   needs:
 #     - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
 #       artifacts: true
@@ -954,6 +958,7 @@ endforeach;
 #   tags: [ "docker-in-docker:arm64" ]
 #   variables:
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
+#     RANDOMIZED_RESTRICT_PLATFORMS: buster
 #   needs:
 #     - job: "package extension asan"
 #       artifacts: true
@@ -1094,7 +1099,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - apt-get update
     - apt install -y make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
@@ -1119,7 +1124,8 @@ endforeach;
     DD_TRACE_AGENT_PORT: 80
     DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
   script:
-    - ./dockerfiles/verify_packages/verify.sh
+    # `|| exit $?` keeps install.sh's exit 75 on centos:7, where bash 4.2 turns an errexit status into 1.
+    - ./dockerfiles/verify_packages/verify.sh || exit $?
 
 
 "verify alpine":
@@ -1238,7 +1244,8 @@ endforeach;
                -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
         echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
       fi
-    - apt-get update || exit 75
+    # Bound apt: a stalled deb.debian.org fetch otherwise hangs until the 1 h job timeout; 75 is retried.
+    - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 update || exit 75
     - |
       # apt-get update still exits 0 when the rewrite silently no-ops, so assert on the URIs apt would actually fetch from.
       if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
@@ -1249,7 +1256,7 @@ endforeach;
         if [ -z "$uris" ]; then echo "FAIL: could not resolve any apt URIs"; exit 1; fi
         if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
       fi
-    - apt-get install -y curl || exit 75
+    - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 install -y curl || exit 75
 
 # Thread-mode sidecar under a privilege-dropping PHP-FPM: root master, www-data pool workers.
 # One combination only - this verifies runtime behaviour of the sidecar's privilege drop, not
@@ -1418,6 +1425,7 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
     BUILD_SH_ARGS: php
+    USE_IMAGE_MIRROR: "1"
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     APT_CACHE: $CI_PROJECT_DIR/.cache/apt
     DOCKER_DEFAULT_PLATFORM: linux/amd64
@@ -1529,6 +1537,9 @@ $system_tests_weblogs = [
 <?php foreach ($system_tests_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, tracer-release]":
   extends: .system_tests
+  # Start with two shards as an initial estimate of useful parallelism.
+  # Keep the job count modest across all weblogs to limit shared CI compute usage.
+  parallel: 2
   timeout: 4h
   variables:
     BUILD_SH_ARGS: -w <?= $weblog ?> php
@@ -1545,7 +1556,13 @@ $system_tests_weblogs = [
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
+    # Alphabetical splitting clustered slow related scenarios in one shard.
+    # Hash sorting reduces that imbalance, while keeping the order reproducible.
+    # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
+    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    # Each job builds the full list, then keeps every `Nth` scenario for its shard.
+    # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
+    - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
@@ -1702,7 +1719,12 @@ $system_tests_weblogs = [
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.17.32
   tags: [ "arch:amd64" ]
   rules:
-    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+    # Builds against an unpinned libdatadog share the version of the pinned build of this commit:
+    # publishing them would overwrite the packages the system-tests nightly downloads.
+    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
+      when: never
+    # CI_PIPELINE_SOURCE is always "parent_pipeline" in this child pipeline.
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PARENT_PIPELINE_SOURCE != "schedule"
       when: on_success
     - when: manual
       allow_failure: true
@@ -1753,6 +1775,8 @@ foreach ($arch_targets as $arch) {
 # Runs on every non-default branch so system tests can be run against any (non-default) in-progress branch.
 "publish docker image for system tests (token)":
   stage: release
+  # Token generation needs no artifacts from earlier stages.
+  dependencies: []
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   id_tokens:

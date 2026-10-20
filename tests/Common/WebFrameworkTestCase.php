@@ -113,6 +113,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_TRACE_SHUTDOWN_TIMEOUT' => '666666', // Arbitrarily high value to avoid flakiness
             'DD_TRACE_AGENT_RETRIES' => '3',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+            'DD_TRACE_STATS_COMPUTATION_ENABLED' => 'false',
         ];
 
         return $envs;

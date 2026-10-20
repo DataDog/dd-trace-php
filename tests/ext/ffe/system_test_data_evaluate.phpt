@@ -2,9 +2,6 @@
 FFE canonical system test data evaluates through the Datadog client
 --SKIPIF--
 <?php
-if (getenv('PHP_PEAR_RUNTESTS') === '1') {
-    die('skip: canonical FFE fixtures are not shipped in the PECL test package');
-}
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) {
     die('skip: canonical FFE fixture sweep is too slow for valgrind');
 }
@@ -94,7 +91,20 @@ show('failures', count($failures));
 
 function require_feature_flag_api($root)
 {
-    $logRoot = $root . '/src/api/Log';
+    // A PECL install puts src/ at php_dir/datadog_trace/src, apart from the tests under test_dir. php_dir is on the
+    // include_path; sources_path would point there too, but pecl run-tests in CI blanks it.
+    $srcRoot = rtrim((string) ini_get('datadog.trace.sources_path'), '/');
+    if ($srcRoot === '' || !is_dir($srcRoot . '/api')) {
+        $srcRoot = $root . '/src';
+    }
+    if (!is_dir($srcRoot . '/api')) {
+        $installed = stream_resolve_include_path('datadog_trace/src/api/Log/LoggerInterface.php');
+        if ($installed !== false) {
+            $srcRoot = dirname(dirname(dirname($installed)));
+        }
+    }
+
+    $logRoot = $srcRoot . '/api/Log';
     foreach (array(
         'LoggerInterface',
         'LogLevel',
@@ -108,7 +118,7 @@ function require_feature_flag_api($root)
         require_once $logRoot . '/' . $classFile . '.php';
     }
 
-    $apiRoot = $root . '/src/api/FeatureFlags';
+    $apiRoot = $srcRoot . '/api/FeatureFlags';
     foreach (array(
         'EvaluationType',
         'EvaluationReason',

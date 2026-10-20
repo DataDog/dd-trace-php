@@ -36,8 +36,8 @@ class GracefulShutdownTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            // Route traces through the sidecar so datadog_sidecar_for_signal is non-NULL and the
-            // handler takes the cleanup-thread branch rather than the inline one.
+            // Route traces through the sidecar so a connection is armed for the signal handler and
+            // it takes the cleanup-thread branch rather than the inline one.
             'DD_TRACE_SIDECAR_TRACE_SENDER' => '1',
             // Normally defaulted on when pid/ppid is 1 (i.e. in a container); the test server is
             // neither, so ask for it explicitly.

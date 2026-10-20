@@ -8,6 +8,7 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  GITHUB_RELEASES_MIRROR: "https://depot-read-api-github-releases.us1.ddbuild.io/internal/mirror/github-releases"
   # Only clone submodules required by default test jobs
   # libddwaf-rust is needed because the root Cargo workspace includes
   # appsec/helper-rust, which depends on it (see 3f893e263)

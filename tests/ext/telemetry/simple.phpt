@@ -43,6 +43,9 @@ for ($i = 0; $i < $maxAttempts; ++$i) {
             }
             if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
+                if (!is_array($json)) {
+                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
+                }
                 if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
                     continue;
                 }

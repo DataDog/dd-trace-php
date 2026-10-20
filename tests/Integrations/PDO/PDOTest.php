@@ -178,6 +178,37 @@ final class PDOTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPDOConstructPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $this->pdoInstance();
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('PDO.__construct', 'pdo', 'sql', 'PDO.__construct')
+                ->withExactTags($this->baseTags(true)),
+        ]);
+    }
+
+    public function testPDOConnectPeerServiceEnabled()
+    {
+        if (PHP_VERSION_ID < 80400) {
+            $this->markTestSkipped('Test relies on PDO::connect() which was added in PHP 8.4');
+            return;
+        }
+
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            \PDO::connect($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('PDO.connect', 'pdo', 'sql', 'PDO.connect')
+                ->withExactTags($this->baseTags(true)),
+        ]);
+    }
+
     public function testPDOSplitByDomain()
     {
         self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
@@ -415,6 +446,26 @@ final class PDOTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPDOCommitPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $pdo->beginTransaction();
+            $pdo->exec($query);
+            $pdo->commit();
+            $pdo = null;
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::exists('PDO.exec'),
+            SpanAssertion::build('PDO.commit', 'pdo', 'sql', 'PDO.commit')
+                ->withExactTags($this->baseTags(true)),
+        ]);
+    }
+
     public function testPDOStatementOk()
     {
         $query = "SELECT * FROM tests WHERE id = :param";
@@ -474,7 +525,7 @@ final class PDOTest extends IntegrationTestCase
                 'pdo',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags(true)),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo',
@@ -678,7 +729,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.prepare', 'pdo', 'sql', "WRONG QUERY")
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags(true)),
             SpanAssertion::build('PDOStatement.execute', 'pdo', 'sql', "WRONG QUERY")
                 ->setError('PDOException', static::ERROR_STATEMENT, true)
                 ->withExactTags($this->baseTags(true)),

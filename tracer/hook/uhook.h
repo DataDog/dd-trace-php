@@ -18,6 +18,9 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
 void dd_uhook_log_invocation(void (*log)(const char *, ...), zend_execute_data *execute_data, const char *type, zend_object *closure);
 
 void zai_uhook_rinit();
+#if PHP_VERSION_ID >= 80000
+void zai_uhook_attributes_activate(void);
+#endif
 void zai_uhook_rshutdown();
 void zai_uhook_minit(int module_number);
 void zai_uhook_mshutdown();
