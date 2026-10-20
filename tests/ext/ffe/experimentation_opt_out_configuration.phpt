@@ -38,10 +38,10 @@ foreach ($cases as $name => $case) {
     echo $name . '_disabled=' . $disabled->getStringValue('new-user-onboarding', 'fallback', $subject) . "\n";
 }
 $context['attributes']['dd_experimentation_opt_out_at'] = '2026-10-19T00:00:00Z';
-ini_set('datadog.feature_flags.experimentation_opt_out_mode', 'disabled');
+ini_set('datadog.feature_flags_experimentation_opt_out_mode', 'disabled');
 echo 'snapshot=' . $client->getStringValue('new-user-onboarding', 'fallback', $context) . "\n";
 echo 'new_client=' . (new \DDTrace\FeatureFlags\Client())->getStringValue('new-user-onboarding', 'fallback', $context) . "\n";
-ini_set('datadog.feature_flags.experimentation_opt_out_mode', 'invalid');
+ini_set('datadog.feature_flags_experimentation_opt_out_mode', 'invalid');
 try {
     new \DDTrace\FeatureFlags\Client();
     echo "invalid_mode=accepted\n";
