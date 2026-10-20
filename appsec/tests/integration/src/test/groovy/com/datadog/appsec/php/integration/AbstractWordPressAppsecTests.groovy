@@ -42,8 +42,12 @@ abstract class AbstractWordPressAppsecTests {
         assert mysqlIp != null : "Could not determine MySQL container IP"
         log.info("MySQL IP: {}", mysqlIp)
 
+        // Match any existing DB_HOST value, not just the committed 'mysql-integration' alias.
+        // On local reruns the workvol is cached, so wp-config.php may already contain the
+        // previous run's numeric IP — a literal substitution would then no-op and leave a
+        // stale address when Docker allocates a different IP this run.
         def res = container.execInContainer('bash', '-c',
-                "sed -i \"s/'mysql-integration'/'${mysqlIp}'/\" /var/www/public/wp-config.php")
+                "sed -i -E \"s/(define\\(\\s*'DB_HOST'\\s*,\\s*)'[^']*'/\\1'${mysqlIp}'/\" /var/www/public/wp-config.php")
         assert res.exitCode == 0 : "Failed to update wp-config.php: ${res.stderr}"
 
         // Run wp-cli with tracing and AppSec disabled so these CLI processes

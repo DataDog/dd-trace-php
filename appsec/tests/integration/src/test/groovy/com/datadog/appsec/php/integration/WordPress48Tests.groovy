@@ -46,7 +46,11 @@ class WordPress48Tests extends AbstractWordPressAppsecTests {
             .withPassword('test')
             .withNetwork(network)
             .withNetworkAliases('mysql-integration')
-            .waitingFor(Wait.forLogMessage(".*ready for connections.*", 1)) as MySQLContainer
+            // Wait for the SECOND "ready for connections": the mysql image boots an
+            // init-only --skip-networking server first, emits the message, shuts down,
+            // then starts the real networked server. Waiting once can race wp-cli into
+            // the gap between the two.
+            .waitingFor(Wait.forLogMessage(".*ready for connections.*", 2)) as MySQLContainer
 
     @Container
     @FailOnUnmatchedTraces
