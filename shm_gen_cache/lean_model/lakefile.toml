@@ -1,0 +1,5 @@
+name = "sgc_proofs"
+defaultTargets = ["SgcProofs"]
+
+[[lean_lib]]
+name = "SgcProofs"

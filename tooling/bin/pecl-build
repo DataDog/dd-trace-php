@@ -97,5 +97,10 @@ END {
 ' "Cargo.toml" > "Cargo.toml.pecl"
 mv "Cargo.toml.pecl" "Cargo.toml"
 
+# shm_gen_cache and its GenMC suite are workspace members that the extension
+# does not use yet, and their sources are not in the package.
+sed -E -i.bak '/^[[:space:]]*"shm_gen_cache(\/verification)?",?[[:space:]]*$/d' Cargo.toml
+rm -f Cargo.toml.bak
+
 pear package-validate package.xml
 pear package

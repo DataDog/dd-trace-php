@@ -66,6 +66,118 @@ stages:
       - artifacts
     when: "always"
 
+"shm_gen_cache tests":
+  # docker-in-docker: the GenMC trials run GenMC in a container.
+  tags: [ "docker-in-docker:amd64" ]
+  stage: test
+  # The base image carries the pinned Rust toolchain (rust-toolchain.toml).
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-11"
+  needs: []
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
+    # nextest runs at most 4 GenMC trials at once (.config/nextest.toml).
+    SGC_GENMC_NTHREADS: 2
+    # The internal mirror of the GenMC image (ddoghq/images mirror.yaml);
+    # the digest stays the one pinned in verification/tests/genmc.rs.
+    SGC_GENMC_REPOSITORY: "registry.ddbuild.io/images/mirror/cataphract/genmc"
+    NEXTEST_VERSION: "0.9.140"
+  before_script:
+    # The image runs as an unprivileged user with passwordless sudo.
+    - |
+      sudo apt-get update
+      sudo apt-get install -y --no-install-recommends ca-certificates curl
+      sudo install -m 0755 -d /etc/apt/keyrings
+      sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list
+      sudo apt-get update
+      sudo apt-get install -y --no-install-recommends docker-ce-cli
+    - curl -LsSf "https://get.nexte.st/${NEXTEST_VERSION}/linux" | sudo tar zxf - -C /usr/local/bin
+    - docker version
+  script:
+    # The no_std library (the GenMC bitcode builds use it). As an rlib only:
+    # the crate is also a staticlib, which needs std.
+    - cargo rustc -p shm_gen_cache --no-default-features --crate-type rlib
+    - cargo rustc -p shm_gen_cache --no-default-features --features std --crate-type rlib
+    # One package per run: selected together, Cargo unifies the verification
+    # package's `verify` feature into the library's own test build, which then
+    # runs with production assertions off and the test hooks called. Both
+    # runs write target/nextest/ci/junit.xml, so each report is copied right
+    # after its run; the second runs even if the first fails.
+    - mkdir -p artifacts
+    - status=0
+    - cargo nextest run -p shm_gen_cache --profile ci || status=$?
+    - cp target/nextest/ci/junit.xml artifacts/shm-gen-cache-results.xml || true
+    - cargo nextest run -p shm_gen_cache_verification --profile ci || status=$?
+    - cp target/nextest/ci/junit.xml artifacts/shm-gen-cache-verification-results.xml || true
+    - exit $status
+  after_script:
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:shm_gen_cache"
+  artifacts:
+    reports:
+      junit: "artifacts/*-results.xml"
+    paths:
+      - artifacts
+      - target/tmp/genmc-verification/trials
+    when: "always"
+    expire_in: 1 week
+
+"shm_gen_cache tests: windows":
+  # Native tests only; the GenMC suite runs in "shm_gen_cache tests".
+  tags: [ "windows-v2:2019" ]
+  stage: test
+  needs: []
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    GIT_STRATEGY: none
+    CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
+    # The PHP images persist the VC build environment, and the vs17 one
+    # carries the pinned Rust toolchain.
+    IMAGE: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_windows"
+    NEXTEST_VERSION: "0.9.140"
+  script: |
+<?php windows_git_setup() ?>
+
+    docker run --env GITLAB_CI=$env:GITLAB_CI --env GITHUB_RELEASES_MIRROR=$env:GITHUB_RELEASES_MIRROR --env NEXTEST_VERSION=$env:NEXTEST_VERSION -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # ErrorActionPreference=Continue so cargo's stderr is not turned into a
+    # terminating NativeCommandError by the 2>&1 capture.
+    $ErrorActionPreference = 'Continue'
+    docker exec ${CONTAINER_NAME} powershell.exe -File C:\Users\ContainerAdministrator\app\.gitlab\shm-gen-cache-windows-tests.ps1 2>&1 | Tee-Object -FilePath test.log
+    $testCode = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    # Only transient network failures get exit 75 for GitLab auto-retry: the
+    # script's own (toolchain, cargo-nextest) and cargo's fatal download
+    # errors. Not its retry warnings, which a succeeding build also prints.
+    if ($testCode -ne 0) { if (Select-String -Path test.log -Pattern 'error: failed to (download|get|load source|fetch)' -Quiet) { Write-Host "Transient network failure; exiting 75 so GitLab auto-retries"; exit 75 } else { exit $testCode } }
+  after_script:
+    - |
+        # .gitlab/silent-upload-junit-to-datadog.sh needs bash and Linux
+        # binaries, so the report only goes to GitLab.
+        New-Item -ItemType Directory -Force artifacts | Out-Null
+        Copy-Item target\nextest\ci\junit.xml artifacts\shm-gen-cache-windows-results.xml -ErrorAction SilentlyContinue
+        try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
+        try { docker rm -f ${CONTAINER_NAME} } catch { }
+        exit 0
+  artifacts:
+    reports:
+      junit: "artifacts/*-results.xml"
+    paths:
+      - artifacts
+    when: "always"
+    expire_in: 1 week
+
 "Build & Test Tea":
   tags: [ "arch:amd64" ]
   stage: build
