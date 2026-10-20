@@ -266,8 +266,7 @@ pub struct DsmIdentity<'a> {
     pub env: CharSlice<'a>,
     pub version: CharSlice<'a>,
     pub service: CharSlice<'a>,
-    /// Comma-separated `key:value` process tags, as the sidecar reports them in the payload;
-    /// empty when disabled.
+    /// Comma-separated, sorted `key:value` process tags; empty when disabled.
     pub process_tags: CharSlice<'a>,
     /// From the agent; empty when unknown or when process tags are disabled.
     pub container_tags_hash: CharSlice<'a>,

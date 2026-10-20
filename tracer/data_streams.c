@@ -3,42 +3,11 @@
 #include "configuration.h"
 #include <components-rs/datadog.h>
 #include <ext/datadog.h>
-#include <Zend/zend_smart_str.h>
 #include <ext/ffi_utils.h>
 #include <ext/process_tags.h>
 #include <ext/target_metadata.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
-
-/**
- * The process tags to hash: the same list the sidecar reports in the DSM payload, which is
- * these process tags followed by the service-source tag its `process_tags_with_svc_source` adds.
- * Neither is sent to the sidecar while process tags are disabled.
- */
-static zend_string *dd_dsm_process_tags(zend_string *service) {
-    if (!datadog_process_tags_enabled()) {
-        return NULL;
-    }
-
-    smart_str tags = {0};
-    smart_str_append(&tags, datadog_process_tags_get_serialized());
-    if (ZSTR_LEN(service)) {
-        smart_str_appends(&tags, ",svc.user:true");
-    } else {
-        zend_string *default_service = datadog_default_service_name();
-        const char *normalized = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(default_service));
-        zend_string_release(default_service);
-        if (normalized) {
-            if (*normalized) {
-                smart_str_appends(&tags, ",svc.auto:");
-                smart_str_appends(&tags, normalized);
-            }
-            ddog_free_normalized_tag_value(normalized);
-        }
-    }
-    smart_str_0(&tags);
-    return tags.s;
-}
 
 zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carrier) {
     if (!get_DD_DATA_STREAMS_ENABLED()) {
@@ -57,12 +26,11 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
     zend_string *service = get_DD_SERVICE();
     zend_string *default_service = ZSTR_LEN(service) ? NULL : datadog_default_service_name();
     zend_string *container_tags_hash = datadog_process_tags_get_container_tags_hash();
-    zend_string *process_tags = dd_dsm_process_tags(service);
     ddog_DsmIdentity identity = {
         .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
         .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
         .service = dd_zend_string_to_CharSlice(default_service ? default_service : service),
-        .process_tags = process_tags ? dd_zend_string_to_CharSlice(process_tags) : DDOG_CHARSLICE_C(""),
+        .process_tags = dd_zend_string_to_CharSlice(datadog_process_tags_get_serialized()),
         .container_tags_hash = container_tags_hash ? dd_zend_string_to_CharSlice(container_tags_hash) : DDOG_CHARSLICE_C(""),
     };
 
@@ -71,9 +39,6 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
                                                  carrier ? dd_zend_string_to_CharSlice(carrier) : DDOG_CHARSLICE_C(""),
                                                  0, context, sizeof(context));
     efree(tags);
-    if (process_tags) {
-        zend_string_release(process_tags);
-    }
     if (default_service) {
         zend_string_release(default_service);
     }
