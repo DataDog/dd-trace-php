@@ -186,127 +186,41 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/list-', RouteNormalizer::normalizeFromLaravel('list-.{page?}', []));
     }
 
-    // normalizeFromLaminas
+    // normalizeElements
 
-    public function testLaminasSimpleColon()
+    public function testNormalizeElementsKeepsStaticTextThatLooksLikeRouteSyntax()
     {
-        $this->assertSame('/users/{id}', RouteNormalizer::normalizeFromLaminas('/users/:id'));
+        $this->assertSame('/user%3Ame', RouteNormalizer::normalizeElements([['static', '/user:me']]));
+        $this->assertSame('/caf%C3%A9', RouteNormalizer::normalizeElements([['static', '/caf%C3%A9']]));
+        $this->assertSame('/a%7Bb%7D', RouteNormalizer::normalizeElements([['static', '/a{b}']]));
     }
 
-    public function testLaminasOptionalPresent()
+    public function testNormalizeElementsCombinesParametersOfOneSegment()
     {
-        $result = RouteNormalizer::normalizeFromLaminas('/users/:id[.:format]', ['id' => '1', 'format' => 'json']);
-        $this->assertSame('/users/{id+format}', $result);
+        $this->assertSame('/v/{version+rest}/{id}', RouteNormalizer::normalizeElements([
+            ['static', '/v/v'], ['param', 'version'], ['param', 'rest'], ['static', '/'], ['param', 'id'],
+        ]));
+        $this->assertSame('/users/{id}', RouteNormalizer::normalizeElements([
+            ['static', '/users/user-'], ['param', 'id'],
+        ]));
     }
 
-    public function testLaminasOptionalAbsent()
+    public function testNormalizeElementsNamesCatchAllWithoutCollision()
     {
-        $result = RouteNormalizer::normalizeFromLaminas('/users/:id[.:format]', ['id' => '1']);
-        $this->assertSame('/users/{id}', $result);
+        $this->assertSame('/w/{param1}/{param2}', RouteNormalizer::normalizeElements([
+            ['static', '/w/'], ['param', 'param1'], ['static', '/'], ['tail'],
+        ]));
+        $this->assertSame('/{param1}', RouteNormalizer::normalizeElements([['static', '/'], ['tail']]));
     }
 
-    public function testLaminasMultiParamOptionalPresent()
+    public function testNormalizeElementsSlashes()
     {
-        // Both params in the section present and appear in the URL → expand
-        $result = RouteNormalizer::normalizeFromLaminas(
-            '/archive[/:year/:month]',
-            ['year' => '2024', 'month' => '08'],
-            '/archive/2024/08'
-        );
-        $this->assertSame('/archive/{year}/{month}', $result);
-    }
-
-    public function testLaminasMultiParamOptionalAbsent()
-    {
-        // Both params injected by middleware but absent from URL → do not expand
-        $result = RouteNormalizer::normalizeFromLaminas(
-            '/archive[/:year/:month]',
-            ['year' => '2024', 'month' => '08'],
-            '/archive'
-        );
-        $this->assertSame('/archive', $result);
-    }
-
-    public function testLaminasNestedOptionalBothPresent()
-    {
-        $result = RouteNormalizer::normalizeFromLaminas(
-            '/foo[/:bar[/:baz]]',
-            ['bar' => 'a', 'baz' => 'b'],
-            '/foo/a/b'
-        );
-        $this->assertSame('/foo/{bar}/{baz}', $result);
-    }
-
-    public function testLaminasNestedOptionalOnlyOuterPresent()
-    {
-        $result = RouteNormalizer::normalizeFromLaminas(
-            '/foo[/:bar[/:baz]]',
-            ['bar' => 'a'],
-            '/foo/a'
-        );
-        $this->assertSame('/foo/{bar}', $result);
-    }
-
-    public function testLaminasRegexRouteSpec()
-    {
-        // Laminas\Router\Http\Regex uses %param% spec format for URL generation.
-        // The caller is required to supply $urlMatchedParams for percent-param
-        // templates; without it we return null rather than guess.
-        $this->assertSame(
-            '/blog/{id}',
-            RouteNormalizer::normalizeFromLaminas('/blog/%id%', ['id' => '42'], null, ['id' => '42'])
-        );
-        $this->assertSame(
-            '/user/{id}/{name}',
-            RouteNormalizer::normalizeFromLaminas(
-                '/user/%id%/%name%',
-                ['id' => '42', 'name' => 'foo'],
-                null,
-                ['id' => '42', 'name' => 'foo']
-            )
-        );
-    }
-
-    public function testLaminasRegexRouteWithoutUrlMatchedParamsReturnsNull()
-    {
-        // No $urlMatchedParams supplied -> cannot determine participation safely.
-        $this->assertNull(RouteNormalizer::normalizeFromLaminas('/blog/%id%'));
-    }
-
-    public function testLaminasRegexRouteOptionalFormatAbsent()
-    {
-        // Route defaults inject format='html' even when the URL has no .html extension.
-        // Only params actually captured by the matcher should appear in the normalized route.
-        $result = RouteNormalizer::normalizeFromLaminas(
-            '/normalized-regex/%id%.%format%',
-            ['id' => 'article', 'format' => 'html', 'controller' => 'C', 'action' => 'index'],
-            '/normalized-regex/article',
-            ['id' => 'article']
-        );
-        $this->assertSame('/normalized-regex/{id}', $result);
-    }
-
-    public function testLaminasRegexRouteOptionalFormatPresent()
-    {
-        $result = RouteNormalizer::normalizeFromLaminas(
-            '/normalized-regex/%id%.%format%',
-            ['id' => 'article', 'format' => 'html', 'controller' => 'C', 'action' => 'index'],
-            '/normalized-regex/article.html',
-            ['id' => 'article', 'format' => 'html']
-        );
-        $this->assertSame('/normalized-regex/{id+format}', $result);
-    }
-
-    public function testLaminasLiteralRoute()
-    {
-        $this->assertSame('/dump-request', RouteNormalizer::normalizeFromLaminas('/dump-request'));
-    }
-
-    public function testLaminasWildcard()
-    {
-        // Wildcard routes produce '/*' from laminasSegmentPartsToRouteTemplate
-        $result = RouteNormalizer::normalizeFromLaminas('/*');
-        $this->assertSame('/{param1}', $result);
+        $this->assertSame('/', RouteNormalizer::normalizeElements([['static', '/']]));
+        $this->assertSame('/a/', RouteNormalizer::normalizeElements([['static', '/a/']]));
+        $this->assertSame('/a/b', RouteNormalizer::normalizeElements([['static', '/a//b']]));
+        $this->assertSame('/a%2Bb/{x%2By}', RouteNormalizer::normalizeElements([
+            ['static', '/a+b/'], ['param', 'x+y'],
+        ]));
     }
 
     // normalizeFromWordPress — the URL path is required; without it we cannot
@@ -463,18 +377,6 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/~foo', $result);
     }
 
-    public function testLaminasWildcardAfterPercentParam()
-    {
-        // F-10: uniqueParamName must skip %param1% when choosing a name for the wildcard.
-        $result = RouteNormalizer::normalizeFromLaminas(
-            '/foo/%param1%/*',
-            ['param1' => 'bar'],
-            null,
-            ['param1' => 'bar']
-        );
-        $this->assertSame('/foo/{param1}/{param2}', $result);
-    }
-
     // RFC examples
 
     public function testRfcExampleFastApi()
@@ -503,22 +405,26 @@ class RouteNormalizerTest extends BaseTestCase
     public function testRfcExampleRailsMandatoryFormat()
     {
         // http.route: /photos/:id.:format → /photos/{id+format}
-        // Laminas uses the same :param syntax as CakePHP/Rails for this pattern.
-        $result = RouteNormalizer::normalizeFromLaminas('/photos/:id.:format');
+        $result = RouteNormalizer::normalizeElements([
+            ['static', '/photos/'], ['param', 'id'], ['static', '.'], ['param', 'format'],
+        ]);
         $this->assertSame('/photos/{id+format}', $result);
     }
 
     public function testRfcExampleRailsOptionalFormatPresent()
     {
         // /posts/:id(.:format) with format present → /posts/{id+format}
-        $result = RouteNormalizer::normalizeFromLaminas('/posts/:id[.:format]', ['id' => '1', 'format' => 'json']);
+        $result = RouteNormalizer::normalizeElements([
+            ['static', '/posts/'], ['param', 'id'], ['static', '.'], ['param', 'format'],
+        ]);
         $this->assertSame('/posts/{id+format}', $result);
     }
 
     public function testRfcExampleRailsOptionalFormatAbsent()
     {
-        // /posts/:id(.:format) without format → /posts/{id}
-        $result = RouteNormalizer::normalizeFromLaminas('/posts/:id[.:format]', ['id' => '1']);
+        // /posts/:id(.:format) without format → /posts/{id}: the optional,
+        // separator included, is resolved away before normalization.
+        $result = RouteNormalizer::normalizeElements([['static', '/posts/'], ['param', 'id']]);
         $this->assertSame('/posts/{id}', $result);
     }
 }
