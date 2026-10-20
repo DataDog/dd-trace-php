@@ -4,7 +4,12 @@ cd /var/www
 
 export DD_TRACE_CLI_ENABLED=false
 
-composer install --no-interaction --no-dev
+# --no-scripts: Mvc/Latest has no committed composer.lock, so composer install
+# falls back to composer update, which fires post-update-cmd. That hook runs
+# bin/clear-config-cache.php, which tries to boot the Laminas app before this
+# script has written config/autoload/database.local.php — Laminas then attempts
+# to connect to the committed MySQL config and fatals with exit 255.
+composer install --no-interaction --no-dev --no-scripts
 chown -R www-data:www-data vendor
 
 mkdir -p data/cache /tmp/logs/laminas
