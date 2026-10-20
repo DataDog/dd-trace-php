@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2026 Datadog, Inc.
 #include "body_parser.h"
+#include "ddappsec.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "php_compat.h"
