@@ -308,7 +308,6 @@ fn record(
         return;
     };
     let owned = OwnedDsmStatsPoint {
-        aggregation_hash: point.aggregation_hash,
         hash: point.hash,
         parent_hash: point.parent_hash,
         edge_tags: point.edge_tags.iter().map(|t| (*t).to_owned()).collect(),
@@ -406,13 +405,11 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
     });
 
     if AGENT_SUPPORTS_DSM.load(Ordering::Acquire) {
-        let hash = checkpoint.context.hash;
         record(
             transport.as_mut(),
             identity,
             &DsmStatsPointInput {
-                aggregation_hash: hash,
-                hash,
+                hash: checkpoint.context.hash,
                 parent_hash: checkpoint.parent_hash,
                 edge_tags: &tags,
                 pathway_latency_ns: checkpoint.pathway_latency_ns,
