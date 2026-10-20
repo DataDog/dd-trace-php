@@ -104,6 +104,19 @@ stages:
     - if: $CI_COMMIT_BRANCH == "master"
       interruptible: false
     - when: on_success
+  variables:
+    # lld can crash if the available CPUs change while linking (see llvm/llvm-project#208959).
+    # Keep requests equal to limits so k8n pins the CPUs.
+    # Remove this workaround once both ld and rust-lld use LLVM 23 or newer.
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   after_script:
     - mkdir -p tmp/artifacts
     - cp tmp/build*/Testing/Temporary/LastTest.log tmp/artifacts/LastTest.log
