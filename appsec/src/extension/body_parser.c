@@ -12,8 +12,8 @@
 #include <string.h>
 
 static zval _tape_to_zval(ddog_AppsecBodyTape tape);
-static void _log_result(
-    const char *nonnull kind, ddog_AppsecBodyStatus status, zval *nonnull result);
+static void _log_result(const char *nonnull kind, ddog_AppsecBodyStatus status,
+    zval *nonnull result);
 
 zval dd_parse_json_truncated(
     const char *nonnull json_data, size_t json_len, int max_depth)
@@ -52,8 +52,8 @@ zval dd_parse_xml_truncated(
     return result;
 }
 
-static void _log_result(
-    const char *nonnull kind, ddog_AppsecBodyStatus status, zval *nonnull result)
+static void _log_result(const char *nonnull kind, ddog_AppsecBodyStatus status,
+    zval *nonnull result)
 {
     switch (status) {
     case DDOG_APPSEC_BODY_STATUS_EMPTY:
@@ -89,7 +89,7 @@ static zval _build(const char *nonnull data, size_t len);
 
 static zval _tape_to_zval(ddog_AppsecBodyTape tape)
 {
-    zval result;
+    volatile zval result;
     ZVAL_UNDEF(&result);
     if (tape.status == DDOG_APPSEC_BODY_STATUS_EMPTY) {
         dd_trace_drop_body_tape(tape);
@@ -98,10 +98,9 @@ static zval _tape_to_zval(ddog_AppsecBodyTape tape)
 
     // Rust has returned, so PHP may bail out here. Release the Rust buffer
     // before propagating a bailout, including one from the first allocation.
-    zend_try {
-        result = _build((const char *)tape.ptr, tape.len);
-    }
-    zend_catch {
+    zend_try { result = _build((const char *)tape.ptr, tape.len); }
+    zend_catch
+    {
         dd_trace_drop_body_tape(tape);
         zend_bailout();
     }
