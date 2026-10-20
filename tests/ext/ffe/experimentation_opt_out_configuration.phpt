@@ -6,9 +6,20 @@ DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE= IMMEDIATE
 --FILE--
 <?php
 $root = getenv('TEST_PHP_SRCDIR') ?: dirname(dirname(dirname(__DIR__)));
-spl_autoload_register(function ($class) use ($root) {
+$srcRoot = rtrim((string) ini_get('datadog.trace.sources_path'), '/');
+if ($srcRoot === '' || !is_dir($srcRoot . '/api')) {
+    $srcRoot = $root . '/src';
+}
+if (!is_dir($srcRoot . '/api')) {
+    // PECL installs sources apart from tests and puts php_dir on include_path.
+    $installed = stream_resolve_include_path('datadog_trace/src/api/FeatureFlags/Client.php');
+    if ($installed !== false) {
+        $srcRoot = dirname(dirname(dirname($installed)));
+    }
+}
+spl_autoload_register(function ($class) use ($srcRoot) {
     if (strpos($class, 'DDTrace\\') === 0) {
-        $path = $root . '/src/api/' . str_replace('\\', '/', substr($class, 8)) . '.php';
+        $path = $srcRoot . '/api/' . str_replace('\\', '/', substr($class, 8)) . '.php';
         if (is_file($path)) {
             require_once $path;
         }
