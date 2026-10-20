@@ -105,8 +105,9 @@ stages:
       interruptible: false
     - when: on_success
   variables:
-    # lld 16-22 writes out of bounds when the CPU set widens mid-link (llvm/llvm-project#208959). Pinned CPUs remove
-    # that trigger, so clang, lld and rustc stay on one LLVM. Pinning needs Guaranteed QoS: request == limit everywhere.
+    # lld can crash if the available CPUs change while linking (see llvm/llvm-project#208959).
+    # Keep requests equal to limits so k8n pins the CPUs.
+    # Remove this workaround once both ld and rust-lld use LLVM 23 or newer.
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_CPU_LIMIT: 8
     KUBERNETES_MEMORY_REQUEST: 6Gi
