@@ -38,6 +38,15 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_set_user, 0, 1, IS_VOID,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, propagate, _IS_BOOL, 1, "null")
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_DDTrace_routing_cache_get, 0, 1, MAY_BE_STRING|MAY_BE_FALSE)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_routing_cache_set, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_DDTrace_close_spans_until, 0, 1, MAY_BE_FALSE|MAY_BE_LONG)
 	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 1)
 ZEND_END_ARG_INFO()
@@ -473,6 +482,8 @@ ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(dd_untrace);
 ZEND_FUNCTION(dd_trace_synchronous_flush);
+ZEND_FUNCTION(DDTrace_routing_cache_get);
+ZEND_FUNCTION(DDTrace_routing_cache_set);
 ZEND_METHOD(DDTrace_SpanEvent, __construct);
 ZEND_METHOD(DDTrace_SpanEvent, jsonSerialize);
 ZEND_METHOD(DDTrace_ExceptionSpanEvent, __construct);
@@ -549,6 +560,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "flush_ffe_evaluation_metrics"), zif_DDTrace_Internal_flush_ffe_evaluation_metrics, arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_success"), zif_datadog_appsec_v2_track_user_login_success, arginfo_datadog_appsec_v2_track_user_login_success, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_failure"), zif_datadog_appsec_v2_track_user_login_failure, arginfo_datadog_appsec_v2_track_user_login_failure, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "routing_cache_get"), zif_DDTrace_routing_cache_get, arginfo_DDTrace_routing_cache_get, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "routing_cache_set"), zif_DDTrace_routing_cache_set, arginfo_DDTrace_routing_cache_set, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)
 	ZEND_FE(dd_trace_reset, arginfo_dd_trace_reset)
