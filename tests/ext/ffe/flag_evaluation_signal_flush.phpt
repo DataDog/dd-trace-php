@@ -1,5 +1,10 @@
 --TEST--
 FFE signal flush waits for pending HTTP sends before default-handler termination
+--DESCRIPTION--
+Default signal handling deliberately calls _exit without normal cleanup.
+Keep Valgrind's runtime checks, but skip the final leak scan for this test:
+libdatadog's unbacked shared-memory reservations make that scan very slow.
+Normal-shutdown tests keep their existing Valgrind settings.
 --SKIPIF--
 <?php
 if (PHP_OS !== 'Linux') die('skip: prepared signal flush is Linux-only');
@@ -18,6 +23,7 @@ DD_TRACE_AGENT_TIMEOUT=5000
 DD_SERVICE=php-ffe-signal-flush
 DD_TRACE_FORCE_FLUSH_ON_SIGTERM=1
 DD_TRACE_FORCE_FLUSH_ON_SIGINT=1
+VALGRIND_OPTS=--leak-check=no
 --FILE--
 <?php
 $modes = array('sigterm', 'sigint');
