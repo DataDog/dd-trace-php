@@ -1252,7 +1252,7 @@ dependencies = [
  "libdd-trace-utils",
  "log",
  "mach2",
- "paste",
+ "quick-xml",
  "rand 0.9.4",
  "rand_distr",
  "regex",

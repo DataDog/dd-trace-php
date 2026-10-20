@@ -1,5 +1,7 @@
 --TEST--
 _convert_json function (exceed max depth)
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 function generateNestedArray($depth) {
@@ -47,7 +49,7 @@ Array
         (
         )
 
-    [4] => after
+    [2] => after
 )
 Original (depth=4):
 string(39) "["before",{"2":{"3":{"4":[]}}},"after"]"
@@ -63,7 +65,7 @@ Array
 
         )
 
-    [4] => after
+    [2] => after
 )
 Original (depth=3):
 string(33) "["before",{"2":{"3":[]}},"after"]"

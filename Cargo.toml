@@ -33,10 +33,11 @@ path = "components-rs/lib.rs"
 bench = false
 
 [features]
-default = ["tracer"]
+default = ["tracer", "appsec"]
 tracer = ["dep:ddtrace-sidecar"]
 helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
 libddwaf-source-static = ["ddtrace-sidecar/libddwaf-source-static"]
+appsec = ["dep:libdd-common-ffi", "dep:quick-xml", "dep:serde"]
 profiling = [
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
   "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",
@@ -72,6 +73,7 @@ libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", defau
 spawn_worker = { path = "libdatadog/spawn_worker" }
 anyhow = "1.0"
 arc-swap.workspace = true
+quick-xml.workspace = true
 const-str = "0.5.6"
 itertools = "0.11.0"
 serde = "1.0.196"
