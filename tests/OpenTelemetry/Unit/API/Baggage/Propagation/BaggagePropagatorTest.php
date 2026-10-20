@@ -136,7 +136,8 @@ class BaggagePropagatorTest extends BaseTestCase
             'key - only spaces' => ['    =value1', Baggage::getEmpty()],
             'key - inner spaces' => ['k ey=value1', Baggage::getEmpty()],
             'key - invalid character' => ['ke?y=value1', Baggage::getEmpty()],
-            'key - invalid =' => ['ke%3Dy=value1', Baggage::getEmpty()],
+            // open-telemetry/api 1.10.1 stopped dropping keys containing percent-encoded characters ($ 3.3.1.2 - no decoding of key specified)
+            'key - not decoded =' => ['ke%3Dy=value1', version_compare(\Composer\InstalledVersions::getVersion('open-telemetry/api'), '1.10.1', '>=') ? Baggage::getBuilder()->set('ke%3Dy', 'value1')->build() : Baggage::getEmpty()],
             'key - multiple invalid' => ['ke<y=value1, ;sss,key=value;meta1=value1;meta2=value2,ke(y=value;meta=val ', Baggage::getBuilder()->set('key', 'value', new Metadata('meta1=value1;meta2=value2'))->build()],
 
             'value - leading spaces' => ['key=  value1', Baggage::getBuilder()->set('key', 'value1')->build()],
