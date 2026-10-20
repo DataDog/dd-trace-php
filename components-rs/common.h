@@ -543,13 +543,10 @@ typedef struct ddog_DsmIdentity {
   ddog_CharSlice version;
   ddog_CharSlice service;
   /**
-   * Comma-separated, sorted `key:value` process tags; empty when disabled.
+   * The base hash DBM injects (`datadog_process_tags_get_base_hash`), covering the process
+   * tags and the container tags hash; empty when process tags are disabled.
    */
-  ddog_CharSlice process_tags;
-  /**
-   * From the agent; empty when unknown or when process tags are disabled.
-   */
-  ddog_CharSlice container_tags_hash;
+  ddog_CharSlice base_hash;
 } ddog_DsmIdentity;
 
 typedef struct ddog_FfeResult {

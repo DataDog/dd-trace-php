@@ -29,10 +29,6 @@ const ddog_Vec_Tag *datadog_process_tags_get_vec(void);
 // Set the container tags hash
 void datadog_process_tags_set_container_tags_hash(zend_string *hash);
 
-// Get the container tags hash from the agent
-// Returns NULL if disabled or not yet known
-zend_string *datadog_process_tags_get_container_tags_hash(void);
-
 // Get the base hash which is the hash of container_tags and process_tags
 // Returns NULL if disabled or not yet computed
 zend_string *datadog_process_tags_get_base_hash(void);

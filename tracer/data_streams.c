@@ -25,13 +25,12 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
 
     zend_string *service = get_DD_SERVICE();
     zend_string *default_service = ZSTR_LEN(service) ? NULL : datadog_default_service_name();
-    zend_string *container_tags_hash = datadog_process_tags_get_container_tags_hash();
+    zend_string *base_hash = datadog_process_tags_get_base_hash();
     ddog_DsmIdentity identity = {
         .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
         .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
         .service = dd_zend_string_to_CharSlice(default_service ? default_service : service),
-        .process_tags = dd_zend_string_to_CharSlice(datadog_process_tags_get_serialized()),
-        .container_tags_hash = container_tags_hash ? dd_zend_string_to_CharSlice(container_tags_hash) : DDOG_CHARSLICE_C(""),
+        .base_hash = base_hash ? dd_zend_string_to_CharSlice(base_hash) : DDOG_CHARSLICE_C(""),
     };
 
     uint8_t context[ddog_DSM_CONTEXT_MAX_LEN];

@@ -7,8 +7,9 @@
 //!
 //! ## Hashing
 //! As in the Go tracer, and as system-tests expects of tracers other than Go and Node.js:
-//! - node hash: FNV-1 64 over the service, the env, the edge tags sorted, each process tag, and
-//!   the container tags hash, concatenated without separators;
+//! - node hash: FNV-1 64 over the service, the env, the edge tags sorted, and the base hash DBM
+//!   also uses, which covers the process tags and the container tags hash, concatenated without
+//!   separators;
 //! - pathway hash: FNV-1 64 over the node hash and then the parent's pathway hash, both
 //!   little-endian.
 //!
@@ -62,22 +63,13 @@ fn fnv1_64(mut hash: u64, bytes: &[u8]) -> u64 {
 }
 
 /// Hash of a checkpoint's node: the service, and the edge it is on. `edge_tags` must be sorted.
-fn node_hash(
-    service: &str,
-    env: &str,
-    edge_tags: &[&str],
-    process_tags: &[&str],
-    container_tags_hash: &str,
-) -> u64 {
+fn node_hash(service: &str, env: &str, edge_tags: &[&str], base_hash: &str) -> u64 {
     let mut hash = fnv1_64(FNV1_64_OFFSET, service.as_bytes());
     hash = fnv1_64(hash, env.as_bytes());
     for tag in edge_tags {
         hash = fnv1_64(hash, tag.as_bytes());
     }
-    for tag in process_tags {
-        hash = fnv1_64(hash, tag.as_bytes());
-    }
-    fnv1_64(hash, container_tags_hash.as_bytes())
+    fnv1_64(hash, base_hash.as_bytes())
 }
 
 fn pathway_hash(node_hash: u64, parent_hash: u64) -> u64 {
@@ -266,10 +258,9 @@ pub struct DsmIdentity<'a> {
     pub env: CharSlice<'a>,
     pub version: CharSlice<'a>,
     pub service: CharSlice<'a>,
-    /// Comma-separated, sorted `key:value` process tags; empty when disabled.
-    pub process_tags: CharSlice<'a>,
-    /// From the agent; empty when unknown or when process tags are disabled.
-    pub container_tags_hash: CharSlice<'a>,
+    /// The base hash DBM injects (`datadog_process_tags_get_base_hash`), covering the process
+    /// tags and the container tags hash; empty when process tags are disabled.
+    pub base_hash: CharSlice<'a>,
 }
 
 fn str_of(s: CharSlice<'_>) -> &str {
@@ -382,17 +373,11 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
         .take(MAX_EDGE_TAGS)
         .collect();
     tags.sort_unstable();
-    let process_tags: Vec<&str> = str_of(identity.process_tags)
-        .split(',')
-        .filter(|t| !t.is_empty())
-        .collect();
-
     let node = node_hash(
         str_of(identity.service),
         str_of(identity.env),
         &tags,
-        &process_tags,
-        str_of(identity.container_tags_hash),
+        str_of(identity.base_hash),
     );
     let carried = PathwayContext::decode(carrier.as_bytes());
     let now = now_ns();
@@ -443,7 +428,7 @@ mod tests {
     fn hashes_match_system_tests() {
         let hash = |tags: &[&str], parent| {
             pathway_hash(
-                node_hash("weblog", "system-tests", &sorted(tags), &[], ""),
+                node_hash("weblog", "system-tests", &sorted(tags), ""),
                 parent,
             )
         };
@@ -467,11 +452,11 @@ mod tests {
         assert_eq!(consume, 4247242616665718048);
     }
 
-    /// The Go tracer's golden base hash: FNV-1 over "svc", "env" and container hash "ch".
+    /// The Go tracer's golden base hash: FNV-1 over "svc", "env" and "ch".
     #[test]
     fn node_hash_matches_go_base_hash() {
         assert_eq!(
-            node_hash("svc", "env", &[], &[], "ch") as i64,
+            node_hash("svc", "env", &[], "ch") as i64,
             -9046347542012827189
         );
     }
