@@ -165,6 +165,7 @@
     CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED, "false")                                           \
     CONFIG(BOOL, DD_FLAGGING_EVALUATION_COUNTS_ENABLED, "true")                                                \
+    CONFIG(BOOL, DD_API_SECURITY_ENABLED, "true", .ini_change = zai_config_system_ini_change)                  \
     DD_INTEGRATIONS
 
 #ifndef DDTRACE_CONFIGURATION

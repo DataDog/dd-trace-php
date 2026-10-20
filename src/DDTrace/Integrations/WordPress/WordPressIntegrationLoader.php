@@ -731,11 +731,90 @@ class WordPressIntegrationLoader
                 function_exists('is_404') && is_404() === false) {
                 $rootSpan = \DDTrace\root_span();
                 if (\property_exists($This, 'matched_rule')) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                    $matchedRule = $This->matched_rule;
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
+                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")
+                        && \property_exists($This, 'request') && is_string($This->request)
+                        && !self::requestHasPathInfo($This->request)) {
+                        // Not cached: the rule alone does not determine the
+                        // route (optional captures participate per request),
+                        // and finding out which did is the whole computation.
+                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress(
+                            $matchedRule,
+                            $This->request
+                        );
+                        if ($normalizedRoute !== null) {
+                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        }
+                    }
                 }
             }
         });
 
         return Integration::LOADED;
+    }
+
+    /**
+     * Whether WordPress may have matched rules against a subject other than
+     * WP::$request. WP::parse_request matches against WP::$request only until
+     * a rule starts with the requested file; from there on, for every later
+     * rule, it matches "$requested_file/$requested_path" instead, and that
+     * subject is not kept. It cannot be reproduced, so the route is omitted.
+     *
+     * That swap is guarded by "! empty( $requested_file ) && $requested_file
+     * != $requested_path", so a non-empty PATH_INFO is not by itself the
+     * divergence. Sites whose server rewrites every request to index.php/$1
+     * have the whole request URI consumed by the path info, which leaves an
+     * empty requested file: no swap can happen and the replay on WP::$request
+     * is exact. Omitting those too would lose the tag on every request of a
+     * whole class of deployments, so they are recovered here.
+     *
+     * Only WP's own derivation of $requested_file is mirrored, and only to
+     * prove it empty; anything that cannot be proven stays omitted. WP strips
+     * the home path from $req_uri after this point, which can only shrink it
+     * further, so a value proven empty here is empty for WP as well.
+     */
+    private static function requestHasPathInfo(string $request): bool
+    {
+        return self::matchSubjectMayDiverge(
+            isset($_SERVER['PATH_INFO']) && is_string($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : null,
+            isset($_SERVER['REQUEST_URI']) && is_string($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null,
+            $request
+        );
+    }
+
+    /**
+     * The decision requestHasPathInfo() makes, over the two server values it
+     * reads. Separated from the superglobals so it can be driven directly.
+     *
+     * @param string|null $pathInfo $_SERVER['PATH_INFO'], or null when absent
+     * @param string|null $reqUri   $_SERVER['REQUEST_URI'], or null when absent
+     *
+     * @internal
+     */
+    public static function matchSubjectMayDiverge($pathInfo, $reqUri, string $request): bool
+    {
+        if ($pathInfo === null) {
+            return false;
+        }
+        list($pathInfo) = explode('?', $pathInfo);
+        if (trim($pathInfo, '/') === '') {
+            return false;
+        }
+
+        if ($reqUri === null) {
+            return true;
+        }
+        list($reqUri) = explode('?', $reqUri);
+        // class-wp.php: $pathinfo = str_replace('%', '%25', $pathinfo);
+        //               $req_uri  = trim(str_replace($pathinfo, '', $req_uri), '/');
+        $requestedFile = trim(str_replace(str_replace('%', '%25', $pathInfo), '', $reqUri), '/');
+
+        // $requested_path and $requested_file are the same variable unless WP
+        // took the permalink from the path info, so an empty requested file
+        // next to a non-empty request proves that branch was taken, and with
+        // it that nothing was prepended to the subject.
+        return !($requestedFile === '' && $request !== '');
     }
 }
