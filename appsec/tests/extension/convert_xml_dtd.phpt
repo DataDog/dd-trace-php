@@ -1,7 +1,5 @@
 --TEST--
 XML internal declarations match application-visible entities and attributes
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 $cases = [

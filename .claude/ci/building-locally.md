@@ -37,21 +37,8 @@ On **centos-7** images, PHP variants are version-prefixed: `8.3`,
 names: `nts`, `debug`, `zts`, `nts-asan`, `debug-zts-asan`.
 
 Build scripts that call `switch-php` internally (e.g.
-`compile_extension.sh`, `build-tracing.sh`, `build-appsec.sh`,
-`build-profiler.sh`) handle this themselves and need `--root` (not
+`compile_extension.sh`, `build-tracing.sh`, `build-profiler.sh`) handle this themselves and need `--root` (not
 `--php`) so they can modify `/usr/local/bin/` symlinks.
-
-### devtoolset-7 on centos-7
-
-The centos-7 base ships GCC 4.8, which is too old for C++17 code
-(appsec extension). On centos-7 images, activate GCC 7 first:
-
-```bash
-source /opt/rh/devtoolset-7/enable
-```
-
-This is needed for `build-appsec.sh` on centos-7 but not on bookworm
-(which has a modern GCC).
 
 ### make vs make static
 
@@ -156,26 +143,16 @@ make -j$(nproc) all
 '
 ```
 
-## Appsec Extension
+## AppSec
 
-### For release / system tests (centos-7)
+AppSec is part of `ddtrace.so`, built with `--enable-ddtrace-appsec`
+(`make compile_appsec` builds the tracer with AppSec into
+`tmp/build_appsec/modules/ddtrace.so`; `make compile_combined` also includes
+profiling). The release build scripts pass the flag; there is no separate
+AppSec artifact.
 
-Needs `devtoolset-7` for C++17 support:
-
-```bash
-.claude/ci/dockerh --cache compile-appsec-8.3-gnu --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'PHP_VERSION=8.3 bash .gitlab/build-appsec.sh'
-```
-
-(`build-appsec.sh` sources `devtoolset-7` internally on centos-7.)
-
-### For native tests (bookworm, with test targets)
-
-Uses cmake directly with test flags. This is a **different build**
-from the CI release build above (builds test targets, uses libc++):
+The extension tests run through CMake, which builds that ddtrace.so with the
+root Makefile, or uses `-DDD_APPSEC_TEST_TRACER=<ddtrace.so>`:
 
 ```bash
 mkdir -p appsec/build && cd appsec/build
@@ -203,9 +180,8 @@ cd appsec/tests/integration
 ./gradlew buildPortableLibdatadogPhp --info
 ```
 
-The release package needs the AppSec extensions in
-`appsec_$(uname -m)/` and `appsec/recommended.json`; there is no standalone
-helper artifact.
+The release package needs `appsec/recommended.json`; the helper is part of the
+Rust runtime and the extension part of `ddtrace.so`.
 
 ## Profiler Extension
 
@@ -357,10 +333,9 @@ platforms and fails if artifacts are missing.
 
 **Prerequisites:** for the selected artifact architecture (`x86_64` or
 `aarch64`, not necessarily the packaging host's architecture):
-- `extensions_<arch>/` — self-contained ddtrace extensions. PHP 7.1+ includes
-  profiling; PHP 7.0 remains tracer-only. There is no separate profiler DSO input.
-- `appsec_<arch>/` — AppSec extensions (`ddappsec-{API}[-alpine][-zts].so`).
-  The helper is embedded in the Rust runtime, not a separate helper DSO input.
+- `extensions_<arch>/` — self-contained ddtrace extensions, including AppSec.
+  PHP 7.1+ includes profiling; PHP 7.0 does not. There are no separate
+  profiler or AppSec DSO inputs.
 - `src/`, `appsec/recommended.json`, `profiling/LICENSE*`, and
   `profiling/NOTICE` — bundled PHP code, rules, and profiling licenses.
 
@@ -467,7 +442,7 @@ For each selected architecture, the script consumes:
   PHP 7.0 tracer-only SSI (this directory does not mean standalone profiling);
 - `libdatadog_php_<arch>[-alpine].so`, once per libc/platform, installed as
   `loader/libdatadog_php.so`;
-- the GNU/musl loader DSOs, `appsec_<arch>/`, PHP `src/`, rules, licenses,
+- the GNU/musl loader DSOs, PHP `src/`, rules, licenses,
   and `loader/packaging/requirements.json`.
 
 The loader preloads the PHP-independent common DSO. PHP 7.1+ SSI extensions
@@ -512,7 +487,7 @@ troubleshooting but not for performance testing.
 # Tracer only (gnu, x86_64, PHP 8.2, NTS)
 tooling/bin/build-debug-artifact gnu-x86_64-8.2-nts
 
-# Tracer + appsec (extension + embedded helper) + profiler
+# Tracer + appsec + profiler, all in ddtrace.so
 tooling/bin/build-debug-artifact gnu-x86_64-8.2-nts --appsec --profiler
 
 # Musl/arm64 variant, custom output directory (preferred if the location is somewhere else)

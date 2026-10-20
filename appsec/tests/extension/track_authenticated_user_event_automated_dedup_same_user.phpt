@@ -1,7 +1,5 @@
 --TEST--
 Repeated track_authenticated_user_event_automated with same user id dedupes (single usr.id / no extra verdict work)
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=ident

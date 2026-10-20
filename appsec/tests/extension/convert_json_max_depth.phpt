@@ -1,7 +1,5 @@
 --TEST--
 _convert_json function (exceed max depth)
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 function generateNestedArray($depth) {

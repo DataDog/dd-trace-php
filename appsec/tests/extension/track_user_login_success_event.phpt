@@ -1,7 +1,5 @@
 --TEST--
 Track a user login success event and verify the tags in the root span
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

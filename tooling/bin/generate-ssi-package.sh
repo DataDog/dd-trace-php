@@ -98,24 +98,19 @@ for architecture in "${architectures[@]}"; do
             touch ${musl}/trace/ext/${php_api}/.ddtrace.profiling
             touch ${musl}/trace/ext/${php_api}/.ddtrace-zts.profiling
         else
-            # PHP 7.0 remains tracer-only.
+            # PHP 7.0 has no profiler.
             stripto ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
             stripto ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
             stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine.so ${musl}/trace/ext/${php_api}/ddtrace.so
             stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
         fi
 
-        ########################
-        # AppSec
-        ########################
-
-        mkdir -p ${gnu}/appsec/ext/${php_api} ${musl}/appsec/ext/${php_api}
-        # gnu
-        stripto ./appsec_${architecture}/ddappsec-${php_api}.so ${gnu}/appsec/ext/${php_api}/ddappsec.so
-        stripto ./appsec_${architecture}/ddappsec-${php_api}-zts.so ${gnu}/appsec/ext/${php_api}/ddappsec-zts.so
-        # musl
-        stripto ./appsec_${architecture}/ddappsec-${php_api}-alpine.so ${musl}/appsec/ext/${php_api}/ddappsec.so
-        stripto ./appsec_${architecture}/ddappsec-${php_api}-alpine-zts.so ${musl}/appsec/ext/${php_api}/ddappsec-zts.so
+        # AppSec is compiled into every ddtrace.so, including PHP 7.0. The
+        # loader then does not inject a separate ddappsec.so.
+        for libc_root in "${gnu}" "${musl}"; do
+            touch "${libc_root}/trace/ext/${php_api}/.ddtrace.appsec"
+            touch "${libc_root}/trace/ext/${php_api}/.ddtrace-zts.appsec"
+        done
     done
 
     # Trace and profiling licenses
@@ -123,7 +118,7 @@ for architecture in "${architectures[@]}"; do
     cp -r ./src "${root}/trace/"
     cp ./profiling/LICENSE* ./profiling/NOTICE "${root}/trace/profiling-licenses/"
 
-    # AppSec
+    # AppSec rules
     mkdir -p "${root}/appsec/etc"
     cp "./appsec/recommended.json" "${root}/appsec/etc/recommended.json"
 

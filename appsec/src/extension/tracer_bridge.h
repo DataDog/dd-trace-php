@@ -11,20 +11,10 @@
 #include <zend.h>
 
 #include <components-rs/common.h>
-
-static const int PRIORITY_SAMPLING_AUTO_KEEP = 1;
-static const int PRIORITY_SAMPLING_AUTO_REJECT = 0;
-static const int PRIORITY_SAMPLING_USER_KEEP = 2;
-static const int PRIORITY_SAMPLING_USER_REJECT = -1;
-
-enum dd_sampling_mechanism {
-    DD_MECHANISM_DEFAULT = 0,
-    DD_MECHANISM_AGENT_RATE = 1,
-    DD_MECHANISM_REMOTE_RATE = 2,
-    DD_MECHANISM_RULE = 3,
-    DD_MECHANISM_MANUAL = 4,
-    DD_MECHANISM_ASM = 5,
-};
+#include <ext/sidecar.h>
+#include <ext/telemetry.h>
+#include <tracer/priority_sampling/priority_sampling.h>
+#include <tracer/user_request.h>
 
 typedef zend_object root_span_t;
 
@@ -32,12 +22,8 @@ void dd_trace_startup(void);
 void dd_trace_shutdown(void);
 void dd_trace_rinit(void);
 
-// Returns the tracer version
-const char *nullable dd_trace_version(void);
 // This function should only be used in RINIT
 bool dd_trace_enabled(void);
-// This function should be used before loading tracer symbols
-bool dd_trace_loaded(void);
 
 zend_object *nullable dd_trace_get_active_root_span(void);
 
@@ -67,13 +53,8 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
 
 // The sidecar connection of the thread identifies the helper client; a
 // client_init starts a new one.
-#ifdef ZTS
-ddog_AppsecCResponse dd_trace_send_appsec_message(void *nullable tsrm_ls,
-    const uint8_t *nonnull request, size_t request_len, bool client_init);
-#else
 ddog_AppsecCResponse dd_trace_send_appsec_message(
     const uint8_t *nonnull request, size_t request_len, bool client_init);
-#endif
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response);
 
 // Request body parsers; see ddog_appsec_parse_json/xml. The tape must be
@@ -90,58 +71,13 @@ void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
 zend_long dd_trace_get_priority_sampling_on_span_zobj(
     zend_object *nonnull root_span);
 
-typedef struct _ddtrace_user_req_listeners ddtrace_user_req_listeners;
-struct _ddtrace_user_req_listeners {
-    int priority;
-    zend_array *nullable (*nonnull start_user_req)(
-        ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
-        zend_array *nonnull variables, zval *nullable rbe_zv);
-    zend_array *nullable (*nonnull response_committed)(
-        ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
-        int status, zend_array *nonnull headers, zval *nullable entity);
-    void (*nonnull finish_user_req)(
-        ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span);
-    void (*nonnull set_blocking_function)(
-        ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
-        zval *nonnull blocking_function);
-    void (*nullable delete)(ddtrace_user_req_listeners *nonnull self);
-};
 bool dd_trace_user_req_add_listeners(
     ddtrace_user_req_listeners *nonnull listeners);
 
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
 
-struct telemetry_rc_info {
-    const char *nullable rc_path;
-    zend_string *nullable service_name;
-    zend_string *nullable env_name;
-};
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void);
 
 zend_string *nullable dd_trace_guess_endpoint_from_url(
     const char *nonnull url, size_t url_len);
 
-typedef enum {
-    DDTRACE_METRIC_TYPE_GAUGE,
-    DDTRACE_METRIC_TYPE_COUNT,
-    DDTRACE_METRIC_TYPE_DISTRIBUTION,
-} ddtrace_metric_type;
-
-typedef enum {
-    DDTRACE_METRIC_NAMESPACE_TRACERS,
-    DDTRACE_METRIC_NAMESPACE_PROFILERS,
-    DDTRACE_METRIC_NAMESPACE_RUM,
-    DDTRACE_METRIC_NAMESPACE_APPSEC,
-    DDTRACE_METRIC_NAMESPACE_IDE_PLUGINS,
-    DDTRACE_METRIC_NAMESPACE_LIVE_DEBUGGER,
-    DDTRACE_METRIC_NAMESPACE_IAST,
-    DDTRACE_METRIC_NAMESPACE_GENERAL,
-    DDTRACE_METRIC_NAMESPACE_TELEMETRY,
-    DDTRACE_METRIC_NAMESPACE_APM,
-    DDTRACE_METRIC_NAMESPACE_SIDECAR,
-} ddtrace_metric_ns;
-
-extern void (*nullable datadog_metric_register_buffer)(
-    zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
-extern bool (*nullable datadog_metric_add_point)(
-    zend_string *nonnull name, double value, zend_string *nonnull tags);

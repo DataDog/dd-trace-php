@@ -10,7 +10,7 @@
 #include <stdbool.h>
 
 void dd_entity_body_startup(void);
-void dd_entity_body_tshutdown(void);
+void dd_entity_body_gshutdown(ddappsec_globals *nonnull globals);
 void dd_entity_body_rinit(void);
 zend_string *nonnull dd_request_body_buffered(size_t limit);
 zend_string *nonnull dd_response_body_buffered(void);

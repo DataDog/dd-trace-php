@@ -176,7 +176,7 @@ void datadog_telemetry_finalize() {
 }
 
 
-DATADOG_PUBLIC void datadog_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns) {
+void datadog_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns) {
     if (!DATADOG_G(sidecar)) {
         return;
     }
@@ -184,7 +184,7 @@ DATADOG_PUBLIC void datadog_metric_register_buffer(zend_string *name, ddog_Metri
     ddog_sidecar_telemetry_register_metric(&DATADOG_G(sidecar), metric_name, type, ns);
 }
 
-DATADOG_PUBLIC bool datadog_metric_add_point(zend_string *name, double value, zend_string *tags) {
+bool datadog_metric_add_point(zend_string *name, double value, zend_string *tags) {
     if (!DATADOG_G(metrics_buffer)) {
         DATADOG_G(metrics_buffer) = ddog_sidecar_telemetry_buffer_alloc();
     }

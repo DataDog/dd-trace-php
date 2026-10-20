@@ -1,7 +1,5 @@
 --TEST--
 Track authenticated user event with default mode and verify the tags in the root span
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

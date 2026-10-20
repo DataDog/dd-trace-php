@@ -22,17 +22,18 @@ artifact_mode="${3:-standalone}"
 mkdir -vp "${prefix}"
 prefix="$(cd "${prefix}" && pwd)"
 
+# Every tracer artifact includes AppSec; the standalone profiler cannot.
 if [ "$artifact_mode" = "combined" ]; then
-    configure_products="--enable-ddtrace-tracer --enable-ddtrace-profiling"
+    configure_products="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec"
     extension_name="ddtrace"
 elif [ "$artifact_mode" = "ssi-combined" ]; then
     : "${SSI_COMMON_LIBRARY:?SSI common DSO must be built first}"
     : "${SSI_EXTENSION_ARCHIVE:?The combined extension Rust archive must be built first}"
-    configure_products="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-library-split --with-ddtrace-rust-library=${SSI_COMMON_LIBRARY} --with-ddtrace-php-abi-rust-library=${SSI_EXTENSION_ARCHIVE}"
+    configure_products="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec --enable-ddtrace-rust-library-split --with-ddtrace-rust-library=${SSI_COMMON_LIBRARY} --with-ddtrace-php-abi-rust-library=${SSI_EXTENSION_ARCHIVE}"
     extension_name="ddtrace"
 elif [ "$artifact_mode" = "tracer-only" ]; then
-    # PHP 7.0 does not support profiling, but still ships the tracer.
-    configure_products="--enable-ddtrace-tracer --disable-ddtrace-profiling"
+    # PHP 7.0 does not support profiling, but still ships the tracer and AppSec.
+    configure_products="--enable-ddtrace-tracer --disable-ddtrace-profiling --enable-ddtrace-appsec"
     extension_name="ddtrace"
 else
     configure_products="--disable-ddtrace-tracer --enable-ddtrace-profiling"

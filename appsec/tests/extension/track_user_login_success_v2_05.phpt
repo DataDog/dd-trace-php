@@ -1,7 +1,6 @@
 --TEST--
 Test \datadog\appsec\v2\track_user_login_success id should be string to be set on meta
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

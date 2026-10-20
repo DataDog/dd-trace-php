@@ -1,7 +1,6 @@
 --TEST--
 User requests: basic functionality with security_response_id
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=true
 datadog.appsec.cli_start_on_rinit=false
 --ENV--

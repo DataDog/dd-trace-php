@@ -1,7 +1,5 @@
 --TEST--
 Block from a user v2 login success 
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

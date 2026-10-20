@@ -44,7 +44,7 @@ class Helper {
         $empty_obj = new ArrayObject();
         $responses = array_merge([
             response_list(
-                response_client_init(['ok', phpversion('ddappsec'), [],$empty_obj,$empty_obj,null])
+                response_client_init(['ok', phpversion('ddtrace'), [],$empty_obj,$empty_obj,null])
         )], $responses);
         return self::createRun($responses, $opts);
     }

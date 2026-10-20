@@ -1,7 +1,6 @@
 --TEST--
 Test request execution.
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.log_level=trace
 datadog.appsec.log_file=/tmp/php_appsec_test.log

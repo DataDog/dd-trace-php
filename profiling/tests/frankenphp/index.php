@@ -6,13 +6,17 @@ $handler = static function () {
         echo "Expected FrankenPHP with ZTS\n";
         return;
     }
-    // The profiler is part of ddtrace; its INI settings exist only when it is bundled.
-    foreach (['ddtrace', 'ddappsec'] as $extension) {
-        if (!extension_loaded($extension)) {
-            http_response_code(500);
-            echo "Missing extension: $extension\n";
-            return;
-        }
+    // The profiler and AppSec are part of ddtrace; the profiler's INI settings
+    // and AppSec's functions exist only when they are bundled.
+    if (!extension_loaded('ddtrace')) {
+        http_response_code(500);
+        echo "Missing extension: ddtrace\n";
+        return;
+    }
+    if (!function_exists('datadog\appsec\is_enabled')) {
+        http_response_code(500);
+        echo "AppSec is not bundled\n";
+        return;
     }
     if (!filter_var(ini_get('datadog.profiling.enabled'), FILTER_VALIDATE_BOOLEAN)) {
         http_response_code(500);

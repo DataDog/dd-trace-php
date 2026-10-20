@@ -4,10 +4,6 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
-if ! is_appsec_installable; then
-  exit 0
-fi
-
 # Initially no ddtrace
 assert_no_ddtrace
 
@@ -19,5 +15,9 @@ assert_ddtrace_version "${version}"
 assert_appsec_version "${version}"
 assert_appsec_disabled
 
-assert_file_exists "$(get_php_extension_dir)"/ddappsec.so
+# AppSec is part of ddtrace.so and left to remote configuration by default
+ini_file="$(get_php_conf_dir)/98-ddtrace.ini"
+assert_file_contains "${ini_file}" ";datadog.appsec.enabled = Off"
+assert_file_not_contains "${ini_file}" "extension = ddappsec"
+assert_file_not_exists "$(get_php_extension_dir)"/ddappsec.so
 assert_file_exists /opt/datadog/dd-library/${version}/etc/recommended.json

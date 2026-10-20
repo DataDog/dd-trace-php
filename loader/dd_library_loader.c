@@ -43,6 +43,7 @@ static const char *runtime_version = "unknown";
 static bool injection_forced = false;
 static bool ddtrace_disabled_by_incompatible_runtime = false;
 static bool ddtrace_has_profiling = false;
+static bool ddtrace_has_appsec = false;
 static char ddtrace_disabled_result_reason[384] = {0};
 
 static bool already_done = false;
@@ -634,6 +635,11 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
     return true;
 }
 
+// Whether the injected extension is compiled into the combined ddtrace.so.
+static bool ddloader_is_provided_by_ddtrace(unsigned int ext) {
+    return (ext == EXT_DATADOG_PROFILING && ddtrace_has_profiling) || (ext == EXT_DDAPPSEC && ddtrace_has_appsec);
+}
+
 static void ddloader_unregister_module(const char *name) {
     zend_module_entry *injected = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, name, strlen(name));
     if (!injected) {
@@ -662,6 +668,16 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     zend_module_entry *module = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, config->ext_name, strlen(config->ext_name));
     if (module) {
         TELEMETRY(REASON_ALREADY_LOADED, config, NULL, "Extension '%s' is already loaded, unregister the injected extension", config->ext_name);
+        ddloader_unregister_module(config->tmp_name);
+
+        return SUCCESS;
+    }
+
+    // ddtrace with AppSec aborts PHP startup next to ddappsec. The loader does
+    // not inject ddappsec then, but a legacy one can be loaded without ddtrace.
+    if (strcmp(config->ext_name, "ddtrace") == 0 && ddtrace_has_appsec
+        && ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, ZEND_STRL("ddappsec"))) {
+        TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, config, NULL, "Legacy extension 'ddappsec' is loaded, which conflicts with '%s', unregister the injected extension", config->ext_name);
         ddloader_unregister_module(config->tmp_name);
 
         return SUCCESS;
@@ -731,11 +747,15 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         TELEMETRY(REASON_COMPLETE, config, NULL, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
     }
 
-    if (strcmp(config->ext_name, "ddtrace") == 0 && ddtrace_has_profiling) {
-        injected_ext *profiling = &ddloader_injected_ext_config[EXT_DATADOG_PROFILING];
-        profiling->injection_success = config->injection_success;
-        profiling->injection_error = config->injection_error;
-        profiling->version = config->version;
+    if (strcmp(config->ext_name, "ddtrace") == 0) {
+        for (unsigned int i = 0; i < EXT_COUNT; ++i) {
+            if (ddloader_is_provided_by_ddtrace(i)) {
+                injected_ext *product = &ddloader_injected_ext_config[i];
+                product->injection_success = config->injection_success;
+                product->injection_error = config->injection_error;
+                product->version = config->version;
+            }
+        }
     }
 
     return ret;
@@ -760,15 +780,17 @@ static void ddloader_restore_so_module_entry(injected_ext *config) {
     config->orig_module_functions = NULL;
 }
 
-static bool ddloader_combined_profiling_available(unsigned int api_no, bool is_zts, bool is_debug) {
+// Packages mark products compiled into ddtrace.so with an empty
+// trace/ext/<api>/.ddtrace[-zts].<product> file next to it.
+static bool ddloader_combined_product_available(const char *product, unsigned int api_no, bool is_zts, bool is_debug) {
     if (is_debug) {
         return false;
     }
 
     char *marker = NULL;
     const char *zts_suffix = is_zts ? "-zts" : "";
-    if (asprintf(&marker, "%s/%strace/ext/%u/.ddtrace%s.profiling", package_path, ddloader_os_path(), api_no,
-                 zts_suffix) == -1) {
+    if (asprintf(&marker, "%s/%strace/ext/%u/.ddtrace%s.%s", package_path, ddloader_os_path(), api_no,
+                 zts_suffix, product) == -1) {
         return false;
     }
     bool available = access(marker, F_OK) == 0;
@@ -777,8 +799,8 @@ static bool ddloader_combined_profiling_available(unsigned int api_no, bool is_z
         return true;
     }
 
-    if (asprintf(&marker, "%s/trace/ext/%u/.ddtrace%s.profiling", package_path, api_no,
-                 zts_suffix) == -1) {
+    if (asprintf(&marker, "%s/trace/ext/%u/.ddtrace%s.%s", package_path, api_no,
+                 zts_suffix, product) == -1) {
         return false;
     }
     available = access(marker, F_OK) == 0;
@@ -1007,16 +1029,18 @@ static int ddloader_build_id_check(const char *build_id) {
         return SUCCESS;
     }
 
-    ddtrace_has_profiling = ddloader_combined_profiling_available(php_api_no, is_zts, is_debug);
+    ddtrace_has_profiling = ddloader_combined_product_available("profiling", php_api_no, is_zts, is_debug);
+    ddtrace_has_appsec = ddloader_combined_product_available("appsec", php_api_no, is_zts, is_debug);
 
     // Load the extensions declared in ddloader_injected_ext_config. Combined
-    // ddtrace owns profiling, so it must not load the standalone profiler too.
+    // ddtrace owns profiling and AppSec, so it must not load the standalone
+    // profiler or ddappsec too.
     for (unsigned int i = 0; i < sizeof(ddloader_injected_ext_config) / sizeof(ddloader_injected_ext_config[0]); ++i) {
-        if (i == EXT_DATADOG_PROFILING && ddtrace_has_profiling) {
-            injected_ext *profiling = &ddloader_injected_ext_config[i];
+        if (ddloader_is_provided_by_ddtrace(i)) {
+            injected_ext *product = &ddloader_injected_ext_config[i];
             injected_ext *ddtrace = &ddloader_injected_ext_config[EXT_DDTRACE];
-            profiling->version = ddtrace->version;
-            safe_str_append(profiling->extra_config, sizeof(profiling->extra_config),
+            product->version = ddtrace->version;
+            safe_str_append(product->extra_config, sizeof(product->extra_config),
                             "provided by combined ddtrace");
             continue;
         }
@@ -1065,6 +1089,7 @@ static void ddloader_zend_extension_shutdown(zend_extension *ext) {
         libdatadog_php_handle = NULL;
     }
     ddtrace_has_profiling = false;
+    ddtrace_has_appsec = false;
 
     injection_forced = false;
     ddtrace_disabled_by_incompatible_runtime = false;

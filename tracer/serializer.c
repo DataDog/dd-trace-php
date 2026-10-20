@@ -190,7 +190,14 @@ static void serialize_meta_struct(mpack_writer_t *writer, zval *meta_struct) {
 
     HashTable *ht = Z_ARRVAL_P(meta_struct);
 
-    mpack_start_map(writer, zend_hash_num_elements(ht));
+    // Integer keys are skipped, and must not be counted in the map's size
+    uint32_t size = 0;
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, string_key, tmp) {
+        size += string_key != NULL;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    mpack_start_map(writer, size);
 
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, string_key, tmp) {
         if (!string_key) {
@@ -212,12 +219,16 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     mpack_writer_init_growable(&writer, &data, &size);
     if (msgpack_write_zval(&writer, trace, 0) != 1) {
         mpack_writer_destroy(&writer);
-        free(data);
+        if (data) {
+            efree(data);
+        }
         return 0;
     }
     // finish writing
     if (mpack_writer_destroy(&writer) != mpack_ok) {
-        free(data);
+        if (data) {
+            efree(data);
+        }
         return 0;
     }
 
@@ -238,7 +249,7 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval) {
 
     if (ddtrace_serialize_simple_array_into_c_string(trace, &data, &size)) {
         ZVAL_STRINGL(retval, data, size);
-        free(data);
+        efree(data);
         return 1;
     } else {
         return 0;
@@ -1045,12 +1056,14 @@ static void dd_serialize_array_meta_struct_recursively(ddog_SpanBytes *target, z
     mpack_writer_destroy(&writer);
 
     if (size == 0 || result == 0) {
-        free(data);
+        if (data) {
+            efree(data);
+        }
         return;
     }
 
     ddog_add_zstr_span_meta_struct_CharSlice(target, str, (ddog_CharSlice){.ptr = data, .len = size});
-    free(data);
+    efree(data);
 }
 
 struct iter {

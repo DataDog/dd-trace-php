@@ -8,7 +8,7 @@
 #include "entity_body.h"
 #include "body_parser.h"
 #include "ddappsec.h"
-#include "php_compat.h" // NOLINT (must come before entity_body_arginfo.h)
+#include <ext/compatibility.h> // NOLINT (must come before entity_body_arginfo.h)
 #include "entity_body_arginfo.h"
 #include "logging.h"
 #include "php_objects.h"
@@ -35,8 +35,6 @@ typedef zend_result (*json_decode_ex_t)(zval *return_value, const char *str,
 static json_decode_ex_t _json_decode_ex;
 
 // response body buffer
-ZEND_TLS zend_string *_buffer;
-ZEND_TLS size_t _buffer_size;
 
 static zval _convert_json(char *nonnull entity, size_t entity_len);
 static zval _convert_xml(const char *nonnull entity, size_t entity_len,
@@ -74,22 +72,24 @@ void dd_entity_body_startup(void)
     }
 }
 
-void dd_entity_body_tshutdown(void)
+void dd_entity_body_gshutdown(ddappsec_globals *nonnull globals)
 {
-    if (_buffer) {
-        zend_string_release(_buffer);
-        _buffer = NULL;
-        _buffer_size = 0;
+    if (globals->resp_body_buf) {
+        zend_string_release(globals->resp_body_buf);
+        globals->resp_body_buf = NULL;
+        globals->resp_body_buf_size = 0;
     }
 }
 
 static typeof(zend_write(NULL, 0)) _dd_save_output_zend_write(
     const char *str, size_t str_length)
 {
-    if (DDAPPSEC_G(active) && _buffer != NULL) {
-        size_t to_write = MIN(str_length, _buffer_size - _buffer->len);
-        memcpy(_buffer->val + _buffer->len, str, to_write);
-        _buffer->len += to_write;
+    if (DDAPPSEC_G(active) && DDAPPSEC_G(resp_body_buf) != NULL) {
+        size_t to_write = MIN(str_length,
+            DDAPPSEC_G(resp_body_buf_size) - DDAPPSEC_G(resp_body_buf)->len);
+        memcpy(DDAPPSEC_G(resp_body_buf)->val + DDAPPSEC_G(resp_body_buf)->len,
+            str, to_write);
+        DDAPPSEC_G(resp_body_buf)->len += to_write;
     }
     return orig_zend_write(str, str_length);
 }
@@ -115,7 +115,7 @@ void dd_entity_body_rinit(void)
         desired_bufsize = MAX_BODY_BUFF_RAW_ENABLED;
     }
 
-    if (desired_bufsize != _buffer_size) {
+    if (desired_bufsize != DDAPPSEC_G(resp_body_buf_size)) {
         if (uncapped_bufsize != desired_bufsize) {
             mlog(dd_log_warning,
                 "DD_APPSEC_MAX_BODY_BUFF_SIZE (%zu) exceeds maximum allowed "
@@ -123,21 +123,22 @@ void dd_entity_body_rinit(void)
                 "capping",
                 uncapped_bufsize, (size_t)MAX_BODY_BUFF_RAW_ENABLED);
         }
-        if (_buffer != NULL) {
-            zend_string_release(_buffer);
+        if (DDAPPSEC_G(resp_body_buf) != NULL) {
+            zend_string_release(DDAPPSEC_G(resp_body_buf));
         }
-        _buffer = zend_string_alloc(desired_bufsize + /* NUL */ 1, 1);
-        _buffer_size = desired_bufsize;
+        DDAPPSEC_G(resp_body_buf) =
+            zend_string_alloc(desired_bufsize + /* NUL */ 1, 1);
+        DDAPPSEC_G(resp_body_buf_size) = desired_bufsize;
     }
 
-    _buffer->len = 0;
+    DDAPPSEC_G(resp_body_buf)->len = 0;
 }
 
 zend_string *nonnull dd_response_body_buffered(void)
 {
     // the json decoder is buggy and expects NUL despite being sent the length
-    _buffer->val[_buffer->len] = '\0';
-    return _buffer;
+    DDAPPSEC_G(resp_body_buf)->val[DDAPPSEC_G(resp_body_buf)->len] = '\0';
+    return DDAPPSEC_G(resp_body_buf);
 }
 
 zend_string *nonnull dd_request_body_buffered(size_t limit)

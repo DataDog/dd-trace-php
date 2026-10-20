@@ -14,11 +14,8 @@
 
 #include "attributes.h"
 #include "dddefs.h"
+#include "ddappsec_globals.h"
 
-struct _dd_conn {
-    bool connected;
-};
-typedef struct _dd_conn dd_conn;
 
 typedef struct _dd_helper_response {
     char *unspecnull data;

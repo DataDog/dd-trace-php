@@ -4,14 +4,13 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "backtrace.h"
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_objects.h"
 #include "string_helpers.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 static const int NO_LIMIT = 0;
 static const double STACK_DEFAULT_TOP_RATE = 0.25;
@@ -46,7 +45,6 @@ php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easil
     zval *class = zend_hash_find(frame, _class_field);
     zval id;
     ZVAL_LONG(&id, index);
-#ifdef TESTING
     if (file) {
         // In order to be able to test full path encoded everywhere lets set
         // only the file name without path
@@ -59,7 +57,6 @@ php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easil
             ZVAL_NEW_STR(file, new_file);
         }
     }
-#endif
 
     if (!function) {
         return false;
@@ -351,7 +348,5 @@ void dd_backtrace_startup(void)
     _file_field = zend_string_init_interned(LSTRARG("file"), 1);
     _function_field = zend_string_init_interned(LSTRARG("function"), 1);
     _class_field = zend_string_init_interned(LSTRARG("class"), 1);
-#ifdef TESTING
     _register_testing_objects();
-#endif
 }

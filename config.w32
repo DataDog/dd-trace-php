@@ -115,7 +115,7 @@ if (PHP_DDTRACE != 'no') {
 	// The Windows tracer also owns the sidecar implementation (as on Unix).
 	ADD_FLAG("CFLAGS_DDTRACE", " /DTRACER /DSIDECAR ");
 
-	ADD_FLAG("CFLAGS_DDTRACE", " /DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 ");
+	ADD_FLAG("CFLAGS_DDTRACE", " /DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /DMPACK_HAS_CONFIG=1 ");
 
 	ADD_SOURCES(configure_module_dirname + "/ext", DDTRACE_EXT_SOURCES, "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/tracer", DDTRACE_TRACER_SOURCES, "ddtrace");

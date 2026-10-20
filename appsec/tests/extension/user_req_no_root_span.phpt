@@ -1,7 +1,6 @@
 --TEST--
 User requests: no root span
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=true
 datadog.appsec.cli_start_on_rinit=false
 datado

@@ -108,7 +108,6 @@ $windows_build_platforms = [
 stages:
   - prepare
   - combined
-  - appsec
   - tracing
   - packaging
   - benchmarks
@@ -336,48 +335,6 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
-
-<?php
-foreach ($build_platforms as $platform) {
-    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-        $image = sprintf($platform['image_template'], $major_minor);
-        $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
-?>
-"compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: appsec
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
-  variables:
-    IMAGE: "<?= $image ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
-    PHP_VERSION: "<?= $major_minor ?>"
-    MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
-  script:
-    # Fix for $BASH_ENV not having a newline at the end of the file
-    - echo "" >> "$BASH_ENV"
-<?php
-if ($suffix == "-alpine") {
-?>
-    - apk add cmake gcc g++ git python3 autoconf coreutils
-<?php
- }
-?>
-    - .gitlab/build-appsec.sh <?= $suffix ?> || exit $?
-
-  artifacts:
-    paths:
-      - "appsec_*"
-
-<?php
-    }
-}
-?>
 
 "pecl build":
   stage: tracing
@@ -797,8 +754,8 @@ foreach ($build_platforms as $platform) {
 
 <?php
 // needs: of a platform's "package extension" jobs. Native installers (FPM_FILES) hold only the
-// linked tracer; $bundle_inputs adds the appsec and profiler extensions the bundles need.
-$package_extension_needs = function (array $platform, bool $bundle_inputs = true) use ($php_versions_to_abi, $profiler_minor_major_targets) {
+// linked tracer; $bundle_inputs adds the combined extensions the bundles need.
+$package_extension_needs = function (array $platform, bool $bundle_inputs = true) use ($profiler_minor_major_targets) {
 ?>
   needs:
     - job: "prepare code"
@@ -816,19 +773,9 @@ $package_extension_needs = function (array $platform, bool $bundle_inputs = true
     if (!$bundle_inputs) {
         return;
     }
-    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-?>
-    # Compile appsec extension
-    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-    }
-?>
-
-<?php
     foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
-    # Combined tracer+profiling extension
+    # Combined tracer+profiling+AppSec extension
     - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
@@ -935,20 +882,11 @@ foreach ($windows_minor_major_targets as $major_minor) {
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
 ?>
-    # PHP 7.0 still uses the split, tracer-only SSI extension.
+    # PHP 7.0 still uses the split SSI extension (tracer and AppSec only).
     - job: "compile tracing extension: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
-<?php
-            foreach ($all_minor_major_targets as $major_minor):
-?>
-    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
-?>
-
 <?php
         endif;
     endforeach;

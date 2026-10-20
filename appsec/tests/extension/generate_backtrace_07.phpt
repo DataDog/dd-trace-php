@@ -2,8 +2,6 @@
 Functions are fully qualified names
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 namespace Some\Package {

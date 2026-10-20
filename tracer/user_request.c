@@ -12,7 +12,7 @@ static struct {
     size_t size;
 } reg_listeners;
 
-DATADOG_PUBLIC bool ddtrace_user_req_add_listeners(ddtrace_user_req_listeners *listeners)
+bool ddtrace_user_req_add_listeners(ddtrace_user_req_listeners *listeners)
 {
     if (strcmp(sapi_module.name, "cli") != 0 && strcmp(sapi_module.name, "frankenphp") != 0) {
         return false;

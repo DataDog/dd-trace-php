@@ -154,8 +154,7 @@ in `binaries/`.
 
 | File in `binaries/` | What it replaces |
 |---------------------|-----------------|
-| `ddtrace.so` | The installed `ddtrace.so` (searched under `/root`, `/opt`, `/usr/lib/php`) |
-| `ddappsec.so` | The installed appsec extension |
+| `ddtrace.so` | The installed `ddtrace.so` (searched under `/root`, `/opt`, `/usr/lib/php`); it must be built with `--enable-ddtrace-appsec` for AppSec scenarios |
 
 **Hard constraints — this approach only works if all three hold:**
 
@@ -301,15 +300,15 @@ Logs are written to `logs_<scenario>/` (or `logs/` for default) and
   `system-tests/logs/` -- these directories are always uploaded
   regardless of job success or failure (`when: always`).
 
-- **AppSec events silently missing when `ddappsec.so` is absent.** When
-  `ddappsec.so` does not reach the weblog Docker image, the sidecar's AppSec
-  setup skips WAF loading without any visible error. All AppSec-related
+- **AppSec events silently missing when ddtrace.so lacks AppSec.** AppSec is
+  part of `ddtrace.so` when built with `--enable-ddtrace-appsec` (the release
+  build scripts pass it). A ddtrace.so built without it makes the sidecar's
+  AppSec setup skip WAF loading without any visible error. All AppSec-related
   scenarios (`default`, `APPSEC_API_SECURITY*`) will report "No appsec event
   validates this condition" or "No telemetry data to validate on".
-  After changing `generate-package.php` or the tarball assembly, confirm that
-  `ddappsec.so` is present inside the assembled `.tar.gz` before running
-  system tests. (`recommended.json` is embedded in the helper-rust binary,
-  not shipped as a separate file.)
+  Check with `php -r 'var_dump(function_exists("datadog\appsec\is_enabled"));'`.
+  (`recommended.json` is embedded in the helper-rust binary, not shipped as a
+  separate file.)
 
 - **Sidecar log level must be `debug` to see startup confirmation.**
   The default log level filters out the "Starting sidecar" message. When

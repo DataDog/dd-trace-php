@@ -2,8 +2,6 @@
 DD_APPSEC_MAX_STACK_TRACES by default is 2 so only two backtraces are reported
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';

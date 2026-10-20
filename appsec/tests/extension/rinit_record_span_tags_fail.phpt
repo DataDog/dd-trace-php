@@ -4,7 +4,6 @@ test request recording failure due to no root span available
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --FILE--

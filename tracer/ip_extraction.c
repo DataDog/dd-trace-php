@@ -132,7 +132,7 @@ bool ddtrace_parse_client_ip_header_config(zai_str value, zval *decoded_value, b
     return true;
 }
 
-DATADOG_PUBLIC zend_string *ddtrace_ip_extraction_find(zval *server) {
+zend_string *ddtrace_ip_extraction_find(zval *server) {
     if (!server || Z_TYPE_P(server) != IS_ARRAY) {
         return NULL;
     }

@@ -1,7 +1,6 @@
 --TEST--
 appsec.api_security.request.no_schema is reported when no schemas come back
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test_apisec_no_schema.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1

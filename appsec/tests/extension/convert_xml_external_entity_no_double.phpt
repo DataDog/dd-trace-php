@@ -5,8 +5,6 @@ This test verifies that external entities are emitted exactly once as literal
 references, not twice. A bug could occur if _sax_get_entity emits the literal
 reference AND returns NULL, causing libxml2 to also invoke _sax_reference which
 would emit the reference a second time.
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 // Test 1: Single external SYSTEM entity

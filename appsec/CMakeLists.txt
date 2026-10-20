@@ -32,14 +32,13 @@ if(POLICY CMP0153)
     cmake_policy(SET CMP0153 OLD) # allow exec_program
 endif()
 
-option(DD_APPSEC_BUILD_EXTENSION "Whether to builder the extension" ON)
+# The AppSec extension is part of ddtrace.so (configure --enable-ddtrace-appsec).
+# This project runs its tests, its lint, and can build ddtrace.so with CMake.
 option(DD_APPSEC_ENABLE_COVERAGE "Whether to enable coverage calculation" OFF)
 option(DD_APPSEC_TESTING "Whether to enable testing" ON)
-set(DD_APPSEC_TEST_EXTENSION "" CACHE FILEPATH
-    "Use an existing AppSec extension when running extension tests")
 set(DD_APPSEC_TEST_TRACER "" CACHE FILEPATH
-    "Use an existing tracer extension when running extension tests")
-option(DD_APPSEC_DDTRACE_ALT "Whether to build appsec with cmake" OFF)
+    "Use an existing ddtrace.so with AppSec when running extension tests")
+option(DD_APPSEC_DDTRACE_ALT "Whether to build ddtrace.so with cmake" OFF)
 option(DD_APPSEC_SSI "Whether to build ddtrace in split configuration (slim ddtrace.so + libdatadog_php.so)" OFF)
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
@@ -47,20 +46,28 @@ add_subdirectory(third_party EXCLUDE_FROM_ALL)
 include("cmake/coverage.cmake")
 include("cmake/boost.cmake")
 
-if(DD_APPSEC_BUILD_EXTENSION OR DD_APPSEC_DDTRACE_ALT)
+if(DD_APPSEC_TESTING OR DD_APPSEC_DDTRACE_ALT)
     find_package(PhpConfig REQUIRED)
     message(STATUS "PHP version: ${PhpConfig_VERSION}")
     message(STATUS "PHP include directories: ${PhpConfig_INCLUDE_DIRS}")
     message(STATUS "PHP libraries: ${PhpConfig_LIBRARIES}")
     include("cmake/ext_asan.cmake")
+    include(cmake/pcre2.cmake)
 endif()
 
-if(DD_APPSEC_BUILD_EXTENSION)
-    include("cmake/extension.cmake")
+set(EXT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/extension)
+file(GLOB_RECURSE APPSEC_EXTENSION_SOURCES CONFIGURE_DEPENDS ${EXT_SOURCE_DIR}/*.c)
+
+if(PhpConfig_FOUND)
+    include(cmake/arginfo.cmake)
 endif()
 
 if(DD_APPSEC_DDTRACE_ALT)
     include(cmake/ddtrace.cmake)
+endif()
+
+if(DD_APPSEC_TESTING)
+    include(cmake/run_tests.cmake)
 endif()
 
 include(cmake/clang-tidy.cmake)

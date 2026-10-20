@@ -1,7 +1,5 @@
 --TEST--
 Track automated user signup with anonymization mode, using the full name as configuration
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anonymization

@@ -6,21 +6,20 @@
 
 #include "user_tracking.h"
 #include "commands/request_exec.h"
-#include "compatibility.h"
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "ddtrace.h"
 #include "helper_process.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "string_helpers.h"
 #include "tags.h"
 #include "telemetry.h"
+#include "tracer_bridge.h"
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_string.h>
+#include <ext/compatibility.h>
 #include <ext/hash/php_hash.h>
 #include <stdatomic.h>
 
@@ -159,9 +158,6 @@ void dd_user_tracking_startup(void)
 
     _register_test_objects();
 
-    if (!dd_trace_loaded()) {
-        return;
-    }
     zend_function *set_user = zend_hash_str_find_ptr(
         CG(function_table), LSTRARG("ddtrace\\set_user"));
     if (set_user != NULL) {

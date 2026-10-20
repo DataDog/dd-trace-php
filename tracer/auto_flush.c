@@ -114,7 +114,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     return success ? SUCCESS : FAILURE;
 }
 
-DATADOG_PUBLIC void ddtrace_close_all_spans_and_flush()
+void ddtrace_close_all_spans_and_flush()
 {
     ddtrace_close_all_open_spans(true);
     ddtrace_flush_tracer(true, true, false);

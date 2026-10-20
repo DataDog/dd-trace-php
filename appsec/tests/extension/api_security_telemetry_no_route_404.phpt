@@ -1,7 +1,6 @@
 --TEST--
 No api_security metric is reported for a routeless 404
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test_apisec_404.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1

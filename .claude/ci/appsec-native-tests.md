@@ -8,7 +8,7 @@ file.
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `test appsec extension: [{ver}, {arch}, debug]` | `datadog/dd-trace-ci:php-{ver}_bookworm-11` | Builds appsec PHP extension + runs phpunit `.phpt` tests |
+| `test appsec extension: [{ver}, {arch}, debug]` | `datadog/dd-trace-ci:php-{ver}_bookworm-11` | Builds ddtrace.so with AppSec (`make compile_appsec`) + runs the `.phpt` tests |
 | `test appsec extension: [{ver}, {arch}, debug-zts]` | same | ZTS variant |
 | `test appsec extension: [{ver}, {arch}, debug-zts-asan]` | same | ASAN variant (PHP 7.4+) |
 | `appsec lint` | `datadog/dd-trace-ci:php-8.3_bookworm-11` | clang-format + clang-tidy |
@@ -29,9 +29,9 @@ Docker option between the image name and `--`:
 
 ## Why `--overlayfs` is needed
 
-These builds need a writable source tree because cmake writes generated
-headers (`src/extension/version.h`, `src/version.hpp`) back into the
-source directory.  See [index.md](index.md) for how `--overlayfs` works.
+These builds need a writable source tree because the tracer build writes
+generated headers (`ext/version.h`) and its build directory (`tmp/`) into the
+source tree.  See [index.md](index.md) for how `--overlayfs` works.
 
 ## Extension tests
 
@@ -157,11 +157,6 @@ make tidy_fix    # fix clang-tidy violations
 ```
 
 ## Gotchas
-
-- The build directory (`appsec/build`) must be **inside the repo**
-  (in-tree). Using an out-of-tree build directory fails because
-  `appsec/cmake/extension.cmake` writes `src/extension/version.h` into
-  `CMAKE_CURRENT_SOURCE_DIR`.
 
 - The first build takes several minutes because Boost is compiled from
   source. Subsequent builds reuse the cached Boost in

@@ -2,7 +2,6 @@
 Extract client IP address (no ip header set)
 --INI--
 datadog.appsec.log_level=info
-extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\extract_ip_addr;
