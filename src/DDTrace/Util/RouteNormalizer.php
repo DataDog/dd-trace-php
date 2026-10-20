@@ -58,65 +58,74 @@ class RouteNormalizer
     }
 
     /**
-     * Normalize a Laminas route template.
+     * Normalize a route that a framework adapter has already resolved into a
+     * sequence of elements:
      *
-     * Laminas uses :param for dynamic parameters and [...] for optional sections.
-     * The Wildcard route type produces "/*" which is treated as a catch-all.
+     *  - ['static', text]: text the request matched verbatim, in URL form;
+     *  - ['param', name]: a parameter that took part in the match;
+     *  - ['tail']: a catch-all that may span several URL segments.
      *
-     * For Regex routes (templates containing %param% placeholders), the caller
-     * must supply $urlMatchedParams built from the actual matcher captures;
-     * attempting to re-derive participation here from values alone would be
-     * spec-violating guesswork.
-     *
-     * @param string      $template         Template from httpRouteTemplateFromMatchedRoute()
-     * @param array       $matchedParams    Matched params from $routeMatch->getParams()
-     * @param string|null $urlPath          The raw request URL path; filters out optional sections
-     *                                      whose params were injected by middleware rather than
-     *                                      matched from the URL (e.g. Laminas API Tools
-     *                                      VersionListener sets :version even without a /v1/ prefix)
-     * @param array|null  $urlMatchedParams Parameters captured by the Regex route matcher.
-     *                                      Required when $template contains %param% placeholders;
-     *                                      otherwise the function returns null.
-     * @return string|null
+     * Elements are grouped into URL segments by the slashes in static text,
+     * so static text is never read as route syntax. A segment with parameters
+     * becomes one dynamic element joining their names with '+' (rule 5); a
+     * catch-all becomes one dynamic element named paramN (rule 4); otherwise
+     * the segment is a static constant.
      */
-    public static function normalizeFromLaminas(string $template, array $matchedParams = [], $urlPath = null, $urlMatchedParams = null)
+    public static function normalizeElements(array $elements): string
     {
-        $expanded = self::expandBracketOptionals($template, $matchedParams, ':', $urlPath);
-
-        // Replace wildcard /* with a param name that doesn't collide with existing params
-        if (preg_match('#/\*$#', $expanded)) {
-            $wildcardName = self::uniqueParamName($expanded, ':');
-            $expanded = preg_replace('#/\*$#', '/{' . $wildcardName . '}', $expanded);
-        }
-
-        // Segment routes use :param; Regex routes use %param% (spec format) — handle both.
-        // Detect Regex routes before conversion so matcher capture metadata can be applied.
-        $hasPercentParams = (bool) preg_match('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', $expanded);
-        if ($hasPercentParams) {
-            if ($urlMatchedParams === null) {
-                // Regex route without caller-supplied matcher captures: we can't
-                // tell which percent-params actually participated. Returning null
-                // lets the caller omit the tag rather than emit a guess.
-                return null;
+        $segments = [self::newElementSegment('')];
+        $names = [];
+        foreach ($elements as $element) {
+            $current = count($segments) - 1;
+            switch ($element[0]) {
+                case 'static':
+                    $pieces = explode('/', $element[1]);
+                    $segments[$current]['static'] .= array_shift($pieces);
+                    foreach ($pieces as $piece) {
+                        $segments[] = self::newElementSegment($piece);
+                    }
+                    break;
+                case 'param':
+                    $segments[$current]['params'][] = $element[1];
+                    $names[$element[1]] = true;
+                    break;
+                case 'tail':
+                    $segments[$current]['tail'] = true;
+                    break;
             }
-            $expanded = preg_replace_callback(
-                '/%([a-zA-Z_][a-zA-Z0-9_]*)%/',
-                static function ($m) use ($urlMatchedParams) {
-                    return array_key_exists($m[1], $urlMatchedParams)
-                        ? '{' . $m[1] . '}'
-                        : '{' . $m[1] . '?}';
-                },
-                $expanded
-            );
         }
 
-        $braceFormat = self::colonParamsToBraces($expanded);
-        $braceFormat = self::percentParamsToBraces($braceFormat);
+        $last = end($segments);
+        $trailingSlash = count($segments) > 1 && $last['static'] === '' && !$last['params']
+            && !$last['tail'];
 
-        return self::normalizeBraceRoute(
-            $braceFormat,
-            $hasPercentParams ? $urlMatchedParams : $matchedParams
-        );
+        $normalized = [];
+        foreach ($segments as $segment) {
+            if ($segment['tail']) {
+                $i = 1;
+                while (isset($names['param' . $i])) {
+                    $i++;
+                }
+                $names['param' . $i] = true;
+                $normalized[] = '{param' . $i . '}';
+            } elseif ($segment['params']) {
+                $params = array_map([self::class, 'encodeParamName'], $segment['params']);
+                $normalized[] = '{' . implode('+', $params) . '}';
+            } elseif ($segment['static'] !== '') {
+                $normalized[] = self::encodeStaticSegment($segment['static']);
+            }
+        }
+
+        if (!$normalized) {
+            return '/';
+        }
+
+        return '/' . implode('/', $normalized) . ($trailingSlash ? '/' : '');
+    }
+
+    private static function newElementSegment(string $static): array
+    {
+        return ['static' => $static, 'params' => [], 'tail' => false];
     }
 
     /**
@@ -525,141 +534,6 @@ class RouteNormalizer
         }
 
         return '{' . implode('+', $paramNames) . '}';
-    }
-
-    /**
-     * Expand Laminas [...] optional sections based on matched params.
-     *
-     * When $urlPath is provided, an optional section is only expanded if the
-     * section text with param values substituted is a substring of $urlPath.
-     * This prevents middleware-injected params from incorrectly triggering
-     * expansion of sections absent from the URL.
-     *
-     * For static-only optional sections (no params), the URL path is also checked
-     * to determine whether the literal text appeared in the request.
-     */
-    private static function expandBracketOptionals(
-        string $template,
-        array $matchedParams,
-        string $paramPrefix = ':',
-        $urlPath = null
-    ): string {
-        $prev = null;
-        while ($prev !== $template) {
-            $prev = $template;
-            $template = preg_replace_callback(
-                '/\[([^\[\]]*)\]/',
-                function ($m) use ($matchedParams, $paramPrefix, $urlPath) {
-                    $inner = $m[1];
-                    $pattern = '/' . preg_quote($paramPrefix, '/') . '([a-zA-Z_][a-zA-Z0-9_-]*)/';
-                    preg_match_all($pattern, $inner, $pm);
-                    $innerParams = $pm[1];
-
-                    if (empty($innerParams)) {
-                        // Static-only optional section (e.g. [/draft]):
-                        // only expand when the literal text appears in the URL
-                        // at a position > 0 (never at the very start, since optional
-                        // sections always follow mandatory route text).
-                        if ($urlPath !== null) {
-                            return (strpos($urlPath, $inner) > 0) ? $inner : '';
-                        }
-                        return $inner;
-                    }
-
-                    // All params in the section must be present in matched params.
-                    foreach ($innerParams as $param) {
-                        if (!array_key_exists($param, $matchedParams)) {
-                            return '';
-                        }
-                    }
-
-                    if ($urlPath !== null) {
-                        // Substitute every param value before checking the URL so that
-                        // multi-param sections like [/:year/:month] are found correctly.
-                        // Use a word-boundary-aware replacement so :id is not replaced
-                        // inside :id2 (str_replace(':id', ...) would corrupt ':id2').
-                        // Check position > 0: optional sections always follow mandatory
-                        // route text so a match at position 0 is a false positive (e.g.
-                        // the default value is identical to the mandatory route prefix).
-                        $innerWithValues = $inner;
-                        foreach ($innerParams as $param) {
-                            $value = (string)$matchedParams[$param];
-                            $innerWithValues = preg_replace(
-                                '/' . preg_quote($paramPrefix . $param, '/') . '(?![a-zA-Z0-9_-])/',
-                                $value,
-                                $innerWithValues
-                            );
-                        }
-                        if (strpos($urlPath, $innerWithValues) > 0) {
-                            return $inner;
-                        }
-                        // Try percent-encoded values (Laminas URL-decodes param values).
-                        // Also try lowercase hex since browsers may send %c3%a9 for %C3%A9.
-                        $innerEncoded = $inner;
-                        foreach ($innerParams as $param) {
-                            $value = rawurlencode((string)$matchedParams[$param]);
-                            $innerEncoded = preg_replace(
-                                '/' . preg_quote($paramPrefix . $param, '/') . '(?![a-zA-Z0-9_-])/',
-                                $value,
-                                $innerEncoded
-                            );
-                        }
-                        if (strpos($urlPath, $innerEncoded) > 0 ||
-                            strpos(strtolower($urlPath), strtolower($innerEncoded)) > 0) {
-                            return $inner;
-                        }
-                        return '';
-                    }
-
-                    return $inner;
-                },
-                $template
-            );
-        }
-        return $template;
-    }
-
-    /**
-     * Convert ":paramName" colon-prefix notation to "{paramName}" brace notation.
-     * Laminas segment constraints like ":param{constraint}" are also handled.
-     * Hyphenated param names like ":user-id" are supported.
-     */
-    private static function colonParamsToBraces(string $template): string
-    {
-        return preg_replace_callback(
-            '/:([a-zA-Z_][a-zA-Z0-9_-]*)(?:\{[^}]*\})?/',
-            static function ($m) {
-                return '{' . $m[1] . '}';
-            },
-            $template
-        );
-    }
-
-    /**
-     * Convert Laminas Regex route spec %param% notation to {param} brace notation.
-     * Regex routes store their spec as "/path/%id%/%name%" for URL generation.
-     */
-    private static function percentParamsToBraces(string $template): string
-    {
-        return preg_replace('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', '{$1}', $template);
-    }
-
-    /**
-     * Find a param name of the form "paramN" that does not already appear in $template
-     * as either a colon-param (:paramN) or a brace-param ({paramN}).
-     */
-    private static function uniqueParamName(string $template, string $paramPrefix = ':'): string
-    {
-        $i = 1;
-        while (
-            // Use regex so ':param1' doesn't falsely match inside ':param10'
-            preg_match('/' . preg_quote($paramPrefix . 'param' . $i, '/') . '(?![0-9])/', $template) ||
-            strpos($template, '{param' . $i . '}') !== false ||
-            strpos($template, '%param' . $i . '%') !== false
-        ) {
-            $i++;
-        }
-        return 'param' . $i;
     }
 
     /**
