@@ -12,9 +12,9 @@ experiments:
           - name: normal_operation/only-tracing/-8_1
             thresholds:
               - agg_http_req_duration_p50 < 30 ms
-              - agg_http_req_duration_p95 < 28452039.54 ns
+              - agg_http_req_duration_p95 < 28.45 ms
           - name: high_load/only-tracing/-8_1
             thresholds:
               - throughput > 112.32 op/s
-              - agg_http_req_duration_p95 < 39444815.93 ns
+              - agg_http_req_duration_p95 < 39.44 ms
 
