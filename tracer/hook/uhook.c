@@ -556,6 +556,80 @@ static void dd_uhook_dtor(void *data) {
     efree(def);
 }
 
+#if PHP_VERSION_ID >= 80600
+// Unused by php-src 8.6 (fn_flags2 bits 1-31 are free): the declaration of this closure no longer caches it
+#define DD_ACC2_UNCACHED_LAMBDA (1u << 31)
+
+static zend_op_array *dd_uhook_find_lambda_decl(zend_op_array *op_array, const zend_op *opcodes, uint32_t *def) {
+    for (uint32_t i = 0; i < op_array->num_dynamic_func_defs; ++i) {
+        zend_op_array *nested = op_array->dynamic_func_defs[i], *found;
+        if (nested->opcodes == opcodes) {
+            *def = i;
+            return op_array;
+        }
+        if ((found = dd_uhook_find_lambda_decl(nested, opcodes, def))) {
+            return found;
+        }
+    }
+    return NULL;
+}
+
+// PHP 8.6 caches static closures without captured state, so later evaluations would share the instance hook: disable it at
+// the declaration. With opcache, all processes share it and only store the same values. Re-verify with the php-src#23911 fix.
+static void dd_uhook_uncache_closure(zend_object *closure) {
+    zend_op_array *op_array = &((zend_function *)zend_get_closure_method_def(closure))->op_array;
+    if (op_array->type != ZEND_USER_FUNCTION || !(op_array->fn_flags & ZEND_ACC_STATIC) || (op_array->fn_flags & ZEND_ACC_FAKE_CLOSURE)
+            || op_array->static_variables || (op_array->fn_flags2 & DD_ACC2_UNCACHED_LAMBDA)) {
+        return;
+    }
+    // Look up each instance once; evaluations of an uncached declaration copy its mark
+    op_array->fn_flags2 |= DD_ACC2_UNCACHED_LAMBDA;
+
+    uint32_t def = 0;
+    zend_op_array *decl = NULL;
+    for (zend_execute_data *ex = EG(current_execute_data); ex && !decl; ex = ex->prev_execute_data) {
+        if (ex->func && ZEND_USER_CODE(ex->func->type)) {
+            decl = dd_uhook_find_lambda_decl(&ex->func->op_array, op_array->opcodes, &def);
+        }
+    }
+    if (!decl) {
+        zend_function *func;
+        ZEND_HASH_REVERSE_FOREACH_PTR(op_array->scope ? &op_array->scope->function_table : EG(function_table), func) {
+            if (func->type == ZEND_USER_FUNCTION) {
+                if ((decl = dd_uhook_find_lambda_decl(&func->op_array, op_array->opcodes, &def))) {
+                    break;
+                }
+            } else if (!op_array->scope) {
+                break; // user functions follow the internal ones
+            }
+        } ZEND_HASH_FOREACH_END();
+    }
+    if (!decl) {
+        return;
+    }
+
+    zend_op *opline = decl->opcodes, *end = opline + decl->last;
+    while (opline < end && (opline->opcode != ZEND_DECLARE_LAMBDA_FUNCTION || opline->op2.num != def)) {
+        ++opline;
+    }
+    zend_op_array *src = decl->dynamic_func_defs[def];
+    // Opcache shared memory (immutable op_arrays) is read-only with opcache.protect_memory
+    if (opline == end || ((src->fn_flags & ZEND_ACC_IMMUTABLE) && zend_ini_long(ZEND_STRL("opcache.protect_memory"), 0))) {
+        return;
+    }
+    uint32_t slot = opline->extended_value;
+    if (slot != (uint32_t)-1) {
+        // Keep the closure cached on another layout than one cache slot per declaration
+        if (slot % sizeof(void *) || slot + sizeof(void *) > decl->cache_size) {
+            return;
+        }
+        // The engine's value for closures it does not cache
+        *(volatile uint32_t *)&opline->extended_value = (uint32_t)-1;
+    }
+    *(volatile uint32_t *)&src->fn_flags2 = src->fn_flags2 | DD_ACC2_UNCACHED_LAMBDA;
+}
+#endif
+
 #if PHP_VERSION_ID < 70400
 #define _error_code error_code
 #endif
@@ -715,6 +789,9 @@ type_error:
                 zend_hash_index_add_new_ptr(&DDTRACE_G(uhook_closure_hooks), (zend_ulong)(uintptr_t)closure, hooks);
             }
             hooks->id[hooks->size - 1] = id;
+#if PHP_VERSION_ID >= 80600
+            dd_uhook_uncache_closure(closure);
+#endif
         }
     } else {
         const char *colon = strchr(ZSTR_VAL(name), ':');
