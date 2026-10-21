@@ -406,6 +406,58 @@ foreach ($build_platforms as $platform) {
 endforeach;
 ?>
 
+<?php foreach ($arch_targets as $arch): ?>
+"aggregate appsec extension: [<?= $arch ?>]":
+  stage: appsec
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  tags: [ "arch:amd64" ]
+  script: ls ./
+  variables:
+    GIT_STRATEGY: none
+  needs:
+<?php
+    foreach ($build_platforms as $platform):
+        if ($platform["arch"] == $arch):
+            foreach ($all_minor_major_targets as $major_minor):
+?>
+    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+            endforeach;
+        endif;
+    endforeach;
+?>
+  artifacts:
+    paths:
+      - "appsec_*"
+
+"aggregate profiler extension: [<?= $arch ?>]":
+  stage: profiler
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  tags: [ "arch:amd64" ]
+  script: ls ./
+  variables:
+    GIT_STRATEGY: none
+  needs:
+<?php
+    foreach ($build_platforms as $platform):
+        if ($platform["arch"] == $arch):
+            foreach ($profiler_minor_major_targets as $major_minor):
+?>
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+            endforeach;
+        endif;
+    endforeach;
+?>
+  artifacts:
+    paths:
+      - "datadog-profiling"
+<?php
+endforeach;
+?>
+
 <?php
 foreach ($build_platforms as $platform) {
     $image = sprintf($platform['image_template'], "8.1");
@@ -477,7 +529,6 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
@@ -757,6 +808,10 @@ foreach ($windows_minor_major_targets as $major_minor) {
       artifacts: true
     - job: "aggregate tracing extension: [<?= $arch ?>]"
       artifacts: true
+    - job: "aggregate appsec extension: [<?= $arch ?>]"
+      artifacts: true
+    - job: "aggregate profiler extension: [<?= $arch ?>]"
+      artifacts: true
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
@@ -764,21 +819,6 @@ foreach ($windows_minor_major_targets as $major_minor) {
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
-            foreach ($all_minor_major_targets as $major_minor):
-?>
-    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
-?>
-
-<?php
-            foreach ($profiler_minor_major_targets as $major_minor):
-?>
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
         endif;
     endforeach;
 endforeach;
@@ -817,7 +857,8 @@ endforeach;
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
-    - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+    # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
+    - php run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
 # The tracer pipeline only runs the FrankenPHP suite on amd64/glibc. musl differs in ways that bite specifically here - see issue #4163, where the SIGTERM handler's clone() is rejected outright by musl and FrankenPHP consequently never shuts down.
 # Thus we so run the same suite once against the official FrankenPHP image on arm64/Alpine.
@@ -1146,7 +1187,8 @@ endforeach;
           - alpine:3.16
           - alpine:3.21
           - alpine:3.24
-      - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      # Pre-GA versions only exist as -rc tags on Docker Hub.
+      - IMAGE: <?= json_encode(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "php:$v-rc-fpm-alpine" : "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1296,7 +1338,7 @@ endforeach;
   extends: .verify_job
   variables:
     INSTALL_MODE: sury
-    PHP_VERSION: "<?= end($all_minor_major_targets) ?>"
+    PHP_VERSION: "<?= $latest_ga_minor_major ?>"
     INSTALL_TYPE: native_package
     IMAGE: "debian:bookworm-slim"
   script:
