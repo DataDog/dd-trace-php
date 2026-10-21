@@ -768,6 +768,10 @@ void datadog_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags) {
 #endif
     datadog_populate_target_data(span, &service_string, &env_string, &version_string);
 
+    if (ZSTR_LEN(get_DD_ENTITY_ID()) > 0) {
+        datadog_sidecar_push_tag(vec, DDOG_CHARSLICE_C("dd.internal.entity_id"), dd_zend_string_to_CharSlice(get_DD_ENTITY_ID()));
+    }
+
     if (ZSTR_LEN(env_string) > 0) {
         datadog_sidecar_push_tag(vec, DDOG_CHARSLICE_C("env"), dd_zend_string_to_CharSlice(env_string));
     }
