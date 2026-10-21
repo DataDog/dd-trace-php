@@ -348,8 +348,13 @@ int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) 
     return 0;
 }
 
-static void dd_clean_main_thread_locals() {
-    dd_run_rust_thread_destructors(NULL);
+static void dd_clean_main_thread_locals(void *unused) {
+    dd_run_rust_thread_destructors(unused);
+    // FrankenPHP unloads ddtrace on php-main before pthreads runs its TLS destructors.
+    // The fallback key must not retain a callback into the unloaded extension.
+    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNAVAILABLE) {
+        pthread_key_delete(dd_cxa_thread_atexit_key);
+    }
 }
 
 extern void *__dso_handle;
@@ -433,8 +438,8 @@ static PHP_MINIT_FUNCTION(datadog) {
     if (datadog_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_is_main_thread = true;
         glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
-        __cxa_atexit(dd_clean_main_thread_locals, NULL, __dso_handle);
     }
+    __cxa_atexit(dd_clean_main_thread_locals, NULL, __dso_handle);
 #endif
 
     // Reset on every minit for `apachectl graceful`.

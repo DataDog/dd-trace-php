@@ -1055,6 +1055,12 @@ endforeach;
   script:
     - php datadog-setup.php --php-bin all --file $(ls packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
     - sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
+    # Ubuntu's PHP 8.1 OOM mitigation calls _exit(), bypassing error and shutdown hooks.
+    - >-
+      rm tests/ext/autoload-php-files/ignores_fatal_errors.phpt
+      tests/ext/fibers/fiber_observer_bailout.phpt
+      tests/ext/sandbox/fatal_errors_are_tracked_002.phpt
+      tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt
     - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
 
 "framework test":
