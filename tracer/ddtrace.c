@@ -536,6 +536,9 @@ void ddtrace_rinit_early(void) {
 }
 
 void ddtrace_rinit(void) {
+    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: request initialization started");
+    }
     if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (datadog_endpoint) {
@@ -554,6 +557,12 @@ void ddtrace_rinit(void) {
 
     if (get_DD_TRACE_ENABLED()) {
         dd_initialize_request();
+    }
+    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: request initialization complete (readiness=%s, initial_source=%s, version=%" PRIu64 "); unavailable evaluations return defaults while Remote Configuration arrives",
+            ddog_ffe_has_config() ? "ready" : "unavailable",
+            ddog_ffe_has_config() ? "already loaded configuration" : "configuration not yet available",
+            ddog_ffe_config_version());
     }
 }
 
@@ -649,8 +658,14 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         DDTRACE_G(active_stack) = NULL;
     }
 
+    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: request shutdown started (pending_exposures=%zu); handing off pending work without waiting for network delivery", DDTRACE_G(ffe_exposure_buffer_len));
+    }
     ddtrace_ffe_flush_exposures();
     ddtrace_ffe_flush_evaluation_metrics();
+    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: request shutdown complete (pending_exposures=%zu); sidecar exposures are not drained by PHP shutdown, in-flight delivery may finish or be cancelled; see ffe_exposures_flusher for available delivery diagnostics", DDTRACE_G(ffe_exposure_buffer_len));
+    }
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
@@ -704,12 +719,19 @@ bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
     flags->ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
     if (flags->ffe_enabled) {
+        LOG(DEBUG, "Feature Flags: effective settings (sdk_env=%s, poll_interval_seconds=%g, agent_timeout_ms=%" PRId64 "); source=Agent Remote Configuration, no direct flag endpoint or initialization timeout",
+            ZSTR_VAL(get_global_DD_ENV()), get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS(), (int64_t)get_global_DD_TRACE_AGENT_TIMEOUT());
         if (get_global_DD_TRACE_AGENTLESS()) {
             LOG(DEBUG, "Feature Flags: configuration subscription disabled; DD_TRACE_AGENTLESS=true at startup disables Agent Remote Configuration");
         } else if (!get_global_DD_REMOTE_CONFIG_ENABLED()) {
             LOG(DEBUG, "Feature Flags: configuration subscription disabled; set DD_REMOTE_CONFIG_ENABLED=true at startup");
         } else {
             LOG(DEBUG, "Feature Flags: enabled; starting remote_config configuration source (Agent Remote Configuration)");
+        }
+        // This runs once per process (first request, or after a fork), so the
+        // warning is not repeated per request or evaluation.
+        if (ddog_shall_log(DDOG_LOG_DEBUG)) {
+            LOG(WARN, "Feature Flags: debug logging is enabled, so feature flag logs include raw evaluation data (targeting keys, evaluation context attributes, flag values, and default values) that may contain personal or sensitive information. Unset DD_TRACE_DEBUG when you no longer need it.");
         }
     }
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()

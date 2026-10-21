@@ -477,20 +477,34 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                             }
                         }
                         RemoteConfigProduct::FfeFlags => {
-                            debug!("Feature Flags: remote_config configuration received");
+                            debug!(
+                                "Feature Flags: remote_config configuration received (config_id={})",
+                                value.path.config_id()
+                            );
                             if let Some(ufc) = data.downcast::<UniversalFlagConfig>() {
                                 match UniversalFlagConfig::from_json(ufc.to_json().to_vec()) {
                                     Ok(ufc_owned) => {
+                                        let requested_env = remote_config
+                                            .manager
+                                            .get_target()
+                                            .map(|target| target.env());
                                         crate::ffe::store_config(
                                             Configuration::from_server_response(ufc_owned),
+                                            requested_env,
                                         );
                                     }
-                                    Err(_) => {
-                                        debug!("Feature Flags: remote_config configuration rejected; invalid flag configuration, retaining previous configuration");
+                                    Err(error) => {
+                                        debug!(
+                                            "Feature Flags: remote_config configuration rejected: {error}; {}",
+                                            crate::ffe::retained_config_description()
+                                        );
                                     }
                                 }
                             } else {
-                                debug!("Feature Flags: remote_config configuration rejected; unexpected configuration type");
+                                debug!(
+                                    "Feature Flags: remote_config configuration rejected: unexpected configuration type; {}",
+                                    crate::ffe::retained_config_description()
+                                );
                             }
                         }
                         _ => {}
@@ -530,7 +544,8 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 RemoteConfigProduct::FfeFlags => {
                     crate::ffe::clear_config();
                     debug!(
-                        "Feature Flags: remote_config configuration removed (version={})",
+                        "Feature Flags: remote_config configuration removed (config_id={}, version={}); no configuration is loaded until another is applied",
+                        path.config_id(),
                         crate::ffe::ddog_ffe_config_version()
                     );
                 }
@@ -861,10 +876,11 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
         RemoteConfigProduct::ApmTracing,
         RemoteConfigProduct::LiveDebugging,
     ]);
+    debug!("Remote Configuration: request configuration updates stopped; shared sidecar polling may continue for other workers");
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_shutdown_remote_config(_: Box<RemoteConfigState>) {}
+pub extern "C" fn ddog_shutdown_remote_config(_state: Box<RemoteConfigState>) {}
 
 /// Free the FFI-owned allocations in a `Probe` (the `tags` vec and the nested
 /// span-decoration / log allocations) by consuming it; borrowed `CharSlice`s are

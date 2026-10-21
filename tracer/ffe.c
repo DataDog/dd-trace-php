@@ -278,7 +278,7 @@ void ddtrace_ffe_record_exposure(
     bool has_serial_id
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
-        LOG(TRACE, "Feature Flags: exposure suppressed; missing flag key or variant");
+        LOG(DEBUG, "Feature Flags: exposure suppressed; missing flag key or variant");
         return;
     }
 
@@ -312,6 +312,7 @@ void ddtrace_ffe_record_exposure(
     exposure->variant = zend_string_copy(variant);
     exposure->serial_id = serial_id;
     exposure->has_serial_id = has_serial_id;
+    LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu); delivery awaits sidecar handoff", DDTRACE_G(ffe_exposure_buffer_len));
 }
 
 bool ddtrace_ffe_flush_exposures(void) {
@@ -319,8 +320,13 @@ bool ddtrace_ffe_flush_exposures(void) {
     dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
 
     if (exposure_count == 0 || !buffer) {
+        if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+            LOG(DEBUG, "Feature Flags: exposure flush complete; empty queue (0 exposures)");
+        }
         return false;
     }
+
+    LOG(DEBUG, "Feature Flags: exposure flush started (%zu exposure(s)); attempting sidecar handoff", exposure_count);
 
     if (DDTRACE_G(ffe_exposures_dropped)) {
         LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); buffer limit reached (%d)",
@@ -365,9 +371,11 @@ bool ddtrace_ffe_flush_exposures(void) {
             exposure_slice));
 
     // A successful IPC handoff is not confirmation of delivery to intake.
-    // datadog_ffi_try already logs failures.
+    // datadog_ffi_try already logs the failure reason.
     if (flushed) {
-        LOG(TRACE, "Feature Flags: handed off %zu exposure(s) to sidecar", exposure_count);
+        LOG(DEBUG, "Feature Flags: handed off %zu exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher", exposure_count);
+    } else {
+        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); sidecar handoff failed and is not retried", exposure_count);
     }
 
     efree(ffi_exposures);

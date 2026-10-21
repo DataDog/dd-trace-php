@@ -1,5 +1,5 @@
 --TEST--
-FFE per-evaluation details require trace logging; DD_TRACE_DEBUG keeps only sparse diagnostics
+FFE per-evaluation details and exposure handoffs are visible under DD_TRACE_DEBUG
 --INI--
 datadog.trace.debug=1
 datadog.trace.log_level="debug,ddtrace=trace"
@@ -29,22 +29,22 @@ for ($i = 0; $i < 1001; ++$i) {
 DDTrace\ffe_evaluate('missing', DDTrace\FFE_BOOL, null, array());
 DDTrace\Testing\flush_ffe_exposures();
 
-// DD_TRACE_DEBUG wins over the configured trace level: configuration changes
-// and lost exposures are reported, per-evaluation details are not.
+// DD_TRACE_DEBUG forces the debug level, which carries every evaluation,
+// exposure handoff and lost exposure.
 $file = __DIR__ . '/debug_logging_levels.log';
 $logs = read_log_snapshot($file);
 var_dump(strpos($logs, 'Feature Flags: configuration applied successfully') !== false);
 var_dump(strpos($logs, 'Feature Flags: dropped 1 exposure(s); buffer limit reached (1000)') !== false);
-var_dump(strpos($logs, 'Feature Flags: evaluated ') === false);
-var_dump(strpos($logs, 'Feature Flags: handed off ') === false);
+var_dump(substr_count($logs, 'Feature Flags: native evaluation ') === 1002);
+var_dump(strpos($logs, 'Feature Flags: handed off 1000 exposure(s) to sidecar') !== false);
 
-// Removing the debug override allows the explicitly configured trace level.
+// Without the debug override, the configured level keeps the same details.
 ini_set('datadog.trace.debug', '0');
 DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, null, array());
 DDTrace\ffe_evaluate('missing', DDTrace\FFE_BOOL, null, array());
 DDTrace\Testing\flush_ffe_exposures();
 $logs = read_log_snapshot($file);
-var_dump(substr_count($logs, 'Feature Flags: evaluated ') === 2);
+var_dump(substr_count($logs, 'Feature Flags: native evaluation ') === 1004);
 var_dump(strpos($logs, 'Feature Flags: handed off 1 exposure(s) to sidecar') !== false);
 ?>
 --EXPECT--

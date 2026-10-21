@@ -21,21 +21,37 @@ thread_local! {
     }) };
 }
 
-pub fn store_config(config: Configuration) {
-    FFE_STATE.with(|state| {
+/// `requested_env` is the environment the SDK asked Remote Configuration for,
+/// labeled separately from the environment the configuration was built for.
+pub fn store_config(config: Configuration, requested_env: Option<&str>) {
+    // Summarized before installing and logged after releasing the state, so a
+    // logging failure can neither prevent nor follow a partial install.
+    let summary = tracing::enabled!(tracing::Level::DEBUG).then(|| ConfigSummary::new(&config));
+    let (version, replaced_version) = FFE_STATE.with(|state| {
         let mut state = state.borrow_mut();
+        let replaced_version = state.config.as_ref().map(|_| state.version);
         state.config = Some(config);
         state.version = state.version.wrapping_add(1);
-        if let Some(config) = &state.config {
+        (state.version, replaced_version)
+    });
+    if let Some(summary) = summary {
+        debug!(
+            "{}",
+            summary.applied_message(requested_env, version, replaced_version)
+        );
+        debug!(
+            "Feature Flags: readiness={}; configuration applied (version={version}, initial_source={})",
+            if version > 1 && replaced_version.is_none() { "recovered" } else { "ready" },
+            if requested_env.is_some() { "remote_config" } else { "local" }
+        );
+        if !summary.rejected.is_empty() {
             debug!(
-                "Feature Flags: configuration applied successfully ({} flag(s), env={:?}, version={}, created_at={})",
-                config.flag_keys().count(),
-                config.environment(),
-                state.version,
-                config.created_at(),
+                "Feature Flags: {} flag(s) rejected as invalid or unsupported; evaluating them returns the default value with PARSE_ERROR: {:?}",
+                summary.rejected.len(),
+                summary.rejected,
             );
         }
-    });
+    }
 }
 
 pub fn clear_config() {
@@ -44,6 +60,83 @@ pub fn clear_config() {
         state.config = None;
         state.version = state.version.wrapping_add(1);
     });
+    debug!("Feature Flags: readiness=unavailable; configuration removed, evaluations return defaults until recovery");
+}
+
+/// Describes what stays active after a configuration is rejected.
+pub fn retained_config_description() -> String {
+    FFE_STATE.with(|state| {
+        let state = state.borrow();
+        match state.config {
+            Some(_) => format!(
+                "retaining previous configuration (version={})",
+                state.version
+            ),
+            None => "no configuration is loaded, so evaluations return default values".to_string(),
+        }
+    })
+}
+
+struct ConfigSummary {
+    flags: usize,
+    disabled: usize,
+    rejected: Vec<String>,
+    environment: String,
+    created_at: String,
+}
+
+impl ConfigSummary {
+    fn new(config: &Configuration) -> ConfigSummary {
+        // Disabled and rejected flags fail at lookup, before any targeting
+        // runs, so an empty context classifies every flag.
+        let context = EvaluationContext::new(None, Arc::new(HashMap::new()));
+        let now = ffe::now();
+        let mut summary = ConfigSummary {
+            flags: 0,
+            disabled: 0,
+            rejected: Vec::new(),
+            environment: config.environment().to_string(),
+            created_at: config.created_at().to_string(),
+        };
+        for key in config.flag_keys() {
+            summary.flags += 1;
+            match ffe::get_assignment(Some(config), key, &context, ExpectedFlagType::Any, now) {
+                Err(EvaluationError::FlagDisabled) => summary.disabled += 1,
+                Err(EvaluationError::FlagConfigurationInvalid) => {
+                    summary.rejected.push(key.to_string())
+                }
+                _ => {}
+            }
+        }
+        summary.rejected.sort();
+        summary
+    }
+
+    fn applied_message(
+        &self,
+        requested_env: Option<&str>,
+        version: u64,
+        replaced_version: Option<u64>,
+    ) -> String {
+        let requested_env = requested_env
+            .map(|env| format!(", requested env={env:?}"))
+            .unwrap_or_default();
+        let replaced = replaced_version
+            .map(|version| format!("replaced version {version}"))
+            .unwrap_or_else(|| "no previous configuration".to_string());
+        format!(
+            "Feature Flags: configuration applied successfully ({} flag(s): {} usable, {} disabled, {} rejected; delivered env={:?}{}, created_at={}, version={}, {})",
+            self.flags,
+            self.flags - self.disabled - self.rejected.len(),
+            self.disabled,
+            self.rejected.len(),
+            self.environment,
+            requested_env,
+            self.created_at,
+            version,
+            replaced,
+        )
+    }
 }
 
 #[no_mangle]
@@ -54,18 +147,25 @@ pub extern "C" fn ddog_ffe_load_config(json: CharSlice<'_>) -> bool {
 
     let json = match json.try_to_utf8() {
         Ok(json) => json,
-        Err(_) => return false,
+        Err(_) => {
+            debug!(
+                "Feature Flags: configuration rejected: not valid UTF-8; {}",
+                retained_config_description()
+            );
+            return false;
+        }
     };
 
     match UniversalFlagConfig::from_json(json.as_bytes().to_vec()) {
         Ok(ufc) => {
-            store_config(Configuration::from_server_response(ufc));
+            store_config(Configuration::from_server_response(ufc), None);
             true
         }
-        Err(_) => {
-            // Parser errors may contain flag values. Never include raw input or
-            // parser error strings in customer diagnostics.
-            debug!("Feature Flags: configuration rejected; invalid flag configuration, retaining previous configuration");
+        Err(error) => {
+            debug!(
+                "Feature Flags: configuration rejected: {error}; {}",
+                retained_config_description()
+            );
             false
         }
     }
@@ -183,6 +283,9 @@ pub extern "C" fn ddog_ffe_evaluate(
             expected_type,
             ffe::now(),
         );
+        if let Err(error) = &assignment {
+            debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): {error}", state.version);
+        }
 
         // The PHP SDK returns object flags as arrays, so reject scalar JSON
         // before recording logs, metrics and exposures. Error observations still
@@ -192,6 +295,9 @@ pub extern "C" fn ddog_ffe_evaluate(
                 .as_ref()
                 .is_ok_and(|assignment| !is_json_container(&assignment.value))
         {
+            if let Ok(assignment) = &assignment {
+                debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): expected object/array, resolved raw JSON={}", state.version, assignment_value_to_json(&assignment.value));
+            }
             error_result(ERROR_TYPE_MISMATCH, REASON_ERROR)
         } else {
             result_from_assignment(assignment)
@@ -602,6 +708,65 @@ mod tests {
 
         assert!(ddog_ffe_has_config());
         assert_eq!(ddog_ffe_config_version(), loaded_version);
+        clear_config();
+    }
+
+    #[test]
+    fn config_summary_separates_usable_disabled_and_rejected_flags() {
+        let flag = |key: &str, enabled: bool, value: &str| {
+            format!(
+                r#""{key}": {{
+                    "key": "{key}", "enabled": {enabled}, "variationType": "STRING",
+                    "variations": {{"on": {{"key": "on", "value": {value}}}}},
+                    "allocations": [{{"key": "alloc", "rules": [],
+                        "splits": [{{"variationKey": "on", "shards": []}}], "doLog": true}}]
+                }}"#
+            )
+        };
+        let json = format!(
+            r#"{{"createdAt": "2026-05-22T00:00:00.000Z", "environment": {{"name": "staging"}}, "flags": {{{}, {}, {}, {}}}}}"#,
+            flag("usable", true, r#""on""#),
+            flag("disabled", false, r#""on""#),
+            // A number is not a valid STRING variation.
+            flag("wrong.type", true, "1"),
+            r#""malformed": {"key": "malformed"}"#,
+        );
+        let config = Configuration::from_server_response(
+            UniversalFlagConfig::from_json(json.into_bytes()).expect("fixture is a valid envelope"),
+        );
+
+        let summary = ConfigSummary::new(&config);
+        assert_eq!(summary.flags, 4);
+        assert_eq!(summary.disabled, 1);
+        assert_eq!(summary.rejected, vec!["malformed", "wrong.type"]);
+        assert_eq!(
+            summary.applied_message(Some("production"), 3, Some(2)),
+            "Feature Flags: configuration applied successfully (4 flag(s): 1 usable, 1 disabled, 2 rejected; delivered env=\"staging\", requested env=\"production\", created_at=2026-05-22 00:00:00 UTC, version=3, replaced version 2)"
+        );
+        assert_eq!(
+            summary.applied_message(None, 1, None),
+            "Feature Flags: configuration applied successfully (4 flag(s): 1 usable, 1 disabled, 2 rejected; delivered env=\"staging\", created_at=2026-05-22 00:00:00 UTC, version=1, no previous configuration)"
+        );
+    }
+
+    #[test]
+    fn retained_config_description_reports_the_active_configuration() {
+        clear_config();
+        assert_eq!(
+            retained_config_description(),
+            "no configuration is loaded, so evaluations return default values"
+        );
+        assert!(load_empty_config());
+        let invalid = CString::new(r#"{"flags":"#).expect("test fixture is valid cstring");
+        assert!(!ddog_ffe_load_config(char_slice(&invalid)));
+        assert!(ddog_ffe_has_config());
+        assert_eq!(
+            retained_config_description(),
+            format!(
+                "retaining previous configuration (version={})",
+                ddog_ffe_config_version()
+            )
+        );
         clear_config();
     }
 }

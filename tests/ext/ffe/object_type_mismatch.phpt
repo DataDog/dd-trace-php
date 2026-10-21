@@ -65,11 +65,11 @@ foreach (array_keys($values) as $key) {
 // so rejected scalar values are not exposed even though the allocation sets doLog.
 $logs = read_log_snapshot(__DIR__ . '/object_type_mismatch.log');
 foreach (array('json-int', 'json-string', 'json-null') as $key) {
-    $line = 'Feature Flags: evaluated {"flagKey":"' . $key . '","valueType":"object","reason":"ERROR","variant":null,"errorCode":"TYPE_MISMATCH","configVersion":1,"doLog":false}';
+    $line = 'Feature Flags: native evaluation {"flagKey":"' . $key . '","valueType":"object","targetingKey":null,"attributes":{},"valueJson":"null","variant":null,"allocationKey":null,"reason":"ERROR","errorCode":"TYPE_MISMATCH","configVersion":1,"doLog":false}';
     echo (strpos($logs, $line) !== false ? 'found' : 'MISSING: ' . $line) . "\n";
 }
 foreach (array('json-object', 'json-list') as $key) {
-    $line = 'Feature Flags: evaluated {"flagKey":"' . $key . '","valueType":"object","reason":"STATIC","variant":"on","errorCode":null,"configVersion":1,"doLog":true}';
+    $line = 'Feature Flags: native evaluation {"flagKey":"' . $key . '","valueType":"object","targetingKey":null,"attributes":{},"valueJson":' . json_encode(json_encode($values[$key])) . ',"variant":"on","allocationKey":"allocation","reason":"STATIC","errorCode":null,"configVersion":1,"doLog":true}';
     echo (strpos($logs, $line) !== false ? 'found' : 'MISSING: ' . $line) . "\n";
 }
 ?>

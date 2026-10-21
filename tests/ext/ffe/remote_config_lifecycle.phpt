@@ -77,10 +77,15 @@ del_rc_file($path);
 show('removed', wait_for_ffe_config(false));
 show('has_config_after_remove', \DDTrace\ffe_has_config());
 show('version_increased', \DDTrace\ffe_config_version() > $version);
+$path = put_ffe_config_file($config);
+show('restored', wait_for_ffe_config(true));
 $logs = read_log_snapshot(__DIR__ . '/remote_config_lifecycle.log');
-show('received_logged', strpos($logs, 'Feature Flags: remote_config configuration received') !== false);
-show('applied_logged', strpos($logs, 'Feature Flags: configuration applied successfully (1 flag(s)') !== false);
-show('removed_logged', strpos($logs, 'Feature Flags: remote_config configuration removed (version=') !== false);
+$configId = sha1($config);
+show('received_logged', strpos($logs, 'Feature Flags: remote_config configuration received (config_id=' . $configId . ')') !== false);
+show('applied_logged', strpos($logs, 'Feature Flags: configuration applied successfully (1 flag(s): 1 usable, 0 disabled, 0 rejected; delivered env="test", requested env="') !== false);
+show('removed_logged', strpos($logs, 'Feature Flags: remote_config configuration removed (config_id=' . $configId . ', version=') !== false);
+show('unavailable_logged', strpos($logs, 'Feature Flags: readiness=unavailable; configuration removed') !== false);
+show('recovered_logged', strpos($logs, 'Feature Flags: readiness=recovered; configuration applied') !== false);
 ?>
 --CLEAN--
 <?php
@@ -96,6 +101,9 @@ success={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string",
 removed=true
 has_config_after_remove=false
 version_increased=true
+restored=true
 received_logged=true
 applied_logged=true
 removed_logged=true
+unavailable_logged=true
+recovered_logged=true

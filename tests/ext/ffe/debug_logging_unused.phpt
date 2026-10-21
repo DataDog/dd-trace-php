@@ -18,8 +18,10 @@ var_dump(strpos((string) @read_log_snapshot($file), 'Feature Flags:') === false)
 DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, null, array());
 DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, null, array());
 var_dump(substr_count(read_log_snapshot($file), $hint) === 1);
+var_dump(strpos(read_log_snapshot($file), 'Feature Flags: debug logging is enabled') === false);
 ?>
 --EXPECT--
+bool(true)
 bool(true)
 bool(true)
 --CLEAN--

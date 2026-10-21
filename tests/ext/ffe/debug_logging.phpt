@@ -1,5 +1,5 @@
 --TEST--
-FFE debug logs describe configuration and exposure outcomes without customer data
+FFE debug logs describe configuration, raw evaluation and exposure outcomes
 --INI--
 datadog.trace.log_file={PWD}/debug_logging.log
 datadog.trace.log_level="debug,ddtrace=trace"
@@ -34,22 +34,57 @@ for ($i = 0; $i < 1001; ++$i) {
 }
 DDTrace\ffe_evaluate('missing', DDTrace\FFE_STRING, 'secret-user', array());
 var_dump(DDTrace\Testing\flush_ffe_exposures());
-var_dump(DDTrace\Testing\flush_ffe_exposures()); // empty buffer is silent
+var_dump(DDTrace\Testing\flush_ffe_exposures());
 
 $file = __DIR__ . '/debug_logging.log';
 $logs = read_log_snapshot($file);
 foreach (array(
     'Feature Flags: enabled; starting remote_config configuration source',
-    'Feature Flags: configuration applied successfully (1 flag(s), env="test", version=',
-    'Feature Flags: configuration rejected; invalid flag configuration, retaining previous configuration',
-    'Feature Flags: evaluated {"flagKey":"flag","valueType":"string","reason":"STATIC","variant":"on","errorCode":null,"configVersion":1,"doLog":true}',
-    'Feature Flags: evaluated {"flagKey":"missing","valueType":"string","reason":"ERROR","variant":null,"errorCode":"FLAG_NOT_FOUND","configVersion":1,"doLog":false}',
+    'Feature Flags: configuration applied successfully (1 flag(s): 1 usable, 0 disabled, 0 rejected; delivered env="test", created_at=2024-01-01 00:00:00 UTC, version=1, no previous configuration)',
+    'Feature Flags: configuration rejected: EOF while parsing',
+    '; retaining previous configuration (version=1)',
+    'Feature Flags: native evaluation {"flagKey":"flag","valueType":"string","targetingKey":"secret-user","attributes":{"email":"secret-email"},"valueJson":"\\"secret-value\\"","variant":"on","allocationKey":"allocation","reason":"STATIC","errorCode":null,"configVersion":1,"doLog":true}',
+    'Feature Flags: native evaluation {"flagKey":"missing","valueType":"string","targetingKey":"secret-user","attributes":{},"valueJson":"null","variant":null,"allocationKey":null,"reason":"ERROR","errorCode":"FLAG_NOT_FOUND","configVersion":1,"doLog":false}',
     'Feature Flags: dropped 1 exposure(s); buffer limit reached (1000)',
-    'Feature Flags: handed off 1000 exposure(s) to sidecar',
+    'Feature Flags: handed off 1000 exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher',
+    'Feature Flags: exposure flush complete; empty queue (0 exposures)',
 ) as $message) {
     echo $message . ': ' . (strpos($logs, $message) !== false ? 'yes' : 'NO') . "\n";
 }
-var_dump(strpos($logs, 'secret-') === false);
+
+// Only scalar attributes reach the evaluator, so only they are logged, and
+// logging never runs a throwing jsonSerialize().
+class ThrowingAttribute implements JsonSerializable {
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize() {
+        throw new Exception('jsonSerialize must not run');
+    }
+}
+DDTrace\ffe_evaluate('missing', DDTrace\FFE_STRING, null, array('plan' => 'pro', 7 => 1.5, 'object' => new ThrowingAttribute(), 'list' => array(1)));
+echo (strpos(read_log_snapshot($file), '"targetingKey":null,"attributes":{"plan":"pro","7":1.5},"valueJson":"null"') !== false ? 'scalar attributes logged' : 'MISSING scalar attributes') . "\n";
+DDTrace\ffe_evaluate('missing', DDTrace\FFE_STRING, null, array('number' => INF));
+echo (strpos(read_log_snapshot($file), '"number":{"nonFiniteFloat":"INF"}') !== false ? 'non-finite attribute explicit' : 'MISSING non-finite attribute') . "\n";
+
+$partial = json_decode($config, true);
+$partial['flags']['invalid'] = array('key' => 'invalid');
+$partial['flags']['bad-type'] = $partial['flags']['flag'];
+$partial['flags']['bad-type']['key'] = 'bad-type';
+$partial['flags']['bad-type']['variations']['on']['value'] = 42;
+$partial['flags']['bad-split'] = $partial['flags']['flag'];
+$partial['flags']['bad-split']['key'] = 'bad-split';
+$partial['flags']['bad-split']['allocations'][0]['splits'][0]['variationKey'] = 'missing';
+DDTrace\Testing\ffe_load_config(json_encode($partial));
+$logs = read_log_snapshot($file);
+var_dump(strpos($logs, '4 flag(s): 1 usable, 0 disabled, 3 rejected') !== false);
+// The shared evaluator exposes invalid flag keys, but not individual parser causes.
+var_dump(strpos($logs, '3 flag(s) rejected as invalid or unsupported; evaluating them returns the default value with PARSE_ERROR: ["bad-split", "bad-type", "invalid"]') !== false);
+unset($partial['flags']['flag'], $partial['flags']['bad-type'], $partial['flags']['bad-split']);
+DDTrace\Testing\ffe_load_config(json_encode($partial));
+var_dump(strpos(read_log_snapshot($file), '1 flag(s): 0 usable, 0 disabled, 1 rejected') !== false);
+$partial['flags'] = (object) array();
+DDTrace\Testing\ffe_load_config(json_encode($partial));
+var_dump(DDTrace\ffe_has_config());
+var_dump(strpos(read_log_snapshot($file), '0 flag(s): 0 usable, 0 disabled, 0 rejected') !== false);
 
 // Changing the existing log level must suppress all native debug diagnostics.
 ini_set('datadog.trace.log_level', 'error');
@@ -67,12 +102,20 @@ bool(true)
 bool(true)
 bool(false)
 Feature Flags: enabled; starting remote_config configuration source: yes
-Feature Flags: configuration applied successfully (1 flag(s), env="test", version=: yes
-Feature Flags: configuration rejected; invalid flag configuration, retaining previous configuration: yes
-Feature Flags: evaluated {"flagKey":"flag","valueType":"string","reason":"STATIC","variant":"on","errorCode":null,"configVersion":1,"doLog":true}: yes
-Feature Flags: evaluated {"flagKey":"missing","valueType":"string","reason":"ERROR","variant":null,"errorCode":"FLAG_NOT_FOUND","configVersion":1,"doLog":false}: yes
+Feature Flags: configuration applied successfully (1 flag(s): 1 usable, 0 disabled, 0 rejected; delivered env="test", created_at=2024-01-01 00:00:00 UTC, version=1, no previous configuration): yes
+Feature Flags: configuration rejected: EOF while parsing: yes
+; retaining previous configuration (version=1): yes
+Feature Flags: native evaluation {"flagKey":"flag","valueType":"string","targetingKey":"secret-user","attributes":{"email":"secret-email"},"valueJson":"\"secret-value\"","variant":"on","allocationKey":"allocation","reason":"STATIC","errorCode":null,"configVersion":1,"doLog":true}: yes
+Feature Flags: native evaluation {"flagKey":"missing","valueType":"string","targetingKey":"secret-user","attributes":{},"valueJson":"null","variant":null,"allocationKey":null,"reason":"ERROR","errorCode":"FLAG_NOT_FOUND","configVersion":1,"doLog":false}: yes
 Feature Flags: dropped 1 exposure(s); buffer limit reached (1000): yes
-Feature Flags: handed off 1000 exposure(s) to sidecar: yes
+Feature Flags: handed off 1000 exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher: yes
+Feature Flags: exposure flush complete; empty queue (0 exposures): yes
+scalar attributes logged
+non-finite attribute explicit
+bool(true)
+bool(true)
+bool(true)
+bool(true)
 bool(true)
 bool(true)
 --CLEAN--
