@@ -379,8 +379,9 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/{param1+param2}', $result);
     }
 
-    // F-12: Rule-plan cache memoizes the per-rule safety scan so
-    // hasOnlyCapturedWordPressDynamics only runs once per rule.
+    // Rule-plan memo: the per-rule safety scan of
+    // hasOnlyCapturedWordPressDynamics runs once per rule while PHP statics
+    // live (one request under FPM, mod_php and CGI).
 
     public function testWordPressRulePlanAcceptsSafeRule()
     {

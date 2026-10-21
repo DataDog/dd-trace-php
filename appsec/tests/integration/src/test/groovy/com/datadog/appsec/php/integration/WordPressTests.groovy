@@ -310,6 +310,44 @@ class WordPressTests {
 
     @Test
     @Order(11)
+    void 'optional leading rewrite capture matched against the URL path'() {
+        Trace trace = CONTAINER.traceFromRequest(
+                '/lead/normalized-pathinfo/tail/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+                assert response.body().text == 'lead'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' ==
+                '(?:([^/]+)/)?normalized-pathinfo/([^/]+)/?$'
+        assert span.meta.'_dd.appsec.normalized_route' ==
+                '/{param1}/normalized-pathinfo/{param2}'
+    }
+
+    @Test
+    @Order(12)
+    void 'normalized route is absent when WordPress matched a PATH_INFO request'() {
+        // Apache passes PATH_INFO=/normalized-pathinfo/tail; WordPress keeps
+        // it in WP::$request but, after the anchor rule, matches later rules
+        // against 'index.php/normalized-pathinfo/tail'. Capture 1 took
+        // 'index.php' (the response body), so replaying the rule on
+        // WP::$request would report it absent.
+        Trace trace = CONTAINER.traceFromRequest(
+                '/index.php/normalized-pathinfo/tail/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+                assert response.body().text == 'index.php'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' ==
+                '(?:([^/]+)/)?normalized-pathinfo/([^/]+)/?$'
+        assert span.meta.'_dd.appsec.normalized_route' == null
+    }
+
+    @Test
+    @Order(13)
     void 'normalized route is absent when API Security is disabled'() {
         PhpFpm fpm = new PhpFpm(CONTAINER)
         try {
