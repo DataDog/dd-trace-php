@@ -362,6 +362,13 @@
         "default": ""
       }
     ],
+    "DD_ENTITY_ID": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
     "DD_ENV": [
       {
         "implementation": "A",
