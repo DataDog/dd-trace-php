@@ -257,7 +257,7 @@ if [[ "$BUILD_APPSEC" == "1" ]]; then
     # Use a per-variant cmake build dir in the cache volume (nts and zts need separate builds).
     APPSEC_SCRIPT="$(_preamble "git config --global --add safe.directory '*' 2>/dev/null || true
 mkdir -p tmp/build_appsec${EXT_SUFFIX}
-(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
+(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=OFF && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
 fi
 
 # ─── Launch all builds in parallel ────────────────────────────────────────────
