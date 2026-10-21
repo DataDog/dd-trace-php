@@ -25,8 +25,6 @@ else()
     message(WARNING "gen_stub.php not found; arginfo headers will not be auto-regenerated from stub files")
 endif()
 
-include(cmake/libxml2.cmake)
-
 set(EXT_SOURCE_DIR src/extension)
 
 # Create controlled include directory with symlinks to avoid accidentally including
@@ -50,7 +48,7 @@ set_target_properties(zai PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
 include(cmake/pcre2.cmake)
 
-file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c)
 add_library(extension SHARED ${EXT_SOURCE})
 set_target_properties(extension PROPERTIES
     C_VISIBILITY_PRESET hidden
@@ -69,22 +67,15 @@ endif()
 target_link_libraries(extension PRIVATE zai)
 
 find_package(Threads REQUIRED)
-target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec libxml2_static PCRE2::pcre2 Threads::Threads)
+target_link_libraries(extension PRIVATE mpack PhpConfig zai PCRE2::pcre2 Threads::Threads)
 target_include_directories(extension PRIVATE ${EXT_ROOT_INCLUDES})
 
-# gnu unique prevents shared libraries from being unloaded from memory by dlclose
-check_cxx_compiler_flag("-fno-gnu-unique" COMPILER_HAS_NO_GNU_UNIQUE)
-if(COMPILER_HAS_NO_GNU_UNIQUE)
-target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-gnu-unique>)
-endif()
-target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++17 -fno-rtti -fno-exceptions>)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
   target_compile_options(extension PRIVATE -Wall)
 else()
   target_compile_options(extension PRIVATE -Wall -Wextra $<$<COMPILE_LANGUAGE:C>:-pedantic>
     -Werror -Wno-nullability-extension -Wno-gnu-zero-variadic-macro-arguments
-    -Wno-gnu-auto-type -Wno-language-extension-token
-    $<$<COMPILE_LANGUAGE:CXX>:-Wno-missing-field-initializers>)
+    -Wno-gnu-auto-type -Wno-language-extension-token)
 endif()
 # our thread local variables are only used by ourselves
 target_compile_options(extension PRIVATE -ftls-model=local-dynamic)
@@ -106,10 +97,6 @@ endif()
 # Mac OS
 target_linker_flag_conditional(extension -flat_namespace "-undefined suppress")
 target_linker_flag_conditional(extension -Wl,-exported_symbol -Wl,_get_module)
-
-if(DD_APPSEC_EXTENSION_STATIC_LIBSTDCXX AND NOT APPLE)
-    target_link_options(extension PRIVATE -static-libstdc++)
-endif()
 
 if(DD_APPSEC_TESTING)
     maybe_enable_coverage(extension)
