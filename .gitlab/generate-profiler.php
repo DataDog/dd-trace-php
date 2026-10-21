@@ -78,8 +78,14 @@ foreach ($profiler_minor_major_targets as $version) {
       if [ "${FLAVOUR}" = "zts" ]; then
         # Fetch the GitHub tag archive through Depot rather than pecl.php.net;
         # the archive ships package.xml, so pecl can install it directly.
+        # Download with curl: pecl's downloader speaks HTTP/1.0, which Depot
+        # rejects with 426 Upgrade Required.
+        parallel_tgz="${CI_PROJECT_DIR}/tmp/parallel-${PARALLEL_VERSION}.tar.gz"
+        mkdir -p "$(dirname "${parallel_tgz}")"
+        curl -fsSL --retry 3 -o "${parallel_tgz}" \
+          "https://depot-read-api-bzl.us1.ddbuild.io/github.com/krakjoe/parallel/archive/refs/tags/v${PARALLEL_VERSION}.tar.gz"
         sudo env PHP_INI_SCAN_DIR= MAKEFLAGS="-j$(nproc)" \
-          pecl install -f "https://depot-read-api-bzl.us1.ddbuild.io/github.com/krakjoe/parallel/archive/refs/tags/v${PARALLEL_VERSION}.tar.gz"
+          pecl install -f "${parallel_tgz}"
         installed_version="$(php -r 'echo phpversion("parallel");')"
         if [ "${installed_version}" != "${PARALLEL_VERSION}" ]; then
           echo "Expected parallel ${PARALLEL_VERSION}, got ${installed_version}"
