@@ -30,6 +30,19 @@ add_action('init', static function () {
         'index.php?normalized_route_test=1&normalized_value=$matches[1]-$matches[2]',
         'top'
     );
+    // WordPress prepends the requested file (index.php) to PATH_INFO once a
+    // rule starts with it, and keeps doing so for every later rule. This rule
+    // never matches; it only switches the subject of the next one.
+    add_rewrite_rule(
+        'index.php/normalized-pathinfo-anchor$',
+        'index.php?normalized_route_test=1&normalized_value=anchor',
+        'top'
+    );
+    add_rewrite_rule(
+        '(?:([^/]+)/)?normalized-pathinfo/([^/]+)/?$',
+        'index.php?normalized_route_test=1&normalized_value=$matches[1]',
+        'top'
+    );
 });
 
 add_filter('query_vars', static function (array $queryVars): array {
@@ -54,4 +67,5 @@ add_action('template_redirect', static function () {
     header('Content-Type: text/plain');
     echo get_query_var('normalized_value') ?: 'absent';
     exit;
-});
+    // Before redirect_canonical, which would strip /index.php/ with a 301.
+}, 0);

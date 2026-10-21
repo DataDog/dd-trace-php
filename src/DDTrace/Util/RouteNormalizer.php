@@ -6,10 +6,12 @@ namespace DDTrace\Util;
 class RouteNormalizer
 {
     /**
-     * In-process cache of WordPress rule plans. Each entry stores whether the
-     * rule is safe to normalize (result of the hasOnlyCapturedWordPressDynamics
-     * scan), a pure function of the rule — the first result stays valid for
-     * the lifetime of the process.
+     * Memo of WordPress rule plans. Each entry stores whether the rule is safe
+     * to normalize (result of the hasOnlyCapturedWordPressDynamics scan), a
+     * pure function of the rule. Like any PHP static it is reset at the end of
+     * every request under FPM, mod_php and CGI, so there it saves nothing:
+     * WordPress matches one rule per request. It only avoids rescanning in
+     * runtimes that keep PHP state across requests, or across repeated calls.
      *
      * @var array<string, array{safe: bool}>
      */
@@ -118,31 +120,11 @@ class RouteNormalizer
     }
 
     /**
-     * Normalize a WordPress matched_rule (regex).
+     * Normalize a WordPress matched_rule (regex) by matching it again and
+     * deriving the route from PCRE's capture offsets.
      *
      * WordPress route matching uses regex rules like "^blog/([^/]+)/?$".
      * PCRE supplies declared names; unnamed captures use param1, param2, ….
-     *
-     * @param string     $matchedRule Value of $wp->matched_rule
-     * @param string     $urlPath     Value of $wp->request; used to detect which
-     *                                optional capture groups actually participated
-     *                                in the match, so phantom segments are not emitted.
-     * @param array|null $analysis    Precomputed analyzeWordPressRoute() result;
-     *                                when null, this function computes it.
-     * @return string|null
-     */
-    public static function normalizeFromWordPress(string $matchedRule, string $urlPath, $analysis = null)
-    {
-        if ($analysis === null) {
-            $analysis = self::analyzeWordPressRoute($matchedRule, $urlPath);
-        }
-
-        return $analysis['normalized_route'] ?? null;
-    }
-
-    /**
-     * Match a WordPress rule and derive the route from PCRE's capture offsets.
-     *
      * Literal alternatives and optional literals may produce distinct normalized
      * routes. Rules that can consume variable text outside a capture are rejected,
      * because their uncaptured request text would otherwise become a route constant.
@@ -151,9 +133,12 @@ class RouteNormalizer
      * captures participated in the match, and inferring participation purely
      * from the rule would violate the normalization spec.
      *
-     * @return array|null
+     * @param string $matchedRule Value of $wp->matched_rule
+     * @param string $urlPath     Value of $wp->request, the subject WordPress
+     *                            matched the rule against
+     * @return string|null
      */
-    public static function analyzeWordPressRoute(string $matchedRule, string $urlPath)
+    public static function normalizeFromWordPress(string $matchedRule, string $urlPath)
     {
         if (!self::wordPressRulePlan($matchedRule)['safe']) {
             return null;
@@ -181,16 +166,7 @@ class RouteNormalizer
             return null;
         }
 
-        $normalizedRoute = self::normalizeWordPressMatch($subject, $captures);
-        if ($normalizedRoute === null) {
-            return null;
-        }
-
-        return [
-            'normalized_route' => $normalizedRoute,
-            // This is bounded because uncaptured variable input was rejected above.
-            'cache_signature' => $normalizedRoute,
-        ];
+        return self::normalizeWordPressMatch($subject, $captures);
     }
 
     /**

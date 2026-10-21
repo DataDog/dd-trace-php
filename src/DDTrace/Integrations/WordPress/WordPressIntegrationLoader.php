@@ -735,28 +735,17 @@ class WordPressIntegrationLoader
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
                         && dd_trace_env_config("DD_API_SECURITY_ENABLED")
-                        && \property_exists($This, 'request') && is_string($This->request)) {
-                        $urlPath = $This->request;
-                        $routeAnalysis = \DDTrace\Util\RouteNormalizer::analyzeWordPressRoute(
+                        && \property_exists($This, 'request') && is_string($This->request)
+                        && !self::requestHasPathInfo()) {
+                        // Not cached: the rule alone does not determine the
+                        // route (optional captures participate per request),
+                        // and finding out which did is the whole computation.
+                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress(
                             $matchedRule,
-                            $urlPath
+                            $This->request
                         );
-                        if ($routeAnalysis !== null) {
-                            $cacheKey = $matchedRule . '#' . $routeAnalysis['cache_signature'];
-                            $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
-                            if ($normalizedRoute === false) {
-                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress(
-                                    $matchedRule,
-                                    $urlPath,
-                                    $routeAnalysis
-                                );
-                                if ($normalizedRoute !== null) {
-                                    \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
-                                }
-                            }
-                            if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
-                            }
+                        if ($normalizedRoute !== null) {
+                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                         }
                     }
                 }
@@ -764,5 +753,24 @@ class WordPressIntegrationLoader
         });
 
         return Integration::LOADED;
+    }
+
+    /**
+     * Whether WordPress may have taken WP::$request from PATH_INFO
+     * (e.g. /index.php/foo). WP::parse_request then matches rules against
+     * WP::$request only until a rule starts with the requested file; from
+     * there on, for every later rule, it matches "index.php/foo" instead, and
+     * that subject is not kept. The URL path also carries the script name,
+     * which WP::$request lacks. Neither can be reproduced, so the normalized
+     * route is omitted. Without a non-empty PATH_INFO, the requested file and
+     * WP::$request are the same and the subject is WP::$request.
+     */
+    private static function requestHasPathInfo(): bool
+    {
+        if (!isset($_SERVER['PATH_INFO']) || !is_string($_SERVER['PATH_INFO'])) {
+            return false;
+        }
+        list($pathInfo) = explode('?', $_SERVER['PATH_INFO']);
+        return trim($pathInfo, '/') !== '';
     }
 }
