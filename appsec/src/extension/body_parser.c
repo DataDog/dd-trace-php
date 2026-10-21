@@ -8,7 +8,7 @@
 #include "ddtrace.h"
 #include "logging.h"
 #include "php_compat.h"
-#include <limits.h>
+#include <alloc.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -56,6 +56,14 @@ zval dd_parse_xml_truncated(
 static void _log_result(const char *nonnull kind, ddog_AppsecBodyStatus status,
     zval *nonnull result)
 {
+    if (status != DDOG_APPSEC_BODY_STATUS_EMPTY &&
+        Z_TYPE_P(result) == IS_UNDEF) {
+        mlog_g(dd_log_debug, "Could not allocate %s parsing result", kind);
+        return;
+    }
+
+    // Log status only: an indented dump of a small nested body can allocate
+    // hundreds of megabytes through zend_print_zval_r_to_str.
     switch (status) {
     case DDOG_APPSEC_BODY_STATUS_EMPTY:
         mlog_g(dd_log_debug, "Error parsing %s (no data)", kind);
@@ -66,15 +74,6 @@ static void _log_result(const char *nonnull kind, ddog_AppsecBodyStatus status,
     case DDOG_APPSEC_BODY_STATUS_COMPLETE:
         mlog_g(dd_log_debug, "Successfully parsed %s", kind);
         break;
-    }
-
-    if (dd_log_level() >= dd_log_trace) {
-        zend_string *zv_str = zend_print_zval_r_to_str(result, 0);
-        if (ZSTR_LEN(zv_str) < INT_MAX) {
-            mlog_g(dd_log_trace, "%s result: %.*s", kind, (int)ZSTR_LEN(zv_str),
-                ZSTR_VAL(zv_str));
-        }
-        zend_string_release(zv_str);
     }
 }
 
@@ -119,7 +118,10 @@ static zval _build(const char *nonnull data, size_t len)
     // into its parent, so that its content is dropped too.
     enum { INITIAL_STACK_CAPACITY = 16 };
     size_t capacity = INITIAL_STACK_CAPACITY;
-    zval **stack = safe_emalloc(capacity, sizeof(*stack), 0);
+    zval **stack = (zval **)zai_safe_femalloc(capacity, sizeof(*stack), 0);
+    if (!stack) {
+        return result;
+    }
     size_t depth = 0;
     const char *key = NULL;
     size_t key_len = 0;
@@ -140,11 +142,17 @@ static zval _build(const char *nonnull data, size_t len)
             continue;
         case DDOG_APPSEC_BODY_RECORD_MAP_START:
         case DDOG_APPSEC_BODY_RECORD_LIST_START:
-            array_init(&value);
+            if (!zai_array_finit(&value)) {
+                goto allocation_failed;
+            }
             break;
         case DDOG_APPSEC_BODY_RECORD_STR: {
             size_t str_len = _read_size(&pos);
-            ZVAL_STRINGL(&value, pos, str_len);
+            zend_string *str = zai_string_finit(pos, str_len);
+            if (!str) {
+                goto allocation_failed;
+            }
+            ZVAL_STR(&value, str);
             pos += str_len;
             break;
         }
@@ -188,12 +196,16 @@ static zval _build(const char *nonnull data, size_t len)
             HashTable *container = Z_ARRVAL_P(stack[depth - 1]);
             if (key) {
                 slot =
-                    zend_symtable_str_update(container, key, key_len, &value);
+                    zai_symtable_str_fupdate(container, key, key_len, &value);
             } else {
-                slot = zend_hash_next_index_insert(container, &value);
-                if (slot == NULL) {
-                    zval_ptr_dtor(&value);
-                }
+                slot = zai_hash_next_index_finsert(container, &value);
+            }
+            if (slot == ZAI_HASH_NOMEM) {
+                zval_ptr_dtor(&value);
+                goto allocation_failed;
+            }
+            if (slot == NULL) {
+                zval_ptr_dtor(&value);
             }
         }
         key = NULL;
@@ -202,12 +214,25 @@ static zval _build(const char *nonnull data, size_t len)
             record == DDOG_APPSEC_BODY_RECORD_LIST_START) {
             if (depth == capacity) {
                 capacity *= 2;
-                stack = safe_erealloc(stack, capacity, sizeof(*stack), 0);
+                zval **new_stack = (zval **)zai_safe_ferealloc(
+                    (void *)stack, capacity, sizeof(*stack), 0);
+                if (!new_stack) {
+                    goto allocation_failed;
+                }
+                stack = new_stack;
             }
             stack[depth++] = slot;
         }
     }
 
+    efree(stack);
+    return result;
+
+allocation_failed:
+    // A fallible allocation queues a soft OOM. Stop allocating and unwind so
+    // PHP can report it at a safe boundary, after the Rust tape is released.
+    zval_ptr_dtor(&result);
+    ZVAL_UNDEF(&result);
     efree(stack);
     return result;
 }
