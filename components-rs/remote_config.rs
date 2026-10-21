@@ -876,7 +876,6 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
         RemoteConfigProduct::ApmTracing,
         RemoteConfigProduct::LiveDebugging,
     ]);
-    debug!("Remote Configuration: request configuration updates stopped; shared sidecar polling may continue for other workers");
 }
 
 #[no_mangle]
