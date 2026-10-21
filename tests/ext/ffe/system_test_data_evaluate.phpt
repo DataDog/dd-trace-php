@@ -133,6 +133,7 @@ function require_feature_flag_api($root)
     $internalRoot = $apiRoot . '/Internal';
     foreach (array(
         'Evaluator',
+        'EvaluationTelemetry',
         'ResultMapper',
         'UnavailableEvaluator',
         'NativeEvaluator',

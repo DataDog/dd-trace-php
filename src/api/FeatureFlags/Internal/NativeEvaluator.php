@@ -11,15 +11,20 @@ final class NativeEvaluator implements Evaluator
 
     private $mapper;
     private $recordMetrics;
+    private $enableEvaluationTelemetryOptOutParameter;
 
-    private function __construct($mapper = null, bool $recordMetrics = true)
-    {
+    private function __construct(
+        $mapper = null,
+        bool $recordMetrics = true,
+        bool $enableEvaluationTelemetryOptOutParameter = false
+    ) {
         if ($mapper !== null && !$mapper instanceof ResultMapper) {
             throw new \InvalidArgumentException('Expected a ResultMapper instance');
         }
 
         $this->mapper = $mapper ?: new ResultMapper();
         $this->recordMetrics = $recordMetrics;
+        $this->enableEvaluationTelemetryOptOutParameter = $enableEvaluationTelemetryOptOutParameter;
     }
 
     public static function isAvailable()
@@ -27,9 +32,11 @@ final class NativeEvaluator implements Evaluator
         return function_exists('DDTrace\\ffe_evaluate');
     }
 
-    public static function create($recordMetrics = true)
+    public static function create($recordMetrics = true, $enableEvaluationTelemetryOptOutParameter = false)
     {
-        return self::isAvailable() ? new self(null, $recordMetrics) : new UnavailableEvaluator();
+        return self::isAvailable()
+            ? new self(null, $recordMetrics, $enableEvaluationTelemetryOptOutParameter)
+            : new UnavailableEvaluator();
     }
 
     public function evaluate(
@@ -39,12 +46,13 @@ final class NativeEvaluator implements Evaluator
         $targetingKey = null,
         array $attributes = array()
     ) {
+        $recordTelemetry = EvaluationTelemetry::shouldRecord($this->enableEvaluationTelemetryOptOutParameter, $attributes);
         $rawResult = \DDTrace\ffe_evaluate(
             $flagKey,
             $this->typeId($expectedType),
             $targetingKey,
             $this->normalizeAttributes($attributes),
-            $this->recordMetrics
+            $this->recordMetrics && $recordTelemetry
         );
 
         if (is_array($rawResult) || is_object($rawResult)) {
@@ -59,7 +67,9 @@ final class NativeEvaluator implements Evaluator
         // is returned otherwise), so enrichment is recorded here once rather than
         // duplicated in each caller. No-op when the gate is off or there is no
         // active root span; never throws into evaluation.
-        SpanEnrichmentRegistry::record($flagKey, $details, $targetingKey);
+        if ($recordTelemetry) {
+            SpanEnrichmentRegistry::record($flagKey, $details, $targetingKey);
+        }
 
         return $details;
     }
