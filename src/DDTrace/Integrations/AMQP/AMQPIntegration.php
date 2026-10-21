@@ -629,7 +629,12 @@ class AMQPIntegration extends Integration
             ];
         }
 
-        $context = \DDTrace\Internal\dsm_set_checkpoint($edgeTags);
+        // The message as it is sent, but for the context header the checkpoint computes.
+        $headers = self::getNativeHeaders($message);
+        unset($headers[self::DSM_CONTEXT_HEADER]);
+        $payloadSize = strlen((string)$message->getBody()) + self::headersSize($headers);
+
+        $context = \DDTrace\Internal\dsm_set_checkpoint($edgeTags, null, $payloadSize);
         if ($context !== null) {
             self::setDataStreamsContextHeader($message, $context);
         }
@@ -641,23 +646,42 @@ class AMQPIntegration extends Integration
      */
     public static function setDataStreamsConsumeCheckpoint(AMQPMessage $message, string $queue)
     {
+        $headers = self::getNativeHeaders($message);
+        $context = $headers[self::DSM_CONTEXT_HEADER] ?? null;
         \DDTrace\Internal\dsm_set_checkpoint(
             ['direction:in', 'topic:' . $queue, 'type:rabbitmq'],
-            self::getDataStreamsContextHeader($message)
+            is_string($context) ? $context : null,
+            strlen((string)$message->getBody()) + self::headersSize($headers)
         );
     }
 
-    public static function getDataStreamsContextHeader(AMQPMessage $message)
+    private static function getNativeHeaders(AMQPMessage $message): array
     {
         if (!$message->has('application_headers')) {
-            return null;
+            return [];
         }
         $headers = $message->get('application_headers');
-        if (!$headers instanceof AMQPTable) {
-            return null;
+        return $headers instanceof AMQPTable ? $headers->getNativeData() : [];
+    }
+
+    /**
+     * Bytes of the headers' names and string values, nested tables and arrays included, as the
+     * Node.js tracer counts them. Numbers, booleans, timestamps and decimals count as 0.
+     */
+    private static function headersSize(array $headers): int
+    {
+        $size = 0;
+        foreach ($headers as $name => $value) {
+            if (is_string($name)) {
+                $size += strlen($name);
+            }
+            if (is_string($value)) {
+                $size += strlen($value);
+            } elseif (is_array($value)) {
+                $size += self::headersSize($value);
+            }
         }
-        $context = $headers->getNativeData()[self::DSM_CONTEXT_HEADER] ?? null;
-        return is_string($context) ? $context : null;
+        return $size;
     }
 
     public static function setDataStreamsContextHeader(AMQPMessage $message, string $context)
