@@ -152,7 +152,12 @@ impl XmlParser {
                 if !self.charge(1) {
                     break;
                 }
-                if !seen.contains(name.as_slice()) && self.charge(value.len()) {
+                // The name is copied for every matching element, even for an
+                // empty value. A long default name must not amplify a small
+                // document into an unbounded tape outside PHP's memory limit.
+                if !seen.contains(name.as_slice())
+                    && self.charge(name.len().saturating_add(value.len()))
+                {
                     self.attribute(name, value, defaults.cdata[name], &mut opened);
                 }
             }
@@ -516,6 +521,22 @@ mod tests {
             complete(&format!(r#"{dtd}<r cmd="explicit"/>"#)),
             r#"{"r":[{"@cmd":"explicit","@fixed":"v"}]}"#
         );
+    }
+
+    #[test]
+    fn long_default_attribute_names_are_bounded() {
+        let name = "a".repeat(2048);
+        let input = format!(
+            r#"<!DOCTYPE r [<!ATTLIST a {name} CDATA "">]><r>{}<after>visible</after></r>"#,
+            "<a/>".repeat(4000)
+        );
+        let tape = super::parse(input.as_bytes(), 30);
+        assert!(tape.len < input.len() * 8, "{}", tape.len);
+        let (status, out) = render(tape);
+        assert_eq!(status, AppsecBodyStatus::Complete);
+        assert!(out.contains(&format!(r#""@{name}":"""#)));
+        assert_eq!(out.matches(r#"{"a":"#).count(), 4000);
+        assert!(out.ends_with(r#",{"after":["visible"]}]}"#));
     }
 
     #[test]
