@@ -1531,7 +1531,8 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
+    # SYSTEM_TESTS_REF: temporary until DataDog/system-tests#8074 merges
+    - git clone --branch "${SYSTEM_TESTS_REF:-main}" https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
@@ -1597,6 +1598,8 @@ endforeach;
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: -w php-fpm-8.6 php
+    # temporary until DataDog/system-tests#8074 merges
+    SYSTEM_TESTS_REF: leiyks/php-8.6-weblog
   script:
     - ./run.sh
 
@@ -1604,6 +1607,8 @@ endforeach;
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: -w php-fpm-8.6 php
+    # temporary until DataDog/system-tests#8074 merges
+    SYSTEM_TESTS_REF: leiyks/php-8.6-weblog
   parallel:
     matrix:
       - TESTSUITE:
@@ -1640,6 +1645,10 @@ $system_tests_weblogs = [
   timeout: 4h
   variables:
     BUILD_SH_ARGS: -w <?= $weblog ?> php
+<?php if ($weblog === "php-fpm-8.6"): ?>
+    # temporary until DataDog/system-tests#8074 merges
+    SYSTEM_TESTS_REF: leiyks/php-8.6-weblog
+<?php endif; ?>
     # Expand the DinD loopback volume to avoid running out of disk space.
     # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
     DOCKER_LOOPBACK_SIZE: 50G
