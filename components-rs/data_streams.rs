@@ -5,6 +5,10 @@
 //! into the sidecar's shared-memory DSM table once it exists, and over IPC until then, the same
 //! way span stats reach their concentrator (see `stats.rs`).
 //!
+//! Backlogs - the offsets a Kafka producer has written up to, and a consumer group has
+//! committed - take the same route into the sidecar's backlog table, which keeps the highest
+//! offset per backlog for each bucket.
+//!
 //! ## Hashing
 //! As in the Go tracer, and as system-tests expects of tracers other than Go and Node.js:
 //! - node hash: FNV-1 64 over the service, the env, the edge tags sorted, and the base hash DBM
@@ -28,12 +32,16 @@
 use base64::alphabet;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use base64::Engine;
-use datadog_sidecar::service::blocking::{add_dsm_stats_point, SidecarTransport};
-use datadog_sidecar::service::data_streams_flusher::{dsm_table_shm_path, DsmTableKey, ShmProduct};
+use datadog_sidecar::service::blocking::{add_dsm_backlog, add_dsm_stats_point, SidecarTransport};
+use datadog_sidecar::service::data_streams_flusher::{
+    dsm_backlog_shm_path, dsm_table_shm_path, DsmTableKey, ShmProduct,
+};
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use libdd_ipc::shm_dsm::{DsmStatsPointInput, OwnedDsmStatsPoint, ShmDsmTable, MAX_EDGE_TAGS};
+use libdd_ipc::shm_dsm_backlog::{DsmBacklogInput, ShmDsmBacklogTable};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -236,8 +244,24 @@ pub(crate) fn apply_agent_endpoints(endpoints: Option<&[String]>) {
     AGENT_SUPPORTS_DSM.store(supported, Ordering::Release);
 }
 
-/// Opened after the first IPC point for a key. In-flight fallbacks can outlive a cache clear.
-static DSM_TABLES: LazyLock<RwLock<HashMap<String, Arc<OnceLock<ShmDsmTable>>>>> =
+/// A key's two tables, which the sidecar creates together.
+struct DsmTables {
+    stats: ShmDsmTable,
+    backlogs: ShmDsmBacklogTable,
+}
+
+impl DsmTables {
+    fn open(key: &DsmTableKey) -> Option<Self> {
+        Some(DsmTables {
+            stats: ShmDsmTable::open(&dsm_table_shm_path(key)).ok()?,
+            backlogs: ShmDsmBacklogTable::open(&dsm_backlog_shm_path(key)).ok()?,
+        })
+    }
+}
+
+/// Opened after the first IPC point or backlog for a key. In-flight fallbacks can outlive a
+/// cache clear.
+static DSM_TABLES: LazyLock<RwLock<HashMap<String, Arc<OnceLock<DsmTables>>>>> =
     LazyLock::new(RwLock::default);
 
 /// Drop cached tables so the next point for each key goes through IPC.
@@ -267,10 +291,13 @@ fn str_of(s: CharSlice<'_>) -> &str {
     s.try_to_utf8().unwrap_or("")
 }
 
+/// Add to the identity's tables with `add`, or, until they are open, send over IPC with `send`
+/// and open them once the sidecar has had the chance to create them.
 fn record(
     transport: Option<&mut SidecarTransport>,
     identity: &DsmIdentity<'_>,
-    point: &DsmStatsPointInput<'_>,
+    add: impl Fn(&DsmTables) -> bool,
+    send: impl FnOnce(&mut SidecarTransport, &DsmTableKey) -> io::Result<bool>,
 ) {
     let (env, version, service) = (
         str_of(identity.env),
@@ -290,21 +317,13 @@ fn record(
                 .clone(),
         }
     };
-    if reader.get().is_some_and(|table| table.add_point(point)) {
+    if reader.get().is_some_and(add) {
         return;
     }
 
     // Sending can reconnect and clear the cache; no cache lock is held here.
     let Some(transport) = transport else {
         return;
-    };
-    let owned = OwnedDsmStatsPoint {
-        hash: point.hash,
-        parent_hash: point.parent_hash,
-        edge_tags: point.edge_tags.iter().map(|t| (*t).to_owned()).collect(),
-        pathway_latency_ns: point.pathway_latency_ns,
-        edge_latency_ns: point.edge_latency_ns,
-        payload_size_bytes: point.payload_size_bytes,
     };
     let key = DsmTableKey {
         product: ShmProduct::DataStreams,
@@ -313,22 +332,45 @@ fn record(
         service: service.to_owned(),
         primary_tag: String::new(),
     };
-    match add_dsm_stats_point(
-        transport,
-        key.env.clone(),
-        key.version.clone(),
-        key.service.clone(),
-        key.primary_tag.clone(),
-        owned,
-    ) {
+    match send(transport, &key) {
         Ok(true) if reader.get().is_none() => {
-            if let Ok(table) = ShmDsmTable::open(&dsm_table_shm_path(&key)) {
-                let _ = reader.set(table);
+            if let Some(tables) = DsmTables::open(&key) {
+                let _ = reader.set(tables);
             }
         }
         Ok(_) => {}
-        Err(e) => trace!("Failed to send DSM stats point via IPC: {e}"),
+        Err(e) => trace!("Failed to send DSM data via IPC: {e}"),
     }
+}
+
+fn record_point(
+    transport: Option<&mut SidecarTransport>,
+    identity: &DsmIdentity<'_>,
+    point: &DsmStatsPointInput<'_>,
+) {
+    record(
+        transport,
+        identity,
+        |tables| tables.stats.add_point(point),
+        |transport, key| {
+            let owned = OwnedDsmStatsPoint {
+                hash: point.hash,
+                parent_hash: point.parent_hash,
+                edge_tags: point.edge_tags.iter().map(|t| (*t).to_owned()).collect(),
+                pathway_latency_ns: point.pathway_latency_ns,
+                edge_latency_ns: point.edge_latency_ns,
+                payload_size_bytes: point.payload_size_bytes,
+            };
+            add_dsm_stats_point(
+                transport,
+                key.env.clone(),
+                key.version.clone(),
+                key.service.clone(),
+                key.primary_tag.clone(),
+                owned,
+            )
+        },
+    );
 }
 
 fn now_ns() -> i64 {
@@ -390,7 +432,7 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
     });
 
     if AGENT_SUPPORTS_DSM.load(Ordering::Acquire) {
-        record(
+        record_point(
             transport.as_mut(),
             identity,
             &DsmStatsPointInput {
@@ -410,6 +452,61 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
     }
     std::ptr::copy_nonoverlapping(encoded.as_ptr(), out, encoded.len());
     encoded.len()
+}
+
+/// Record `offset` for the backlog named by `tags`, e.g. a Kafka partition's produce offset or
+/// a consumer group's committed one. The sidecar keeps the highest offset per backlog in each
+/// bucket; negative offsets (unknown to librdkafka) are dropped.
+///
+/// `tags` are `key:value` strings in any order, each with a key `BacklogTag` knows (`topic`,
+/// `type`, `kafka_cluster_id`, `consumer_group`, `partition`); every tag has a fixed position,
+/// which is the order they are reported in. An offset with a tag of any other key is dropped
+/// rather than reported under the tags that remain. Nothing is recorded until the agent has
+/// said it accepts DSM stats.
+///
+/// # Safety
+/// `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+/// `tags` must point to `tag_count` valid slices.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_dsm_track_backlog(
+    transport: *mut SidecarTransport,
+    identity: &DsmIdentity,
+    tags: *const CharSlice,
+    tag_count: usize,
+    offset: i64,
+) {
+    if offset < 0 || !AGENT_SUPPORTS_DSM.load(Ordering::Acquire) {
+        return;
+    }
+    let tags: &[CharSlice] = if tags.is_null() {
+        &[]
+    } else {
+        std::slice::from_raw_parts(tags, tag_count)
+    };
+    let tags: Vec<&str> = tags
+        .iter()
+        .map(|t| str_of(*t))
+        .filter(|t| !t.is_empty())
+        .collect();
+    let Some(backlog) = DsmBacklogInput::parse(&tags, offset) else {
+        trace!("Dropping a DSM backlog with a tag it has no position for: {tags:?}");
+        return;
+    };
+    record(
+        transport.as_mut(),
+        identity,
+        |tables| tables.backlogs.add_backlog(&backlog),
+        |transport, key| {
+            add_dsm_backlog(
+                transport,
+                key.env.clone(),
+                key.version.clone(),
+                key.service.clone(),
+                key.primary_tag.clone(),
+                backlog.to_owned_backlog(),
+            )
+        },
+    );
 }
 
 #[cfg(test)]

@@ -2937,18 +2937,32 @@ PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {
 PHP_FUNCTION(DDTrace_Internal_dsm_set_checkpoint) {
     zend_array *edge_tags;
     zend_string *context = NULL;
+    zend_long payload_size = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_ARRAY_HT(edge_tags)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR_OR_NULL(context)
+        Z_PARAM_LONG(payload_size)
     ZEND_PARSE_PARAMETERS_END();
 
-    zend_string *next_context = ddtrace_dsm_set_checkpoint(edge_tags, context);
+    zend_string *next_context = ddtrace_dsm_set_checkpoint(edge_tags, context, payload_size);
     if (next_context) {
         RETURN_STR(next_context);
     }
     RETURN_NULL();
+}
+
+PHP_FUNCTION(DDTrace_Internal_dsm_track_backlog) {
+    zend_array *tags;
+    zend_long offset;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_ARRAY_HT(tags)
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_dsm_track_backlog(tags, offset);
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

@@ -15,9 +15,17 @@
 /**
  * Set a checkpoint with `edge_tags` (an array of "key:value" strings) and return the pathway
  * context to send on with the message, or NULL when Data Streams Monitoring is disabled.
- * `carrier` is the context the message arrived with, or NULL.
+ * `carrier` is the context the message arrived with, or NULL. `payload_size` is the message's size
+ * in bytes, or 0 if unknown.
  */
-zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carrier);
+zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carrier, zend_long payload_size);
+
+/**
+ * Record `offset` for the backlog named by `tags` (an array of "key:value" strings in any order,
+ * with keys among topic, type, kafka_cluster_id, consumer_group and partition), e.g. a Kafka
+ * partition's produce offset. Does nothing when Data Streams Monitoring is disabled.
+ */
+void ddtrace_dsm_track_backlog(zend_array *tags, zend_long offset);
 
 // Forget the request's pathway.
 void ddtrace_dsm_rshutdown(void);

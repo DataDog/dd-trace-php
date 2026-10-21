@@ -1102,10 +1102,26 @@ namespace DDTrace\Internal {
      * @param string[] $edgeTags "key:value" tags of the edge, e.g. "direction:out", "topic:orders",
      *                           "type:kafka"
      * @param string|null $context the "dd-pathway-ctx-base64" value the message arrived with
+     * @param int $payloadSize size of the message in bytes, or 0 if unknown
      * @return string|null the "dd-pathway-ctx-base64" value to send on with the message, or null
      *                     if Data Streams Monitoring is disabled
      */
-    function dsm_set_checkpoint(array $edgeTags, ?string $context = null): ?string {}
+    function dsm_set_checkpoint(array $edgeTags, ?string $context = null, int $payloadSize = 0): ?string {}
+
+    /**
+     * Record an offset for a Data Streams Monitoring backlog, such as the offset a Kafka message
+     * was produced at or the offset a consumer group committed. The highest offset per backlog
+     * is reported for each interval.
+     *
+     * @internal
+     *
+     * @param string[] $tags "key:value" tags naming the backlog, in any order, e.g. "topic:orders",
+     *                       "type:kafka_produce", "partition:0"; keys are among topic, type,
+     *                       kafka_cluster_id, consumer_group and partition, and an offset with
+     *                       any other key is ignored
+     * @param int $offset the offset; negative offsets are ignored
+     */
+    function dsm_track_backlog(array $tags, int $offset): void {}
 
 }
 
