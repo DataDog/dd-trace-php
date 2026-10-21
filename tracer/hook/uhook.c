@@ -154,11 +154,7 @@ HashTable *dd_uhook_symbol_table(zend_execute_data *frame) {
     if (!dd_uhook_frame_is_live(frame)) {
         return NULL;
     }
-    if (!ZEND_USER_CODE(frame->func->type)
-#if PHP_VERSION_ID >= 80600
-        && !frame->func->internal_function.arg_info
-#endif
-    ) {
+    if (!ZEND_USER_CODE(frame->func->type)) {
         return NULL;
     }
 
@@ -1140,6 +1136,10 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
 
     zval_ptr_dtor(hookData->retval_ptr);
     ZVAL_COPY(hookData->retval_ptr, retval);
+#if PHP_VERSION_ID >= 80600
+    // Redo the by-ref unwrap into a TMP: internal functions did it before the end hook
+    zend_return_unwrap_ref(hookData->execute_data, hookData->retval_ptr);
+#endif
 
     RETURN_TRUE;
 }
