@@ -532,11 +532,12 @@ class RouteNormalizer
         }
 
         if (empty($paramNames)) {
-            // All params were optional and absent.
-            // Preserve any static text remaining in the segment (e.g. "search.{_format?}" → "search").
-            // rtrim only: a leading special char (e.g. '~foo.{ext?}') must survive.
-            $staticOnly = preg_replace('/\{[^}]+\}/', '', $segment);
-            $staticOnly = rtrim($staticOnly, '.-_~');
+            // All params were optional and absent. Symfony's RouteCompiler,
+            // which Laravel also uses, puts the one separator character before
+            // a variable into its optional, so it goes with the variable and
+            // the rest of the static text stays ("search.{_format?}" → "search",
+            // "list-.{page?}" → "list-").
+            $staticOnly = preg_replace('/[\/,;.:\-_~+*=@|]?\{[^}]+\}/', '', $segment);
             if ($staticOnly !== '') {
                 return self::encodeStaticSegment($staticOnly);
             }

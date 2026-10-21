@@ -168,6 +168,24 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/users/{id}/posts', $result);
     }
 
+    // Absent optionals: Symfony's RouteCompiler, which Laravel also uses, puts
+    // exactly one preceding separator character into the optional.
+
+    public function testAbsentSymfonyOptionalDropsOnlyItsSeparator()
+    {
+        $this->assertSame('/list', RouteNormalizer::normalizeFromSymfony('/list,{page}', []));
+        $this->assertSame('/list', RouteNormalizer::normalizeFromSymfony('/list;{page}', []));
+        $this->assertSame('/list-', RouteNormalizer::normalizeFromSymfony('/list-.{page}', []));
+        $this->assertSame('/search', RouteNormalizer::normalizeFromSymfony('/search.{_format}', []));
+        $this->assertSame('/~foo', RouteNormalizer::normalizeFromSymfony('/~foo.{ext}', []));
+    }
+
+    public function testAbsentLaravelOptionalDropsOnlyItsSeparator()
+    {
+        $this->assertSame('/list', RouteNormalizer::normalizeFromLaravel('list,{page?}', []));
+        $this->assertSame('/list-', RouteNormalizer::normalizeFromLaravel('list-.{page?}', []));
+    }
+
     // normalizeFromLaminas
 
     public function testLaminasSimpleColon()
