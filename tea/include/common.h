@@ -62,7 +62,7 @@ ZEND_TSRMLS_CACHE_EXTERN()
  *
  * ---
  *
- * char *TEA_INI_STR(const char *name)
+ * const char *TEA_INI_STR(const char *name)
  *
  * Accesses an INI value by name. Wrapper for 'zend_ini_string_ex'.
  *
