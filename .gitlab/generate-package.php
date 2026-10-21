@@ -1593,6 +1593,30 @@ endforeach;
   script:
     - ./run.sh $TESTSUITE
 
+"System Tests: [php-fpm-8.6, default]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.6 php
+  script:
+    - ./run.sh
+
+"System Tests: [php-fpm-8.6]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.6 php
+  parallel:
+    matrix:
+      - TESTSUITE:
+        - APPSEC_API_SECURITY
+        - APPSEC_API_SECURITY_RC
+        - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_STANDALONE_APM_STANDALONE
+        - APPSEC_RUNTIME_ACTIVATION
+        - INTEGRATIONS
+        - CROSSED_TRACING_LIBRARIES
+  script:
+    - ./run.sh $TESTSUITE
+
 <?php
 $system_tests_weblogs = [
     "apache-mod-7.0", "apache-mod-7.0-zts",
@@ -1604,7 +1628,7 @@ $system_tests_weblogs = [
     "apache-mod-8.1", "apache-mod-8.1-zts",
     "apache-mod-8.2", "apache-mod-8.2-zts",
     "php-fpm-7.0", "php-fpm-7.1", "php-fpm-7.2", "php-fpm-7.3", "php-fpm-7.4",
-    "php-fpm-8.0", "php-fpm-8.1", "php-fpm-8.2", "php-fpm-8.5",
+    "php-fpm-8.0", "php-fpm-8.1", "php-fpm-8.2", "php-fpm-8.5", "php-fpm-8.6",
 ];
 ?>
 <?php foreach ($system_tests_weblogs as $weblog): ?>
