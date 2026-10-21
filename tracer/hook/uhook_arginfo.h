@@ -1,5 +1,7 @@
 /* This is a generated file, edit uhook.stub.php instead.
- * Stub hash: bc6d078276b42eca91390a04a2811245c4a24382 */
+ * Stub hash: ff4678411504a12ab4d2a386b92f12a56dd29495 */
+
+#include "zend_constants.h"
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING|MAY_BE_CALLABLE, NULL)
