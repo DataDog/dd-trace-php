@@ -55,7 +55,7 @@ sidecar = [
 # ddtrace-sidecar adds PHP AppSec backend registration to the generic sidecar.
 # Telemetry is part of every tracer runtime, not a separate product capability.
 tracer-runtime = [
-  "sidecar", "otel-context", "dep:ddtrace-sidecar",
+  "sidecar", "otel-context", "appsec", "dep:ddtrace-sidecar",
   "dep:libdd-telemetry", "dep:zwohash", "dep:hashbrown",
   "dep:bincode", "dep:const-str", "dep:libdd-trace-utils",
   "dep:libdd-trace-stats", "dep:libdd-tinybytes", "dep:libdd-remote-config",
@@ -68,6 +68,8 @@ libddwaf-source-static = ["tracer-runtime", "ddtrace-sidecar/libddwaf-source-sta
 # OTel process/thread context is used by both profiler integrations and the
 # tracer, but is not part of the basic profiler implementation.
 otel-context = ["dep:libdd-library-config", "dep:libdd-trace-protobuf"]
+# PHP-independent body parsers follow the tracer runtime, not the PHP-ABI archive.
+appsec = ["dep:quick-xml", "dep:libdd-common-ffi", "dep:serde"]
 profiling = [
   "dep:bindgen", "dep:cc",
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
@@ -107,6 +109,7 @@ libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", defau
 spawn_worker = { path = "libdatadog/spawn_worker", optional = true }
 anyhow = "1.0"
 arc-swap = { workspace = true, optional = true }
+quick-xml = { workspace = true, optional = true }
 const-str = { version = "0.5.6", optional = true }
 itertools = { version = "0.11.0", optional = true }
 serde = { version = "1.0.196", optional = true }

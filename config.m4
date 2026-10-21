@@ -597,6 +597,7 @@ EOT
 
     ddtrace_cargo_feature_list=
     if test "$PHP_DDTRACE_TRACER" != "no"; then
+      dnl tracer-runtime includes the PHP-independent AppSec body parsers.
       ddtrace_cargo_feature_list="tracer,tracer-runtime"
     fi
     if test "$PHP_DDTRACE_PROFILING" != "no"; then

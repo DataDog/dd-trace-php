@@ -1,6 +1,7 @@
 --TEST--
 request_shutdown — body size exceeded
 --INI--
+extension=ddtrace.so
 expose_php=0
 datadog.appsec.max_body_buff_size=15
 datadog.appsec.enabled=1
