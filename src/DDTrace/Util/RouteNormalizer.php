@@ -2,7 +2,12 @@
 
 namespace DDTrace\Util;
 
-/** @internal */
+/**
+ * Builds _dd.appsec.normalized_route. docs/appsec_normalized_route.md lists,
+ * per integration, when the tag is omitted or simplified; keep it up to date.
+ *
+ * @internal
+ */
 class RouteNormalizer
 {
     /**
