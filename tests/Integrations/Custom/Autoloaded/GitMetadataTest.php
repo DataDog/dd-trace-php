@@ -125,8 +125,8 @@ CONFIG
             $this->call($spec);
         });
 
-        $trace1Meta = $trace1[0][0]['meta'];
-        $trace2Meta = $trace2[0][0]['meta'];
+        $trace1Meta = $this->rootSpanMetaFromTraces($trace1, __FUNCTION__ . ' (invalid .git request)');
+        $trace2Meta = $this->rootSpanMetaFromTraces($trace2, __FUNCTION__ . ' (valid .git request)');
 
         $this->assertArrayNotHasKey('_dd.git.commit.sha', $trace1Meta);
         $this->assertEquals('https://github.com/user/repo_new', $trace1Meta['_dd.git.repository_url']);
@@ -142,7 +142,7 @@ CONFIG
             $this->call($spec);
         });
 
-        $rootSpanMeta = $traces[0][0]['meta'];
+        $rootSpanMeta = $this->rootSpanMetaFromTraces($traces, __FUNCTION__);
 
         $gitCommitSha = trim(shell_exec('git rev-parse HEAD'));
         $gitRepositoryURL = preg_replace('((?<=//)[^@]+@)', '', trim(shell_exec('git config --get remote.origin.url')));
@@ -167,10 +167,23 @@ CONFIG
             $this->call($spec);
         });
 
-        $trace1Meta = $trace1[0][0]['meta'];
-        $trace2Meta = $trace2[0][0]['meta'];
+        $trace1Meta = $this->rootSpanMetaFromTraces($trace1, __FUNCTION__ . ' (before commit SHA change)');
+        $trace2Meta = $this->rootSpanMetaFromTraces($trace2, __FUNCTION__ . ' (after commit SHA change)');
 
         $this->assertEquals('123456', $trace1Meta['_dd.git.commit.sha']);
         $this->assertEquals('abc123def456', $trace2Meta['_dd.git.commit.sha']);
+    }
+
+    private function rootSpanMetaFromTraces($traces, $label)
+    {
+        $this->assertNotEmpty(
+            $traces,
+            "No trace received for $label: the web request completed but no trace reached the request dumper."
+        );
+        $this->assertNotEmpty(
+            $traces[0],
+            "Trace received for $label contained no spans."
+        );
+        return $traces[0][0]['meta'];
     }
 }
