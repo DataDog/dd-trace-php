@@ -1531,6 +1531,8 @@ endforeach;
       git -C system-tests checkout --quiet --detach "$SYSTEM_TESTS_SHA"
       test "$(git -C system-tests rev-parse HEAD)" = "$SYSTEM_TESTS_SHA"
       test "$(git -C system-tests rev-parse --is-shallow-repository)" = "true"
+    # SYSTEM_TESTS_WEBLOG_REF: temporary until DataDog/system-tests#8074 merges
+    - if [ -n "${SYSTEM_TESTS_WEBLOG_REF:-}" ]; then git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$SYSTEM_TESTS_WEBLOG_REF" && git -C system-tests checkout --quiet --detach FETCH_HEAD; fi
     - CI_IMAGE="$CI_JOB_IMAGE" python3 system-tests/utils/ci/gitlab/build_ci_image.py --check-only
 <?php dockerhub_login() ?>
     # dockerhub-login.sh installs /tmp/vault only when vault is not on PATH; the ci-runner image ships it.
@@ -1607,6 +1609,8 @@ endforeach;
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i weblog -w php-fpm-8.6 php"
+    # temporary until DataDog/system-tests#8074 merges
+    SYSTEM_TESTS_WEBLOG_REF: leiyks/php-8.6-weblog
   script:
     - ./run.sh
 
@@ -1614,6 +1618,8 @@ endforeach;
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i weblog -w php-fpm-8.6 php"
+    # temporary until DataDog/system-tests#8074 merges
+    SYSTEM_TESTS_WEBLOG_REF: leiyks/php-8.6-weblog
   parallel:
     matrix:
       - TESTSUITE:
@@ -1669,6 +1675,10 @@ foreach ($system_tests_durations as $scenario => $seconds) {
   timeout: 1h 45m
   variables:
     BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
+<?php if ($weblog === "php-fpm-8.6"): ?>
+    # temporary until DataDog/system-tests#8074 merges
+    SYSTEM_TESTS_WEBLOG_REF: leiyks/php-8.6-weblog
+<?php endif; ?>
     # Expand the DinD loopback volume to avoid running out of disk space.
     # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
     DOCKER_LOOPBACK_SIZE: 50G
