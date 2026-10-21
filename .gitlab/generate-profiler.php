@@ -76,8 +76,10 @@ foreach ($profiler_minor_major_targets as $version) {
     - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit 1; }
     - |
       if [ "${FLAVOUR}" = "zts" ]; then
+        # Fetch the GitHub tag archive through Depot rather than pecl.php.net;
+        # the archive ships package.xml, so pecl can install it directly.
         sudo env PHP_INI_SCAN_DIR= MAKEFLAGS="-j$(nproc)" \
-          pecl install -f "parallel-${PARALLEL_VERSION}"
+          pecl install -f "https://depot-read-api-bzl.us1.ddbuild.io/github.com/krakjoe/parallel/archive/refs/tags/v${PARALLEL_VERSION}.tar.gz"
         installed_version="$(php -r 'echo phpversion("parallel");')"
         if [ "${installed_version}" != "${PARALLEL_VERSION}" ]; then
           echo "Expected parallel ${PARALLEL_VERSION}, got ${installed_version}"
