@@ -506,7 +506,7 @@ class AMQPIntegration extends Integration
 
     public static function formatQueueName($queue)
     {
-        return empty($queue) || !str_starts_with($queue, 'amq.gen-')
+        return empty($queue) || strpos($queue, 'amq.gen-') !== 0
             ? $queue
             : '<generated>';
     }
