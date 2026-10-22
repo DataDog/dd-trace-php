@@ -211,7 +211,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
       artifacts: true
   image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sequoia-latest"
   variables:
-    PHP_MACOS_VERSION: "8.5.9"
+    PHP_MACOS_VERSION: "8.5.12"
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
     _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
