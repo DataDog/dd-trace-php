@@ -19,7 +19,7 @@ TODO: run this in some mode which will look at the opline on every allocation.
 <?php
 if (PHP_VERSION_ID < 70400)
     echo "skip: test requires typed properties", PHP_EOL;
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires datadog-profiling", PHP_EOL;
 ?>
 --FILE--

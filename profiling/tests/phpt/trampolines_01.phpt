@@ -14,7 +14,7 @@ https://github.com/DataDog/dd-trace-php/issues/1993#issuecomment-1491105610
 --CGI--
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 if (PHP_MAJOR_VERSION < 8)
     echo "skip: test requires PHP 8+\n";

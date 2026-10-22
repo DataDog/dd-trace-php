@@ -61,8 +61,13 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
-// Block until the sidecar has received the agent's /info response before stats are computed
+// Block until the sidecar has received the agent's /info response before stats are computed.
 dd_trace_internal_fn('await_agent_info');
+
+// SKIPIF configures the response through instrumented file_get_contents(), which can
+// produce a trace under this test's session token. Remove that setup traffic before
+// recording the traces whose filtering is asserted below.
+$rr->clearDumpedData();
 
 // Each test case is a separate root span (= separate trace), because trace filters are
 // evaluated per trace (root span properties / tags).

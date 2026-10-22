@@ -9,7 +9,7 @@ so future calls to `is_zend_mm()` will return false which might lead to a situat
 where we assume we are hooked into, while we are not.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires datadog-profiling", PHP_EOL;
 if (PHP_VERSION_ID < 80000)
     echo "skip: JIT requires PHP >= 8.0", PHP_EOL;

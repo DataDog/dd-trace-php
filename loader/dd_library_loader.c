@@ -42,6 +42,7 @@ static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
 static bool injection_forced = false;
 static bool ddtrace_disabled_by_incompatible_runtime = false;
+static bool ddtrace_has_profiling = false;
 static char ddtrace_disabled_result_reason[384] = {0};
 
 static bool already_done = false;
@@ -94,23 +95,9 @@ static void ddloader_set_ddtrace_disabled_by_incompatible_runtime(const char *fo
 }
 
 static char *ddtrace_pre_load_hook(injected_ext *config) {
-    // Load libdatadog_php.so, on which ddtrace.so implicitly depends. Implicit
-    // because there's no DT_NEEDED(libdatadog_php.so) entry in ddtrace.so.
-    // This has unfortunate side effects. Resolution of libdatadog_php.so
-    // symbols against the handle of ddtrace.so (usually stored in
-    // module_ext->handle) will fail. Some code e.g. in zai or the profiler
-    // tries to resolve libdatadog_php.so symbols using module_ext->handle
-    // (these symbols are in ddtrace.so in the monolithic build). As a
-    // consequence, this can only work if actually module_ext->handle is NULL (=
-    // RTLD_DEFAULT) and the global namespace is searched. And, because of this,
-    // ddloader_load_extension() can't set module_entry->handle, which prevents
-    // PHP from calling dlclose() on module shutdown, which we have to work
-    // around in ddloader_zend_extension_shutdown().
-    //
-    // Adding DT_NEEDED(libdatadog_php.so) would be possible on glibc because it
-    // checks already loaded libraries first (with even a fallback to DT_SONAME
-    // as key). Musl only checks already loaded libraries if these were loaded
-    // without a path (only that sets dso->shortname).
+    // Both tracer-only and combined SSI builds import symbols from the common
+    // library without DT_NEEDED. Preload it from the package into the global
+    // namespace before opening ddtrace.so.
     char *libdatadog_php;
     int res = asprintf(&libdatadog_php, "%s/%sloader/libdatadog_php.so", package_path, ddloader_os_path());
     if (res == -1) {
@@ -128,7 +115,7 @@ static char *ddtrace_pre_load_hook(injected_ext *config) {
         if (access(libdatadog_php, F_OK)) {
             free(libdatadog_php);
             LOG(config, INFO, "libdatadog_php.so not found during 'ddtrace' pre-load hook.")
-            return NULL;
+            return "required libdatadog_php.so not found";
         }
     }
 
@@ -273,6 +260,10 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
 
     if (ddtrace_disabled_by_incompatible_runtime) {
         ddloader_ini_set_configuration(config, ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
+    }
+
+    if (ddtrace_has_profiling && !ddloader_ini_get_configuration(ZEND_STRL("datadog.profiling.enabled"))) {
+        ddloader_ini_set_configuration(config, ZEND_STRL("datadog.profiling.enabled"), ZEND_STRL("0"));
     }
 
     // Let ddtrace knows that it was loaded by the loader
@@ -740,6 +731,13 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         TELEMETRY(REASON_COMPLETE, config, NULL, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
     }
 
+    if (strcmp(config->ext_name, "ddtrace") == 0 && ddtrace_has_profiling) {
+        injected_ext *profiling = &ddloader_injected_ext_config[EXT_DATADOG_PROFILING];
+        profiling->injection_success = config->injection_success;
+        profiling->injection_error = config->injection_error;
+        profiling->version = config->version;
+    }
+
     return ret;
 }
 
@@ -760,6 +758,32 @@ static void ddloader_restore_so_module_entry(injected_ext *config) {
     config->orig_module_startup_func = NULL;
     config->orig_module_deps = NULL;
     config->orig_module_functions = NULL;
+}
+
+static bool ddloader_combined_profiling_available(unsigned int api_no, bool is_zts, bool is_debug) {
+    if (is_debug) {
+        return false;
+    }
+
+    char *marker = NULL;
+    const char *zts_suffix = is_zts ? "-zts" : "";
+    if (asprintf(&marker, "%s/%strace/ext/%u/.ddtrace%s.profiling", package_path, ddloader_os_path(), api_no,
+                 zts_suffix) == -1) {
+        return false;
+    }
+    bool available = access(marker, F_OK) == 0;
+    free(marker);
+    if (available) {
+        return true;
+    }
+
+    if (asprintf(&marker, "%s/trace/ext/%u/.ddtrace%s.profiling", package_path, api_no,
+                 zts_suffix) == -1) {
+        return false;
+    }
+    available = access(marker, F_OK) == 0;
+    free(marker);
+    return available;
 }
 
 static int ddloader_load_extension(unsigned int php_api_no, char *module_build_id, bool is_zts, bool is_debug, injected_ext *config) {
@@ -983,8 +1007,19 @@ static int ddloader_build_id_check(const char *build_id) {
         return SUCCESS;
     }
 
-    // Load the extensions declared in ddloader_injected_ext_config
+    ddtrace_has_profiling = ddloader_combined_profiling_available(php_api_no, is_zts, is_debug);
+
+    // Load the extensions declared in ddloader_injected_ext_config. Combined
+    // ddtrace owns profiling, so it must not load the standalone profiler too.
     for (unsigned int i = 0; i < sizeof(ddloader_injected_ext_config) / sizeof(ddloader_injected_ext_config[0]); ++i) {
+        if (i == EXT_DATADOG_PROFILING && ddtrace_has_profiling) {
+            injected_ext *profiling = &ddloader_injected_ext_config[i];
+            injected_ext *ddtrace = &ddloader_injected_ext_config[EXT_DDTRACE];
+            profiling->version = ddtrace->version;
+            safe_str_append(profiling->extra_config, sizeof(profiling->extra_config),
+                            "provided by combined ddtrace");
+            continue;
+        }
         ddloader_load_extension(php_api_no, module_build_id, is_zts, is_debug, &ddloader_injected_ext_config[i]);
     }
 
@@ -1029,6 +1064,7 @@ static void ddloader_zend_extension_shutdown(zend_extension *ext) {
         DL_UNLOAD(libdatadog_php_handle);
         libdatadog_php_handle = NULL;
     }
+    ddtrace_has_profiling = false;
 
     injection_forced = false;
     ddtrace_disabled_by_incompatible_runtime = false;
