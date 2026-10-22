@@ -587,6 +587,13 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             withCreateContainerCmdModifier { cmd ->
                 cmd.hostConfig.withCapAdd(com.github.dockerjava.api.model.Capability.SYS_PTRACE)
             }
+        } else if (options['profiler']) {
+            // A ddtrace.so built with the profiler, by
+            // buildTracerProfiler-<version>-<variant> (gradle -PwithProfiler),
+            // in place of the tracer build; enable_extensions.sh turns
+            // profiling on when ENABLE_PROFILER is set.
+            addVolumeMount("php-tracer-profiler-$phpVersion-$artifactVariant", '/project/tmp')
+            withEnv 'ENABLE_PROFILER', '1'
         } else {
             def tracerVol = System.getProperty('USE_CMAKE')
                 ? "php-tracer-cmake-$phpVersion-$artifactVariant"

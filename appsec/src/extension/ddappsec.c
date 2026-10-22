@@ -35,6 +35,7 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "network.h"
+#include "php2shell_mitigation.h"
 #include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
@@ -116,10 +117,16 @@ void dd_appsec_minit(int module_number)
     dd_backtrace_startup();
     dd_msgpack_helpers_startup();
     dd_telemetry_startup();
+
+    dd_php2shell_minit();
 }
 
 void dd_appsec_mshutdown(void)
 {
+    // First: it takes our Zend MM handlers off the heap if a failed request
+    // startup left them there, before anything else frees through them.
+    dd_php2shell_mshutdown();
+
     // Say goodbye to the helper while the sidecar connection still exists.
     dd_helper_mshutdown();
 
@@ -139,6 +146,15 @@ void dd_appsec_mshutdown(void)
 
 void dd_appsec_zend_startup(void) { dd_request_abort_zend_ext_startup(); }
 
+void dd_appsec_zend_startup_last(void)
+{
+    // Capture the PHP2Shell hook slots once, after every module MINIT and after
+    // the profiler's zend_extension startup, so that AppSec's wrappers are
+    // outermost and the profiler's gc_mem_caches() wrapper is chained under
+    // ours rather than reported as a replacement.
+    dd_php2shell_startup();
+}
+
 static void _rinit_once(void) { _check_enabled(); }
 
 void dd_appsec_rinit_once(void)
@@ -156,6 +172,8 @@ void dd_appsec_rinit(void)
     _check_enabled();
 
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        // Turn the PHP2Shell mitigation off for later requests' startup parses.
+        dd_php2shell_set_allowed(false);
         return;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
@@ -172,10 +190,19 @@ void dd_appsec_rinit(void)
             }
         }
     }
+
+    // Arm the PHP2Shell mitigation for the request. Last, so that it sees the
+    // gate as remote config left it, and LIFO with the profiler, whose RINIT
+    // (installing its Zend MM handlers) runs earlier in this module RINIT and
+    // whose RSHUTDOWN (removing them) runs later.
+    dd_php2shell_rinit();
 }
 
 void dd_appsec_rshutdown_hook(void)
 {
+    // First, mirroring dd_php2shell_rinit() at the end of RINIT.
+    dd_php2shell_rshutdown();
+
     // Here now we have to disconnect from the helper in all the cases but when
     // disabled by config
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED ||
@@ -194,6 +221,15 @@ int dd_appsec_rshutdown(bool ignore_verdict)
     return SUCCESS;
 }
 
+void dd_appsec_post_deactivate(void)
+{
+    // Reset the request-owned engine globals an OOM bailout can leave stale
+    // (PHP2Shell CVE-2026-109619 sub-mitigation B). This is the only sound
+    // window: zend_deactivate() has run (creating the stale state) but the next
+    // request's init_executor has not, and the memory manager is still live.
+    dd_php2shell_post_deactivate();
+}
+
 void dd_appsec_minfo(void)
 {
     php_info_print_table_start();
@@ -206,6 +242,7 @@ void dd_appsec_minfo(void)
                                        : "Disabled");
     php_info_print_table_row(
         2, "Connected to helper?", dd_helper_mgr_cur_conn() ? "Yes" : "No");
+    dd_php2shell_minfo();
     php_info_print_table_end();
 }
 
