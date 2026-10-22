@@ -247,7 +247,7 @@ static void dd_print_startup_logs(void (*log)(const char *format, ...)) {
 
     smart_str buf = {0};
     dd_serialize_json(ht, &buf, 0);
-    log("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
+    log("DATADOG TRACER CONFIGURATION - %s", buf.s ? ZSTR_VAL(buf.s) : "{}");
     log("For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
         "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
         "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");

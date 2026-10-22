@@ -931,6 +931,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
+// buf->s remains NULL if encoding fails before any output, e.g. on a pending soft OOM.
 static void dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
     zval zv;
     ZVAL_ARR(&zv, arr);
@@ -1746,7 +1747,9 @@ bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceByte
         EG(exception) = NULL;
         smart_str buf = {0};
         dd_serialize_json(span_links, &buf, 0);
-        ddog_add_str_span_meta_zstr(rust_span, "_dd.span_links", buf.s);
+        if (buf.s) {
+            ddog_add_str_span_meta_zstr(rust_span, "_dd.span_links", buf.s);
+        }
         smart_str_free(&buf);
         EG(exception) = current_exception;
     }
@@ -1757,7 +1760,9 @@ bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceByte
         EG(exception) = NULL;
         smart_str buf = {0};
         dd_serialize_json(span_events, &buf, 0);
-        ddog_add_str_span_meta_zstr(rust_span, "events", buf.s);
+        if (buf.s) {
+            ddog_add_str_span_meta_zstr(rust_span, "events", buf.s);
+        }
         smart_str_free(&buf);
         EG(exception) = current_exception;
     }
