@@ -1384,7 +1384,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-12"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1420,7 +1420,7 @@ endforeach;
 
 "min install tests":
   stage: verify
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-12
   tags: [ "arch:amd64" ]
   variables:
     MAX_TEST_PARALLELISM: 8
@@ -1618,7 +1618,7 @@ $system_tests_weblogs = [
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-11
+    CONTAINER_SUFFIX: bookworm-12
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"
@@ -1721,7 +1721,7 @@ $system_tests_weblogs = [
   tags: [ "arch:$ARCH" ]
   variables:
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-11
+    CONTAINER_SUFFIX: bookworm-12
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"

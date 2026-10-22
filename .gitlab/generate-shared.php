@@ -21,7 +21,7 @@ stages:
       - IMAGE:
         - "centos-7"
         - "php-compile-extension-alpine"
-        - "bookworm-11"
+        - "bookworm-12"
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
     - if [ -d "/opt/catch2" ]; then export CMAKE_PREFIX_PATH=/opt/catch2; fi
@@ -45,7 +45,7 @@ stages:
 "C components UBSAN":
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-12"
   needs: []
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
@@ -69,7 +69,7 @@ stages:
 "Build & Test Tea":
   tags: [ "arch:amd64" ]
   stage: build
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-12"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *no_asan_minor_major_targets
@@ -98,7 +98,7 @@ stages:
 .tea_test:
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-12"
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -135,7 +135,7 @@ stages:
   needs: []
   variables:
     PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-12"
   script:
     - |
       if ! command -v cc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1; then
@@ -164,7 +164,7 @@ stages:
   variables:
     PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
     GIT_SUBMODULE_STRATEGY: none
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-12"
   script:
     - switch-php nts
     - bash tooling/php-lint/run.sh
@@ -210,7 +210,7 @@ foreach (["7.4", "8.0"] as $major_minor):
 ?>
 "ZAI Shared Tests: [<?= $major_minor ?>]":
   extends: .tea_test
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-<?= $major_minor ?>-shared-ext-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-<?= $major_minor ?>-shared-ext-12"
   needs:
     - job: "Build & Test Tea"
       parallel:

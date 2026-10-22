@@ -36,7 +36,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "prof-correctness":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-12
   retry: 1
   needs:
     - job: "prof-correctness-analyzer"
@@ -324,7 +324,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Clippy":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-12
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -359,7 +359,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Cargo test":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-12
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -391,7 +391,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "PHP language tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-12
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
