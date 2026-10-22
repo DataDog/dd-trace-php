@@ -77,7 +77,8 @@ impl Dtd {
         let value = if let Some(raw) = cursor.quoted() {
             // Character references are resolved when an entity is declared;
             // general entity references are resolved only when it is used.
-            Some(Rc::from(self.replacement(raw, budget, 0)))
+            // Rc::from(Vec) leaks the Vec if allocating the Rc fails.
+            Some(Rc::from(self.replacement(raw, budget, 0).as_slice()))
         } else if cursor.consume(b"SYSTEM") || cursor.consume(b"PUBLIC") {
             None
         } else {

@@ -1300,6 +1300,64 @@ buildRunInDockerTask(
         ]
 )
 
+def appsecBodyRustEnvSetup = '''
+export PATH="/root/.cargo/bin:$PATH"
+export RUSTUP_HOME=/root/.rustup
+export CARGO_HOME=/root/.cargo
+cd /project
+export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
+'''
+
+buildRunInDockerTask(
+        baseName: 'testAppsecBody',
+        imageTag: 'php-buildonly-rust',
+        description: 'Test and lint the isolated body parser on musl',
+        needsBoostCache: false,
+        inputs: [
+                dirs: ['../../../components-rs/appsec_body'],
+                files: ['../run-body-parser-rust-tests.sh', '../../../rust-toolchain.toml'],
+        ],
+        volumes: [
+                'php-appsec-body-rust': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${appsecBodyRustEnvSetup}
+                sh appsec/tests/run-body-parser-rust-tests.sh
+                """
+        ]
+)
+
+buildRunInDockerTask(
+        baseName: 'coverageAppsecBody',
+        imageTag: 'php-buildonly-rust',
+        description: 'Generate coverage for body parser unit tests',
+        needsBoostCache: false,
+        inputs: [
+                dirs: ['../../../components-rs/appsec_body'],
+                files: ['../../../rust-toolchain.toml'],
+        ],
+        outputs: [
+                volume: 'php-appsec-body-coverage',
+                files: ['coverage-unit.lcov'],
+        ],
+        volumes: [
+                'php-appsec-body-coverage': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${appsecBodyRustEnvSetup}
+                export RUSTC_BOOTSTRAP=ddtrace_appsec_body
+                cargo llvm-cov test --release --locked \\
+                    --manifest-path components-rs/appsec_body/Cargo.toml --lcov \\
+                    --ignore-filename-regex='components-rs/appsec_body/(tests/|tools/|render[.]rs)' \\
+                    --output-path /helper-rust-build/coverage-unit.lcov
+                """
+        ]
+)
+
 buildRunInDockerTask(
         baseName: 'coverageHelperRust',
         imageTag: 'php-buildonly-rust',
