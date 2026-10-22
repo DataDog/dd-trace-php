@@ -1,6 +1,6 @@
 use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
 use crate::sidecar::MaybeShmLimiter;
-use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
+use datadog_ffe::rules_based::UniversalFlagConfig;
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::InstanceId;
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
@@ -423,6 +423,7 @@ pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState)
 #[no_mangle]
 pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigState) -> bool {
     let mut has_updates = false;
+    let mut ffe_update = crate::ffe::remote_config::ConfigurationUpdate::default();
     loop {
         match remote_config.manager.fetch_update() {
             RemoteConfigUpdate::None => break,
@@ -479,12 +480,8 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         RemoteConfigProduct::FfeFlags => {
                             debug!("Received FFE flags configuration");
                             if let Some(ufc) = data.downcast::<UniversalFlagConfig>() {
-                                if let Ok(ufc_owned) =
-                                    UniversalFlagConfig::from_json(ufc.to_json().to_vec())
-                                {
-                                    crate::ffe::store_config(Configuration::from_server_response(
-                                        ufc_owned,
-                                    ));
+                                if let Err(error) = ffe_update.add(ufc) {
+                                    debug!("Failed preparing FFE configuration: {error}");
                                 }
                             }
                         }
@@ -524,13 +521,14 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 }
                 RemoteConfigProduct::FfeFlags => {
                     debug!("FFE flags configuration removed");
-                    crate::ffe::clear_config();
+                    ffe_update.remove();
                 }
                 _ => (),
             },
         }
         has_updates = true
     }
+    ffe_update.apply();
     has_updates
 }
 

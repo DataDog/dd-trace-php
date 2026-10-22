@@ -1,14 +1,20 @@
 // Copyright 2026-Present Datadog, Inc. https://www.datadoghq.com/
 // SPDX-License-Identifier: Apache-2.0
 
+use super::remote_config::ConfigurationUpdate;
 use super::settings::AgentlessEndpoint;
-use super::{ddog_ffe_has_config, set_delivery_state, store_config, DeliveryState};
+use super::{ddog_ffe_has_config, set_delivery_state, DeliveryState};
 use crate::log::{self, Log};
 use datadog_ffe::cdn::CdnConfig;
-use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
+use datadog_ffe::rules_based::UniversalFlagConfig;
 use datadog_sidecar::service::blocking::{ping, subscribe_cdn_configuration};
-use datadog_sidecar::shm_remote_config::cdn::{CdnDeliveryState, CdnReader};
-use std::ffi::{c_void, CString};
+use datadog_sidecar::shm_remote_config::{
+    RemoteConfigDeliveryState, RemoteConfigManager, RemoteConfigUpdate,
+};
+use libdd_remote_config::fetch::ConfigInvariants;
+use libdd_remote_config::{default_registry, RemoteConfigProduct};
+use std::ffi::c_void;
+use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
@@ -182,21 +188,29 @@ fn read_configuration(
     let mut transport = crate::sidecar::run_sidecar(sidecar)?;
     transport.set_read_timeout(Some(Duration::from_millis(200)))?;
     transport.set_write_timeout(Some(Duration::from_millis(200)))?;
-    let path = subscribe_cdn_configuration(&mut transport, Some(config.subscription.clone()))?
+    let handle = subscribe_cdn_configuration(&mut transport, Some(config.subscription.clone()))?
         .ok_or_else(|| anyhow::anyhow!("CDN subscription unavailable"))?;
-    let mut reader = CdnReader::new(&CString::new(path)?);
-    let mut revision = 0;
+    let mut manager = RemoteConfigManager::new_with_registry(
+        ConfigInvariants {
+            language: config.subscription.language.clone(),
+            tracer_version: config.subscription.version.clone(),
+            // This manager has only the explicitly attached local source: it never
+            // tracks an agent target or makes requests to this endpoint.
+            endpoint: libdd_common::Endpoint::default(),
+            agentless: None,
+        },
+        Arc::new(default_registry().with::<UniversalFlagConfig>()?),
+    );
+    manager.set_local_configuration(Some(handle))?;
     let mut heartbeat = Instant::now();
     while !cancellation.is_cancelled() {
-        if let Some(snapshot) = reader.read()? {
-            if snapshot.revision != revision && !snapshot.configuration.is_empty() {
-                let config = UniversalFlagConfig::from_json(snapshot.configuration)?;
-                store_config(Configuration::from_server_response(config));
-                revision = snapshot.revision;
-            }
-            set_delivery_state(match snapshot.state {
-                CdnDeliveryState::Ready if ddog_ffe_has_config() => DeliveryState::Ready,
-                CdnDeliveryState::Stale | CdnDeliveryState::Stopped if ddog_ffe_has_config() => {
+        apply_configuration_updates(&mut manager)?;
+        if let Some(state) = manager.local_configuration_state() {
+            set_delivery_state(match state {
+                RemoteConfigDeliveryState::Ready if ddog_ffe_has_config() => DeliveryState::Ready,
+                RemoteConfigDeliveryState::Stale | RemoteConfigDeliveryState::Stopped
+                    if ddog_ffe_has_config() =>
+                {
                     DeliveryState::Stale
                 }
                 _ => DeliveryState::Starting,
@@ -208,8 +222,34 @@ fn read_configuration(
             ping(&mut transport)?;
             heartbeat = Instant::now();
         }
-        reader.wait_for_change(Duration::from_millis(50));
+        manager.wait_for_change(Duration::from_millis(50));
     }
+    Ok(())
+}
+
+fn apply_configuration_updates(manager: &mut RemoteConfigManager) -> anyhow::Result<()> {
+    let mut update = ConfigurationUpdate::default();
+    loop {
+        match manager.fetch_update() {
+            RemoteConfigUpdate::None => break,
+            RemoteConfigUpdate::Add { value, .. }
+                if value.path.product() == RemoteConfigProduct::FfeFlags =>
+            {
+                let data = value
+                    .data
+                    .ok_or_else(|| anyhow::anyhow!("FFE parser unavailable"))?;
+                let flags = data
+                    .downcast::<UniversalFlagConfig>()
+                    .ok_or_else(|| anyhow::anyhow!("Unexpected FFE configuration type"))?;
+                update.add(flags)?;
+            }
+            RemoteConfigUpdate::Remove(path) if path.product() == RemoteConfigProduct::FfeFlags => {
+                update.remove();
+            }
+            _ => {}
+        }
+    }
+    update.apply();
     Ok(())
 }
 

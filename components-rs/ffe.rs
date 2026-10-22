@@ -13,6 +13,7 @@ use std::sync::{Arc, LazyLock};
 #[allow(dead_code)]
 pub(crate) mod agentless;
 pub(crate) mod lifecycle;
+pub(crate) mod remote_config;
 #[allow(dead_code)]
 pub(crate) mod settings;
 

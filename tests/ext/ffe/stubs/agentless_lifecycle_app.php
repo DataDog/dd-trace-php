@@ -21,6 +21,11 @@ do {
     $value = $client->getStringValue('flag', 'fallback');
     $state = \DDTrace\Internal\ffe_provider_state();
     $after = \DDTrace\ffe_config_version();
+    // A concurrent replacement may change the version, but must never expose
+    // an empty configuration between the old and new accepted values.
+    if ($value !== 'blue' && $value !== 'green') {
+        throw new RuntimeException('configuration missing during CDN replacement');
+    }
     // These APIs are independent reads, not an atomic snapshot. A poll can
     // publish green after the blue evaluation and before the version read.
     if ($before !== $after) continue;
