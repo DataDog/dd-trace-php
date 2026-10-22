@@ -1632,6 +1632,8 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i runner"
+    # system-tests #8121's buildx --load stores the client image twice, overflowing the 20G default.
+    DOCKER_LOOPBACK_SIZE: 50G
   script:
     - ./run.sh PARAMETRIC
 
