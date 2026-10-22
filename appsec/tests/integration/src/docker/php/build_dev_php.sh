@@ -306,7 +306,7 @@ function build_php {
     patch -p1 < "$REPO_ROOT"/php_patches/recent_icu.patch
     touch .patch_ns_icu
   fi
-  if [[ $version_id -ge 80200 && $version_id -lt 80400 && ! -f .patch_gcc_atomics ]]; then
+  if [[ ( ($version_id -ge 80200 && $version_id -lt 80216) || ($version_id -ge 80300 && $version_id -lt 80303) ) && ! -f .patch_gcc_atomics ]]; then
     patch -p1 < "$REPO_ROOT"/php_patches/gcc_atomics.patch
     touch .patch_gcc_atomics
   fi
