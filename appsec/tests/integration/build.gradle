@@ -863,6 +863,101 @@ def buildAppSecTask = { String version, String variant ->
     )
 }
 
+// The standalone profiler (PHP 7.1+), built as a portable musl cdylib like
+// .gitlab/build-profiler.sh on the portable builds branch. Test containers
+// see it at /profiler/datadog-profiling.so, but load it only when the test
+// asks for it (AppSecContainer option 'profiler').
+def buildProfilerTask = { String version, String variant ->
+    buildRunInDockerTask(
+            baseName: 'buildProfiler',
+            imageTag: 'php-buildonly-rust',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsAppsec: false,
+            needsBoostCache: false,
+            description: 'Build portable profiler extension for PHP',
+            inputs: [
+                    dirs: [
+                            '../../../components-rs',
+                            '../../../libdatadog',
+                            '../../../profiling',
+                            '../../../zend_abstract_interface',
+                    ],
+                    files: [
+                            '../../../Cargo.lock',
+                            '../../../Cargo.toml',
+                            '../../../Makefile',
+                            '../../../VERSION',
+                            '../../../config.m4',
+                            '../../../ext/handlers_api.c',
+                            '../../../ext/handlers_api.h',
+                            '../../../rust-toolchain.toml',
+                            'scripts/prepare-rust-libc-compat.sh',
+                    ],
+            ],
+            outputs: [
+                    volume: 'php-profiler',
+                    files: ['datadog-profiling.so'],
+            ],
+            volumes: [
+                    ("php-profiler-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+                    ("php-profiler-${version}-${variant}"): [
+                            mountPoint: '/profiler',
+                    ],
+            ],
+            command: [
+                    '-e', '-c',
+                    """
+                    cd /project
+
+                    PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    MODULE=/project/tmp/build_profiler/modules/datadog-profiling.so
+                    RUST_TARGET="\$(uname -m)-unknown-linux-musl"
+                    CARGO_BUILD_FLAGS="--config target-applies-to-host=false"
+                    CARGO_BUILD_FLAGS+=" --config 'host.rustflags=[\\"-C\\", \\"target-feature=-crt-static\\"]'"
+                    CARGO_BUILD_FLAGS+=" -Zhost-config -Ztarget-applies-to-host -Zunstable-options"
+                    CARGO_BUILD_FLAGS+=" -Z build-std=std,panic_abort"
+                    CARGO_BUILD_FLAGS+=" -Z build-std-features=llvm-libunwind,backtrace"
+                    # musl's aarch64 pthread_attr_t is 56 bytes, glibc's 64:
+                    # build against a libc crate patched to glibc's layout.
+                    if [ "\$(uname -m)" = aarch64 ]; then
+                        LIBC_COMPAT_SOURCES="\$(appsec/tests/integration/scripts/prepare-rust-libc-compat.sh)"
+                        while IFS=\$'\\t' read -r LIBC_VERSION LIBC_COMPAT; do
+                            PATCH_NAME="libc_compat_\${LIBC_VERSION//./_}"
+                            CARGO_BUILD_FLAGS+=" --config 'patch.crates-io.\$PATCH_NAME.package=\\"libc\\"'"
+                            CARGO_BUILD_FLAGS+=" --config 'patch.crates-io.\$PATCH_NAME.path=\\"\$LIBC_COMPAT\\"'"
+                        done <<< "\$LIBC_COMPAT_SOURCES"
+                    fi
+                    RUSTFLAGS='-C target-feature=-crt-static -C linker=musl-clang'
+                    RUSTFLAGS+=' -C link-arg=/usr/lib/libunwind.a -C force-unwind-tables=yes'
+
+                    PHPRC= \\
+                        PATH="/opt/php/\$PHP_SDK_VERSION/bin:\$PATH" \\
+                        PHP_SDK_VERSION="\$PHP_SDK_VERSION" \\
+                        DDTRACE_PROFILING_TARGET="\$RUST_TARGET" \\
+                        DDTRACE_PROFILING_CARGO_BUILD_FLAGS="\$CARGO_BUILD_FLAGS" \\
+                        RUSTC_BOOTSTRAP=1 \\
+                        RUSTFLAGS="\$RUSTFLAGS" \\
+                        make -j"\$(nproc)" \\
+                            BUILD_SUFFIX=profiler \\
+                            PROFILING=1 \\
+                            EXTRA_CONFIGURE_OPTIONS="--disable-ddtrace-tracer --enable-ddtrace-profiling" \\
+                            "\$MODULE"
+
+                    if readelf --version-info "\$MODULE" | grep -q GLIBC_; then
+                        echo "\$MODULE has versioned glibc symbols" >&2
+                        exit 1
+                    fi
+                    cp "\$MODULE" /profiler/datadog-profiling.so
+                    touch /profiler/datadog-profiling.so
+                    """
+            ]
+    )
+}
+
 def runUnitTestsTask = { String phpVersion, String variant ->
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     def env = ''
@@ -943,6 +1038,9 @@ def runMainTask = { String phpVersion, String variant ->
         buildTracerCmakeTask(phpVersion, variant)
         buildAppSecTask(phpVersion, variant)
         runUnitTestsTask(phpVersion, variant)
+        if (phpVersion != '7.0') {
+            buildProfilerTask(phpVersion, variant)
+        }
     }
     if (project.hasProperty('testClass')) {
         runMainTask(phpVersion, variant)
@@ -993,6 +1091,12 @@ def runMainTask = { String phpVersion, String variant ->
                 "buildTracerCmake-${phpVersion}-${artifactVariant}" :
                 "buildTracer-${phpVersion}-${artifactVariant}"
         dependsOn "buildAppsec-${phpVersion}-${artifactVariant}"
+        // Opt-in: building the profiler is slow and only tests that start
+        // their container with the 'profiler' option need it.
+        if (project.hasProperty('withProfiler') && phpVersion != '7.0') {
+            it.systemProperty 'WITH_PROFILER', 'true'
+            dependsOn "buildProfiler-${phpVersion}-${artifactVariant}"
+        }
 
         if (phpVersion in ['7.0', '7.1']) {
             dependsOn downloadComposerOld

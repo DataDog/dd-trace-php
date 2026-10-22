@@ -60,6 +60,20 @@ if [[ $ENABLE_APPSEC == true ]]; then
   } >> /etc/php/php.ini
 fi
 
+if [[ -n $ENABLE_PROFILER ]]; then
+  if [[ ! -f /profiler/datadog-profiling.so ]]; then
+    echo "ENABLE_PROFILER is set, but /profiler/datadog-profiling.so is missing" >&2
+    exit 1
+  fi
+  echo "Enabling datadog-profiling" >&2
+  {
+    echo extension=/profiler/datadog-profiling.so
+    echo datadog.profiling.enabled=1
+    echo datadog.profiling.allocation_enabled=1
+    echo datadog.profiling.log_level=debug
+  } >> /etc/php/php.ini
+fi
+
 if [[ -n $XDEBUG ]]; then
   echo "Enabling Xdebug" >&2
   touch /tmp/logs/xdebug.log

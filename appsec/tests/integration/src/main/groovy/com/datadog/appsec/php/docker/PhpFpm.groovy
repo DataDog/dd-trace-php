@@ -35,12 +35,17 @@ class PhpFpm {
      *
      * @param env extra environment variables exported before launch
      * @param iniPath the php.ini to load (defaults to {@link #DEFAULT_INI})
+     * @param outputLog if set, the file the master's stdout and stderr are
+     *        appended to. Extensions that keep a copy of the stderr they saw at
+     *        MINIT (datadog-profiling logs to one) write there, not to the FPM
+     *        error log
      */
-    ExecResult restart(Map<String, String> env = [:], String iniPath = DEFAULT_INI) {
+    ExecResult restart(Map<String, String> env = [:], String iniPath = DEFAULT_INI, String outputLog = null) {
         container.flushProfilingData()
         String exports = env.collect { k, v -> "export ${k}=${v};" }.join(' ')
+        String redirect = outputLog ? " >>${outputLog} 2>&1" : ''
         ExecResult res = container.execInContainer('bash', '-c',
-                "kill -9 `pgrep php-fpm`; ${exports} php-fpm -y ${FPM_CONF} -c ${iniPath}".toString())
+                "kill -9 `pgrep php-fpm`; ${exports} php-fpm -y ${FPM_CONF} -c ${iniPath}${redirect}".toString())
         assert res.exitCode == 0 : "php-fpm restart failed: ${res.stderr}"
         res
     }

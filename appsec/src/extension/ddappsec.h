@@ -64,6 +64,10 @@ extern __thread void *unspecnull ATTR_TLS_LOCAL_DYNAMIC TSRMLS_CACHE;
 #endif
 
 void dd_appsec_rinit_once(void);
+// The process-wide first-RINIT config refresh (dd_config_first_rinit()) on its
+// own, without resolving DDAPPSEC_G(enabled). Once-guarded; also run by
+// dd_appsec_rinit_once().
+void dd_appsec_config_first_rinit_once(void);
 int dd_appsec_rshutdown(bool ignore_verdict);
 
 // Add a NO_CACHE version.

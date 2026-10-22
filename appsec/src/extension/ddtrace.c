@@ -27,6 +27,8 @@ void (*nullable datadog_metric_register_buffer)(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
 bool (*nullable datadog_metric_add_point)(
     zend_string *nonnull name, double value, zend_string *nonnull tags);
+void (*nullable datadog_telemetry_commit_metrics)(void);
+void (*nullable datadog_sidecar_ensure_telemetry_app)(void);
 
 static int (*_orig_ddtrace_shutdown)(SHUTDOWN_FUNC_ARGS);
 static int _mod_type;
@@ -134,6 +136,10 @@ static void dd_trace_load_symbols(zend_module_entry *module)
     ASSIGN_DLSYM(
         datadog_metric_register_buffer, "datadog_metric_register_buffer");
     ASSIGN_DLSYM(datadog_metric_add_point, "datadog_metric_add_point");
+    ASSIGN_DLSYM(datadog_telemetry_commit_metrics,
+        "datadog_telemetry_commit_user_request_metrics");
+    ASSIGN_DLSYM(datadog_sidecar_ensure_telemetry_app,
+        "datadog_sidecar_ensure_telemetry_application");
     ASSIGN_DLSYM(_ddtrace_emit_asm_event, "ddtrace_emit_asm_event");
     ASSIGN_DLSYM(
         _ddtrace_guess_endpoint_from_url, "ddtrace_guess_endpoint_from_url");

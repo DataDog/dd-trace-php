@@ -32,6 +32,8 @@ static inline zend_string *zend_print_zval_r_to_str(zval *expr, int indent)
 #endif
 
 #if PHP_VERSION_ID < 70200
+typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
+
 #    undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
 #    undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO
 

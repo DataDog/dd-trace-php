@@ -148,3 +148,12 @@ extern void (*nullable datadog_metric_register_buffer)(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
 extern bool (*nullable datadog_metric_add_point)(
     zend_string *nonnull name, double value, zend_string *nonnull tags);
+// Synchronously flushes the buffered telemetry metrics to the sidecar. Resolved
+// from ddtrace at runtime like the two above. Used by the PHP2Shell mitigation,
+// which must deliver its metric at points the tracer's request-finish flush
+// never reaches (a request dying during startup, or _exit(137)).
+extern void (*nullable datadog_telemetry_commit_metrics)(void);
+// Forces the telemetry application (service/env) to be registered on the sidecar
+// connection, so a flush issued during request startup (before the tracer's own
+// RINIT registers it) is not dropped. Resolved from ddtrace at runtime.
+extern void (*nullable datadog_sidecar_ensure_telemetry_app)(void);

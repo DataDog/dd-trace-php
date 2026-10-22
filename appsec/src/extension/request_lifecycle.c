@@ -12,6 +12,7 @@
 #include "entity_body.h"
 #include "helper_process.h"
 #include "logging.h"
+#include "php2shell_mitigation.h"
 #include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
@@ -248,6 +249,14 @@ retry:;
         struct timespec start = dd_monotime_start();
         res = dd_request_init(conn, &req_info);
         dd_duration_waf_ext_account(&start);
+    }
+
+    // Under remote config, let the PHP2Shell mitigation follow the latest
+    // config_features answer (from this config_sync, request_init or an
+    // earlier request). Until one has arrived, leave it unchanged.
+    if (DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG &&
+        !DDAPPSEC_G(to_be_configured)) {
+        dd_php2shell_set_allowed(DDAPPSEC_G(active));
     }
 
     // we might have been disabled by request_init

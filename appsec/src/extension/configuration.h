@@ -43,6 +43,7 @@ void dd_config_first_rinit(void);
     SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                                         \
     SYSCFG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true")                                                                               \
     SYSCFG(BOOL, DD_APPSEC_RASP_ENABLED , "true")                                                                                     \
+    SYSCFG(STRING, DD_APPSEC_PHP2SHELL_MITIGATION, "auto")                                                                            \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACE_DEPTH, "32")                                                                                \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACES, "2")                                                                                      \
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "<sidecar log>")                                                                        \
@@ -120,5 +121,11 @@ DD_CONFIGURATION
 #undef CALIAS
 
 bool dd_cfg_enable_via_remcfg(void);
+// Whether datadog.appsec.enabled / DD_APPSEC_ENABLED is explicitly set to
+// false in the global configuration (env, php.ini or stable config).
+bool dd_cfg_appsec_explicitly_disabled(void);
+// Whether datadog.trace.enabled / DD_TRACE_ENABLED is explicitly set to false
+// in the global configuration.
+bool dd_cfg_trace_explicitly_disabled(void);
 
 #endif // DD_CONFIGURATION_H

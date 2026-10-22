@@ -179,6 +179,7 @@ stages:
     ARCH: amd64
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
     DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
+    GRADLE_EXTRA_ARGS: ""
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -195,7 +196,7 @@ stages:
       fi
 
       # Gradle forwards the appsec CMake output: a Depot 503 in its FetchContent exits 75, which is retried.
-      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps || exit $?
+      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew $targets $GRADLE_EXTRA_ARGS --info -Pbuildscan --scan -PcheckCoreDumps || exit $?
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -251,6 +252,21 @@ stages:
     matrix:
       - targets:
           - test8.3-release-ssi
+
+# Php2ShellProfilerTests is skipped unless -PwithProfiler builds the profiler,
+# which the jobs above don't, to save time. 8.3 covers the profiler's pre-8.4
+# allocation hooks, 8.5 the _ex ones (and request_parse_body()).
+"appsec integration tests (php2shell profiler)":
+  extends: .appsec_integration_tests
+  variables:
+    GRADLE_EXTRA_ARGS: >-
+      -PwithProfiler
+      --tests com.datadog.appsec.php.integration.Php2ShellProfilerTests
+  parallel:
+    matrix:
+      - targets:
+          - test8.3-release
+          - test8.5-release
 
 "build and test appsec crates":
   stage: test

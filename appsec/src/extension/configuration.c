@@ -268,3 +268,15 @@ bool dd_cfg_enable_via_remcfg(void)
     return _is_config_using_default(DDAPPSEC_CONFIG_DD_APPSEC_ENABLED) &&
            get_DD_REMOTE_CONFIG_ENABLED();
 }
+
+bool dd_cfg_trace_explicitly_disabled(void)
+{
+    return !_is_config_using_default(DDAPPSEC_CONFIG_DD_TRACE_ENABLED) &&
+           !get_global_DD_TRACE_ENABLED();
+}
+
+bool dd_cfg_appsec_explicitly_disabled(void)
+{
+    return !_is_config_using_default(DDAPPSEC_CONFIG_DD_APPSEC_ENABLED) &&
+           !get_global_DD_APPSEC_ENABLED();
+}
