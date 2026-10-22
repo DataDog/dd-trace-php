@@ -3071,6 +3071,9 @@ PHP_FUNCTION(DDTrace_startup_logs) {
 
     smart_str buf = {0};
     datadog_startup_logging_json(&buf, 0);
+    if (!buf.s) {
+        RETURN_EMPTY_STRING();
+    }
     ZVAL_NEW_STR(return_value, buf.s);
 }
 
