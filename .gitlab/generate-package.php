@@ -1495,7 +1495,9 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
+    # SYSTEM_TESTS_REF (a branch or tag; default main) lets a pipeline try a
+    # system-tests change before it is merged.
+    - git clone --branch "${SYSTEM_TESTS_REF:-main}" https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
@@ -1597,10 +1599,33 @@ $system_tests_weblogs = [
     # Hash sorting reduces that imbalance, while keeping the order reproducible.
     # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
     - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    # THREAD_CONTEXT_SHARING needs the CWS runners; it has its own jobs below.
+    - SCENARIOS=$(printf '%s\n' $SCENARIOS | grep -vx THREAD_CONTEXT_SHARING)
     # Each job builds the full list, then keeps every `Nth` scenario for its shard.
     # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
     - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+
+<?php endforeach; ?>
+# THREAD_CONTEXT_SHARING needs CWS, which needs the kernel filesystems and the
+# PID namespace of the Kata guest. The DIND service only sees its own. The
+# docker-in-docker:amd64-cws runners (micro-vms-cws in dd-source) are the
+# kata-qemu DIND runners plus hostPath volumes of the guest's /proc,
+# /sys/fs/cgroup and /sys/kernel/{debug,tracing,security} under /vm-host.
+# system-tests detects /vm-host and makes the Agent use them.
+# The cws pool is small, so only this scenario runs there, on a few weblogs:
+# both Apache MPMs and FPM.
+<?php
+$thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-fpm-8.5"];
+?>
+<?php foreach ($thread_context_sharing_weblogs as $weblog): ?>
+"System Tests: [<?= $weblog ?>, THREAD_CONTEXT_SHARING]":
+  extends: .system_tests
+  tags: [ "docker-in-docker:amd64-cws" ]
+  variables:
+    BUILD_SH_ARGS: -w <?= $weblog ?> php
+  script:
+    - ./run.sh THREAD_CONTEXT_SHARING
 
 <?php endforeach; ?>
 "System Tests: [parametric]":
