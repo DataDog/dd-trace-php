@@ -819,6 +819,46 @@ endforeach;
   script:
     - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
+<?php foreach ($build_platforms as $platform): ?>
+<?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
+# glibc actually unloads extensions at shutdown, exposing dangling profiler
+# pthread destructors that musl's no-op dlclose cannot catch (issue #4349).
+"frankenphp profiler shutdown: [<?= $platform['arch'] ?>]":
+  stage: verify
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  tags: [ "arch:<?= $platform['arch'] ?>" ]
+  needs:
+    - job: "package extension (per-api bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_CPU_LIMIT: 2
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    FRANKENPHP_VERSION: v1.13.1
+    GOPROXY: "https://depot-read-api-go.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+    GOPRIVATE: ""
+    GONOPROXY: "none"
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - switch-php zts
+    - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - tooling/bin/install-frankenphp.sh || exit $?
+    - sudo php packages/datadog-setup.php --php-bin php --enable-profiling --enable-appsec --file packages/dd-library-php-*-$(uname -m)-linux-gnu-<?= $php_versions_to_abi['8.5'] ?>-zts.tar.gz
+    - php --ri datadog-profiling
+  script:
+    - bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
+  artifacts:
+    paths:
+      - artifacts/frankenphp/
+    when: always
+
+<?php endforeach; ?>
+
 # The tracer pipeline only runs the FrankenPHP suite on amd64/glibc. musl differs in ways that bite specifically here - see issue #4163, where the SIGTERM handler's clone() is rejected outright by musl and FrankenPHP consequently never shuts down.
 # Thus we so run the same suite once against the official FrankenPHP image on arm64/Alpine.
 "frankenphp test on arm64 alpine":
