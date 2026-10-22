@@ -121,6 +121,12 @@ typedef struct {
     void *ffe_metric_buffer;
     size_t ffe_metric_buffer_len;
     size_t ffe_metric_buffer_cap;
+    struct {
+        uint64_t unavailable;
+        uint64_t queue_overflow;
+        uint64_t serialization_error;
+        uint64_t payload_limit;
+    } ffe_submission_drops;
 
 } ddtrace_globals;
 

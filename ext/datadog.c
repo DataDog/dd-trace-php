@@ -25,6 +25,8 @@
 #include "telemetry.h"
 #include "zend_hrtime.h"
 #ifndef _WIN32
+#include <dlfcn.h>
+#include <limits.h>
 #include <pthread.h>
 #else
 #include <components/pthread_polyfill.h>
@@ -451,12 +453,62 @@ int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) 
     return 0;
 }
 
+// Rust also registers a pthread key for std::rt::thread_cleanup, independently of
+// __cxa_thread_atexit_impl. Track the destructors of all keys created within ddtrace.so,
+// indexed by key, to remove them when ddtrace.so is unloaded. Note: these symbols are not public
+static void (*dd_pthread_key_destructors[PTHREAD_KEYS_MAX])(void *);
+
+#ifdef __GLIBC__
+int __pthread_key_create(pthread_key_t *key, void (*destructor)(void *));
+#define dd_next_pthread_key_create __pthread_key_create
+#define DD_PTHREAD_KEY_LOOKUP RTLD_NEXT
+#else
+// musl's RTLD_NEXT only searches the objects loaded after ddtrace.so, which do not include libc.
+// Our pthread_key_* definitions are hidden, so RTLD_DEFAULT finds the libc ones.
+#define DD_PTHREAD_KEY_LOOKUP RTLD_DEFAULT
+// musl has no __pthread_key_create, and fails to load ddtrace.so on undefined symbols.
+static int dd_next_pthread_key_create(pthread_key_t *key, void (*destructor)(void *)) {
+    static int (*next_pthread_key_create)(pthread_key_t *, void (*)(void *));
+    if (!next_pthread_key_create) {
+        next_pthread_key_create = dlsym(DD_PTHREAD_KEY_LOOKUP, "pthread_key_create");
+    }
+    return next_pthread_key_create(key, destructor);
+}
+#endif
+
+int pthread_key_create(pthread_key_t *key, void (*destructor)(void *)) {
+    int ret = dd_next_pthread_key_create(key, destructor);
+    if (ret == 0 && *key < PTHREAD_KEYS_MAX) {
+        dd_pthread_key_destructors[*key] = destructor;
+    }
+    return ret;
+}
+
+int pthread_key_delete(pthread_key_t key) {
+    static int (*next_pthread_key_delete)(pthread_key_t);
+    if (!next_pthread_key_delete) {
+        next_pthread_key_delete = dlsym(DD_PTHREAD_KEY_LOOKUP, "pthread_key_delete");
+    }
+    if (key < PTHREAD_KEYS_MAX) {
+        dd_pthread_key_destructors[key] = NULL;
+    }
+    return next_pthread_key_delete(key);
+}
+
 static void dd_clean_main_thread_locals(void *unused) {
     dd_run_rust_thread_destructors(unused);
     // FrankenPHP unloads ddtrace on php-main before pthreads runs its TLS destructors.
-    // The fallback key must not retain a callback into the unloaded extension.
-    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNAVAILABLE) {
-        pthread_key_delete(dd_cxa_thread_atexit_key);
+    // No key may retain a callback into the unloaded extension.
+    for (pthread_key_t key = 0; key < PTHREAD_KEYS_MAX; ++key) {
+        void (*destructor)(void *) = dd_pthread_key_destructors[key];
+        if (destructor) {
+            void *value = pthread_getspecific(key);
+            if (value) {
+                pthread_setspecific(key, NULL);
+                destructor(value);
+            }
+            pthread_key_delete(key);
+        }
     }
 }
 

@@ -73,6 +73,60 @@ void ddtrace_telemetry_first_init(void) {
     dd_composer_hook_id = zai_hook_install((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
 }
 
+void ddtrace_telemetry_count_ffe_rejection(ddog_FfeSubmissionStatus status) {
+    if (!get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        return;
+    }
+    switch (status) {
+        case DDOG_FFE_SUBMISSION_STATUS_UNAVAILABLE:
+            ++DDTRACE_G(ffe_submission_drops.unavailable);
+            break;
+        case DDOG_FFE_SUBMISSION_STATUS_WOULD_BLOCK:
+            // Shared load shedding, pending configuration, or socket pressure.
+            // Conversion already happened, so this is not pre_queue_overflow.
+            ++DDTRACE_G(ffe_submission_drops.queue_overflow);
+            break;
+        case DDOG_FFE_SUBMISSION_STATUS_INVALID_INPUT:
+            // Required metadata cannot be encoded; optional field loss is
+            // reported independently by the native sidecar, not as a row drop.
+            ++DDTRACE_G(ffe_submission_drops.serialization_error);
+            break;
+        case DDOG_FFE_SUBMISSION_STATUS_PAYLOAD_TOO_LARGE:
+            ++DDTRACE_G(ffe_submission_drops.payload_limit);
+            break;
+        default:
+            return;
+    }
+}
+
+static void ddtrace_telemetry_flush_ffe_rejections(ddog_SidecarActionsBuffer *buffer) {
+    struct {
+        uint64_t *count;
+        ddog_CharSlice tag;
+    } reasons[] = {
+        {&DDTRACE_G(ffe_submission_drops.unavailable), DDOG_CHARSLICE_C("reason:unavailable")},
+        {&DDTRACE_G(ffe_submission_drops.queue_overflow), DDOG_CHARSLICE_C("reason:queue_overflow")},
+        {&DDTRACE_G(ffe_submission_drops.serialization_error), DDOG_CHARSLICE_C("reason:serialization_error")},
+        {&DDTRACE_G(ffe_submission_drops.payload_limit), DDOG_CHARSLICE_C("reason:payload_limit")},
+    };
+    ddog_CharSlice metric = DDOG_CHARSLICE_C("flagevaluation.rows.dropped");
+    bool registered = false;
+    for (size_t i = 0; i < sizeof(reasons) / sizeof(reasons[0]); ++i) {
+        uint64_t count = *reasons[i].count;
+        if (!count) {
+            continue;
+        }
+        if (!registered) {
+            ddog_sidecar_telemetry_register_metric(&DATADOG_G(sidecar), metric, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+            registered = true;
+        }
+        // Ordinary telemetry is best-effort. Do not replay these losses on a
+        // second finalize, or duplicate the sidecar's later-stage drop counters.
+        *reasons[i].count = 0;
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric, (double)count, reasons[i].tag);
+    }
+}
+
 void ddtrace_telemetry_finalize(void) {
     ddog_SidecarActionsBuffer *buffer = datadog_telemetry_buffer();
     // Send information about explicitly disabled integrations
@@ -107,11 +161,14 @@ void ddtrace_telemetry_finalize(void) {
     ddog_sidecar_telemetry_register_metric(&DATADOG_G(sidecar), DDOG_CHARSLICE_C("context_header_style.malformed"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDTRACE_G(baggage_malformed_count), DDOG_CHARSLICE_C("header_style:baggage"));
 
+    ddtrace_telemetry_flush_ffe_rejections(buffer);
+
     // Flush any accumulated BGS (background sender) metrics if enough time has passed.
     ddtrace_telemetry_flush_bgs_metrics_if_due(DATADOG_GLOBALS_PTR());
 }
 
 void ddtrace_telemetry_rinit(void) {
+    memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
     zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
     DDTRACE_G(baggage_extract_count) = 0;
     DDTRACE_G(baggage_inject_count) = 0;

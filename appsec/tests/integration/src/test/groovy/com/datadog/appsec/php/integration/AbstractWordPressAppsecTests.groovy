@@ -1,67 +1,40 @@
 package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
-import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
-import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestMethodOrder
-import org.junit.jupiter.api.condition.EnabledIf
 import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.containers.Network
-import org.testcontainers.containers.wait.strategy.Wait
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.utility.DockerImageName
 
 import java.net.http.HttpResponse
 
-import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
-import static com.datadog.appsec.php.integration.TestParams.getVariant
-
-@Testcontainers
+/**
+ * Shared AppSec tests for the WordPress fixtures. Concrete subclasses supply
+ * the {@code @Container} static fields ({@code CONTAINER} + {@code MYSQL}),
+ * declare {@code isExpectedVersion}, and invoke {@link #installWordPress} in
+ * a static {@code @BeforeAll}. The WordPress core APIs exercised here
+ * ({@code wp_authenticate}, {@code register_new_user},
+ * {@code wp_validate_auth_cookie}) have been stable since WP 3.x, so the test
+ * body does not vary across supported versions.
+ */
 @Slf4j
-@TestMethodOrder(MethodOrderer.OrderAnnotation)
-@EnabledIf('isExpectedVersion')
-class WordPressTests {
-    static boolean expectedVersion = phpVersion == '8.3' && !variant.contains('zts')
+abstract class AbstractWordPressAppsecTests {
 
-    private static Network network = Network.newNetwork()
-
-    @Container
-    private static MySQLContainer MYSQL = new MySQLContainer(
-            DockerImageName.parse("${System.getProperty('DOCKER_MIRROR') ?: 'docker.io'}/library/mysql:8.0")
-                    .asCompatibleSubstituteFor('mysql'))
-            .withDatabaseName('wp61')
-            .withUsername('test')
-            .withPassword('test')
-            .withNetwork(network)
-            .withNetworkAliases('mysql-integration')
-            .waitingFor(Wait.forLogMessage(".*ready for connections.*", 1)) as MySQLContainer
-
-    @Container
-    @FailOnUnmatchedTraces
-    public static final AppSecContainer CONTAINER =
-            new AppSecContainer(
-                    workVolume: this.name,
-                    baseTag: 'apache2-fpm-php',
-                    phpVersion: phpVersion,
-                    phpVariant: variant,
-                    www: '../../../tests/Frameworks/WordPress/Version_6_1',
-            ).withNetwork(network) as AppSecContainer
-
-    static void main(String[] args) {
-        InspectContainerHelper.run(CONTAINER, MYSQL)
+    AppSecContainer getContainer() {
+        getClass().CONTAINER
     }
 
-    @BeforeAll
-    static void installWordPress() {
-        def mysqlInfo = MYSQL.containerInfo
+    /**
+     * Install WordPress via wp-cli using the per-subclass {@code MYSQL}
+     * network alias (always {@code mysql-integration}) and seed the admin
+     * user. Called from each subclass's static {@code @BeforeAll}; we take
+     * the container + mysql references as parameters because {@code @BeforeAll}
+     * is static and can't see subclass fields through {@code getClass()}.
+     */
+    protected static void installWordPress(AppSecContainer container, MySQLContainer mysql) {
+        def mysqlInfo = mysql.containerInfo
         def mysqlIp = mysqlInfo.networkSettings.networks.values().find {
             it.aliases?.contains('mysql-integration')
         }?.ipAddress
@@ -69,15 +42,19 @@ class WordPressTests {
         assert mysqlIp != null : "Could not determine MySQL container IP"
         log.info("MySQL IP: {}", mysqlIp)
 
-        def res = CONTAINER.execInContainer('bash', '-c',
-                "sed -i \"s/'mysql-integration'/'${mysqlIp}'/\" /var/www/public/wp-config.php")
+        // Match any existing DB_HOST value, not just the committed 'mysql-integration' alias.
+        // On local reruns the workvol is cached, so wp-config.php may already contain the
+        // previous run's numeric IP — a literal substitution would then no-op and leave a
+        // stale address when Docker allocates a different IP this run.
+        def res = container.execInContainer('bash', '-c',
+                "sed -i -E \"s/(define\\(\\s*'DB_HOST'\\s*,\\s*)'[^']*'/\\1'${mysqlIp}'/\" /var/www/public/wp-config.php")
         assert res.exitCode == 0 : "Failed to update wp-config.php: ${res.stderr}"
 
         // Run wp-cli with tracing and AppSec disabled so these CLI processes
         // don't interfere with the FPM workers' sidecar/AppSec helper. FPM
         // keeps running throughout so the already-started AppSec helper
         // (launched by the container's initial FPM workers) remains active.
-        res = CONTAINER.execInContainer('bash', '-c',
+        res = container.execInContainer('bash', '-c',
                 """export DD_TRACE_CLI_ENABLED=false DD_APPSEC_ENABLED=0
                    wp core install \\
                        --path=/var/www/public \\
@@ -92,21 +69,21 @@ class WordPressTests {
         log.info("wp core install stderr: {}", res.stderr)
         assert res.exitCode == 0 : "WordPress install failed: ${res.stderr}"
 
-        def port = CONTAINER.firstMappedPort
-        res = CONTAINER.execInContainer('bash', '-c',
+        def port = container.firstMappedPort
+        res = container.execInContainer('bash', '-c',
                 """export DD_TRACE_CLI_ENABLED=false DD_APPSEC_ENABLED=0
                    wp option update siteurl 'http://localhost:${port}' --path=/var/www/public --allow-root
                    wp option update home 'http://localhost:${port}' --path=/var/www/public --allow-root""")
         assert res.exitCode == 0 : "Failed to update WordPress URLs: ${res.stderr}"
 
-        CONTAINER.clearTraces()
+        container.clearTraces()
     }
 
     @Test
     @Order(1)
     void 'Login success automated event'() {
         // admin/admin is the user created by `wp core install` in @BeforeAll.
-        Trace trace = CONTAINER.traceFromRequest('/login_trigger.php?user=admin&pass=admin') {
+        Trace trace = container.traceFromRequest('/login_trigger.php?user=admin&pass=admin') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
         }
@@ -126,7 +103,7 @@ class WordPressTests {
         // integration must call track_user_login_failure_event_automated with a
         // populated usr.login and usr.exists=true. missing_user_login must NOT
         // fire because the login is present.
-        Trace trace = CONTAINER.traceFromRequest('/login_trigger.php?user=admin&pass=wrong') {
+        Trace trace = container.traceFromRequest('/login_trigger.php?user=admin&pass=wrong') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
         }
@@ -145,7 +122,7 @@ class WordPressTests {
     void 'Login failure automated event - unknown user'() {
         // Non-empty unknown username: the integration emits a failure event with
         // usr.exists=false. Login is non-empty, so no missing_user_login metric.
-        Trace trace = CONTAINER.traceFromRequest('/login_trigger.php?user=ghost&pass=whatever') {
+        Trace trace = container.traceFromRequest('/login_trigger.php?user=ghost&pass=whatever') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
         }
@@ -165,7 +142,7 @@ class WordPressTests {
         // Direct call to register_new_user via signup_trigger.php; this exercises
         // the integration's hook on the function call, regardless of multisite or
         // email-related side effects of the standard registration form.
-        Trace trace = CONTAINER.traceFromRequest(
+        Trace trace = container.traceFromRequest(
                 '/signup_trigger.php?login=newuser1&email=newuser1@example.com') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
@@ -184,7 +161,7 @@ class WordPressTests {
         // behind_auth_trigger.php sets the current user and exercises
         // wp_validate_auth_cookie, which the integration hooks to emit
         // track_authenticated_user_event_automated.
-        Trace trace = CONTAINER.traceFromRequest('/behind_auth_trigger.php') {
+        Trace trace = container.traceFromRequest('/behind_auth_trigger.php') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
         }
