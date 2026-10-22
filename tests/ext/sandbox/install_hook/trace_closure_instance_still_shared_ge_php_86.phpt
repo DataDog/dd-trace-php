@@ -2,9 +2,10 @@
 HOOK_INSTANCE on evaluations of a static closure that PHP 8.6 still shares
 --DESCRIPTION--
 Pins the cases documented on DDTrace\HOOK_INSTANCE where PHP 8.6 keeps handing out the instance-hooked
-static closure: evaluations obtained before the install, and a declaration that the install cannot
-locate (in a closure that is not executing, declared outside of any function). Also pins php-src#23911:
-an evaluation through a second subclass is the closure cached for the first one, with its static::.
+static closure: evaluations obtained before the install, and declarations that the install cannot
+locate (in a closure that is not executing, declared outside of any function, or in a property hook).
+Also pins php-src#23911: an evaluation through a second subclass is the closure cached for the first
+one, with its static::.
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80600) die('skip: static closure caching is PHP 8.6+'); ?>
 --INI--
@@ -30,6 +31,13 @@ for ($i = 0; $i < 2; ++$i) {
     $closure();
 }
 
+class Hooks { public $closure { get { return static function () { return 1; }; } } }
+$hooks = new Hooks;
+$hooked = $hooks->closure;
+DDTrace\install_hook($hooked, function () { echo "property hook: traced\n"; }, null, DDTrace\HOOK_INSTANCE);
+echo "property hook: ", var_export($hooks->closure === $hooked, true), "\n";
+($hooks->closure)();
+
 class P { static function make() { return static function () { return static::class; }; } }
 class A extends P {}
 class B extends P {}
@@ -47,4 +55,6 @@ not located hook 0
 not located iteration 1
 not located hook 0
 not located hook 1
+property hook: true
+property hook: traced
 second subclass: true A

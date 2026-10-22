@@ -1,5 +1,5 @@
 /* This is a generated file, edit uhook.stub.php instead.
- * Stub hash: ff4678411504a12ab4d2a386b92f12a56dd29495 */
+ * Stub hash: 7caf019ee2dcb843a61a73b79fc201ed4af08ab2 */
 
 #include "zend_constants.h"
 

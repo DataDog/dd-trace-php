@@ -271,7 +271,7 @@ static zend_extension dd_zend_extension_entry = {"ddtrace",
                                                   NULL,
 #endif
 #ifdef DDTRACE
-                                                  zai_hook_unresolve_op_array,
+                                                  ddtrace_op_array_dtor,
 #else
                                                   NULL,
 #endif

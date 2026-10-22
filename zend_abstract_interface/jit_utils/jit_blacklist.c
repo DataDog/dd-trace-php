@@ -136,7 +136,7 @@ static bool zai_jit_fetch_symbols(void) {
 #endif
 
 // PHP_INI_SYSTEM, hence process-wide constant once startup is done.
-static bool zai_jit_shm_protected(void) {
+bool zai_jit_shm_protected(void) {
     static int protected = -1;
     if (protected < 0) {
         zend_string *name = zend_string_init(ZEND_STRL("opcache.protect_memory"), 0);
