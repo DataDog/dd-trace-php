@@ -1,0 +1,38 @@
+# Playground compose: one `php` service, parameterised entirely via env from
+# the sibling Makefile. Only one playground runs at a time (shared compose
+# project name, shared PORT), so re-running `make <Framework>` for a different
+# framework replaces the previous one.
+
+services:
+  php:
+    image: ${PLAYGROUND_IMAGE}
+    container_name: dd-playground
+    ports:
+      - "${PORT}:80"
+    environment:
+      # Tracer always on; the user picks whether appsec/telemetry are active.
+      DD_TRACE_ENABLED: "1"
+      DD_APPSEC_ENABLED: "${APPSEC}"
+      DD_INSTRUMENTATION_TELEMETRY_ENABLED: "${TELEMETRY}"
+      DD_SERVICE: "${PLAYGROUND_SERVICE}"
+      DD_ENV: "playground"
+      # No agent by default — traces are generated and dropped. Users can
+      # point this at a real agent via `DD_AGENT_HOST=... make <Framework>`.
+      DD_AGENT_HOST: "${DD_AGENT_HOST:-}"
+      DD_TRACE_AGENT_PORT: "${DD_TRACE_AGENT_PORT:-8126}"
+    volumes:
+      # Full repo at /project so `datadog.trace.sources_path=/project/src`
+      # and the extension path in entrypoint.sh resolve correctly.
+      - "${REPO_ROOT}:/project:ro"
+      # The appsec extension produced by cmake under tmp/build_extension/appsec.
+      - "${REPO_ROOT}/tmp/build_extension/appsec:/appsec:ro"
+      # The WAF ruleset.
+      - "${REPO_ROOT}/appsec/recommended.json:/etc/recommended.json:ro"
+      # The fixture — mounted read-write because artisan/composer write to it.
+      - "${FIXTURE_DIR}:/var/www"
+      # composer: the dd-appsec-php-ci:apache2-mod-php base image doesn't
+      # ship it. Downloaded once by the host Makefile into tmp/playground/.
+      - "${REPO_ROOT}/tmp/playground/composer.phar:/usr/local/bin/composer:ro"
+      # Our entrypoint.
+      - "./entrypoint.sh:/usr/local/bin/playground-entrypoint.sh:ro"
+    entrypoint: ["/usr/local/bin/playground-entrypoint.sh"]
