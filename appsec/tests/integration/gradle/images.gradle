@@ -33,10 +33,10 @@ def phpVersions = [
         '7.4': '7.4.29',
         '8.0': '8.0.18',
         '8.1': '8.1.31',
-        '8.2': '8.2.13',
-        '8.3': '8.3.0',
-        '8.4': '8.4.0',
-        '8.5': '8.5.0',
+        '8.2': '8.2.35',
+        '8.3': '8.3.36',
+        '8.4': '8.4.27',
+        '8.5': '8.5.12',
 ]
 
 def normalizeArch = { a ->
@@ -101,6 +101,7 @@ def buildPhp = { String version, String variant ->
         String tag = "php-${version}-${variant}"
         String image = "$repo:$tag"
         description = "Build the image for PHP ${version} ${variant}"
+        inputs.property 'phpVersion', phpVersions[version]
         inputs.file file('src/docker/php/Dockerfile')
         inputs.file file('src/docker/php/build_dev_php.sh')
         inputs.file file('src/docker/php/php.ini')
