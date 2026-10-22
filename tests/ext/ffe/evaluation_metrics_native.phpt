@@ -34,6 +34,7 @@ $config = <<<'JSON'
       },
       "allocations": [{
         "key": "alloc-string",
+        "doLog": true,
         "rules": [],
         "splits": [{"variationKey": "blue", "serialId": 7, "shards": []}]
       }]

@@ -342,6 +342,8 @@ wait-timeout = { version = "0.2", default-features = false }
 walkdir = { version = "2.4", default-features = false }
 wasm-bindgen-futures = { version = "0.4", default-features = false }
 wasm-bindgen-test = { version = "=0.3.50", default-features = false }
+webpki-roots = { version = "1.0.10", default-features = false }
+webpki-root-certs = { version = "1.0.10", default-features = false }
 web-time = { version = "1", default-features = false }
 windows = { version = "0.59.0", default-features = false }
 windows-sys = { version = "0.52", default-features = false }
