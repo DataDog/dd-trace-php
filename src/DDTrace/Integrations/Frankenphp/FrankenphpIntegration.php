@@ -47,6 +47,10 @@ class FrankenphpIntegration extends Integration
             \DDTrace\install_hook(
                 $handler,
                 static function (HookData $hook) use (&$blockingException, &$rootSpan) {
+                    // One PHP request serves many, so each starts on a fresh pathway.
+                    if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                        \DDTrace\Internal\dsm_reset_pathway();
+                    }
                     $blockingException = null;
                     $rootSpan = $hook->span(new SpanStack());
                     $rootSpan->name = "web.request";
@@ -125,6 +129,11 @@ class FrankenphpIntegration extends Integration
 
                     if (isset($hookData->data) && !isset($rootSpan->exception)) {
                         $rootSpan->exception = $hookData->data;
+                    }
+
+                    // What the worker runs between requests continues neither's pathway.
+                    if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                        \DDTrace\Internal\dsm_reset_pathway();
                     }
                 },
                 \DDTrace\HOOK_INSTANCE

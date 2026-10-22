@@ -285,6 +285,13 @@
         "default": "false"
       }
     ],
+    "DD_DATA_STREAMS_PATHWAY_MAX_AGE_SECONDS": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "300"
+      }
+    ],
     "DD_DBM_ALWAYS_APPEND_SQL_COMMENT": [
       {
         "implementation": "A",

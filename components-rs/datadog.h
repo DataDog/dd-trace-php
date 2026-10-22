@@ -138,14 +138,24 @@ void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
 void ddog_dsm_tables_clear(void);
 
 /**
- * Forget the request's pathway. Called at request shutdown.
+ * Forget the pathway the running code is on, and those set aside beneath it, e.g. at the edges
+ * of a request a long-running SAPI serves.
  */
 void ddog_dsm_reset_pathway(void);
 
 /**
- * Set the request's pathway aside and start a fresh one, e.g. while a message's callback runs.
+ * Forget every pathway of the request, the fibers' included. Called at request shutdown.
  */
-void ddog_dsm_push_pathway(void);
+void ddog_dsm_request_shutdown(void);
+
+/**
+ * Set the request's pathway aside for a message being processed; it comes back with
+ * `ddog_dsm_pop_pathway`. Without `keep_current`, the message's pathway starts fresh, as for a
+ * callback a message is handed to. With it, the message's pathway is the one the request is on,
+ * as for a handler run after its message was fetched, and the pathway set aside is left fresh.
+ * The message's pathway does not expire while it lasts.
+ */
+void ddog_dsm_push_pathway(bool keep_current);
 
 /**
  * Go back to the pathway the last `ddog_dsm_push_pathway` set aside, or to a fresh one if there
@@ -154,12 +164,33 @@ void ddog_dsm_push_pathway(void);
 void ddog_dsm_pop_pathway(void);
 
 /**
+ * A fiber starts on a copy of the pathway of the code that starts it, without the pathways set
+ * aside beneath it. The fiber can outlive the message that pathway belongs to, so the copy is
+ * not a message's and can expire. Called when `context` is initialized, before it first runs.
+ */
+void ddog_dsm_fiber_init(const void *context);
+
+/**
+ * Keep the pathways of the fiber context `from`, and continue with those of `to`.
+ */
+void ddog_dsm_fiber_switch(const void *from, const void *to);
+
+/**
+ * Forget the pathways of a fiber context that is destroyed.
+ */
+void ddog_dsm_fiber_destroy(const void *context);
+
+/**
  * Set a checkpoint on the request's pathway and record its stats point.
  *
  * `edge_tags` are `key:value` strings, at most `MAX_EDGE_TAGS` of which are kept; their order
  * does not matter. `carrier` is the `dd-pathway-ctx-base64` value the message arrived with, or
  * empty. The context to hand on with the message is written to `out` as base64, and its length
  * returned; `out` must hold `DSM_CONTEXT_MAX_LEN` bytes.
+ *
+ * Outside a message's scope, a checkpoint only continues the request's pathway if its last
+ * checkpoint is at most `max_pathway_age_ns` old, or however old it is if `max_pathway_age_ns`
+ * is not positive.
  *
  * The stats point is only recorded once the agent has said it accepts DSM stats; the pathway
  * is tracked, and the context returned, either way.
@@ -174,6 +205,7 @@ uintptr_t ddog_dsm_set_checkpoint(struct ddog_SidecarTransport *transport,
                                   uintptr_t edge_tag_count,
                                   ddog_CharSlice carrier,
                                   int64_t payload_size_bytes,
+                                  int64_t max_pathway_age_ns,
                                   uint8_t *out,
                                   uintptr_t out_cap);
 

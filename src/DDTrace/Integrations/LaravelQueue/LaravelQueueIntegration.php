@@ -121,6 +121,23 @@ class LaravelQueueIntegration extends Integration
             }
         );
 
+        // The worker has just fetched the job, so processing it continues the job's Data Streams
+        // Monitoring pathway, and what the worker runs after it does not.
+        install_hook(
+            'Illuminate\Queue\Worker::process',
+            static function (HookData $hook) {
+                if (dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    \DDTrace\Internal\dsm_push_pathway(true);
+                    $hook->data = true;
+                }
+            },
+            static function (HookData $hook) {
+                if (isset($hook->data)) {
+                    \DDTrace\Internal\dsm_pop_pathway();
+                }
+            }
+        );
+
         hook_method(
             'Illuminate\Queue\Worker',
             'maxAttemptsExceededException',

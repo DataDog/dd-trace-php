@@ -1124,13 +1124,19 @@ namespace DDTrace\Internal {
     function dsm_track_backlog(array $tags, int $offset): void {}
 
     /**
-     * Set the request's Data Streams Monitoring pathway aside and start a fresh one, for an
-     * integration to call before it hands a message to a callback. The checkpoints the callback
-     * sets then neither continue the previous message's pathway nor outlive the callback.
+     * Set the request's Data Streams Monitoring pathway aside for a message being processed. An
+     * integration calls it before it hands a message to a callback, so the checkpoints the
+     * callback sets neither continue the previous message's pathway nor outlive the callback. A
+     * framework integration calls it with $keepCurrent before it runs the handler of a message
+     * its worker has just fetched, so the handler continues that message's pathway and what runs
+     * after the handler does not. The message's pathway does not expire while it lasts.
      *
      * @internal
+     *
+     * @param bool $keepCurrent continue the pathway the request is on, rather than a fresh one,
+     *                          and leave a fresh one behind
      */
-    function dsm_push_pathway(): void {}
+    function dsm_push_pathway(bool $keepCurrent = false): void {}
 
     /**
      * Go back to the pathway the last dsm_push_pathway() set aside.
@@ -1138,6 +1144,14 @@ namespace DDTrace\Internal {
      * @internal
      */
     function dsm_pop_pathway(): void {}
+
+    /**
+     * Forget the request's Data Streams Monitoring pathway, and those set aside, for an
+     * integration of a long-running SAPI to call at the edges of each request it serves.
+     *
+     * @internal
+     */
+    function dsm_reset_pathway(): void {}
 
 }
 
