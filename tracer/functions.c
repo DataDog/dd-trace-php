@@ -1718,6 +1718,8 @@ static const char *ddtrace_ffe_error_name(int32_t error_code) {
             return "PARSE_ERROR";
         case 3:
             return "FLAG_NOT_FOUND";
+        case 5:
+            return "INVALID_CONTEXT";
         case 6:
             return "PROVIDER_NOT_READY";
         case 7:
@@ -1810,17 +1812,19 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zval *value;
     struct ddog_FfeResult result;
     zend_bool record_metric = true;
+    zend_bool experimentation_opt_out_immediate = false;
     zend_string *value_json;
     zend_string *variant;
     zend_string *allocation_key;
 
-    ZEND_PARSE_PARAMETERS_START(4, 5)
+    ZEND_PARSE_PARAMETERS_START(4, 6)
         Z_PARAM_STR(flag_key)
         Z_PARAM_LONG(type_id_zl)
         Z_PARAM_STR_OR_NULL(targeting_key)
         Z_PARAM_ARRAY(attrs_zv)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(record_metric)
+        Z_PARAM_BOOL(experimentation_opt_out_immediate)
     ZEND_PARSE_PARAMETERS_END();
 
     type_id = (int32_t) type_id_zl;
@@ -1864,6 +1868,12 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
                     c_attrs[idx].bool_value = false;
                     break;
                 default:
+                    if (experimentation_opt_out_immediate &&
+                        zend_string_equals_literal(key, "dd_experimentation_opt_out_at")) {
+                        c_attrs[idx].value_type = 0;
+                        c_attrs[idx].string_value = DDOG_CHARSLICE_C("");
+                        break;
+                    }
                     if (owned_key) {
                         zend_string_release(owned_key);
                     }
@@ -1882,7 +1892,8 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         type_id,
         dd_zend_string_to_CharSlice(targeting_key),
         c_attrs,
-        attrs_count
+        attrs_count,
+        experimentation_opt_out_immediate
     );
     if (c_attrs) {
         efree(c_attrs);

@@ -136,6 +136,7 @@
     CONFIG(BOOL, DD_INTEGRATION_METRICS_ENABLED, "true",                                                       \
            .env_config_fallback = ddtrace_conf_otel_metrics_exporter)                                          \
     CONFIG(BOOL, DD_METRICS_OTEL_ENABLED, "false")                                                             \
+    CONFIG(STRING, DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE, "disabled")                                   \
     CONFIG(BOOL, DD_LOGS_OTEL_ENABLED, "false")                                                                \
     CONFIG(BOOL, DD_TRACE_OTEL_ENABLED, "false")                                                               \
     CONFIG(STRING, DD_OPENAI_SERVICE, "")                                                                      \

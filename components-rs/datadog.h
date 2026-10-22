@@ -142,7 +142,8 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
                                         ddog_CharSlice targeting_key,
                                         const struct ddog_FfeAttribute *attributes,
-                                        uintptr_t attributes_count);
+                                        uintptr_t attributes_count,
+                                        bool experimentation_opt_out_immediate);
 
 bool ddog_shall_log(enum ddog_Log category);
 

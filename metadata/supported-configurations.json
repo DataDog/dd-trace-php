@@ -418,6 +418,13 @@
         "default": "true"
       }
     ],
+    "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "disabled"
+      }
+    ],
     "DD_GIT_COMMIT_SHA": [
       {
         "implementation": "B",

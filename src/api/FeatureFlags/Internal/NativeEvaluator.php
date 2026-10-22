@@ -3,6 +3,7 @@
 namespace DDTrace\FeatureFlags\Internal;
 
 use DDTrace\FeatureFlags\EvaluationType;
+use DDTrace\FeatureFlags\ExperimentationOptOutMode;
 use DDTrace\FeatureFlags\SpanEnrichmentRegistry;
 
 final class NativeEvaluator implements Evaluator
@@ -11,8 +12,9 @@ final class NativeEvaluator implements Evaluator
 
     private $mapper;
     private $recordMetrics;
+    private $experimentationOptOutImmediate;
 
-    private function __construct($mapper = null, bool $recordMetrics = true)
+    private function __construct($mapper = null, bool $recordMetrics = true, $experimentationOptOutMode = null)
     {
         if ($mapper !== null && !$mapper instanceof ResultMapper) {
             throw new \InvalidArgumentException('Expected a ResultMapper instance');
@@ -20,6 +22,7 @@ final class NativeEvaluator implements Evaluator
 
         $this->mapper = $mapper ?: new ResultMapper();
         $this->recordMetrics = $recordMetrics;
+        $this->experimentationOptOutImmediate = $experimentationOptOutMode === ExperimentationOptOutMode::IMMEDIATE;
     }
 
     public static function isAvailable()
@@ -27,9 +30,10 @@ final class NativeEvaluator implements Evaluator
         return function_exists('DDTrace\\ffe_evaluate');
     }
 
-    public static function create($recordMetrics = true)
+    public static function create($recordMetrics = true, $experimentationOptOutMode = null)
     {
-        return self::isAvailable() ? new self(null, $recordMetrics) : new UnavailableEvaluator();
+        $mode = ExperimentationOptOutMode::resolve($experimentationOptOutMode);
+        return self::isAvailable() ? new self(null, $recordMetrics, $mode) : new UnavailableEvaluator();
     }
 
     public function evaluate(
@@ -44,7 +48,8 @@ final class NativeEvaluator implements Evaluator
             $this->typeId($expectedType),
             $targetingKey,
             $this->normalizeAttributes($attributes),
-            $this->recordMetrics
+            $this->recordMetrics,
+            $this->experimentationOptOutImmediate
         );
 
         if (is_array($rawResult) || is_object($rawResult)) {
@@ -86,6 +91,13 @@ final class NativeEvaluator implements Evaluator
     {
         $normalized = array();
         foreach ($attributes as $key => $value) {
+            // Preserve a present invalid opt-out value through the scalar bridge.
+            // Rust validates the timestamp only when immediate mode is enabled.
+            if ($this->experimentationOptOutImmediate &&
+                $key === 'dd_experimentation_opt_out_at' && !is_string($value)) {
+                $normalized[$key] = '';
+                continue;
+            }
             if (is_bool($value) || is_int($value) || is_float($value) || is_string($value)) {
                 $normalized[(string) $key] = $value;
             }

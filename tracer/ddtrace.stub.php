@@ -907,7 +907,7 @@ namespace DDTrace {
      *
      * @internal Used by the Datadog feature flag client.
      */
-    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true): ?FfeResult {}
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true, bool $experimentationOptOutImmediate = false): ?FfeResult {}
 
     /**
      * Check if FFE (Feature Flag Evaluation) configuration is loaded.
