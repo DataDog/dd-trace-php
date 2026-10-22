@@ -38,7 +38,9 @@ static inline dd_log_level_t dd_log_level(void)
     if (!_dd_log_config_ready) {
         return dd_log_warning;
     }
-    return (dd_log_level_t)(runtime_config_first_init
+    // Runtime configuration belongs to a request on this thread. GSHUTDOWN can
+    // run after it was freed, or on a thread that never handled a request.
+    return (dd_log_level_t)(zai_config_is_initialized()
                                 ? get_DD_APPSEC_LOG_LEVEL()
                                 : get_global_DD_APPSEC_LOG_LEVEL());
 }

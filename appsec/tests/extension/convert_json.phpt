@@ -1,5 +1,7 @@
 --TEST--
 _convert_json function
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 $j = '{"a":[],"b":{"0": 1},"c":{"d":"e"}}';

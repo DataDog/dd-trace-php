@@ -14,8 +14,6 @@
 bool dd_config_minit(int module_number);
 void dd_config_first_rinit(void);
 
-extern bool runtime_config_first_init;
-
 #define DD_CFG_STR(str) #str
 #define DD_CFG_EXPSTR(str) DD_CFG_STR(str)
 
