@@ -329,13 +329,10 @@ static void _pack_request_body(mpack_writer_t *nonnull w,
         zend_string *ct =
             dd_php_get_string_elem_cstr(server, ZEND_STRL("CONTENT_TYPE"));
         if (ct) {
-            zval body_zv =
+            ddog_AppsecBodyMessagePack body =
                 dd_entity_body_convert(ZSTR_VAL(ct), ZSTR_LEN(ct), ctx->entity);
-            if (Z_TYPE(body_zv) != IS_NULL) {
-                dd_mpack_write_zval_lim(w, &body_zv, limits);
-                zval_ptr_dtor(&body_zv);
-                written = true;
-            }
+            written = dd_body_msgpack_write(w, &body);
+            dd_trace_drop_body_msgpack(body);
         }
     }
     if (!written) {

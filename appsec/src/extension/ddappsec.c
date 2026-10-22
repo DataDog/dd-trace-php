@@ -18,6 +18,7 @@
 #include <stdatomic.h>
 
 #include "backtrace.h"
+#include "body_parser.h"
 #include "commands/client_init.h"
 #include "commands/request_exec.h"
 #include "commands_ctx.h"
@@ -336,6 +337,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_tags_startup();
     dd_duration_startup();
     dd_ip_extraction_startup();
+    dd_body_parser_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
     dd_msgpack_helpers_startup();

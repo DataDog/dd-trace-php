@@ -227,6 +227,7 @@ foreach ($build_platforms as $platform) {
 
     mkdir -p "${CARGO_HOME}"
     cargo fetch -v --target "${TRIPLET}"
+    cargo fetch --locked --manifest-path components-rs/appsec_body/Cargo.toml --target "${TRIPLET}"
     chmod -R 777 "${CARGO_HOME}"
 
     # ensure the .package-cache isn't there
@@ -236,6 +237,7 @@ foreach ($build_platforms as $platform) {
         prefix: cargo-cache-${TRIPLET}
         files:
           - Cargo.lock
+          - components-rs/appsec_body/Cargo.lock
       paths:
         - "${CARGO_HOME}"
 
@@ -272,6 +274,7 @@ foreach ($build_platforms as $platform) {
         prefix: cargo-cache-${TRIPLET}
         files:
           - Cargo.lock
+          - components-rs/appsec_body/Cargo.lock
       paths:
         - "${CARGO_HOME}"
       policy: pull  # `Cache Cargo Deps` is used to update/push the cache
@@ -442,6 +445,7 @@ foreach ($build_platforms as $platform) {
         prefix: cargo-cache-${TRIPLET}
         files:
           - Cargo.lock
+          - components-rs/appsec_body/Cargo.lock
       paths:
         - "${CARGO_HOME}"
       policy: pull  # `cache cargo deps` is used to update/push the cache
@@ -1607,6 +1611,8 @@ $system_tests_weblogs = [
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i runner"
+    # Building and importing the PHP CI image exceeds the default DinD disk.
+    DOCKER_LOOPBACK_SIZE: 50G
   script:
     - ./run.sh PARAMETRIC
 
