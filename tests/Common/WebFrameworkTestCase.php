@@ -125,7 +125,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected static function getInis()
     {
-        $enableOpcache = \extension_loaded("Zend OpCache");
+        // PHP 8.5+ has OPcache built in: there is no opcache.so to load
+        $enableOpcache = PHP_VERSION_ID < 80500 && \extension_loaded("Zend OpCache");
 
         return [
             'datadog.trace.sources_path' => realpath(__DIR__ . '/../../src'),

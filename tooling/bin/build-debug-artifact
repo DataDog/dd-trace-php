@@ -7,7 +7,7 @@
 # Target format: {libc}-{arch}-{php_version}-{thread_safety}
 #   libc:          musl | gnu/glibc
 #   arch:          arm | arm64 | aarch | aarch64 | x86 | x64 | x86_64
-#   php_version:   7.0 through 8.5
+#   php_version:   7.0 through 8.6
 #   thread_safety: nts | zts
 #
 # Examples:
@@ -34,7 +34,7 @@ Usage: build-debug-artifact <target> [output-dir] [--profiler] [--appsec]
 Target format: {libc}-{arch}-{php_version}-{thread_safety}
   libc:          musl (alpine) | gnu or glibc (bookworm)
   arch:          arm | arm64 | aarch | aarch64 | x86 | x64 | x86_64
-  php_version:   7.0 | 7.1 | 7.2 | 7.3 | 7.4 | 8.0 | 8.1 | 8.2 | 8.3 | 8.4 | 8.5
+  php_version:   7.0 | 7.1 | 7.2 | 7.3 | 7.4 | 8.0 | 8.1 | 8.2 | 8.3 | 8.4 | 8.5 | 8.6
   thread_safety: nts | zts
 
 Options:
@@ -111,7 +111,8 @@ case "$php_version" in
     8.3) php_api="20230831" ;;
     8.4) php_api="20240924" ;;
     8.5) php_api="20250925" ;;
-    *)   echo "Error: unknown PHP version '$php_version'. Supported: 7.0–8.5." >&2; exit 1 ;;
+    8.6) php_api="20260924" ;;
+    *)   echo "Error: unknown PHP version '$php_version'. Supported: 7.0–8.6." >&2; exit 1 ;;
 esac
 
 # ─── Docker image selection ───────────────────────────────────────────────────

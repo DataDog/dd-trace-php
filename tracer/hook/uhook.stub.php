@@ -124,6 +124,12 @@ namespace DDTrace {
 
     /**
      * Only hooks the specific instance of the Closure, i.e. independent instantiations of the same Closure are not hooked.
+     * Since PHP 8.6, evaluations of a static closure without captured state obtained before the install are that same
+     * instance. Later evaluations are too with opcache.protect_memory=1, or when its declaration cannot be located, e.g. in
+     * a property hook, or in a closure which is neither executing during the install nor declared in a function or method
+     * of the same scope.
+     * A first-class callable of a function, like foo(...), is one Closure for the whole request, so an instance hook on it
+     * applies to all first-class callables of that function.
      *
      * @var int
      * @cvalue HOOK_INSTANCE
@@ -136,8 +142,9 @@ namespace DDTrace {
      *                                           a method in "Classname::methodname" format. Alternatively it may be a file
      *                                           name or the DDTrace\HOOK_ALL_FILES constant. Can be a relative path
      *                                           starting with ./ or ../ too.
-     *                                           If a Closure is passed, the hook only applies to the current instance
-     *                                           of that Closure.
+     *                                           If a Closure is passed, the hook applies to all Closures of the same
+     *                                           declaration (for a first-class callable, to its function), unless
+     *                                           DDTrace\HOOK_INSTANCE is passed.
      *                                           If a Generator is passed, the active function name or Closure is extracted
      *                                           and the hook applied to that.
      * @param null|\Closure(\DDTrace\HookData) $begin Called before the hooked function is invoked.

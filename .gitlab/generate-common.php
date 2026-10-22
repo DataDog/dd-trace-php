@@ -14,6 +14,7 @@ $php_versions_to_abi = [
     "8.3" => "20230831",
     "8.4" => "20240924",
     "8.5" => "20250925",
+    "8.6" => "20260924",
 ];
 
 $all_minor_major_targets = array_keys($php_versions_to_abi);
@@ -21,6 +22,10 @@ $all_minor_major_targets = array_keys($php_versions_to_abi);
 $asan_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">="); }));
 $windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); }));
 $profiler_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.1", ">="); }));
+
+// Newest GA PHP release. Jobs that need a released PHP (lint, Configuration Consistency,
+// sidecar uid verify) run on it. Bump to "8.6" at PHP 8.6 GA.
+$latest_ga_minor_major = "8.5";
 
 // In GitLab CI we use k8s and have to bind to `127.0.0.1`
 $service_bind_address = "0.0.0.0";

@@ -267,7 +267,7 @@ static zend_extension dd_zend_extension_entry = {"ddtrace",
                                                   NULL,
 #endif
 #ifdef DDTRACE
-                                                  zai_hook_unresolve_op_array,
+                                                  ddtrace_op_array_dtor,
 #else
                                                   NULL,
 #endif
@@ -612,7 +612,11 @@ static PHP_RINIT_FUNCTION(datadog) {
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
+#if PHP_VERSION_ID >= 80600
+    datadog_log_rinit(PG(error_log) ? ZSTR_VAL(PG(error_log)) : NULL);
+#else
     datadog_log_rinit(PG(error_log));
+#endif
 
     datadog_agent_info_rinit();
 
