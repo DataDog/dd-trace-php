@@ -643,7 +643,6 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
         .name = "invalid_command",
         .name_len = sizeof("invalid_command") - 1,
         .num_args = 1,
-        .client_init = false,
         .outgoing_cb = _pack_invalid_command,
         .incoming_cb = _process_invalid_response,
         .config_features_cb = dd_command_process_config_features_unexpected,
