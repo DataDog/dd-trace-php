@@ -144,7 +144,7 @@ void datadog_minit_remote_config(void) {
                                                                 &remote_config_notification));
 #else
     struct sigaction act = {0};
-    act.sa_flags = SA_SIGINFO | SA_RESTART;
+    act.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
     act.sa_sigaction = dd_sigvtalarm_handler;
     sigaction(SIGVTALRM, &act, NULL);
 #endif
