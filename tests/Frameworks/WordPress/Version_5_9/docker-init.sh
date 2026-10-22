@@ -10,5 +10,7 @@ export DD_TRACE_CLI_ENABLED=false
 ln -sfn . /var/www/public
 
 # Download WP-CLI for use by WordPress59Tests.groovy's @BeforeAll install step.
-curl -sf https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /usr/local/bin/wp
+WP_CLI_VERSION=2.12.0
+MIRROR="${GITHUB_RELEASES_MIRROR:-https://github.com}"
+curl -Lsf "${MIRROR}/wp-cli/wp-cli/releases/download/v${WP_CLI_VERSION}/wp-cli-${WP_CLI_VERSION}.phar" -o /usr/local/bin/wp
 chmod +x /usr/local/bin/wp
