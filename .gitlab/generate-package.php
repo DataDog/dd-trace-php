@@ -1607,6 +1607,8 @@ $system_tests_weblogs = [
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i runner"
+    # system-tests #8121's buildx --load stores the client image twice, overflowing the 20G default.
+    DOCKER_LOOPBACK_SIZE: 50G
   script:
     - ./run.sh PARAMETRIC
 
