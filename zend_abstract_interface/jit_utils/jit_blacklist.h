@@ -1,6 +1,7 @@
 #ifndef ZAI_JIT_BLACKLIST_H
 #define ZAI_JIT_BLACKLIST_H
 
+#include <stdbool.h>
 #include <main/php_version.h>
 #include <Zend/zend_compile.h>
 
@@ -10,6 +11,11 @@
 #define ZAI_JIT_BLACKLIST_ACTIVE PHP_VERSION_ID >= 80100
 #else
 #define ZAI_JIT_BLACKLIST_ACTIVE 0
+#endif
+
+#if PHP_VERSION_ID >= 80000
+// Whether opcache.protect_memory keeps opcache shared memory read-only
+bool zai_jit_shm_protected(void);
 #endif
 
 #if ZAI_JIT_BLACKLIST_ACTIVE

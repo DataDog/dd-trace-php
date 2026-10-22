@@ -154,9 +154,10 @@ void zai_jit_minit(void) {
 static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
     return opcode == ZEND_RECV || opcode == ZEND_RECV_INIT || opcode == ZEND_RECV_VARIADIC;
 }
+#endif
 
 // PHP_INI_SYSTEM, hence process-wide constant once startup is done.
-static bool zai_jit_shm_protected(void) {
+bool zai_jit_shm_protected(void) {
     static int protected = -1;
     if (protected < 0) {
         zend_string *name = zend_string_init(ZEND_STRL("opcache.protect_memory"), 0);
@@ -166,7 +167,6 @@ static bool zai_jit_shm_protected(void) {
     }
     return protected;
 }
-#endif
 
 #if PHP_VERSION_ID < 80100
 static inline bool check_pointer_near(void *a, void *b) {

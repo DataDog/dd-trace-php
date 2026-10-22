@@ -556,7 +556,7 @@ static void dd_uhook_dtor(void *data) {
     efree(def);
 }
 
-#if PHP_VERSION_ID >= 80600
+#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
 // Unused by php-src 8.6 (fn_flags2 bits 1-31 are free): the declaration of this closure no longer caches it
 #define DD_ACC2_UNCACHED_LAMBDA (1u << 31)
 
@@ -575,7 +575,8 @@ static zend_op_array *dd_uhook_find_lambda_decl(zend_op_array *op_array, const z
 }
 
 // PHP 8.6 caches static closures without captured state, so later evaluations would share the instance hook: disable it at
-// the declaration. With opcache, all processes share it and only store the same values. Re-verify with the php-src#23911 fix.
+// the declaration. Re-verify with the php-src#23911 fix. With opcache, workers share it: on debug and -fno-strict-aliasing builds,
+// ZEND_DECLARE_LAMBDA_FUNCTION re-reads extended_value, so a racing worker may use -1 as its cache slot and crash (php-src should read it once).
 static void dd_uhook_uncache_closure(zend_object *closure) {
     zend_op_array *op_array = &((zend_function *)zend_get_closure_method_def(closure))->op_array;
     if (op_array->type != ZEND_USER_FUNCTION || !(op_array->fn_flags & ZEND_ACC_STATIC) || (op_array->fn_flags & ZEND_ACC_FAKE_CLOSURE)
@@ -593,6 +594,11 @@ static void dd_uhook_uncache_closure(zend_object *closure) {
         }
     }
     if (!decl) {
+        // Unlike the stack, the function tables cannot gain the declaration later: search them once per declaration and scope
+        zval *miss = zend_hash_index_lookup(&DDTRACE_G(uhook_lambda_decl_misses), (zend_ulong)(uintptr_t)op_array->opcodes);
+        if (Z_TYPE_P(miss) == IS_PTR && Z_PTR_P(miss) == op_array->scope) {
+            return;
+        }
         zend_function *func;
         ZEND_HASH_REVERSE_FOREACH_PTR(op_array->scope ? &op_array->scope->function_table : EG(function_table), func) {
             if (func->type == ZEND_USER_FUNCTION) {
@@ -603,9 +609,10 @@ static void dd_uhook_uncache_closure(zend_object *closure) {
                 break; // user functions follow the internal ones
             }
         } ZEND_HASH_FOREACH_END();
-    }
-    if (!decl) {
-        return;
+        if (!decl) {
+            ZVAL_PTR(miss, op_array->scope);
+            return;
+        }
     }
 
     zend_op *opline = decl->opcodes, *end = opline + decl->last;
@@ -614,7 +621,7 @@ static void dd_uhook_uncache_closure(zend_object *closure) {
     }
     zend_op_array *src = decl->dynamic_func_defs[def];
     // Opcache shared memory (immutable op_arrays) is read-only with opcache.protect_memory
-    if (opline == end || ((src->fn_flags & ZEND_ACC_IMMUTABLE) && zend_ini_long(ZEND_STRL("opcache.protect_memory"), 0))) {
+    if (opline == end || ((src->fn_flags & ZEND_ACC_IMMUTABLE) && zai_jit_shm_protected())) {
         return;
     }
     uint32_t slot = opline->extended_value;
@@ -789,7 +796,7 @@ type_error:
                 zend_hash_index_add_new_ptr(&DDTRACE_G(uhook_closure_hooks), (zend_ulong)(uintptr_t)closure, hooks);
             }
             hooks->id[hooks->size - 1] = id;
-#if PHP_VERSION_ID >= 80600
+#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
             dd_uhook_uncache_closure(closure);
 #endif
         }
@@ -1231,14 +1238,37 @@ ZEND_METHOD(DDTrace_HookData, getSourceFile) {
     }
 }
 
+#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
+ZEND_TLS bool dd_uhook_lambda_decl_misses_live;
+#endif
+
 void zai_uhook_rinit() {
     zend_hash_init(&DDTRACE_G(uhook_active_hooks), 8, NULL, NULL, 0);
     zend_hash_init(&DDTRACE_G(uhook_closure_hooks), 8, NULL, NULL, 0);
+#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
+    zend_hash_init(&DDTRACE_G(uhook_lambda_decl_misses), 8, NULL, NULL, 0);
+    dd_uhook_lambda_decl_misses_live = true;
+#endif
 }
 
 void zai_uhook_rshutdown() {
+#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
+    dd_uhook_lambda_decl_misses_live = false;
+    zend_hash_destroy(&DDTRACE_G(uhook_lambda_decl_misses));
+#endif
     zend_hash_destroy(&DDTRACE_G(uhook_closure_hooks));
     zend_hash_destroy(&DDTRACE_G(uhook_active_hooks));
+}
+
+// Zend calls it when an op_array's opcodes are freed, also outside of requests and after GSHUTDOWN
+void ddtrace_op_array_dtor(zend_op_array *op_array) {
+    zai_hook_unresolve_op_array(op_array);
+#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
+    // A later declaration may get the same opcodes address
+    if (dd_uhook_lambda_decl_misses_live) {
+        zend_hash_index_del(&DDTRACE_G(uhook_lambda_decl_misses), (zend_ulong)(uintptr_t)op_array->opcodes);
+    }
+#endif
 }
 
 static zend_object_free_obj_t dd_uhook_closure_free_obj;
