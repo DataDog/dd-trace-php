@@ -28,7 +28,13 @@ const char *ddtrace_telemetry_redact_file(const char *file);
 void datadog_telemetry_rinit(void);
 void datadog_telemetry_rshutdown(void);
 void datadog_telemetry_finalize(void);
-void datadog_telemetry_commit_user_request_metrics(void);
+// Synchronously flushes the buffered user-request telemetry metrics to the
+// sidecar (a blocking IPC write to a process that survives this worker).
+// Exported so other extensions (appsec) can flush at points where the tracer's
+// own request-finish flush will not run, e.g. a request that dies during
+// startup. The extension builds with hidden visibility, so this must be
+// DATADOG_PUBLIC for a dlsym from appsec to resolve it.
+DATADOG_PUBLIC void datadog_telemetry_commit_user_request_metrics(void);
 void datadog_telemetry_lifecycle_end(void);
 void datadog_telemetry_register_services(ddog_SidecarTransport **sidecar);
 

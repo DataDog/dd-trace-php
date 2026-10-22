@@ -195,7 +195,7 @@ DATADOG_PUBLIC bool datadog_metric_add_point(zend_string *name, double value, ze
     return true;
 }
 
-void datadog_telemetry_commit_user_request_metrics(void) {
+DATADOG_PUBLIC void datadog_telemetry_commit_user_request_metrics(void) {
     if (!DATADOG_G(metrics_buffer)) {
         return;
     }
