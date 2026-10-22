@@ -1198,7 +1198,10 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     ddtrace_mark_all_span_stacks_flushable();
 
     ddog_TracesBytes *traces = ddog_get_traces();
-    ddtrace_serialize_closed_spans_with_cycle(traces, false);
+    if (!ddtrace_serialize_closed_spans_with_cycle(traces, false)) {
+        ddog_free_traces(traces);
+        RETURN_NULL();
+    }
 
     zval traces_zv = dd_serialize_rust_traces_to_zval(traces);
 
@@ -3068,6 +3071,9 @@ PHP_FUNCTION(DDTrace_startup_logs) {
 
     smart_str buf = {0};
     datadog_startup_logging_json(&buf, 0);
+    if (!buf.s) {
+        RETURN_EMPTY_STRING();
+    }
     ZVAL_NEW_STR(return_value, buf.s);
 }
 

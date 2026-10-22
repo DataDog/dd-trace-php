@@ -179,6 +179,15 @@ fn build_zend_php_ffis(
         .flag_if_supported("-std=gnu17");
     #[cfg(feature = "test")]
     build.define("CFG_TEST", "1");
+
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
+        && env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("gnu")
+    {
+        println!("cargo:rerun-if-changed=profiling/src/pthread_key.c");
+        build.file("profiling/src/pthread_key.c");
+        println!("cargo:rustc-link-arg=-Wl,--wrap=pthread_key_create");
+        println!("cargo:rustc-link-arg=-Wl,--wrap=pthread_key_delete");
+    }
     build.compile("php_ffi");
 }
 

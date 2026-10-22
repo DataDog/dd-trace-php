@@ -46,7 +46,6 @@
         "laminas/laminas-test": "^4.4",
         "phpunit/phpunit": "^9.5.20",
         "psalm/plugin-phpunit": "^0.16.1",
-        "roave/security-advisories": "dev-master",
         "vimeo/psalm": "^4.10"
     },
     "conflict": {

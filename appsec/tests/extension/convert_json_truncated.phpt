@@ -1,5 +1,7 @@
 --TEST--
 convert_json function - truncated JSON parsing
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 

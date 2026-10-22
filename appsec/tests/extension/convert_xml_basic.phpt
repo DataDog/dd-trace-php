@@ -1,5 +1,7 @@
 --TEST--
 _convert_xml function
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 $entity = <<<XML

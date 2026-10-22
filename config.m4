@@ -594,7 +594,7 @@ EOT
     ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
     ddtrace_rust_lib="\$(builddir)/target-common/$ddtrace_cargo_profile/libdatadog_php.a"
     if test "$PHP_DDTRACE_TRACER" != "no"; then
-      ddtrace_cargo_feature_list="tracer"
+      ddtrace_cargo_feature_list="tracer,appsec"
       if test "$PHP_DDTRACE_LIBDDWAF_SOURCE" != "no"; then
         ddtrace_cargo_feature_list="$ddtrace_cargo_feature_list,libddwaf-source-static"
       fi

@@ -36,6 +36,7 @@ function unset_dd_runner_env_vars() {
     - unset DD_ENV
     - unset DD_TAGS
     - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+    - unset DD_ENTITY_ID
 <?php
 }
 
