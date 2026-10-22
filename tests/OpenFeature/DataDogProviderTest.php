@@ -251,7 +251,7 @@ final class OpenFeatureTestEvaluator implements Evaluator
         return $this;
     }
 
-    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = [])
+    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = [], $targetingKeyInvalid = false)
     {
         $this->calls[] = [
             'flagKey' => $flagKey,

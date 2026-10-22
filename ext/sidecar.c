@@ -126,7 +126,7 @@ static void dd_sidecar_arm_signal_transport(ddog_SidecarTransport *owner, ddog_S
         ddog_SignalFlush *flush = NULL;
         if (!datadog_ffi_try("Failed preparing sidecar signal flush",
                              ddog_sidecar_prepare_signal_flush(
-                                 connection, (ddog_SidecarFlushOptions){.traces_and_stats = true}, &flush))) {
+                                 connection, (ddog_SidecarFlushOptions){.traces_and_stats = true, .flag_evaluations = true}, &flush))) {
             // Clears the stale flush while still the owner, then lets a later RINIT retry.
             datadog_signals_set_sidecar_flush(NULL, true);
             atomic_store(&dd_sidecar_signal_owner, 0);
@@ -185,6 +185,20 @@ static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
         LOG(WARN, "AppSec sidecar backend is unavailable");
     }
 }
+
+#ifdef DDTRACE
+static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport) {
+    // Both FFE writers share this target. Replace it when the test token changes
+    // so new observations use the new session and queued ones keep the old one.
+    const ddog_EvpProducerIdentity ffe_producer = {
+        .origin = DDOG_CHARSLICE_C("dd-trace-php"),
+        .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
+    };
+    datadog_ffi_try("Failed configuring PHP FFE EVP transport",
+        ddog_sidecar_session_set_evp_transport(transport, DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
+            datadog_endpoint, NULL, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+}
+#endif
 
 // Sends the identity and configuration. Needed once per transport: the transport replays them after reconnects.
 static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
@@ -250,6 +264,13 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
     if (otlp_metrics_endpoint) {
         ddog_endpoint_drop(otlp_metrics_endpoint);
     }
+
+#ifdef DDTRACE
+    // Configure during ordinary connection setup, including fork recovery.
+    // The transport replays its configuration after reconnects.
+    // Remote Config keeps the fixed Agent EVP v2 route.
+    dd_sidecar_configure_ffe_transport(transport);
+#endif
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         datadog_telemetry_register_services(transport);
@@ -1029,6 +1050,11 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
     if (DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed updating test session token",
                         ddog_sidecar_set_test_session_token(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
+#ifdef DDTRACE
+        if (token_changed) {
+            dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar));
+        }
+#endif
     }
 #if !defined(_WIN32) && defined(DDTRACE)
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));

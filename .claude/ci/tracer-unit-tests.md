@@ -1,5 +1,17 @@
 # Tracer Unit Tests and Native Extension Tests
 
+## Choosing a test suite
+
+- `tests/ext/` tests the extension's exposed API directly. Do not load `src/`
+  classes from these tests: packaged extension tests may run without the
+  repository's PHP sources or Composer dependencies.
+- Tests of `src/api/` belong in the API PHPUnit suite (`tests/api/Unit/`).
+  OpenFeature integration tests belong in `tests/OpenFeature/`.
+  Using native extension functions does not make a PHP-class test an
+  extension-only test. PHPUnit can run `.phpt` files as well as test classes.
+- When moving tests, check suite discovery and the CI PHP-version matrix.
+  Keep native-client coverage on PHP 7; OpenFeature's suite requires PHP 8+.
+
 ## CI Jobs
 
 **Source:**
