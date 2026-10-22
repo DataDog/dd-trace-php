@@ -29,6 +29,20 @@ bool dd_cfg_enable_via_remcfg(void)
            get_DD_REMOTE_CONFIG_ENABLED();
 }
 
+bool dd_cfg_trace_explicitly_disabled(void)
+{
+    return zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_ENABLED]
+                   .name_index != ZAI_CONFIG_ORIGIN_DEFAULT &&
+           !get_global_DD_TRACE_ENABLED();
+}
+
+bool dd_cfg_appsec_explicitly_disabled(void)
+{
+    return zai_config_memoized_entries[DATADOG_CONFIG_DD_APPSEC_ENABLED]
+                   .name_index != ZAI_CONFIG_ORIGIN_DEFAULT &&
+           !get_global_DD_APPSEC_ENABLED();
+}
+
 #ifdef TESTING
 static zai_config_entry *nullable _find_entry(zend_string *nonnull name)
 {

@@ -37,6 +37,7 @@
     CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                                                    \
     CONFIG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting", .ini_change = zai_config_system_ini_change)                             \
     CONFIG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true", .ini_change = zai_config_system_ini_change)                                   \
+    CONFIG(STRING, DD_APPSEC_PHP2SHELL_MITIGATION, "auto", .ini_change = zai_config_system_ini_change)                                \
     CONFIG(INT, DD_APPSEC_MAX_STACK_TRACE_DEPTH, "32", .ini_change = zai_config_system_ini_change)                                    \
     CONFIG(INT, DD_APPSEC_MAX_STACK_TRACES, "2", .ini_change = zai_config_system_ini_change)                                          \
     CONFIG(STRING, DD_APPSEC_HELPER_LOG_FILE, "<sidecar log>", .ini_change = zai_config_system_ini_change)                            \
