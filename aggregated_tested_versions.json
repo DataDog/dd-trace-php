@@ -103,6 +103,9 @@
     "6.5.8",
     "7.10.0"
   ],
+  "laminas-api-tools/api-tools": [
+    "1.7.0"
+  ],
   "laminas/laminas-log": [
     "2.16.1",
     "2.17.1",
