@@ -14,6 +14,10 @@
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
+#if defined(__linux__) && defined(__GLIBC__)
+void ddog_profiler_pthread_keys_startup(void);
+#endif
+
 #ifdef __linux__
 // Standard OTel context providers export this TLS symbol globally. Cache its
 // address per thread because dynamic TLS addresses differ between threads.
@@ -164,6 +168,9 @@ static bool _ignore_run_time_cache = false;
 #endif
 
 void datadog_php_profiling_startup(zend_extension *extension) {
+#if defined(__linux__) && defined(__GLIBC__)
+    ddog_profiler_pthread_keys_startup();
+#endif
 #if CFG_RUN_TIME_CACHE  // defined by build.rs
 #ifdef CFG_TEST
     _ignore_run_time_cache = false;
