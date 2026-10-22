@@ -228,8 +228,10 @@ void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span) {
             } else {
                 zval *rule = ZEND_HASH_ELEMENT(get_DD_TRACE_SAMPLING_RULES(), result.rule);
                 zai_json_encode(&buf, rule, 0);
-                smart_str_0(&buf);
-                rule_str = ZSTR_VAL(buf.s);
+                if (buf.s) {
+                    smart_str_0(&buf);
+                    rule_str = ZSTR_VAL(buf.s);
+                }
             }
             log("Evaluated sampling rules for span %" PRIu64 " on trace %s. Matched rule %s.", span->span_id, Z_STRVAL(span->root->property_trace_id), rule_str);
             smart_str_free(&buf);
