@@ -103,8 +103,6 @@ static zai_config_entry config_entries[] = {DD_CONFIGURATION};
 #undef CALIAS
 #undef CONFIG
 
-bool runtime_config_first_init = false;
-
 static bool _parse_uint(
     zai_str value, zval *nonnull decoded_value, long long max)
 {
@@ -199,8 +197,6 @@ void dd_config_first_rinit(void)
 {
     zai_config_first_time_rinit(true);
     zai_config_rinit();
-
-    runtime_config_first_init = true;
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_zai_config_get_value)

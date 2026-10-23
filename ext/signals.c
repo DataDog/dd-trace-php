@@ -456,7 +456,8 @@ void datadog_signals_minit(void) {
 #if __linux
     atomic_store(&dd_signal_owner_pid, getpid());
     dd_sigint_sigterm_sigaction.sa_sigaction = dd_sigint_sigterm_handler;
-    dd_sigint_sigterm_sigaction.sa_flags = SA_SIGINFO;
+    // Chained handlers, including Go's in FrankenPHP, may require the alternate signal stack.
+    dd_sigint_sigterm_sigaction.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sigemptyset(&dd_sigint_sigterm_sigaction.sa_mask);
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM()) {
         sigaction(SIGTERM, &dd_sigint_sigterm_sigaction, &dd_sigterm_prev_sigaction);

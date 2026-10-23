@@ -1,6 +1,7 @@
 --TEST--
 request_shutdown — server.response.body.raw sent alongside parsed server.response.body for JSON
 --INI--
+extension=ddtrace.so
 expose_php=0
 datadog.appsec.enabled=1
 datadog.appsec.raw_response_body_enabled=1
