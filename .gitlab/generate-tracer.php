@@ -223,7 +223,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
   before_script:
 <?php unset_dd_runner_env_vars() ?>
     - unset DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
-    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php
+    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php llvm
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
     - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
     - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
@@ -249,7 +249,8 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - make -j"$(sysctl -n hw.ncpu)"
     - make install
     - cd "${CI_PROJECT_DIR}"
-    - rustup update stable && rustup default stable
+    # Use the pinned toolchain, including rust-src, and install the test tools.
+    - rustup component add rustfmt clippy
     - |
       # There's no Docker service network on the macOS Tart runner (unlike the Linux/Windows
       # jobs' "request-replayer" service container), so run request-replayer as a native
@@ -278,6 +279,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
     - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     - php --version
+    - sh appsec/tests/run-body-parser-rust-tests.sh
     - make -j"$(sysctl -n hw.ncpu)"
     - timeout 20m make test_c
     # GitLab's "step_script" (before_script + script) itself doesn't return while

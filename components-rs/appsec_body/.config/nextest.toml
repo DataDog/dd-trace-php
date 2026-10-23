@@ -1,0 +1,4 @@
+# A cold release build of the parser and its dependencies can pass the default 60s slow mark.
+[[profile.default.overrides]]
+filter = 'test(host_panic_)'
+slow-timeout = "2m"

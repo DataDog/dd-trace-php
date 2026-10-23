@@ -76,13 +76,14 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
 #endif
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response);
 
-// Request body parsers; see ddog_appsec_parse_json/xml. The tape must be
-// released with dd_trace_drop_body_tape.
-ddog_AppsecBodyTape dd_trace_parse_json_body(
-    const char *nonnull data, size_t len, int max_depth);
-ddog_AppsecBodyTape dd_trace_parse_xml_body(
-    const char *nonnull data, size_t len, int max_depth);
-void dd_trace_drop_body_tape(ddog_AppsecBodyTape tape);
+// Request body parsers; the returned MessagePack buffer must be released.
+ddog_AppsecBodyMessagePack dd_trace_parse_json_body(
+    const char *nonnull data, size_t len, int max_depth,
+    ddog_AppsecBodyAllocator allocator);
+ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(
+    const char *nonnull data, size_t len, int max_depth,
+    ddog_AppsecBodyAllocator allocator);
+void dd_trace_drop_body_msgpack(ddog_AppsecBodyMessagePack body);
 
 // Set sampling priority on root span
 void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,

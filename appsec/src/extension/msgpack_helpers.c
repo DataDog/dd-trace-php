@@ -18,13 +18,26 @@
 #    error "MPACK_HAS_CONFIG is not defined"
 #endif
 
-static const size_t MAX_DEPTH_READING = 32;
 enum { MAX_RECURSION_DEPTH = 50 }; // arbitrary limit to prevent stack overflow
 
 static THREAD_LOCAL_ON_ZTS bool data_truncated_ = false;
 
 static void _mpack_write_zval(
     mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth);
+
+#ifdef TESTING
+static const size_t MAX_DEPTH_READING = 32;
+static const size_t MAX_BODY_DEPTH_READING = 128;
+static bool parse_messagepack(const char *nonnull data, size_t length,
+    bool php_array_semantics, size_t max_depth, zval *nonnull output);
+
+bool dd_mpack_to_zval(
+    const char *nonnull data, size_t length, zval *nonnull output)
+{
+    return parse_messagepack(
+        data, length, true, MAX_BODY_DEPTH_READING, output);
+}
+#endif
 
 void dd_mpack_write_nullable_cstr(
     mpack_writer_t *nonnull w, const char *nullable cstr)
@@ -530,11 +543,12 @@ static void _buffer_writer_teardown(mpack_writer_t *w)
     w->context = NULL;
 }
 
+#ifdef TESTING
 // NOLINTNEXTLINE(misc-no-recursion)
-static bool parse_element(
-    mpack_reader_t *nonnull reader, size_t depth, zval *nonnull output)
+static bool parse_element(mpack_reader_t *nonnull reader, size_t depth,
+    size_t max_depth, bool php_array_semantics, zval *nonnull output)
 {
-    if (depth >= MAX_DEPTH_READING) { // critical check!
+    if (depth >= max_depth) { // critical check!
         mpack_reader_flag_error(reader, mpack_error_too_big);
         mlog(dd_log_error, "decode_msgpack error: msgpack object too big");
         return false;
@@ -559,10 +573,19 @@ static bool parse_element(
         ZVAL_LONG(output, (long)mpack_tag_uint_value(&tag));
         break;
     }
+    case mpack_type_float:
+        ZVAL_DOUBLE(output, mpack_tag_float_value(&tag));
+        break;
+    case mpack_type_double:
+        ZVAL_DOUBLE(output, mpack_tag_double_value(&tag));
+        break;
 
     case mpack_type_str: {
         uint32_t length = mpack_tag_str_length(&tag);
         const char *data = mpack_read_bytes_inplace(reader, length);
+        if (mpack_reader_error(reader) != mpack_ok) {
+            return false;
+        }
         ZVAL_STRINGL(output, data, length);
         mpack_done_str(reader);
         break;
@@ -572,9 +595,11 @@ static bool parse_element(
         array_init(output);
         while (count-- > 0) {
             zval new;
-            parse_element(reader, depth + 1, &new);
-            if (mpack_reader_error(reader) != mpack_ok) { // critical check!
-                //                zval_dtor(&new);
+            ZVAL_UNDEF(&new);
+            if (!parse_element(
+                    reader, depth + 1, max_depth, php_array_semantics, &new) ||
+                mpack_reader_error(reader) != mpack_ok) {
+                zval_ptr_dtor(&new);
                 mlog(
                     dd_log_error, "decode_msgpack error: error decoding array");
                 return false;
@@ -590,16 +615,27 @@ static bool parse_element(
         while (count-- > 0) {
             zval key;
             zval value;
-            if (!parse_element(reader, depth + 1, &key) ||
+            ZVAL_UNDEF(&key);
+            ZVAL_UNDEF(&value);
+            if (!parse_element(
+                    reader, depth + 1, max_depth, php_array_semantics, &key) ||
                 Z_TYPE(key) != IS_STRING ||
-                !parse_element(reader, depth + 1, &value) ||
-                mpack_reader_error(reader) != mpack_ok) { // critical check!
+                !parse_element(reader, depth + 1, max_depth,
+                    php_array_semantics, &value) ||
+                mpack_reader_error(reader) != mpack_ok) {
+                zval_ptr_dtor(&key);
+                zval_ptr_dtor(&value);
                 mlog(dd_log_error, "decode_msgpack error: error decoding map");
                 return false;
             }
             // Ignore clang because key is a string here
-            // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
-            zend_hash_add_new(Z_ARRVAL_P(output), Z_STR(key), &value);
+            if (php_array_semantics) {
+                // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
+                zend_symtable_update(Z_ARRVAL_P(output), Z_STR(key), &value);
+            } else {
+                // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
+                zend_hash_add_new(Z_ARRVAL_P(output), Z_STR(key), &value);
+            }
             zval_dtor(&key);
         }
         mpack_done_map(reader);
@@ -608,19 +644,31 @@ static bool parse_element(
     default:
         mlog(dd_log_error, "decode_msgpack error: type %s not implemented.\n",
             mpack_type_to_string(mpack_tag_type(&tag)));
+        mpack_reader_flag_error(reader, mpack_error_data);
         return false;
     }
 
     return true;
 }
 
-static bool parse_messagepack(
-    const char *nonnull data, size_t length, zval *nonnull output)
+static bool parse_messagepack(const char *nonnull data, size_t length,
+    bool php_array_semantics, size_t max_depth, zval *nonnull output)
 {
     mpack_reader_t reader;
     mpack_reader_init_data(&reader, data, length);
-    parse_element(&reader, 0, output);
-    return mpack_ok == mpack_reader_destroy(&reader);
+    ZVAL_UNDEF(output);
+    bool parsed =
+        parse_element(&reader, 0, max_depth, php_array_semantics, output);
+    if (!parsed) {
+        mpack_reader_flag_error(&reader, mpack_error_data);
+    }
+    bool valid = mpack_ok == mpack_reader_destroy(&reader);
+    if (!parsed || !valid) {
+        zval_ptr_dtor(output);
+        ZVAL_NULL(output);
+        return false;
+    }
+    return true;
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
@@ -630,7 +678,8 @@ static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
         RETURN_FALSE;
     }
 
-    parse_messagepack(ZSTR_VAL(encoded), ZSTR_LEN(encoded), return_value);
+    parse_messagepack(ZSTR_VAL(encoded), ZSTR_LEN(encoded), false,
+        MAX_DEPTH_READING, return_value);
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
@@ -653,8 +702,14 @@ static void _register_testing_objects(void)
 
     dd_phpobj_reg_funcs(testing_functions);
 }
+#endif
 
-void dd_msgpack_helpers_startup(void) { _register_testing_objects(); }
+void dd_msgpack_helpers_startup(void)
+{
+#ifdef TESTING
+    _register_testing_objects();
+#endif
+}
 
 void dd_msgpack_helpers_rinit(void) { data_truncated_ = false; }
 

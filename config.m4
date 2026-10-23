@@ -476,6 +476,11 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
         dnl A fat Linux ddtrace.so is also the sidecar executable. When ld.so
         dnl executes it directly, it jumps to this ELF entry point.
         ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-e,ddog_spawn_direct_entry"
+        dnl AppSec looks up these exports with dlsym. Pull their archive
+        dnl members into the monolithic library even without C references.
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_parse_json"
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_parse_xml"
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_body_msgpack_drop"
       ;;
     esac
 
