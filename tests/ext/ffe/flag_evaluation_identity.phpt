@@ -1,5 +1,5 @@
 --TEST--
-FFE evaluations remain deliverable without application identity pending sidecar attribution
+FFE evaluations retain resolved application identity across changes before flush
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
@@ -45,11 +45,20 @@ try {
             }
             if (strpos($request, '/flagevaluation ') !== false) {
                 $payload = json_decode($body, true);
-                // FFL-3438/FFL-3439 will replace these temporary expectations
-                // with identity supplied by the sidecar before aggregation.
+                $context = $payload['context'];
+                $key = implode('|', array(
+                    isset($context['service']) ? $context['service'] : '',
+                    isset($context['env']) ? $context['env'] : '',
+                    isset($context['version']) ? $context['version'] : '',
+                ));
                 foreach ($payload['flagEvaluations'] as $row) {
-                    $contexts[$row['flag']['key']] = $payload['context'] === array()
-                        && !isset($row['context']['dd']) && $row['evaluation_count'] === 1;
+                    if (isset($contexts[$key])) throw new RuntimeException('duplicate application row');
+                    $contexts[$key] = $row['flag']['key'] === 'same-flag'
+                        && isset($row['context']['dd'])
+                        && $row['context']['dd'] === array('service' => $context['service'])
+                        && $row['evaluation_count'] === 1
+                        && $row['first_evaluation'] === 1700000000123
+                        && $row['last_evaluation'] === 1700000000123;
                 }
             }
             fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
@@ -59,9 +68,16 @@ try {
         if (!$status['running']) { $exitCode = $status['exitcode']; break; }
     }
     if ($exitCode !== 0) throw new RuntimeException('child failed: ' . ffeTestProcessRead($pipes[2]));
-    foreach (array('default', 'configured') as $flag) {
-        echo $flag, '='; var_dump($contexts[$flag]);
+    foreach (array(
+        'flag_evaluation_identity_app.php|none|',
+        'app-a|test|v1',
+        'app-b|test|v1',
+        'app-b|production|v1',
+        'app-b|production|v2',
+    ) as $key) {
+        echo $key, '='; var_dump(isset($contexts[$key]) && $contexts[$key]);
     }
+    echo 'application_groups='; var_dump(count($contexts));
 } finally {
     if ($exitCode === null) proc_terminate($process);
     foreach ($pipes as $pipe) fclose($pipe);
@@ -70,5 +86,9 @@ try {
 }
 ?>
 --EXPECT--
-default=bool(true)
-configured=bool(true)
+flag_evaluation_identity_app.php|none|=bool(true)
+app-a|test|v1=bool(true)
+app-b|test|v1=bool(true)
+app-b|production|v1=bool(true)
+app-b|production|v2=bool(true)
+application_groups=int(5)
