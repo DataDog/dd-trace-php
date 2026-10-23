@@ -1659,7 +1659,7 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   extends: .system_tests
   tags: [ "docker-in-docker:amd64-cws" ]
   variables:
-    BUILD_SH_ARGS: -w <?= $weblog ?> php
+    BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
   script:
     - ./run.sh THREAD_CONTEXT_SHARING
 
