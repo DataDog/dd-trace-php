@@ -1701,7 +1701,7 @@ merge_coverage_reports:
 API_TESTS_ROOT := ./tests/api
 
 test_api_unit: composer.lock global_test_run_dependencies
-	$(ENV_OVERRIDE) php $(TRACER_SOURCES_INI) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
+	$(ENV_OVERRIDE) php $(TRACER_SOURCES_INI) vendor/bin/phpunit --config=phpunit.xml --test-suffix=Test.php,.phpt $(API_TESTS_ROOT)/Unit $(TESTS)
 
 # Just test it does not crash, i.e. the exit code
 test_internal_api_randomized: $(SO_FILE)

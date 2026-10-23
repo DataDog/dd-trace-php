@@ -110,6 +110,8 @@ extern TSRM_TLS HashTable zai_hook_resolved;
 #if PHP_VERSION_ID >= 80000
 extern void (*zai_hook_on_update)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
 extern void (*zai_hook_on_function_resolve)(zend_function *func);
+// Called from zai_hook_post_startup() for each preloaded user function, which zai_hook_on_function_resolve() never sees
+extern void (*zai_hook_on_preloaded_function)(zend_function *func);
 #endif
 
 zend_function *zai_hook_find_containing_function(zend_function *func);

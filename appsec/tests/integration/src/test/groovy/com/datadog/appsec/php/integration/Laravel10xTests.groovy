@@ -1,0 +1,44 @@
+package com.datadog.appsec.php.integration
+
+import com.datadog.appsec.php.docker.AppSecContainer
+import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
+import com.datadog.appsec.php.docker.InspectContainerHelper
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.TestMethodOrder
+import org.junit.jupiter.api.condition.EnabledIf
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
+
+import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
+import static com.datadog.appsec.php.integration.TestParams.getVariant
+
+/**
+ * Covers Laravel 10.x — same event-based auth hooks as 8.x/9.x, exercised
+ * against the Laravel 10 bundle. Pinned to PHP 8.2-release.
+ */
+@Testcontainers
+@EnabledIf('isExpectedVersion')
+@TestMethodOrder(MethodOrderer.OrderAnnotation)
+class Laravel10xTests extends AbstractLaravelAppsecTests {
+    static boolean expectedVersion = phpVersion.contains('8.2') && variant == 'release'
+
+    @Container
+    @FailOnUnmatchedTraces
+    public static final AppSecContainer CONTAINER =
+            new AppSecContainer(
+                    workVolume: this.name,
+                    baseTag: 'apache2-mod-php',
+                    phpVersion: phpVersion,
+                    phpVariant: variant,
+                    www: '../../../tests/Frameworks/Laravel/Version_10_x',
+            )
+
+    static void main(String[] args) {
+        InspectContainerHelper.run(CONTAINER)
+    }
+
+    // The 10.x scaffolded LoginTestController ends with `redirect('/simple')`
+    // (vs. 8.x which returns `response('User created', 200)`).
+    @Override
+    int getExpectedSignupStatus() { 302 }
+}
