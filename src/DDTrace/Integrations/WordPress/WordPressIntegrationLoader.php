@@ -736,7 +736,7 @@ class WordPressIntegrationLoader
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
                         && dd_trace_env_config("DD_API_SECURITY_ENABLED")
                         && \property_exists($This, 'request') && is_string($This->request)
-                        && !self::requestHasPathInfo()) {
+                        && !self::requestHasPathInfo($This->request)) {
                         // Not cached: the rule alone does not determine the
                         // route (optional captures participate per request),
                         // and finding out which did is the whole computation.
@@ -756,21 +756,47 @@ class WordPressIntegrationLoader
     }
 
     /**
-     * Whether WordPress may have taken WP::$request from PATH_INFO
-     * (e.g. /index.php/foo). WP::parse_request then matches rules against
-     * WP::$request only until a rule starts with the requested file; from
-     * there on, for every later rule, it matches "index.php/foo" instead, and
-     * that subject is not kept. The URL path also carries the script name,
-     * which WP::$request lacks. Neither can be reproduced, so the normalized
-     * route is omitted. Without a non-empty PATH_INFO, the requested file and
-     * WP::$request are the same and the subject is WP::$request.
+     * Whether WordPress may have matched rules against a subject other than
+     * WP::$request. WP::parse_request matches against WP::$request only until
+     * a rule starts with the requested file; from there on, for every later
+     * rule, it matches "$requested_file/$requested_path" instead, and that
+     * subject is not kept. It cannot be reproduced, so the route is omitted.
+     *
+     * That swap is guarded by "! empty( $requested_file ) && $requested_file
+     * != $requested_path", so a non-empty PATH_INFO is not by itself the
+     * divergence. Sites whose server rewrites every request to index.php/$1
+     * have the whole request URI consumed by the path info, which leaves an
+     * empty requested file: no swap can happen and the replay on WP::$request
+     * is exact. Omitting those too would lose the tag on every request of a
+     * whole class of deployments, so they are recovered here.
+     *
+     * Only WP's own derivation of $requested_file is mirrored, and only to
+     * prove it empty; anything that cannot be proven stays omitted. WP strips
+     * the home path from $req_uri after this point, which can only shrink it
+     * further, so a value proven empty here is empty for WP as well.
      */
-    private static function requestHasPathInfo(): bool
+    private static function requestHasPathInfo(string $request): bool
     {
         if (!isset($_SERVER['PATH_INFO']) || !is_string($_SERVER['PATH_INFO'])) {
             return false;
         }
         list($pathInfo) = explode('?', $_SERVER['PATH_INFO']);
-        return trim($pathInfo, '/') !== '';
+        if (trim($pathInfo, '/') === '') {
+            return false;
+        }
+
+        if (!isset($_SERVER['REQUEST_URI']) || !is_string($_SERVER['REQUEST_URI'])) {
+            return true;
+        }
+        list($reqUri) = explode('?', $_SERVER['REQUEST_URI']);
+        // class-wp.php: $pathinfo = str_replace('%', '%25', $pathinfo);
+        //               $req_uri  = trim(str_replace($pathinfo, '', $req_uri), '/');
+        $requestedFile = trim(str_replace(str_replace('%', '%25', $pathInfo), '', $reqUri), '/');
+
+        // $requested_path and $requested_file are the same variable unless WP
+        // took the permalink from the path info, so an empty requested file
+        // next to a non-empty request proves that branch was taken, and with
+        // it that nothing was prepended to the subject.
+        return !($requestedFile === '' && $request !== '');
     }
 }
