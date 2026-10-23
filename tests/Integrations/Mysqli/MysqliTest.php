@@ -36,6 +36,7 @@ class MysqliTest extends IntegrationTestCase
             'DD_SERVICE',
             'DD_SERVICE_MAPPING',
             'DD_DBM_PROPAGATION_MODE',
+            'DD_DBM_TRACE_PREPARED_STATEMENTS',
         ];
     }
 
@@ -641,6 +642,56 @@ class MysqliTest extends IntegrationTestCase
         );
     }
 
+
+    public function testPreparedStatementUsesFullModeForDBMWhenTracingPreparedStatements()
+    {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full', 'DD_DBM_TRACE_PREPARED_STATEMENTS=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $stmt = $mysqli->prepare($query);
+            $id = 1;
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $this->assertNotEmpty($result->fetch_all());
+            $mysqli->close();
+
+            close_span();
+        });
+
+        $prepareSpan = null;
+        $executeSpan = null;
+        foreach ($traces[0] as $span) {
+            if ($span['name'] === 'mysqli.prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'mysqli_stmt.execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($prepareSpan, 'mysqli.prepare span should exist');
+        $this->assertNotNull($executeSpan, 'mysqli_stmt.execute span should exist');
+
+        // Unchanged by the option: execute stays a sibling of prepare, and both resources stay clean
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'mysqli_stmt.execute should be a sibling of mysqli.prepare'
+        );
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
+
+        // Verify that FULL mode is used for the prepare span: its own context is what the comment carries
+        $this->assertSame(
+            'true',
+            $prepareSpan['meta']['_dd.dbm_trace_injected'] ?? null,
+            'mysqli.prepare should use FULL mode'
+        );
+    }
     public function testConstructorConnectError()
     {
         $traces = $this->isolateTracer(function () {

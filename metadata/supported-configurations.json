@@ -299,6 +299,13 @@
         "default": "disabled"
       }
     ],
+    "DD_DBM_TRACE_PREPARED_STATEMENTS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_DISTRIBUTED_TRACING": [
       {
         "implementation": "A",
