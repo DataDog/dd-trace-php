@@ -204,13 +204,18 @@ finished:
     # system-tests change before it is merged.
     - |
       git init -q /tmp/system-tests
-      git -C /tmp/system-tests fetch -q --depth 1 --filter=blob:none https://github.com/DataDog/system-tests.git "${SYSTEM_TESTS_REF:-main}"
+      if ! err=$(git -C /tmp/system-tests fetch -q --depth 1 --filter=blob:none -- https://github.com/DataDog/system-tests.git "${SYSTEM_TESTS_REF:-main}" 2>&1); then
+        echo "$err" >&2
+        # An unknown ref or SHA exits 1, which is not retried; other fetch failures exit 128, which is.
+        case $err in *"couldn't find remote ref"*|*"not our ref"*) exit 1;; esac
+        exit 128
+      fi
       SYSTEM_TESTS_SHA=$(git -C /tmp/system-tests rev-parse 'FETCH_HEAD^{commit}')
       if ! printf '%s\n' "$SYSTEM_TESTS_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
         echo "Failed to resolve a valid system-tests commit: $SYSTEM_TESTS_SHA"
         exit 1
       fi
-      printf 'SYSTEM_TESTS_SHA=%s\n' "$SYSTEM_TESTS_SHA" > system-tests.env
+      printf 'SYSTEM_TESTS_SHA=%s\n' "$SYSTEM_TESTS_SHA" | tee system-tests.env
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
