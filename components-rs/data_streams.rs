@@ -29,7 +29,7 @@ use base64::alphabet;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use base64::Engine;
 use datadog_sidecar::service::blocking::{add_dsm_stats_point, SidecarTransport};
-use datadog_sidecar::service::data_streams_flusher::{dsm_table_shm_path, DsmTableKey, ShmProduct};
+use datadog_sidecar::service::data_streams_flusher::{dsm_table_shm_path, DsmTableKey};
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use libdd_ipc::shm_dsm::{DsmStatsPointInput, OwnedDsmStatsPoint, ShmDsmTable, MAX_EDGE_TAGS};
 use std::cell::RefCell;
@@ -307,7 +307,6 @@ fn record(
         payload_size_bytes: point.payload_size_bytes,
     };
     let key = DsmTableKey {
-        product: ShmProduct::DataStreams,
         env: env.to_owned(),
         version: version.to_owned(),
         service: service.to_owned(),
