@@ -124,17 +124,33 @@ class EndpointCatalogTest extends BaseTestCase
         // revalidation window, may still be served in its previous version by
         // require. Caching it under the new modification time would pin that
         // version for the life of the process.
+        //
+        // The window is measured from the request start time, which is the
+        // clock opcache compares against, so the modification times below are
+        // anchored to it rather than to time(). Anchoring to time() would make
+        // the second assertion depend on how long the suite has been running.
+        $requestStart = isset($_SERVER['REQUEST_TIME']) && is_numeric($_SERVER['REQUEST_TIME'])
+            ? (int) $_SERVER['REQUEST_TIME']
+            : time();
+
         $cacheDir = $this->makeCacheDir();
         $genFile = $cacheDir . DIRECTORY_SEPARATOR . 'url_generating_routes.php';
         file_put_contents($genFile, '<?php return [];');
 
-        touch($genFile, time());
+        touch($genFile, $requestStart);
         clearstatcache();
         $this->assertNull(EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en'));
 
-        touch($genFile, time() - 60);
+        touch($genFile, $requestStart - 60);
         clearstatcache();
         $this->assertNotNull(EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en'));
+
+        // A generator whose modification time is after the request started can
+        // never be cached, however long the request runs.
+        touch($genFile, $requestStart + 5);
+        clearstatcache();
+        $this->assertNull(EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en'));
+
         $this->removeCacheDir($cacheDir);
     }
 
