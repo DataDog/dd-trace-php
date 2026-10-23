@@ -42,6 +42,7 @@ pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyTape {
         root_seen: false,
         standalone: false,
         text: Vec::new(),
+        preserve_text_whitespace: false,
         dtd: Dtd::default(),
         active_entities: HashSet::new(),
         expansion_budget: input.len().saturating_mul(4).max(MIN_EXPANSION_BUDGET),
@@ -62,6 +63,7 @@ struct XmlParser {
     root_seen: bool,
     standalone: bool,
     text: Vec<u8>,
+    preserve_text_whitespace: bool,
     dtd: Dtd,
     active_entities: HashSet<Vec<u8>>,
     expansion_budget: usize,
@@ -230,11 +232,12 @@ impl XmlParser {
     }
 
     fn text(&mut self, mut raw: &[u8]) {
-        if !self.recording() || (self.active_entities.is_empty() && is_whitespace(raw)) {
+        if !self.recording() {
             return;
         }
+        let preserve_whitespace = !self.active_entities.is_empty() || raw.contains(&b'&');
         while let Some(amp) = raw.iter().position(|&b| b == b'&') {
-            self.text.extend_from_slice(&raw[..amp]);
+            self.append_text(&raw[..amp], preserve_whitespace);
             raw = &raw[amp..];
             let Some((name, after)) = reference(raw) else {
                 self.text.push(b'&');
@@ -254,7 +257,7 @@ impl XmlParser {
             }
             raw = after;
         }
-        self.text.extend_from_slice(raw);
+        self.append_text(raw, preserve_whitespace);
     }
 
     fn attribute_text(&mut self, mut raw: &[u8], out: &mut Vec<u8>) {
@@ -303,15 +306,24 @@ impl XmlParser {
     fn raw_text(&mut self, raw: &[u8]) {
         // CDATA is explicit character data, including whitespace-only data.
         if self.recording() {
-            self.text.extend_from_slice(raw);
+            self.append_text(raw, true);
         }
     }
 
+    fn append_text(&mut self, raw: &[u8], preserve_whitespace: bool) {
+        self.text.extend_from_slice(raw);
+        self.preserve_text_whitespace |= preserve_whitespace;
+    }
+
     fn flush_text(&mut self) {
-        if !self.text.is_empty() {
+        // Comments and PIs split reader events but not character data. Omit
+        // formatting-only whitespace only after collecting the whole run;
+        // CDATA and entity/character references explicitly preserve it.
+        if !self.text.is_empty() && (self.preserve_text_whitespace || !is_whitespace(&self.text)) {
             self.tape.str(&self.text);
-            self.text.clear();
         }
+        self.text.clear();
+        self.preserve_text_whitespace = false;
     }
 
     fn truncated_start(&mut self, tail: &[u8]) {
