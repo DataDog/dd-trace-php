@@ -278,7 +278,8 @@ impl XmlParser {
     }
 
     fn raw_text(&mut self, raw: &[u8]) {
-        if self.recording() && !is_whitespace(raw) {
+        // CDATA is explicit character data, including whitespace-only data.
+        if self.recording() {
             self.text.extend_from_slice(raw);
         }
     }
