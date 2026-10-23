@@ -1,5 +1,5 @@
 ARG DOCKER_REGISTRY
-FROM ${DOCKER_REGISTRY}/dunglas/frankenphp:1.4-php8.4
+FROM ${DOCKER_REGISTRY}/dunglas/frankenphp:1.13-php8.4
 
 ENV PHP_VERSION=8.4
 ENV VARIANT=zts
