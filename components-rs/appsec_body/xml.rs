@@ -86,6 +86,11 @@ impl XmlParser {
                 Ok(Event::CData(e)) => self.raw_text(&e),
                 Ok(Event::DocType(e)) if document => self.dtd.parse(&e, &mut self.expansion_budget),
                 Ok(Event::Decl(e)) if document => {
+                    // VersionInfo is required before the optional fields
+                    // (XML 1.0 section 2.8); the reader does not check it.
+                    if e.version().is_err() {
+                        return false;
+                    }
                     if let Some(encoding) = e.encoding() {
                         match encoding {
                             Ok(name) if name.eq_ignore_ascii_case(b"UTF-8") => {}
@@ -514,6 +519,20 @@ mod tests {
         assert!(out.contains(&format!(r#""@{name}":"""#)));
         assert_eq!(out.matches(r#"{"a":"#).count(), 4000);
         assert!(out.ends_with(r#",{"after":["visible"]}]}"#));
+    }
+
+    #[test]
+    fn declaration_requires_version_first() {
+        // Without a BOM: convert_xml_declaration_version.phpt.
+        for declaration in [
+            r#"<?xml standalone="yes"?>"#,
+            "<?xml ?>",
+            r#"<?xml encoding="UTF-8" version="1.0"?>"#,
+            "<?xml version=1.0?>",
+        ] {
+            let input = format!("\u{feff}{declaration}<r>tail</r>");
+            assert_eq!(xml(&input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
     }
 
     #[test]
