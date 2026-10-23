@@ -1,7 +1,7 @@
 //! XML events and entity replacements feed the same writer. Rust owns all
 //! parser state; PHP allocations happen only after it returns.
 
-use super::xml_dtd::Dtd;
+use super::xml_dtd::{split_doctype, Dtd};
 use super::{AppsecBodyTape, TapeWriter};
 use quick_xml::errors::{Error, SyntaxError};
 use quick_xml::events::{BytesStart, Event};
@@ -67,18 +67,32 @@ struct XmlParser {
 
 impl XmlParser {
     fn read(&mut self, input: &[u8], document: bool) -> bool {
-        let mut reader = Reader::from_reader(input);
-        reader.config_mut().check_end_names = false;
-        reader.config_mut().allow_unmatched_ends = true;
+        let mut input = if document {
+            // Strip the document BOM ourselves so buffer positions include
+            // exactly the bytes in `input` when intercepting the DOCTYPE.
+            input.strip_prefix(b"\xef\xbb\xbf").unwrap_or(input)
+        } else {
+            input
+        };
+        let mut reader = xml_reader(input);
         loop {
             let event_start = reader.buffer_position() as usize;
+            let remaining = &input[event_start..];
+            if document && remaining.starts_with(b"<!DOCTYPE") {
+                let Some((declaration, after)) = split_doctype(remaining) else {
+                    return false;
+                };
+                self.dtd.parse(declaration, &mut self.expansion_budget);
+                input = after;
+                reader = xml_reader(input);
+                continue;
+            }
             match reader.read_event() {
                 Ok(Event::Start(e)) => self.open_element(e.name().as_ref(), Some(&e), false),
                 Ok(Event::Empty(e)) => self.open_element(e.name().as_ref(), Some(&e), true),
                 Ok(Event::End(_)) => self.end(),
                 Ok(Event::Text(e)) => self.text(&e),
                 Ok(Event::CData(e)) => self.raw_text(&e),
-                Ok(Event::DocType(e)) if document => self.dtd.parse(&e, &mut self.expansion_budget),
                 Ok(Event::Decl(e)) if document => {
                     if let Some(encoding) = e.encoding() {
                         match encoding {
@@ -303,6 +317,13 @@ impl XmlParser {
             self.open_element(name, None, false);
         }
     }
+}
+
+fn xml_reader(input: &[u8]) -> Reader<&[u8]> {
+    let mut reader = Reader::from_reader(input);
+    reader.config_mut().check_end_names = false;
+    reader.config_mut().allow_unmatched_ends = true;
+    reader
 }
 
 pub(super) fn charge(budget: &mut usize, len: usize) -> bool {
@@ -658,6 +679,18 @@ mod tests {
         let input = r#"<?xml version="1.0"?><!DOCTYPE d [<!ENTITY e "v">]><d a="&e;"><!-- c --><x>&e;&amp;</x><![CDATA[y]]><z/></d>"#;
         for len in 0..=input.len() {
             xml(&input[..len], 30);
+        }
+    }
+
+    #[test]
+    fn doctype_delimiters_and_truncation() {
+        let input = "\u{feff}<?xml version=\"1.0\"?>\n<!DOCTYPE r [<!-- ]>< --><?p ]>< ?><!ENTITY e 'a]>b'><!ATTLIST r a CDATA ']>v'>]><r>&e;</r>";
+        assert_eq!(complete(input), r#"{"r":[{"@a":"]>v"},"a]>b"]}"#);
+        for len in 0..=input.len() {
+            let (status, _) = render(super::parse(&input.as_bytes()[..len], 30));
+            if len < input.find("<r>").unwrap() {
+                assert_eq!(status, AppsecBodyStatus::Empty, "{len}");
+            }
         }
     }
 }

@@ -155,6 +155,37 @@ impl Dtd {
     }
 }
 
+// quick-xml 0.37 counts raw angle brackets when finding the end of a DOCTYPE.
+// XML literals, comments and PIs can contain them freely, so find the boundary
+// here before handing the remaining document back to the event reader.
+pub(super) fn split_doctype(input: &[u8]) -> Option<(&[u8], &[u8])> {
+    let raw = input.strip_prefix(b"<!DOCTYPE")?;
+    let mut cursor = Cursor(raw);
+    let mut subset = false;
+    while let Some(&byte) = cursor.0.first() {
+        match byte {
+            b'\'' | b'"' => {
+                cursor.quoted()?;
+            }
+            b'<' if cursor.0.starts_with(b"<!--") => cursor.through(b"-->"),
+            b'<' if cursor.0.starts_with(b"<?") => cursor.through(b"?>"),
+            b'>' if !subset => {
+                let end = raw.len() - cursor.0.len();
+                return Some((&raw[..end], &cursor.0[1..]));
+            }
+            _ => {
+                if byte == b'[' {
+                    subset = true;
+                } else if byte == b']' {
+                    subset = false;
+                }
+                cursor.0 = &cursor.0[1..];
+            }
+        }
+    }
+    None
+}
+
 struct Cursor<'a>(&'a [u8]);
 
 impl<'a> Cursor<'a> {
