@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
-# Resolve system-tests main and the ci-runner image its CI uses at that commit.
+# Resolve a system-tests ref and the ci-runner image its CI uses at that commit.
 # Usage: resolve-system-tests-ref.sh [DOTENV_FILE]; prints the SYSTEM_TESTS_SHA and SYSTEM_TESTS_CI_IMAGE dotenv lines, also to DOTENV_FILE.
 set -euo pipefail
 
 ST_REPO=https://github.com/DataDog/system-tests.git
-SYSTEM_TESTS_SHA=$(git ls-remote "$ST_REPO" refs/heads/main | awk 'NR == 1 { print $1 }')
-if ! printf '%s\n' "$SYSTEM_TESTS_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
-  echo "Failed to resolve a valid system-tests commit: $SYSTEM_TESTS_SHA" >&2
-  exit 1
-fi
+# SYSTEM_TESTS_REF (a branch or tag; default main) lets a pipeline try a
+# system-tests change before it is merged.
 git init -q /tmp/system-tests
-git -C /tmp/system-tests fetch -q --depth 50 --filter=blob:none "$ST_REPO" "$SYSTEM_TESTS_SHA"
+git -C /tmp/system-tests fetch -q --depth 50 --filter=blob:none "$ST_REPO" "${SYSTEM_TESTS_REF:-main}"
+SYSTEM_TESTS_SHA=$(git -C /tmp/system-tests rev-parse 'FETCH_HEAD^{commit}')
 # The ci-runner image system-tests' own CI uses at a commit (its venv matches that checkout).
 st_image() {
   git -C /tmp/system-tests show "$1:utils/ci/gitlab/main.yml" | sed -n 's/^ *CI_IMAGE: *"\{0,1\}\([^" ]*ci-runner:[0-9a-f]\{12\}\)"\{0,1\}.*/\1/p' | head -n1 | grep . ||
