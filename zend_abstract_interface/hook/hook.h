@@ -77,7 +77,35 @@ typedef struct {
     zend_ulong invocation;
     zend_ulong hook_count;
     void *dynamic;
+    /* Walkers and callbacks hold pointers into `dynamic`, so joins cannot resize it during a walk.
+       Keep this state on the frame: fibers can suspend walks and resume or destroy them out of stack order. */
+    bool walking;
 } zai_hook_memory_t; /* }}} */
+
+/* {{{ The interceptor supplies the version-specific frame lookup; NULL means no hook record. */
+extern zai_hook_memory_t *(*zai_hook_frame_memory)(zend_execute_data *frame);
+
+/* {{{ Return hook_id's payload for this frame invocation, or NULL if the hook has no record there. */
+void *zai_hook_frame_dynamic(zend_execute_data *frame, zend_long hook_id); /* }}} */
+
+/* {{{ Record only hook_id on an already-running frame so its end can be delivered, without calling begin.
+       `memory` is the existing record or a zeroed record for the interceptor to file; the frame must be on the current stack.
+       Returns false if the hook is inapplicable or the record is being walked. */
+/* Called once for each newly joined frame to initialize the hook's zeroed payload. */
+typedef void (*zai_hook_joined)(zend_execute_data *frame, void *auxiliary, void *dynamic, zend_ulong invocation);
+
+bool zai_hook_join_frame(zend_execute_data *frame, zend_long hook_id, zai_hook_memory_t *memory, zai_hook_joined on_joined); /* }}} */
+
+/* {{{ Join the frame; false means it cannot be joined.
+       With observe=false, defer exit observation until a subsequent call with observe=true from the current frame, outside any callback sandbox. */
+extern bool (*zai_hook_join_running_frame)(zend_execute_data *frame, zend_long hook_id, bool observe); /* }}} */
+
+/* {{{ Join every active call to func, preserving the engine's frame-exit ordering. Installed by the interceptor. */
+extern void (*zai_hook_join_running_frames)(zend_function *func, zend_long hook_id, zai_hook_joined on_joined);
+
+/* {{{ Resolve scope::function and join its active calls. The caller must supply an end-only hook.
+       File hooks are ignored because their frames have no function name. */
+void zai_hook_join_running_frames_named(zai_str scope, zai_str function, zend_long hook_id, zai_hook_joined on_joined); /* }}} */
 
 typedef enum {
     ZAI_HOOK_CONTINUED,
@@ -102,6 +130,17 @@ void zai_hook_resolve_file(zend_op_array *op_array);
 
 /* cleanup function to avoid memory leaking */
 void zai_hook_unresolve_op_array(zend_op_array *op_array);
+
+/* True if `source`, a path suffix, names `file`. An empty `source` matches every file. */
+bool zai_hook_match_filepath(zend_string *file, zend_string *source);
+
+/* Filename -> declared user functions, including closures. Entries are removed when their op_array is destroyed. */
+typedef struct {
+    uint32_t ordered;
+    uint32_t size;
+    zend_function *functions[];
+} zai_function_location_entry;
+HashTable *zai_hook_function_location_map(void);
 
 /* {{{ private but externed for performance reasons */
 extern TSRM_TLS HashTable zai_hook_resolved;

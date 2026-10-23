@@ -1,5 +1,7 @@
 #include "../tsrmls_cache.h"
 #include "jit_blacklist.h"
+#include "opcache_symbols.h"
+#include "../interceptor/line_hook.h"
 #include "is_mapped.h"
 #include "zend_extensions.h"
 #include <Zend/zend_types.h>
@@ -10,7 +12,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
-
 
 #if PHP_VERSION_ID >= 80100
 #include <Zend/Optimizer/zend_call_graph.h>
@@ -86,6 +87,11 @@ typedef union _zend_op_trace_info {
     };
 } zend_op_trace_info;
 
+/* Stable from 8.0 through master (ext/opcache/jit/zend_jit_internal.h). */
+#define ZEND_JIT_TRACE_START_LOOP   (1<<0)
+#define ZEND_JIT_TRACE_START_ENTER  (1<<1)
+#define ZEND_JIT_TRACE_START_RETURN (1<<2)
+#define ZEND_JIT_TRACE_JITED        (1<<4)
 #define ZEND_JIT_TRACE_BLACKLISTED  (1<<5)
 
 #define ZEND_OP_TRACE_INFO(opline, offset) \
@@ -95,65 +101,39 @@ typedef union _zend_op_trace_info {
 #define ZEND_FUNC_INFO(op_array) \
 	((zend_func_info*)((op_array)->reserved[zend_func_info_rid]))
 
+/* JIT trigger flags from Zend/Optimizer/zend_func_info.h (PHP 8.0+). */
+#if !defined(ZEND_FUNC_JIT_ON_FIRST_EXEC)
+#define ZEND_FUNC_JIT_ON_FIRST_EXEC (1u << 13)
+#endif
+#if !defined(ZEND_FUNC_JIT_ON_PROF_REQUEST)
+#define ZEND_FUNC_JIT_ON_PROF_REQUEST (1u << 14)
+#endif
+#if !defined(ZEND_FUNC_JIT_ON_HOT_COUNTERS)
+#define ZEND_FUNC_JIT_ON_HOT_COUNTERS (1u << 15)
+#endif
 #if !defined(ZEND_FUNC_JIT_ON_HOT_TRACE)
 #define ZEND_FUNC_JIT_ON_HOT_TRACE (1u << 16)
 #endif
 
 #if PHP_VERSION_ID >= 80400
 static void (*zai_jit_blacklist_function)(zend_op_array *);
+static bool zai_jit_fetch_symbols(void) {
+    if (!zai_jit_blacklist_function) {
+        zai_jit_blacklist_function = (void (*)(zend_op_array *))zai_jit_fetch_opcache_symbol("zend_jit_blacklist_function");
+    }
+    return zai_jit_blacklist_function != NULL;
+}
 #else
 static void (*zai_jit_protect)(void), (*zai_jit_unprotect)(void);
-#endif
-
-void zai_jit_minit(void) {
-#if PHP_VERSION_ID >= 80400
-    zai_jit_blacklist_function = NULL;
-#else
-    zai_jit_protect = zai_jit_unprotect = NULL;
-#endif
-
-#if PHP_VERSION_ID >= 80500
-    // OPcache is built into PHP and has no extension handle.
-#ifdef _WIN32
-    // Resolve against the PHP DLL containing Zend, not the SAPI executable.
-    HMODULE symbol_handle = NULL;
-    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                           (LPCSTR)zend_get_extension, &symbol_handle)) {
-        return;
+static bool zai_jit_fetch_symbols(void) {
+    if (!zai_jit_protect) {
+        zai_jit_protect = (void (*)(void))zai_jit_fetch_opcache_symbol("zend_jit_protect");
+        zai_jit_unprotect = (void (*)(void))zai_jit_fetch_opcache_symbol("zend_jit_unprotect");
     }
-#else
-    void *symbol_handle = RTLD_DEFAULT;
-#endif
-#else
-    // OPcache startup NULLs its handle. MINIT runs before extension startup.
-    zend_extension *opcache = zend_get_extension("Zend OPcache");
-    if (!opcache || !opcache->handle) {
-        return;
-    }
-    void *symbol_handle = opcache->handle;
-#endif
-
-#if PHP_VERSION_ID >= 80400
-    zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(symbol_handle, "zend_jit_blacklist_function");
-    if (zai_jit_blacklist_function == NULL) {
-        zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(symbol_handle, "_zend_jit_blacklist_function");
-    }
-#else
-    zai_jit_protect = (void (*)(void)) DL_FETCH_SYMBOL(symbol_handle, "zend_jit_protect");
-    if (zai_jit_protect == NULL) {
-        zai_jit_protect = (void (*)(void)) DL_FETCH_SYMBOL(symbol_handle, "_zend_jit_protect");
-    }
-    zai_jit_unprotect = (void (*)(void)) DL_FETCH_SYMBOL(symbol_handle, "zend_jit_unprotect");
-    if (zai_jit_unprotect == NULL) {
-        zai_jit_unprotect = (void (*)(void)) DL_FETCH_SYMBOL(symbol_handle, "_zend_jit_unprotect");
-    }
-#endif
+    return zai_jit_protect != NULL && zai_jit_unprotect != NULL;
 }
 
-#if PHP_VERSION_ID < 80400
-static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
-    return opcode == ZEND_RECV || opcode == ZEND_RECV_INIT || opcode == ZEND_RECV_VARIADIC;
-}
+#endif
 
 // PHP_INI_SYSTEM, hence process-wide constant once startup is done.
 static bool zai_jit_shm_protected(void) {
@@ -166,7 +146,6 @@ static bool zai_jit_shm_protected(void) {
     }
     return protected;
 }
-#endif
 
 #if PHP_VERSION_ID < 80100
 static inline bool check_pointer_near(void *a, void *b) {
@@ -178,7 +157,7 @@ static inline bool check_pointer_near(void *a, void *b) {
 int zai_get_zend_func_rid(zend_op_array *op_array) {
 #if PHP_VERSION_ID < 80100
     if (zend_func_info_rid == -2) {
-        if (!zai_jit_protect || !zai_jit_unprotect) {
+        if (!zai_jit_opcache_loaded()) {
             zai_jit_func_info_rid = -1;
         } else {
             // On PHP 8.0 we impossibly can get hold of zend_func_info_rid.
@@ -205,93 +184,213 @@ int zai_get_zend_func_rid(zend_op_array *op_array) {
     return zend_func_info_rid;
 }
 
-void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
+/* Protected opcode, trace-info and function-info allocations need separate writable page spans. */
+#define ZAI_JIT_SPANS 3
+
+typedef struct {
+    void *base;
+    size_t len;
+} zai_jit_span;
+
+static void zai_jit_span_cover(zai_jit_span *span, const void *start, size_t len) {
+#ifndef _WIN32
+    size_t page_size = (size_t)sysconf(_SC_PAGESIZE);
+#else
+    size_t page_size = 4096;
+#endif
+    uintptr_t first = (uintptr_t)start & ~(uintptr_t)(page_size - 1);
+    uintptr_t last = ((uintptr_t)start + len + page_size - 1) & ~(uintptr_t)(page_size - 1);
+    span->base = (void *)first;
+    span->len = (size_t)(last - first);
+}
+
+static bool zai_jit_span_protect(const zai_jit_span *span, bool writable) {
+#ifndef _WIN32
+    return mprotect(span->base, span->len, writable ? (PROT_READ | PROT_WRITE) : PROT_READ) == 0;
+#else
+    DWORD oldProtect;
+    return VirtualProtect(span->base, span->len, writable ? PAGE_READWRITE : PAGE_READONLY, &oldProtect) != 0;
+#endif
+}
+
+/* Opens `count` spans, unwinding the ones already opened if any refuses. */
+static bool zai_jit_spans_open(const zai_jit_span *spans, unsigned count) {
+    for (unsigned i = 0; i < count; ++i) {
+        if (!zai_jit_span_protect(&spans[i], true)) {
+            while (i--) {
+                zai_jit_span_protect(&spans[i], false);
+            }
+            return false;
+        }
+    }
+    return true;
+}
+
+static void zai_jit_spans_close(const zai_jit_span *spans, unsigned count) {
+    while (count--) {
+        zai_jit_span_protect(&spans[count], false);
+    }
+}
+
+/* Update a local arm through its original-handler record and preserve sibling trampolines.
+   Arming runs this blacklist first, so a sibling trampoline already has that work done. */
+static void zai_jit_write_handler_through_arms(zend_op *opline, const void *handler) {
+    if (zai_line_hook_write_original_handler(opline, handler)) {
+        return;
+    }
+
+    /* CAS retries must recheck for a sibling's newly installed trampoline. */
+    const void *trampoline = zai_line_hook_trampoline_address();
+    for (;;) {
+        const void *current = opline->handler;
+        if (current == handler) {
+            return;
+        }
+        if (trampoline && current == trampoline) {
+            return; /* sibling arm; its blacklist pass already ran */
+        }
+        if (zai_line_hook_cas_handler(opline, current, handler)) {
+            return;
+        }
+    }
+}
+
+/* Restore the ON_FIRST_EXEC trigger to its canonical VM handler.
+   HOT_COUNTERS and PROF_REQUEST depend on version-specific private orig_handlers layouts and may have compiled entries, so report them as unsupported. */
+static zai_jit_blacklist_result zai_jit_disable_function_trigger(zend_op_array *op_array, zend_func_info *func_info) {
+    if (func_info->flags & (ZEND_FUNC_JIT_ON_HOT_COUNTERS | ZEND_FUNC_JIT_ON_PROF_REQUEST)) {
+        return ZAI_JIT_BLACKLIST_UNSUPPORTED_TRIGGER;
+    }
+    if (!(func_info->flags & ZEND_FUNC_JIT_ON_FIRST_EXEC)) {
+        return ZAI_JIT_BLACKLIST_APPLIED;
+    }
+
+    /* Match zend_jit.c: typed functions trigger at their first receive.
+       Untyped functions skip RECV and RECV_INIT, but never RECV_VARIADIC. */
+    zend_op *opline = op_array->opcodes;
+    if (!(op_array->fn_flags & ZEND_ACC_HAS_TYPE_HINTS)) {
+        while (opline < op_array->opcodes + op_array->last && (opline->opcode == ZEND_RECV || opline->opcode == ZEND_RECV_INIT)) {
+            ++opline;
+        }
+    }
+    if (opline >= op_array->opcodes + op_array->last) {
+        return ZAI_JIT_BLACKLIST_APPLIED;
+    }
+
+    zend_op canonical = *opline;
+    zend_vm_set_opcode_handler(&canonical);
+    zai_jit_write_handler_through_arms(opline, canonical.handler);
+    func_info->flags &= ~ZEND_FUNC_JIT_ON_FIRST_EXEC;
+    return ZAI_JIT_BLACKLIST_APPLIED;
+}
+
+zai_jit_blacklist_result zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 #if PHP_VERSION_ID >= 80400
-    if (zai_jit_blacklist_function) {
+    if (zai_jit_fetch_symbols()) {
         zai_jit_blacklist_function(op_array);
     }
+    /* PHP 8.4+ exports the blacklist but no compiled-state query. Handle function-JIT triggers separately. */
+    if (zai_get_zend_func_rid(op_array) >= 0) {
+        zend_func_info *func_info = ZEND_FUNC_INFO(op_array);
+        if (func_info && zai_is_mapped(func_info, sizeof(*func_info))) {
+            bool is_protected = zai_jit_shm_protected();
+            zai_jit_span spans[2];
+            zai_jit_span_cover(&spans[0], op_array->opcodes, sizeof(zend_op) * op_array->last);
+            zai_jit_span_cover(&spans[1], func_info, sizeof(*func_info));
+            if (is_protected && !zai_jit_spans_open(spans, 2)) {
+                return ZAI_JIT_BLACKLIST_APPLIED;
+            }
+            zai_jit_blacklist_result result = zai_jit_disable_function_trigger(op_array, func_info);
+            if (is_protected) {
+                zai_jit_spans_close(spans, 2);
+            }
+            return result;
+        }
+    }
+    return ZAI_JIT_BLACKLIST_APPLIED;
 #else
-    if (!zai_jit_protect || !zai_jit_unprotect || zai_get_zend_func_rid(op_array) < 0) {
-        return;
+    if (zai_get_zend_func_rid(op_array) < 0) {
+        return ZAI_JIT_BLACKLIST_APPLIED; /* function metadata unavailable */
     }
     // now in PHP < 8.1, zend_func_info_rid is set (on newer versions it's in zend_func_info.h)
 
     zend_jit_op_array_trace_extension *jit_extension = (zend_jit_op_array_trace_extension *)ZEND_FUNC_INFO(op_array);
     if (!jit_extension || !zai_is_mapped(jit_extension, sizeof(*jit_extension))) {
-        return;
+        return ZAI_JIT_BLACKLIST_APPLIED;
     }
 
     if (!(jit_extension->func_info.flags & ZEND_FUNC_JIT_ON_HOT_TRACE)) {
-        return;
-    }
-
-    // First not-skipped op
-    zend_op *opline = op_array->opcodes;
-    while (zai_is_func_recv_opcode(opline->opcode)) {
-        ++opline;
+        /* Handle function-JIT triggers separately from tracing JIT. */
+        bool is_protected = zai_jit_shm_protected();
+        zai_jit_span spans[2];
+        zai_jit_span_cover(&spans[0], op_array->opcodes, sizeof(zend_op) * op_array->last);
+        zai_jit_span_cover(&spans[1], jit_extension, sizeof(*jit_extension));
+        if (is_protected && !zai_jit_spans_open(spans, 2)) {
+            return ZAI_JIT_BLACKLIST_APPLIED;
+        }
+        zai_jit_blacklist_result result = zai_jit_disable_function_trigger(op_array, &jit_extension->func_info);
+        if (is_protected) {
+            zai_jit_spans_close(spans, 2);
+        }
+        return result;
     }
 
     size_t offset = jit_extension->offset;
+    size_t trace_info_size = sizeof(zend_op_trace_info) * op_array->last;
+    zend_op_trace_info *trace_info = ZEND_OP_TRACE_INFO(op_array->opcodes, offset);
 
-    // check whether the op_trace_info is actually readable or EFAULTing
-    // we can't trust opcache too much here...
-    if (!zai_is_mapped(ZEND_OP_TRACE_INFO(opline, offset), sizeof(zend_op_trace_info))) {
-        return;
+    /* Validate the entire trace-info array before reading it. */
+    if (!zai_is_mapped(trace_info, trace_info_size)) {
+        return ZAI_JIT_BLACKLIST_APPLIED;
     }
 
-    if (!(ZEND_OP_TRACE_INFO(opline, offset)->trace_flags & ZEND_JIT_TRACE_BLACKLISTED)) {
-        bool is_protected_memory = zai_jit_shm_protected();
+    if (!zai_jit_fetch_symbols()) {
+        return ZAI_JIT_BLACKLIST_APPLIED;
+    }
 
-        uint8_t *trace_flags = &ZEND_OP_TRACE_INFO(opline, offset)->trace_flags;
-        const void **handler = &((zend_op*)opline)->handler;
+    zai_jit_span spans[ZAI_JIT_SPANS];
+    zai_jit_span_cover(&spans[0], op_array->opcodes, sizeof(zend_op) * op_array->last);
+    zai_jit_span_cover(&spans[1], trace_info, trace_info_size);
+    zai_jit_span_cover(&spans[2], jit_extension, sizeof(*jit_extension));
 
-#ifndef _WIN32
-        size_t page_size = sysconf(_SC_PAGESIZE);
-#else
-        size_t page_size = 4096;
-#endif
-        // Both targets are naturally aligned and smaller than a page, so one page each covers them.
-        void *trace_flags_page = (void *) ((uintptr_t) trace_flags & ~(page_size - 1));
-        void *handler_page = (void *) ((uintptr_t) handler & ~(page_size - 1));
-        if (is_protected_memory) {
-            // Bailing out is mandatory: the writes below would fault on a still-PROT_READ page.
-#ifndef _WIN32
-            if (mprotect(trace_flags_page, page_size, PROT_READ | PROT_WRITE) != 0) {
-                return;
-            }
-            if (mprotect(handler_page, page_size, PROT_READ | PROT_WRITE) != 0) {
-                mprotect(trace_flags_page, page_size, PROT_READ);
-                return;
-            }
-#else
-            DWORD oldProtect;
-            if (!VirtualProtect(trace_flags_page, page_size, PAGE_READWRITE, &oldProtect)) {
-                return;
-            }
-            if (!VirtualProtect(handler_page, page_size, PAGE_READWRITE, &oldProtect)) {
-                VirtualProtect(trace_flags_page, page_size, PAGE_READONLY, &oldProtect);
-                return;
-            }
-#endif
-        }
-
-        zai_jit_unprotect();
-
-        *trace_flags |= ZEND_JIT_TRACE_BLACKLISTED;
-        *handler = ZEND_OP_TRACE_INFO(opline, offset)->orig_handler;
-
-        zai_jit_protect();
-
-        if (is_protected_memory) {
-#ifndef _WIN32
-            mprotect(handler_page, page_size, PROT_READ);
-            mprotect(trace_flags_page, page_size, PROT_READ);
-#else
-            DWORD oldProtect;
-            VirtualProtect(handler_page, page_size, PAGE_READONLY, &oldProtect);
-            VirtualProtect(trace_flags_page, page_size, PAGE_READONLY, &oldProtect);
-#endif
+    bool is_protected_memory = zai_jit_shm_protected();
+    if (is_protected_memory) {
+        if (!zai_jit_spans_open(spans, ZAI_JIT_SPANS)) {
+            return ZAI_JIT_BLACKLIST_APPLIED;
         }
     }
+
+    zai_jit_unprotect();
+
+    /* Mirror zend_jit_stop_hot_trace_counters(): restore every uncompiled entry, loop and return trigger, not just the function entry. */
+    bool already_compiled = false;
+    for (uint32_t i = 0; i < op_array->last; ++i) {
+        zend_op_trace_info *info = ZEND_OP_TRACE_INFO(&op_array->opcodes[i], offset);
+        if (info->trace_flags & ZEND_JIT_TRACE_JITED) {
+            /* Blacklisting prevents new traces; existing native code can still bypass opline->handler. */
+            already_compiled = true;
+            continue;
+        }
+        if (info->trace_flags & ZEND_JIT_TRACE_BLACKLISTED) {
+            continue;
+        }
+        if (!(info->trace_flags & (ZEND_JIT_TRACE_START_LOOP | ZEND_JIT_TRACE_START_ENTER | ZEND_JIT_TRACE_START_RETURN))) {
+            continue; /* not a trace start, so it carries no counter handler to undo */
+        }
+
+        info->trace_flags |= ZEND_JIT_TRACE_BLACKLISTED;
+        zai_jit_write_handler_through_arms(&op_array->opcodes[i], info->orig_handler);
+    }
+
+    /* Prevent new trace starts for this function, as zend_jit_blacklist_function() does. */
+    jit_extension->func_info.flags &= ~ZEND_FUNC_JIT_ON_HOT_TRACE;
+
+    zai_jit_protect();
+
+    if (is_protected_memory) {
+        zai_jit_spans_close(spans, ZAI_JIT_SPANS);
+    }
+
+    return already_compiled ? ZAI_JIT_BLACKLIST_ALREADY_COMPILED : ZAI_JIT_BLACKLIST_APPLIED;
 #endif
 }
