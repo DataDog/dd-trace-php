@@ -218,10 +218,31 @@ class EndpointCatalogTest extends BaseTestCase
 
     public function testReplayDecodesThePathLikeSymfonyMatcher()
     {
+        // Only the decoded path satisfies this requirement, so the match holds
+        // only if the replay decodes the path as the matcher does before it.
+        $regex = '{^/normalized/utf8(?:/(?P<city>café))?/?$}sDu';
+        $this->assertSame(
+            ['city' => true],
+            EndpointCatalog::matchedParamsFromReplay($regex, 'city', '/normalized/utf8/caf%C3%A9')
+        );
+        $this->assertNull(
+            EndpointCatalog::matchedParamsFromReplay($regex, 'city', '/normalized/utf8/cafe')
+        );
+    }
+
+    public function testReplayReportsNonAsciiVariableNames()
+    {
+        // PCRE only accepts non-ASCII subpattern names from PHP 7.4 on, and
+        // Symfony compiles the matcher with the same PCRE, so on older
+        // versions such a route has no matcher to replay in the first place.
+        if (@preg_match('{(?P<föo>x)}u', 'x') !== 1) {
+            $this->markTestSkipped('PCRE here rejects non-ASCII subpattern names');
+        }
+
         $regex = '{^/normalized/utf8(?:/(?P<föo>[^/]++))?/?$}sDu';
         $this->assertSame(
             ['föo' => true],
-            EndpointCatalog::matchedParamsFromReplay($regex, 'föo', '/normalized/utf8/caf%C3%A9')
+            EndpointCatalog::matchedParamsFromReplay($regex, 'föo', '/normalized/utf8/bar')
         );
     }
 
