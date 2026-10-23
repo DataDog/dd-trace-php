@@ -303,6 +303,35 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
+/**
+ * Written as a single byte.
+ */
+typedef enum ddog_AppsecBodyRecord {
+  DDOG_APPSEC_BODY_RECORD_MAP_START = 1,
+  DDOG_APPSEC_BODY_RECORD_LIST_START,
+  DDOG_APPSEC_BODY_RECORD_END,
+  DDOG_APPSEC_BODY_RECORD_KEY,
+  DDOG_APPSEC_BODY_RECORD_STR,
+  DDOG_APPSEC_BODY_RECORD_INT,
+  DDOG_APPSEC_BODY_RECORD_FLOAT,
+  DDOG_APPSEC_BODY_RECORD_TRUE,
+  DDOG_APPSEC_BODY_RECORD_FALSE,
+  DDOG_APPSEC_BODY_RECORD_NULL,
+} ddog_AppsecBodyRecord;
+
+typedef enum ddog_AppsecBodyStatus {
+  /**
+   * Nothing usable was parsed; the tape is empty.
+   */
+  DDOG_APPSEC_BODY_STATUS_EMPTY,
+  /**
+   * The input was truncated or malformed; the tape holds what preceded the
+   * error, with all containers closed.
+   */
+  DDOG_APPSEC_BODY_STATUS_PARTIAL,
+  DDOG_APPSEC_BODY_STATUS_COMPLETE,
+} ddog_AppsecBodyStatus;
+
 typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
   DDOG_CONFIGURATION_ORIGIN_CODE,
@@ -544,6 +573,7 @@ typedef struct ddog_FfeResult {
   int32_t serial_id;
   bool has_serial_id;
   bool do_log;
+  bool observe_full_evaluation_data;
   bool valid;
 } ddog_FfeResult;
 
@@ -833,6 +863,16 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             const char *key,
                                             uintptr_t key_len,
                                             uintptr_t *out_len);
+
+/**
+ * Owned by Rust; release it with `ddog_appsec_body_tape_drop`.
+ */
+typedef struct ddog_AppsecBodyTape {
+  uint8_t *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+  enum ddog_AppsecBodyStatus status;
+} ddog_AppsecBodyTape;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,

@@ -106,6 +106,8 @@ pub struct FfeResult {
     pub serial_id: i32,
     pub has_serial_id: bool,
     pub do_log: bool,
+    // Consent belongs to the configuration snapshot used for this evaluation.
+    pub observe_full_evaluation_data: bool,
     pub valid: bool,
 }
 
@@ -166,7 +168,12 @@ pub extern "C" fn ddog_ffe_evaluate(
             ffe::now(),
         );
 
-        result_from_assignment(assignment)
+        let mut result = result_from_assignment(assignment);
+        result.observe_full_evaluation_data = state
+            .config
+            .as_ref()
+            .is_some_and(Configuration::observe_full_evaluation_data);
+        result
     })
 }
 
@@ -231,6 +238,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 serial_id: assignment.serial_id.unwrap_or(0),
                 has_serial_id: assignment.serial_id.is_some(),
                 do_log: assignment.do_log,
+                observe_full_evaluation_data: false,
                 valid: true,
             }
         }
@@ -257,6 +265,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 serial_id: 0,
                 has_serial_id: false,
                 do_log: false,
+                observe_full_evaluation_data: false,
                 valid: true,
             }
         }
@@ -273,6 +282,7 @@ fn invalid_result() -> FfeResult {
         serial_id: 0,
         has_serial_id: false,
         do_log: false,
+        observe_full_evaluation_data: false,
         valid: false,
     }
 }
@@ -431,6 +441,45 @@ mod tests {
             r#""empty-targeting-key""#
         );
         clear_config();
+    }
+
+    #[test]
+    fn evaluation_captures_consent_from_its_configuration() {
+        setup_zend_string_functions();
+        clear_config();
+        let flag_key = CString::new("empty.targeting.shard.flag").unwrap();
+        let evaluate = |value_type| {
+            ddog_ffe_evaluate(
+                char_slice(&flag_key),
+                value_type,
+                CharSlice::from(""),
+                std::ptr::null(),
+                0,
+            )
+        };
+        assert!(!evaluate(TYPE_STRING).observe_full_evaluation_data);
+
+        let mut config: serde_json::Value =
+            serde_json::from_str(EMPTY_TARGETING_KEY_CONFIG).unwrap();
+        config["observeFullEvaluationData"] = true.into();
+        let json = CString::new(config.to_string()).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&json)));
+        let allowed = evaluate(TYPE_STRING);
+        assert!(allowed.valid);
+        assert!(allowed.observe_full_evaluation_data);
+        // Error observations use the same consent as successful assignments.
+        let mismatch = evaluate(TYPE_BOOLEAN);
+        assert_ne!(mismatch.error_code, ERROR_NONE);
+        assert!(mismatch.observe_full_evaluation_data);
+
+        config["observeFullEvaluationData"] = false.into();
+        let json = CString::new(config.to_string()).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&json)));
+        assert!(!evaluate(TYPE_STRING).observe_full_evaluation_data);
+        // Reloading config must not retroactively change the prior outcome.
+        assert!(allowed.observe_full_evaluation_data);
+        clear_config();
+        assert!(!evaluate(TYPE_STRING).observe_full_evaluation_data);
     }
 
     #[test]
