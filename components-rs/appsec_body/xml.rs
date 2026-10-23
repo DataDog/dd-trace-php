@@ -74,7 +74,12 @@ impl XmlParser {
             // exactly the bytes in `input` when intercepting the DOCTYPE.
             input.strip_prefix(b"\xef\xbb\xbf").unwrap_or(input)
         } else {
-            input
+            // An internal entity's initial U+FEFF is character data, not a
+            // BOM. Consume its leading text before starting a fresh reader,
+            // which would otherwise discard the first U+FEFF.
+            let end = input.iter().position(|&b| b == b'<').unwrap_or(input.len());
+            self.text(&input[..end]);
+            &input[end..]
         };
         let mut reader = xml_reader(input);
         loop {
