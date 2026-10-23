@@ -200,8 +200,12 @@ finished:
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
+    # SYSTEM_TESTS_REF (a branch or tag; default main) lets a pipeline try a
+    # system-tests change before it is merged.
     - |
-      SYSTEM_TESTS_SHA=$(git ls-remote https://github.com/DataDog/system-tests.git refs/heads/main | awk 'NR == 1 { print $1 }')
+      git init -q /tmp/system-tests
+      git -C /tmp/system-tests fetch -q --depth 1 --filter=blob:none https://github.com/DataDog/system-tests.git "${SYSTEM_TESTS_REF:-main}"
+      SYSTEM_TESTS_SHA=$(git -C /tmp/system-tests rev-parse 'FETCH_HEAD^{commit}')
       if ! printf '%s\n' "$SYSTEM_TESTS_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
         echo "Failed to resolve a valid system-tests commit: $SYSTEM_TESTS_SHA"
         exit 1
@@ -1522,21 +1526,16 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    # SYSTEM_TESTS_SHA (prepare code's dotenv) is system-tests main resolved once, so all jobs and shards run the same scenario list.
-    # SYSTEM_TESTS_REF (a branch or tag) clones that ref instead, unpinned, to try a system-tests change before it is merged.
+    # SYSTEM_TESTS_SHA (prepare code's dotenv) is SYSTEM_TESTS_REF (default main) resolved once, so all jobs and shards run the same scenario list.
     - |
-      if [ -n "${SYSTEM_TESTS_REF:-}" ]; then
-        git clone --branch "$SYSTEM_TESTS_REF" https://github.com/DataDog/system-tests.git
-      else
-        if ! printf '%s\n' "${SYSTEM_TESTS_SHA:-}" | grep -Eq '^[0-9a-f]{40}$'; then
-          echo "Missing or invalid SYSTEM_TESTS_SHA: ${SYSTEM_TESTS_SHA:-}"
-          exit 1
-        fi
-        git init -q system-tests
-        git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$SYSTEM_TESTS_SHA"
-        git -C system-tests checkout --quiet --detach "$SYSTEM_TESTS_SHA"
-        test "$(git -C system-tests rev-parse HEAD)" = "$SYSTEM_TESTS_SHA"
+      if ! printf '%s\n' "${SYSTEM_TESTS_SHA:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Missing or invalid SYSTEM_TESTS_SHA: ${SYSTEM_TESTS_SHA:-}"
+        exit 1
       fi
+      git init -q system-tests
+      git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$SYSTEM_TESTS_SHA"
+      git -C system-tests checkout --quiet --detach "$SYSTEM_TESTS_SHA"
+      test "$(git -C system-tests rev-parse HEAD)" = "$SYSTEM_TESTS_SHA"
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
