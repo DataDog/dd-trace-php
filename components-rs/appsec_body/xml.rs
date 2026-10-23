@@ -193,7 +193,7 @@ impl XmlParser {
         self.attribute_text(raw, &mut value);
         if !cdata {
             value = value
-                .split(|b| is_whitespace(&[*b]))
+                .split(|&b| b == b' ')
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
                 .join(&b' ');
