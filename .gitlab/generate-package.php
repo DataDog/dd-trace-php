@@ -823,6 +823,46 @@ endforeach;
   script:
     - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
+<?php foreach ($build_platforms as $platform): ?>
+<?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
+# glibc actually unloads extensions at shutdown, exposing dangling profiler
+# pthread destructors that musl's no-op dlclose cannot catch (issue #4349).
+"frankenphp profiler shutdown: [<?= $platform['arch'] ?>]":
+  stage: verify
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  tags: [ "arch:<?= $platform['arch'] ?>" ]
+  needs:
+    - job: "package extension (per-api bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_CPU_LIMIT: 2
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    FRANKENPHP_VERSION: v1.13.1
+    GOPROXY: "https://depot-read-api-go.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+    GOPRIVATE: ""
+    GONOPROXY: "none"
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - switch-php zts
+    - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - tooling/bin/install-frankenphp.sh || exit $?
+    - sudo php packages/datadog-setup.php --php-bin php --enable-profiling --enable-appsec --file packages/dd-library-php-*-$(uname -m)-linux-gnu-<?= $php_versions_to_abi['8.5'] ?>-zts.tar.gz
+    - php --ri datadog-profiling
+  script:
+    - bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
+  artifacts:
+    paths:
+      - artifacts/frankenphp/
+    when: always
+
+<?php endforeach; ?>
+
 # The tracer pipeline only runs the FrankenPHP suite on amd64/glibc. musl differs in ways that bite specifically here - see issue #4163, where the SIGTERM handler's clone() is rejected outright by musl and FrankenPHP consequently never shuts down.
 # Thus we so run the same suite once against the official FrankenPHP image on arm64/Alpine.
 "frankenphp test on arm64 alpine":
@@ -1499,7 +1539,9 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
+    # SYSTEM_TESTS_REF (a branch or tag; default main) lets a pipeline try a
+    # system-tests change before it is merged.
+    - git clone --branch "${SYSTEM_TESTS_REF:-main}" https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
@@ -1601,10 +1643,33 @@ $system_tests_weblogs = [
     # Hash sorting reduces that imbalance, while keeping the order reproducible.
     # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
     - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    # THREAD_CONTEXT_SHARING needs the CWS runners; it has its own jobs below.
+    - SCENARIOS=$(printf '%s\n' $SCENARIOS | grep -vx THREAD_CONTEXT_SHARING)
     # Each job builds the full list, then keeps every `Nth` scenario for its shard.
     # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
     - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+
+<?php endforeach; ?>
+# THREAD_CONTEXT_SHARING needs CWS, which needs the kernel filesystems and the
+# PID namespace of the Kata guest. The DIND service only sees its own. The
+# docker-in-docker:amd64-cws runners (micro-vms-cws in dd-source) are the
+# kata-qemu DIND runners plus hostPath volumes of the guest's /proc,
+# /sys/fs/cgroup and /sys/kernel/{debug,tracing,security} under /vm-host.
+# system-tests detects /vm-host and makes the Agent use them.
+# The cws pool is small, so only this scenario runs there, on a few weblogs:
+# both Apache MPMs and FPM.
+<?php
+$thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-fpm-8.5"];
+?>
+<?php foreach ($thread_context_sharing_weblogs as $weblog): ?>
+"System Tests: [<?= $weblog ?>, THREAD_CONTEXT_SHARING]":
+  extends: .system_tests
+  tags: [ "docker-in-docker:amd64-cws" ]
+  variables:
+    BUILD_SH_ARGS: -w <?= $weblog ?> php
+  script:
+    - ./run.sh THREAD_CONTEXT_SHARING
 
 <?php endforeach; ?>
 "System Tests: [parametric]":
@@ -1612,6 +1677,7 @@ $system_tests_weblogs = [
   variables:
     BUILD_SH_ARGS: "-i runner"
     # Building and importing the PHP CI image exceeds the default DinD disk.
+    # system-tests #8121's buildx --load stores the client image twice, overflowing the 20G default.
     DOCKER_LOOPBACK_SIZE: 50G
   script:
     - ./run.sh PARAMETRIC

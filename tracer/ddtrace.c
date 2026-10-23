@@ -391,6 +391,9 @@ void ddtrace_mshutdown() {
 
     ddtrace_integrations_mshutdown();
 
+    ddog_SidecarFlushOptions flush_options = {
+        .traces_and_stats = true, .telemetry = true, .flag_evaluations = true
+    };
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_mshutdown();
@@ -400,10 +403,10 @@ void ddtrace_mshutdown() {
              * it is safe to free the cached proxy env strings for ASan. */
             ddtrace_coms_mshutdown_proxy_env();
         }
-    } else /* ! part of the if outside the ifdef */
+    }
 #endif
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DATADOG_G(sidecar)) {
-        ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true, .telemetry = true});
+        ddog_MaybeError_drop(ddog_sidecar_flush(&DATADOG_G(sidecar), flush_options));
     }
 
     ddtrace_telemetry_flush_bgs_metrics_final();
@@ -726,6 +729,8 @@ void ddtrace_internal_handle_postfork(void) {
 }
 
 void ddtrace_internal_handle_fork() {
+    // The parent owns its already-recorded losses; the child starts fresh.
+    memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
 #ifdef __linux__
     ddtrace_otel_detach();
     ddtrace_otel_tid_fork_handler();

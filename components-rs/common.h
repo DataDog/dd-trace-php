@@ -564,6 +564,7 @@ typedef struct ddog_FfeResult {
   int32_t serial_id;
   bool has_serial_id;
   bool do_log;
+  bool observe_full_evaluation_data;
   bool valid;
 } ddog_FfeResult;
 
