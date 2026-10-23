@@ -40,6 +40,7 @@ pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyTape {
         depth: 0,
         suppressed: 0,
         root_seen: false,
+        standalone: false,
         text: Vec::new(),
         dtd: Dtd::default(),
         active_entities: HashSet::new(),
@@ -59,6 +60,7 @@ struct XmlParser {
     /// Nesting level inside an element whose content is dropped.
     suppressed: u32,
     root_seen: bool,
+    standalone: bool,
     text: Vec<u8>,
     dtd: Dtd,
     active_entities: HashSet<Vec<u8>>,
@@ -82,7 +84,8 @@ impl XmlParser {
                 let Some((declaration, after)) = split_doctype(remaining) else {
                     return false;
                 };
-                self.dtd.parse(declaration, &mut self.expansion_budget);
+                self.dtd
+                    .parse(declaration, &mut self.expansion_budget, self.standalone);
                 input = after;
                 reader = xml_reader(input);
                 continue;
@@ -94,6 +97,7 @@ impl XmlParser {
                 Ok(Event::Text(e)) => self.text(&e),
                 Ok(Event::CData(e)) => self.raw_text(&e),
                 Ok(Event::Decl(e)) if document => {
+                    self.standalone = matches!(e.standalone(), Some(Ok(v)) if v.as_ref() == b"yes");
                     if let Some(encoding) = e.encoding() {
                         match encoding {
                             Ok(name) if name.eq_ignore_ascii_case(b"UTF-8") => {}

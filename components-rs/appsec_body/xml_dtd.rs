@@ -23,11 +23,20 @@ pub(super) struct AttributeDefaults {
 }
 
 impl Dtd {
-    pub fn parse(&mut self, raw: &[u8], budget: &mut usize) {
-        self.parse_subset(raw, budget, 0);
+    pub fn parse(&mut self, raw: &[u8], budget: &mut usize, standalone: bool) {
+        self.parse_subset(raw, budget, 0, standalone);
     }
 
-    fn parse_subset(&mut self, raw: &[u8], budget: &mut usize, depth: usize) {
+    // False means a parameter entity was not read. Unless standalone="yes",
+    // XML 1.0 section 5.1 forbids using any later entity/attribute declarations,
+    // including those in the enclosing subset after this invocation returns.
+    fn parse_subset(
+        &mut self,
+        raw: &[u8],
+        budget: &mut usize,
+        depth: usize,
+        standalone: bool,
+    ) -> bool {
         let mut cursor = Cursor(raw);
         while !cursor.0.is_empty() {
             // Comments, processing instructions and quoted strings may all
@@ -46,17 +55,25 @@ impl Dtd {
                 }
             } else if cursor.consume(b"%") {
                 let name = cursor.name();
-                if cursor.consume(b";") && depth < MAX_ENTITY_DEPTH {
-                    if let Some(Some(value)) = self.parameters.get(name).cloned() {
-                        if charge(budget, value.len()) {
-                            self.parse_subset(&value, budget, depth + 1);
+                if cursor.consume(b";") {
+                    let value = self
+                        .parameters
+                        .get(name)
+                        .and_then(Clone::clone)
+                        .filter(|v| depth < MAX_ENTITY_DEPTH && charge(budget, v.len()));
+                    if let Some(value) = value {
+                        if !self.parse_subset(&value, budget, depth + 1, standalone) {
+                            return false;
                         }
+                    } else if !standalone {
+                        return false;
                     }
                 }
             } else if cursor.quoted().is_none() {
                 cursor.0 = cursor.0.get(1..).unwrap_or_default();
             }
         }
+        true
     }
 
     fn entity(&mut self, cursor: &mut Cursor<'_>, budget: &mut usize) {
@@ -252,7 +269,7 @@ mod tests {
     fn truncated_declarations_do_not_panic() {
         let input = br#"r [<!-- <!ENTITY e 'ignored'> --><?p <!ENTITY e 'ignored'>?><!ENTITY e "&#60;x/>"><!ATTLIST r a (one|two) 'one' b CDATA #IMPLIED>] "#;
         for len in 0..=input.len() {
-            Dtd::default().parse(&input[..len], &mut 65536);
+            Dtd::default().parse(&input[..len], &mut 65536, false);
         }
     }
 }
