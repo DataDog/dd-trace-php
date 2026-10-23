@@ -94,8 +94,8 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
         .runtime_default_used = runtime_default_used,
         .observe_full_evaluation_data = observe_full_evaluation_data,
     };
-    // Sidecar application attribution is deferred to FFL-3438/FFL-3439.
-    // The current FFI still requires a context argument.
+    // The sidecar snapshots the connection's application before aggregation.
+    // Do not copy service, environment, and version with every evaluation.
     ddog_FfeTelemetryContext context = {0};
     ddog_FfeSubmissionStatus status = ddog_sidecar_try_submit_ffe_flag_evaluation(
         DATADOG_G(sidecar), &context, &event,

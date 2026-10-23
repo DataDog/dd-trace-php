@@ -77,7 +77,7 @@ try {
     $rows = array();
     $exposureCount = 0;
     $identity = true;
-    $evaluationIdentityAbsent = true;
+    $evaluationIdentity = true;
     $protectedBytesAbsent = true;
     foreach ($captures as $capture) {
         list($request, $headers, $payload) = $capture;
@@ -95,10 +95,15 @@ try {
             if (strpos($capture[3], 'ffe-error-pii-canary@example.test') !== false) {
                 throw new RuntimeException('raw error text reached the payload');
             }
-            // Application attribution is deferred to FFL-3438/FFL-3439.
-            $evaluationIdentityAbsent = $evaluationIdentityAbsent && $payload['context'] === array();
+            $context = $payload['context'];
+            ksort($context);
+            $evaluationIdentity = $evaluationIdentity
+                && $context === array('env' => 'test', 'service' => 'php-ffe-wire', 'version' => 'wire-version');
             foreach ($payload['flagEvaluations'] as $row) {
-                $evaluationIdentityAbsent = $evaluationIdentityAbsent && !isset($row['context']['dd']);
+                // Environment and application version belong only on the batch.
+                $evaluationIdentity = $evaluationIdentity
+                    && isset($row['context']['dd'])
+                    && $row['context']['dd'] === array('service' => 'php-ffe-wire');
                 $key = $row['flag']['key'];
                 if (isset($rows[$key])) {
                     $rows[$key]['evaluation_count'] += $row['evaluation_count'];
@@ -120,7 +125,7 @@ try {
     }
     echo 'exposure_service=php-ffe-wire', "\n";
     echo 'identity='; var_dump($identity);
-    echo 'evaluation_application_identity_absent='; var_dump($evaluationIdentityAbsent);
+    echo 'evaluation_application_identity='; var_dump($evaluationIdentity);
     echo 'exposures='; var_dump($exposureCount);
     echo 'consented_count='; var_dump($rows['consented']['evaluation_count']);
     echo 'consented_subject='; var_dump($rows['consented']['targeting_key']);
