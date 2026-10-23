@@ -777,18 +777,36 @@ class WordPressIntegrationLoader
      */
     private static function requestHasPathInfo(string $request): bool
     {
-        if (!isset($_SERVER['PATH_INFO']) || !is_string($_SERVER['PATH_INFO'])) {
+        return self::matchSubjectMayDiverge(
+            isset($_SERVER['PATH_INFO']) && is_string($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : null,
+            isset($_SERVER['REQUEST_URI']) && is_string($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null,
+            $request
+        );
+    }
+
+    /**
+     * The decision requestHasPathInfo() makes, over the two server values it
+     * reads. Separated from the superglobals so it can be driven directly.
+     *
+     * @param string|null $pathInfo $_SERVER['PATH_INFO'], or null when absent
+     * @param string|null $reqUri   $_SERVER['REQUEST_URI'], or null when absent
+     *
+     * @internal
+     */
+    public static function matchSubjectMayDiverge($pathInfo, $reqUri, string $request): bool
+    {
+        if ($pathInfo === null) {
             return false;
         }
-        list($pathInfo) = explode('?', $_SERVER['PATH_INFO']);
+        list($pathInfo) = explode('?', $pathInfo);
         if (trim($pathInfo, '/') === '') {
             return false;
         }
 
-        if (!isset($_SERVER['REQUEST_URI']) || !is_string($_SERVER['REQUEST_URI'])) {
+        if ($reqUri === null) {
             return true;
         }
-        list($reqUri) = explode('?', $_SERVER['REQUEST_URI']);
+        list($reqUri) = explode('?', $reqUri);
         // class-wp.php: $pathinfo = str_replace('%', '%25', $pathinfo);
         //               $req_uri  = trim(str_replace($pathinfo, '', $req_uri), '/');
         $requestedFile = trim(str_replace(str_replace('%', '%25', $pathInfo), '', $reqUri), '/');
