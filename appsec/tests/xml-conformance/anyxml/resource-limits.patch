@@ -1,0 +1,469 @@
+--- a/src/parse/content.rs
++++ b/src/parse/content.rs
+@@ -91,6 +91,7 @@
+         self.source.advance(1);
+         self.locator.update_column(|c| c + 1);
+
++        self.charge_internal_entity(&name)?;
+         if let Some(decl) = self.entities.get(name.as_str()) {
+             if self.entity_recursion_check(name.as_str()) {
+                 // [WFC: No Recursion]
+--- a/src/parse/dtd/element_decl.rs
++++ b/src/parse/dtd/element_decl.rs
+@@ -198,7 +198,10 @@
+                     let mut content = ElementContent::new(is_external_markup);
+                     let mut buffer = String::new();
+                     self.parse_children(&mut buffer, &mut content, model_source_id)?;
+-                    if content.compile().unwrap() {
++                    // Building validation automata can be much more expensive
++                    // than parsing the model, and is unnecessary without validation.
++                    if self.config.is_enable(ParserOption::Validation) && content.compile().unwrap()
++                    {
+                         error!(
+                             self,
+                             AmbiguousElementContentModel,
+@@ -279,6 +282,18 @@
+         model: &mut ElementContent,
+         base_source_id: usize,
+     ) -> Result<(), XMLError> {
++        self.enter_dtd_group()?;
++        let result = self.parse_children_inner(buffer, model, base_source_id);
++        self.leave_dtd_group();
++        result
++    }
++
++    fn parse_children_inner(
++        &mut self,
++        buffer: &mut String,
++        model: &mut ElementContent,
++        base_source_id: usize,
++    ) -> Result<(), XMLError> {
+         let mut id = self.parse_cp(buffer, model)?;
+         self.skip_whitespaces_with_handle_peref(true)?;
+
+@@ -414,6 +429,17 @@
+         buffer: &mut String,
+         model: &mut ElementContent,
+     ) -> Result<ElementContentStateID, XMLError> {
++        self.enter_dtd_group()?;
++        let result = self.parse_choice_or_seq_inner(buffer, model);
++        self.leave_dtd_group();
++        result
++    }
++
++    fn parse_choice_or_seq_inner(
++        &mut self,
++        buffer: &mut String,
++        model: &mut ElementContent,
++    ) -> Result<ElementContentStateID, XMLError> {
+         self.grow()?;
+         if !self.source.content_bytes().starts_with(b"(") {
+             fatal_error!(
+--- a/src/parse/dtd/ext_subset.rs
++++ b/src/parse/dtd/ext_subset.rs
+@@ -30,6 +30,13 @@
+     /// [31] extSubsetDecl ::= ( markupdecl | conditionalSect | DeclSep)*
+     /// ```
+     fn parse_ext_subset_decl(&mut self) -> Result<(), XMLError> {
++        self.enter_dtd_group()?;
++        let result = self.parse_ext_subset_decl_inner();
++        self.leave_dtd_group();
++        result
++    }
++
++    fn parse_ext_subset_decl_inner(&mut self) -> Result<(), XMLError> {
+         self.grow()?;
+         self.skip_whitespaces()?;
+
+--- a/src/parse/element.rs
++++ b/src/parse/element.rs
+@@ -1,4 +1,4 @@
+-use std::mem::take;
++use std::{collections::HashSet, mem::take};
+
+ use crate::{
+     XML_NS_NAMESPACE, XML_XML_NAMESPACE, XMLVersion,
+@@ -53,6 +53,7 @@
+         name: &mut String,
+         prefix_length: &mut usize,
+     ) -> Result<bool, XMLError> {
++        self.enter_element()?;
+         self.grow()?;
+
+         if !self.source.content_bytes().starts_with(b"<") {
+@@ -199,11 +200,21 @@
+
+         let attlistdecls = take(&mut self.attlistdecls);
+         if let Some(decls) = attlistdecls.attlist(name) {
++            // Declaration names are unique. Only explicit attributes can
++            // override a default; avoid rescanning defaults added in this loop.
++            let mut explicit_attributes = take(&mut self.atts_temp_buffer);
++            let mut explicit_names = HashSet::new();
++            for att in &explicit_attributes {
++                self.charge_expansion(att.qname.len())?;
++                explicit_names.insert(att.qname.as_str());
++            }
+             for (attr, (_, default_decl, is_external_markup)) in decls {
++                // Even ignored declarations cost iteration/name comparison work.
++                self.charge_expansion(attr.len())?;
+                 match default_decl {
+                     DefaultDecl::REQUIRED => {
+                         if self.config.is_enable(ParserOption::Validation)
+-                            && self.atts_temp_buffer.iter().all(|att| att.qname != attr)
++                            && !explicit_names.contains(attr)
+                         {
+                             // [VC: Required Attribute]
+                             validity_error!(
+@@ -216,7 +227,7 @@
+                         }
+                     }
+                     DefaultDecl::None(def) | DefaultDecl::FIXED(def) => {
+-                        if self.atts_temp_buffer.iter().all(|att| att.qname != attr) {
++                        if !explicit_names.contains(attr) {
+                             if self.config.is_enable(ParserOption::Validation)
+                                 && *is_external_markup
+                                 && self.standalone == Some(true)
+@@ -230,6 +241,7 @@
+                                     name
+                                 );
+                             }
++                            self.charge_expansion(attr.len().saturating_add(def.len()))?;
+                             let prefix_length = attr.find(':').unwrap_or(0);
+                             let mut att_value = self
+                                 .name_buffer
+@@ -251,6 +263,8 @@
+                     _ => {}
+                 }
+             }
++            explicit_attributes.append(&mut self.atts_temp_buffer);
++            self.atts_temp_buffer = explicit_attributes;
+         }
+         self.attlistdecls = attlistdecls;
+
+@@ -724,6 +738,7 @@
+     }
+
+     pub(crate) fn report_end_element(&mut self, name: &str, prefix_length: usize) {
++        self.leave_element();
+         if self.fatal_error.is_ok() {
+             if self.config.is_enable(ParserOption::Namespaces) {
+                 if prefix_length > 0 {
+--- a/src/parse/literals.rs
++++ b/src/parse/literals.rs
+@@ -294,6 +294,7 @@
+         self.source.advance(1);
+         self.locator.update_column(|c| c + 1);
+
++        self.charge_internal_entity(&name)?;
+         if let Some(decl) = self.entities.get(name.as_str()) {
+             if self.entity_recursion_check(name.as_str()) {
+                 // [WFC: No Recursion]
+@@ -467,6 +468,7 @@
+                     self.source.advance(1);
+                     self.locator.update_column(|c| c + 1);
+
++                    self.charge_internal_entity(&name)?;
+                     if let Some(decl) = self.entities.get(name.as_str()) {
+                         if self.entity_recursion_check(name.as_str()) {
+                             // [WFC: No Recursion]
+--- a/src/parse/mod.rs
++++ b/src/parse/mod.rs
+@@ -26,6 +26,7 @@
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub enum ParseError {
+     UnknownError,
++    ResourceLimit,
+     UnsupportedEncoding,
+     UnsupportedXMLVersion,
+     TooLongXMLVersionNumber,
+@@ -288,6 +289,7 @@
+         }
+
+         let mut entity_push = false;
++        self.charge_internal_entity(&name)?;
+         let decl = self.entities.get(&name);
+         // Internal parameter entities do not require validation or external I/O.
+         if matches!(decl, Some(EntityDecl::InternalParameterEntity { .. }))
+--- a/src/parse/progressive.rs
++++ b/src/parse/progressive.rs
+@@ -1016,6 +1016,7 @@
+         self.source.advance(1);
+         self.locator.update_column(|c| c + 1);
+
++        self.charge_internal_entity(&name)?;
+         if let Some(decl) = self.entities.get(name.as_str()) {
+             if self.entity_recursion_check(name.as_str()) {
+                 // [WFC: No Recursion]
+--- a/src/sax/parser.rs
++++ b/src/sax/parser.rs
+@@ -13,8 +13,8 @@
+     error::XMLError,
+     parse::ParseError,
+     sax::{
+-        AttlistDeclMap, DOCUMENT_ENTITY_NAME, ElementDeclMap, EntityMap, Locator, NamespaceStack,
+-        Notation,
++        AttlistDeclMap, DOCUMENT_ENTITY_NAME, ElementDeclMap, EntityDecl, EntityMap, Locator,
++        NamespaceStack, Notation,
+         attributes::{Attribute, Attributes},
+         contentspec::ContentSpecValidationContext,
+         error::fatal_error,
+@@ -233,10 +233,29 @@
+     InProcessingInstruction,
+ }
+
++// Bound parser work by both consumed input and an absolute ceiling, including
++// expansion and default processing that happen before any SAX callback.
++const MAX_EXPANSION_WORK: usize = 8 * 1024 * 1024;
++const MAX_AMPLIFICATION: usize = 4;
++const ENTITY_FIXED_COST: usize = 20;
++const MAX_ENTITY_DEPTH: usize = 64;
++const MAX_ELEMENT_DEPTH: usize = 256;
++const MAX_DTD_DEPTH: usize = 256;
++
++#[derive(Default)]
++struct ResourceUsage {
++    expansion: usize,
++    element_depth: usize,
++    dtd_depth: usize,
++    failed: bool,
++}
++
+ /// SAX style XML parser.
+ pub struct XMLReader<Spec: ParserSpec, H: SAXHandler + ?Sized = DefaultSAXHandler> {
+     // Parser Specific Context
+     pub(crate) specific_context: Spec::SpecificContext,
++
++    resources: ResourceUsage,
+
+     // Entity Stack
+     source_stack: Vec<Box<Spec::Reader>>,
+@@ -335,6 +354,7 @@
+     }
+
+     fn reset_context(&mut self) {
++        self.resources = ResourceUsage::default();
+         self.entity_name = None;
+
+         // reset Entity Stack
+@@ -531,7 +551,9 @@
+         (self as &mut XMLReader<DefaultParserSpec<'a>, dyn SAXHandler>)
+             .parse_document()
+             .inspect_err(|err| {
+-                fatal_error!(self, err, "Unrecoverable error: {}", err);
++                if !self.resources.failed {
++                    fatal_error!(self, err, "Unrecoverable error: {}", err);
++                }
+             })?;
+         std::mem::replace(&mut self.fatal_error, Ok(()))
+     }
+@@ -576,6 +598,7 @@
+         self.specific_context.quote = 0;
+         self.specific_context.sub_state = ParserSubState::None;
+         self.specific_context.element_stack.clear();
++        self.specific_context.entity_stack.clear();
+         self.reset_context();
+         Ok(())
+     }
+@@ -591,6 +614,11 @@
+     /// After inputting all document fragments, `finish` must be set to `true`.  \
+     /// The final document fragment can be empty.
+     pub fn parse_chunk(&mut self, chunk: impl AsRef<[u8]>, finish: bool) -> Result<(), XMLError> {
++        // Resource failures remain terminal even if finish=true consumed the
++        // ordinary fatal-error state. Only reset starts a new document.
++        if self.resources.failed {
++            return Err(XMLError::XMLParseError(ParseError::ResourceLimit));
++        }
+         let reader = self as &mut XMLReader<ProgressiveParserSpec, dyn SAXHandler>;
+         (|| {
+             if reader.fatal_error.is_err() {
+@@ -612,7 +640,9 @@
+             Ok(())
+         })()
+         .inspect_err(|err| {
+-            fatal_error!(reader, err, "Unrecoverable error: {}", err);
++            if !reader.resources.failed {
++                fatal_error!(reader, err, "Unrecoverable error: {}", err);
++            }
+         })?;
+         if finish {
+             std::mem::replace(&mut self.fatal_error, Ok(()))
+@@ -623,6 +653,77 @@
+ }
+
+ impl<'a, Spec: ParserSpec<Reader = InputSource<'a>>, H: SAXHandler + ?Sized> XMLReader<Spec, H> {
++    fn resource_limit(&mut self, message: &'static str) -> XMLError {
++        if !self.resources.failed {
++            fatal_error!(self, ResourceLimit, message);
++        }
++        self.resources.failed = true;
++        XMLError::XMLParseError(ParseError::ResourceLimit)
++    }
++
++    /// Charge before allocating/copying a replacement or applying a default.
++    /// Internal replacement sources never increase the input allowance.
++    pub(crate) fn charge_expansion(&mut self, extra: usize) -> Result<(), XMLError> {
++        let document = self.source_stack.first().unwrap_or(&self.source);
++        let allowed = document
++            .consumed()
++            .saturating_mul(MAX_AMPLIFICATION)
++            .min(MAX_EXPANSION_WORK);
++        let cost = self
++            .resources
++            .expansion
++            .saturating_add(extra)
++            .saturating_add(ENTITY_FIXED_COST);
++        if self.resources.failed || cost == usize::MAX || cost > allowed {
++            return Err(self.resource_limit("Maximum XML expansion work exceeded"));
++        }
++        self.resources.expansion = cost;
++        Ok(())
++    }
++
++    pub(crate) fn charge_internal_entity(&mut self, name: &str) -> Result<(), XMLError> {
++        let length = match self.entities.get(name) {
++            Some(
++                EntityDecl::InternalGeneralEntity {
++                    replacement_text, ..
++                }
++                | EntityDecl::InternalParameterEntity {
++                    replacement_text, ..
++                },
++            ) => replacement_text.len(),
++            _ => return Ok(()),
++        };
++        // InputSource::from_content copies its argument, so check before it.
++        if self.source_stack.len() >= MAX_ENTITY_DEPTH {
++            return Err(self.resource_limit("Maximum XML entity nesting depth exceeded"));
++        }
++        self.charge_expansion(length.saturating_add(name.len()))
++    }
++
++    pub(crate) fn enter_element(&mut self) -> Result<(), XMLError> {
++        if self.resources.element_depth >= MAX_ELEMENT_DEPTH {
++            return Err(self.resource_limit("Maximum XML element nesting depth exceeded"));
++        }
++        self.resources.element_depth += 1;
++        Ok(())
++    }
++
++    pub(crate) fn leave_element(&mut self) {
++        self.resources.element_depth = self.resources.element_depth.saturating_sub(1);
++    }
++
++    pub(crate) fn enter_dtd_group(&mut self) -> Result<(), XMLError> {
++        if self.resources.dtd_depth >= MAX_DTD_DEPTH {
++            return Err(self.resource_limit("Maximum XML DTD nesting depth exceeded"));
++        }
++        self.resources.dtd_depth += 1;
++        Ok(())
++    }
++
++    pub(crate) fn leave_dtd_group(&mut self) {
++        self.resources.dtd_depth -= 1;
++    }
++
+     pub(crate) fn push_source(
+         &mut self,
+         source: Box<InputSource<'a>>,
+@@ -631,6 +732,9 @@
+         system_id: Arc<URIStr>,
+         public_id: Option<Arc<str>>,
+     ) -> Result<(), XMLError> {
++        if self.source_stack.len() >= MAX_ENTITY_DEPTH {
++            return Err(self.resource_limit("Maximum XML entity nesting depth exceeded"));
++        }
+         self.source_stack.push(replace(&mut self.source, source));
+         // The only instance where `base_uri` is not an absolute URI should be
+         // the pseudo-base URI used within the library...
+@@ -737,6 +841,7 @@
+             entity_name: None,
+             catalog: Catalog::default(),
+             specific_context: (),
++            resources: ResourceUsage::default(),
+             source_stack: vec![],
+             locator_stack: vec![],
+             base_uri_stack: vec![],
+@@ -810,6 +915,7 @@
+                 base_uri: self.reader.base_uri,
+                 entity_name: self.reader.entity_name,
+                 catalog: self.reader.catalog,
++                resources: self.reader.resources,
+                 specific_context: self.reader.specific_context,
+                 source_stack: self.reader.source_stack,
+                 locator_stack: self.reader.locator_stack,
+@@ -872,6 +978,7 @@
+                 base_uri: self.reader.base_uri,
+                 entity_name: self.reader.entity_name,
+                 catalog: self.reader.catalog,
++                resources: self.reader.resources,
+                 specific_context: ProgressiveParserSpecificContext::default(),
+                 source_stack: vec![],
+                 locator_stack: self.reader.locator_stack,
+@@ -946,6 +1053,7 @@
+                 base_uri: self.reader.base_uri,
+                 entity_name: self.reader.entity_name,
+                 catalog: self.reader.catalog,
++                resources: self.reader.resources,
+                 specific_context: self.reader.specific_context,
+                 source_stack: self.reader.source_stack,
+                 locator_stack: self.reader.locator_stack,
+--- a/src/sax/source.rs
++++ b/src/sax/source.rs
+@@ -30,6 +30,8 @@
+     decoded_next: usize,
+     /// Total number of bytes read from `source`
+     total_read: usize,
++    /// Decoded UTF-8 bytes consumed, independent of buffering and read-ahead.
++    consumed: usize,
+     /// Whether `source` has reached EOF
+     eof: bool,
+     /// If `true`, keep `buffer` within the size specified by `INPUT_CHUNK` automatically.  \
+@@ -108,6 +110,7 @@
+             buffer_end: 0,
+             decoded_next: 0,
+             total_read: xml.len(),
++            consumed: 0,
+             eof: true,
+             compact: true,
+             progressive: false,
+@@ -219,10 +222,12 @@
+         self.total_read
+     }
+
++    pub(crate) fn consumed(&self) -> usize {
++        self.consumed
++    }
++
+     pub(crate) fn next_char(&mut self) -> Result<Option<char>, XMLError> {
+-        Ok(self
+-            .peek_char()?
+-            .inspect(|c| self.decoded_next += c.len_utf8()))
++        Ok(self.peek_char()?.inspect(|c| self.advance(c.len_utf8())))
+     }
+
+     pub(crate) fn next_char_if(
+@@ -232,7 +237,7 @@
+         Ok(self
+             .peek_char()?
+             .filter(|c| f(*c))
+-            .inspect(|c| self.decoded_next += c.len_utf8()))
++            .inspect(|c| self.advance(c.len_utf8())))
+     }
+
+     #[inline(always)]
+@@ -248,6 +253,7 @@
+     pub(crate) fn advance(&mut self, len: usize) {
+         debug_assert!(len <= self.decoded.len() - self.decoded_next);
+         self.decoded_next += len;
++        self.consumed = self.consumed.saturating_add(len);
+     }
+
+     /// Returns `true` if both the decoded but unused string
+@@ -578,6 +584,7 @@
+             buffer_end: 0,
+             decoded_next: 0,
+             total_read: 0,
++            consumed: 0,
+             eof: false,
+             compact: false,
+             progressive: false,

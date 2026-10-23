@@ -1,0 +1,4125 @@
+[
+  {
+    "name": "names/digit initial",
+    "xml": "<1>tail</1>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. Desired application output is null: no usable root.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 1",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "StartTag: invalid element name",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "names/middle dot initial",
+    "xml": "<\u00b7a>tail</\u00b7a>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. Desired application output is null: no usable root.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 1",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "StartTag: invalid element name",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "names/combining initial",
+    "xml": "<\u0300a>tail</\u0300a>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. Desired application output is null: no usable root.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 1",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "StartTag: invalid element name",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "names/punctuation",
+    "xml": "<a?>tail</a?>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. Desired application output is null: no usable root.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 2",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "error parsing attribute name",
+          "attributes construct error",
+          "Couldn't find end of Start Tag a line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "names/NBSP",
+    "xml": "<a\u00a0>tail</a\u00a0>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. Desired application output is null: no usable root.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 2",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "error parsing attribute name",
+          "attributes construct error",
+          "Couldn't find end of Start Tag a line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "names/zero width space",
+    "xml": "<a\u200b>tail</a\u200b>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. Desired application output is null: no usable root.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 2",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "error parsing attribute name",
+          "attributes construct error",
+          "Couldn't find end of Start Tag a line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "names/outside name range",
+    "xml": "<\udb80\udc00>tail</\udb80\udc00>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. Desired application output is null: no usable root.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 1",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "StartTag: invalid element name",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "names/valid middle dot",
+    "xml": "<a\u00b7>tail</a\u00b7>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "a\u00b7": [
+        "tail"
+      ]
+    },
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "a\u00b7": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "a\u00b7": [
+            "tail"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "names/valid emoji",
+    "xml": "<\ud83d\ude00>tail</\ud83d\ude00>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "\ud83d\ude00": [
+        "tail"
+      ]
+    },
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. PARSER DISAGREEMENT: interpret using stated specification/policy rather than majority vote.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 1",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "\ud83d\ude00": [
+            "tail"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "names/valid zero width nonjoiner",
+    "xml": "<a\u200c>tail</a\u200c>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "a\u200c": [
+        "tail"
+      ]
+    },
+    "category": "names",
+    "notes": "XML 1.0 Fifth Edition Name grammar; Expat uses older name ranges. null expected output means no usable root. Original fixture: convert_xml_invalid_names.phpt Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. PARSER DISAGREEMENT: interpret using stated specification/policy rather than majority vote.",
+    "source": "https://www.w3.org/TR/xml/#NT-Name",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 2",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "a\u200c": [
+            "tail"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "xml-space/explicit",
+    "xml": "<r xml:space=\"preserve\"> </r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@xml:space": "preserve"
+        },
+        " "
+      ]
+    },
+    "category": "xml-space",
+    "notes": "Application policy: expected output elects to honor xml:space, including inherited/defaulted values. XML permits whitespace delivery; default resets converter blank-run omission. Original fixture: convert_xml_space_preserve.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " "
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " "
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "xml-space/inherited",
+    "xml": "<r xml:space=\"preserve\"> <x> </x> </r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@xml:space": "preserve"
+        },
+        " ",
+        {
+          "x": [
+            " "
+          ]
+        },
+        " "
+      ]
+    },
+    "category": "xml-space",
+    "notes": "Application policy: expected output elects to honor xml:space, including inherited/defaulted values. XML permits whitespace delivery; default resets converter blank-run omission. Original fixture: convert_xml_space_preserve.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " ",
+            {
+              "x": [
+                " "
+              ]
+            },
+            " "
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " ",
+            {
+              "x": [
+                " "
+              ]
+            },
+            " "
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "xml-space/reset",
+    "xml": "<r xml:space=\"preserve\"> <x xml:space=\"default\"> </x> </r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@xml:space": "preserve"
+        },
+        " ",
+        {
+          "x": [
+            {
+              "@xml:space": "default"
+            }
+          ]
+        },
+        " "
+      ]
+    },
+    "category": "xml-space",
+    "notes": "Application policy: expected output elects to honor xml:space, including inherited/defaulted values. XML permits whitespace delivery; default resets converter blank-run omission. Original fixture: convert_xml_space_preserve.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " ",
+            {
+              "x": [
+                {
+                  "@xml:space": "default"
+                },
+                " "
+              ]
+            },
+            " "
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " ",
+            {
+              "x": [
+                {
+                  "@xml:space": "default"
+                },
+                " "
+              ]
+            },
+            " "
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "xml-space/defaulted",
+    "xml": "<!DOCTYPE r [<!ATTLIST r xml:space (default|preserve) \"preserve\">]><r> <x> </x> </r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@xml:space": "preserve"
+        },
+        " ",
+        {
+          "x": [
+            " "
+          ]
+        },
+        " "
+      ]
+    },
+    "category": "xml-space",
+    "notes": "Application policy: expected output elects to honor xml:space, including inherited/defaulted values. XML permits whitespace delivery; default resets converter blank-run omission. Original fixture: convert_xml_space_preserve.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " ",
+            {
+              "x": [
+                " "
+              ]
+            },
+            " "
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " ",
+            {
+              "x": [
+                " "
+              ]
+            },
+            " "
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "xml-space/default-overridden",
+    "xml": "<!DOCTYPE r [<!ATTLIST r xml:space (default|preserve) \"preserve\">]><r xml:space=\"default\"> <x> </x> </r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@xml:space": "default"
+        },
+        {
+          "x": []
+        }
+      ]
+    },
+    "category": "xml-space",
+    "notes": "Application policy: expected output elects to honor xml:space, including inherited/defaulted values. XML permits whitespace delivery; default resets converter blank-run omission. Original fixture: convert_xml_space_preserve.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "default"
+            },
+            " ",
+            {
+              "x": [
+                " "
+              ]
+            },
+            " "
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "default"
+            },
+            " ",
+            {
+              "x": [
+                " "
+              ]
+            },
+            " "
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "xml-space/entity-value",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"preserve\">]><r xml:space=\"&e;\"> <x/> </r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@xml:space": "preserve"
+        },
+        " ",
+        {
+          "x": []
+        },
+        " "
+      ]
+    },
+    "category": "xml-space",
+    "notes": "Application policy: expected output elects to honor xml:space, including inherited/defaulted values. XML permits whitespace delivery; default resets converter blank-run omission. Original fixture: convert_xml_space_preserve.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " ",
+            {
+              "x": []
+            },
+            " "
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            " ",
+            {
+              "x": []
+            },
+            " "
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "xml-space/comment-pi",
+    "xml": "<r xml:space=\"preserve\"> <!--x--> <?p?> <x/> </r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@xml:space": "preserve"
+        },
+        "   ",
+        {
+          "x": []
+        },
+        " "
+      ]
+    },
+    "category": "xml-space",
+    "notes": "Application policy: expected output elects to honor xml:space, including inherited/defaulted values. XML permits whitespace delivery; default resets converter blank-run omission. Original fixture: convert_xml_space_preserve.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            "   ",
+            {
+              "x": []
+            },
+            " "
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            "   ",
+            {
+              "x": []
+            },
+            " "
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "xml-space/empty-entity",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"\">]><r xml:space=\"preserve\"> &e; <x/> </r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@xml:space": "preserve"
+        },
+        "  ",
+        {
+          "x": []
+        },
+        " "
+      ]
+    },
+    "category": "xml-space",
+    "notes": "Application policy: expected output elects to honor xml:space, including inherited/defaulted values. XML permits whitespace delivery; default resets converter blank-run omission. Original fixture: convert_xml_space_preserve.phpt Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            "  ",
+            {
+              "x": []
+            },
+            " "
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "preserve"
+            },
+            "  ",
+            {
+              "x": []
+            },
+            " "
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "chars/nul",
+    "xml": "<r>before\u0000after<x>tail</x></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": {
+      "r": [
+        "before"
+      ]
+    },
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 9",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0x0 out of allowed range",
+          "Premature end of data in tag r line 1"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/vertical-tab",
+    "xml": "<r>before\u000bafter<x>tail</x></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": {
+      "r": [
+        "before"
+      ]
+    },
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 9",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "PCDATA invalid Char value 11"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/unit-separator",
+    "xml": "<r>before\u001fafter<x>tail</x></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": {
+      "r": [
+        "before"
+      ]
+    },
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 9",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "PCDATA invalid Char value 31"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/fffe",
+    "xml": "<r>before\ufffeafter<x>tail</x></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": {
+      "r": [
+        "before"
+      ]
+    },
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 9",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0xFFFE out of allowed range",
+          "PCDATA invalid Char value 65534"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/ffff",
+    "xml": "<r>before\uffffafter<x>tail</x></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": {
+      "r": [
+        "before"
+      ]
+    },
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 9",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0xFFFF out of allowed range",
+          "PCDATA invalid Char value 65535"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/tab",
+    "xml": "<r>before\tafter<x>tail</x></r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "before\tafter",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "before\tafter",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "chars/del",
+    "xml": "<r>before\u007fafter<x>tail</x></r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "before\u007fafter",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "before\u007fafter",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "chars/c1",
+    "xml": "<r>before\u0085after<x>tail</x></r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "before\u0085after",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "before\u0085after",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "chars/supplementary-noncharacter",
+    "xml": "<r>before\ud83f\udfffafter<x>tail</x></r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal Char production. DEL/C1/supplementary noncharacters are allowed (some discouraged), not rejection cases. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "before\ud83f\udfffafter",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "before\ud83f\udfffafter",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "chars/context-attribute",
+    "xml": "<r a=\"x\u0000y\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal illegal characters are forbidden even in unused quoted entity values; output intentionally unspecified for partial markup. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 7",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0x0 out of allowed range",
+          "AttValue: ' expected",
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/context-cdata",
+    "xml": "<r>before<![CDATA[x\u0000y]]><x/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal illegal characters are forbidden even in unused quoted entity values; output intentionally unspecified for partial markup. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 19",
+        "output_or_prefix": {
+          "r": [
+            "beforex"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0x0 out of allowed range",
+          "Unregistered error message",
+          "Premature end of data in tag r line 1"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/context-comment",
+    "xml": "<r>before<!--x\u0000y--><x/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal illegal characters are forbidden even in unused quoted entity values; output intentionally unspecified for partial markup. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 14",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0x0 out of allowed range",
+          "Comment not terminated",
+          "Premature end of data in tag r line 1"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/context-pi",
+    "xml": "<r>before<?p x\u0000y?><x/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal illegal characters are forbidden even in unused quoted entity values; output intentionally unspecified for partial markup. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 14",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0x0 out of allowed range",
+          "Char 0x0 out of allowed range",
+          "ParsePI: PI p never end ...",
+          "Premature end of data in tag r line 1"
+        ]
+      }
+    }
+  },
+  {
+    "name": "chars/context-unused-entity",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"x\u0000y\">]><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "illegal-chars",
+    "notes": "Literal illegal characters are forbidden even in unused quoted entity values; output intentionally unspecified for partial markup. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#charsets",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 26",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0x0 out of allowed range",
+          "Char 0x0 out of allowed range",
+          "EntityValue: \" or ' expected",
+          "xmlParseEntityDecl: entity e not terminated"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/version-alpha",
+    "xml": "<?xml version=\"1.a\"?><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. PARSER DISAGREEMENT: interpret using stated specification/policy rather than majority vote.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "String not closed expecting \" or '",
+          "Unsupported version '1.'",
+          "Blank needed here",
+          "parsing XML declaration: '?>' expected"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/version-empty",
+    "xml": "<?xml version=\"\"?><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. PARSER DISAGREEMENT: interpret using stated specification/policy rather than majority vote.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Malformed declaration expecting version"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/version-two",
+    "xml": "<?xml version=\"2.0\"?><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. PARSER DISAGREEMENT: interpret using stated specification/policy rather than majority vote.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Unsupported version '2.0'"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/version-1x",
+    "xml": "<?xml version=\"1.123\"?><r>tail</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        "tail"
+      ]
+    },
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "tail"
+          ]
+        },
+        "errors": [
+          "Unsupported version '1.123'"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/duplicate-version",
+    "xml": "<?xml version=\"1.0\" version=\"1.0\"?><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=False; native=expat_2.7.3 0 XML declaration not well-formed; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "XML declaration not well-formed: line 1, column 20",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 XML declaration not well-formed",
+        "accepted": false,
+        "error": "XML declaration not well-formed"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "parsing XML declaration: '?>' expected"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/unknown-field",
+    "xml": "<?xml version=\"1.0\" foo=\"bar\"?><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=False; native=expat_2.7.3 0 XML declaration not well-formed; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "XML declaration not well-formed: line 1, column 20",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 XML declaration not well-formed",
+        "accepted": false,
+        "error": "XML declaration not well-formed"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "parsing XML declaration: '?>' expected"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/field-order",
+    "xml": "<?xml version=\"1.0\" standalone=\"yes\" encoding=\"UTF-8\"?><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=False; native=expat_2.7.3 0 XML declaration not well-formed; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "XML declaration not well-formed: line 1, column 37",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 XML declaration not well-formed",
+        "accepted": false,
+        "error": "XML declaration not well-formed"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "parsing XML declaration: '?>' expected"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/missing-space",
+    "xml": "<?xml version=\"1.0\"encoding=\"UTF-8\"?><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=False; native=expat_2.7.3 0 XML declaration not well-formed; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "XML declaration not well-formed: line 1, column 19",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 XML declaration not well-formed",
+        "accepted": false,
+        "error": "XML declaration not well-formed"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Blank needed here"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/invalid-encoding-name",
+    "xml": "<?xml version=\"1.0\" encoding=\"8UTF\"?><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=False; native=expat_2.7.3 0 XML declaration not well-formed; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "XML declaration not well-formed: line 1, column 30",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 XML declaration not well-formed",
+        "accepted": false,
+        "error": "XML declaration not well-formed"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Invalid XML encoding name",
+          "String not closed expecting \" or '",
+          "parsing XML declaration: '?>' expected"
+        ]
+      }
+    }
+  },
+  {
+    "name": "decl/utf8",
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><r>tail</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        "tail"
+      ]
+    },
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "tail"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "decl/lowercase-utf8",
+    "xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?><r>tail</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        "tail"
+      ]
+    },
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "tail"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "decl/ascii-supported-boundary",
+    "xml": "<?xml version=\"1.0\" encoding=\"US-ASCII\"?><r>tail</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        "tail"
+      ]
+    },
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Deliberate UTF-8-only converter boundary: valid ASCII bytes with another supported XML encoding label may be declined by converter. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "tail"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "decl/latin1-supported-boundary",
+    "xml": "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><r>tail</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        "tail"
+      ]
+    },
+    "category": "declaration-lexical",
+    "notes": "XMLDecl grammar, not declaration placement. Version 1.x digits follow XML 1.0 processing rule. Deliberate UTF-8-only converter boundary: valid ASCII bytes with another supported XML encoding label may be declined by converter. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "tail"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "tail"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "attrs/literal_less_than",
+    "xml": "<r a=\"x<y\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 7",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Unescaped '<' not allowed in attributes values",
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/entity_less_than",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"&#60;\">]><r a=\"&e;\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 34",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "'<' in entity 'e' is not allowed in attributes values"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/escaped_less_than",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"&lt;\">]><r a=\"&e;\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@a": "<"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@a": "<"
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "attrs/external_attr",
+    "xml": "<!DOCTYPE r [<!ENTITY e SYSTEM \"file:///not-read\">]><r a=\"&e;\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 reference to external entity in attribute; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "reference to external entity in attribute: line 1, column 58",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 reference to external entity in attribute",
+        "accepted": false,
+        "error": "reference to external entity in attribute"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Attribute references external entity 'e'"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/invalid_attr_name",
+    "xml": "<r 1=\"v\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 3",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "error parsing attribute name",
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/nonxml_name",
+    "xml": "<r \u0085=\"v\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 3",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "error parsing attribute name",
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/valid_xml10_fifth_name",
+    "xml": "<\u200c \u200c=\"v\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. PARSER DISAGREEMENT: interpret using stated specification/policy rather than majority vote.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 1",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "\u200c": [
+            {
+              "@\u200c": "v"
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "attrs/attr_missing_equal",
+    "xml": "<r a \"v\" b=\"keep\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 5",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Specification mandates value for attribute a",
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/attr_missing_space",
+    "xml": "<r a=\"v\"b=\"keep\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 8",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/attr_unquoted",
+    "xml": "<r a=v b=\"keep\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 5",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "AttValue: \" or ' expected",
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/attr_empty_name",
+    "xml": "<r =\"v\" b=\"keep\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 3",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "error parsing attribute name",
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/attr_charref_nul",
+    "xml": "<r a=\"x&#0;y\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=False; native=expat_2.7.3 0 reference to invalid character number; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "reference to invalid character number: line 1, column 7",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 reference to invalid character number",
+        "accepted": false,
+        "error": "reference to invalid character number"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "xmlParseCharRef: invalid xmlChar value 0"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/token_invalid_value",
+    "xml": "<!DOCTYPE r [<!ATTLIST r a NMTOKEN #IMPLIED>]><r a=\"one two\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Validity/application restriction, not a nonvalidating XML well-formedness rejection. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@a": "one two"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@a": "one two"
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "attrs/fixed_override",
+    "xml": "<!DOCTYPE r [<!ATTLIST r a CDATA #FIXED \"one\">]><r a=\"two\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Validity/application restriction, not a nonvalidating XML well-formedness rejection. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@a": "two"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@a": "two"
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "attrs/xml_space_invalid",
+    "xml": "<r xml:space=\"foo\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Validity/application restriction, not a nonvalidating XML well-formedness rejection. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xml:space": "foo"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@xml:space": "foo"
+            }
+          ]
+        },
+        "errors": [
+          "Invalid value \"foo\" for xml:space : \"default\" or \"preserve\" expected"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/namespaced_default",
+    "xml": "<!DOCTYPE r [<!ATTLIST p:r p:a CDATA \"hello\">]><p:r xmlns:p=\"urn:x\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "p:r": [
+            {
+              "@xmlns:p": "urn:x",
+              "@p:a": "hello"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "p:r": [
+            {
+              "@p:a": "hello"
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "attrs/duplicate_attr",
+    "xml": "<r a=\"first\" a=\"second\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Deliberate recovery policy keeps first duplicate attribute despite XML WFC rejection. Observed: Expat2.6.3=False; native=expat_2.7.3 0 duplicate attribute; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "duplicate attribute: line 1, column 13",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 duplicate attribute",
+        "accepted": false,
+        "error": "duplicate attribute"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Attribute a redefined"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/duplicate_expanded_name",
+    "xml": "<r xmlns:a=\"urn:x\" xmlns:b=\"urn:x\" a:v=\"first\" b:v=\"second\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Namespace-specific error; core XML without namespace processing accepts. Converter deliberately emits raw QNames; libxml may report namespace errors while DOM load returns true. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@xmlns:a": "urn:x",
+              "@xmlns:b": "urn:x",
+              "@a:v": "first",
+              "@b:v": "second"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@a:v": "first",
+              "@b:v": "second"
+            }
+          ]
+        },
+        "errors": [
+          "Namespaced Attribute v in 'urn:x' redefined"
+        ]
+      }
+    }
+  },
+  {
+    "name": "attrs/undeclared_prefix",
+    "xml": "<r p:a=\"v\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "XML well-formedness, not DTD validity. Namespace-specific error; core XML without namespace processing accepts. Converter deliberately emits raw QNames; libxml may report namespace errors while DOM load returns true. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-starttags",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@p:a": "v"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@p:a": "v"
+            }
+          ]
+        },
+        "errors": [
+          "Namespace prefix p for a on r is not defined"
+        ]
+      }
+    }
+  },
+  {
+    "name": "lexical/invalid-pi-name",
+    "xml": "<r>before<?1 test?><x/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "Lexical control. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. Desired application output is null: no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-pi",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 11",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "xmlParsePI : no target name"
+        ]
+      }
+    }
+  },
+  {
+    "name": "lexical/valid-pi-name",
+    "xml": "<r>before<?p-1 test?><x/></r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "names",
+    "notes": "Lexical control. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-pi",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "before",
+            {
+              "x": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "before",
+            {
+              "x": []
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "lexical/attribute-normalize",
+    "xml": "<r a=\"x\t y\n z\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "attributes",
+    "notes": "Lexical control. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-pi",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@a": "x  y  z"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@a": "x  y  z"
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "lexical/entity-generated-tab",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"&#38;#9;\">]><r a=\"x&e;y\"/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        {
+          "@a": "x\ty"
+        }
+      ]
+    },
+    "category": "attributes",
+    "notes": "Entity-generated tab: XML algorithm/Expat preserve tab, libxml with NOENT changes it to space. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root. PARSER OUTPUT DISAGREEMENT: Expat/XML algorithm tab versus libxml NOENT space.",
+    "source": "https://www.w3.org/TR/xml/#AVNormalize",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "@a": "x\ty"
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "@a": "x y"
+            }
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "refs/bare-amp",
+    "xml": "<r>before&after<x/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 15",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "EntityRef: expecting ';'"
+        ]
+      }
+    }
+  },
+  {
+    "name": "refs/undefined",
+    "xml": "<r>before&e;<x/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Observed: Expat2.6.3=False; native=expat_2.7.3 0 undefined entity; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "undefined entity: line 1, column 9",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 undefined entity",
+        "accepted": false,
+        "error": "undefined entity"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Entity 'e' not defined"
+        ]
+      }
+    }
+  },
+  {
+    "name": "refs/undefined-attr",
+    "xml": "<r a=\"&e;\"/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Observed: Expat2.6.3=False; native=expat_2.7.3 0 undefined entity; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "undefined entity: line 1, column 0",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 undefined entity",
+        "accepted": false,
+        "error": "undefined entity"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Entity 'e' not defined"
+        ]
+      }
+    }
+  },
+  {
+    "name": "refs/invalid-charref",
+    "xml": "<r>before&#0;<x/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Observed: Expat2.6.3=False; native=expat_2.7.3 0 reference to invalid character number; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "reference to invalid character number: line 1, column 9",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 reference to invalid character number",
+        "accepted": false,
+        "error": "reference to invalid character number"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "xmlParseCharRef: invalid xmlChar value 0"
+        ]
+      }
+    }
+  },
+  {
+    "name": "refs/valid-charref",
+    "xml": "<r>&#9;&#x1F600;</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "\t\ud83d\ude00"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "\t\ud83d\ude00"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "refs/forward-general",
+    "xml": "<!DOCTYPE r [<!ENTITY a \"&b;\"><!ENTITY b \"value\">]><r>&a;</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": {
+      "r": [
+        "value"
+      ]
+    },
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "value"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "value"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "refs/external-content",
+    "xml": "<!DOCTYPE r [<!ENTITY e SYSTEM \"file:///not-read\">]><r>before&e;after</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Nonvalidating processor with external loading disabled may skip entity/declarations; accepted means allowed processing, not DTD validity or guaranteed entity completeness. No network/file loads. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "beforeafter"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "beforeafter"
+          ]
+        },
+        "errors": [
+          "Failed to load external entity because the resolver function returned null"
+        ]
+      }
+    }
+  },
+  {
+    "name": "refs/external-subset-undefined",
+    "xml": "<!DOCTYPE r SYSTEM \"file:///not-read\"><r>before&e;after</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Nonvalidating processor with external loading disabled may skip entity/declarations; accepted means allowed processing, not DTD validity or guaranteed entity completeness. No network/file loads. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "beforeafter"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "before&e;after"
+          ]
+        },
+        "errors": [
+          "Failed to load external entity because the resolver function returned null",
+          "Entity 'e' not defined"
+        ]
+      }
+    }
+  },
+  {
+    "name": "refs/parameter-prior-undefined",
+    "xml": "<!DOCTYPE r [<!ENTITY % p \"\">%p;]><r>&e;</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Nonvalidating processor with external loading disabled may skip entity/declarations; accepted means allowed processing, not DTD validity or guaranteed entity completeness. No network/file loads. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": []
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "&e;"
+          ]
+        },
+        "errors": [
+          "Entity 'e' not defined"
+        ]
+      }
+    }
+  },
+  {
+    "name": "refs/standalone-undefined",
+    "xml": "<?xml version=\"1.0\" standalone=\"yes\"?><!DOCTYPE r SYSTEM \"file:///not-read\"><r>&e;</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "references",
+    "notes": "Unresolved references may be preserved literally by converter: deliberate recovery policy, not strict acceptance. Observed: Expat2.6.3=False; native=expat_2.7.3 0 undefined entity; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entdeclared",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "undefined entity: line 1, column 79",
+        "output_or_prefix": {
+          "r": []
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 undefined entity",
+        "accepted": false,
+        "error": "undefined entity"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Failed to load external entity because the resolver function returned null",
+          "Entity 'e' not defined"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/text-before",
+    "xml": "before<r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 6",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Start tag expected, '<' not found"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/cdata-before",
+    "xml": "<![CDATA[before]]><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 syntax error; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "syntax error: line 1, column 0",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 syntax error",
+        "accepted": false,
+        "error": "syntax error"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "StartTag: invalid element name",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/stray-end-before",
+    "xml": "</stray><r>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 1",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "StartTag: invalid element name",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/multiple-roots",
+    "xml": "<r/><x>tail</x>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 junk after document element; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "junk after document element: line 1, column 4",
+        "output_or_prefix": {
+          "r": []
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 junk after document element",
+        "accepted": false,
+        "error": "junk after document element"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/text-after",
+    "xml": "<r>before</r>after",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 junk after document element; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "junk after document element: line 1, column 13",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 junk after document element",
+        "accepted": false,
+        "error": "junk after document element"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/cdata-after",
+    "xml": "<r/><![CDATA[tail]]>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 junk after document element; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "junk after document element: line 1, column 4",
+        "output_or_prefix": {
+          "r": []
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 junk after document element",
+        "accepted": false,
+        "error": "junk after document element"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/mismatched-end",
+    "xml": "<r><x>tail</r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 mismatched tag; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "mismatched tag: line 1, column 12",
+        "output_or_prefix": {
+          "r": [
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 mismatched tag",
+        "accepted": false,
+        "error": "mismatched tag"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Opening and ending tag mismatch: x line 1 and r",
+          "Premature end of data in tag r line 1"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/unmatched-end",
+    "xml": "<r>before</stray><x/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 mismatched tag; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "mismatched tag: line 1, column 11",
+        "output_or_prefix": {
+          "r": [
+            "before"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 mismatched tag",
+        "accepted": false,
+        "error": "mismatched tag"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Opening and ending tag mismatch: r line 1 and stray",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/empty-document",
+    "xml": "",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 no element found; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "no element found: line 1, column 0",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 no element found",
+        "accepted": false,
+        "error": "no element found"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Empty document (PHP DOM wrapper rejects empty source)"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/truncated-root",
+    "xml": "<r a=\"v\"",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 unclosed token; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "unclosed token: line 1, column 0",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 unclosed token",
+        "accepted": false,
+        "error": "unclosed token"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "attributes construct error",
+          "Couldn't find end of Start Tag r line 1"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/truncated-child",
+    "xml": "<r>before<x>tail",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Deliberate recovery-policy comparison: converter retains prefixes/truncated start tags and disables matching end-tag checks. spec_expected_accept describes complete XML, not whether recovery is useful. Observed: Expat2.6.3=False; native=expat_2.7.3 0 no element found; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "no element found: line 1, column 16",
+        "output_or_prefix": {
+          "r": [
+            "before",
+            {
+              "x": [
+                "tail"
+              ]
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 no element found",
+        "accepted": false,
+        "error": "no element found"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Premature end of data in tag x line 1"
+        ]
+      }
+    }
+  },
+  {
+    "name": "structure/single-root",
+    "xml": " \n<!--ok--><r/> <?p?>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Application whitespace-omission policy comparison; SAX whitespace is not automatically expected converter output. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": []
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": []
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "structure/mixed-content",
+    "xml": "<r>before<x/>after</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Application whitespace-omission policy comparison; SAX whitespace is not automatically expected converter output. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            "before",
+            {
+              "x": []
+            },
+            "after"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            "before",
+            {
+              "x": []
+            },
+            "after"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "structure/format-whitespace",
+    "xml": "<r> \n<x/> \n</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Application whitespace-omission policy comparison; SAX whitespace is not automatically expected converter output. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            " \n",
+            {
+              "x": []
+            },
+            " \n"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            " \n",
+            {
+              "x": []
+            },
+            " \n"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "structure/entity-format-whitespace",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"<x/>\">]><r> \n&e; \n</r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "root-structure",
+    "notes": "Application whitespace-omission policy comparison; SAX whitespace is not automatically expected converter output. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-white-space",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            " \n",
+            {
+              "x": []
+            },
+            " \n"
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            " \n",
+            {
+              "x": []
+            },
+            " \n"
+          ]
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "suppression/valid-deep",
+    "xml": "<r><x><hidden>value</hidden></x><tail/></r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Also run converter max_depth=1. Suppression is capacity policy; syntax errors in suppressed bytes must not silently allow normal suffix delivery. References may deliberately be skipped while suppressed. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "x": [
+                {
+                  "hidden": [
+                    "value"
+                  ]
+                }
+              ]
+            },
+            {
+              "tail": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "x": [
+                {
+                  "hidden": [
+                    "value"
+                  ]
+                }
+              ]
+            },
+            {
+              "tail": []
+            }
+          ]
+        },
+        "errors": []
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "suppression/invalid-name-hidden",
+    "xml": "<r><x><1>value</1></x><tail/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Also run converter max_depth=1. Suppression is capacity policy; syntax errors in suppressed bytes must not silently allow normal suffix delivery. References may deliberately be skipped while suppressed. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 7",
+        "output_or_prefix": {
+          "r": [
+            {
+              "x": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "StartTag: invalid element name",
+          "expected '>'",
+          "Opening and ending tag mismatch: x line 1 and unparsable",
+          "Opening and ending tag mismatch: r line 1 and x",
+          "Extra content at the end of the document"
+        ]
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "suppression/illegal-char-hidden",
+    "xml": "<r><x>before\u0000after</x><tail/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Also run converter max_depth=1. Suppression is capacity policy; syntax errors in suppressed bytes must not silently allow normal suffix delivery. References may deliberately be skipped while suppressed. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 12",
+        "output_or_prefix": {
+          "r": [
+            {
+              "x": [
+                "before"
+              ]
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Char 0x0 out of allowed range",
+          "Premature end of data in tag x line 1"
+        ]
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "suppression/undeclared-hidden",
+    "xml": "<r><x>&e;</x><tail/></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Also run converter max_depth=1. Suppression is capacity policy; syntax errors in suppressed bytes must not silently allow normal suffix delivery. References may deliberately be skipped while suppressed. Observed: Expat2.6.3=False; native=expat_2.7.3 0 undefined entity; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "undefined entity: line 1, column 6",
+        "output_or_prefix": {
+          "r": [
+            {
+              "x": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 undefined entity",
+        "accepted": false,
+        "error": "undefined entity"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Entity 'e' not defined"
+        ]
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "suppression/entity-markup",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"<hidden>value</hidden>\">]><r><x>&e;</x><tail/></r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Also run converter max_depth=1. Suppression is capacity policy; syntax errors in suppressed bytes must not silently allow normal suffix delivery. References may deliberately be skipped while suppressed. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-well-formed",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": [
+            {
+              "x": [
+                {
+                  "hidden": [
+                    "value"
+                  ]
+                }
+              ]
+            },
+            {
+              "tail": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": [
+            {
+              "x": [
+                {
+                  "hidden": [
+                    "value"
+                  ]
+                }
+              ]
+            },
+            {
+              "tail": []
+            }
+          ]
+        },
+        "errors": []
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "limits/default-budget-starves-later-entity",
+    "xml": "<!DOCTYPE r [<!ATTLIST q a0 CDATA #IMPLIED d0 CDATA \"\" d1 CDATA \"\" d2 CDATA \"\" d3 CDATA \"\" d4 CDATA \"\" d5 CDATA \"\" d6 CDATA \"\" d7 CDATA \"\" d8 CDATA \"\" d9 CDATA \"\" d10 CDATA \"\" d11 CDATA \"\" d12 CDATA \"\" d13 CDATA \"\" d14 CDATA \"\" d15 CDATA \"\" d16 CDATA \"\" d17 CDATA \"\" d18 CDATA \"\" d19 CDATA \"\" d20 CDATA \"\" d21 CDATA \"\" d22 CDATA \"\" d23 CDATA \"\" d24 CDATA \"\" d25 CDATA \"\" d26 CDATA \"\" d27 CDATA \"\" d28 CDATA \"\" d29 CDATA \"\" d30 CDATA \"\" d31 CDATA \"\" d32 CDATA \"\" d33 CDATA \"\" d34 CDATA \"\" d35 CDATA \"\" d36 CDATA \"\" d37 CDATA \"\" d38 CDATA \"\" d39 CDATA \"\" d40 CDATA \"\" d41 CDATA \"\" d42 CDATA \"\" d43 CDATA \"\" d44 CDATA \"\" d45 CDATA \"\" d46 CDATA \"\" d47 CDATA \"\" d48 CDATA \"\" d49 CDATA \"\" d50 CDATA \"\" d51 CDATA \"\" d52 CDATA \"\" d53 CDATA \"\" d54 CDATA \"\" d55 CDATA \"\" d56 CDATA \"\" d57 CDATA \"\" d58 CDATA \"\" d59 CDATA \"\" d60 CDATA \"\" d61 CDATA \"\" d62 CDATA \"\" d63 CDATA \"\" d64 CDATA \"\" d65 CDATA \"\" d66 CDATA \"\" d67 CDATA \"\" d68 CDATA \"\" d69 CDATA \"\" d70 CDATA \"\" d71 CDATA \"\" d72 CDATA \"\" d73 CDATA \"\" d74 CDATA \"\" d75 CDATA \"\" d76 CDATA \"\" d77 CDATA \"\" d78 CDATA \"\" d79 CDATA \"\" d80 CDATA \"\" d81 CDATA \"\" d82 CDATA \"\" d83 CDATA \"\" d84 CDATA \"\" d85 CDATA \"\" d86 CDATA \"\" d87 CDATA \"\" d88 CDATA \"\" d89 CDATA \"\" d90 CDATA \"\" d91 CDATA \"\" d92 CDATA \"\" d93 CDATA \"\" d94 CDATA \"\" d95 CDATA \"\" d96 CDATA \"\" d97 CDATA \"\" d98 CDATA \"\" d99 CDATA \"\" d100 CDATA \"\" d101 CDATA \"\" d102 CDATA \"\" d103 CDATA \"\" d104 CDATA \"\" d105 CDATA \"\" d106 CDATA \"\" d107 CDATA \"\" d108 CDATA \"\" d109 CDATA \"\" d110 CDATA \"\" d111 CDATA \"\" d112 CDATA \"\" d113 CDATA \"\" d114 CDATA \"\" d115 CDATA \"\" d116 CDATA \"\" d117 CDATA \"\" d118 CDATA \"\" d119 CDATA \"\" d120 CDATA \"\" d121 CDATA \"\" d122 CDATA \"\" d123 CDATA \"\" d124 CDATA \"\" d125 CDATA \"\" d126 CDATA \"\" d127 CDATA \"\" d128 CDATA \"\" d129 CDATA \"\" d130 CDATA \"\" d131 CDATA \"\" d132 CDATA \"\" d133 CDATA \"\" d134 CDATA \"\" d135 CDATA \"\" d136 CDATA \"\" d137 CDATA \"\" d138 CDATA \"\" d139 CDATA \"\" d140 CDATA \"\" d141 CDATA \"\" d142 CDATA \"\" d143 CDATA \"\" d144 CDATA \"\" d145 CDATA \"\" d146 CDATA \"\" d147 CDATA \"\" d148 CDATA \"\" d149 CDATA \"\" d150 CDATA \"\" d151 CDATA \"\" d152 CDATA \"\" d153 CDATA \"\" d154 CDATA \"\" d155 CDATA \"\" d156 CDATA \"\" d157 CDATA \"\" d158 CDATA \"\" d159 CDATA \"\" d160 CDATA \"\" d161 CDATA \"\" d162 CDATA \"\" d163 CDATA \"\" d164 CDATA \"\" d165 CDATA \"\" d166 CDATA \"\" d167 CDATA \"\" d168 CDATA \"\" d169 CDATA \"\" d170 CDATA \"\" d171 CDATA \"\" d172 CDATA \"\" d173 CDATA \"\" d174 CDATA \"\" d175 CDATA \"\" d176 CDATA \"\" d177 CDATA \"\" d178 CDATA \"\" d179 CDATA \"\" d180 CDATA \"\" d181 CDATA \"\" d182 CDATA \"\" d183 CDATA \"\" d184 CDATA \"\" d185 CDATA \"\" d186 CDATA \"\" d187 CDATA \"\" d188 CDATA \"\" d189 CDATA \"\" d190 CDATA \"\" d191 CDATA \"\" d192 CDATA \"\" d193 CDATA \"\" d194 CDATA \"\" d195 CDATA \"\" d196 CDATA \"\" d197 CDATA \"\" d198 CDATA \"\" d199 CDATA \"\"><!ENTITY p \"PAYLOAD\">]><r><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><q/><v>&p;</v></r>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Confirmed Opus/review.txt capacity-policy case: 200 empty default attributes on 400 q nodes consume shared budget; later v should expose PAYLOAD under sufficient capacity. expected_output_if_known omitted to avoid enormous tree. Native parsers accept; budget exhaustion behavior is application policy. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-conformance",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_summary": {
+          "root": "r",
+          "child_count": 401,
+          "last_child": {
+            "v": [
+              "PAYLOAD"
+            ]
+          },
+          "note": "400 q nodes each have 200 default attributes; omitted repetitive middle for size."
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "errors": [],
+        "output_summary": {
+          "root": "r",
+          "child_count": 401,
+          "last_child": {
+            "v": [
+              "PAYLOAD"
+            ]
+          },
+          "note": "400 q nodes each have 200 default attributes; omitted repetitive middle for size."
+        }
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "dtd/missing-root-name",
+    "xml": "<!DOCTYPE ><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=False; native=expat_2.7.3 0 syntax error; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "syntax error: line 1, column 10",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 syntax error",
+        "accepted": false,
+        "error": "syntax error"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "xmlParseDocTypeDecl : no DOCTYPE name !"
+        ]
+      }
+    }
+  },
+  {
+    "name": "dtd/system-unquoted",
+    "xml": "<!DOCTYPE r SYSTEM file:///not-read><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 24",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "SystemLiteral \" or ' expected",
+          "SYSTEM or PUBLIC, the URI is missing",
+          "DOCTYPE improperly terminated",
+          "Start tag expected, '<' not found"
+        ]
+      }
+    }
+  },
+  {
+    "name": "dtd/public-missing-system",
+    "xml": "<!DOCTYPE r PUBLIC \"id\"><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=False; native=expat_2.7.3 0 syntax error; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "syntax error: line 1, column 23",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 syntax error",
+        "accepted": false,
+        "error": "syntax error"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Space required after the Public Identifier",
+          "SystemLiteral \" or ' expected",
+          "SYSTEM or PUBLIC, the URI is missing"
+        ]
+      }
+    }
+  },
+  {
+    "name": "dtd/entity-missing-value",
+    "xml": "<!DOCTYPE r [<!ENTITY e>]><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=False; native=expat_2.7.3 0 syntax error; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "syntax error: line 1, column 23",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 syntax error",
+        "accepted": false,
+        "error": "syntax error"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Space required after the entity name",
+          "Entity value required"
+        ]
+      }
+    }
+  },
+  {
+    "name": "dtd/entity-missing-semicolon",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"&other\">]><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 25",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "EntityValue: '&' forbidden except for entities references"
+        ]
+      }
+    }
+  },
+  {
+    "name": "dtd/entity-invalid-charref-unused",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"&#0;\">]><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=False; native=expat_2.7.3 0 reference to invalid character number; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "reference to invalid character number: line 1, column 25",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 reference to invalid character number",
+        "accepted": false,
+        "error": "reference to invalid character number"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "xmlParseStringCharRef: invalid xmlChar value 0"
+        ]
+      }
+    }
+  },
+  {
+    "name": "dtd/entity-duplicate-first-binding",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"first\"><!ENTITY e \"second\">]><r/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": []
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": []
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "dtd/attlist-missing-type",
+    "xml": "<!DOCTYPE r [<!ATTLIST r a \"value\">]><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=False; native=expat_2.7.3 0 syntax error; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "syntax error: line 1, column 27",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 syntax error",
+        "accepted": false,
+        "error": "syntax error"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "'(' required to start ATTLIST enumeration",
+          "internal error: xmlParseInternalSubset: error detected in Markup declaration",
+          "DOCTYPE improperly terminated",
+          "Start tag expected, '<' not found"
+        ]
+      }
+    }
+  },
+  {
+    "name": "dtd/conditional-in-internal-subset",
+    "xml": "<!DOCTYPE r [<![IGNORE[ignored]]>]><r/>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=False; native=expat_2.7.3 0 syntax error; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "syntax error: line 1, column 13",
+        "output_or_prefix": null
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 syntax error",
+        "accepted": false,
+        "error": "syntax error"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "internal error: xmlParseInternalSubset: error detected in Markup declaration",
+          "DOCTYPE improperly terminated",
+          "StartTag: invalid element name",
+          "Extra content at the end of the document"
+        ]
+      }
+    }
+  },
+  {
+    "name": "dtd/element-validity-only",
+    "xml": "<!DOCTYPE r [<!ELEMENT r EMPTY>]><r/>",
+    "spec_expected_accept": true,
+    "expected_output_if_known": null,
+    "category": "dtd-lexical",
+    "notes": "DTD lexical/WFC versus validity distinction; duplicate entity declarations bind first. No external loads. Observed: Expat2.6.3=True; native=expat_2.7.3 1 OK; libxml2.9.13=True. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#sec-prolog-dtd",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": true,
+        "output_or_prefix": {
+          "r": []
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 1 OK",
+        "accepted": true,
+        "error": null
+      },
+      "libxml_2_9_13": {
+        "accepted": true,
+        "output": {
+          "r": []
+        },
+        "errors": []
+      }
+    }
+  },
+  {
+    "name": "suppression/entity-cdata-close",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"prefix]]>after\">]><r>before<x>&e;</x><tail>visible</tail></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Candidate from suppressed-entity-review.txt; run max_depth=1 as well as 30. Used entity must be checked even when content is suppressed. Baseline/current attribution not established. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entities",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 55",
+        "output_or_prefix": {
+          "r": [
+            "before",
+            {
+              "x": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Sequence ']]>' not allowed in content",
+          "Entity 'e' failed to parse"
+        ]
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "suppression/entity-declaration",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"<?xml version='1.0'?>\">]><r>before<x>&e;</x><tail>visible</tail></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Candidate from suppressed-entity-review.txt; run max_depth=1 as well as 30. Used entity must be checked even when content is suppressed. Baseline/current attribution not established. Observed: Expat2.6.3=False; native=expat_2.7.3 0 XML or text declaration not at start of entity; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entities",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "XML or text declaration not at start of entity: line 1, column 62",
+        "output_or_prefix": {
+          "r": [
+            "before",
+            {
+              "x": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 XML or text declaration not at start of entity",
+        "accepted": false,
+        "error": "XML or text declaration not at start of entity"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "XML declaration allowed only at the start of the document",
+          "Entity 'e' failed to parse"
+        ]
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "suppression/entity-reserved-pi",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"<?XML bad?>\">]><r>before<x>&e;</x><tail>visible</tail></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Candidate from suppressed-entity-review.txt; run max_depth=1 as well as 30. Used entity must be checked even when content is suppressed. Baseline/current attribution not established. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entities",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 52",
+        "output_or_prefix": {
+          "r": [
+            "before",
+            {
+              "x": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Invalid PI name",
+          "Entity 'e' failed to parse"
+        ]
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "suppression/entity-comment",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"<!--a--b-->\">]><r>before<x>&e;</x><tail>visible</tail></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Candidate from suppressed-entity-review.txt; run max_depth=1 as well as 30. Used entity must be checked even when content is suppressed. Baseline/current attribution not established. Observed: Expat2.6.3=False; native=expat_2.7.3 0 not well-formed (invalid token); libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entities",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "not well-formed (invalid token): line 1, column 52",
+        "output_or_prefix": {
+          "r": [
+            "before",
+            {
+              "x": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 not well-formed (invalid token)",
+        "accepted": false,
+        "error": "not well-formed (invalid token)"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "Double hyphen within comment: <!--a",
+          "Entity 'e' failed to parse"
+        ]
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  },
+  {
+    "name": "suppression/entity-close-caller",
+    "xml": "<!DOCTYPE r [<!ENTITY e \"</x>\">]><r>before<x>&e;</x><tail>visible</tail></r>",
+    "spec_expected_accept": false,
+    "expected_output_if_known": null,
+    "category": "suppression",
+    "notes": "Candidate from suppressed-entity-review.txt; run max_depth=1 as well as 30. Used entity must be checked even when content is suppressed. Baseline/current attribution not established. Observed: Expat2.6.3=False; native=expat_2.7.3 0 asynchronous entity; libxml2.9.13=False. Oracle outputs preserve SAX/DOM whitespace; converter formatting-whitespace omission is separate. expected_output_if_known=null means unspecified unless notes explicitly identify no usable root.",
+    "source": "https://www.w3.org/TR/xml/#wf-entities",
+    "observed": {
+      "expat_2_6_3": {
+        "accepted": false,
+        "error": "asynchronous entity: line 1, column 45",
+        "output_or_prefix": {
+          "r": [
+            "before",
+            {
+              "x": []
+            }
+          ]
+        }
+      },
+      "expat_2_7_3": {
+        "summary": "expat_2.7.3 0 asynchronous entity",
+        "accepted": false,
+        "error": "asynchronous entity"
+      },
+      "libxml_2_9_13": {
+        "accepted": false,
+        "output": null,
+        "errors": [
+          "chunk is not well balanced",
+          "Entity 'e' failed to parse"
+        ]
+      }
+    },
+    "max_depths": [
+      30,
+      1
+    ]
+  }
+]

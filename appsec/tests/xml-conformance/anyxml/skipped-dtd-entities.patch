@@ -1,0 +1,21 @@
+--- a/src/parse/dtd/mod.rs
++++ b/src/parse/dtd/mod.rs
+@@ -68,7 +68,6 @@
+         self.locator.update_column(|c| c + 1);
+
+         if let Some(external_subset) = external_subset {
+-            self.has_external_subset = true;
+             self.push_source(
+                 Box::new(external_subset),
+                 self.base_uri.clone(),
+@@ -290,6 +289,10 @@
+             public_id = ext.public_id().map(str::to_owned);
+             external_subset = Some(ext);
+         }
++        // Entity Declared depends on whether an external subset was declared,
++        // even when a non-validating parser skips loading it. Record this before
++        // parsing the internal subset, which may contain attribute defaults.
++        self.has_external_subset = system_id.is_some() || external_subset.is_some();
+         if self.fatal_error.is_ok() {
+             self.handler
+                 .start_dtd(&self.dtd_name, public_id.as_deref(), system_id.as_deref());

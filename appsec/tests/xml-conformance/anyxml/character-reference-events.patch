@@ -1,0 +1,116 @@
+--- a/src/c14n.rs
++++ b/src/c14n.rs
+@@ -151,6 +151,10 @@
+ }
+
+ impl<H: SAXHandler> SAXHandler for CanonicalizeHandler<H> {
++    fn character_reference(&mut self, value: char) {
++        self.child.character_reference(value);
++    }
++
+     fn characters(&mut self, data: &str) {
+         if self.serialize {
+             let mut data = data;
+--- a/src/parse/char_data.rs
++++ b/src/parse/char_data.rs
+@@ -123,6 +123,9 @@
+             if self.source.content_bytes().starts_with(b"&#") {
+                 // Resolve character references here and include them in the character data.
+                 let c = self.parse_char_ref()?;
++                if self.fatal_error.is_ok() {
++                    self.handler.character_reference(c);
++                }
+                 self.text_buffer.push(c);
+                 non_whitespace += c.len_utf8();
+
+--- a/src/relaxng/parse.rs
++++ b/src/relaxng/parse.rs
+@@ -2957,6 +2957,10 @@
+ }
+
+ impl<H: SAXHandler + ?Sized> SAXHandler for RelaxNGParseHandler<H> {
++    fn character_reference(&mut self, value: char) {
++        self.handler.character_reference(value);
++    }
++
+     fn set_document_locator(&mut self, locator: Arc<Locator>) {
+         self.handler.set_document_locator(locator.clone());
+
+--- a/src/relaxng/validate.rs
++++ b/src/relaxng/validate.rs
+@@ -319,6 +319,10 @@
+     }
+ }
+ impl<'a, H: SAXHandler> SAXHandler for ValidateHandler<'a, H> {
++    fn character_reference(&mut self, value: char) {
++        self.child.character_reference(value);
++    }
++
+     fn set_document_locator(&mut self, locator: Arc<Locator>) {
+         self.child.set_document_locator(locator.clone());
+         self.base_uri = locator.system_id();
+--- a/src/sax/handler.rs
++++ b/src/sax/handler.rs
+@@ -21,6 +21,16 @@
+     /// [`ContentHandler` interface in Java SAX API](https://docs.oracle.com/javase/jp/21/docs/api/java.xml/org/xml/sax/ContentHandler.html)
+     fn characters(&mut self, data: &str) {
+         let _ = data;
++    }
++
++    /// A numeric character reference parsed in element content.
++    ///
++    /// This lexical notification precedes delivery of the containing text chunk,
++    /// which may also contain earlier buffered text. The decoded character is
++    /// still delivered through the usual text callbacks; this event adds no text.
++    /// References in attributes and declarations do not trigger this event.
++    fn character_reference(&mut self, value: char) {
++        let _ = value;
+     }
+
+     /// XML declaration or Text declaration.
+@@ -362,6 +372,10 @@
+     }
+ }
+ impl<H: SAXHandler + ?Sized> SAXHandler for &mut H {
++    fn character_reference(&mut self, value: char) {
++        (**self).character_reference(value);
++    }
++
+     fn attribute_decl(
+         &mut self,
+         element_name: &str,
+@@ -511,6 +525,10 @@
+     }
+ }
+ impl<H: SAXHandler + ?Sized> SAXHandler for Box<H> {
++    fn character_reference(&mut self, value: char) {
++        (**self).character_reference(value);
++    }
++
+     fn attribute_decl(
+         &mut self,
+         element_name: &str,
+@@ -683,6 +701,10 @@
+ }
+
+ impl<Child: SAXHandler> SAXHandler for DebugHandler<Child> {
++    fn character_reference(&mut self, value: char) {
++        self.child.character_reference(value);
++    }
++
+     fn characters(&mut self, data: &str) {
+         self.buffer.push_str("characters(");
+         self.buffer.push_str(data);
+--- a/src/tree/mod.rs
++++ b/src/tree/mod.rs
+@@ -273,6 +273,10 @@
+ }
+
+ impl<H: SAXHandler> SAXHandler for TreeBuildHandler<H> {
++    fn character_reference(&mut self, value: char) {
++        self.handler.character_reference(value);
++    }
++
+     fn attribute_decl(
+         &mut self,
+         element_name: &str,

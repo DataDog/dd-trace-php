@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-27",
+  "baseline_revision": "b66780c36",
+  "current": {
+    "modes": {
+      "sax": {
+        "cases": 468,
+        "output_comparisons": 307,
+        "output_matches": 285,
+        "wrapper_cases_recorded_only": 36,
+        "spec_acceptance_comparisons": 125,
+        "spec_acceptance_matches": 56,
+        "outstanding_known_output_comparisons": 23,
+        "outstanding_known_output_matches": 9
+      }
+    },
+    "output_by_authority": {
+      "sax": {
+        "approved_repository_expectation": {
+          "comparisons": 255,
+          "matches": 255
+        },
+        "unapproved_proposed_expectation": {
+          "comparisons": 52,
+          "matches": 30
+        }
+      }
+    },
+    "library": "current",
+    "version": "current-worktree",
+    "distinct_case_runs": 468
+  },
+  "anyxml": {
+    "modes": {
+      "sax": {
+        "cases": 468,
+        "output_comparisons": 307,
+        "output_matches": 272,
+        "wrapper_cases_recorded_only": 36,
+        "spec_acceptance_comparisons": 125,
+        "spec_acceptance_matches": 123,
+        "outstanding_known_output_comparisons": 23,
+        "outstanding_known_output_matches": 9
+      }
+    },
+    "output_by_authority": {
+      "sax": {
+        "approved_repository_expectation": {
+          "comparisons": 255,
+          "matches": 233
+        },
+        "unapproved_proposed_expectation": {
+          "comparisons": 52,
+          "matches": 39
+        }
+      }
+    },
+    "library": "anyxml",
+    "version": "0.15.1",
+    "distinct_case_runs": 468,
+    "patches": [
+      "internal-parameter-entities",
+      "resource-limits",
+      "standalone-whitespace",
+      "skipped-dtd-entities",
+      "character-reference-events"
+    ]
+  },
+  "baseline_date": "2026-10-23",
+  "anyxml_validation_revision": "d359f7664",
+  "anyxml_validation": {
+    "modes": {
+      "sax": {
+        "cases": 468,
+        "output_comparisons": 307,
+        "output_matches": 265,
+        "wrapper_cases_recorded_only": 36,
+        "spec_acceptance_comparisons": 125,
+        "spec_acceptance_matches": 124,
+        "outstanding_known_output_comparisons": 23,
+        "outstanding_known_output_matches": 9
+      }
+    },
+    "output_by_authority": {
+      "sax": {
+        "approved_repository_expectation": {
+          "comparisons": 255,
+          "matches": 227
+        },
+        "unapproved_proposed_expectation": {
+          "comparisons": 52,
+          "matches": 38
+        }
+      }
+    },
+    "library": "anyxml",
+    "version": "0.15.1",
+    "distinct_case_runs": 468
+  }
+}

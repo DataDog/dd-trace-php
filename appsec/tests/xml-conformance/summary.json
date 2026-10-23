@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "tests": 41,
+  "cases": 343,
+  "by_authority": {
+    "approved_repository_expectation": 282,
+    "unapproved_proposed_expectation": 61
+  },
+  "base64_cases": 3,
+  "all_expected_values_derived": true,
+  "all_expected_mappings_replay_verified": true,
+  "capture_php_version": "8.5.12"
+}

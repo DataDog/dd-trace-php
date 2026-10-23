@@ -1,0 +1,13 @@
+[package]
+name = "anyxml-body-harness"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyxml = { version = "=0.15.1", path = "vendor/anyxml" }
+base64 = "0.22"
+quick-xml = { version = "=0.37.5", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[workspace]

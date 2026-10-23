@@ -1,0 +1,20 @@
+--- a/src/parse/xmldecl.rs
++++ b/src/parse/xmldecl.rs
+@@ -351,7 +351,8 @@
+         }
+         // skip '='
+         self.source.advance(1);
+-        self.locator.update_column(|c| c + 10);
++        self.locator.update_column(|c| c + 1);
++        self.skip_whitespaces()?;
+
+         let quote = match self.source.next_char()? {
+             Some(c @ ('"' | '\'')) => c,
+@@ -366,6 +367,7 @@
+         };
+         self.locator.update_column(|c| c + 1);
+
++        self.grow()?;
+         let ret = match self.source.content_bytes() {
+             [b'y', b'e', b's', ..] => {
+                 self.source.advance(3);

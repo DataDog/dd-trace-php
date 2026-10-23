@@ -1,0 +1,52 @@
+--- a/src/parse/mod.rs
++++ b/src/parse/mod.rs
+@@ -290,3 +290,6 @@
+         let mut entity_push = false;
+-        if self.config.is_enable(ParserOption::Validation)
++        let decl = self.entities.get(&name);
++        // Internal parameter entities do not require validation or external I/O.
++        if matches!(decl, Some(EntityDecl::InternalParameterEntity { .. }))
++            || self.config.is_enable(ParserOption::Validation)
+             || self
+@@ -295,3 +298,3 @@
+         {
+-            if let Some(decl) = self.entities.get(&name) {
++            if let Some(decl) = decl {
+                 match decl {
+@@ -301,23 +304,16 @@
+                     } => {
+-                        if self.config.is_enable(ParserOption::Validation) {
+-                            let source = InputSource::from_content(replacement_text.as_ref());
+-                            let name: Arc<str> = name.into();
+-                            self.push_source(
+-                                Box::new(source),
+-                                base_uri.clone(),
+-                                Some(name.clone()),
+-                                URIString::parse(format!(
+-                                    "?internal-parameter-entity.{}",
+-                                    &name[1..]
+-                                ))?
++                        let source = InputSource::from_content(replacement_text.as_ref());
++                        let name: Arc<str> = name.into();
++                        self.push_source(
++                            Box::new(source),
++                            base_uri.clone(),
++                            Some(name.clone()),
++                            URIString::parse(format!("?internal-parameter-entity.{}", &name[1..]))?
+                                 .into(),
+-                                None,
+-                            )?;
+-                            entity_push = true;
+-
+-                            if !in_decl && self.fatal_error.is_ok() {
+-                                self.handler.start_entity(&name);
+-                            }
+-                        } else if !in_decl && self.fatal_error.is_ok() {
+-                            self.handler.skipped_entity(&name);
++                            None,
++                        )?;
++                        entity_push = true;
++
++                        if !in_decl && self.fatal_error.is_ok() {
++                            self.handler.start_entity(&name);
+                         }
