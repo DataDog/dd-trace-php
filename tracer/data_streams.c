@@ -5,12 +5,17 @@
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
 #include <ext/process_tags.h>
+#include <ext/sidecar.h>
 #include <ext/target_metadata.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
+bool ddtrace_dsm_enabled(void) {
+    return get_DD_DATA_STREAMS_ENABLED() && datadog_endpoint;
+}
+
 zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carrier) {
-    if (!get_DD_DATA_STREAMS_ENABLED()) {
+    if (!ddtrace_dsm_enabled()) {
         return NULL;
     }
 

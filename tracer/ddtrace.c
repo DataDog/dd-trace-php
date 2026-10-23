@@ -702,7 +702,8 @@ bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
         || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
-        || get_global_DD_METRICS_OTEL_ENABLED();
+        || get_global_DD_METRICS_OTEL_ENABLED()
+        || get_global_DD_DATA_STREAMS_ENABLED();
 }
 
 #if defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
