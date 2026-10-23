@@ -19,8 +19,35 @@ the request path it deliberately leaves out.
 - Only the path the framework routed is used. A prefix removed before the
   request reaches PHP (e.g. by a reverse proxy) cannot be known and is not
   part of the route.
-- No other framework is supported (e.g. CakePHP, CodeIgniter, Lumen, Slim,
-  Yii).
+
+## Frameworks that set `http.route` but no normalized route
+
+CakePHP, CodeIgniter, Slim and Yii set `http.route` and deliberately do not
+set `_dd.appsec.normalized_route`. This is a decision, not a gap to be filled
+later: for these integrations `http.route` is not a route template that can be
+normalized without emitting values taken from the request.
+
+- **CodeIgniter** — when no configured route matches, `http.route` is the
+  concrete request path (`implode('/', $router->uri->segments)`), which is the
+  common case for CodeIgniter's implicit `controller/method/arg` routing.
+  Normalizing it would copy request-controlled path values into the tag, at
+  unbounded cardinality.
+- **Yii** — `http.route` is synthesised with `Url::toRoute()` over
+  `actionParams`. Only parameters present in the action's argument list become
+  `:name`; the rest stay in the route as their literal request values.
+- **Slim** — route patterns are available, but optional sections
+  (`/users/{id}[/{format}]`, and static ones such as `/feed[.json]`) cannot be
+  resolved per request from `getArguments()` alone, and Slim 3 exposes no
+  arguments at the hook site at all.
+- **CakePHP** — the matched route template is available, but the route's
+  matched parameters are not exposed at the hook site, so optional and
+  mixed-segment parts cannot be resolved.
+
+Any later attempt to support these must first establish per-request parameter
+participation from the framework's own matching data, as the four supported
+integrations do; a template-only normalization would violate RFC-1103 R-2/R-3.
+
+- No other framework is supported (e.g. Lumen, Mezzio, Phalcon).
 
 ## Laravel
 
@@ -106,8 +133,15 @@ on `WP::$request`. Omitted when:
   index permalink rules (`index.php/...`) and its default attachment rules;
 - the rule matches `WP::$request` only after URL-decoding (WordPress tries
   both), or matches only a prefix of it;
-- `PATH_INFO` is not empty (e.g. `/index.php/foo`): WordPress may then have
-  matched a subject that is not kept;
+- WordPress may have matched a subject that is not kept. It swaps the subject
+  for `$requested_file/$requested_path` from the first rule that starts with
+  the requested file, so the tag is omitted when `PATH_INFO` is not empty
+  (e.g. `/index.php/foo`) and the requested file cannot be shown to be empty.
+  A site whose server rewrites every request to `index.php/$1` has the whole
+  request URI consumed by the path info, leaving an empty requested file: no
+  swap can happen there and the tag is kept. A subdirectory installation whose
+  request URI is exactly the home path is omitted, though WordPress would not
+  have swapped;
 - a capture cannot be placed in a URL segment, or the capture names do not
   line up with their groups.
 
