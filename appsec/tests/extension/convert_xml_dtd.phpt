@@ -10,7 +10,7 @@ $cases = [
     '<!DOCTYPE r [<!ENTITY a "&b;"><!ENTITY b "attack">]><r>&a;</r>',
     '<!DOCTYPE r [<!ENTITY e "<child key=\'v\'>value</child>">]><r>before&e;after</r>',
     '<!DOCTYPE r [<!ENTITY e "&#60;child/> &lt;text&gt;">]><r>&e;</r>',
-    '<!DOCTYPE r [<!-- <!ATTLIST r a CDATA "safe"> --><!ATTLIST r a CDATA "&e;" b CDATA #FIXED "v"><!ENTITY e "attack">]><r/>',
+    '<!DOCTYPE r [<!-- <!ATTLIST r a CDATA "safe"> --><!ENTITY e "attack"><!ATTLIST r a CDATA "&e;" b CDATA #FIXED "v">]><r/>',
     '<!DOCTYPE r [<!ATTLIST r a CDATA "default"><!ATTLIST r a CDATA "ignored">]><r a="explicit"/>',
     '<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]><r a=" a  b "/>',
     '<!DOCTYPE r [<!ENTITY % d "<!ENTITY e \'payload\'><!ATTLIST r a CDATA \'default\'>">%d;]><r>&e;</r>',

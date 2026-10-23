@@ -1,7 +1,7 @@
 //! XML events and entity replacements feed the same writer. Rust owns all
 //! parser state; PHP allocations happen only after it returns.
 
-use super::xml_dtd::Dtd;
+use super::xml_dtd::{split_doctype, Dtd};
 use super::{AppsecBodyTape, TapeWriter};
 use quick_xml::errors::{Error, SyntaxError};
 use quick_xml::events::{BytesStart, Event};
@@ -40,6 +40,7 @@ pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyTape {
         depth: 0,
         suppressed: 0,
         root_seen: false,
+        standalone: false,
         text: Vec::new(),
         preserve_text_whitespace: false,
         dtd: Dtd::default(),
@@ -60,6 +61,7 @@ struct XmlParser {
     /// Nesting level inside an element whose content is dropped.
     suppressed: u32,
     root_seen: bool,
+    standalone: bool,
     text: Vec<u8>,
     preserve_text_whitespace: bool,
     dtd: Dtd,
@@ -69,24 +71,90 @@ struct XmlParser {
 
 impl XmlParser {
     fn read(&mut self, input: &[u8], document: bool) -> bool {
-        let mut reader = Reader::from_reader(input);
-        reader.config_mut().check_end_names = false;
-        reader.config_mut().allow_unmatched_ends = true;
+        // An entity must balance its own elements, including those whose
+        // content is suppressed by the depth limit (XML 1.0 section 4.3.2).
+        let initial_depth = (self.depth, self.suppressed);
+        let mut input = if document {
+            // Strip the document BOM ourselves so buffer positions include
+            // exactly the bytes in `input` when intercepting the DOCTYPE.
+            input.strip_prefix(b"\xef\xbb\xbf").unwrap_or(input)
+        } else {
+            // An internal entity's initial U+FEFF is character data, not a
+            // BOM. Consume its leading text before starting a fresh reader,
+            // which would otherwise discard the first U+FEFF.
+            let end = input.iter().position(|&b| b == b'<').unwrap_or(input.len());
+            if !self.text(&input[..end]) {
+                return false;
+            }
+            &input[end..]
+        };
+        // A declaration is allowed only at the literal document start after
+        // one optional BOM. Inspect the bytes so the reader cannot hide an
+        // extra BOM and make a misplaced declaration appear to be first.
+        let mut declaration_allowed = document && input.starts_with(b"<?xml");
+        let mut doctype_seen = false;
+        let mut reader = xml_reader(input);
         loop {
+            let at_document_start = declaration_allowed;
+            declaration_allowed = false;
             let event_start = reader.buffer_position() as usize;
+            let remaining = &input[event_start..];
+            if remaining.starts_with(b"<!DOCTYPE") {
+                // The prolog permits one DOCTYPE before the root. Internal
+                // entities contain content, not another document prolog.
+                if !document || self.root_seen || doctype_seen {
+                    return false;
+                }
+                doctype_seen = true;
+                let Some((declaration, after)) = split_doctype(remaining) else {
+                    return false;
+                };
+                if !self
+                    .dtd
+                    .parse(declaration, &mut self.expansion_budget, self.standalone)
+                {
+                    return false;
+                }
+                input = after;
+                reader = xml_reader(input);
+                continue;
+            }
             match reader.read_event() {
                 Ok(Event::Start(e)) => self.open_element(e.name().as_ref(), Some(&e), false),
                 Ok(Event::Empty(e)) => self.open_element(e.name().as_ref(), Some(&e), true),
-                Ok(Event::End(_)) => self.end(),
-                Ok(Event::Text(e)) => self.text(&e),
+                Ok(Event::End(_)) => {
+                    // Never let an entity close an element opened by its
+                    // caller, even if it would reopen one before returning.
+                    if !document && (self.depth, self.suppressed) == initial_depth {
+                        return false;
+                    }
+                    self.end();
+                }
+                Ok(Event::Text(e)) => {
+                    if !self.text(&e) {
+                        return false;
+                    }
+                }
                 Ok(Event::CData(e)) => self.raw_text(&e),
-                Ok(Event::DocType(e)) if document => self.dtd.parse(&e, &mut self.expansion_budget),
-                Ok(Event::Decl(e)) if document => {
+                // PITarget excludes exactly "xml" in every letter case.
+                Ok(Event::PI(e)) if e.target().eq_ignore_ascii_case(b"xml") => return false,
+                Ok(Event::Decl(e)) => {
+                    // Reader restarts after a DOCTYPE or for an internal
+                    // entity do not create a new document prolog.
+                    if !at_document_start {
+                        return false;
+                    }
                     // VersionInfo is required before the optional fields
                     // (XML 1.0 section 2.8); the reader does not check it.
                     if e.version().is_err() {
                         return false;
                     }
+                    self.standalone = match e.standalone() {
+                        None => false,
+                        Some(Ok(v)) if v.as_ref() == b"yes" => true,
+                        Some(Ok(v)) if v.as_ref() == b"no" => false,
+                        _ => return false,
+                    };
                     if let Some(encoding) = e.encoding() {
                         match encoding {
                             Ok(name) if name.eq_ignore_ascii_case(b"UTF-8") => {}
@@ -94,7 +162,12 @@ impl XmlParser {
                         }
                     }
                 }
-                Ok(Event::Eof) => return true,
+                Ok(Event::Eof) => {
+                    return document || (self.depth, self.suppressed) == initial_depth;
+                }
+                // Supported DOCTYPEs are intercepted above. The event reader
+                // also recognizes invalid spellings and can hide a stray BOM.
+                Ok(Event::DocType(_)) => return false,
                 Ok(_) => {}
                 Err(Error::Syntax(SyntaxError::UnclosedTag)) => {
                     self.truncated_start(input.get(event_start..).unwrap_or_default());
@@ -165,7 +238,7 @@ impl XmlParser {
                 if !seen.contains(name.as_slice())
                     && self.charge(name.len().saturating_add(value.len()))
                 {
-                    self.attribute(name, value, defaults.cdata[name], &mut opened);
+                    self.attribute_value(name, value, &mut opened);
                 }
             }
         }
@@ -181,11 +254,14 @@ impl XmlParser {
         let mut value = Vec::new();
         self.attribute_text(raw, &mut value);
         if !cdata {
-            value = value
-                .split(|b| is_whitespace(&[*b]))
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-                .join(&b' ');
+            value = collapse_spaces(&value);
+        }
+        self.attribute_value(name, &value, opened);
+    }
+
+    fn attribute_value(&mut self, name: &[u8], value: &[u8], opened: &mut bool) {
+        if name == b"xmlns" || name.starts_with(b"xmlns:") {
+            return;
         }
         if !*opened {
             self.tape.map_start();
@@ -195,7 +271,7 @@ impl XmlParser {
         key.push(b'@');
         key.extend_from_slice(name);
         self.tape.key(&key);
-        self.tape.str(&value);
+        self.tape.str(value);
     }
 
     fn end(&mut self) {
@@ -213,9 +289,15 @@ impl XmlParser {
         self.suppressed == 0 && self.depth > 0
     }
 
-    fn text(&mut self, mut raw: &[u8]) {
+    fn text(&mut self, mut raw: &[u8]) -> bool {
+        // CharData excludes literal "]]>" (XML 1.0 section 2.4). Check before
+        // reference expansion: escaped or separately parsed pieces may form
+        // this sequence. Keep only the prefix, even when text is suppressed.
+        let invalid = raw.windows(3).position(|w| w == b"]]>");
+        let complete = invalid.is_none();
+        raw = &raw[..invalid.unwrap_or(raw.len())];
         if !self.recording() {
-            return;
+            return complete;
         }
         let preserve_whitespace = !self.active_entities.is_empty() || raw.contains(&b'&');
         while let Some(amp) = raw.iter().position(|&b| b == b'&') {
@@ -232,14 +314,18 @@ impl XmlParser {
             } else if let Some(value) = self.entity(name) {
                 // Replacement text can contain markup; use the same XML
                 // event handling rather than treating it as character data.
-                self.read(&value, false);
+                let complete = self.read(&value, false);
                 self.active_entities.remove(name);
+                if !complete {
+                    return false;
+                }
             } else {
                 self.text.extend_from_slice(&raw[..name.len() + 2]);
             }
             raw = after;
         }
         self.append_text(raw, preserve_whitespace);
+        complete
     }
 
     fn attribute_text(&mut self, mut raw: &[u8], out: &mut Vec<u8>) {
@@ -323,6 +409,14 @@ impl XmlParser {
     }
 }
 
+fn xml_reader(input: &[u8]) -> Reader<&[u8]> {
+    let mut reader = Reader::from_reader(input);
+    reader.config_mut().check_comments = true;
+    reader.config_mut().check_end_names = false;
+    reader.config_mut().allow_unmatched_ends = true;
+    reader
+}
+
 pub(super) fn charge(budget: &mut usize, len: usize) -> bool {
     let cost = len.max(1);
     if cost > *budget {
@@ -355,7 +449,7 @@ pub(super) fn character_reference(name: &[u8]) -> Option<char> {
     matches!(c, '\t' | '\n' | '\r' | '\u{20}'..='\u{d7ff}' | '\u{e000}'..='\u{fffd}' | '\u{10000}'..='\u{10ffff}').then_some(c)
 }
 
-fn escaped_character(name: &[u8]) -> Option<char> {
+pub(super) fn escaped_character(name: &[u8]) -> Option<char> {
     match name {
         b"amp" => Some('&'),
         b"lt" => Some('<'),
@@ -364,6 +458,14 @@ fn escaped_character(name: &[u8]) -> Option<char> {
         b"quot" => Some('"'),
         _ => character_reference(name),
     }
+}
+
+pub(super) fn collapse_spaces(value: &[u8]) -> Vec<u8> {
+    value
+        .split(|&b| b == b' ')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(&b' ')
 }
 
 pub(super) fn is_name_byte(b: u8) -> bool {
@@ -471,6 +573,121 @@ mod tests {
     }
 
     #[test]
+    fn literal_cdata_close_keeps_only_the_preceding_text() {
+        for (text, expected) in [
+            ("before]]>after", r#"{"r":["before"]}"#),
+            ("before]]]]>after", r#"{"r":["before]]"]}"#),
+            ("]]>after", r#"{"r":[]}"#),
+            ("before&amp;]]>after", r#"{"r":["before&"]}"#),
+        ] {
+            assert_eq!(partial(&format!("<r>{text}<x>tail</x></r>")), expected);
+        }
+        assert_eq!(xml("]]><r/>", 30).0, AppsecBodyStatus::Empty);
+        assert_eq!(partial("<r>before</r>]]>"), r#"{"r":["before"]}"#);
+        assert_eq!(
+            xml("<r>before<x>]]></x><tail/></r>", 1),
+            (
+                AppsecBodyStatus::Partial,
+                r#"{"r":["before",{"x":[]}]}"#.to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn literal_cdata_close_in_entity_replacements_stops_the_document() {
+        for replacement in ["prefix]]>after", "prefix]]&#62;after", "prefix]&#93;>after"] {
+            let input =
+                format!(r#"<!DOCTYPE r [<!ENTITY e "{replacement}">]><r>before&e;<x>tail</x></r>"#);
+            assert_eq!(partial(&input), r#"{"r":["beforeprefix"]}"#);
+        }
+        assert_eq!(
+            partial(
+                r#"<!DOCTYPE r [<!ENTITY e "<x/>prefix]]>after"><!ENTITY outer "&e;tail">]><r>before&outer;<tail/></r>"#
+            ),
+            r#"{"r":["before",{"x":[]},"prefix"]}"#
+        );
+    }
+
+    #[test]
+    fn cdata_close_from_separate_text_segments_is_allowed() {
+        for text in [
+            "]]&gt;",
+            "]]&#62;",
+            "]&#93;>",
+            "]]<!-- c -->>",
+            "]]<?p ?>>",
+            "]]<![CDATA[>]]>",
+        ] {
+            assert_eq!(complete(&format!("<r>{text}</r>")), r#"{"r":["]]>"]}"#);
+        }
+        for (replacement, text) in [
+            ("]]", "&e;>"),
+            ("]", "]&e;>"),
+            ("", "]]&e;>"),
+            ("]]&gt;", "&e;"),
+            ("]]>unused", "]]&gt;"),
+        ] {
+            let input = format!(r#"<!DOCTYPE r [<!ENTITY e "{replacement}">]><r>{text}</r>"#);
+            assert_eq!(complete(&input), r#"{"r":["]]>"]}"#);
+        }
+    }
+
+    #[test]
+    fn malformed_comments_stop_at_the_parsed_prefix() {
+        for comment in ["<!--a--b-->", "<!--a--->", "<!--a"] {
+            for input in [
+                format!("<r>before{comment}<x>tail</x></r>"),
+                format!("<r>before</r>{comment}"),
+                format!(
+                    r#"<!DOCTYPE r [<!ENTITY e "{comment}<x>tail</x>">]><r>before&e;after</r>"#
+                ),
+            ] {
+                assert_eq!(partial(&input), r#"{"r":["before"]}"#);
+            }
+            assert_eq!(
+                xml(&format!("<r>before<x>{comment}</x><tail/></r>"), 1),
+                (
+                    AppsecBodyStatus::Partial,
+                    r#"{"r":["before",{"x":[]}]}"#.to_owned()
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_comments_before_the_root_stop_the_document() {
+        for comment in ["<!--a--b-->", "<!--a--->", "<!--a"] {
+            for input in [
+                format!("{comment}<r>tail</r>"),
+                format!("<!DOCTYPE r [{comment}]><r>tail</r>"),
+                format!(r#"<!DOCTYPE r [<!ENTITY % p "{comment}">%p;]><r>tail</r>"#),
+            ] {
+                assert_eq!(xml(&input, 30).0, AppsecBodyStatus::Empty, "{input}");
+            }
+        }
+    }
+
+    #[test]
+    fn valid_comments_and_unused_comment_literals_are_preserved() {
+        for comment in ["<!---->", "<!---a-->", "<!--a-b-->", "<!-- ]>< -->"] {
+            for input in [
+                format!("<r>before{comment}after</r>"),
+                format!("<!DOCTYPE r [{comment}]><r>beforeafter</r>"),
+                format!(r#"<!DOCTYPE r [<!ENTITY % p "{comment}">%p;]><r>beforeafter</r>"#),
+                format!(r#"<!DOCTYPE r [<!ENTITY e "{comment}">]><r>before&e;after</r>"#),
+            ] {
+                assert_eq!(complete(&input), r#"{"r":["beforeafter"]}"#);
+            }
+        }
+        for comment in ["<!--a--b-->", "<!--a--->", "<!--a"] {
+            for marker in ["", "% "] {
+                let input = format!(r#"<!DOCTYPE r [<!ENTITY {marker}e "{comment}">]><r>tail</r>"#);
+                assert_eq!(complete(&input), r#"{"r":["tail"]}"#);
+            }
+        }
+    }
+
+    #[test]
     fn entities() {
         let input = r#"<!DOCTYPE test [
     <!ENTITY test "test">
@@ -524,12 +741,81 @@ mod tests {
     }
 
     #[test]
+    fn entity_boundaries_keep_the_parsed_prefix() {
+        for (replacement, expected) in [
+            ("</r>", r#"{"r":["before"]}"#),
+            ("</r><r>", r#"{"r":["before"]}"#),
+            ("<a>ok</a></r>", r#"{"r":["before",{"a":["ok"]}]}"#),
+            ("<a>", r#"{"r":["before",{"a":[]}]}"#),
+            ("<a", r#"{"r":["before",{"a":[]}]}"#),
+            ("<!--", r#"{"r":["before"]}"#),
+            ("<?p", r#"{"r":["before"]}"#),
+            ("<![CDATA[", r#"{"r":["before"]}"#),
+        ] {
+            let input = format!(
+                r#"<!DOCTYPE r [<!ENTITY e "{replacement}">]><r>before&e;after<tail/></r>"#
+            );
+            assert_eq!(partial(&input), expected, "{replacement}");
+        }
+        assert_eq!(
+            partial(r#"<!DOCTYPE r [<!ENTITY e "</r>">]><r>&e;x</r>"#),
+            r#"{"r":[]}"#
+        );
+        assert_eq!(
+            partial(r#"<!DOCTYPE r [<!ENTITY e "</p><p>">]><r><p>before&e;after</p><tail/></r>"#),
+            r#"{"r":[{"p":["before"]}]}"#
+        );
+    }
+
+    #[test]
+    fn nested_entity_failures_stop_the_document() {
+        for replacement in ["&inner;<a/>", "<a/>&inner;<b/>"] {
+            let input = format!(
+                r#"<!DOCTYPE r [<!ENTITY inner "</r>"><!ENTITY e "{replacement}">]><r>&e;after<tail/></r>"#
+            );
+            let expected = if replacement.starts_with('&') {
+                r#"{"r":[]}"#
+            } else {
+                r#"{"r":[{"a":[]}]}"#
+            };
+            assert_eq!(partial(&input), expected);
+        }
+        assert_eq!(
+            complete(
+                r#"<!DOCTYPE r [<!ENTITY inner "<a/>x<b>y</b>"><!ENTITY e "&inner;<c/>">]><r>before&e;after</r>"#
+            ),
+            r#"{"r":["before",{"a":[]},"x",{"b":["y"]},{"c":[]},"after"]}"#
+        );
+    }
+
+    #[test]
+    fn entity_boundaries_include_suppressed_elements() {
+        for (replacement, status, expected) in [
+            ("<a>", AppsecBodyStatus::Partial, r#"{"r":[{"a":[]}]}"#),
+            (
+                "<a></a></r>",
+                AppsecBodyStatus::Partial,
+                r#"{"r":[{"a":[]}]}"#,
+            ),
+            (
+                "<a><b/></a>",
+                AppsecBodyStatus::Complete,
+                r#"{"r":[{"a":[]},"after",{"tail":[]}]}"#,
+            ),
+        ] {
+            let input =
+                format!(r#"<!DOCTYPE r [<!ENTITY e "{replacement}">]><r>&e;after<tail/></r>"#);
+            assert_eq!(xml(&input, 1), (status, expected.to_owned()));
+        }
+    }
+
+    #[test]
     fn dtd_default_attributes() {
         let dtd = r#"<!DOCTYPE r [
             <!-- <!ATTLIST r cmd CDATA "safe"> -->
+            <!ENTITY e "attack">
             <!ATTLIST r cmd CDATA "&e;" fixed CDATA #FIXED "v" required CDATA #REQUIRED implied CDATA #IMPLIED>
             <!ATTLIST r cmd CDATA "ignored">
-            <!ENTITY e "attack">
         ]>"#;
         assert_eq!(
             complete(&format!("{dtd}<r/>")),
@@ -539,6 +825,36 @@ mod tests {
             complete(&format!(r#"{dtd}<r cmd="explicit"/>"#)),
             r#"{"r":[{"@cmd":"explicit","@fixed":"v"}]}"#
         );
+    }
+
+    #[test]
+    fn invalid_defaults_stop_before_the_root() {
+        for declarations in [
+            r#"<!ATTLIST r a CDATA "&e;"><!ENTITY e "value">"#,
+            r#"<!ATTLIST unused a CDATA "&e;">"#,
+            r#"<!ATTLIST r a CDATA "first" a CDATA "&e;">"#,
+            r#"<!ENTITY e "&later;"><!ATTLIST r a CDATA "&e;"><!ENTITY later "v">"#,
+        ] {
+            let input = format!(r#"<!DOCTYPE r [{declarations}]><r a="explicit"/>"#);
+            assert_eq!(xml(&input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn default_expansion_limits_stop_before_the_root() {
+        let recursive = r#"<!DOCTYPE r [<!ENTITY e "&e;"><!ATTLIST r a CDATA "&e;">]><r/>"#;
+        assert_eq!(xml(recursive, 30).0, AppsecBodyStatus::Empty);
+
+        for repeat in [1, 2] {
+            let mut input = String::from(r#"<!DOCTYPE r [<!ENTITY e0 "x">"#);
+            let levels = super::MAX_ENTITY_DEPTH / repeat;
+            for i in 1..=levels {
+                let refs = format!("&e{};", i - 1).repeat(repeat);
+                input.push_str(&format!(r#"<!ENTITY e{i} "{refs}">"#));
+            }
+            input.push_str(&format!(r#"<!ATTLIST r a CDATA "&e{};">]><r/>"#, levels));
+            assert_eq!(xml(&input, 30).0, AppsecBodyStatus::Empty);
+        }
     }
 
     #[test]
@@ -571,6 +887,97 @@ mod tests {
                 assert_eq!(xml(&input, 30).0, AppsecBodyStatus::Empty, "{input}");
             }
         }
+    }
+
+    #[test]
+    fn standalone_requires_yes_or_no() {
+        for value in ["maybe", "", "YES", "No", " yes ", "&#121;es"] {
+            let input = format!(r#"<?xml version="1.0" standalone="{value}"?><r>tail</r>"#);
+            assert_eq!(xml(&input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn misplaced_declarations_keep_only_the_preceding_data() {
+        for input in [
+            r#"<r>before<?xml version="1.0"?><x>tail</x></r>"#,
+            r#"<r>before</r><?xml version="1.0"?>"#,
+            r#"<!DOCTYPE r [<!ENTITY e "<?xml version='1.0'?><x>tail</x>">]><r>before&e;after</r>"#,
+        ] {
+            assert_eq!(partial(input), r#"{"r":["before"]}"#);
+        }
+        assert_eq!(
+            xml(r#"<r>before<x><?xml version="1.0"?></x><tail/></r>"#, 1),
+            (
+                AppsecBodyStatus::Partial,
+                r#"{"r":["before",{"x":[]}]}"#.to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn misplaced_declarations_stop_before_the_root() {
+        for input in [
+            r#" <?xml version="1.0"?><r/>"#,
+            r#"<!DOCTYPE r><?xml version="1.0"?><r/>"#,
+            r#"<?xml version="1.0"?><?xml version="1.0"?><r/>"#,
+            r#"<!DOCTYPE r [<?xml version="1.0"?>]><r/>"#,
+            r#"<!DOCTYPE r [<!ENTITY % p "<?xml version='1.0'?>">%p;]><r/>"#,
+            "\u{feff}\u{feff}<?xml version=\"1.0\"?><r/>",
+        ] {
+            assert_eq!(xml(input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn misplaced_doctypes_keep_only_the_preceding_data() {
+        for input in [
+            r#"<r>before<!DOCTYPE r [<!ENTITY e "after">]>&e;<tail/></r>"#,
+            "<r>before</r><!DOCTYPE r>",
+            r#"<!DOCTYPE r [<!ENTITY e "<!DOCTYPE r><tail/>">]><r>before&e;after</r>"#,
+        ] {
+            assert_eq!(partial(input), r#"{"r":["before"]}"#);
+        }
+        assert_eq!(partial("<r/><!DOCTYPE r>"), r#"{"r":[]}"#);
+        assert_eq!(
+            xml("<r>before<x><!DOCTYPE r></x><tail/></r>", 1),
+            (
+                AppsecBodyStatus::Partial,
+                r#"{"r":["before",{"x":[]}]}"#.to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn repeated_and_nested_doctypes_stop_before_the_root() {
+        for input in [
+            "<!DOCTYPE r><!DOCTYPE r><r/>",
+            "<!DOCTYPE r [<!DOCTYPE nested>]><r/>",
+            r#"<!DOCTYPE r [<!ENTITY % p "<!DOCTYPE nested>">%p;]><r/>"#,
+            "<!DOCTYPE r>\u{feff}<!DOCTYPE r><r/>",
+            "\u{feff}\u{feff}<!DOCTYPE r><r/>",
+        ] {
+            assert_eq!(xml(input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn reserved_pi_targets_keep_only_the_preceding_data() {
+        for target in ["xml", "xmL", "xMl", "xML", "Xml", "XmL", "XMl", "XML"] {
+            for input in [
+                format!("<r>before<?{target} info?><x>tail</x></r>"),
+                format!("<r>before</r><?{target} info?>"),
+            ] {
+                assert_eq!(partial(&input), r#"{"r":["before"]}"#);
+            }
+        }
+        assert_eq!(
+            xml("<r>before<x><?XML info?></x><tail/></r>", 1),
+            (
+                AppsecBodyStatus::Partial,
+                r#"{"r":["before",{"x":[]}]}"#.to_owned()
+            )
+        );
     }
 
     #[test]
@@ -692,6 +1099,18 @@ mod tests {
         let input = r#"<?xml version="1.0"?><!DOCTYPE d [<!ENTITY e "v">]><d a="&e;"><!-- c --><x>&e;&amp;</x><![CDATA[y]]><z/></d>"#;
         for len in 0..=input.len() {
             xml(&input[..len], 30);
+        }
+    }
+
+    #[test]
+    fn doctype_delimiters_and_truncation() {
+        let input = "\u{feff}<?xml version=\"1.0\"?>\n<!DOCTYPE r [<!-- ]>< --><?p ]>< ?><!ENTITY e 'a]>b'><!ATTLIST r a CDATA ']>v'>]><r>&e;</r>";
+        assert_eq!(complete(input), r#"{"r":[{"@a":"]>v"},"a]>b"]}"#);
+        for len in 0..=input.len() {
+            let (status, _) = render(super::parse(&input.as_bytes()[..len], 30));
+            if len < input.find("<r>").unwrap() {
+                assert_eq!(status, AppsecBodyStatus::Empty, "{len}");
+            }
         }
     }
 }
