@@ -50,25 +50,28 @@ $build_platforms = [
 /**
  * Names of the packaging jobs of a build platform.
  *
- * The linux-gnu platforms are split into two jobs: one building the native
- * installers (.rpm/.deb/.tar.gz) and one building the final per-PHP-API
- * bundles; keeping them together overflows the project's max_artifacts_size.
- * The musl platforms only build .apk and remain a single job.
+ * Each platform is split into one job per native installer format
+ * (.rpm/.deb/.tar.gz/.apk, keyed by make target), the combined bundle
+ * (dd-library-php-<v>-<arch>-<libc>.tar.gz) and the per-PHP-API bundles; keeping
+ * them together overflows the project's max_artifacts_size, and most consumers
+ * only need one of them.
  *
- * $kind is "installers", "bundles" or "all".
+ * $kind is "installers", "bundles" (the combined bundle), "per-api bundles" or "all".
  */
 function package_extension_jobs(array $platform, string $kind = "all"): array
 {
-    if ($platform['host_os'] !== "linux-gnu") {
-        return ["package extension: [{$platform['arch']}, {$platform['triplet']}]"];
-    }
-
     $jobs = [];
     if ($kind === "all" || $kind === "installers") {
-        $jobs[] = "package extension (installers): [{$platform['arch']}, {$platform['triplet']}]";
+        foreach ($platform['targets'] as $target) {
+            // .rpm.x86_64 -> rpm, .tar.gz.aarch64 -> tar.gz, .apk.x86_64 -> apk
+            $format = preg_replace('(^\.(.+)\.[^.]+$)', '$1', $target);
+            $jobs[$target] = "package extension ($format): [{$platform['arch']}, {$platform['triplet']}]";
+        }
     }
-    if ($kind === "all" || $kind === "bundles") {
-        $jobs[] = "package extension (bundles): [{$platform['arch']}, {$platform['triplet']}]";
+    foreach (["bundles", "per-api bundles"] as $job_kind) {
+        if ($kind === "all" || $kind === $job_kind) {
+            $jobs[] = "package extension ($job_kind): [{$platform['arch']}, {$platform['triplet']}]";
+        }
     }
     return $jobs;
 }
@@ -161,6 +164,11 @@ configure_system_tests:
     ALLOW_MULTIPLE_CHILD_LEVELS: "false"
 
 package-oci:
+  # Linux only: prepare-oci-package.sh exits at once for other OSes, after downloading both loaders.
+  parallel:
+    matrix:
+      - OS: [ linux ]
+        ARCH: [ amd64, arm64 ]
   needs:
 <?php
 foreach ($arch_targets as $arch) {
@@ -182,12 +190,10 @@ requirements_json_test:
 # dd-trace-php release packaging
 "prepare code":
   stage: prepare
-  image: registry.ddbuild.io/images/mirror/composer:2
+  image: registry.ddbuild.io/images/mirror/composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
-    # Upgrading composer
-    - composer self-update --no-interaction
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
@@ -394,10 +400,8 @@ foreach ($build_platforms as $platform) {
 ?>
   artifacts:
     paths:
-      - "extensions_*"
+      # Its only consumer, package loader, reads only the standalone builds (generate-ssi-package.sh).
       - "standalone_*"
-      - "ddtrace_*-fat.ldflags"
-      - "ddtrace_*-fat.sym"
 <?php
 endforeach;
 ?>
@@ -618,9 +622,9 @@ foreach ($build_platforms as $platform) {
       - "packages/"
 
 <?php
-// The needs: graph is identical for every "package extension" job of a given
-// platform, whether it builds the native installers or the final bundles.
-$package_extension_needs = function (array $platform) use ($php_versions_to_abi, $profiler_minor_major_targets) {
+// needs: of a platform's "package extension" jobs. Native installers (FPM_FILES) hold only the
+// linked tracer; $bundle_inputs adds the appsec and profiler extensions the bundles need.
+$package_extension_needs = function (array $platform, bool $bundle_inputs = true) use ($php_versions_to_abi, $profiler_minor_major_targets) {
 ?>
   needs:
     - job: "prepare code"
@@ -630,11 +634,14 @@ $package_extension_needs = function (array $platform) use ($php_versions_to_abi,
     - job: "link tracing extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 
-    # Compile tracing sidecar
+    # Compile tracing sidecar: linked into the tracer already, no packaging step reads it
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
+      artifacts: false
 
 <?php
+    if (!$bundle_inputs) {
+        return;
+    }
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
 ?>
     # Compile appsec extension
@@ -655,47 +662,34 @@ $package_extension_needs = function (array $platform) use ($php_versions_to_abi,
 };
 
 foreach ($build_platforms as $platform) {
-    // The linux-gnu platforms produce both the native installers (.rpm/.deb/
-    // .tar.gz, one file bundling every extension) and the per-PHP-API "final
-    // artifact" bundles. Together those artifacts blow past the project's
-    // max_artifacts_size, so they are built by two independent jobs (the two
-    // steps share no state). The musl platforms only build .apk and stay in a
-    // single job.
-    if ($platform['host_os'] === 'linux-gnu') {
+    // Each native installer (.rpm/.deb/.tar.gz or .apk) and bundle kind gets its own job (the
+    // steps share no state), so consumers download only the file they install.
+    foreach (package_extension_jobs($platform, "installers") as $target => $job) {
 ?>
-"package extension (installers): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"<?= $job ?>":
   extends: .package_extension_base
   variables:
     ARCH: "<?= $platform['arch'] ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
   script:
-    - make -j 4 <?= implode(' ', $platform['targets']) ?>
+    - make -j 4 <?= $target ?>
 
     - mv build/packages/ packages/
 <?php
-        $package_extension_needs($platform);
+        $package_extension_needs($platform, false);
+    }
 ?>
 
-"package extension (bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  extends: .package_extension_base
-  variables:
-    ARCH: "<?= $platform['arch'] ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
-  script:
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
-    - mv build/packages/ packages/
 <?php
-        $package_extension_needs($platform);
-    } else {
+    foreach (["bundles" => "combined", "per-api bundles" => "per-api"] as $job_kind => $bundles) {
 ?>
-"package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"package extension (<?= $job_kind ?>): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   extends: .package_extension_base
   variables:
     ARCH: "<?= $platform['arch'] ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
+    DDTRACE_MAKE_BUNDLES: "<?= $bundles ?>"
   script:
-    - make -j 4 <?= implode(' ', $platform['targets']) ?>
-
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
 <?php
@@ -724,7 +718,9 @@ foreach ($windows_minor_major_targets as $major_minor) {
 }
 ?>
 
-"package extension asan":
+<?php foreach ($asan_build_platforms as $platform): ?>
+# Only the combined bundle, one job per arch: its sole consumer (randomized tests) installs nothing else.
+"package extension asan: [<?= $platform['arch'] ?>]":
   extends: .package_extension_base
   script:
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
@@ -732,19 +728,16 @@ foreach ($windows_minor_major_targets as $major_minor) {
   needs:
     - job: "prepare code"
       artifacts: true
-<?php
-foreach ($asan_build_platforms as $platform) {
-    foreach ($asan_minor_major_targets as $major_minor) {
-        $abi_no = $php_versions_to_abi[$major_minor];
-?>
+<?php foreach ($asan_minor_major_targets as $major_minor): ?>
     - job: "compile tracing extension asan: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
-<?php
-    }
-}
-?>
+<?php endforeach; ?>
   variables:
     DDTRACE_MAKE_PACKAGES_ASAN: 1
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    DDTRACE_MAKE_BUNDLES: "combined"
+
+<?php endforeach; ?>
 
 <?php foreach ($arch_targets as $arch): ?>
 "package loader: [<?= $arch ?>]":
@@ -814,16 +807,57 @@ endforeach;
     matrix:
       - PHP_VERSION: <?= json_encode($profiler_minor_major_targets), "\n" ?>
   needs:
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+    - job: "package extension (bundles): [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
   before_script:
+    - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
     - installable_bundle=$(find packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
     - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+
+<?php foreach ($build_platforms as $platform): ?>
+<?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
+# glibc actually unloads extensions at shutdown, exposing dangling profiler
+# pthread destructors that musl's no-op dlclose cannot catch (issue #4349).
+"frankenphp profiler shutdown: [<?= $platform['arch'] ?>]":
+  stage: verify
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  tags: [ "arch:<?= $platform['arch'] ?>" ]
+  needs:
+    - job: "package extension (per-api bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_CPU_LIMIT: 2
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    FRANKENPHP_VERSION: v1.13.1
+    GOPROXY: "https://depot-read-api-go.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+    GOPRIVATE: ""
+    GONOPROXY: "none"
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - switch-php zts
+    - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - tooling/bin/install-frankenphp.sh || exit $?
+    - sudo php packages/datadog-setup.php --php-bin php --enable-profiling --enable-appsec --file packages/dd-library-php-*-$(uname -m)-linux-gnu-<?= $php_versions_to_abi['8.5'] ?>-zts.tar.gz
+    - php --ri datadog-profiling
+  script:
+    - bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
+  artifacts:
+    paths:
+      - artifacts/frankenphp/
+    when: always
+
+<?php endforeach; ?>
 
 # The tracer pipeline only runs the FrankenPHP suite on amd64/glibc. musl differs in ways that bite specifically here - see issue #4163, where the SIGTERM handler's clone() is rejected outright by musl and FrankenPHP consequently never shuts down.
 # Thus we so run the same suite once against the official FrankenPHP image on arm64/Alpine.
@@ -832,7 +866,7 @@ endforeach;
   image: registry.ddbuild.io/images/mirror/dunglas/frankenphp:php<?= FRANKENPHP_ALPINE_PHP_VERSION ?>-alpine
   tags: [ "arch:arm64" ]
   needs:
-    - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
+    - job: "package extension (bundles): [arm64, aarch64-alpine-linux-musl]"
       artifacts: true
     - job: "prepare code"
       artifacts: true
@@ -932,7 +966,7 @@ endforeach;
   variables:
     RANDOMIZED_RESTRICT_PLATFORMS: buster
   needs:
-    - job: "package extension asan"
+    - job: "package extension asan: [amd64]"
       artifacts: true
 
 <?php endforeach; ?>
@@ -961,7 +995,7 @@ endforeach;
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
 #     RANDOMIZED_RESTRICT_PLATFORMS: buster
 #   needs:
-#     - job: "package extension asan"
+#     - job: "package extension asan: [arm64]"
 #       artifacts: true
 <?php endforeach; ?>
 
@@ -974,9 +1008,14 @@ endforeach;
       artifacts: true
     - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
       artifacts: true
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+    # datadog-setup.php fetches a per-PHP-API bundle when it targets one PHP; the containers run on this amd64 host.
+    - job: "package extension (per-api bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
-    - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
+    - job: "package extension (bundles): [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+    - job: "package extension (bundles): [arm64, aarch64-alpine-linux-musl]"
+      artifacts: true
+    - job: "package extension (per-api bundles): [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -1061,6 +1100,12 @@ endforeach;
   script:
     - php datadog-setup.php --php-bin all --file $(ls packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
     - sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
+    # Ubuntu's PHP 8.1 OOM mitigation calls _exit(), bypassing error and shutdown hooks.
+    - >-
+      rm tests/ext/autoload-php-files/ignores_fatal_errors.phpt
+      tests/ext/fibers/fiber_observer_bailout.phpt
+      tests/ext/sandbox/fatal_errors_are_tracked_002.phpt
+      tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt
     - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
 
 "framework test":
@@ -1072,7 +1117,7 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 2Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
   needs:
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (deb): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   parallel:
     matrix:
@@ -1125,10 +1170,11 @@ endforeach;
     DD_TRACE_AGENT_PORT: 80
     DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
   script:
-    - ./dockerfiles/verify_packages/verify.sh
+    # `|| exit $?` keeps install.sh's exit 75 on centos:7, where bash 4.2 turns an errexit status into 1.
+    - ./dockerfiles/verify_packages/verify.sh || exit $?
 
 
-"verify alpine":
+.verify_alpine:
   extends: .verify_job
   variables:
     VERIFY_APACHE: "no"
@@ -1140,23 +1186,13 @@ endforeach;
           - alpine:3.9
           - alpine:3.11
           - alpine:3.15
-        INSTALL_TYPE: &verify_install_types
-        - php_installer
-        - native_package
       - INSTALL_PACKAGES: php php-fpm php-json
         IMAGE:
           - alpine:3.15
           - alpine:3.16
           - alpine:3.21
           - alpine:3.24
-        INSTALL_TYPE: *verify_install_types
       - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
-        INSTALL_TYPE: *verify_install_types
-  needs:
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
-      artifacts: true
-    - job: datadog-setup.php
-      artifacts: true
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1164,7 +1200,26 @@ endforeach;
     - apk add --no-cache ca-certificates || exit 75 # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
     - apk add curl ${INSTALL_PACKAGES:-} || exit 75
 
-"verify centos":
+# Split by INSTALL_TYPE so each half downloads only the package it installs.
+"verify alpine: native_package":
+  extends: .verify_alpine
+  variables:
+    INSTALL_TYPE: native_package
+  needs:
+    - job: "package extension (apk): [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+
+"verify alpine: php_installer":
+  extends: .verify_alpine
+  variables:
+    INSTALL_TYPE: php_installer
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+
+.verify_centos:
   extends: .verify_job
   variables:
     IMAGE: centos:7
@@ -1180,14 +1235,6 @@ endforeach;
           - 81
           - 82
           - 83
-        INSTALL_TYPE: *verify_install_types
-  needs:
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: datadog-setup.php
-      artifacts: true
   before_script:
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1211,25 +1258,36 @@ endforeach;
         fi
       done
 
-"verify debian":
+# Split by INSTALL_TYPE so each half downloads only the package it installs.
+"verify centos: native_package":
+  extends: .verify_centos
+  variables:
+    INSTALL_TYPE: native_package
+  needs:
+    - job: "package extension (rpm): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+
+"verify centos: php_installer":
+  extends: .verify_centos
+  variables:
+    INSTALL_TYPE: php_installer
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+
+.verify_debian:
   extends: .verify_job
   variables:
     INSTALL_MODE: sury
   parallel:
     matrix:
       - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
-        INSTALL_TYPE: *verify_install_types
         IMAGE:
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
           - "debian:trixie-slim"
-  needs: &verify_debian_needs
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: datadog-setup.php
-      artifacts: true
   before_script: &verify_debian_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1244,7 +1302,8 @@ endforeach;
                -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
         echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
       fi
-    - apt-get update || exit 75
+    # Bound apt: a stalled deb.debian.org fetch otherwise hangs until the 1 h job timeout; 75 is retried.
+    - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 update || exit 75
     - |
       # apt-get update still exits 0 when the rewrite silently no-ops, so assert on the URIs apt would actually fetch from.
       if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
@@ -1255,7 +1314,26 @@ endforeach;
         if [ -z "$uris" ]; then echo "FAIL: could not resolve any apt URIs"; exit 1; fi
         if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
       fi
-    - apt-get install -y curl || exit 75
+    - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 install -y curl || exit 75
+
+# Split by INSTALL_TYPE so each half downloads only the package it installs.
+"verify debian: native_package":
+  extends: .verify_debian
+  variables:
+    INSTALL_TYPE: native_package
+  needs: &verify_debian_native_needs
+    - job: "package extension (deb): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+
+"verify debian: php_installer":
+  extends: .verify_debian
+  variables:
+    INSTALL_TYPE: php_installer
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
 
 # Thread-mode sidecar under a privilege-dropping PHP-FPM: root master, www-data pool workers.
 # One combination only - this verifies runtime behaviour of the sidecar's privilege drop, not
@@ -1269,7 +1347,7 @@ endforeach;
     IMAGE: "debian:bookworm-slim"
   script:
     - ./dockerfiles/verify_packages/verify_fpm_thread_sidecar_uid.sh
-  needs: *verify_debian_needs
+  needs: *verify_debian_native_needs
   before_script: *verify_debian_before_script
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
@@ -1283,7 +1361,7 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     PHP_VERSION: "<?= $major_minor ?>"
   needs:
-    - job: "package extension (installers): [<?= $arch ?>, <?= $pkgprefix ?>-unknown-linux-gnu]"
+    - job: "package extension (tar.gz): [<?= $arch ?>, <?= $pkgprefix ?>-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -1304,7 +1382,7 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 2Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
   needs:
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+    - job: "package extension (apk): [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
   before_script: *verify_alpine_before_script
   script:
@@ -1392,7 +1470,7 @@ endforeach;
     _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
   needs:
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (deb): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   services:
     - !reference [.services, request-replayer]
@@ -1457,7 +1535,9 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
+    # SYSTEM_TESTS_REF (a branch or tag; default main) lets a pipeline try a
+    # system-tests change before it is merged.
+    - git clone --branch "${SYSTEM_TESTS_REF:-main}" https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
@@ -1559,16 +1639,41 @@ $system_tests_weblogs = [
     # Hash sorting reduces that imbalance, while keeping the order reproducible.
     # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
     - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    # THREAD_CONTEXT_SHARING needs the CWS runners; it has its own jobs below.
+    - SCENARIOS=$(printf '%s\n' $SCENARIOS | grep -vx THREAD_CONTEXT_SHARING)
     # Each job builds the full list, then keeps every `Nth` scenario for its shard.
     # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
     - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
+# THREAD_CONTEXT_SHARING needs CWS, which needs the kernel filesystems and the
+# PID namespace of the Kata guest. The DIND service only sees its own. The
+# docker-in-docker:amd64-cws runners (micro-vms-cws in dd-source) are the
+# kata-qemu DIND runners plus hostPath volumes of the guest's /proc,
+# /sys/fs/cgroup and /sys/kernel/{debug,tracing,security} under /vm-host.
+# system-tests detects /vm-host and makes the Agent use them.
+# The cws pool is small, so only this scenario runs there, on a few weblogs:
+# both Apache MPMs and FPM.
+<?php
+$thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-fpm-8.5"];
+?>
+<?php foreach ($thread_context_sharing_weblogs as $weblog): ?>
+"System Tests: [<?= $weblog ?>, THREAD_CONTEXT_SHARING]":
+  extends: .system_tests
+  tags: [ "docker-in-docker:amd64-cws" ]
+  variables:
+    BUILD_SH_ARGS: -w <?= $weblog ?> php
+  script:
+    - ./run.sh THREAD_CONTEXT_SHARING
+
+<?php endforeach; ?>
 "System Tests: [parametric]":
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i runner"
+    # system-tests #8121's buildx --load stores the client image twice, overflowing the 20G default.
+    DOCKER_LOOPBACK_SIZE: 50G
   script:
     - ./run.sh PARAMETRIC
 
@@ -1774,8 +1879,12 @@ foreach ($arch_targets as $arch) {
 # Runs on every non-default branch so system tests can be run against any (non-default) in-progress branch.
 "publish docker image for system tests (token)":
   stage: release
-  # Token generation needs no artifacts from earlier stages.
-  dependencies: []
+  # Mint the token as soon as the bundles the next job publishes exist, without waiting for earlier stages; no downloads.
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: false
+    - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: false
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   id_tokens:
@@ -1784,7 +1893,7 @@ foreach ($arch_targets as $arch) {
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - when: always
+    - when: on_success
   allow_failure: true
   variables:
     GIT_STRATEGY: none
@@ -1805,7 +1914,7 @@ foreach ($arch_targets as $arch) {
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - when: always
+    - when: on_success
   needs:
     - job: "publish docker image for system tests (token)"
       artifacts: true
@@ -1893,7 +2002,8 @@ foreach ($arch_targets as $arch) {
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
   tags: [ "arch:amd64" ]
   rules:
-    - if: $NIGHTLY_BUILD
+    # NIGHTLY_BUILD is non-empty outside the rel-env nightly, so a bare `if: $NIGHTLY_BUILD` matched every pipeline.
+    - if: $NIGHTLY_BUILD == "true"
       when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
       when: on_success

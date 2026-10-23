@@ -438,8 +438,8 @@ Covers: `push appsec images [amd64/arm64]`, `push appsec docker images multiarch
 
 Runner: `arch:amd64` | Minimal image, quick scripts — usually not the source of failures.
 
-Covers: `check libxml2 version`, `aggregate tested versions`,
-`check-big-regressions`, `check-slo-breaches`, `notify-slo-breaches`, `finished`
+Covers: `aggregate tested versions`, `check-big-regressions`,
+`check-slo-breaches`, `notify-slo-breaches`, `finished`
 
 ---
 

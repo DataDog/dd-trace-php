@@ -137,6 +137,8 @@ merge-gate:
     max: 2
     exit_codes:
       - 75
+  # merge-gate.sh only reads the API and .gitlab/flaky-jobs.txt from the checkout.
+  dependencies: []
   variables:
     GIT_SUBMODULE_STRATEGY: none
     GIT_DEPTH: "1"

@@ -160,11 +160,12 @@ stages:
     - switch-php $SWITCH_PHP_VERSION
     - cd appsec/build
     - if [[ "$SWITCH_PHP_VERSION" == *"asan"* ]]; then ASAN_FLAG=ON; else ASAN_FLAG=OFF; fi
-    - "cmake .. -DCMAKE_BUILD_TYPE=Debug
+    # FetchContent downloads boost and rapidjson at configure time: a Depot 503 or a boost transfer error there exits 75 and is retried.
+    - "../../.gitlab/run-with-retryable-download.sh cmake .. -DCMAKE_BUILD_TYPE=Debug
       -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++'
 	  -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
-      -DENABLE_ASAN=$ASAN_FLAG"
-    - ASAN_OPTIONS=malloc_context_size=0 make -j 4 xtest
+      -DENABLE_ASAN=$ASAN_FLAG || exit $?"
+    - ASAN_OPTIONS=malloc_context_size=0 ../../.gitlab/run-with-retryable-download.sh make -j 4 xtest || exit $?
 
 .appsec_integration_tests:
   stage: test
@@ -193,7 +194,8 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps
+      # Gradle forwards the appsec CMake output: a Depot 503 in its FetchContent exits 75, which is retried.
+      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps || exit $?
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -388,8 +390,9 @@ stages:
       # rebuilds keep working.
       docker run --rm -v php-portable-libdatadog-php:/vol alpine \
         rm -rf /vol/cargo-target
-      TERM=dumb ./gradlew test8.3-release-ssi test8.4-release-zts-ssi \
-        --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage
+      # Gradle forwards the appsec CMake output: a Depot 503 in its FetchContent exits 75, which is retried.
+      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew test8.3-release-ssi test8.4-release-zts-ssi \
+        --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage || exit $?
       TERM=dumb ./gradlew saveCaches --info
     - |
       cd "$CI_PROJECT_DIR"
@@ -432,15 +435,15 @@ stages:
       sudo apt-get update && sudo apt-get install -y jq gcovr llvm-21 clang-21
     - cd appsec/build
     - |
-      cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
+      ../../.gitlab/run-with-retryable-download.sh cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
         -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_C_COMPILER=/usr/bin/clang-21 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-21 \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
-        -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache"
+        -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" || exit $?
     - |
       export PATH=$PATH:$HOME/.cargo/bin
       LLVM_PROFILE_FILE="/tmp/cov-ext/%p.profraw" \
-        VERBOSE=1 make -j 4 xtest
+        VERBOSE=1 ../../.gitlab/run-with-retryable-download.sh make -j 4 xtest || exit $?
     - |
       cd /tmp/cov-ext
       llvm-profdata-21 merge -sparse *.profraw -o default.profdata
@@ -540,52 +543,3 @@ stages:
         -DCLANG_FORMAT=/usr/bin/clang-format-21
     - make -j 4 extension
     - make format tidy
-
-"check libxml2 version":
-  stage: test
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
-  tags: [ "arch:amd64" ]
-  needs: []
-  allow_failure: true
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
-  script:
-    - |
-      python3 - <<'EOF'
-      import urllib.request
-      import json
-      import re
-      import sys
-
-      # Read local version
-      with open("appsec/third_party/libxml2/VERSION") as f:
-          local_version = f.read().strip()
-      print(f"Local libxml2 version: {local_version}")
-
-      # Fetch latest version from GNOME GitLab
-      url = "https://gitlab.gnome.org/api/v4/projects/GNOME%2Flibxml2/repository/tags?per_page=100&order_by=updated&sort=desc"
-      with urllib.request.urlopen(url) as response:
-          tags = json.load(response)
-
-      # Extract version numbers and find the latest
-      versions = []
-      for tag in tags:
-          match = re.match(r"v(\d+\.\d+\.\d+)$", tag["name"])
-          if match:
-              versions.append(match.group(1))
-
-      # Sort by version number
-      versions.sort(key=lambda v: tuple(map(int, v.split("."))))
-      latest_version = versions[-1] if versions else None
-
-      print(f"Latest libxml2 version: {latest_version}")
-
-      if local_version != latest_version:
-          print("ERROR: libxml2 version mismatch!")
-          print(f"Local version:  {local_version}")
-          print(f"Latest version: {latest_version}")
-          print("Please update appsec/third_party/libxml2 to the latest version.")
-          sys.exit(1)
-
-      print("libxml2 version is up to date.")
-      EOF

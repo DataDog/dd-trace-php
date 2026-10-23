@@ -1,6 +1,6 @@
 Component,Origin,License,Copyright
 core,php,PHP-3.01,The PHP Group
-core,rapidjson,MIT,THL A29 Limited a Tencent company and Milo Yip
+dev,rapidjson,MIT,THL A29 Limited a Tencent company and Milo Yip
 core,msgpack-c,BSL-1.0,FURUHASHI Sadayuki
 core,mpack,MIT,Nicholas Fraser and the MPack authors
 core,libddwaf,Apache-2.0,Datadog Inc
