@@ -53,6 +53,13 @@ class EndpointCatalog
      * recent to be cached: within the second of its modification time, a
      * further rebuild would keep the same key, and within opcache's
      * revalidation window, require may still return the previous version.
+     *
+     * The window is measured from the request start time, because that is the
+     * clock opcache itself compares against (ZCG(request_time)) when deciding
+     * whether to revalidate. Measuring with time() instead would let a request
+     * that reaches routing a second or more after it started build a key from
+     * the new mtime while require still returns the previous array, caching a
+     * stale entry for the life of the process.
      */
     public static function normalizationCacheKeyForCacheDir(string $cacheDir, $routeName, $locale)
     {
@@ -62,7 +69,7 @@ class EndpointCatalog
         }
 
         $mtime = @filemtime($genFile);
-        if ($mtime === false || time() - $mtime <= self::opcacheRevalidateWindow()) {
+        if ($mtime === false || self::requestStartTime() - $mtime <= self::opcacheRevalidateWindow()) {
             return null;
         }
 
@@ -300,6 +307,21 @@ class EndpointCatalog
         }
 
         return self::matcherRegexFromRouteRegex($compiled->getRegex());
+    }
+
+    /**
+     * The time the current request started, which is the clock opcache uses to
+     * decide whether to revalidate a file. Falls back to time() where the SAPI
+     * does not populate REQUEST_TIME (then the window check is no weaker than
+     * it was before).
+     */
+    private static function requestStartTime(): int
+    {
+        if (isset($_SERVER['REQUEST_TIME']) && is_numeric($_SERVER['REQUEST_TIME'])) {
+            return (int) $_SERVER['REQUEST_TIME'];
+        }
+
+        return time();
     }
 
     /**
