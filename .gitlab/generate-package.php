@@ -1654,9 +1654,8 @@ foreach ($system_tests_durations as $scenario => $seconds) {
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
     # PARAMETRIC is weblog-independent: it runs once, in "System Tests: [parametric]".
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
     # THREAD_CONTEXT_SHARING needs the CWS runners; it has its own jobs below.
-    - SCENARIOS=$(printf '%s\n' $SCENARIOS | grep -vx THREAD_CONTEXT_SHARING)
+    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC,THREAD_CONTEXT_SHARING -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
     - test -n "$SCENARIOS" || { echo "system-tests returned no tracer-release scenarios"; exit 1; }
     # Run this shard's packed scenarios that system-tests still lists, plus every CI_NODE_TOTAL-th (hash order) of those the durations file lacks.
     - SCENARIOS=$(echo $SCENARIOS | python3 -c "import os,sys;n=int(os.environ['CI_NODE_TOTAL']);k=int(os.environ['CI_NODE_INDEX']);p=[os.environ.get(f'SHARD_{i}_SCENARIOS','').split() for i in range(1,n+1)];known={s for x in p for s in x};a=sys.stdin.read().split();print(' '.join([s for s in a if s in p[k-1]]+[s for s in a if s not in known][k-1::n]))")

@@ -10,8 +10,8 @@ from datetime import datetime
 
 API = "https://gitlab.ddbuild.io/api/v4/projects/355"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "system-tests-durations.json")
-# Runs once in its own "System Tests: [parametric]" job, never in the weblog shards.
-EXCLUDED = {"PARAMETRIC"}
+# Never in the weblog shards: "System Tests: [parametric]" and the CWS THREAD_CONTEXT_SHARING jobs run them.
+EXCLUDED = {"PARAMETRIC", "THREAD_CONTEXT_SHARING"}
 LINE = re.compile(r"^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+)Z \S+ ?(.*)$")
 SHARD = re.compile(r"System Tests: \[.*, tracer-release\] \d+/\d+$")
 
