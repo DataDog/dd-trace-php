@@ -35,8 +35,37 @@ class KafkaTest extends IntegrationTestCase
         $topicConf->set('request.timeout.ms', (string) 5000);
         $topicLowLevel = $producer->newTopic('test-lowlevel', $topicConf);
         $topicHighLevel = $producer->newTopic('test-highlevel', $topicConf);
+        $topicDsm = $producer->newTopic('test-dsm', $topicConf);
         $producer->getMetadata(false, $topicLowLevel, 5000);
         $producer->getMetadata(false, $topicHighLevel, 5000);
+        $producer->getMetadata(false, $topicDsm, 5000);
+    }
+
+    /**
+     * A produced message carries the Data Streams Monitoring pathway context, and the consumer
+     * receives it. The hash is FNV-1 over the service, the env and the sorted edge tags
+     * (direction:out, topic:test-dsm, type:kafka), then over the parent hash 0.
+     */
+    public function testDataStreamsContextPropagation()
+    {
+        $env = [
+            'DD_DATA_STREAMS_ENABLED' => 'true',
+            'DD_SERVICE' => 'kafka_test',
+            'DD_ENV' => 'dsm-test',
+            'DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED' => 'false',
+            'DD_TRACE_CLI_ENABLED' => 'true',
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
+        ];
+        $this->inCli(__DIR__ . '/scripts/producerv.php', $env, [], 'test-dsm', true);
+        list(, $output) = $this->inCli(__DIR__ . '/scripts/consumer-dsm.php', $env, [], 'test-dsm', true);
+
+        $this->assertRegularExpression('/^dsm-context: (\\S+)$/m', $output);
+        preg_match('/^dsm-context: (\\S+)$/m', $output, $matches);
+        $bytes = base64_decode($matches[1], true);
+        $this->assertNotFalse($bytes);
+        $this->assertSame('16517612558976788512', sprintf('%u', unpack('P', substr($bytes, 0, 8))[1]));
     }
 
     public function testDistributedTracingHighLevel()

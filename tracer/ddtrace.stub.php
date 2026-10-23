@@ -1097,6 +1097,20 @@ namespace DDTrace\Internal {
     /** @internal Submit one final evaluation without waiting or reconnecting. */
     function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData, int $evaluationTimestampMs, bool $targetingKeyInvalid = false): bool {}
 
+    /**
+     * Set a Data Streams Monitoring checkpoint, for an integration to call where a message
+     * enters or leaves the service.
+     *
+     * @internal
+     *
+     * @param string[] $edgeTags "key:value" tags of the edge, e.g. "direction:out", "topic:orders",
+     *                           "type:kafka"
+     * @param string|null $context the "dd-pathway-ctx-base64" value the message arrived with
+     * @return string|null the "dd-pathway-ctx-base64" value to send on with the message, or null
+     *                     if Data Streams Monitoring is disabled
+     */
+    function dsm_set_checkpoint(array $edgeTags, ?string $context = null): ?string {}
+
 }
 
 namespace datadog\appsec\v2 {

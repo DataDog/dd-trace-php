@@ -6,6 +6,7 @@
 #include "auto_flush.h"
 #include "code_origins.h"
 #include "engine_hooks.h"
+#include "data_streams.h"
 #include "ffe.h"
 #include "handlers_exception.h"
 #include "memory_limit.h"
@@ -2963,6 +2964,23 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
     RETURN_BOOL(ddtrace_ffe_record_flag_evaluation(flag_key, variant, allocation_key,
         targeting_key, attributes, error_type, runtime_default_used, observe_full_evaluation_data,
         evaluation_timestamp_ms, targeting_key_invalid));
+}
+
+PHP_FUNCTION(DDTrace_Internal_dsm_set_checkpoint) {
+    zend_array *edge_tags;
+    zend_string *context = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_ARRAY_HT(edge_tags)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STR_OR_NULL(context)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_string *next_context = ddtrace_dsm_set_checkpoint(edge_tags, context);
+    if (next_context) {
+        RETURN_STR(next_context);
+    }
+    RETURN_NULL();
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

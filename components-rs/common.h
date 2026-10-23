@@ -293,6 +293,11 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1
 
+/**
+ * Longest base64 pathway context: 8 hash bytes and two 9-byte varints.
+ */
+#define ddog_DSM_CONTEXT_MAX_LEN 36
+
 #define ddog_LOG_ONCE (1 << 3)
 
 /**
@@ -563,6 +568,20 @@ typedef struct ddog_SignalFlush ddog_SignalFlush;
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 typedef struct _zend_string *ddog_OwnedZendString;
+
+/**
+ * The service a process's checkpoints are reported under, and what goes into their hashes.
+ */
+typedef struct ddog_DsmIdentity {
+  ddog_CharSlice env;
+  ddog_CharSlice version;
+  ddog_CharSlice service;
+  /**
+   * The base hash DBM injects (`datadog_process_tags_get_base_hash`), covering the process
+   * tags and the container tags hash; empty when process tags are disabled.
+   */
+  ddog_CharSlice base_hash;
+} ddog_DsmIdentity;
 
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
