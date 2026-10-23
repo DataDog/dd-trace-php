@@ -621,12 +621,7 @@ impl Default for ZaiStr<'_> {
 
 impl<'a> ZaiStr<'a> {
     pub const fn new() -> ZaiStr<'a> {
-        const NULL: &[u8] = b"\0";
-        Self {
-            len: 0,
-            ptr: NULL.as_ptr() as *const c_char,
-            _marker: PhantomData,
-        }
+        Self::from_cstr(c"")
     }
 
     pub fn is_empty(&self) -> bool {
@@ -634,19 +629,10 @@ impl<'a> ZaiStr<'a> {
         self.len == 0 || self.ptr.is_null()
     }
 
-    /// # Safety
-    /// `str` must be valid for [CStr::from_bytes_with_nul_unchecked]
-    pub const unsafe fn literal(bytes: &'static [u8]) -> Self {
-        // Chance at catching some UB at runtime with debug builds.
-        debug_assert!(!bytes.is_empty() && bytes[bytes.len() - 1] == 0);
-
-        let mut i: usize = 0;
-        while bytes[i] != b'\0' {
-            i += 1;
-        }
+    pub const fn from_cstr(cstr: &'a CStr) -> Self {
         Self {
-            len: i as size_t,
-            ptr: bytes.as_ptr() as *const c_char,
+            len: cstr.to_bytes().len() as size_t,
+            ptr: cstr.as_ptr(),
             _marker: PhantomData,
         }
     }
