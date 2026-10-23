@@ -3,33 +3,13 @@ FFE SDK evaluations log raw native results and returned values under DD_TRACE_DE
 --INI--
 datadog.trace.debug=1
 datadog.trace.log_level="debug,ddtrace=trace"
-datadog.trace.log_file={PWD}/sdk_debug_logging.log
-error_log={PWD}/sdk_debug_logging.log
+datadog.trace.log_file=./tests/api/Unit/FeatureFlags/sdk_debug_logging.log
+error_log=./tests/api/Unit/FeatureFlags/sdk_debug_logging.log
 datadog.trace.generate_root_span=0
 --FILE--
 <?php
-require __DIR__ . '/logging.inc';
-
-$root = getenv('TEST_PHP_SRCDIR') ?: dirname(__DIR__, 3);
-$srcRoot = rtrim((string) ini_get('datadog.trace.sources_path'), '/');
-if ($srcRoot === '' || !is_dir($srcRoot . '/api')) {
-    $srcRoot = $root . '/src';
-}
-// PECL installs sources separately from tests, and its CI job blanks sources_path.
-if (!is_dir($srcRoot . '/api')) {
-    $installed = stream_resolve_include_path('datadog_trace/src/api/Log/LoggerInterface.php');
-    if ($installed !== false) {
-        $srcRoot = dirname(dirname(dirname($installed)));
-    }
-}
-spl_autoload_register(function ($class) use ($srcRoot) {
-    if (strpos($class, 'DDTrace\\') === 0) {
-        $file = $srcRoot . '/api/' . str_replace('\\', '/', substr($class, 8)) . '.php';
-        if (file_exists($file)) {
-            require_once $file;
-        }
-    }
-});
+require __DIR__ . '/../../../Common/FeatureFlags/ffe_api_bootstrap.inc';
+require __DIR__ . '/../../../ext/ffe/logging.inc';
 
 $file = __DIR__ . '/sdk_debug_logging.log';
 $hint = 'Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; set DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true at startup (environment or php.ini) and restart';
