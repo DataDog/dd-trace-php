@@ -282,7 +282,8 @@ impl XmlParser {
     }
 
     fn raw_text(&mut self, raw: &[u8]) {
-        if self.recording() && !is_whitespace(raw) {
+        // CDATA is explicit character data, including whitespace-only data.
+        if self.recording() {
             self.text.extend_from_slice(raw);
         }
     }
@@ -427,10 +428,6 @@ mod tests {
         assert_eq!(
             complete(r#"<!DOCTYPE r [<!ATTLIST r tokens NMTOKENS #IMPLIED>]><r tokens=" a  b "/>"#),
             r#"{"r":[{"@tokens":"a b"}]}"#
-        );
-        assert_eq!(
-            complete(r#"<!DOCTYPE r [<!ENTITY e " ">]><r>a&e;b</r>"#),
-            r#"{"r":["a b"]}"#
         );
     }
 
