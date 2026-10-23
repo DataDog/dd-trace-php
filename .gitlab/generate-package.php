@@ -1535,7 +1535,8 @@ endforeach;
       test "$(git -C system-tests rev-parse --is-shallow-repository)" = "true"
     - CI_IMAGE="$CI_JOB_IMAGE" python3 system-tests/utils/ci/gitlab/build_ci_image.py --check-only
 <?php dockerhub_login() ?>
-    - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
+    # dockerhub-login.sh installs /tmp/vault only when vault is not on PATH; the ci-runner image ships it.
+    - $(command -v vault || echo /tmp/vault) kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || echo "Could not fetch the Datadog API key from Vault" >&2
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ln -sf /system-tests/venv venv
@@ -1629,7 +1630,7 @@ $system_tests_weblogs = [
     - when: manual
       allow_failure: true
   script:
-    - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
+    - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) && [ -n "$DD_API_KEY" ] || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
     # Alphabetical splitting clustered slow related scenarios in one shard.
     # Hash sorting reduces that imbalance, while keeping the order reproducible.
