@@ -99,7 +99,7 @@
  *     void zai_sandbox_engine_state_restore(zai_engine_state *es);
  */
 
-extern long zai_sandbox_active;
+extern ZEND_EXT_TLS long zai_sandbox_active;
 
 #if PHP_VERSION_ID >= 80000
 /********************************** <PHP 8> **********************************/
