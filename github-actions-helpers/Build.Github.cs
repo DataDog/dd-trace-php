@@ -228,6 +228,7 @@ partial class Build
             // Fixes an issue (ambiguous argument) when we do git diff in the Action.
             GitTasks.Git("fetch origin master:master", logOutput: false);
             var changedFiles = GitTasks.Git("diff --name-only master").Select(f => f.Text);
+
             var config = GetLabellerConfiguration();
             Console.WriteLine($"Checking labels for PR {PullRequestNumber}");
 
@@ -267,16 +268,22 @@ partial class Build
                             {
                                 Console.WriteLine("Yes it does. Adding label " + label.Name);
                                 updatedLabels.Add(label.Name);
+                                if (label.StopIfMatch) {
+                                    break;
+                                }
                             }
                         }
                         else if (!string.IsNullOrEmpty(label.AllFilesIn))
                         {
                             Console.WriteLine("Checking if changed files are all located in:" + label.AllFilesIn);
                             var regex = new Regex(label.AllFilesIn, RegexOptions.Compiled);
-                            if(!changedFiles.Any(x => !regex.IsMatch(x)))
+                            if(changedFiles.All(x => regex.IsMatch(x)))
                             {
                                 Console.WriteLine("Yes they do. Adding label " + label.Name);
                                 updatedLabels.Add(label.Name);
+                                if (label.StopIfMatch) {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -367,6 +374,7 @@ partial class Build
             public string Name { get; set; }
             public string Title { get; set; }
             public string AllFilesIn { get; set; }
+            public bool StopIfMatch { get; set; }
         }
     }
 }
