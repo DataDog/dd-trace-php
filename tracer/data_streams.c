@@ -65,7 +65,7 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
 }
 
 void ddtrace_dsm_track_backlog(zend_array *backlog_tags, zend_long offset) {
-    if (!get_DD_DATA_STREAMS_ENABLED()) {
+    if (!ddtrace_dsm_enabled()) {
         return;
     }
 

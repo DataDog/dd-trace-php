@@ -32,7 +32,7 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
 /**
  * Record `offset` for the backlog named by `tags` (an array of "key:value" strings in any order,
  * with keys among topic, type, kafka_cluster_id, consumer_group and partition), e.g. a Kafka
- * partition's produce offset. Does nothing when Data Streams Monitoring is disabled.
+ * partition's produce offset. Does nothing when Data Streams Monitoring is off.
  */
 void ddtrace_dsm_track_backlog(zend_array *tags, zend_long offset);
 
