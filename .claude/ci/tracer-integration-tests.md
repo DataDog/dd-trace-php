@@ -19,6 +19,7 @@
 |--------|-------|-------------|
 | `test_integrations_amqp2: [{php}]` | `datadog/dd-trace-ci:php-{php}_bookworm-11` | AMQP v2 (RabbitMQ) integration tests |
 | `test_integrations_amqp_latest: [{php}]` | same | AMQP latest version tests |
+| `test_integrations_amqp_ext: [{php}]` | same | ext-amqp (PECL) DSM tests; PHP 7.0–8.4, as 8.5 images lack ext-amqp |
 | `test_integrations_curl: [{php}]` | same | Curl integration tests |
 | `test_integrations_deferred_loading: [{php}]` | same | Deferred loading tests (needs mysql + redis) |
 | `test_integrations_elasticsearch{1,7,8,_latest}: [{php}]` | same | Elasticsearch integration tests (version-specific) |

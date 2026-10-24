@@ -501,7 +501,111 @@ class AMQPIntegration extends Integration
             }
         );
 
+        self::installExtAmqpDataStreamsHooks();
+
         return Integration::LOADED;
+    }
+
+    /**
+     * ext-amqp, the PECL extension (used by e.g. Symfony Messenger's AMQP transport), gets Data
+     * Streams Monitoring checkpoints with the same edge tags and payload sizes as php-amqplib,
+     * but no spans.
+     */
+    private static function installExtAmqpDataStreamsHooks()
+    {
+        \DDTrace\install_hook(
+            'AMQPExchange::publish',
+            static function (HookData $hook) {
+                if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    return;
+                }
+                // publish(string $message, ?string $routingKey, ?int $flags, array $attributes),
+                // with the application headers in $attributes['headers'].
+                $args = $hook->args;
+                $attributes = $args[3] ?? [];
+                $headers = $attributes['headers'] ?? [];
+                if (!is_array($attributes) || !is_array($headers)) {
+                    return;
+                }
+
+                // The message as it is sent, but for the context header the checkpoint computes.
+                unset($headers[self::DSM_CONTEXT_HEADER]);
+                $context = \DDTrace\Internal\dsm_set_checkpoint(
+                    self::dataStreamsProduceEdgeTags($hook->instance->getName(), $args[1] ?? ''),
+                    null,
+                    strlen((string)($args[0] ?? '')) + self::headersSize($headers)
+                );
+                if ($context === null) {
+                    return;
+                }
+
+                $headers[self::DSM_CONTEXT_HEADER] = $context;
+                $attributes['headers'] = $headers;
+                // Arguments the application left out get their defaults, so the attributes can be
+                // passed. Adding arguments to a call can fail, and the message then goes without.
+                // A new array, as $hook->args must not become a hash table: on PHP 8.3+ its table
+                // is sized to the argument count, which a hash table cannot have.
+                $hook->overrideArguments([
+                    $args[0],
+                    array_key_exists(1, $args) ? $args[1] : null,
+                    array_key_exists(2, $args) ? $args[2] : \AMQP_NOPARAM,
+                    $attributes,
+                ]);
+            }
+        );
+
+        \DDTrace\install_hook(
+            'AMQPQueue::consume',
+            static function (HookData $hook) {
+                if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
+                        || !isset($hook->args[0]) || !is_callable($hook->args[0])) {
+                    return;
+                }
+                $callback = $hook->args[0];
+                $consumingQueue = $hook->instance;
+                $hook->args[0] = static function ($envelope, $queue = null) use ($callback, $consumingQueue) {
+                    // As for php-amqplib, each message gets its own pathway while the callback
+                    // runs.
+                    \DDTrace\Internal\dsm_push_pathway();
+                    try {
+                        if ($envelope instanceof \AMQPEnvelope) {
+                            // One callback can serve every queue consumed on the channel; ext-amqp
+                            // passes it the queue the message came from.
+                            self::setExtAmqpConsumeCheckpoint(
+                                $envelope,
+                                $queue instanceof \AMQPQueue ? $queue : $consumingQueue
+                            );
+                        }
+                        return call_user_func($callback, $envelope, $queue);
+                    } finally {
+                        \DDTrace\Internal\dsm_pop_pathway();
+                    }
+                };
+                $hook->overrideArguments($hook->args);
+            }
+        );
+
+        \DDTrace\install_hook(
+            'AMQPQueue::get',
+            null,
+            static function (HookData $hook) {
+                // As for php-amqplib's basic_get, the checkpoint stays the request's pathway.
+                if ($hook->returned instanceof \AMQPEnvelope && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    self::setExtAmqpConsumeCheckpoint($hook->returned, $hook->instance);
+                }
+            }
+        );
+    }
+
+    private static function setExtAmqpConsumeCheckpoint(\AMQPEnvelope $envelope, \AMQPQueue $queue)
+    {
+        $headers = $envelope->getHeaders();
+        $context = $headers[self::DSM_CONTEXT_HEADER] ?? null;
+        \DDTrace\Internal\dsm_set_checkpoint(
+            ['direction:in', 'topic:' . (string)$queue->getName(), 'type:rabbitmq'],
+            is_string($context) ? $context : null,
+            strlen((string)$envelope->getBody()) + self::headersSize($headers)
+        );
     }
 
     public static function formatQueueName($queue)
@@ -610,31 +714,41 @@ class AMQPIntegration extends Integration
     }
 
     /**
-     * Set the Data Streams Monitoring checkpoint of a publish, and send its pathway context with
-     * the message. As in the Java tracer, a publish to the default exchange is on the edge of the
-     * queue its routing key names; any other is on the edge of its exchange.
+     * The Data Streams Monitoring edge tags of a publish. As in the Java tracer, a publish to the
+     * default exchange is on the edge of the queue its routing key names; any other is on the
+     * edge of its exchange.
      */
-    public static function setDataStreamsProduceCheckpoint(AMQPMessage $message, $exchange, $routingKey)
+    private static function dataStreamsProduceEdgeTags($exchange, $routingKey): array
     {
         $exchange = (string)$exchange;
         $routingKey = (string)$routingKey;
         if ($exchange === '' && $routingKey !== '') {
-            $edgeTags = ['direction:out', 'topic:' . $routingKey, 'type:rabbitmq'];
-        } else {
-            $edgeTags = [
-                'direction:out',
-                'exchange:' . $exchange,
-                'has_routing_key:' . ($routingKey === '' ? 'false' : 'true'),
-                'type:rabbitmq',
-            ];
+            return ['direction:out', 'topic:' . $routingKey, 'type:rabbitmq'];
         }
+        return [
+            'direction:out',
+            'exchange:' . $exchange,
+            'has_routing_key:' . ($routingKey === '' ? 'false' : 'true'),
+            'type:rabbitmq',
+        ];
+    }
 
+    /**
+     * Set the Data Streams Monitoring checkpoint of a publish, and send its pathway context with
+     * the message.
+     */
+    public static function setDataStreamsProduceCheckpoint(AMQPMessage $message, $exchange, $routingKey)
+    {
         // The message as it is sent, but for the context header the checkpoint computes.
         $headers = self::getNativeHeaders($message);
         unset($headers[self::DSM_CONTEXT_HEADER]);
         $payloadSize = strlen((string)$message->getBody()) + self::headersSize($headers);
 
-        $context = \DDTrace\Internal\dsm_set_checkpoint($edgeTags, null, $payloadSize);
+        $context = \DDTrace\Internal\dsm_set_checkpoint(
+            self::dataStreamsProduceEdgeTags($exchange, $routingKey),
+            null,
+            $payloadSize
+        );
         if ($context !== null) {
             self::setDataStreamsContextHeader($message, $context);
         }
