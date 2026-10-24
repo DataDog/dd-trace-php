@@ -166,6 +166,27 @@ uintptr_t ddog_dsm_set_checkpoint(struct ddog_SidecarTransport *transport,
                                   uint8_t *out,
                                   uintptr_t out_cap);
 
+/**
+ * Record `offset` for the backlog named by `tags`, e.g. a Kafka partition's produce offset or
+ * a consumer group's committed one. The sidecar keeps the highest offset per backlog in each
+ * bucket; negative offsets (unknown to librdkafka) are dropped.
+ *
+ * `tags` are `key:value` strings in any order, each with a key `BacklogTag` knows (`topic`,
+ * `type`, `kafka_cluster_id`, `consumer_group`, `partition`); every tag has a fixed position,
+ * which is the order they are reported in. An offset with a tag of any other key is dropped
+ * rather than reported under the tags that remain. Nothing is recorded until the agent has
+ * said it accepts DSM stats.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ * `tags` must point to `tag_count` valid slices.
+ */
+void ddog_dsm_track_backlog(struct ddog_SidecarTransport *transport,
+                            const struct ddog_DsmIdentity *identity,
+                            const ddog_CharSlice *tags,
+                            uintptr_t tag_count,
+                            int64_t offset);
+
 bool ddog_ffe_load_config(ddog_CharSlice json);
 
 bool ddog_ffe_has_config(void);

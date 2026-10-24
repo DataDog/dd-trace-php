@@ -58,7 +58,10 @@ class KafkaTest extends IntegrationTestCase
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
             'DD_TRACE_EXEC_ENABLED' => 'false',
         ];
-        $this->inCli(__DIR__ . '/scripts/producerv.php', $env, [], 'test-dsm', true);
+        list(, $producerOutput) = $this->inCli(__DIR__ . '/scripts/producerv.php', $env, [], 'test-dsm', true);
+        // The integration wraps the application's delivery report callback to record produce
+        // offsets; the application's own callback still runs.
+        $this->assertStringContainsString('Message sent SUCCESSFULLY', $producerOutput);
         list(, $output) = $this->inCli(__DIR__ . '/scripts/consumer-dsm.php', $env, [], 'test-dsm', true);
 
         $this->assertRegularExpression('/^dsm-context: (\\S+)$/m', $output);
