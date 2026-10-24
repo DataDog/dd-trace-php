@@ -26,6 +26,7 @@ extends this template and runs `./run.sh` with the appropriate scenario.
 | `System Tests: [php-fpm-8.5]: [CROSSED_TRACING_LIBRARIES]` | `php-fpm-8.5` | `CROSSED_TRACING_LIBRARIES` | Cross-library tracing on PHP 8.5 FPM |
 | `System Tests: [parametric]` | runner image | `PARAMETRIC` | Parametric tests (language-agnostic API conformance) |
 | `System Tests: [tracer-release]` | `apache-mod-8.0` (default) | *(dynamic)* | Tracer release scenarios; master/scheduled only, 4h timeout |
+| `System Tests: [<weblog>, THREAD_CONTEXT_SHARING]` | `apache-mod-8.0`, `apache-mod-8.2-zts`, `php-fpm-8.5` | `THREAD_CONTEXT_SHARING` | CWS trace context, on the CWS runners |
 
 Runner: `docker-in-docker:amd64`
 Image: `python:3.12-slim-bullseye` (the job itself installs Docker
@@ -38,6 +39,20 @@ expand into six parallel jobs, one per `TESTSUITE` value. The
 and matrix jobs but use `BUILD_SH_ARGS: php-fpm-8.5` (i.e., `./build.sh
 php-fpm-8.5`) to target the PHP 8.5 FPM weblog variant. GitLab names the
 matrix expansions `System Tests: [php-fpm-8.5]: [TESTSUITE]`.
+
+### CWS guest kernel mounts (THREAD_CONTEXT_SHARING)
+
+CWS needs the kernel filesystems and the PID namespace of the Kata guest, and
+the DIND service only sees its own. The `THREAD_CONTEXT_SHARING` jobs
+therefore run on `docker-in-docker:amd64-cws`, a pool of the kata-qemu DIND
+runners that mounts the guest's `/proc`, `/sys/fs/cgroup` and
+`/sys/kernel/{debug,tracing,security}` under `/vm-host` in the job's
+containers. On Kata these host paths are the guest VM's, not the node's.
+`THREAD_CONTEXT_SHARING` detects `/vm-host`, mounts these into the Agent and
+waits for the CWS self test before starting the weblog.
+
+The pool is small, so only this scenario runs there, on a few weblogs. The
+tracer-release jobs, whose `tracer_release` group includes it, skip it.
 
 ### Upstream dependencies (CI only)
 
@@ -246,6 +261,10 @@ Logs are written to `logs_<scenario>/` (or `logs/` for default) and
 - **Log directories become root-owned.** After runs, `logs*/` directories
   are owned by root. Remove them via Docker before re-running:
   `docker run --rm -v $(pwd):/s alpine rm -rf /s/logs /s/logs_*`
+
+- **CWS guest kernel mounts cannot be reproduced locally.** They need the
+  `docker-in-docker:amd64-cws` runners. Elsewhere `/vm-host` does not exist,
+  and `THREAD_CONTEXT_SHARING` uses the default topology.
 
 - **Run the orchestrator on the host, not in a container.** Volume mount
   paths in `run.sh` resolve on the Docker host. If you run the orchestrator

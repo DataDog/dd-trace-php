@@ -1,5 +1,7 @@
 --TEST--
 _convert_xml function (max depth exceeded)
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 // Generate XML with 35 levels of nesting (exceeds MAX_XML_DEPTH of 30)

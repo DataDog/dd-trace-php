@@ -5,9 +5,14 @@
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
 #include <ext/process_tags.h>
+#include <ext/sidecar.h>
 #include <ext/target_metadata.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+bool ddtrace_dsm_enabled(void) {
+    return get_DD_DATA_STREAMS_ENABLED() && datadog_endpoint;
+}
 
 // The string tags of `tags`, as slices into it; free with efree. Non-strings are skipped.
 static ddog_CharSlice *dd_dsm_tag_slices(zend_array *tags, uint32_t *count) {
@@ -50,7 +55,7 @@ static int64_t dd_dsm_max_pathway_age_ns(void) {
 }
 
 zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carrier, zend_long payload_size) {
-    if (!get_DD_DATA_STREAMS_ENABLED()) {
+    if (!ddtrace_dsm_enabled()) {
         return NULL;
     }
 
@@ -72,7 +77,7 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
 }
 
 void ddtrace_dsm_track_backlog(zend_array *backlog_tags, zend_long offset) {
-    if (!get_DD_DATA_STREAMS_ENABLED()) {
+    if (!ddtrace_dsm_enabled()) {
         return;
     }
 

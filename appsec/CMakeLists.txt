@@ -41,7 +41,6 @@ set(DD_APPSEC_TEST_TRACER "" CACHE FILEPATH
     "Use an existing tracer extension when running extension tests")
 option(DD_APPSEC_DDTRACE_ALT "Whether to build appsec with cmake" OFF)
 option(DD_APPSEC_SSI "Whether to build ddtrace in split configuration (slim ddtrace.so + libdatadog_php.so)" OFF)
-option(DD_APPSEC_EXTENSION_STATIC_LIBSTDCXX "Whether to link the extension with -static-libstdc++ (not available on macOS)" OFF)
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
 

@@ -308,6 +308,35 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
+/**
+ * Written as a single byte.
+ */
+typedef enum ddog_AppsecBodyRecord {
+  DDOG_APPSEC_BODY_RECORD_MAP_START = 1,
+  DDOG_APPSEC_BODY_RECORD_LIST_START,
+  DDOG_APPSEC_BODY_RECORD_END,
+  DDOG_APPSEC_BODY_RECORD_KEY,
+  DDOG_APPSEC_BODY_RECORD_STR,
+  DDOG_APPSEC_BODY_RECORD_INT,
+  DDOG_APPSEC_BODY_RECORD_FLOAT,
+  DDOG_APPSEC_BODY_RECORD_TRUE,
+  DDOG_APPSEC_BODY_RECORD_FALSE,
+  DDOG_APPSEC_BODY_RECORD_NULL,
+} ddog_AppsecBodyRecord;
+
+typedef enum ddog_AppsecBodyStatus {
+  /**
+   * Nothing usable was parsed; the tape is empty.
+   */
+  DDOG_APPSEC_BODY_STATUS_EMPTY,
+  /**
+   * The input was truncated or malformed; the tape holds what preceded the
+   * error, with all containers closed.
+   */
+  DDOG_APPSEC_BODY_STATUS_PARTIAL,
+  DDOG_APPSEC_BODY_STATUS_COMPLETE,
+} ddog_AppsecBodyStatus;
+
 typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
   DDOG_CONFIGURATION_ORIGIN_CODE,
@@ -380,6 +409,9 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_RUM,
   DDOG_METRIC_NAMESPACE_APPSEC,
   DDOG_METRIC_NAMESPACE_IDE_PLUGINS,
+  /**
+   * Superseded by [`MetricNamespace::Debugger`]. Kept so existing FFI discriminants stay stable.
+   */
   DDOG_METRIC_NAMESPACE_LIVE_DEBUGGER,
   DDOG_METRIC_NAMESPACE_IAST,
   DDOG_METRIC_NAMESPACE_GENERAL,
@@ -390,6 +422,7 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_MLOBS,
   DDOG_METRIC_NAMESPACE_DDTRACEAPI,
   DDOG_METRIC_NAMESPACE_AI_GUARD,
+  DDOG_METRIC_NAMESPACE_DEBUGGER,
 } ddog_MetricNamespace;
 
 typedef enum ddog_MetricType {
@@ -516,9 +549,10 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  * `SidecarTransport` wraps a [`SidecarSender`] with transparent reconnection support.
  *
  * This transport is used for communication between different parts of the sidecar service.
- * It is a blocking transport (all operations block the current thread). It is owned by a
- * single client thread: the sidecar binds the connection state to the connection, so it must
- * not be shared between threads which process requests concurrently.
+ * It is owned by a single client thread: the sidecar binds state to the connection,
+ * so it must not be shared between threads which process requests concurrently.
+ * Ordinary operations may block and reconnect. FFE submission bypasses reconnection
+ * and never waits for transport capacity or delivery; platform synchronization may wait.
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
@@ -558,6 +592,7 @@ typedef struct ddog_FfeResult {
   int32_t serial_id;
   bool has_serial_id;
   bool do_log;
+  bool observe_full_evaluation_data;
   bool valid;
 } ddog_FfeResult;
 
@@ -847,6 +882,16 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             const char *key,
                                             uintptr_t key_len,
                                             uintptr_t *out_len);
+
+/**
+ * Owned by Rust; release it with `ddog_appsec_body_tape_drop`.
+ */
+typedef struct ddog_AppsecBodyTape {
+  uint8_t *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+  enum ddog_AppsecBodyStatus status;
+} ddog_AppsecBodyTape;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -1235,6 +1280,33 @@ typedef enum ddog_EvpTransportMode {
   DDOG_EVP_TRANSPORT_MODE_PREFER_LOCAL_THEN_DIRECT,
 } ddog_EvpTransportMode;
 
+/**
+ * Local submission outcomes, not metric names or delivery guarantees.
+ * Do not report a rejected observation recursively through the EVP path.
+ */
+typedef enum ddog_FfeSubmissionStatus {
+  /**
+   * Accepted by the local transport, not necessarily delivered to the sidecar or intake.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_ACCEPTED,
+  /**
+   * Absent, closed, or failed transport. Recovery belongs to lifecycle code.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_UNAVAILABLE,
+  /**
+   * Rejected by shared load shedding, pending configuration, or socket backpressure.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_WOULD_BLOCK,
+  /**
+   * Invalid required input for the single-observation interface.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_INVALID_INPUT,
+  /**
+   * The observation still exceeds a packet limit after any reduced-event retry.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_PAYLOAD_TOO_LARGE,
+} ddog_FfeSubmissionStatus;
+
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
@@ -1458,6 +1530,47 @@ typedef struct ddog_AppsecCResponse {
    */
   bool disconnect;
 } ddog_AppsecCResponse;
+
+/**
+ * One borrowed scalar from the context used for evaluation. Only the first 256
+ * entries are inspected, in input order, including entries subsequently omitted.
+ * Only the value field selected by `kind` is read. Nothing is retained by reference.
+ */
+typedef struct ddog_FfeScalarAttribute {
+  ddog_CharSlice key;
+  /**
+   * 0 = string, 1 = boolean, 2 = signed integer, 3 = double.
+   * Other values are omitted and recorded as snapshot errors.
+   */
+  uint32_t kind;
+  ddog_CharSlice string_value;
+  bool bool_value;
+  int64_t integer_value;
+  double double_value;
+} ddog_FfeScalarAttribute;
+
+typedef struct ddog_Slice_FfeScalarAttribute {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeScalarAttribute *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeScalarAttribute;
+/**
+ * Information lost before this native boundary. Context flags are ignored in
+ * protected mode; invalid original identity is never legitimized by coercion.
+ */
+typedef struct ddog_FfeSnapshotState {
+  bool context_truncated;
+  bool snapshot_error;
+  bool targeting_key_invalid;
+} ddog_FfeSnapshotState;
 
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,

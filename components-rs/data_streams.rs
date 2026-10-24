@@ -50,7 +50,7 @@ use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use base64::Engine;
 use datadog_sidecar::service::blocking::{add_dsm_backlog, add_dsm_stats_point, SidecarTransport};
 use datadog_sidecar::service::data_streams_flusher::{
-    dsm_backlog_shm_path, dsm_table_shm_path, DsmTableKey, ShmProduct,
+    dsm_backlog_shm_path, dsm_table_shm_path, DsmTableKey,
 };
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use libdd_ipc::shm_dsm::{DsmStatsPointInput, OwnedDsmStatsPoint, ShmDsmTable, MAX_EDGE_TAGS};
@@ -454,7 +454,6 @@ fn record(
         return;
     };
     let key = DsmTableKey {
-        product: ShmProduct::DataStreams,
         env: env.to_owned(),
         version: version.to_owned(),
         service: service.to_owned(),

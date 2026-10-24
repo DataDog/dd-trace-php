@@ -168,7 +168,8 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
     if (!datadog_disable) {
-        // Only set up the sidecar when it's actually needed (appsec, telemetry, trace sender, or OTLP metrics).
+        // Only set up the sidecar when it's actually needed (appsec, telemetry, trace sender, OTLP metrics,
+        // flagging provider, or Data Streams Monitoring).
         ddog_RemoteConfigFlags flags = {0};
         bool enable_sidecar = datadog_sidecar_should_enable(&flags);
         if (enable_sidecar) {
@@ -185,7 +186,12 @@ static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 static bool dd_is_cli_autodisabled(const char *arg) {
     const char *slashend = strrchr(arg, '/');
     const char *backslashend = strrchr(arg, '\\');
-    arg = MAX(MAX(slashend, backslashend) + 1, arg);
+    if (slashend) {
+        arg = slashend + 1;
+    }
+    if (backslashend && (!slashend || backslashend > slashend)) {
+        arg = backslashend + 1;
+    }
     return strcmp(arg, "composer") == 0 || strcmp(arg, "composer.phar") == 0;
 }
 
@@ -348,8 +354,13 @@ int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) 
     return 0;
 }
 
-static void dd_clean_main_thread_locals() {
-    dd_run_rust_thread_destructors(NULL);
+static void dd_clean_main_thread_locals(void *unused) {
+    dd_run_rust_thread_destructors(unused);
+    // FrankenPHP unloads ddtrace on php-main before pthreads runs its TLS destructors.
+    // The fallback key must not retain a callback into the unloaded extension.
+    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNAVAILABLE) {
+        pthread_key_delete(dd_cxa_thread_atexit_key);
+    }
 }
 
 extern void *__dso_handle;
@@ -431,8 +442,8 @@ static PHP_MINIT_FUNCTION(datadog) {
     if (datadog_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_is_main_thread = true;
         glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
-        __cxa_atexit(dd_clean_main_thread_locals, NULL, __dso_handle);
     }
+    __cxa_atexit(dd_clean_main_thread_locals, NULL, __dso_handle);
 #endif
 
     // Reset on every minit for `apachectl graceful`.

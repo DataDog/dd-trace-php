@@ -1,5 +1,17 @@
 # Tracer Unit Tests and Native Extension Tests
 
+## Choosing a test suite
+
+- `tests/ext/` tests the extension's exposed API directly. Do not load `src/`
+  classes from these tests: packaged extension tests may run without the
+  repository's PHP sources or Composer dependencies.
+- Tests of `src/api/` belong in the API PHPUnit suite (`tests/api/Unit/`).
+  OpenFeature integration tests belong in `tests/OpenFeature/`.
+  Using native extension functions does not make a PHP-class test an
+  extension-only test. PHPUnit can run `.phpt` files as well as test classes.
+- When moving tests, check suite discovery and the CI PHP-version matrix.
+  Keep native-client coverage on PHP 7; OpenFeature's suite requires PHP 8+.
+
 ## CI Jobs
 
 **Source:**
@@ -12,9 +24,9 @@
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `compile extension: debug` | `dd-trace-ci:php-{ver}_bookworm-6` | Compiles ddtrace.so in debug mode; produces artifact consumed by all test jobs below |
+| `compile extension: debug` | `dd-trace-ci:php-{ver}_bookworm-11` | Compiles ddtrace.so in debug mode; produces artifact consumed by all test jobs below |
 | `compile extension: debug-zts-asan` | same | Compiles ddtrace.so with ASAN+ZTS; used by ASAN test jobs |
-| `Unit tests: [{ver}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Runs PHPUnit `--testsuite=unit` |
+| `Unit tests: [{ver}]` | `dd-trace-ci:php-{ver}_bookworm-11` | Runs PHPUnit `--testsuite=unit` |
 | `API unit tests: [{ver}]` | same | Runs PHPUnit API unit tests |
 | `test_extension_ci: [{ver}]` | same | Runs .phpt extension tests (normal pass), with test-agent |
 | `test_extension_ci: [{ver}, valgrind]` | same | Same suite under valgrind for leak checking; much slower, so it is a separate job |
@@ -56,7 +68,7 @@ Build the extension and install PHPUnit prerequisites once:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e; make -j$(nproc) all; make install_all;
 composer update --no-interaction; make generate'
 ```
@@ -65,7 +77,7 @@ Then reuse the cache for any test target:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-11 \
   -e DD_TRACE_ASSUME_COMPILED=1 -- bash -c 'make test_unit'
 ```
 
@@ -123,7 +135,7 @@ runs.
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 make -j$(nproc) all
 make test_c
@@ -138,7 +150,7 @@ skipped (most .phpt tests are self-contained).
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 make test_c TESTS=tests/ext/sandbox/auto_flush.phpt
 '
 ```
@@ -160,7 +172,7 @@ August 2022 and never matches.
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 make test_c_disabled
 '
 ```
@@ -173,7 +185,7 @@ For the ASAN variant, see the [ASAN Tests](#asan-tests) section.
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 make -j$(nproc) all
 make install_all
@@ -187,7 +199,7 @@ make test_unit
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 make test_unit FILTER=testSomething
 '
 ```
@@ -207,7 +219,7 @@ make test_unit TESTS=tests/Unit/SomeTest.php FILTER=testSomething
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 make -j$(nproc) all
 make test_opcache
@@ -222,7 +234,7 @@ flag is passed automatically.
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 make test_opcache TESTS=tests/opcache/some_test.phpt
 '
 ```
@@ -233,7 +245,7 @@ Requires a compiled `ddtrace.so` (see [Prerequisites](#prerequisites)).
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 make -j$(nproc) all
 make test_internal_api_randomized
@@ -254,7 +266,7 @@ docker compose -p $PROJECT -f .claude/ci/docker-compose.services.yml \
   up -d test-agent request-replayer
 
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --root --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-11 \
   --network ${PROJECT}_default \
   -e DD_AGENT_HOST=test-agent \
   -e DD_TRACE_AGENT_PORT=9126 \
@@ -288,7 +300,7 @@ inside `/usr/local/src/php/`.
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --root --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 make -j$(nproc) all install_all
 php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
@@ -324,7 +336,7 @@ Wait a few seconds for the test-agent to be ready before running tests.
 
 ```bash
 .claude/ci/dockerh --cache tracer-integ-83 --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-11 \
   --network tracer-integ-83_default \
   -e DD_TRACE_ASSUME_COMPILED=1 \
   -e DDAGENT_HOSTNAME=test-agent \
@@ -380,7 +392,7 @@ them if not already running (see `test_auto_instrumentation` section).
 
 ```bash
 .claude/ci/dockerh --cache tracer-integ-83 --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-11 \
   --network tracer-integ-83_default \
   -e DD_TRACE_ASSUME_COMPILED=1 \
   -e DDAGENT_HOSTNAME=test-agent \
@@ -421,7 +433,7 @@ silent wrong behaviour.
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 export COMPILE_ASAN=1
 make -j$(nproc) all
@@ -441,7 +453,7 @@ when `ASAN=1` is detected, which adds `-fsanitize=address
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 export ASAN_OPTIONS=abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
 make test_c
@@ -465,7 +477,7 @@ run). Tests that use `getenv("SKIP_ASAN")` in `--SKIPIF--` sections
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 export ASAN_OPTIONS=abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
 make test_internal_api_randomized
 '
@@ -490,7 +502,7 @@ Then run:
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-11 \
   --network tracer-asan-83_default \
   -e HTTPBIN_HOSTNAME=httpbin-integration \
   -e HTTPBIN_PORT=8080 \
@@ -513,7 +525,7 @@ PHP 7.x — do not run against PHP 7.x.
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 export ASAN_OPTIONS=abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
 make test_c_observer
 '
@@ -524,7 +536,7 @@ make test_c_observer
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 export ASAN_OPTIONS=abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
 make test_opcache
 '

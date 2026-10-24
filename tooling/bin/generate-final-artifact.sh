@@ -42,6 +42,13 @@ fi
 
 configs=("" -zts -debug -debug-zts)
 
+# CI builds the per-PHP-API tarballs and the combined bundles in separate jobs; unset builds both.
+bundles=${DDTRACE_MAKE_BUNDLES:-all}
+if [[ ! $bundles =~ ^(all|per-api|combined)$ ]]; then
+    echo "Unknown DDTRACE_MAKE_BUNDLES=$bundles (expected all, per-api or combined)"
+    exit 1
+fi
+
 
 cp_with_dir() {
     mkdir -p $(dirname $2)
@@ -52,8 +59,10 @@ echo "Architectures: ${architectures[@]}"
 echo "Targets: ${targets[@]}"
 echo "PHP APIs: ${php_apis[@]}"
 echo "Configs: ${configs[@]}"
+echo "Bundles: ${bundles}"
 
 for architecture in "${architectures[@]}"; do
+    if [[ $bundles == combined ]]; then continue; fi
     for php_api in "${php_apis[@]}"; do
         for full_target in "${targets[@]}"; do
             target=${full_target#*-}
@@ -100,6 +109,7 @@ for architecture in "${architectures[@]}"; do
 done
 
 for architecture in "${architectures[@]}"; do
+    if [[ $bundles == per-api ]]; then continue; fi
     tmp_folder_final_gnu=$tmp_folder_final/$architecture-linux-gnu
     tmp_folder_final_musl=$tmp_folder_final/$architecture-linux-musl
     tmp_folder_final_windows=$tmp_folder_final/$architecture-windows

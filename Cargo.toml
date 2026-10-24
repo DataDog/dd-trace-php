@@ -33,10 +33,11 @@ path = "components-rs/lib.rs"
 bench = false
 
 [features]
-default = ["tracer"]
+default = ["tracer", "appsec"]
 tracer = ["dep:ddtrace-sidecar"]
 helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
 libddwaf-source-static = ["ddtrace-sidecar/libddwaf-source-static"]
+appsec = ["dep:quick-xml"]
 profiling = [
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
   "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",
@@ -73,6 +74,7 @@ libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", defau
 spawn_worker = { path = "libdatadog/spawn_worker" }
 anyhow = "1.0"
 arc-swap.workspace = true
+quick-xml = { workspace = true, optional = true }
 const-str = "0.5.6"
 itertools = "0.11.0"
 serde = "1.0.196"
@@ -218,6 +220,7 @@ hex = { version = "0.4", default-features = false }
 http = { version = "1.1", default-features = false }
 http-body = { version = "1", default-features = false }
 http-body-util = { version = "0.1", default-features = false }
+httpdate = { version = "1.0", default-features = false }
 # allow(workspace-deps-features): httpmock 0.8.0-alpha.1 does not compile
 # without the `cookies` feature: its own `readers.rs` calls `req.cookies()`
 # unconditionally while that method is gated behind `cookies`. Keep it as a
@@ -285,7 +288,7 @@ rmpv = { version = "1.3.0", default-features = false }
 rustc-hash = { version = "2.1.1", default-features = false }
 rustls = { version = "0.23", default-features = false }
 rustls-platform-verifier = { version = "0.6", default-features = false }
-rustls-webpki = { version = ">=0.103.13", default-features = false }
+rustls-webpki = { version = "0.103.16", default-features = false }
 schemars = { version = "0.8.21", default-features = false }
 semver = { version = "1.0", default-features = false }
 serde = { version = "1.0", default-features = false }
@@ -341,6 +344,8 @@ wait-timeout = { version = "0.2", default-features = false }
 walkdir = { version = "2.4", default-features = false }
 wasm-bindgen-futures = { version = "0.4", default-features = false }
 wasm-bindgen-test = { version = "=0.3.50", default-features = false }
+webpki-roots = { version = "1.0.10", default-features = false }
+webpki-root-certs = { version = "1.0.10", default-features = false }
 web-time = { version = "1", default-features = false }
 windows = { version = "0.59.0", default-features = false }
 windows-sys = { version = "0.52", default-features = false }

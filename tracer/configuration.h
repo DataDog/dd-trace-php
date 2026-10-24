@@ -166,6 +166,7 @@
     CONFIG(BOOL, DD_DATA_STREAMS_ENABLED, "false")                                                             \
     CONFIG(DOUBLE, DD_DATA_STREAMS_PATHWAY_MAX_AGE_SECONDS, "300")                                             \
     CONFIG(BOOL, DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED, "false")                                           \
+    CONFIG(BOOL, DD_FLAGGING_EVALUATION_COUNTS_ENABLED, "true")                                                \
     DD_INTEGRATIONS
 
 #ifndef DDTRACE_CONFIGURATION
