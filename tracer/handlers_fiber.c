@@ -1,5 +1,6 @@
 #include "ddtrace.h"
 #include "configuration.h"
+#include "data_streams.h"
 #include "handlers_fiber.h"
 #ifdef __linux__
 #include "otel_context.h"
@@ -136,11 +137,14 @@ static void dd_observe_fiber_switch(zend_fiber_context *from, zend_fiber_context
 #ifdef __linux__
     ddtrace_otel_attach_stack(to_stack);
 #endif
+
+    ddtrace_dsm_fiber_switch(from, to);
 }
 
 static void dd_observe_fiber_init(zend_fiber_context *context) {
     ddtrace_span_stack *stack = get_DD_TRACE_ENABLED() ? ddtrace_init_span_stack() : ddtrace_init_root_span_stack();
     context->reserved[dd_resource_handle] = stack;
+    ddtrace_dsm_fiber_init(context);
 
 #if PHP_VERSION_ID < 80200
     zend_long patch_version = Z_LVAL_P(zend_get_constant_str(ZEND_STRL("PHP_RELEASE_VERSION")));
@@ -161,6 +165,7 @@ static void dd_observe_fiber_init(zend_fiber_context *context) {
 static void dd_observe_fiber_destroy(zend_fiber_context *context) {
     ddtrace_span_stack *stack = context->reserved[dd_resource_handle];
     OBJ_RELEASE(&stack->std);
+    ddtrace_dsm_fiber_destroy(context);
 }
 
 void ddtrace_setup_fiber_observers(void) {

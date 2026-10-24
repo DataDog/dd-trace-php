@@ -139,6 +139,11 @@ class RoadrunnerIntegration extends Integration
                     \DDTrace\close_spans_until($activeSpan);
                     \DDTrace\close_span();
                 }
+                // The request served last has ended, with the work done after responding to it; the
+                // next one starts on a fresh pathway.
+                if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    \DDTrace\Internal\dsm_reset_pathway();
+                }
                 $activeSpan = null;
                 $suppressResponse = null;
             },

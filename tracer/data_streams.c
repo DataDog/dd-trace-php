@@ -42,6 +42,18 @@ static zend_string *dd_dsm_identity(ddog_DsmIdentity *identity) {
     return default_service;
 }
 
+// DD_DATA_STREAMS_PATHWAY_MAX_AGE_SECONDS in nanoseconds, or 0 for no maximum age.
+static int64_t dd_dsm_max_pathway_age_ns(void) {
+    double seconds = get_DD_DATA_STREAMS_PATHWAY_MAX_AGE_SECONDS();
+    if (!(seconds > 0)) {
+        return 0;
+    }
+    if (seconds >= (double)INT64_MAX / 1e9) {
+        return INT64_MAX;
+    }
+    return (int64_t)(seconds * 1e9);
+}
+
 zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carrier, zend_long payload_size) {
     if (!ddtrace_dsm_enabled()) {
         return NULL;
@@ -55,7 +67,7 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
     uint8_t context[ddog_DSM_CONTEXT_MAX_LEN];
     size_t context_len = ddog_dsm_set_checkpoint(DATADOG_G(sidecar), &identity, tags, tag_count,
                                                  carrier ? dd_zend_string_to_CharSlice(carrier) : DDOG_CHARSLICE_C(""),
-                                                 payload_size, context, sizeof(context));
+                                                 payload_size, dd_dsm_max_pathway_age_ns(), context, sizeof(context));
     efree(tags);
     if (default_service) {
         zend_string_release(default_service);
@@ -81,14 +93,30 @@ void ddtrace_dsm_track_backlog(zend_array *backlog_tags, zend_long offset) {
     }
 }
 
-void ddtrace_dsm_push_pathway(void) {
-    ddog_dsm_push_pathway();
+void ddtrace_dsm_push_pathway(bool keep_current) {
+    ddog_dsm_push_pathway(keep_current);
 }
 
 void ddtrace_dsm_pop_pathway(void) {
     ddog_dsm_pop_pathway();
 }
 
-void ddtrace_dsm_rshutdown(void) {
+void ddtrace_dsm_reset_pathway(void) {
     ddog_dsm_reset_pathway();
+}
+
+void ddtrace_dsm_fiber_init(const void *context) {
+    ddog_dsm_fiber_init(context);
+}
+
+void ddtrace_dsm_fiber_switch(const void *from, const void *to) {
+    ddog_dsm_fiber_switch(from, to);
+}
+
+void ddtrace_dsm_fiber_destroy(const void *context) {
+    ddog_dsm_fiber_destroy(context);
+}
+
+void ddtrace_dsm_rshutdown(void) {
+    ddog_dsm_request_shutdown();
 }

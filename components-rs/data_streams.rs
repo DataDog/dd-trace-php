@@ -31,7 +31,19 @@
 //!
 //! An integration that hands each message to a callback can push a fresh pathway before the
 //! callback and pop it after, so a long-lived worker's checkpoints for one message neither take
-//! the previous message's pathway nor leak it to what runs between messages.
+//! the previous message's pathway nor leak it to what runs between messages. A framework whose
+//! worker fetches a message and then runs its handler pushes the pathway it is on instead, so
+//! the handler keeps the message it fetched and what runs after the handler does not.
+//!
+//! A pathway pushed for a message lasts exactly as long as the message is processed. Outside
+//! one, nothing says when processing ends, so a checkpoint only continues a pathway whose last
+//! checkpoint is at most `DD_DATA_STREAMS_PATHWAY_MAX_AGE_SECONDS` old; an older one is taken
+//! to belong to a message the request has finished with.
+//!
+//! Integrations for long-running SAPIs, which serve many requests from one PHP request, reset
+//! the pathway at the edges of each request they serve. Each fiber has a pathway of its own,
+//! which starts as a copy of the pathway of the code that started it; as the fiber can outlive
+//! the message that pathway belongs to, the copy expires like one outside a message's scope.
 
 use base64::alphabet;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
@@ -45,6 +57,7 @@ use libdd_ipc::shm_dsm::{DsmStatsPointInput, OwnedDsmStatsPoint, ShmDsmTable, MA
 use libdd_ipc::shm_dsm_backlog::{DsmBacklogInput, ShmDsmBacklogTable};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, OnceLock, RwLock};
@@ -173,22 +186,28 @@ fn direction(edge_tags: &[&str]) -> Option<Direction> {
     })
 }
 
-/// The pathway a request is on.
-#[derive(Default)]
+/// The pathway a request, or a message's scope within it, is on.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct RequestPathway {
     current: Option<PathwayContext>,
     /// Direction of the last checkpoint, while consecutive outbound checkpoints are tracked.
     previous_direction: Option<Direction>,
     /// The pathway from before a run of outbound checkpoints, which each of them takes as parent.
     before_run: Option<PathwayContext>,
+    /// Pushed for a message being processed, so its pathway does not expire.
+    message_scope: bool,
 }
 
 impl RequestPathway {
-    /// Pick the parent of a checkpoint in `direction`, given the context it was handed.
+    /// Pick the parent of a checkpoint in `direction`, given the context it was handed. Outside
+    /// a message's scope, a pathway the request is still on is only continued if its last
+    /// checkpoint is at most `max_age_ns` old; `max_age_ns <= 0` keeps it however old it is.
     fn parent(
         &mut self,
         direction: Option<Direction>,
         carried: Option<PathwayContext>,
+        now_ns: i64,
+        max_age_ns: i64,
     ) -> Option<PathwayContext> {
         match direction {
             Some(Direction::In) => {
@@ -200,17 +219,38 @@ impl RequestPathway {
                     self.previous_direction = Some(Direction::Out);
                     self.before_run = self.current;
                 }
-                self.before_run
+                self.unexpired(self.before_run, now_ns, max_age_ns)
             }
-            None => carried.or(self.current),
+            None => carried.or_else(|| self.unexpired(self.current, now_ns, max_age_ns)),
         }
+    }
+
+    fn unexpired(
+        &self,
+        pathway: Option<PathwayContext>,
+        now_ns: i64,
+        max_age_ns: i64,
+    ) -> Option<PathwayContext> {
+        pathway.filter(|p| {
+            self.message_scope
+                || max_age_ns <= 0
+                || now_ns.saturating_sub(p.edge_start_ns) <= max_age_ns
+        })
     }
 }
 
-thread_local! {
-    static REQUEST_PATHWAY: RefCell<RequestPathway> = RefCell::default();
+/// The pathway the running code is on, and the pathways set aside beneath it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Pathways {
+    current: RequestPathway,
     /// Pathways set aside by `ddog_dsm_push_pathway`, innermost last.
-    static OUTER_PATHWAYS: RefCell<Vec<RequestPathway>> = RefCell::default();
+    outer: Vec<RequestPathway>,
+}
+
+thread_local! {
+    static PATHWAYS: RefCell<Pathways> = RefCell::default();
+    /// The pathways of the fibers not running, by fiber context; only ones that are not empty.
+    static FIBER_PATHWAYS: RefCell<HashMap<usize, Pathways>> = RefCell::default();
 }
 
 /// A checkpoint, computed: the point to record and the context to hand on.
@@ -276,26 +316,92 @@ pub extern "C" fn ddog_dsm_tables_clear() {
     DSM_TABLES.write().unwrap().clear();
 }
 
-/// Forget the request's pathway. Called at request shutdown.
+/// Forget the pathway the running code is on, and those set aside beneath it, e.g. at the edges
+/// of a request a long-running SAPI serves.
 #[no_mangle]
 pub extern "C" fn ddog_dsm_reset_pathway() {
-    REQUEST_PATHWAY.with(|p| *p.borrow_mut() = RequestPathway::default());
-    OUTER_PATHWAYS.with(|o| o.borrow_mut().clear());
+    PATHWAYS.with(|p| *p.borrow_mut() = Pathways::default());
 }
 
-/// Set the request's pathway aside and start a fresh one, e.g. while a message's callback runs.
+/// Forget every pathway of the request, the fibers' included. Called at request shutdown.
 #[no_mangle]
-pub extern "C" fn ddog_dsm_push_pathway() {
-    let outer = REQUEST_PATHWAY.with(|p| std::mem::take(&mut *p.borrow_mut()));
-    OUTER_PATHWAYS.with(|o| o.borrow_mut().push(outer));
+pub extern "C" fn ddog_dsm_request_shutdown() {
+    ddog_dsm_reset_pathway();
+    FIBER_PATHWAYS.with(|f| f.borrow_mut().clear());
+}
+
+/// Set the request's pathway aside for a message being processed; it comes back with
+/// `ddog_dsm_pop_pathway`. Without `keep_current`, the message's pathway starts fresh, as for a
+/// callback a message is handed to. With it, the message's pathway is the one the request is on,
+/// as for a handler run after its message was fetched, and the pathway set aside is left fresh.
+/// The message's pathway does not expire while it lasts.
+#[no_mangle]
+pub extern "C" fn ddog_dsm_push_pathway(keep_current: bool) {
+    PATHWAYS.with(|p| {
+        let p = &mut *p.borrow_mut();
+        let current = std::mem::take(&mut p.current);
+        let (outer, message) = if keep_current {
+            let outer = RequestPathway {
+                message_scope: current.message_scope,
+                ..Default::default()
+            };
+            (outer, current)
+        } else {
+            (current, RequestPathway::default())
+        };
+        p.outer.push(outer);
+        p.current = RequestPathway {
+            message_scope: true,
+            ..message
+        };
+    });
 }
 
 /// Go back to the pathway the last `ddog_dsm_push_pathway` set aside, or to a fresh one if there
 /// is none.
 #[no_mangle]
 pub extern "C" fn ddog_dsm_pop_pathway() {
-    let outer = OUTER_PATHWAYS.with(|o| o.borrow_mut().pop()).unwrap_or_default();
-    REQUEST_PATHWAY.with(|p| *p.borrow_mut() = outer);
+    PATHWAYS.with(|p| {
+        let p = &mut *p.borrow_mut();
+        p.current = p.outer.pop().unwrap_or_default();
+    });
+}
+
+/// A fiber starts on a copy of the pathway of the code that starts it, without the pathways set
+/// aside beneath it. The fiber can outlive the message that pathway belongs to, so the copy is
+/// not a message's and can expire. Called when `context` is initialized, before it first runs.
+#[no_mangle]
+pub extern "C" fn ddog_dsm_fiber_init(context: *const c_void) {
+    let current = PATHWAYS.with(|p| RequestPathway {
+        message_scope: false,
+        ..p.borrow().current.clone()
+    });
+    if current != RequestPathway::default() {
+        let pathways = Pathways {
+            current,
+            outer: Vec::new(),
+        };
+        FIBER_PATHWAYS.with(|f| f.borrow_mut().insert(context as usize, pathways));
+    }
+}
+
+/// Keep the pathways of the fiber context `from`, and continue with those of `to`.
+#[no_mangle]
+pub extern "C" fn ddog_dsm_fiber_switch(from: *const c_void, to: *const c_void) {
+    FIBER_PATHWAYS.with(|f| {
+        let f = &mut *f.borrow_mut();
+        let resumed = f.remove(&(to as usize)).unwrap_or_default();
+        let suspended = PATHWAYS.with(|p| std::mem::replace(&mut *p.borrow_mut(), resumed));
+        if suspended != Pathways::default() {
+            f.insert(from as usize, suspended);
+        }
+    });
+}
+
+/// Forget the pathways of a fiber context that is destroyed.
+#[no_mangle]
+pub extern "C" fn ddog_dsm_fiber_destroy(context: *const c_void) {
+    FIBER_PATHWAYS.with(|f| f.borrow_mut().remove(&(context as usize)));
 }
 
 /// The service a process's checkpoints are reported under, and what goes into their hashes.
@@ -407,6 +513,10 @@ fn now_ns() -> i64 {
 /// empty. The context to hand on with the message is written to `out` as base64, and its length
 /// returned; `out` must hold `DSM_CONTEXT_MAX_LEN` bytes.
 ///
+/// Outside a message's scope, a checkpoint only continues the request's pathway if its last
+/// checkpoint is at most `max_pathway_age_ns` old, or however old it is if `max_pathway_age_ns`
+/// is not positive.
+///
 /// The stats point is only recorded once the agent has said it accepts DSM stats; the pathway
 /// is tracked, and the context returned, either way.
 ///
@@ -414,6 +524,7 @@ fn now_ns() -> i64 {
 /// `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
 /// `edge_tags` must point to `edge_tag_count` valid slices, and `out` to `out_cap` bytes.
 #[no_mangle]
+#[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
     transport: *mut SidecarTransport,
     identity: &DsmIdentity,
@@ -421,6 +532,7 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
     edge_tag_count: usize,
     carrier: CharSlice,
     payload_size_bytes: i64,
+    max_pathway_age_ns: i64,
     out: *mut u8,
     out_cap: usize,
 ) -> usize {
@@ -444,9 +556,9 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
     );
     let carried = PathwayContext::decode(carrier.as_bytes());
     let now = now_ns();
-    let checkpoint = REQUEST_PATHWAY.with(|p| {
-        let mut p = p.borrow_mut();
-        let parent = p.parent(direction(&tags), carried);
+    let checkpoint = PATHWAYS.with(|p| {
+        let p = &mut p.borrow_mut().current;
+        let parent = p.parent(direction(&tags), carried, now, max_pathway_age_ns);
         let checkpoint = checkpoint(node, parent, now);
         p.current = Some(checkpoint.context);
         checkpoint
@@ -684,14 +796,25 @@ mod tests {
         }
     }
 
+    const MS: i64 = 1_000_000;
+
+    /// Pick a parent with no maximum age.
+    fn parent(
+        p: &mut RequestPathway,
+        direction: Direction,
+        carried: Option<PathwayContext>,
+    ) -> Option<PathwayContext> {
+        p.parent(Some(direction), carried, 0, 0)
+    }
+
     #[test]
     fn an_inbound_checkpoint_takes_its_parent_only_from_the_message() {
         let mut p = RequestPathway {
             current: Some(at(1, 0)),
             ..Default::default()
         };
-        assert_eq!(p.parent(Some(Direction::In), None), None);
-        assert_eq!(p.parent(Some(Direction::In), Some(at(2, 0))), Some(at(2, 0)));
+        assert_eq!(parent(&mut p, Direction::In, None), None);
+        assert_eq!(parent(&mut p, Direction::In, Some(at(2, 0))), Some(at(2, 0)));
     }
 
     /// Producing twice after consuming links both produces to the consume, not the second
@@ -700,30 +823,78 @@ mod tests {
     fn consecutive_outbound_checkpoints_share_a_parent() {
         let consumed = at(7, 100);
         let mut p = RequestPathway::default();
-        assert_eq!(p.parent(Some(Direction::In), Some(consumed)), Some(consumed));
+        assert_eq!(parent(&mut p, Direction::In, Some(consumed)), Some(consumed));
         p.current = Some(at(8, 100));
 
-        assert_eq!(p.parent(Some(Direction::Out), None), Some(at(8, 100)));
+        assert_eq!(parent(&mut p, Direction::Out, None), Some(at(8, 100)));
         p.current = Some(at(9, 100));
-        assert_eq!(p.parent(Some(Direction::Out), None), Some(at(8, 100)));
+        assert_eq!(parent(&mut p, Direction::Out, None), Some(at(8, 100)));
         p.current = Some(at(10, 100));
 
         // A new inbound checkpoint ends the run.
-        assert_eq!(p.parent(Some(Direction::In), None), None);
+        assert_eq!(parent(&mut p, Direction::In, None), None);
         p.current = Some(at(11, 200));
-        assert_eq!(p.parent(Some(Direction::Out), None), Some(at(11, 200)));
+        assert_eq!(parent(&mut p, Direction::Out, None), Some(at(11, 200)));
+    }
+
+    /// Outside a message's scope, a produce only continues a pathway whose last checkpoint is at
+    /// most the maximum age old.
+    #[test]
+    fn an_old_pathway_is_not_continued_outside_a_message_scope() {
+        let consumed = at(7, 1_000);
+        let mut p = RequestPathway {
+            current: Some(consumed),
+            previous_direction: Some(Direction::In),
+            ..Default::default()
+        };
+        // Exactly the maximum age old.
+        assert_eq!(p.parent(Some(Direction::Out), None, 1_500 * MS, 500 * MS), Some(consumed));
+        // Later produces in the same run share its parent while it is young enough...
+        assert_eq!(p.parent(Some(Direction::Out), None, 1_400 * MS, 500 * MS), Some(consumed));
+        // ...and none once it is older.
+        assert_eq!(p.parent(Some(Direction::Out), None, 1_501 * MS, 500 * MS), None);
+        // Without a maximum age, a pathway is continued however old it is.
+        assert_eq!(p.parent(Some(Direction::Out), None, 99_000 * MS, 0), Some(consumed));
+        assert_eq!(p.parent(Some(Direction::Out), None, 99_000 * MS, -1), Some(consumed));
+
+        // A checkpoint with no direction still takes the context it is handed, however old the
+        // request's pathway.
+        let carried = at(9, 0);
+        assert_eq!(p.parent(None, Some(carried), 99_000 * MS, 500 * MS), Some(carried));
+        assert_eq!(p.parent(None, None, 99_000 * MS, 500 * MS), None);
+        assert_eq!(p.parent(None, None, 1_200 * MS, 500 * MS), Some(consumed));
+    }
+
+    #[test]
+    fn a_message_scope_continues_its_pathway_however_old() {
+        let consumed = at(7, 1_000);
+        let mut p = RequestPathway {
+            current: Some(consumed),
+            previous_direction: Some(Direction::In),
+            message_scope: true,
+            ..Default::default()
+        };
+        assert_eq!(p.parent(Some(Direction::Out), None, 99_000 * MS, 500 * MS), Some(consumed));
     }
 
     fn current() -> Option<PathwayContext> {
-        REQUEST_PATHWAY.with(|p| p.borrow().current)
+        PATHWAYS.with(|p| p.borrow().current.current)
+    }
+
+    fn message_scope() -> bool {
+        PATHWAYS.with(|p| p.borrow().current.message_scope)
     }
 
     fn set_current(context: PathwayContext) {
-        REQUEST_PATHWAY.with(|p| {
-            let mut p = p.borrow_mut();
-            p.parent(Some(Direction::In), Some(context));
+        PATHWAYS.with(|p| {
+            let p = &mut p.borrow_mut().current;
+            parent(p, Direction::In, Some(context));
             p.current = Some(context);
         });
+    }
+
+    fn produce_parent() -> Option<PathwayContext> {
+        PATHWAYS.with(|p| parent(&mut p.borrow_mut().current, Direction::Out, None))
     }
 
     /// A pushed pathway starts empty, and popping it brings back the outer pathway along with
@@ -732,38 +903,130 @@ mod tests {
     fn a_pushed_pathway_is_set_aside_until_popped() {
         // Consume at(1), then produce at(9) with at(1) as its parent.
         set_current(at(1, 0));
-        REQUEST_PATHWAY.with(|p| {
-            let mut p = p.borrow_mut();
-            p.parent(Some(Direction::Out), None);
-            p.current = Some(at(9, 0));
-        });
+        produce_parent();
+        PATHWAYS.with(|p| p.borrow_mut().current.current = Some(at(9, 0)));
 
-        ddog_dsm_push_pathway();
+        ddog_dsm_push_pathway(false);
         assert_eq!(current(), None);
+        assert!(message_scope());
         set_current(at(2, 0));
-        ddog_dsm_push_pathway();
+        ddog_dsm_push_pathway(false);
         set_current(at(3, 0));
 
         ddog_dsm_pop_pathway();
         assert_eq!(current(), Some(at(2, 0)));
         ddog_dsm_pop_pathway();
         assert_eq!(current(), Some(at(9, 0)));
+        assert!(!message_scope());
         // The next produce is still in the run, so it shares the first produce's parent.
-        let parent = REQUEST_PATHWAY.with(|p| p.borrow_mut().parent(Some(Direction::Out), None));
-        assert_eq!(parent, Some(at(1, 0)));
+        assert_eq!(produce_parent(), Some(at(1, 0)));
 
         // With nothing pushed, popping leaves a fresh pathway.
         ddog_dsm_pop_pathway();
         assert_eq!(current(), None);
     }
 
+    /// A handler run after its message was fetched keeps the message's pathway, and what runs
+    /// after the handler does not.
+    #[test]
+    fn a_pathway_pushed_with_keep_current_moves_into_the_message_scope() {
+        set_current(at(1, 0));
+        ddog_dsm_push_pathway(true);
+        assert_eq!(current(), Some(at(1, 0)));
+        assert!(message_scope());
+        assert_eq!(produce_parent(), Some(at(1, 0)));
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), None);
+        assert!(!message_scope());
+        assert_eq!(produce_parent(), None);
+
+        // Within a callback's pathway, the one set aside for the handler stays a message's.
+        ddog_dsm_push_pathway(false);
+        set_current(at(2, 0));
+        ddog_dsm_push_pathway(true);
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), None);
+        assert!(message_scope());
+        ddog_dsm_pop_pathway();
+        assert!(!message_scope());
+    }
+
     #[test]
     fn a_reset_drops_pushed_pathways() {
         set_current(at(1, 0));
-        ddog_dsm_push_pathway();
+        ddog_dsm_push_pathway(false);
         ddog_dsm_reset_pathway();
         ddog_dsm_pop_pathway();
         assert_eq!(current(), None);
+    }
+
+    fn fiber(id: usize) -> *const c_void {
+        id as *const c_void
+    }
+
+    fn fiber_pathways() -> usize {
+        FIBER_PATHWAYS.with(|f| f.borrow().len())
+    }
+
+    /// Each fiber keeps its own pathway while others run, starting from a copy of the pathway of
+    /// the code that started it.
+    #[test]
+    fn fibers_keep_pathways_of_their_own() {
+        let (main, a, b) = (fiber(1), fiber(2), fiber(3));
+        set_current(at(1, 0));
+        ddog_dsm_push_pathway(false);
+        set_current(at(2, 0));
+
+        // Fiber a starts on the callback's pathway, without the one set aside beneath it, and
+        // not as a message's: it can outlive the callback.
+        ddog_dsm_fiber_init(a);
+        ddog_dsm_fiber_switch(main, a);
+        assert_eq!(current(), Some(at(2, 0)));
+        assert!(!message_scope());
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), None);
+        set_current(at(3, 0));
+
+        // Fiber b starts from fiber a's pathway, and its checkpoints stay its own.
+        ddog_dsm_fiber_init(b);
+        ddog_dsm_fiber_switch(a, b);
+        assert_eq!(current(), Some(at(3, 0)));
+        set_current(at(4, 0));
+        ddog_dsm_fiber_switch(b, main);
+        assert_eq!(current(), Some(at(2, 0)));
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), Some(at(1, 0)));
+
+        ddog_dsm_fiber_switch(main, a);
+        assert_eq!(current(), Some(at(3, 0)));
+        ddog_dsm_fiber_switch(a, b);
+        assert_eq!(current(), Some(at(4, 0)));
+        ddog_dsm_fiber_switch(b, main);
+        assert_eq!(current(), Some(at(1, 0)));
+
+        // A destroyed fiber's pathways are dropped, and the rest go at request shutdown.
+        assert_eq!(fiber_pathways(), 2);
+        ddog_dsm_fiber_destroy(b);
+        assert_eq!(fiber_pathways(), 1);
+        ddog_dsm_request_shutdown();
+        assert_eq!(fiber_pathways(), 0);
+        assert_eq!(current(), None);
+    }
+
+    /// A fiber started with no pathway, switched between while it has none, keeps nothing.
+    #[test]
+    fn empty_fiber_pathways_are_not_kept() {
+        let (main, a) = (fiber(1), fiber(2));
+        ddog_dsm_fiber_init(a);
+        ddog_dsm_fiber_switch(main, a);
+        assert_eq!(fiber_pathways(), 0);
+        set_current(at(1, 0));
+        ddog_dsm_fiber_switch(a, main);
+        assert_eq!(current(), None);
+        assert_eq!(fiber_pathways(), 1);
+        ddog_dsm_fiber_switch(main, a);
+        assert_eq!(current(), Some(at(1, 0)));
+        assert_eq!(fiber_pathways(), 0);
     }
 
     #[test]
