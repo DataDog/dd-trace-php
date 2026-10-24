@@ -20,7 +20,9 @@ class LoginTestController extends Controller
     {
         $credentials = [
             'email' => $request->get('email'),
-            'password' => 'password',
+            // The appsec "wrong password for existing user" test posts
+            // `?password=wrong`; honour the override so the Failed event fires.
+            'password' => $request->query('password', 'password'),
         ];
 
         if (Auth::attempt($credentials)) {

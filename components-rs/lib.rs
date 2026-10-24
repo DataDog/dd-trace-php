@@ -56,6 +56,9 @@ pub mod telemetry;
 #[cfg(not(standalone_profiler))]
 pub mod trace_filter;
 
+#[cfg(all(feature = "appsec", unix))]
+pub mod appsec_body;
+
 // A standalone profiler must retain the existing profiler-only ABI and size.
 // Cargo's `cdylib` keeps every `no_mangle` common export alive, even though the
 // profiler does not use them, so omit those exports only in profiler-only builds.
