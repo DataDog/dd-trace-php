@@ -28,6 +28,10 @@
 //! checkpoint takes the request's current pathway as its parent. Consecutive outbound
 //! checkpoints share the parent from before the first of them, as in the Java tracer, so that
 //! producing several messages does not chain each to the previous one.
+//!
+//! An integration that hands each message to a callback can push a fresh pathway before the
+//! callback and pop it after, so a long-lived worker's checkpoints for one message neither take
+//! the previous message's pathway nor leak it to what runs between messages.
 
 use base64::alphabet;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
@@ -205,6 +209,8 @@ impl RequestPathway {
 
 thread_local! {
     static REQUEST_PATHWAY: RefCell<RequestPathway> = RefCell::default();
+    /// Pathways set aside by `ddog_dsm_push_pathway`, innermost last.
+    static OUTER_PATHWAYS: RefCell<Vec<RequestPathway>> = RefCell::default();
 }
 
 /// A checkpoint, computed: the point to record and the context to hand on.
@@ -274,6 +280,22 @@ pub extern "C" fn ddog_dsm_tables_clear() {
 #[no_mangle]
 pub extern "C" fn ddog_dsm_reset_pathway() {
     REQUEST_PATHWAY.with(|p| *p.borrow_mut() = RequestPathway::default());
+    OUTER_PATHWAYS.with(|o| o.borrow_mut().clear());
+}
+
+/// Set the request's pathway aside and start a fresh one, e.g. while a message's callback runs.
+#[no_mangle]
+pub extern "C" fn ddog_dsm_push_pathway() {
+    let outer = REQUEST_PATHWAY.with(|p| std::mem::take(&mut *p.borrow_mut()));
+    OUTER_PATHWAYS.with(|o| o.borrow_mut().push(outer));
+}
+
+/// Go back to the pathway the last `ddog_dsm_push_pathway` set aside, or to a fresh one if there
+/// is none.
+#[no_mangle]
+pub extern "C" fn ddog_dsm_pop_pathway() {
+    let outer = OUTER_PATHWAYS.with(|o| o.borrow_mut().pop()).unwrap_or_default();
+    REQUEST_PATHWAY.with(|p| *p.borrow_mut() = outer);
 }
 
 /// The service a process's checkpoints are reported under, and what goes into their hashes.
@@ -548,6 +570,51 @@ mod tests {
         assert_eq!(consume, 4247242616665718048);
     }
 
+    /// The hashes system-tests expects of RabbitMQ publishes and consumes through a direct, a
+    /// topic and a fanout exchange (Test_DsmRabbitmq*), for the same service and env.
+    #[test]
+    fn rabbitmq_hashes_match_system_tests() {
+        let hash = |tags: &[&str], parent| {
+            pathway_hash(
+                node_hash("weblog", "system-tests", &sorted(tags), ""),
+                parent,
+            )
+        };
+        let publish = |exchange: &str, has_routing_key| {
+            hash(
+                &[
+                    "direction:out",
+                    &format!("exchange:{exchange}"),
+                    &format!("has_routing_key:{has_routing_key}"),
+                    "type:rabbitmq",
+                ],
+                0,
+            )
+        };
+        let consume = |queue: &str, parent| {
+            hash(
+                &["direction:in", &format!("topic:{queue}"), "type:rabbitmq"],
+                parent,
+            )
+        };
+
+        let direct = publish("dsm-system-tests-exchange", true);
+        assert_eq!(direct, 8945717757344503539);
+        assert_eq!(consume("dsm-system-tests-queue", direct), 247866491670975357);
+
+        let topic = publish("systemTestTopicExchange", true);
+        assert_eq!(topic, 14115675228093516275);
+        assert_eq!(consume("systemTestRabbitmqTopicQueue1", topic), 17456221739323133462);
+        assert_eq!(consume("systemTestRabbitmqTopicQueue2", topic), 6709599110187021152);
+        assert_eq!(consume("systemTestRabbitmqTopicQueue3", topic), 4518514625593640902);
+
+        let fanout = publish("systemTestFanoutExchange", false);
+        assert_eq!(fanout, 528013466165804625);
+        assert_eq!(consume("systemTestRabbitmqFanoutQueue1", fanout), 1551162056316679489);
+        assert_eq!(consume("systemTestRabbitmqFanoutQueue2", fanout), 5919279740143028634);
+        assert_eq!(consume("systemTestRabbitmqFanoutQueue3", fanout), 10096313447786601025);
+    }
+
     /// The Go tracer's golden base hash: FNV-1 over "svc", "env" and "ch".
     #[test]
     fn node_hash_matches_go_base_hash() {
@@ -645,6 +712,58 @@ mod tests {
         assert_eq!(p.parent(Some(Direction::In), None), None);
         p.current = Some(at(11, 200));
         assert_eq!(p.parent(Some(Direction::Out), None), Some(at(11, 200)));
+    }
+
+    fn current() -> Option<PathwayContext> {
+        REQUEST_PATHWAY.with(|p| p.borrow().current)
+    }
+
+    fn set_current(context: PathwayContext) {
+        REQUEST_PATHWAY.with(|p| {
+            let mut p = p.borrow_mut();
+            p.parent(Some(Direction::In), Some(context));
+            p.current = Some(context);
+        });
+    }
+
+    /// A pushed pathway starts empty, and popping it brings back the outer pathway along with
+    /// its run of outbound checkpoints.
+    #[test]
+    fn a_pushed_pathway_is_set_aside_until_popped() {
+        // Consume at(1), then produce at(9) with at(1) as its parent.
+        set_current(at(1, 0));
+        REQUEST_PATHWAY.with(|p| {
+            let mut p = p.borrow_mut();
+            p.parent(Some(Direction::Out), None);
+            p.current = Some(at(9, 0));
+        });
+
+        ddog_dsm_push_pathway();
+        assert_eq!(current(), None);
+        set_current(at(2, 0));
+        ddog_dsm_push_pathway();
+        set_current(at(3, 0));
+
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), Some(at(2, 0)));
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), Some(at(9, 0)));
+        // The next produce is still in the run, so it shares the first produce's parent.
+        let parent = REQUEST_PATHWAY.with(|p| p.borrow_mut().parent(Some(Direction::Out), None));
+        assert_eq!(parent, Some(at(1, 0)));
+
+        // With nothing pushed, popping leaves a fresh pathway.
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), None);
+    }
+
+    #[test]
+    fn a_reset_drops_pushed_pathways() {
+        set_current(at(1, 0));
+        ddog_dsm_push_pathway();
+        ddog_dsm_reset_pathway();
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), None);
     }
 
     #[test]

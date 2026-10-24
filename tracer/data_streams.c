@@ -81,6 +81,14 @@ void ddtrace_dsm_track_backlog(zend_array *backlog_tags, zend_long offset) {
     }
 }
 
+void ddtrace_dsm_push_pathway(void) {
+    ddog_dsm_push_pathway();
+}
+
+void ddtrace_dsm_pop_pathway(void) {
+    ddog_dsm_pop_pathway();
+}
+
 void ddtrace_dsm_rshutdown(void) {
     ddog_dsm_reset_pathway();
 }
