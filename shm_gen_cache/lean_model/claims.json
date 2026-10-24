@@ -1,0 +1,853 @@
+{
+  "groups": [
+    {
+      "id": "SL1",
+      "title": "SL1. Slot serialisation",
+      "theorems": [
+        "Slot.claim_total",
+        "Slot.handoff_free",
+        "Slot.handoff_steal",
+        "Slot.no_claim_after_reg",
+        "Slot.serial",
+        "Slot.ender_before",
+        "ClaimClosure.state_write_step",
+        "ClaimClosure.claim_ender_unique",
+        "ClaimClosure.unregistered_claim_successor",
+        "ClaimClosure.free_successor_claim"
+      ],
+      "modules": [
+        "Model",
+        "Slot",
+        "ClaimClosure"
+      ]
+    },
+    {
+      "id": "OW1",
+      "title": "OW1. Takeover handoff",
+      "theorems": [
+        "OwnerHandoff.own_registration_read",
+        "OwnerHandoff.owner_registration_of_reads",
+        "OwnerHandoff.takeover_evidence_of_source",
+        "OwnerHandoff.owner_handoff_from_source",
+        "OwnerHandoffWitness.concrete_stolen_handoff",
+        "OwnerHandoffWitness.concrete_free_handoff"
+      ],
+      "modules": [
+        "Model",
+        "Ownership",
+        "Slot",
+        "Takeover",
+        "ClaimClosure",
+        "OwnerBounds",
+        "OwnerHandoff",
+        "OwnerHandoffWitness"
+      ]
+    },
+    {
+      "id": "OW2",
+      "title": "OW2. Ownership is a lock under hb",
+      "theorems": [
+        "Ownership.tenures_ordered",
+        "Ownership.tenure_total",
+        "ClaimClosure.owner_acq_kind",
+        "ClaimClosure.owner_acq_predecessor",
+        "OwnerClassification.owner_arguments_from_registrations",
+        "OwnerClassification.acquiring_owner_nonempty",
+        "OwnerClassification.empty_owner_read_source",
+        "OwnerClassification.code_owner_cas_predecessor",
+        "OwnerClassification.code_owner_cas_kind",
+        "OwnerClassificationWitness.three_sites_classified"
+      ],
+      "modules": [
+        "ClaimClosure",
+        "Model",
+        "Ownership",
+        "OwnerClassification",
+        "OwnerClassificationWitness",
+        "OwnerHandoff",
+        "OwnerBounds"
+      ]
+    },
+    {
+      "id": "EP1",
+      "title": "EP1. Epoch sequence",
+      "theorems": [
+        "Rotation.epoch_mono",
+        "Rotation.r0_mono",
+        "Rotation.tenure_lt_of_r0_lt",
+        "Cache.publisher_exists"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "Rotation",
+        "ClaimClosure"
+      ]
+    },
+    {
+      "id": "EP2",
+      "title": "EP2. Seal persistence",
+      "theorems": [
+        "Rotation.seal_persists",
+        "Rotation.sealed_from_seal",
+        "Rotation.sealed_has_seal",
+        "ClaimClosure.seal_unique",
+        "ClaimClosure.unsealed_load_before_seal",
+        "ClaimClosure.ordinary_unsealed_load_before_seal",
+        "ClaimClosure.unsealed_read_before_seal",
+        "ClaimClosure.reset_before_later_tenure"
+      ],
+      "modules": [
+        "ClaimClosure",
+        "Model",
+        "Ownership",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "EP3",
+      "title": "EP3. Seal before reuse",
+      "theorems": [
+        "Rotation.seal_before_under",
+        "Rotation.seal_before_tenure_fence",
+        "Rotation.seal_before_r1f",
+        "Rotation.seal_before_publish",
+        "Rotation.seal_before_reset",
+        "Rotation.seal_before_scan",
+        "Rotation.seal_stamp_ge",
+        "Cache.seal_before_fence1",
+        "ClaimClosure.seal_unique"
+      ],
+      "modules": [
+        "Cache",
+        "ClaimClosure",
+        "Model",
+        "Ownership",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "EP4",
+      "title": "EP4. Reset before use",
+      "theorems": [
+        "Cache.reset_before_w1"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "PN1",
+      "title": "PN1. Pin writes are release-serial",
+      "theorems": [
+        "Pins.nonAnn_serial",
+        "Pins.acquire_sees"
+      ],
+      "modules": [
+        "Model",
+        "Pins",
+        "Slot"
+      ]
+    },
+    {
+      "id": "PN2",
+      "title": "PN2. Attempt closure",
+      "theorems": [
+        "Pins.attempt_before",
+        "ReaperChainWitness.reaper_of_reaper",
+        "PinRecovery.no_clear_before_registration",
+        "PinRecovery.steal_chain_without_clear",
+        "PinRecovery.next_clear_descends",
+        "ReaperChainWitness.next_clear_protocol_provenance",
+        "PinCleanup.guarded_history_checked",
+        "PinCleanup.caught_history_pass_exit",
+        "PinCleanup.interrupted_call_w7_events",
+        "PinCleanup.cleanup_load_sees_pin",
+        "ReaperDescendantWitness.two_interrupted_reapers"
+      ],
+      "modules": [
+        "Model",
+        "Pins",
+        "Slot",
+        "ReaperChainWitness",
+        "PinRecovery",
+        "PinCleanup",
+        "PinEventFlow",
+        "SourcePinFlow",
+        "ReaperDescendantWitness"
+      ]
+    },
+    {
+      "id": "PN3",
+      "title": "PN3. Pin visibility",
+      "theorems": [
+        "PinVisibility.pin_visibility'"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "PinVisibility",
+        "Pins",
+        "Rotation",
+        "Slot"
+      ]
+    },
+    {
+      "id": "QU1",
+      "title": "QU1. Quiescence before reuse",
+      "theorems": [
+        "Cache.attempt_before_resets"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "QU2",
+      "title": "QU2. Incarnations are serial blocks",
+      "theorems": [
+        "Cache.attempts_ordered",
+        "Cache.no_future_read",
+        "Lookup.arena_word_serial"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "SP1",
+      "title": "SP1. B1 lands in its incarnation",
+      "theorems": [
+        "Cache.b1_lands",
+        "Cache.r4_before_att"
+      ],
+      "modules": [
+        "Cache",
+        "ClaimClosure",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "SP2",
+      "title": "SP2. Bounded bump, one failure per slot",
+      "theorems": [
+        "Reserve.bump_sharp_bound",
+        "Reserve.bump_is_claim_sum",
+        "Reserve.sharp_bound_reachable",
+        "Reserve.failed_b1_persists",
+        "Reserve.no_wrap",
+        "Reserve.fail_once",
+        "Reserve.failed_b1_blocks_b0",
+        "Reserve.b0_add_guard"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "SP3",
+      "title": "SP3. Chunk words are sequential",
+      "theorems": [
+        "Reserve.h1_latest",
+        "Reserve.epoch_source_of_h1",
+        "Reserve.chunk_source",
+        "Reserve.chunk_probe_source",
+        "Reserve.h1_serial",
+        "Reserve.h1_epoch_own",
+        "Reserve.h1_epoch_value",
+        "Reserve.h1_epoch_source",
+        "Reserve.chunk_probe_own",
+        "Reserve.chunk_probe_last_cut",
+        "Reserve.epoch_only_reset_order",
+        "Reserve.epoch_only_latest_own",
+        "Reserve.epoch_only_probe",
+        "EpochResetWitness.epoch_only_model",
+        "EpochResetWitness.weak_interface_first_load",
+        "Reserve.h1_after_pin",
+        "Reserve.h1_tail_guard",
+        "Reserve.h1_nonmatching_epoch_only",
+        "Reserve.h1_own",
+        "Reserve.h1_latest_own",
+        "ReserveReadWitness.all_loads_owned",
+        "EpochResetWitness.first_epoch_mismatch"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation",
+        "ReserveReadWitness",
+        "EpochResetWitness"
+      ]
+    },
+    {
+      "id": "SP4",
+      "title": "SP4. Disjoint, in-area reservations",
+      "theorems": [
+        "Reserve.reserve_in_area",
+        "Reserve.reserve_disjoint",
+        "Reserve.cut_room_iff",
+        "Reserve.chunk_probe_room_iff"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "SP5",
+      "title": "SP5. Write-once records",
+      "theorems": [
+        "Reserve.record_write_once",
+        "Cache.arena_writes_ordered",
+        "Lookup.record_writes"
+      ],
+      "modules": [
+        "Cache",
+        "ClaimClosure",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "IX1",
+      "title": "IX1. Publication follows the record",
+      "theorems": [
+        "Lookup.only_init_or_publication",
+        "Lookup.publication_follows_record"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "HT1",
+      "title": "HT1. Recycled reads are caught",
+      "theorems": [
+        "Lookup.recycled_caught",
+        "Lookup.recycled_age_exceeds_one",
+        "Lookup.recycled_v2_retries"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Recency",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "HT2",
+      "title": "HT2. Hit integrity",
+      "theorems": [
+        "Lookup.hit_integrity",
+        "Lookup.hit_words_exact",
+        "RecordBytes.hit_bytes_exact"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "HT3",
+      "title": "HT3. Value provenance",
+      "theorems": [
+        "Provenance.published_provenance",
+        "RecordBytes.published_bytes_provenance",
+        "RecordBytes.attempt_stored_bytes_provenance",
+        "RecordBytes.every_record_write_provenance",
+        "RecordBytes.no_reservation_no_record_stores"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Provenance",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "BD1",
+      "title": "BD1. Stores stay in the mapping",
+      "theorems": [
+        "Access.record_store_in_area",
+        "Access.StoreLayout.shared_store_in_mapping",
+        "Bounds.masked_index_in_bounds",
+        "Access.SlotIndex.bound",
+        "Access.ArenaIndex.bound",
+        "Access.FixedAddress.in_mapping",
+        "OwnerBounds.owner_load_source",
+        "OwnerBounds.owner_load_bound",
+        "Access.owner_load_index",
+        "Access.owner_participant_in_mapping"
+      ],
+      "modules": [
+        "Access",
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "BD2",
+      "title": "BD2. Loads stay in the mapping, whatever they read",
+      "theorems": [
+        "Access.entry_in_area",
+        "Access.index_load_in_area",
+        "Access.reader_in_bounds",
+        "LoadBounds.LoadLayout.shared_load_in_mapping",
+        "LoadBounds.OwnerStealRead.in_mapping",
+        "LoadBounds.AuxiliaryLoad.in_mapping",
+        "LoadBounds.LoadSlotSource.classified",
+        "LoadBounds.AuxiliaryLoad.classified",
+        "LoadBounds.LoadLayout.all_source_loads_in_mapping",
+        "LoadBounds.ImplementationReadSource.classified",
+        "LoadBounds.IndexAddress.bound",
+        "LoadBounds.LoadLayout.bucket_configuration",
+        "LoadBounds.readiness_load_in_mapping",
+        "LoadBounds.output_copy_in_bounds",
+        "LoadBounds.wrapped_header_bounds_exact",
+        "LoadBounds.header_guard_iff",
+        "LoadBounds.PayloadReader.guard_iff",
+        "LoadBounds.LoadLayout.payload_checks_before_load",
+        "LoadBounds.LocatedPayloadRead.in_mapping",
+        "LoadBounds.OutputCopy.in_bounds",
+        "LoadBounds.SafeOutputBuffer.capacity_bound",
+        "LoadBounds.ProbeOutputSource.write_in_bounds",
+        "LoadBounds.ProbeOutputSource.safe_write_in_bounds"
+      ],
+      "modules": [
+        "Access",
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "RB1",
+      "title": "RB1. Live registrant never displaced",
+      "theorems": [
+        "Recovery.no_steal_of_running",
+        "Recovery.running_at_action",
+        "Recovery.running_after_observation",
+        "Recovery.no_steal_before_running",
+        "Slot.steal_verdict_matches",
+        "RecoveryWitness.live_claim_then_steal",
+        "RecoveryWitness.live_reused_id_not_yet_born"
+      ],
+      "modules": [
+        "Model",
+        "Slot",
+        "Recovery",
+        "RecoveryWitness",
+        "InitStealWitness",
+        "Ranked"
+      ]
+    },
+    {
+      "id": "RB2",
+      "title": "RB2. Live owner never taken over",
+      "theorems": [
+        "Recovery.no_takeover_of_running",
+        "Recovery.running_at_action",
+        "Recovery.running_after_observation",
+        "Recovery.no_steal_before_running",
+        "Slot.steal_verdict_matches",
+        "RecoveryWitness.live_owner_then_takeover",
+        "OwnerCleanup.release_before_free_from_guards",
+        "OwnerCleanup.tenure_before_free_from_guards",
+        "OwnerCleanup.no_live_owner_takeover_from_source",
+        "OwnerCleanup.no_live_code_takeover",
+        "OwnerCleanupWitness.unwind_cleanup_before_free_witness",
+        "OwnerCleanupWitness.source_owner_lifetime_witness"
+      ],
+      "modules": [
+        "ClaimClosure",
+        "Model",
+        "Ownership",
+        "Recovery",
+        "Slot",
+        "Takeover",
+        "RecoveryWitness",
+        "TakeoverWitness",
+        "Ranked",
+        "OwnerCleanup",
+        "OwnerCleanupWitness",
+        "OwnerHandoff",
+        "OwnerHandoffWitness",
+        "OwnerClassification",
+        "OwnerBounds",
+        "ReaperPinFlow"
+      ]
+    },
+    {
+      "id": "RB3",
+      "title": "RB3. Key-check exactness",
+      "theorems": [
+        "Lookup.keyCheck_holds",
+        "Lookup.table_check_exact",
+        "RecordBytes.table_prefix_sources",
+        "RecordBytes.table_bytes_exact"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "RB4",
+      "title": "RB4. Index shape",
+      "theorems": [
+        "Lookup.cas_first",
+        "Lookup.slot_key_fixed",
+        "Lookup.key_one_slot",
+        "Lookup.skipped",
+        "Promotion.pub_store_not_promo"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Promotion",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "RB5",
+      "title": "RB5. Pins balanced on return",
+      "theorems": [
+        "PinFlow.return_unpinned",
+        "PinFlow.calls_unpinned",
+        "PinFlow.rotation_entry_unpinned",
+        "PinFlow.release_entry_unpinned",
+        "PinFlow.release_after_calls_unpinned",
+        "SourcePinFlow.reserve_result",
+        "SourcePinFlow.store_returns_unpinned",
+        "SourcePinFlow.insert_returns_unpinned",
+        "SourcePinFlow.lookup_returns_unpinned",
+        "SourcePinFlow.checked_entry_unpinned",
+        "SourcePinFlow.release_after_source_call",
+        "SourcePinFlow.reaper_release_unpinned",
+        "SourcePinFlow.retry_witness",
+        "SourcePinFlow.reaper_source_trace",
+        "SourcePinFlow.release_after_api_call",
+        "ReaperPinFlow.reaper_release_reads_zero",
+        "ReaperPinFlow.reaper_target_distinct",
+        "RotationReapWitness.actual_reaper_release_zero",
+        "PinEventFlow.source_call_executes_unpinned",
+        "PinEventFlow.source_call_pairs_every_w2",
+        "PinEventFlow.source_history_entry_state",
+        "PinEventFlow.source_history_entry_origin",
+        "PinEventFlow.PinFree.interval",
+        "PinEventFlow.IndexedPinTrace.derives_pass_quiet",
+        "PinEventFlow.source_history_pass_exit",
+        "PinEventFlow.source_call_w7_events",
+        "PinEventFlow.source_entry_after_w7_reads_zero",
+        "ReaperPinFlow.own_entry_after_w7_reads_zero",
+        "ReaperPinFlow.initial_registration_zero_prefix",
+        "ReaperPinFlow.free_registration_zero_prefix",
+        "ReaperPinFlow.empty_free_registration_zero_prefix",
+        "ReaperPinFlow.stolen_registration_zero_prefix",
+        "ReaperPinFlow.registration_entry_prefix",
+        "ReaperPinFlow.registration_entry_reads_zero",
+        "PinEventFlow.source_free_handoff_zero_prefix",
+        "PinEntryWitness.first_registration_scan_reads_zero",
+        "PinEntryWitness.stolen_registration_release_reads_zero",
+        "PinEntryWitness.running_reaper_target_distinct",
+        "PinReturn.source_return_reads_zero",
+        "PinCleanup.cleanup_release_entry",
+        "PinCleanup.interrupted_call_cleanup",
+        "PinCleanup.reuse_after_interruption",
+        "PinCleanup.cleanup_load_sees_pin",
+        "PinCleanup.cleanup_zero_read_stays_zero",
+        "PinCleanup.conditional_cleanup_reads_zero",
+        "PinCleanup.guarded_prefix_checked",
+        "PinCleanup.interrupted_call_w7_events",
+        "PinnedArithmetic.configured_bucket_bound",
+        "PinnedArithmetic.table_probe",
+        "PinnedArithmetic.codec_width",
+        "PinnedArithmetic.codec_shifts",
+        "PinnedArithmetic.codec_offset",
+        "PinnedArithmetic.codec_tag_assertion",
+        "PinnedArithmetic.codec_mask",
+        "PinnedArithmetic.configured_mapping_size",
+        "PinnedArithmetic.arena_address",
+        "PinnedArithmetic.reservation_adds",
+        "PinnedArithmetic.lengths_arithmetic",
+        "PinnedArithmetic.record_prefix",
+        "PinnedArithmetic.key_word_add",
+        "PinnedArithmetic.configured_emit_bounds",
+        "PinnedArithmetic.emit_word_position",
+        "PinnedArithmetic.byte_loop_exit",
+        "PinnedArithmetic.emit_counters",
+        "PinnedArithmetic.padded_emit_counters",
+        "PinnedArithmetic.key_tail",
+        "PinnedArithmetic.tail_guard",
+        "PinnedArithmetic.small_tail_and_key_counter",
+        "PinnedArithmetic.estimator_zero",
+        "PinnedArithmetic.estimator_increment",
+        "PinnedArithmetic.estimator_sample",
+        "PinnedArithmetic.estimator_source_deltas",
+        "PinnedArithmetic.estimator_decision",
+        "PinnedArithmetic.estimator_table",
+        "StolenPinTraceWitness.stolen_first_w2_at_zero",
+        "ReservationAlignment.need_aligned",
+        "ReservationAlignment.claim_aligned",
+        "ReservationAlignment.control_bump_aligned",
+        "ReservationAlignment.b1_read_bump_aligned",
+        "ReservationAlignment.cursor_aligned",
+        "ReservationAlignment.reservation_aligned",
+        "ReaperSource.Reachable.release_origin",
+        "ReaperSource.source_prefix_witnesses",
+        "ReaperSource.ReaperSourceEvents.only_p6",
+        "ReaperSource.reaper_source_release_origin",
+        "ReaperSource.reaper_source_release_reads_zero",
+        "PhysicalPinCleanup.adjacent_quiet",
+        "PhysicalPinCleanup.physical_cleanup_load_sees_outstanding_pin",
+        "PhysicalPinCleanup.physical_cleanup_release_reads_zero",
+        "PhysicalPinCleanup.interrupted_physical_release_reads_zero",
+        "PhysicalCleanupWitness.zero_cleanup_execution",
+        "PhysicalCleanupWitness.pinned_cleanup_execution",
+        "PhysicalCleanupWitness.interrupted_insert_execution"
+      ],
+      "modules": [
+        "PinFlow",
+        "Pins",
+        "PinEventFlow",
+        "PinEntryWitness",
+        "PinReturn",
+        "PinCleanup",
+        "PinnedArithmetic",
+        "StolenPinTraceWitness",
+        "ReservationAlignment",
+        "ReaperSource",
+        "PhysicalPinCleanup",
+        "PhysicalCleanupWitness"
+      ]
+    },
+    {
+      "id": "RD1",
+      "title": "RD1. Certificate soundness",
+      "theorems": [
+        "Promotion.cert_sound",
+        "RotationScan.source_certificate_sound",
+        "RotationScan.RotationScanTrace.certScan",
+        "RotationScan.current_pin_disables",
+        "RotationScan.older_pin_branches",
+        "RotationScan.reap_scan_can_certify",
+        "RotationScan.current_scan_cannot_certify",
+        "RotationScan.scan_action_requires_old_pin",
+        "RotationScan.current_scan_has_no_wait_or_reap",
+        "RotationReapWitness.older_pin_wait_reap_execution",
+        "RotationScan.TenureScan.current_has_no_wait_or_reap",
+        "RotationScan.TenureScan.all_reads_nonmatching",
+        "RotationScan.CertifiedTenure.raw_certificate",
+        "RotationReapCacheWitness.older_pin_full_cache_execution",
+        "RotationReapCacheWitness.older_attempt_before_reuse",
+        "RotationReapCacheWitness.distinct_rotator_and_reaper_registrations",
+        "ReapChangedPinWitness.current_pin_cleared_after_older_observation",
+        "ReapChangedPinWitness.changed_pass_not_accepted_and_ordered",
+        "RotationScan.scan_reap_current_registration",
+        "RotationScan.stopped_before_w3_not_attempt",
+        "ReapChangedPinWitness.changed_pass_stops_at_w2",
+        "ReapChangedPinWitness.changed_pass_reap_current_registration"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Promotion",
+        "Rotation",
+        "Slot",
+        "RotationReapCacheWitness",
+        "ReapChangedPinWitness"
+      ]
+    },
+    {
+      "id": "RD2",
+      "title": "RD2. Certificate visibility",
+      "theorems": [
+        "Promotion.cert_read",
+        "Promotion.cert_sound"
+      ],
+      "modules": [
+        "Cache",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Promotion",
+        "Rotation",
+        "Slot"
+      ]
+    },
+    {
+      "id": "FR1",
+      "title": "FR1. Fresh source",
+      "theorems": [
+        "Promotion.promo_source_after"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Promotion",
+        "Provenance",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "FR2",
+      "title": "FR2. Promotion freshness",
+      "theorems": [
+        "Promotion.promo_fresh",
+        "Promotion.promo_last_kind",
+        "Promotion.pub_store_not_promo"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Promotion",
+        "Provenance",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "FR3",
+      "title": "FR3. Read-after-insert: no resurrection",
+      "theorems": [
+        "Recency.successful_insert_no_resurrection",
+        "Recency.desc_key"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Promotion",
+        "Provenance",
+        "Recency",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "FR4",
+      "title": "FR4. Retention: the lookup does not miss",
+      "theorems": [
+        "Recency.retained_hit",
+        "Recency.ProbeRun.retained_of_before",
+        "Recency.LookupRun.epoch_le_of_before",
+        "Recency.retained_hit_of_before",
+        "Recency.LookupRun.result_without_miss"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Promotion",
+        "Provenance",
+        "Recency",
+        "Reserve",
+        "Rotation"
+      ]
+    },
+    {
+      "id": "FR5",
+      "title": "FR5. Failed inserts are invisible",
+      "theorems": [
+        "Recency.failed_no_publication",
+        "Recency.failed_lookup_invisible"
+      ],
+      "modules": [
+        "Cache",
+        "Lookup",
+        "Model",
+        "Ownership",
+        "Pins",
+        "Promotion",
+        "Provenance",
+        "Recency",
+        "Reserve",
+        "Rotation"
+      ]
+    }
+  ],
+  "outsideLean": []
+}

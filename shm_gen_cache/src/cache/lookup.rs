@@ -1,0 +1,210 @@
+//! Lookup.
+
+use core::sync::atomic::Ordering::Relaxed;
+
+use super::promotion::PromotionSampler;
+use super::store::PaddedValue;
+use super::{ARENA_COUNT, Cache};
+use crate::arena::probe::ProbeHit;
+use crate::arena::{ProbeError, probe};
+use crate::config::Params;
+use crate::error::Error;
+use crate::occupancy::OccupancyMode;
+use crate::participant::ParticipantSlot;
+#[cfg(feature = "verify")]
+use crate::pid::GetPid;
+
+impl<P: Params> Cache<'_, P> {
+    /// Looks `key` up, copying a hit's value into `output` and returning its
+    /// length; `Ok(None)` is a miss. A hit in the previous generation is
+    /// promoted only if that generation is certified as finished: by the
+    /// certificate read before the probe, or by a sampled recheck followed
+    /// by a fresh probe, whose result replaces the hit (and can be a miss,
+    /// a retry or [`Error::InsufficientCapacity`]). Otherwise the hit is
+    /// returned unpromoted; no promotion is deferred. A promotion is also
+    /// dropped if the epoch moved on or the current arena has no room; see
+    /// store(). Readiness checks never wait or reap. A promotion never
+    /// rotates before it publishes, but can trigger normal maintenance
+    /// afterwards. Its only error is [`Error::Corrupt`], returned although
+    /// `output` already holds the value. So is a hit longer than the
+    /// configured maximum value, which no conforming writer produces.
+    ///
+    /// `output` holds `output_words` words, of which the first
+    /// `output_capacity` bytes are the logical capacity; whole words are
+    /// copied. Retries and failed promotions can leave `output` modified
+    /// without returning a hit. Lookups do not pin.
+    ///
+    /// # Safety
+    /// `output` must be valid for writes of `output_words` words, and
+    /// `output_capacity <= 8 * output_words`.
+    #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) unsafe fn lookup(
+        self,
+        slot: &ParticipantSlot,
+        slot_index: u32,
+        hash: u64,
+        key: &[u8],
+        output: *mut u64,
+        output_words: usize,
+        output_capacity: usize,
+        estimator: &mut <P::Occupancy as OccupancyMode>::Estimator,
+        promotion_sampler: &mut PromotionSampler,
+    ) -> Result<Option<usize>, Error> {
+        let hp = self.params.hot();
+        production_assert!(output_capacity <= output_words * 8);
+        if key.len() > hp.max_key_size as usize {
+            return Err(Error::KeyTooLarge);
+        }
+        // The key must survive direct copying, retries and promotion. Avoid
+        // end-address addition so even the overlap check cannot overflow.
+        let output_storage = output_words * 8;
+        if !key.is_empty() && output_storage != 0 {
+            let k = key.as_ptr() as usize;
+            let o = output as usize;
+            let overlaps = if k <= o {
+                o - k < key.len()
+            } else {
+                k - o < output_storage
+            };
+            if overlaps {
+                return Err(Error::InvalidArgument);
+            }
+        }
+
+        let global_epoch = self.global_epoch();
+        loop {
+            let e = global_epoch.load(Relaxed); // V1
+            // e is at least 2, so the previous arena is cur's predecessor
+            // modulo 3; this saves a second division by 3.
+            let cur = e % ARENA_COUNT;
+            let prev = if cur == 0 { ARENA_COUNT - 1 } else { cur - 1 };
+            // SAFETY (both probes): output holds align8(output_capacity)
+            // bytes (caller).
+            let mut result = unsafe {
+                probe::<false>(
+                    self.arena(&hp, cur),
+                    &hp,
+                    hash,
+                    key,
+                    e,
+                    output,
+                    output_capacity,
+                    global_epoch,
+                )
+            };
+            let not_in_cur_arena = result == Err(ProbeError::Miss);
+            if not_in_cur_arena {
+                let prev_arena = self.arena(&hp, prev);
+                // Acquire readiness BEFORE reading the source, importing
+                // all final index writes. A later certificate cannot make
+                // an already-copied, possibly stale value safe to promote.
+                result = unsafe {
+                    probe::<true>(
+                        prev_arena,
+                        &hp,
+                        hash,
+                        key,
+                        e - 1,
+                        output,
+                        output_capacity,
+                        global_epoch,
+                    )
+                };
+            }
+            let mut hit = match result {
+                Ok(hit) => hit,
+                Err(ProbeError::Retry) => continue,
+                Err(ProbeError::InsufficientCapacity) => return Err(Error::InsufficientCapacity),
+                Err(ProbeError::Miss) => return Ok(None),
+            };
+            let mut promote = hit.promotion_ready;
+            #[cfg(feature = "verify")]
+            let via_certificate = promote;
+            if not_in_cur_arena && !promote {
+                // A scan that certifies the source only orders later reads.
+                // The helper copies it again before we may promote it.
+                match unsafe {
+                    self.reprobe_for_promotion(
+                        e,
+                        hash,
+                        key,
+                        output,
+                        output_capacity,
+                        promotion_sampler,
+                    )
+                } {
+                    Some(Ok(new_hit)) => {
+                        hit = new_hit;
+                        promote = true;
+                    }
+                    Some(Err(ProbeError::Retry)) => continue,
+                    Some(Err(ProbeError::InsufficientCapacity)) => {
+                        return Err(Error::InsufficientCapacity);
+                    }
+                    Some(Err(ProbeError::Miss)) => return Ok(None),
+                    None => {}
+                }
+            }
+            let value_len = hit.value_len;
+            // A validated hit is exactly a record that an insert wrote, and
+            // inserts enforce the limit: only a corrupted mapping, or an
+            // attacher with another configuration, can exceed it. Retrying
+            // would read the same record forever.
+            if value_len > hp.max_value_size {
+                return Err(Error::Corrupt);
+            }
+            if promote {
+                #[cfg(feature = "verify")]
+                <P::Pid as GetPid>::promotion_hook(slot, via_certificate);
+                // Promotion may rotate/reuse the source arena. Use only the
+                // caller's key and the validated copy, never shared record
+                // bytes. Retain its padded word representation so the final
+                // logical word is not narrowed back to a byte-sized tail.
+                let value = PaddedValue {
+                    words: output,
+                    logical_size: value_len as usize,
+                };
+                self.store(slot, slot_index, hash, key, value, Some(e), estimator)?;
+            }
+            return Ok(Some(value_len as usize));
+        }
+    }
+
+    /// Samples an unready hit and, if its writers finished, reads it again.
+    /// Keep this path and its parameter setup out of the ordinary probes.
+    ///
+    /// # Safety
+    /// `output` has room for `align8(output_capacity)` bytes, as in lookup.
+    #[cold]
+    #[inline(never)]
+    #[allow(clippy::too_many_arguments)]
+    unsafe fn reprobe_for_promotion(
+        self,
+        e: u64,
+        hash: u64,
+        key: &[u8],
+        output: *mut u64,
+        output_capacity: usize,
+        sampler: &mut PromotionSampler,
+    ) -> Option<Result<ProbeHit, ProbeError>> {
+        let hp = self.params.hot();
+        if !sampler.should_recheck(hp.bucket_mask) || !self.recheck_promotion_ready(&hp, e) {
+            return None;
+        }
+        // SAFETY: the caller supplies the same valid output as lookup.
+        // The successful scan acquired all final source-index writes.
+        Some(unsafe {
+            probe::<false>(
+                self.arena_of(&hp, e - 1),
+                &hp,
+                hash,
+                key,
+                e - 1,
+                output,
+                output_capacity,
+                self.global_epoch(),
+            )
+        })
+    }
+}

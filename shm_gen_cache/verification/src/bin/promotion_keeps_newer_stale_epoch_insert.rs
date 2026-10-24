@@ -1,0 +1,278 @@
+//! A promotion must not shadow a newer insert of the same key that landed
+//! in the previous epoch. A concurrent lookup may read the old value, but
+//! a lookup after the successful insert must read the new one.
+//!
+//! The record area holds two records. Setup inserts K -> V1 at epoch 2.
+//! Then, with no ordering constraints:
+//!
+//! * writer W inserts K -> V2;
+//! * rotator R rotates from epoch 2 to 3 (`test_access::rotate()`), which
+//!   an epoch-2 pin does not block;
+//! * lookup L looks K up once.
+//!
+//! The stale-promotion interleaving that readiness must prevent:
+//!
+//! ```text
+//! writer W               rotator R            lookup L
+//! --------               ---------            --------
+//! pin epoch 2, reserve
+//!                        rotate 2 -> 3
+//!                                             read epoch 3
+//!                                             probe arena 3: miss
+//!                                             probe arena 2: hit V1
+//! publish V2 in arena 2
+//! (insert returns)
+//!                                             promote V1 into arena 3
+//! ```
+//!
+//! Lookups probe epoch 3 first, so promoting V1 would shadow V2. Promotion
+//! must acquire readiness before reading its source: learning that W has
+//! finished after copying V1 is insufficient without reprobing arena 2.
+//!
+//! # Checked after the joins
+//!
+//! * W's insert succeeded, or timed out on rotation ownership (R sealed
+//!   arena 2 before W reserved there, and W's own rotation found R owning
+//!   it); R's rotation succeeded, or found that W had rotated first;
+//! * L saw exactly V1 or V2;
+//! * epoch 3, no rotation owner, all participants unpinned;
+//! * a final lookup returns V2 if W's insert succeeded, otherwise V1.
+//!
+//! # Witnesses
+//!
+//! * `STALE_HIT_NOT_PROMOTED`: L read V1, but after W's successful insert
+//!   the final lookup reads V2;
+//! * `FINAL_V2`: the final lookup reads V2;
+//! * `PROMOTED_VIA_CERTIFICATE`: L promoted its previous-generation hit
+//!   because the readiness certificate it loaded before probing arena 2
+//!   (C0) already held epoch 2: R's scan saw no pin of epoch 2;
+//! * `PROMOTED_VIA_RECHECK`: L promoted because its sampled readiness
+//!   recheck certified epoch 2 and the fresh probe that followed hit: C0
+//!   did not certify epoch 2 (R's scan saw W pinned to it).
+//!
+//! The last two read which path L took from `promotion_hook`, called only
+//! for L's slot. The hook adds no synchronisation: L's slot address is
+//! written before the spawns, and the path only by L and read by main
+//! after the joins. The table has 8 buckets, so every unready hit samples
+//! a recheck.
+//!
+//! No `assume` is used.
+
+#![no_std]
+#![no_main]
+
+use core::sync::atomic::Ordering::{Relaxed, SeqCst};
+
+use genmc_harness::{Lent, check, check_ok, padded_words, scope, witness, words_eq};
+use shm_gen_cache::test_access::{
+    RotationPolicy, global_epoch, pinned_epoch, rotate, rotation_owner,
+};
+use shm_gen_cache::{
+    Cache, CacheStorage, Error, GetPid, NoopGetPid, ParticipantLock, ParticipantSlot, StaticParams,
+    output_buffer, static_config,
+};
+
+static_config! {
+    struct Cfg: LookupHooks {
+        participant_capacity: 3,
+        bucket_count: 8,
+        max_key_size: 1,
+        max_value_size: 8,
+        record_area_size: 64,
+        max_occupancy: 8,
+        reservation_chunk_size: 8, // exact record accounting
+    }
+}
+
+type Participant = ParticipantLock<'static, Cfg>;
+type CacheRef = Cache<'static, Cfg>;
+
+const HASH: u64 = 42;
+const KEY: &[u8] = &[1];
+const V1: &[u8; 8] = b"VALUE-01";
+const V2: &[u8; 8] = b"VALUE-02";
+const FIRST_EPOCH: u64 = 2;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Outcome {
+    Unset,
+    LookupError,
+    Miss,
+    V1,
+    V2,
+    Other,
+}
+
+struct Writer<'a> {
+    participant: Lent<'a, Participant>,
+    result: Result<(), Error>,
+}
+
+struct Rotator {
+    cache: CacheRef,
+    slot_index: u32,
+    result: Result<(), Error>,
+}
+
+struct Reader<'a> {
+    participant: Lent<'a, Participant>,
+    observed: Outcome,
+}
+
+fn insert(writer: &mut Writer) {
+    writer.result = writer.participant.insert(HASH, KEY, V2);
+}
+
+fn rotate_once(rotator: &mut Rotator) {
+    let policy = RotationPolicy::WaitForOwner;
+    rotator.result = rotate(rotator.cache, rotator.slot_index, FIRST_EPOCH, policy);
+}
+
+fn lookup(reader: &mut Reader) {
+    reader.observed = observe(&mut reader.participant);
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn main() -> i32 {
+    static STORAGE: <Cfg as StaticParams>::Storage = CacheStorage::new();
+    // SAFETY: zeroed static storage, used only through this cache.
+    let cache = check_ok!(unsafe { Cache::initialize(STORAGE.as_mut_ptr(), STORAGE.len(), Cfg) });
+    let mut p1 = check_ok!(cache.register_participant());
+    let mut p2 = check_ok!(cache.register_participant());
+    let p3 = check_ok!(cache.register_participant());
+    check_ok!(p1.insert(HASH, KEY, V1));
+    LookupHooks::watch(p2.slot());
+    check!(global_epoch(cache).load(Relaxed) == FIRST_EPOCH);
+
+    let mut writer = Writer {
+        participant: Lent::new(&mut p1),
+        result: Err(Error::Corrupt),
+    };
+    let mut rotator = Rotator {
+        cache,
+        slot_index: p3.slot_index(),
+        result: Err(Error::Corrupt),
+    };
+    let mut reader = Reader {
+        participant: Lent::new(&mut p2),
+        observed: Outcome::Unset,
+    };
+    scope(|s| {
+        let tw = s.spawn(insert, &mut writer);
+        let tr = s.spawn(rotate_once, &mut rotator);
+        let tl = s.spawn(lookup, &mut reader);
+        tw.join();
+        tr.join();
+        tl.join();
+    });
+    let (inserted, rotated, observed) = (writer.result, rotator.result, reader.observed);
+    let promotion = LookupHooks::reader_promotion();
+
+    check!(matches!(
+        inserted,
+        Ok(()) | Err(Error::RotationOwnerTimeout)
+    ));
+    check!(matches!(rotated, Ok(()) | Err(Error::ConcurrentOperation)));
+    check!(matches!(observed, Outcome::V1 | Outcome::V2));
+    check!(global_epoch(cache).load(Relaxed) == FIRST_EPOCH + 1);
+    check!(rotation_owner(cache, Relaxed).registration_id() == 0);
+    for slot in [p1.slot(), p2.slot(), p3.slot()] {
+        check!(pinned_epoch(slot).load(SeqCst) == 0);
+    }
+    let last = observe(&mut p1);
+    check!(matches!(last, Outcome::V1 | Outcome::V2));
+    check!(inserted.is_ok() || last == Outcome::V1);
+    check!(inserted.is_err() || last == Outcome::V2);
+
+    witness!(
+        "STALE_HIT_NOT_PROMOTED",
+        inserted.is_ok() && observed == Outcome::V1 && last == Outcome::V2
+    );
+    witness!("FINAL_V2", last == Outcome::V2);
+    witness!(
+        "PROMOTED_VIA_CERTIFICATE",
+        promotion == Promotion::Certificate
+    );
+    witness!("PROMOTED_VIA_RECHECK", promotion == Promotion::Recheck);
+    0
+}
+
+fn observe(participant: &mut Participant) -> Outcome {
+    let mut output = output_buffer!(8);
+    let len = match participant.lookup(HASH, KEY, &mut output) {
+        Err(_) => return Outcome::LookupError,
+        Ok(None) => return Outcome::Miss,
+        Ok(Some(value)) => value.len(),
+    };
+    if len != V1.len() {
+        Outcome::Other
+    } else if words_eq(output.words(), &padded_words::<1>(V1)) {
+        Outcome::V1
+    } else if words_eq(output.words(), &padded_words::<1>(V2)) {
+        Outcome::V2
+    } else {
+        Outcome::Other
+    }
+}
+
+/// How L's lookup came to promote its hit, if it did.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Promotion {
+    None,
+    Certificate,
+    Recheck,
+}
+
+/// `NoopGetPid` plus a promotion hook for L's slot (see the module
+/// documentation).
+#[derive(Clone, Copy, Debug, Default)]
+struct LookupHooks;
+
+/// L's slot; written by main before any spawn, then only read.
+static mut READER_SLOT: *const ParticipantSlot = core::ptr::null();
+/// Written only by L; read by main after joining L.
+static mut READER_PROMOTION: Promotion = Promotion::None;
+
+impl LookupHooks {
+    fn watch(slot: &'static ParticipantSlot) {
+        // SAFETY: no other thread exists yet.
+        unsafe { READER_SLOT = slot };
+    }
+
+    fn reader_promotion() -> Promotion {
+        // SAFETY: L, its only writer, has been joined.
+        unsafe { READER_PROMOTION }
+    }
+
+    fn is_reader(slot: &ParticipantSlot) -> bool {
+        // SAFETY: written before the workers were spawned.
+        core::ptr::eq(slot, unsafe { READER_SLOT })
+    }
+}
+
+impl GetPid for LookupHooks {
+    fn get_pid() -> u32 {
+        NoopGetPid::get_pid()
+    }
+    fn get_start_time() -> u64 {
+        NoopGetPid::get_start_time()
+    }
+    fn is_live(pid: u32) -> Result<bool, Error> {
+        NoopGetPid::is_live(pid)
+    }
+    fn is_live_since(pid: u32, start_time: u64) -> Result<bool, Error> {
+        NoopGetPid::is_live_since(pid, start_time)
+    }
+
+    fn promotion_hook(slot: &ParticipantSlot, via_certificate: bool) {
+        if Self::is_reader(slot) {
+            let promotion = if via_certificate {
+                Promotion::Certificate
+            } else {
+                Promotion::Recheck
+            };
+            // SAFETY: only L reaches this write.
+            unsafe { READER_PROMOTION = promotion };
+        }
+    }
+}

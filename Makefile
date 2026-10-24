@@ -114,8 +114,8 @@ $(BUILD_DIR)/Cargo.toml: Cargo.toml
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a Cargo.toml $@
 	$(SED_I) -E \
-		-e '/^[[:space:]]*"(profiling|sidecar|appsec\/helper-rust)",?[[:space:]]*$$/d' \
-		-e 's/, "(profiling|sidecar|appsec\/helper-rust)"//g' \
+		-e '/^[[:space:]]*"(profiling|sidecar|appsec\/helper-rust|shm_gen_cache|shm_gen_cache\/verification)",?[[:space:]]*$$/d' \
+		-e 's/, "(profiling|sidecar|appsec\/helper-rust|shm_gen_cache|shm_gen_cache\/verification)"//g' \
 		-e 's|path = "libdatadog/|path = "../../libdatadog/|g' \
 		-e 's|path = "sidecar"|path = "../../sidecar"|g' $@
 
@@ -482,13 +482,16 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	rm -f components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
+	rm -f components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h shm_gen_cache/shm_gen_cache.h
 
 generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
 	( \
 		cbindgen --crate datadog-php  \
 			--config cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/datadog.h; \
+		cbindgen --crate shm_gen_cache \
+			--config shm_gen_cache/cbindgen.toml \
+			--output $(PROJECT_ROOT)/shm_gen_cache/shm_gen_cache.h; \
 		cd libdatadog; \
 		cbindgen --crate libdd-common-ffi \
 			--config libdd-common-ffi/cbindgen.toml \
