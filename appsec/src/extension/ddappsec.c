@@ -350,9 +350,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     UNUSED(type);
     UNUSED(module_number);
 
-    // no other thread is running now. reset config to global config only.
-    runtime_config_first_init = false;
-
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
@@ -361,7 +358,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     dd_helper_shutdown();
 
     dd_phpobj_shutdown();
-    dd_entity_body_shutdown();
 
     return SUCCESS;
 }

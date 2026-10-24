@@ -531,6 +531,26 @@ bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
                                    ddog_RootTagLookupFn lookup_fn);
 
 /**
+ * Parses a possibly truncated JSON document. Containers nested deeper than
+ * `max_depth` are kept empty.
+ */
+struct ddog_AppsecBodyTape ddog_appsec_parse_json(ddog_CharSlice input, int32_t max_depth);
+
+/**
+ * Parses a possibly truncated XML document into
+ * `{tag: [{"@attr": value, ...}, "text", {child...}, ...]}`. The content of
+ * elements nested deeper than `max_depth` is dropped. External entities are
+ * never loaded.
+ */
+struct ddog_AppsecBodyTape ddog_appsec_parse_xml(ddog_CharSlice input, int32_t max_depth);
+
+/**
+ * # Safety
+ * `tape` must come from one of the parse functions and not be dropped twice.
+ */
+void ddog_appsec_body_tape_drop(struct ddog_AppsecBodyTape tape);
+
+/**
  * # Safety
  * Must be called from a single-threaded context, such as MINIT or first rinit.
  */

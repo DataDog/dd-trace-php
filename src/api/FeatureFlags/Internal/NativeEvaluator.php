@@ -11,8 +11,9 @@ final class NativeEvaluator implements Evaluator
 
     private $mapper;
     private $recordMetrics;
+    private $flagEvaluationRecorder;
 
-    private function __construct($mapper = null, bool $recordMetrics = true)
+    private function __construct($mapper = null, bool $recordMetrics = true, $flagEvaluationRecorder = null)
     {
         if ($mapper !== null && !$mapper instanceof ResultMapper) {
             throw new \InvalidArgumentException('Expected a ResultMapper instance');
@@ -20,6 +21,7 @@ final class NativeEvaluator implements Evaluator
 
         $this->mapper = $mapper ?: new ResultMapper();
         $this->recordMetrics = $recordMetrics;
+        $this->flagEvaluationRecorder = $flagEvaluationRecorder;
     }
 
     public static function isAvailable()
@@ -27,9 +29,10 @@ final class NativeEvaluator implements Evaluator
         return function_exists('DDTrace\\ffe_evaluate');
     }
 
-    public static function create($recordMetrics = true)
+    /** @param callable|null $flagEvaluationRecorder Internal adapter for terminal OpenFeature reporting. */
+    public static function create($recordMetrics = true, $flagEvaluationRecorder = null)
     {
-        return self::isAvailable() ? new self(null, $recordMetrics) : new UnavailableEvaluator();
+        return self::isAvailable() ? new self(null, $recordMetrics, $flagEvaluationRecorder) : new UnavailableEvaluator();
     }
 
     public function evaluate(
@@ -37,13 +40,16 @@ final class NativeEvaluator implements Evaluator
         $expectedType,
         $defaultValue,
         $targetingKey = null,
-        array $attributes = array()
+        array $attributes = array(),
+        $targetingKeyInvalid = false
     ) {
+        $evaluationTimestampMs = (int) (microtime(true) * 1000);
+        $normalizedAttributes = $this->normalizeAttributes($attributes);
         $rawResult = \DDTrace\ffe_evaluate(
             $flagKey,
             $this->typeId($expectedType),
             $targetingKey,
-            $this->normalizeAttributes($attributes),
+            $normalizedAttributes,
             $this->recordMetrics
         );
 
@@ -52,6 +58,10 @@ final class NativeEvaluator implements Evaluator
         }
 
         $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
+
+        // Native clients submit now. OpenFeature can retain this snapshot until
+        // its hooks finish, independently of native/OTLP metric recording.
+        $this->recordFlagEvaluation($flagKey, $targetingKey, $normalizedAttributes, $rawResult, $details, $evaluationTimestampMs, $targetingKeyInvalid);
 
         // APM feature-flag span enrichment. This is the single choke point both
         // the native Client and the OpenFeature DataDogProvider evaluate through,
@@ -62,6 +72,50 @@ final class NativeEvaluator implements Evaluator
         SpanEnrichmentRegistry::record($flagKey, $details, $targetingKey);
 
         return $details;
+    }
+
+    private function recordFlagEvaluation($flagKey, $targetingKey, array $attributes, $rawResult, $details, $evaluationTimestampMs, $targetingKeyInvalid)
+    {
+        try {
+            $exposure = $details->getExposureData();
+            $consent = is_object($rawResult)
+                && isset($rawResult->observeFullEvaluationData)
+                && $rawResult->observeFullEvaluationData === true;
+            $observation = array(
+                $flagKey,
+                $details->getVariant(),
+                isset($exposure['allocationKey']) ? $exposure['allocationKey'] : null,
+                $targetingKeyInvalid ? null : $targetingKey,
+                $attributes,
+                $details->getErrorCode(),
+                $details->getVariant() === null && !isset($exposure['serialId']),
+                $consent,
+                $evaluationTimestampMs,
+                $targetingKeyInvalid
+            );
+            if ($this->flagEvaluationRecorder !== null) {
+                // Keep only the native inspection budget plus one overflow
+                // marker while OpenFeature finishes its hooks. Scalars are
+                // already copied by normalizeAttributes; do not retain the
+                // customer's full context or any protected attributes.
+                $observation[4] = $consent ? array_slice($attributes, 0, 257, true) : array();
+                ($this->flagEvaluationRecorder)($observation);
+            } else {
+                self::submitFlagEvaluation($observation);
+            }
+        } catch (\Throwable $ignored) {
+            // Best-effort telemetry must not change a flag's evaluation result.
+        }
+    }
+
+    /** @internal Shared submission for immediate native and finalized OpenFeature observations. */
+    public static function submitFlagEvaluation(array $observation)
+    {
+        try {
+            return \DDTrace\Internal\record_ffe_flag_evaluation(...$observation);
+        } catch (\Throwable $ignored) {
+            return false;
+        }
     }
 
     private function typeId($expectedType)

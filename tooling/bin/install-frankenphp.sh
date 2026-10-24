@@ -14,7 +14,8 @@ FRANKENPHP_SRC_DIR=/usr/local/src/frankenphp
 rm -rf $FRANKENPHP_SRC_DIR
 mkdir -p $FRANKENPHP_SRC_DIR
 
-curl -fLo /tmp/frankenphp.tar.gz ${frankenphpTarGzUrl}
+# Retries transient failures (Depot 5xx) and then exits 75, which GitLab retries.
+"$(dirname "${BASH_SOURCE[0]}")/../../.gitlab/download-file.sh" "${frankenphpTarGzUrl}" /tmp/frankenphp.tar.gz
 tar xf /tmp/frankenphp.tar.gz -C ${FRANKENPHP_SRC_DIR} --strip-components=1
 rm -f /tmp/frankenphp.tar.gz
 

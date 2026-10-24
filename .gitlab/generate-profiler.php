@@ -73,6 +73,7 @@ foreach ($profiler_minor_major_targets as $version) {
 <?php unset_dd_runner_env_vars(); ?>
   script:
     - switch-php "${FLAVOUR}"
+    - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit 1; }
     - |
       if [ "${FLAVOUR}" = "zts" ]; then
         sudo env PHP_INI_SCAN_DIR= MAKEFLAGS="-j$(nproc)" \
@@ -287,24 +288,25 @@ foreach ($profiler_minor_major_targets as $version) {
     - cd profiling
     - 'echo "nproc: $(nproc)"'
     - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
-    - export TEST_PHP_EXECUTABLE=$(which php)
     - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
     - cp -v "${run_tests_php}" tests
     - unset DD_SERVICE; unset DD_ENV
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
 
+    - shopt -s expand_aliases # Alpine defines switch-php as an alias.
     - '# NTS'
-    - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
-    - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi
+    - switch-php "${PHP_MAJOR_MINOR}"
+    - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
     - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -P -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
 
     - '# ZTS'
-    - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
+    - switch-php "${PHP_MAJOR_MINOR}-zts"
+    - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
     - touch ../profiling/build.rs # force regeneration after switch-php changes the php-config symlink target
     - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -P -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - |
       if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
@@ -347,8 +349,10 @@ foreach ($profiler_minor_major_targets as $version) {
         ARCH: arm64
   script:
     - switch-php nts # not compatible with debug
+    - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
     - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
     - switch-php zts # not compatible with debug
+    - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
     - touch profiling/build.rs # make sure the build helper runs after switch-php
     - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
 
@@ -377,9 +381,11 @@ foreach ($profiler_minor_major_targets as $version) {
        - ARCH: *arch_targets
   script:
     - switch-php nts
+    - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
     - cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
     - touch profiling/build.rs # make sure the build helper runs after switch-php
     - switch-php zts
+    - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
     - cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
 
 "PHP language tests":
@@ -418,6 +424,7 @@ foreach ($profiler_minor_major_targets as $version) {
   script:
     - unset DD_SERVICE; unset DD_ENV
     - command -v switch-php && switch-php "${FLAVOUR}"
+    - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit 1; }
     - phpize
     - ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
     - make -j$(nproc)

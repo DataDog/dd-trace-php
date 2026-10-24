@@ -275,8 +275,9 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span);
 void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
-void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown);
-void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown);
+// Return false after an allocation failure; only release remaining detached spans.
+bool ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown);
+bool ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *datadog_trace_id_as_string(datadog_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
