@@ -3,14 +3,22 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.model.Span
+import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.EnabledIf
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
+import static java.net.http.HttpResponse.BodyHandlers.ofString
 
 @Testcontainers
 @EnabledIf('isExpectedVersion')
@@ -33,11 +41,9 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
         InspectContainerHelper.run(CONTAINER)
     }
 
-    // 14 routes come from the fixture controllers. `_errors` is dev-only
-    // (gated by `when@dev` in config/routes/framework.yaml) and docker-init.sh
-    // runs under APP_ENV=prod, so `/_error/{code}.{_format}` is not registered.
+    // 22 routes come from the fixture controllers.
     @Override
-    int expectedEndpointCount() { 14 }
+    int expectedEndpointCount() { 24 }
 
     @Override
     List<List<String>> expectedEndpoints() {
@@ -56,6 +62,277 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
                 ['/telemetry', 'GET', 'GET /telemetry'],
                 ['/lucky/number', 'GET', 'GET /lucky/number'],
                 ['/lucky/fail', 'GET', 'GET /lucky/fail'],
+                ['/article/{slug}.{_format}', 'GET', 'GET /article/{slug}.{_format}'],
+                ['/posts/{page}', 'GET', 'GET /posts/{page}'],
+                ['/normalized/mixed/{id}.{_format}', 'GET', 'GET /normalized/mixed/{id}.{_format}'],
+                ['/normalized/zero/{id}', 'GET', 'GET /normalized/zero/{id}'],
+                ['/normalized/search.{_format}', 'GET', 'GET /normalized/search.{_format}'],
+                ['/normalized/utf8/{föo}', 'GET', 'GET /normalized/utf8/{föo}'],
+                ['/normalized/ambiguous/{slug}.{format}', 'GET', 'GET /normalized/ambiguous/{slug}.{format}'],
+                ['/normalized/catchall/{rest}', 'GET', 'GET /normalized/catchall/{rest}'],
+                ['/normalized/sep,{page}', 'GET', 'GET /normalized/sep,{page}'],
+                ['/normalized/dash-.{page}', 'GET', 'GET /normalized/dash-.{page}'],
         ]
+    }
+
+    @Test
+    @Order(7)
+    @Override
+    void 'test path params'() {
+        HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
+
+        Span span = trace.first()
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert span.meta."_dd.appsec.event_rules.version" != ''
+        assert span.meta."appsec.blocked" == "true"
+        assert span.meta."http.route" == '/dynamic-path/{param01}'
+        assert span.meta."_dd.appsec.normalized_route" == '/dynamic-path/{param01}'
+    }
+
+    @Test
+    @Order(8)
+    @Override
+    void 'http route for locale route'() {
+        HttpRequest req = container.buildReq('/caminho-dinamico/someValue').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
+
+        Span span = trace.first()
+        assert span.meta."http.route" == '/caminho-dinamico/{param01}'
+        assert span.meta."_dd.appsec.normalized_route" == '/caminho-dinamico/{param01}'
+    }
+
+    @Test
+    @Order(9)
+    @Override
+    void 'http route for utf8 route'() {
+        HttpRequest req = container.buildReq('/café/espresso').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta."http.route" == '/café/{item}'
+        // Static segment 'café' is percent-encoded per RFC 3986; é (U+00E9) → %C3%A9
+        assert span.meta."_dd.appsec.normalized_route" == '/caf%C3%A9/{item}'
+    }
+
+    @Test
+    @Order(10)
+    @Override
+    void 'symfony http route disabled'() {
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''echo export DD_TRACE_SYMFONY_HTTP_ROUTE=false >> /etc/apache2/envvars;
+                   service apache2 restart''')
+            assert res.exitCode == 0
+
+            // Path params are still pushed to AppSec regardless of DD_TRACE_SYMFONY_HTTP_ROUTE,
+            // so the WAF still blocks based on the path param key `param01`.
+            HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
+            def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+                assert re.statusCode() == 403
+            }
+
+            Span span = trace.first()
+            assert span.meta."http.route" == null
+            assert span.meta."_dd.appsec.normalized_route" == null
+            assert span.meta."symfony.route.name" != null
+            assert span.resource == 'app_home_dynamic'
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''sed -i '/export DD_TRACE_SYMFONY_HTTP_ROUTE=/d' /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+        }
+    }
+
+    @Test
+    @Order(11)
+    void 'normalized route is absent when API Security is disabled'() {
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''echo export DD_API_SECURITY_ENABLED=false >> /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+
+            Trace trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+            }
+
+            Span span = trace.first()
+            assert span.meta.'http.route' == '/'
+            assert span.meta.'_dd.appsec.normalized_route' == null
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''sed -i '/export DD_API_SECURITY_ENABLED=/d' /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+        }
+    }
+
+    @Test
+    @Order(12)
+    void 'mixed dynamic values in one segment are combined'() {
+        Trace trace = container.traceFromRequest('/normalized/mixed/article.json') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/mixed/{id}.{_format}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/mixed/{id+_format}'
+    }
+
+    @Test
+    @Order(13)
+    void 'zero-valued path parameter is retained'() {
+        Trace trace = container.traceFromRequest('/normalized/zero/0') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/zero/{id}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/zero/{id}'
+    }
+
+    @Test
+    @Order(14)
+    void 'static part of a segment remains when its optional parameter is absent'() {
+        Trace trace = container.traceFromRequest('/normalized/search') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/search.{_format}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/search'
+    }
+
+    @Test
+    @Order(15)
+    void 'UTF-8 optional parameter name is omitted when absent'() {
+        Trace trace = container.traceFromRequest('/normalized/utf8') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/utf8/{föo}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/utf8'
+    }
+
+    @Test
+    @Order(16)
+    void 'optional param absent: cache key does not bleed into present case'() {
+        // Symfony merges the default into _route_params, so participation comes
+        // from replaying the route's own regex. Hit /posts first so that a
+        // result cached per route would be served for /posts/2.
+        HttpRequest absentReq = container.buildReq('/posts').GET().build()
+        Trace absentTrace = container.traceFromRequest(absentReq, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+        assert absentTrace.first().meta.'http.route' == '/posts/{page}'
+        assert absentTrace.first().meta.'_dd.appsec.normalized_route' == '/posts'
+
+        HttpRequest presentReq = container.buildReq('/posts/2').GET().build()
+        Trace presentTrace = container.traceFromRequest(presentReq, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+        assert presentTrace.first().meta.'http.route' == '/posts/{page}'
+        assert presentTrace.first().meta.'_dd.appsec.normalized_route' == '/posts/{page}'
+    }
+
+    @Test
+    @Order(17)
+    void 'mixed segment route normalizes both params into one brace group'() {
+        HttpRequest req = container.buildReq('/article/my-post.html').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'my-post.html'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/article/{slug}.{_format}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/article/{slug+_format}'
+    }
+
+    @Test
+    @Order(18)
+    void 'route requirements distinguish an absent defaulted mixed parameter'() {
+        HttpRequest req = container.buildReq('/normalized/ambiguous/foo.bar').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'Ambiguous mixed route: foo.bar/html'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' ==
+                '/normalized/ambiguous/{slug}.{format}'
+        // Symfony matched the entire "foo.bar" value as slug and supplied
+        // format from its default. URL-only inference ignores the framework
+        // requirements and would incorrectly treat "bar" as a matched format.
+        assert span.meta.'_dd.appsec.normalized_route' ==
+                '/normalized/ambiguous/{slug}'
+    }
+
+    @Test
+    @Order(19)
+    void 'optional parameter matched as an empty string is present'() {
+        // Symfony binds rest = '' because its optional group participated, so
+        // the default "none" is not used.
+        HttpRequest req = container.buildReq('/normalized/catchall/').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'Catch-all route: []'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/catchall/{rest}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/catchall/{rest}'
+    }
+
+    @Test
+    @Order(20)
+    void 'optional route redirected for its trailing slash is not normalized'() {
+        // Symfony matches /posts after redirecting, not the requested /posts/.
+        // Participation of page in that redirected match is not replayed.
+        HttpRequest req = container.buildReq('/posts/').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 301
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/posts/{page}'
+        assert span.meta.'_dd.appsec.normalized_route' == null
+    }
+
+    @Test
+    @Order(21)
+    void 'absent optional drops only the separator Symfony puts in it'() {
+        // Symfony's RouteCompiler moves one separator character before a
+        // variable into its optional: ',' here, '.' (not '-') below.
+        Map<String, String> expected = [
+                '/normalized/sep'  : '/normalized/sep',
+                '/normalized/dash-': '/normalized/dash-',
+        ]
+        expected.each { String path, String normalized ->
+            Trace trace = container.traceFromRequest(path) { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+            }
+            assert trace.first().meta.'_dd.appsec.normalized_route' == normalized
+        }
     }
 }

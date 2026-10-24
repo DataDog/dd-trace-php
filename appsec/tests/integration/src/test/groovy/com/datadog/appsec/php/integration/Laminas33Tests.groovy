@@ -81,7 +81,7 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 33
+        assert endpoints.size() == 73
         assert endpoints.find { it.path == '/' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /' } != null
         assert endpoints.find {
             it.path == '/application[/:action]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /application[/:action]'
@@ -138,6 +138,125 @@ class Laminas33Tests {
         } != null
         assert endpoints.find {
             it.path == '/any-verb' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /any-verb'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-regex/%id%.%format%' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-regex/%id%.%format%'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-regex-ambiguous/%name%.%ext%' &&
+                    it.method == '*' && it.operationName == 'http.request' &&
+                    it.resourceName ==
+                    '* /normalized-regex-ambiguous/%name%.%ext%'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-encoded[/:slug]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-encoded[/:slug]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-static[/draft]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-static[/draft]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-static-prefix[/normalized]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-static-prefix[/normalized]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-dynamic-prefix[/:value]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-dynamic-prefix[/:value]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-encoded-cache[/:slug]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-encoded-cache[/:slug]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-encoded-lowercase[/:slug]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-encoded-lowercase[/:slug]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-name/:user-id' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-name/:user-id'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-wildcard/:param1' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-wildcard/:param1'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-wildcard/:param1/*' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-wildcard/:param1/*'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-nested/:slug[/:page]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-nested/:slug[/:page]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-proto[.:format]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-proto[.:format]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-proto[.:format]/users[.:format]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-proto[.:format]/users[.:format]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-sibling[/:lang]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-sibling[/:lang]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-sibling[/:lang]/c2' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-sibling[/:lang]/c2'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-sibling[/:lang]/c[/:lang]/zz' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-sibling[/:lang]/c[/:lang]/zz'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-collide/:lang[/:x]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-collide/:lang[/:x]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-collide/:lang' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-collide/:lang'
+        } != null
+        // normalized_collide_base/c and normalized_collide_child/c share it.
+        assert endpoints.find {
+            it.path == '/normalized-collide/:lang[/:x]/y[/:z]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-collide/:lang[/:x]/y[/:z]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-custom[/:id]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-custom[/:id]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-preview[/:id]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-preview[/:id]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-mixed[/:format]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-mixed[/:format]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-mixed[/:format]/%page%.%format%' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-mixed[/:format]/%page%.%format%'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-rx-pair/%a%-%v%' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-rx-pair/%a%-%v%'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-rx-pair/%a%-%v%/%b%-%v%' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-rx-pair/%a%-%v%/%b%-%v%'
         } != null
     }
 
@@ -246,6 +365,7 @@ class Laminas33Tests {
         assert span.meta.'_dd.appsec.event_rules.version' != ''
         assert span.meta.'appsec.blocked' == 'true'
         assert span.meta.'http.route' == '/dynamic-path[/:param01]'
+        assert span.meta.'_dd.appsec.normalized_route' == '/dynamic-path/{param01}'
     }
 
     @Test
@@ -256,12 +376,14 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert nestedTrace.first().meta.'http.route' == '/resource/:resourceId/:subId'
+        assert nestedTrace.first().meta.'_dd.appsec.normalized_route' == '/resource/{resourceId}/{subId}'
 
         HttpRequest chainReq = container.buildReq('/chain/abc').GET().build()
         Trace chainTrace = container.traceFromRequest(chainReq, ofString()) { HttpResponse<String> resp ->
             assert resp.statusCode() == 200
         }
         assert chainTrace.first().meta.'http.route' == '/chain/:chainId'
+        assert chainTrace.first().meta.'_dd.appsec.normalized_route' == '/chain/{chainId}'
     }
 
     @Test
@@ -286,6 +408,7 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert regexTrace.first().meta.'http.route' == '/regex-year/%year%'
+        assert regexTrace.first().meta.'_dd.appsec.normalized_route' == '/regex-year/{year}'
 
         Trace schemeTrace = container.traceFromRequest(
                 container.buildReq('/scheme-only-page').GET().build(),
@@ -293,6 +416,7 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert schemeTrace.first().meta.'http.route' == '/scheme-only-page'
+        assert schemeTrace.first().meta.'_dd.appsec.normalized_route' == '/scheme-only-page'
 
         Trace placeholderTrace = container.traceFromRequest(
                 container.buildReq('/placeholder-literal').GET().build(),
@@ -300,6 +424,7 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert placeholderTrace.first().meta.'http.route' == '/placeholder-literal'
+        assert placeholderTrace.first().meta.'_dd.appsec.normalized_route' == '/placeholder-literal'
 
         Trace wildcardTrace = container.traceFromRequest(
                 container.buildReq('/wildcard-keys/foo/bar').GET().build(),
@@ -307,5 +432,666 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert wildcardTrace.first().meta.'http.route' == '/wildcard-keys/*'
+        assert wildcardTrace.first().meta.'_dd.appsec.normalized_route' == '/wildcard-keys/{param1}'
+    }
+
+    @Test
+    @Order(11)
+    void 'optional segment absent produces correct normalized route'() {
+        // /application[/:action] with no action in URL — optional section dropped
+        // (default action=index is injected by the router but /index is not in the URL path)
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/application').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.first().meta.'http.route' == '/application[/:action]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/application'
+    }
+
+    @Test
+    @Order(12)
+    void 'optional segment present produces correct normalized route'() {
+        // /application[/:action] with action in URL — optional section expanded
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/application/hello').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.first().meta.'http.route' == '/application[/:action]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/application/{action}'
+    }
+
+    @Test
+    @Order(13)
+    void 'optional regex capture absent is omitted from normalized route'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-regex/article').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-regex/%id%.%format%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-regex/{id}'
+    }
+
+    @Test
+    @Order(14)
+    void 'encoded optional value is recognized as present'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-encoded/a%20b').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-encoded[/:slug]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-encoded/{slug}'
+    }
+
+    @Test
+    @Order(15)
+    void 'lowercase percent escapes retain an optional matched value'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-encoded-lowercase/%c3%a9').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-encoded-lowercase[/:slug]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-encoded-lowercase/{slug}'
+    }
+
+    @Test
+    @Order(16)
+    void 'static optional text is matched only at its route position'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-static-prefix').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-static-prefix[/normalized]'
+        // The optional suffix is absent. Its text happens to be a prefix of
+        // the mandatory segment and must not be detected there.
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-static-prefix'
+    }
+
+    @Test
+    @Order(17)
+    void 'defaulted optional value is matched only at its route position'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-dynamic-prefix').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-dynamic-prefix[/:value]'
+        // The framework-injected default equals earlier static route text. It
+        // does not mean the optional URL segment participated in this request.
+        // Laminas merges defaults and captures in RouteMatch, so RFC-1103 also
+        // permits omitting the tag when accurate participation is unavailable.
+        String normalizedRoute = trace.first().meta.'_dd.appsec.normalized_route'
+        assert normalizedRoute == null ||
+                normalizedRoute == '/normalized-dynamic-prefix'
+    }
+
+    @Test
+    @Order(18)
+    void 'encoded optional presence is not poisoned by a prior cache shape'() {
+        // The lowercase request is known to be misclassified as absent. It
+        // primes the result cache with the absent shape; the next request has
+        // an uppercase encoding that normalizes correctly when run alone.
+        container.traceFromRequest(
+                container.buildReq('/normalized-encoded-cache/%c3%a9').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Trace presentTrace = container.traceFromRequest(
+                container.buildReq('/normalized-encoded-cache/a%20b').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert presentTrace.first().meta.'http.route' ==
+                '/normalized-encoded-cache[/:slug]'
+        assert presentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-encoded-cache/{slug}'
+    }
+
+    @Test
+    @Order(19)
+    void 'static-only optional shapes do not share a cached result'() {
+        Trace absentTrace = container.traceFromRequest(
+                container.buildReq('/normalized-static').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert absentTrace.first().meta.'http.route' ==
+                '/normalized-static[/draft]'
+        assert absentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-static'
+
+        Trace presentTrace = container.traceFromRequest(
+                container.buildReq('/normalized-static/draft').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert presentTrace.first().meta.'http.route' ==
+                '/normalized-static[/draft]'
+        // The cache suffix contains only optional parameter names. This route's
+        // optional group is purely static, so absent and present both use the
+        // same key even though they require different normalized results.
+        assert presentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-static/draft'
+    }
+
+    @Test
+    @Order(20)
+    void 'hyphenated segment parameter name remains intact'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-name/alice').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-name/:user-id'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-name/{user-id}'
+    }
+
+    @Test
+    @Order(21)
+    void 'wildcard placeholder does not collide with an existing parameter name'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-wildcard/value/foo/bar').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-wildcard/:param1/*'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-wildcard/{param1}/{param2}'
+    }
+
+    @Test
+    @Order(22)
+    void 'optional segment in a child route keeps the parent prefix when absent'() {
+        // Laminas matches the child Segment after the parent's /normalized-nested,
+        // so only slug participates. Matching the child's pattern against the
+        // whole path would instead bind slug=normalized-nested and page=foo.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-nested/foo').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-nested/:slug[/:page]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-nested/{slug}'
+    }
+
+    @Test
+    @Order(23)
+    void 'optional segment in a child route keeps the parent prefix when present'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-nested/foo/2').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-nested/:slug[/:page]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-nested/{slug}/{page}'
+    }
+
+    @Test
+    @Order(24)
+    void 'shared prototype is replayed at its position in the child route'() {
+        // Both chains hold the same shared_format instance; Laminas matched it
+        // after /normalized-proto (absent) and after /users (format=json).
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-proto/users.json').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-proto[.:format]/users[.:format]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-proto/{format}'
+    }
+
+    @Test
+    @Order(25)
+    void 'shared prototype is replayed at its position in the parent route'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-proto.xml/users').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-proto[.:format]/users[.:format]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/{format}/users'
+    }
+
+    @Test
+    @Order(26)
+    void 'shared prototype matched again by a failing sibling keeps its binding'() {
+        // The 'c' child matches shared_lang (absent, after /c) and then fails
+        // on /zz; Laminas keeps lang=en from the base chain and matches c2.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-sibling/en/c2').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-sibling[/:lang]/c2'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-sibling/{lang}/c2'
+    }
+
+    @Test
+    @Order(27)
+    void 'Regex constraints distinguish an absent defaulted parameter'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-regex-ambiguous/report.txt')
+                        .GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+            assert resp.body() == 'report.txt/html'
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-regex-ambiguous/%name%.%ext%'
+        // The route regex accepts only pdf or json as ext, so report.txt is
+        // consumed entirely by name and ext comes only from its html default.
+        // Generic URL inference ignores that regex and treats txt as matched.
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-regex-ambiguous/{name}'
+    }
+
+    @Test
+    @Order(28)
+    void 'routes sharing an http_route do not share a cached normalized route'() {
+        // The routing cache is per process, so both requests must reach the
+        // same one: Apache is restarted with a single worker.
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''printf '%s\\n' '<IfModule mpm_prefork_module>' 'StartServers 1' \\
+                           'MinSpareServers 1' 'MaxSpareServers 1' 'ServerLimit 1' \\
+                           'MaxRequestWorkers 1' '</IfModule>' \\
+                           > /etc/apache2/conf-enabled/zz-single-worker.conf;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+
+            // normalized_collide_base: its base binds lang (x absent), its
+            // child binds z.
+            Trace trace = container.traceFromRequest(
+                    container.buildReq('/normalized-collide/en/y/5').GET().build(),
+                    ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 200
+            }
+            assert trace.first().meta.'laminas.route.name' == 'normalized_collide_base/c'
+            assert trace.first().meta.'http.route' == '/normalized-collide/:lang[/:x]/y[/:z]'
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-collide/{lang}/y/{z}'
+
+            // normalized_collide_child: its base binds lang, its child binds
+            // x (z absent). Each Segment again has its first capture taking
+            // part, so it must not be served the value cached above.
+            trace = container.traceFromRequest(
+                    container.buildReq('/normalized-collide/EN/abc/y').GET().build(),
+                    ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 200
+            }
+            assert trace.first().meta.'laminas.route.name' == 'normalized_collide_child/c'
+            assert trace.first().meta.'http.route' == '/normalized-collide/:lang[/:x]/y[/:z]'
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-collide/{lang}/{x}/y'
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''rm -f /etc/apache2/conf-enabled/zz-single-worker.conf;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+        }
+    }
+
+    @Test
+    @Order(29)
+    void 'custom route type matching through a Segment reports what the Segment bound'() {
+        // DelegatingRoute returns the RouteMatch of a Segment it wraps, so the
+        // normalized route follows from that Segment's own match.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-custom/5').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_custom'
+        assert trace.first().meta.'http.route' == '/normalized-custom[/:id]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-custom/{id}'
+    }
+
+    @Test
+    @Order(30)
+    void 'route building its own RouteMatch omits the normalized route'() {
+        // PreviewSegment strips /preview before matching, so id is absent, and
+        // returns a RouteMatch of its own, so what it bound is not known.
+        // Segment's own pattern on the whole path would bind id=preview.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-preview/preview').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_preview'
+        assert trace.first().meta.'http.route' == '/normalized-preview[/:id]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == null
+    }
+
+    @Test
+    @Order(31)
+    void 'Segment parameter does not mark an optional Regex capture as taken part'() {
+        // The Segment base binds format; the Regex child does not capture it.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-mixed/json/intro').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_mixed/page'
+        assert trace.first().meta.'http.route' == '/normalized-mixed[/:format]/%page%.%format%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-mixed/{format}/{page}'
+    }
+
+    @Test
+    @Order(32)
+    void 'Regex capture bound by another Regex is not taken for an optional capture'() {
+        // The base Regex binds v, the child Regex does not. Both specs place
+        // %v%; each spec is resolved by its own Regex's captures.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-rx-pair/x-1/y').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_rx_pair/c'
+        assert trace.first().meta.'http.route' == '/normalized-rx-pair/%a%-%v%/%b%-%v%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rx-pair/{a+v}/{b}'
+    }
+
+    @Test
+    @Order(33)
+    void 'Regex spec continuing a Segment parameter combines both parameters'() {
+        // v2users is one URL segment holding version and rest, so RFC-1103
+        // rule 5 combines them.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-joined/v2users').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_joined/rest'
+        assert trace.first().meta.'http.route' == '/normalized-joined/v:version%rest%/%id%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-joined/{version+rest}'
+    }
+
+    @Test
+    @Order(34)
+    void 'Regex spec continuing a Segment parameter combines both parameters before a further one'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-joined/v2users/5').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_joined/rest'
+        assert trace.first().meta.'http.route' == '/normalized-joined/v:version%rest%/%id%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-joined/{version+rest}/{id}'
+    }
+
+    @Test
+    @Order(35)
+    void 'percent-encoded static text is kept as static text'() {
+        // %C3% in the static text is not a Regex %placeholder%.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-caf%C3%A9').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_encoded_static'
+        assert trace.first().meta.'http.route' == '/normalized-caf%C3%A9'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-caf%C3%A9'
+    }
+
+    @Test
+    @Order(36)
+    void 'percent-encoded static text before a Regex is kept as static text'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-caf%C3%A9/5').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_encoded_static/item'
+        assert trace.first().meta.'http.route' == '/normalized-caf%C3%A9/%id%.%f%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-caf%C3%A9/{id}'
+    }
+
+    @Test
+    @Order(37)
+    void 'colon in static text is kept as static text'() {
+        // :me is part of the literal, not a Segment parameter; RFC-1103
+        // rule 3 percent-encodes the colon in a static constant.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-user:me').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_colon_static'
+        assert trace.first().meta.'http.route' == '/normalized-user:me'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-user%3Ame'
+    }
+
+    @Test
+    @Order(38)
+    void 'colon in static text before an optional Segment is kept as static text'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-user:me/info').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_colon_static/tab'
+        assert trace.first().meta.'http.route' == '/normalized-user:me[/:tab]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-user%3Ame/{tab}'
+    }
+
+    @Test
+    @Order(39)
+    void 'normalized route is absent when API Security is disabled'() {
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''echo export DD_API_SECURITY_ENABLED=false >> /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+
+            Trace trace = container.traceFromRequest(
+                    container.buildReq('/application').GET().build(),
+                    ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 200
+            }
+
+            assert trace.first().meta.'http.route' == '/application[/:action]'
+            assert trace.first().meta.'_dd.appsec.normalized_route' == null
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''sed -i '/export DD_API_SECURITY_ENABLED=/d' /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+        }
+    }
+
+    @Test
+    @Order(40)
+    void 'Regex spec text the regex did not match omits the normalized route'() {
+        // The spec places /archive, which the regex holds in a non-capturing
+        // optional; it is not in this URL.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-rx-archive/5').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_rx_archive'
+        assert trace.first().meta.'http.route' == '/normalized-rx-archive/archive/%id%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == null
+
+        trace = container.traceFromRequest(
+                container.buildReq('/normalized-rx-archive/archive/5').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rx-archive/archive/{id}'
+    }
+
+    @Test
+    @Order(41)
+    void 'separator matched before an absent Regex capture is kept'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-rx-dot/v1.').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_rx_dot'
+        assert trace.first().meta.'http.route' == '/normalized-rx-dot/v1.%x%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rx-dot/v1.'
+    }
+
+    @Test
+    @Order(42)
+    void 'Wildcard that matched nothing adds no segment'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/wildcard-keys').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'wildcard_keys/pairs'
+        assert trace.first().meta.'http.route' == '/wildcard-keys/*'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/wildcard-keys'
+    }
+
+    @Test
+    @Order(43)
+    void 'Wildcard continuing a URL segment does not start a new one'() {
+        // Wildcard accepts a remainder without a delimiter, so abc continues
+        // the segment of the Literal before it (RFC-1103 rule 5).
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/wildcard-keysabc').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'wildcard_keys/pairs'
+        assert trace.first().meta.'http.route' == '/wildcard-keys/*'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/{param1}'
+    }
+
+    @Test
+    @Order(44)
+    void 'route without optionals building its own RouteMatch omits the normalized route'() {
+        // PreviewSegment's RouteMatch is not recorded, so what it bound is
+        // not known; http.route alone would read :me as a parameter.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-colon:me/5/preview').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_colon_preview/item'
+        assert trace.first().meta.'http.route' == '/normalized-colon:me/:id'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == null
+    }
+
+    @Test
+    @Order(45)
+    void 'matching another URL after routing keeps the normalized route of the request'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-rematch').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        // http.route follows the last match, as it always has.
+        assert trace.first().meta.'http.route' == '/normalized-name/:user-id'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rematch'
+    }
+
+    @Test
+    @Order(46)
+    void 'route structures sharing a name and http_route do not share a cached normalized route'() {
+        // The routing cache is per process, so both requests must reach the
+        // same one: Apache is restarted with a single worker.
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''printf '%s\\n' '<IfModule mpm_prefork_module>' 'StartServers 1' \\
+                           'MinSpareServers 1' 'MaxSpareServers 1' 'ServerLimit 1' \\
+                           'MaxRequestWorkers 1' '</IfModule>' \\
+                           > /etc/apache2/conf-enabled/zz-single-worker.conf;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+
+            // As a Literal, :me is static text.
+            Trace trace = container.traceFromRequest(
+                    container.buildReq('/normalized-swap:me').GET().build(),
+                    ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 200
+            }
+            assert trace.first().meta.'laminas.route.name' == 'normalized_swap'
+            assert trace.first().meta.'http.route' == '/normalized-swap:me'
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-swap%3Ame'
+
+            // As a Segment, :me is a parameter continuing the first segment.
+            trace = container.traceFromRequest(
+                    container.buildReq('/normalized-swap:me?as=segment').GET().build(),
+                    ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 200
+            }
+            assert trace.first().meta.'laminas.route.name' == 'normalized_swap'
+            assert trace.first().meta.'http.route' == '/normalized-swap:me'
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/{me}'
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''rm -f /etc/apache2/conf-enabled/zz-single-worker.conf;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+        }
+    }
+
+    @Test
+    @Order(47)
+    void 'Regex capture its spec does not place omits the normalized route'() {
+        // lang took part, but the spec has no placeholder for it, so where it
+        // sits in the route is unknown; its value must not become static text.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-rx-unplaced/en/about').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_rx_unplaced'
+        assert trace.first().meta.'http.route' == '/normalized-rx-unplaced/en/about'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == null
     }
 }

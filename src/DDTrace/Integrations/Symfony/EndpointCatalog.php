@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Symfony;
 
+use DDTrace\Util\RouteNormalizer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouterInterface;
@@ -9,6 +10,9 @@ use Symfony\Component\Routing\RouterInterface;
 
 class EndpointCatalog
 {
+    /** Starts the normalization part of a cache entry that needs a replay. */
+    const REPLAY_MARKER = "\1";
+
     public static function generate(ContainerInterface $container): array
     {
         static $memo = null;
@@ -30,20 +34,330 @@ class EndpointCatalog
     }
 
 
-    /**
-     * Looks up the path template for a given route name from the compiled
-     * url_generating_routes.php file. Returns null if the file is missing
-     * or the route is not found.
-     *
-     * This never falls back to getRouteCollection().
-     */
-    public static function pathForRoute($routeName, ContainerInterface $container)
+    public static function normalizationCacheKey($routeName, $locale, ContainerInterface $container)
     {
         $cacheDir = self::getCacheDir($container);
         if ($cacheDir === null) {
             return null;
         }
 
+        return self::normalizationCacheKeyForCacheDir($cacheDir, $routeName, $locale);
+    }
+
+    /**
+     * The routing cache outlives the request, so the key includes the compiled
+     * generator file's modification time. Otherwise a route table rebuilt in
+     * place, without a worker restart, would keep being served from the cache.
+     *
+     * Returns null when the generator file is missing, and while it is too
+     * recent to be cached: within the second of its modification time, a
+     * further rebuild would keep the same key, and within opcache's
+     * revalidation window, require may still return the previous version.
+     *
+     * The window is measured from the request start time, because that is the
+     * clock opcache itself compares against (ZCG(request_time)) when deciding
+     * whether to revalidate. Measuring with time() instead would let a request
+     * that reaches routing a second or more after it started build a key from
+     * the new mtime while require still returns the previous array, caching a
+     * stale entry for the life of the process.
+     */
+    public static function normalizationCacheKeyForCacheDir(string $cacheDir, $routeName, $locale)
+    {
+        $genFile = self::findGeneratorFile($cacheDir);
+        if ($genFile === null) {
+            return null;
+        }
+
+        $mtime = @filemtime($genFile);
+        if ($mtime === false || self::requestStartTime() - $mtime <= self::opcacheRevalidateWindow()) {
+            return null;
+        }
+
+        return "symfony:v2\0" . $genFile . "\0" . $mtime . "\0" . $routeName . "\0" . (string) $locale;
+    }
+
+    /**
+     * Builds the routing cache entry for a matched route: its http.route,
+     * followed, when $withNormalization is set, by "\0" and the normalization
+     * that normalizedRouteFromCacheEntry() resolves. An entry without "\0" has
+     * no normalization computed yet.
+     *
+     * The route is looked up by name, then with the locale suffix of Symfony's
+     * i18n routes. Returns null when the generator cache has neither.
+     *
+     * @return string|null
+     */
+    public static function routeCacheEntry($routeName, $locale, ContainerInterface $container, bool $withNormalization)
+    {
+        $cacheDir = self::getCacheDir($container);
+        if ($cacheDir === null) {
+            return null;
+        }
+
+        $gen = self::loadGeneratorArray($cacheDir);
+        if ($gen === false) {
+            return null;
+        }
+
+        $routeData = isset($gen[$routeName]) ? $gen[$routeName] : null;
+        $plan = self::normalizationPlanFromGeneratorData($routeData);
+        if ($plan === null && $locale !== null) {
+            $routeData = isset($gen[$routeName . '.' . $locale]) ? $gen[$routeName . '.' . $locale] : null;
+            $plan = self::normalizationPlanFromGeneratorData($routeData);
+        }
+
+        if ($plan === null) {
+            return null;
+        }
+
+        if (!$withNormalization) {
+            return $plan['path'];
+        }
+
+        if (!$plan['ambiguous']) {
+            $normalization = (string) RouteNormalizer::normalizeFromSymfony($plan['path'], $plan['matchedParams']);
+        } else {
+            $regex = self::replayRegexFromGeneratorData($routeData);
+            $normalization = $regex === null ? '' : self::REPLAY_MARKER . $regex;
+        }
+
+        return $plan['path'] . "\0" . $normalization;
+    }
+
+    /**
+     * Resolves the normalization part of a routeCacheEntry() entry for the
+     * current request. It is either the normalized route, empty when there is
+     * none, or, for routes with optional path variables, the route's matcher
+     * regex to replay on the request path.
+     *
+     * Symfony merges the defaults of optional variables into _route_params, so
+     * their URL participation is not observable after routing. The replay runs
+     * the regex Symfony's compiled matcher uses for the route on the same path
+     * and follows its participation rule.
+     *
+     * @return string|null
+     */
+    public static function normalizedRouteFromCacheEntry(string $entry, string $pathInfo)
+    {
+        $separator = strpos($entry, "\0");
+        if ($separator === false || $separator === strlen($entry) - 1) {
+            return null;
+        }
+
+        $path = substr($entry, 0, $separator);
+        $normalization = substr($entry, $separator + 1);
+        if ($normalization[0] !== self::REPLAY_MARKER) {
+            return $normalization;
+        }
+
+        // Optional variables are a tail of the path, so the last one ends it.
+        $lastVariable = substr($path, strrpos($path, '{') + 1, -1);
+        $matchedParams = self::matchedParamsFromReplay(substr($normalization, 1), $lastVariable, $pathInfo);
+        if ($matchedParams === null) {
+            return null;
+        }
+
+        return RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
+    }
+
+    /**
+     * Replays a route's matcher regex the way CompiledUrlMatcherTrait::doMatch()
+     * matches it. Returns the participating path variables, or null when the
+     * regex does not match, or when Symfony may have matched another subject:
+     * with a trailing slash that the last variable did not take, it matches the
+     * trimmed path as well, and then redirects to it.
+     *
+     * @return array<string, bool>|null
+     */
+    public static function matchedParamsFromReplay(string $regex, string $lastVariable, string $pathInfo)
+    {
+        $pathInfo = rawurldecode($pathInfo) ?: '/';
+        $trimmedPathInfo = rtrim($pathInfo, '/') ?: '/';
+        if (!preg_match($regex, $pathInfo, $matches)) {
+            return null;
+        }
+
+        if ($trimmedPathInfo !== $pathInfo) {
+            $last = isset($matches[$lastVariable]) ? $matches[$lastVariable] : null;
+            if (($last === null || ($last !== '' && substr($last, -1) !== '/'))
+                && preg_match($regex, $trimmedPathInfo)) {
+                return null;
+            }
+        }
+
+        // Like doMatch(), a variable is present if it is set in the matches.
+        // preg_match() leaves out trailing groups that did not participate,
+        // and optional groups only precede groups nested inside them.
+        $matchedParams = [];
+        foreach ($matches as $name => $value) {
+            if (is_string($name)) {
+                $matchedParams[$name] = true;
+            }
+        }
+
+        return $matchedParams;
+    }
+
+    /**
+     * Turns a route regex into the pattern CompiledUrlMatcherDumper matches
+     * for it, which also accepts or drops a trailing slash.
+     */
+    public static function matcherRegexFromRouteRegex(string $regex): string
+    {
+        $pos = strrpos($regex, '$');
+        $hasTrailingSlash = '/' === $regex[$pos - 1];
+        return substr_replace($regex, '/?$', $pos - $hasTrailingSlash, 1 + $hasTrailingSlash);
+    }
+
+    /**
+     * @param mixed $routeData Symfony compiled generator data
+     * @return array{path: string, matchedParams: array<string, bool>, ambiguous: bool}|null
+     */
+    public static function normalizationPlanFromGeneratorData($routeData)
+    {
+        if (!is_array($routeData)) {
+            return null;
+        }
+
+        $defaults = isset($routeData[1]) && is_array($routeData[1]) ? $routeData[1] : [];
+        $tokens = isset($routeData[3]) ? $routeData[3] : null;
+        if (!is_array($tokens)) {
+            return null;
+        }
+
+        $matchedParams = [];
+        $optionalTail = true;
+        foreach ($tokens as $token) {
+            if (!is_array($token) || !isset($token[0])) {
+                continue;
+            }
+
+            if ($token[0] !== 'variable') {
+                $optionalTail = false;
+                continue;
+            }
+
+            $name = isset($token[3]) ? (string) $token[3] : '';
+            $important = !empty($token[5]);
+            if ($optionalTail && !$important && array_key_exists($name, $defaults)) {
+                return [
+                    'path' => self::tokensToPathTemplate($tokens),
+                    'matchedParams' => [],
+                    'ambiguous' => true,
+                ];
+            }
+
+            $optionalTail = false;
+            $matchedParams[$name] = true;
+        }
+
+        return [
+            'path' => self::tokensToPathTemplate($tokens),
+            'matchedParams' => $matchedParams,
+            'ambiguous' => false,
+        ];
+    }
+
+    /**
+     * Compiles the route described by generator data with Symfony's own route
+     * compiler, and returns its matcher regex. Returns null if the route has
+     * host variables, which take part in the matched subject, or if the
+     * compiled tokens differ from the generator's, so that the regex would not
+     * be the one Symfony matched.
+     *
+     * @return string|null
+     */
+    private static function replayRegexFromGeneratorData(array $routeData)
+    {
+        $defaults = isset($routeData[1]) && is_array($routeData[1]) ? $routeData[1] : [];
+        $requirements = isset($routeData[2]) && is_array($routeData[2]) ? $routeData[2] : [];
+        $tokens = $routeData[3];
+        $hostTokens = isset($routeData[4]) && is_array($routeData[4]) ? $routeData[4] : [];
+        foreach ($hostTokens as $token) {
+            if (is_array($token) && isset($token[0]) && $token[0] === 'variable') {
+                return null;
+            }
+        }
+
+        $path = '';
+        $utf8 = false;
+        for ($i = count($tokens) - 1; $i >= 0; $i--) {
+            $token = $tokens[$i];
+            if (!is_array($token) || !isset($token[0], $token[1])
+                || ($token[0] !== 'text' && !isset($token[3]))) {
+                return null;
+            }
+            if ($token[0] === 'text') {
+                $path .= $token[1];
+            } else {
+                $path .= $token[1] . '{' . (!empty($token[5]) ? '!' : '') . $token[3] . '}';
+                $utf8 = $utf8 || !empty($token[4]);
+            }
+        }
+
+        try {
+            $route = new Route($path, $defaults, $requirements, $utf8 ? ['utf8' => true] : []);
+            $compiled = $route->compile();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if ($compiled->getTokens() !== $tokens) {
+            return null;
+        }
+
+        return self::matcherRegexFromRouteRegex($compiled->getRegex());
+    }
+
+    /**
+     * The time the current request started, which is the clock opcache uses to
+     * decide whether to revalidate a file. Falls back to time() where the SAPI
+     * does not populate REQUEST_TIME (then the window check is no weaker than
+     * it was before).
+     */
+    private static function requestStartTime(): int
+    {
+        if (isset($_SERVER['REQUEST_TIME']) && is_numeric($_SERVER['REQUEST_TIME'])) {
+            return (int) $_SERVER['REQUEST_TIME'];
+        }
+
+        return time();
+    }
+
+    /**
+     * Symfony's routing cache files are recompiled in place, so opcache may
+     * serve the previous version of one for up to revalidate_freq seconds.
+     */
+    private static function opcacheRevalidateWindow(): int
+    {
+        if (!extension_loaded('Zend OPcache')
+            || !filter_var(ini_get('opcache.validate_timestamps'), FILTER_VALIDATE_BOOLEAN)) {
+            return 0;
+        }
+
+        return max(0, (int) ini_get('opcache.revalidate_freq'));
+    }
+
+    /**
+     * Load Symfony's compiled URL generator array. Returns false when neither
+     * candidate file exists.
+     *
+     * @return array|false
+     */
+    private static function loadGeneratorArray(string $cacheDir)
+    {
+        $genFile = self::findGeneratorFile($cacheDir);
+        if ($genFile === null) {
+            return false;
+        }
+
+        $gen = require $genFile;
+        return is_array($gen) ? $gen : false;
+    }
+
+    /** @return string|null */
+    private static function findGeneratorFile(string $cacheDir)
+    {
         $base = rtrim($cacheDir, '/\\') . DIRECTORY_SEPARATOR;
         // Symfony 5+ uses url_generating_routes.php; 4.3–4.4 uses UrlGenerator.php
         $genFile = $base . 'url_generating_routes.php';
@@ -54,18 +368,7 @@ class EndpointCatalog
             }
         }
 
-        $gen = require $genFile;
-        if (!is_array($gen) || !isset($gen[$routeName])) {
-            return null;
-        }
-
-        $routeData = $gen[$routeName];
-        $tokens = isset($routeData[3]) ? $routeData[3] : null;
-        if (!is_array($tokens)) {
-            return null;
-        }
-
-        return self::tokensToPathTemplate($tokens);
+        return $genFile;
     }
 
 
@@ -82,20 +385,13 @@ class EndpointCatalog
 
     private static function fromRouterCache($cacheDir): array
     {
-        $genFile = rtrim($cacheDir, '/\\') . DIRECTORY_SEPARATOR . 'url_generating_routes.php';
-        $matchFile = rtrim($cacheDir, '/\\') . DIRECTORY_SEPARATOR . 'url_matching_routes.php';
-
-        if (!is_file($genFile)) {
-            return [];
-        }
-
-        // NOTE: These files are generated by Symfony, so require is acceptable if path is trusted.
-        $gen = require $genFile;
-        if (!is_array($gen)) {
+        $gen = self::loadGeneratorArray($cacheDir);
+        if ($gen === false) {
             return [];
         }
 
         $methodsByRoute = [];
+        $matchFile = rtrim($cacheDir, '/\\') . DIRECTORY_SEPARATOR . 'url_matching_routes.php';
         if (is_file($matchFile)) {
             $matchData = require $matchFile;
             if (is_array($matchData)) {

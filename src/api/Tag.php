@@ -26,6 +26,7 @@ class Tag
     const ERROR_STACK = 'error.stack'; // human readable version of the stack
     const HTTP_METHOD = 'http.method';
     const HTTP_ROUTE = 'http.route';
+    const APPSEC_NORMALIZED_ROUTE = '_dd.appsec.normalized_route';
     const HTTP_STATUS_CODE = 'http.status_code';
     const HTTP_URL = 'http.url';
     const HTTP_VERSION = 'http.version';
