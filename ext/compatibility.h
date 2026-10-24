@@ -108,6 +108,17 @@ static inline zval *datadog_assign_variable(zval *variable_ptr, zval *value) {
 
 #define Z_EXTRA_P(z) Z_NEXT_P(z)
 
+#define HT_IS_PACKED(ht) 0
+#define HT_IS_WITHOUT_HOLES(ht) 0
+
+void zend_print_zval_r_to_buf_compat(smart_str *buf, zval *expr, int indent);
+static inline zend_string *zend_print_zval_r_to_str(zval *expr, int indent) {
+    smart_str buf = {0};
+    zend_print_zval_r_to_buf_compat(&buf, expr, indent);
+    smart_str_0(&buf);
+    return buf.s;
+}
+
 #undef zval_get_long
 #define zval_get_long datadog_zval_get_long
 static inline zend_long zval_get_long(zval *op) {
@@ -177,8 +188,18 @@ static inline zval *zend_read_property_ex(zend_class_entry *scope, zval *object,
 #define zend_strpprintf strpprintf
 #define zend_vstrpprintf vstrpprintf
 
+// persistent must be true iif we're on the startup phase
 static zend_always_inline zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
-    return zend_new_interned_string(zend_string_init(str, len, persistent));
+    zend_string *ret = zend_string_init(str, len, persistent);
+#ifdef ZTS
+    // zend_new_interned_string() is the identity function on ZTS: flag the string as interned manually, so that it is
+    // not refcounted (it may be shared between threads) and zend_string_release() is a no-op
+    GC_FLAGS(ret) |= IS_STR_INTERNED;
+    zend_string_hash_val(ret);
+    return ret;
+#else
+    return zend_new_interned_string(ret);
+#endif
 }
 
 #undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
@@ -190,6 +211,13 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
 #define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
     static const zend_internal_arg_info name[] = { \
         { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
+#undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO
+#define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(name, type, allow_null) \
+    ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, 0, -1, type, allow_null)
+#define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(name, class_name, allow_null) \
+    ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, 0, -1, class_name, allow_null)
+
+extern zend_string *zend_empty_string;
 
 typedef void zend_type;
 typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
@@ -259,6 +287,25 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 }
 
 #define ZVAL_EMPTY_ARRAY(z) ZVAL_ARR(z, zend_new_array(0))
+
+extern const HashTable zend_empty_array;
+
+static zend_always_inline void _gc_try_addref(zend_refcounted_h *_rc) {
+    struct _zend_refcounted *rc = (struct _zend_refcounted *)_rc;
+    if (!(GC_FLAGS(rc) & IS_ARRAY_IMMUTABLE)) {
+        GC_ADDREF(rc);
+    }
+}
+#define GC_TRY_ADDREF(p) _gc_try_addref(&(p)->gc)
+static zend_always_inline void _gc_try_delref(zend_refcounted_h *_rc) {
+    struct _zend_refcounted *rc = (struct _zend_refcounted *)_rc;
+    if (!(GC_FLAGS(rc) & IS_ARRAY_IMMUTABLE)) {
+        GC_DELREF(rc);
+    }
+}
+#define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
+
+#define zend_string_efree zend_string_free
 
 #define GC_IS_RECURSIVE(gc) ((gc)->u.v.nApplyCount > 0)
 #define GC_PROTECT_RECURSION(gc) (++(gc)->u.v.nApplyCount)
@@ -358,12 +405,25 @@ static inline void zend_string_release_ex(zend_string *str, int persistent) {
 
 #define ZEND_ACC_HEAP_RT_CACHE ZEND_ACC_NO_RT_ARENA
 
+zend_bool try_convert_to_string(zval *op);
+#define tsrm_env_lock()
+#define tsrm_env_unlock()
+
 #define DD_PARAM_ERROR_CODE error_code
 #else
 #define DD_PARAM_ERROR_CODE _error_code
 #endif
 
 #if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID >= 70300
+static zend_always_inline void _gc_try_addref(zend_refcounted_h *rc) {
+    if (!(rc->u.type_info & GC_IMMUTABLE)) {
+        rc->refcount++;
+    }
+}
+#define GC_TRY_ADDREF(p) _gc_try_addref(&(p)->gc)
+#endif
+
 #define ZVAL_OBJ_COPY(z, o) do { \
         zval *__z = (z); \
         zend_object *__o = (o); \
@@ -545,6 +605,27 @@ static zend_always_inline int zend_compare(zval *op1, zval *op2) {
 #endif
 
 #if PHP_VERSION_ID < 80100
+#if PHP_VERSION_ID >= 70300
+static zend_always_inline void _gc_try_delref(zend_refcounted_h *rc) {
+    if (!(rc->u.type_info & GC_IMMUTABLE)) {
+        rc->refcount--;
+    }
+}
+#define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
+#endif
+
+#define ZEND_HASH_FOREACH_FROM(_ht, indirect, _from) \
+    do { \
+        Bucket *_p = (_ht)->arData + _from; \
+        Bucket *_end = (_ht)->arData + (_ht)->nNumUsed; \
+        for (; _p != _end; _p++) { \
+            zval *_z = &_p->val; \
+            if (indirect && Z_TYPE_P(_z) == IS_INDIRECT) { \
+                _z = Z_INDIRECT_P(_z); \
+            } \
+            if (UNEXPECTED(Z_TYPE_P(_z) == IS_UNDEF)) \
+                continue;
+
 #undef ZEND_ATOL
 #ifdef ZEND_ENABLE_ZVAL_LONG64
 #define ZEND_ATOL(s) atoll((s))
@@ -599,6 +680,16 @@ static zend_always_inline bool zend_array_is_list(zend_array *array) {
 
     return 1;
 }
+#endif
+
+#if PHP_VERSION_ID < 80200
+#define DD_FOREACH_FROM(_ht, indirect, _from, index) \
+    ZEND_HASH_FOREACH_FROM(_ht, indirect, _from) \
+    index = _p->h;
+#else
+#define DD_FOREACH_FROM(_ht, indirect, _from, index) \
+    ZEND_HASH_FOREACH_FROM(_ht, indirect, _from) \
+    index = __h;
 #endif
 
 #if PHP_VERSION_ID < 80200
@@ -743,7 +834,7 @@ static inline zend_string *zend_ini_str(const char *name, size_t name_length, bo
 #if PHP_VERSION_ID < 80400
 #define zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error, free_trampoline) zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error)
 #undef ZEND_RAW_FENTRY
-#define ZEND_RAW_FENTRY(zend_name, name, arg_info, flags, ...)   { zend_name, name, arg_info, (uint32_t) (sizeof(arg_info)/sizeof(struct _zend_internal_arg_info)-1), flags },
+#define ZEND_RAW_FENTRY(zend_name, name, arg_info, flags, ...)   { zend_name, name, arg_info, (uint32_t) ((sizeof(arg_info)/sizeof(struct _zend_internal_arg_info))-1), flags },
 
 #if PHP_VERSION_ID < 70100
 #define hasThis() (Z_OBJ_P(ZEND_THIS) != NULL)

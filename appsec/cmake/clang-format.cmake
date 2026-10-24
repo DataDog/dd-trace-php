@@ -33,12 +33,7 @@ else()
     endif()
 endif()
 
-set(FILE_LIST "")
-
-if(DD_APPSEC_BUILD_EXTENSION)
-    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
-    list(APPEND FILE_LIST ${EXTENSION_FILES})
-endif()
+set(FILE_LIST ${APPSEC_EXTENSION_SOURCES})
 
 add_custom_target(format
     COMMAND ${CLANG_FORMAT} -n -Werror ${FILE_LIST}

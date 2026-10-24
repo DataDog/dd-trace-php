@@ -48,19 +48,14 @@ else()
     endif()
 endif()
 
-set(FILE_LIST "")
-macro(append_target_sources target)
-    get_target_property(_srcs ${target} SOURCES)
-    foreach(_src_file IN LISTS _srcs)
-        list(APPEND FILE_LIST ${_src_file})
-    endforeach()
-endmacro()
-
-if(DD_APPSEC_BUILD_EXTENSION)
-    append_target_sources(extension)
-endif()
+# The compilation database has entries for AppSec's sources when ddtrace.so is
+# built with CMake (DD_APPSEC_DDTRACE_ALT).
+set(FILE_LIST ${APPSEC_EXTENSION_SOURCES})
 
 set(TIDY_DEPS "")
+if(TARGET update_version_h)
+    list(APPEND TIDY_DEPS update_version_h)
+endif()
 if(TARGET boost_build)
     list(APPEND TIDY_DEPS boost_build)
 endif()

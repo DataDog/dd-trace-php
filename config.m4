@@ -15,6 +15,9 @@ PHP_ARG_ENABLE(ddtrace-libddwaf-source, whether to build libddwaf from source,
 PHP_ARG_ENABLE(ddtrace-profiling, whether to enable Datadog profiling support,
   [  --enable-ddtrace-profiling Build Datadog profiling support], no, no)
 
+PHP_ARG_ENABLE(ddtrace-appsec, whether to enable Datadog application security support,
+  [  --enable-ddtrace-appsec Build Datadog application security support], no, no)
+
 PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
   [  --enable-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
@@ -60,6 +63,10 @@ if test "$PHP_DDTRACE_PROFILING" != "no"; then
   if test "$PHP_VERSION_ID" -lt 70100; then
     AC_MSG_ERROR([Datadog profiling support requires PHP 7.1 or newer; PHP 7.0 is not supported])
   fi
+fi
+
+if test "$PHP_DDTRACE_APPSEC" != "no" && test "$PHP_DDTRACE_TRACER" = "no"; then
+  AC_MSG_ERROR([Datadog application security support requires the tracer])
 fi
 
 if test "$PHP_DDTRACE" != "no"; then
@@ -233,6 +240,7 @@ if test "$PHP_DDTRACE" != "no"; then
   DATADOG_PHP_SOURCES="$EXTRA_DATADOG_SOURCES \
     ext/datadog.c \
     ext/compat_getrandom.c \
+    ext/compatibility.c \
     ext/configuration.c \
     ext/endpoints.c \
     ext/excluded_modules.c \
@@ -312,6 +320,38 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/hook/uhook_legacy.c \
   "
 
+  DATADOG_APPSEC_SOURCES="\
+    appsec/src/extension/appsec_configuration.c \
+    appsec/src/extension/appsec_ip_extraction.c \
+    appsec/src/extension/appsec_logging.c \
+    appsec/src/extension/appsec_telemetry.c \
+    appsec/src/extension/backtrace.c \
+    appsec/src/extension/body_parser.c \
+    appsec/src/extension/commands/client_init.c \
+    appsec/src/extension/commands/client_shutdown.c \
+    appsec/src/extension/commands/config_sync.c \
+    appsec/src/extension/commands/request_exec.c \
+    appsec/src/extension/commands/request_init.c \
+    appsec/src/extension/commands/request_shutdown.c \
+    appsec/src/extension/commands_helpers.c \
+    appsec/src/extension/ddappsec.c \
+    appsec/src/extension/dddefs.c \
+    appsec/src/extension/duration_acc.c \
+    appsec/src/extension/entity_body.c \
+    appsec/src/extension/helper_process.c \
+    appsec/src/extension/msgpack_helpers.c \
+    appsec/src/extension/network.c \
+    appsec/src/extension/php_helpers.c \
+    appsec/src/extension/php_objects.c \
+    appsec/src/extension/request_abort.c \
+    appsec/src/extension/request_lifecycle.c \
+    appsec/src/extension/string_helpers.c \
+    appsec/src/extension/tags.c \
+    appsec/src/extension/test_mock_transport.c \
+    appsec/src/extension/tracer_bridge.c \
+    appsec/src/extension/user_tracking.c \
+  "
+
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
     zend_abstract_interface/config/config.c \
     zend_abstract_interface/config/config_decode.c \
@@ -328,7 +368,7 @@ if test "$PHP_DDTRACE" != "no"; then
     zend_abstract_interface/zai_string/string.c \
   "
 
-  DATADOG_EXTENSION_FLAGS="-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11"
+  DATADOG_EXTENSION_FLAGS="-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -DMPACK_HAS_CONFIG=1 -Wall -std=gnu11"
 
   ALL_DATADOG_SOURCES=" \
     $DATADOG_PHP_SOURCES \
@@ -346,6 +386,11 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DTRACER -DSIDECAR"
+
+    if test "$PHP_DDTRACE_APPSEC" != "no"; then
+      ALL_DATADOG_SOURCES="$ALL_DATADOG_SOURCES $DATADOG_APPSEC_SOURCES"
+      DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DAPPSEC"
+    fi
   fi
 
   if test "$PHP_DDTRACE_PROFILING" != "no"; then
@@ -541,6 +586,11 @@ EOT
   PHP_ADD_BUILD_DIR([$ext_builddir/tracer/tracer_tag_propagation])
   PHP_ADD_BUILD_DIR([$ext_builddir/tracer/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/tracer/integrations])
+
+  dnl AppSec headers are included relative to their directory only: some of
+  dnl their names collide with the ones in ext/.
+  PHP_ADD_BUILD_DIR([$ext_builddir/appsec/src/extension])
+  PHP_ADD_BUILD_DIR([$ext_builddir/appsec/src/extension/commands])
 
   cat <<'EOT' >> Makefile.fragments
 ./modules/ddtrace.a: $(shared_objects_ddtrace) $(DDTRACE_SHARED_DEPENDENCIES)

@@ -499,6 +499,10 @@ final class SpanChecker
             if (!isset($expectedTags['http.client_ip'])) {
                 unset($filtered['http.client_ip']);
             }
+            // Builds bundling AppSec report the WAF version while awaiting remote activation
+            if (!isset($expectedTags['_dd.appsec.waf.version'])) {
+                unset($filtered['_dd.appsec.waf.version']);
+            }
             if (!isset($expectedTags['_dd.code_origin.type'])) {
                 foreach ($filtered as $key => $value) {
                     if (strpos($key, '_dd.code_origin.') === 0) {

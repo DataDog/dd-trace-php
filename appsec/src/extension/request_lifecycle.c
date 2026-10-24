@@ -3,22 +3,21 @@
 #include "commands/config_sync.h"
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "ddtrace.h"
 #include "duration_acc.h"
 #include "entity_body.h"
 #include "helper_process.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
 #include "string_helpers.h"
 #include "tags.h"
 #include "telemetry.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 #include <SAPI.h>
 #include <Zend/zend_exceptions.h>

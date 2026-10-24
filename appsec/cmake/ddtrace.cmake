@@ -189,6 +189,7 @@ if (PhpConfig_VERNUM LESS 80100)
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_fiber.c")
 endif()
 list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows.c")
+list(APPEND FILES_DDTRACE ${APPSEC_EXTENSION_SOURCES})
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/otel_context.c")
 endif()
@@ -196,7 +197,6 @@ endif()
 find_package(CURL REQUIRED)
 message(STATUS "CURL version: ${CURL_VERSION_STRING}")
 
-include(cmake/pcre2.cmake)
 
 add_library(ddtrace_objects OBJECT ${FILES_DDTRACE})
 set_target_properties(ddtrace_objects PROPERTIES
@@ -216,7 +216,8 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
 endif()
 target_compile_definitions(ddtrace_objects PRIVATE
-    ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1 TRACER=1 SIDECAR=1)
+    ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 MPACK_HAS_CONFIG=1 COMPILE_DL_DDTRACE=1 TRACER=1 SIDECAR=1 APPSEC=1)
+maybe_enable_coverage(ddtrace_objects)
 target_include_directories(ddtrace_objects PRIVATE
     ${CURL_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/..
@@ -283,4 +284,5 @@ endif()
 if(DD_APPSEC_PHP_SIDECAR_MOCKGEN)
     add_dependencies(ddtrace ddtrace_weaken_php_symbols)
 endif()
+maybe_enable_coverage(ddtrace)
 add_dependencies(ddtrace ddtrace_exports)

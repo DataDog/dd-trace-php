@@ -262,7 +262,7 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_e
 void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 
 // Note that this function is used externally by the appsec extension.
-DATADOG_PUBLIC zend_object *ddtrace_get_root_span(void);
+zend_object *ddtrace_get_root_span(void);
 
 uint64_t ddtrace_nanoseconds_realtime(void);
 void dd_trace_stop_span_time(ddtrace_span_data *span);

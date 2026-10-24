@@ -107,8 +107,7 @@ Full list: `./gradlew tasks --group=Verification`
 
 | Task | Description |
 |---|---|
-| `buildTracer-{v}-{var}` | Build ddtrace.so for given PHP version/variant |
-| `buildAppsec-{v}-{var}` | Build ddappsec.so |
+| `buildTracer-{v}-{var}` | Build ddtrace.so (with AppSec) for given PHP version/variant |
 | `buildPortableLibdatadogPhp` | Build portable `libdatadog_php.so` for SSI |
 | `buildLibddwaf` | Build libddwaf shared library |
 
@@ -193,8 +192,7 @@ Gradle uses named Docker volumes for build artifacts and caches. Key volumes:
 | Volume | Contents |
 |---|---|
 | `php-portable-libdatadog-php` | Portable `libdatadog_php.so` used by SSI tests |
-| `php-tracer-{v}-{var}` | Built `ddtrace.so` |
-| `php-appsec-{v}-{var}` | Built `ddappsec.so` |
+| `php-tracer-{v}-{var}` | Built `ddtrace.so` (with AppSec) |
 | `php-tracer-cargo-cache` | Cargo registry cache |
 | `php-tracer-cargo-cache-git` | Cargo git cache |
 | `php-appsec-boost-cache` | Boost build cache |

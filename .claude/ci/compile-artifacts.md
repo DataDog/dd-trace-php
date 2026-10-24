@@ -3,7 +3,7 @@
 These jobs produce the compiled `.so`, `.a`, `.dll`, and sidecar
 binaries consumed by test jobs (Groups B, C, E, F) and packaging
 jobs (Group I). They run in the `compile` stage (tracer pipeline)
-and the `prepare` / `combined` / `appsec` / `tracing` stages
+and the `prepare` / `combined` / `tracing` stages
 (package pipeline).
 
 ## Build Conventions
@@ -37,7 +37,6 @@ If you need to run this step outside a build script and your host lacks `binutil
 - `.gitlab/build-ssi-combined-alpine.sh` -- NTS/ZTS SSI ThinLTO builds on musl
 - `.gitlab/link-tracing-extension.sh` -- completes the legacy debug link,
   preserves prebuilt release DSOs, and removes intermediate `.a` files
-- `.gitlab/build-appsec.sh` -- builds `ddappsec-{ABI}.so` (NTS + ZTS)
 - `.gitlab/build-loader.sh` -- builds `dd_library_loader.so` (SSI loader)
 - `.gitlab/build-profiler.sh` -- regular isolated phpize/configure builds;
   release packaging uses combined mode for the PHP debug ABI
@@ -77,8 +76,7 @@ files via `classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
 | `link tracing extension: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Fans in PHP 7.0 and PHP 7.1+ combined artifacts. Skips already-built `.so` files, links the remaining legacy debug archive with matched LLD, and deletes intermediate `.a` files from `extensions_*`. |
 | `aggregate tracing extension: [{arch}]` | `dd-trace-ci:php-7.4_bookworm-11` | No-op `ls` that collects the completed link-job artifacts for ordinary extension packaging. |
 | `compile tracing extension asan: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_bookworm-11` | Switches to `debug-zts-asan` PHP; builds `ddtrace.so` directly with `RUST_DEBUG_BUILD=1` (Rust debug profile, no `.a` intermediate); copies to `extensions_$(uname -m)/ddtrace-${ABI_NO}-debug-zts.so`; post-processes with `objcopy --compress-debug-sections` |
-| `compile appsec extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS and ZTS appsec extensions sequentially via cmake+make in `appsec/build/` and `appsec/build-zts/`; cmake flags: `-DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON`; outputs `appsec_$(uname -m)/ddappsec-$PHP_API${suffix}[-zts].so`; post-processes with `objcopy --compress-debug-sections` |
-| `compile combined extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | PHP 7.1+ self-contained `ddtrace.so`: `make xlang-lto` for NTS/ZTS on GNU and musl; `build-profiler.sh` for the non-LTO debug ABI on GNU. Copies results into `extensions_{arch}/ddtrace-{API}[-alpine][-debug\|-zts].so`. |
+| `compile combined extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | PHP 7.1+ self-contained `ddtrace.so` with profiling and AppSec: `make xlang-lto` for NTS/ZTS on GNU and musl; `build-profiler.sh` for the non-LTO debug ABI on GNU. Copies results into `extensions_{arch}/ddtrace-{API}[-alpine][-debug\|-zts].so`. |
 | `compile SSI combined extension: [{ver}, {arch}, {triplet}]` | same | PHP 7.1+ NTS/ZTS via `build-xlang-lto ssi-combined` (GNU) or `build-ssi-combined-alpine.sh` (musl), using the common DSO from the sidecar job. Outputs `ssi_{arch}/ddtrace-{API}[-alpine][-zts].so`; does not republish common per PHP ABI. |
 | `aggregate SSI combined extension: [{arch}]` | `dd-trace-ci:php-7.4_bookworm-11` | Collects `ssi_*` from the SSI compile jobs for `package loader`. |
 | `compile loader: [{host_os}, {arch}]` | `dd-trace-ci:php-8.3_{platform}` (alpine: `php-compile-extension-alpine-8.3`) | Builds `dd_library_loader-$(uname -m)-${HOST_OS}.so` (SSI loader) via `phpize`+`configure`+`make` in `loader/`; on musl installs build deps via `apk add`; embeds `PHP_DD_LIBRARY_LOADER_VERSION` from `VERSION` file in CFLAGS |
@@ -87,7 +85,6 @@ files via `classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
 
 Runner: `arch:{amd64,arm64}` (Linux jobs) or `windows-v2:2019` (Windows)
 Matrix (legacy tracing): PHP 7.0 x 4 build platforms (x86_64-alpine-linux-musl, aarch64-alpine-linux-musl, x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu)
-Matrix (AppSec extension): PHP 7.0+ x same 4 platforms
 Matrix (combined and SSI combined extension): PHP 7.1+ x same 4 platforms
 Matrix (ASAN tracing): PHP 7.4+ x {x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu}
 Matrix (Windows): PHP 7.2+
@@ -152,11 +149,11 @@ prepare code + cache cargo deps
   +-- compile SSI combined extension (PHP 7.1+) --> aggregate SSI combined extension
   |                                                               |
   +-- compile loader ---------------------------------------------+-- package loader
-  +-- compile appsec extension ------------------------------------+   (+ common DSO
+                                                                     (+ common DSO
                                                                       and PHP 7.0 SSI)
 ```
 
-AppSec extensions also feed ordinary packages. The separate ASAN and Windows
+The separate ASAN and Windows
 compile paths feed their respective package jobs; PECL builds its own package.
 See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
 
@@ -241,9 +238,9 @@ See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
   only applies to the musl variant; the linux-gnu variant runs fine without
   `--root`.
 
-- **`compile appsec extension` is pure C/C++ — no Rust/Cargo.** The Rust
-  AppSec helper is compiled as part of `compile tracing sidecar`; the AppSec
-  extension job only builds `ddappsec.so`.
+- **There is no AppSec job.** AppSec is built into every `ddtrace.so`
+  (`--enable-ddtrace-appsec`); its Rust helper is part of the common runtime
+  built by `compile tracing sidecar`.
 
 - **`compile extension: debug` Rust profile.** The "debug" in the job name
   refers to the PHP debug build variant, not the Rust profile — but
@@ -287,7 +284,7 @@ Release ThinLTO builds also rebuild Rust std by default. Development-build
 timings are not estimates for these release jobs.
 
 Scripts that call `switch-php` internally (`compile_extension.sh`,
-`build-tracing.sh`, `build-appsec.sh`, `build-profiler.sh`) need root to
+`build-tracing.sh`, `build-profiler.sh`) need root to
 modify `/usr/local/bin/` symlinks. Use `--root` for these — do **not** use
 `--php` since the script already handles variant switching. Scripts that do
 not call `switch-php` (`build-sidecar.sh`, `build-loader.sh`) run fine
@@ -327,13 +324,6 @@ build dependencies.
     -e CARGO_HOME=/project/dd-trace-php/.cache/cargo \
     -- bash -c 'HOST_OS=linux-gnu bash .gitlab/build-sidecar.sh'
 
-# compile appsec extension (PHP 8.3, linux-gnu)
-.claude/ci/dockerh --cache compile-appsec-8.3-gnu --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'PHP_VERSION=8.3 bash .gitlab/build-appsec.sh'
-
 # Combined release NTS/ZTS/debug and local SSI builds:
 # use the recipes in building-locally.md, not build-profiler.sh for release NTS/ZTS.
 
@@ -360,7 +350,7 @@ build dependencies.
 ```
 
 `--overlayfs` is used for package pipeline jobs because their output directories
-(`extensions_*/`, `ssi_*/`, `standalone_*/`, `appsec_*/`, etc.) are
+(`extensions_*/`, `ssi_*/`, `standalone_*/`, etc.) are
 written to the project root and to files like `VERSION` and `*.ldflags`. The
 overlayfs mode mounts the checkout read-only as the lower dir and uses a Docker
 named volume (`dd-ci-{NAME}`) as the upper dir, so all writes go to the volume

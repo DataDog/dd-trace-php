@@ -1,7 +1,6 @@
 --TEST--
 _convert_xml function (ISO-8859-1)
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_level=info
 --FILE--
 <?php

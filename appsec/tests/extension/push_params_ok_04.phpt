@@ -1,7 +1,6 @@
 --TEST--
 Some addresses are rasp requests when rasp enabled
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

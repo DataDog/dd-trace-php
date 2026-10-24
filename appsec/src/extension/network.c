@@ -13,10 +13,10 @@
 #define HELPER_PROCESS_C_INCLUDES
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "ddtrace.h"
 #include "logging.h"
 #include "network.h"
-#include "php_compat.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 struct PACKED _dd_header { // NOLINT
     char code[4];          // dds\0
@@ -59,14 +59,8 @@ dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
     dd_header out_h = {"dds", (uint32_t)data_len_out};
     memcpy(request, &out_h, sizeof(out_h));
 
-#ifdef ZTS
-    ddog_AppsecCResponse response =
-        dd_trace_send_appsec_message(DDAPPSEC_G(ts_ls_cache),
-            (const uint8_t *)request, request_len, client_init);
-#else
     ddog_AppsecCResponse response = dd_trace_send_appsec_message(
         (const uint8_t *)request, request_len, client_init);
-#endif
 
     dd_result ret;
 

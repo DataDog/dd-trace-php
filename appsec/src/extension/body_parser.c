@@ -5,10 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2026 Datadog, Inc.
 #include "body_parser.h"
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "logging.h"
-#include "php_compat.h"
+#include "tracer_bridge.h"
 #include <alloc.h>
+#include <ext/compatibility.h>
 #include <stdint.h>
 #include <string.h>
 

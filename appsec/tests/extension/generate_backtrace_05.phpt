@@ -1,7 +1,5 @@
 --TEST--
 DD_APPSEC_MAX_STACK_TRACE_DEPTH can be set to unlimited with 0
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_MAX_STACK_TRACE_DEPTH=0
 --FILE--

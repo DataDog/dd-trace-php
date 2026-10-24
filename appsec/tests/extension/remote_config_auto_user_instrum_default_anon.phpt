@@ -1,6 +1,7 @@
 --TEST--
 Test auto user instrum mode parsing with anon default value.
 --ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anon
 --FILE--
 <?php

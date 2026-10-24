@@ -436,7 +436,7 @@ stages:
     - cd appsec/build
     - |
       ../../.gitlab/run-with-retryable-download.sh cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
-        -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+        -DDD_APPSEC_TESTING=ON -DDD_APPSEC_DDTRACE_ALT=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_C_COMPILER=/usr/bin/clang-21 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-21 \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" || exit $?
@@ -447,8 +447,9 @@ stages:
     - |
       cd /tmp/cov-ext
       llvm-profdata-21 merge -sparse *.profraw -o default.profdata
-      llvm-cov-21 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
+      llvm-cov-21 export "$CI_PROJECT_DIR"/appsec/build/ddtrace.so \
         -format=lcov -instr-profile=default.profdata \
+        "$CI_PROJECT_DIR"/appsec/src/extension \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
     - |
       echo "Uploading coverage to Datadog"
@@ -536,10 +537,9 @@ stages:
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
-        -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+        -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_DDTRACE_ALT=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
         -DCLANG_TIDY=/usr/bin/run-clang-tidy-21 \
         -DCLANG_FORMAT=/usr/bin/clang-format-21
-    - make -j 4 extension
     - make format tidy

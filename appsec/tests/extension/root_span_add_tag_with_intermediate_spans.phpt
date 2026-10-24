@@ -1,7 +1,6 @@
 --TEST--
 Test that tags are always added to the root span regardless of intermediate spans
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 SERVER_NAME=localhost:8888

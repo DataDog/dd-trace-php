@@ -1,7 +1,5 @@
 --TEST--
 Latest sdk values take priority
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

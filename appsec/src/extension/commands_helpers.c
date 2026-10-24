@@ -7,13 +7,13 @@
 #include "backtrace.h"
 #include "commands_ctx.h"
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "tags.h"
 #include "telemetry.h"
+#include "tracer_bridge.h"
 #include "user_tracking.h"
 #include <ext/standard/base64.h>
 #include <mpack.h>

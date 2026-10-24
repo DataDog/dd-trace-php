@@ -85,11 +85,10 @@ for architecture in "${architectures[@]}"; do
                         cp ./profiling/LICENSE* ./profiling/NOTICE ${trace_base_dir}/profiling-licenses/
                     fi
 
-                    appsec_ext_path=./appsec_${architecture}/ddappsec-${php_api}${alpine}${config}.${ext}
-                    if [[ -f ${appsec_ext_path} ]]; then
-                        appsec_base_dir=${tmp_folder_final}/dd-library-php/appsec
-                        cp_with_dir ${appsec_ext_path} ${appsec_base_dir}/ext/$php_api/ddappsec${config}.${ext}
-                        cp_with_dir ./appsec/recommended.json ${appsec_base_dir}/etc/recommended.json
+                    # AppSec is compiled into every Linux ddtrace.so, including PHP 7.0.
+                    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} && $target != windows ]]; then
+                        touch ${trace_base_dir}/ext/${php_api}/.ddtrace${config}.appsec
+                        cp_with_dir ./appsec/recommended.json ${tmp_folder_final}/dd-library-php/appsec/etc/recommended.json
                     fi
 
                     echo "$release_version" > ${tmp_folder_final}/dd-library-php/VERSION
@@ -147,6 +146,9 @@ for architecture in "${architectures[@]}"; do
                             touch ${tmp_folder_final_gnu_trace}/ext/$php_api/.ddtrace${profiling_config}.profiling
                         done
                     fi
+                    for appsec_config in "" -zts -debug; do
+                        touch ${tmp_folder_final_gnu_trace}/ext/$php_api/.ddtrace${appsec_config}.appsec
+                    done
                 fi
                 if [[ $target == "linux-musl" ]]; then
                     mkdir -p ${tmp_folder_final_musl_trace}/ext/$php_api;
@@ -157,6 +159,9 @@ for architecture in "${architectures[@]}"; do
                             touch ${tmp_folder_final_musl_trace}/ext/$php_api/.ddtrace${profiling_config}.profiling
                         done
                     fi
+                    for appsec_config in "" -zts; do
+                        touch ${tmp_folder_final_musl_trace}/ext/$php_api/.ddtrace${appsec_config}.appsec
+                    done
                 fi
                 if [[ $target == "windows" && ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
                     mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
@@ -196,45 +201,14 @@ for architecture in "${architectures[@]}"; do
     done
 
     ########################
-    # AppSec
+    # AppSec rules
     ########################
+    # The AppSec extension is part of ddtrace.so (see the .appsec markers);
+    # only the recommended rules are shipped separately.
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
         tmp_folder_final_gnu_appsec=$tmp_folder_final_gnu/dd-library-php/appsec
         tmp_folder_final_musl_appsec=$tmp_folder_final_musl/dd-library-php/appsec
 
-        # Extensions
-        php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925);
-        for php_api in "${php_apis[@]}"; do
-            for full_target in "${targets[@]}"; do
-                target=${full_target#*-}
-
-                if [[ $target == "linux-gnu" ]]; then
-                    mkdir -p ${tmp_folder_final_gnu_appsec}/ext/$php_api
-
-                    cp \
-                        "./appsec_${architecture}/ddappsec-$php_api.so" \
-                        "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec.so"
-
-                    cp \
-                        "./appsec_${architecture}/ddappsec-$php_api-zts.so" \
-                        "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-zts.so"
-                fi
-
-                if [[ $target == "linux-musl" ]]; then
-                    mkdir -p ${tmp_folder_final_musl_appsec}/ext/$php_api
-
-                    cp \
-                        "./appsec_${architecture}/ddappsec-$php_api-alpine.so" \
-                        "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec.so"
-
-                    cp \
-                        "./appsec_${architecture}/ddappsec-$php_api-alpine-zts.so" \
-                        "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts.so"
-                fi
-            done
-        done
-
-        # Recommended rules
         for full_target in "${targets[@]}"; do
             target=${full_target#*-}
 

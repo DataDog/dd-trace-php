@@ -1,7 +1,6 @@
 --TEST--
 Track an automated user login success event when no root span is available and verify the logs
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --ENV--

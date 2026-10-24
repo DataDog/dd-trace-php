@@ -21,10 +21,11 @@ if [[ -n $USE_SSI ]]; then
           . (ZEND_DEBUG_BUILD ? "-debug" : "");
   ')
   PKG=/tmp/dd-package
-  mkdir -p "$PKG/loader" "$PKG/trace/ext/$PHP_API" "$PKG/appsec/ext/$PHP_API"
+  mkdir -p "$PKG/loader" "$PKG/trace/ext/$PHP_API"
   ln -s /tracer-ssi/libdatadog_php.so "$PKG/loader/libdatadog_php.so"
   ln -s /tracer-ssi/ddtrace.so "$PKG/trace/ext/$PHP_API/ddtrace${EXT_SUFFIX}.so"
-  ln -s /appsec/ddappsec.so "$PKG/appsec/ext/$PHP_API/ddappsec${EXT_SUFFIX}.so"
+  # ddtrace.so includes AppSec
+  touch "$PKG/trace/ext/$PHP_API/.ddtrace${EXT_SUFFIX}.appsec"
   ln -s /project/src "$PKG/trace/src"
   {
     echo "zend_extension=/loader-ssi/dd_library_loader.so"
@@ -40,14 +41,11 @@ elif [[ -f /project/tmp/build_extension/modules/ddtrace.so ]]; then
     echo datadog.trace.generate_root_span=true
     echo datadog.trace.log_level=debug
   } >> /etc/php/php.ini
-  if [[ -f /appsec/ddappsec.so && -d /project ]]; then
-    echo extension=/appsec/ddappsec.so >> /etc/php/php.ini
-    ENABLE_APPSEC=true
-  fi
+  ENABLE_APPSEC=true
 fi
 
 if [[ $ENABLE_APPSEC == true ]]; then
-  echo "Enabling ddappsec" >&2
+  echo "Enabling AppSec" >&2
   {
     echo datadog.appsec.enabled=true
     echo datadog.appsec.helper_log_file=/tmp/logs/helper.log

@@ -1,7 +1,6 @@
 --TEST--
 request_shutdown — xml body variant
 --INI--
-extension=ddtrace.so
 expose_php=0
 datadog.appsec.enabled=1
 --GET--

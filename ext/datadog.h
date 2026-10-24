@@ -28,6 +28,11 @@ extern ddog_CharSlice php_version_rt;
 #endif
 
 void datadog_internal_handle_fork(void);
+#ifdef APPSEC
+// The RSHUTDOWN of all products but AppSec. AppSec calls it early when it
+// aborts a request during RINIT, as PHP skips RSHUTDOWN then.
+int datadog_rshutdown_products(int type, int module_number);
+#endif
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
 void dd_run_rust_thread_destructors(void *unused);
 #endif
@@ -47,6 +52,9 @@ typedef struct {
 } datadog_trace_id;
 
 #include <tracer/ddtrace_globals.h>
+#ifdef APPSEC
+#include <appsec/src/extension/ddappsec_globals.h>
+#endif
 
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(datadog)
@@ -87,6 +95,12 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog)
 
 #ifdef TRACER
     ddtrace_globals ddtrace;
+#endif
+
+#ifdef APPSEC
+    ddappsec_globals appsec;
+    // Set once datadog_rshutdown_products() ran in this request
+    bool rshutdown_products_done;
 #endif
 ZEND_END_MODULE_GLOBALS(datadog)
 // clang-format on

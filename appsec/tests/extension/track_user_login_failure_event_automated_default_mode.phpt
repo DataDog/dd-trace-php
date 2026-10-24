@@ -1,7 +1,5 @@
 --TEST--
 Metadata is kept on automated (default) identification mode
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

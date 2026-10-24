@@ -1,7 +1,6 @@
 --TEST--
 Track a custom event with an empty event name and verify the logs
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --ENV--
