@@ -16,11 +16,13 @@
 
 set -uo pipefail
 
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
 vault_path="/tmp/vault"
 if [ ! -x "${vault_path}" ]; then
-  curl -sL --fail \
+  "${script_dir}/download-file.sh" \
     "https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip" \
-    --output "${vault_path}.zip" >/dev/null 2>&1 \
+    "${vault_path}.zip" >/dev/null 2>&1 \
     && unzip -o -q "${vault_path}.zip" -d /tmp \
     && chmod +x "${vault_path}" \
     && rm -f "${vault_path}.zip"
