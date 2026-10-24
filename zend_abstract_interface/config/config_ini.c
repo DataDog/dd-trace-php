@@ -303,7 +303,8 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
     entry->value = memoized->default_encoded_value.ptr;
     entry->value_length = memoized->default_encoded_value.len;
     entry->on_modify = ZaiConfigOnUpdateIni;
-    entry->modifiable = memoized->ini_change == zai_config_system_ini_change ? PHP_INI_SYSTEM : PHP_INI_ALL;
+    entry->modifiable =
+        memoized->ini_change == zai_config_system_ini_change || memoized->ini_change == zai_config_minit_ini_change ? PHP_INI_SYSTEM : PHP_INI_ALL;
 
     if (memoized->displayer) {
         entry->displayer = memoized->displayer;
@@ -441,7 +442,7 @@ void zai_config_ini_rinit(void) {
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
         ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        if (memoized->ini_change == zai_config_system_ini_change) {
+        if (memoized->ini_change == zai_config_system_ini_change || memoized->ini_change == zai_config_minit_ini_change) {
             continue;
         }
 
