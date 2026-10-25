@@ -1,7 +1,7 @@
 --TEST--
 Data Streams Monitoring: DD_DATA_STREAMS_ENABLED starts the sidecar
 --DESCRIPTION--
-The sidecar aggregates the stats points and sends them, so checkpoints are only set when it is
+The sidecar aggregates the checkpoints and sends them, so they are only set when it is
 enabled. Nothing else here enables it: telemetry and the sidecar trace sender are off, and neither
 AppSec, the flagging provider nor OTel metrics is on.
 --SKIPIF--
