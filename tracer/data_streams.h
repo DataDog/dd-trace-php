@@ -7,7 +7,7 @@
 /**
  * Data Streams Monitoring checkpoints, for integrations to set when a message enters or leaves
  * the service. The pathway itself - hashing, the request's current pathway, and recording the
- * stats point for the sidecar - lives in components-rs/data_streams.rs.
+ * checkpoint for the sidecar - lives in components-rs/data_streams.rs.
  */
 
 // The header (or other carrier key) the pathway context travels in.
@@ -15,7 +15,7 @@
 
 /**
  * Whether Data Streams Monitoring is on: DD_DATA_STREAMS_ENABLED is set, and the sidecar, which
- * aggregates the stats points and sends them, is enabled for this process. DD_DATA_STREAMS_ENABLED
+ * aggregates the checkpoints and sends them, is enabled for this process. DD_DATA_STREAMS_ENABLED
  * starts the sidecar, so the second part only fails when the sidecar could not be set up, or when
  * DSM was enabled for the current request alone.
  */
