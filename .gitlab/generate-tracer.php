@@ -87,14 +87,6 @@ stages:
     export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
     mkdir -p "${out_dir}"
     mv "tmp/build_extension/modules/ddtrace.so" "${out_dir}"
-  cache:
-    - key:
-        prefix: $CI_JOB_NAME
-        files:
-          - Cargo.lock
-          - Cargo.toml
-      paths:
-        - /rust/cargo/
   artifacts:
     paths:
       - "VERSION"
@@ -781,6 +773,10 @@ foreach ($jobs as $type => $type_jobs):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
                 $sapis[] = "fpm-fcgi";
+            }
+            // Octane starts its own Swoole server before DD_TRACE_TEST_SAPI is read (tests/WebServer.php), so one cell is enough.
+            if (str_contains($target, "laravel_octane")) {
+                $sapis = ["cli-server"];
             }
             foreach ($sapis as $sapi):
 ?>

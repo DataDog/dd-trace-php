@@ -67,24 +67,34 @@ class KafkaIntegration extends Integration
         if ($inject) {
             $headers = \DDTrace\generate_distributed_tracing_headers();
         }
-        if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
-            // The message as it is sent, but for the context header the checkpoint computes.
-            $payloadSize = strlen($hook->args[2] ?? '') + strlen($hook->args[3] ?? '')
-                + self::headersSize(array_merge($hook->args[4] ?? [], $headers));
-            $context = \DDTrace\Internal\dsm_set_checkpoint([
-                'direction:out',
-                'topic:' . $producerTopic->getName(),
-                'type:kafka',
-            ], null, $payloadSize);
-            if ($context !== null) {
-                $headers[self::DSM_CONTEXT_HEADER] = $context;
-                $inject = true;
-            }
+        $context = self::setDataStreamsProduceCheckpoint($producerTopic, $hook->args, $headers);
+        if ($context !== null) {
+            $headers[self::DSM_CONTEXT_HEADER] = $context;
+            $inject = true;
         }
         if ($inject) {
             $hook->args = self::injectHeadersIntoArgs($hook->args, $headers);
             $hook->overrideArguments($hook->args);
         }
+    }
+
+    /**
+     * @return string|null the pathway context to send with the message, or null when DSM is off
+     */
+    public static function setDataStreamsProduceCheckpoint(\RdKafka\ProducerTopic $producerTopic, array $args, array $headers)
+    {
+        if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+            return null;
+        }
+
+        // The message as it is sent, but for the context header the checkpoint computes.
+        $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
+            + self::headersSize(array_merge($args[4] ?? [], $headers));
+        return \DDTrace\Internal\dsm_set_checkpoint([
+            'direction:out',
+            'topic:' . $producerTopic->getName(),
+            'type:kafka',
+        ], null, $payloadSize);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
@@ -165,8 +175,7 @@ class KafkaIntegration extends Integration
 
                     $hook->data['span'] = $span;
                     KafkaIntegration::setupKafkaConsumeSpan($hook, $hook->instance);
-                    if ($message && $message->err === RD_KAFKA_RESP_ERR_NO_ERROR
-                            && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    if ($message) {
                         KafkaIntegration::setDataStreamsConsumeCheckpoint($message, $hook->instance);
                     }
                     \DDTrace\collect_code_origins(1);
@@ -187,6 +196,10 @@ class KafkaIntegration extends Integration
 
     public static function setDataStreamsConsumeCheckpoint(\RdKafka\Message $message, $consumer)
     {
+        if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED') || $message->err !== RD_KAFKA_RESP_ERR_NO_ERROR) {
+            return;
+        }
+
         $edgeTags = ['direction:in'];
         $conf = ObjectKVStore::get($consumer, 'conf');
         if (isset($conf['group.id'])) {
