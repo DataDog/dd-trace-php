@@ -133,7 +133,7 @@ void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
                                               ddog_CharSlice val);
 
 /**
- * Drop cached tables so the next point for each key goes through IPC.
+ * Drop cached tables so the next checkpoint for each key goes through IPC.
  */
 void ddog_dsm_tables_clear(void);
 
@@ -143,15 +143,15 @@ void ddog_dsm_tables_clear(void);
 void ddog_dsm_reset_pathway(void);
 
 /**
- * Set a checkpoint on the request's pathway and record its stats point.
+ * Set a checkpoint on the request's pathway and record it.
  *
  * `edge_tags` are `key:value` strings, at most `MAX_EDGE_TAGS` of which are kept; their order
  * does not matter. `carrier` is the `dd-pathway-ctx-base64` value the message arrived with, or
  * empty. The context to hand on with the message is written to `out` as base64, and its length
  * returned; `out` must hold `DSM_CONTEXT_MAX_LEN` bytes.
  *
- * The stats point is only recorded once the agent has said it accepts DSM stats; the pathway
- * is tracked, and the context returned, either way.
+ * The checkpoint is only recorded once the agent has said it accepts DSM; the pathway is
+ * tracked, and the context returned, either way.
  *
  * # Safety
  * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.

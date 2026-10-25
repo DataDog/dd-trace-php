@@ -1,9 +1,9 @@
 //! Data Streams Monitoring (DSM) checkpoints.
 //!
 //! A checkpoint hashes where a message is in its pathway, measures how long the pathway and its
-//! last edge have taken, and records a stats point for the sidecar to aggregate. Stats points go
-//! into the sidecar's shared-memory DSM table once it exists, and over IPC until then, the same
-//! way span stats reach their concentrator (see `stats.rs`).
+//! last edge have taken, and records the checkpoint for the sidecar to aggregate. Checkpoints go
+//! into the sidecar's shared-memory DSM checkpoint table once it exists, and over IPC until then,
+//! the same way span stats reach their concentrator (see `stats.rs`).
 //!
 //! ## Hashing
 //! As in the Go tracer, and as system-tests expects of tracers other than Go and Node.js:
@@ -28,10 +28,12 @@
 use base64::alphabet;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use base64::Engine;
-use datadog_sidecar::service::blocking::{add_dsm_stats_point, SidecarTransport};
-use datadog_sidecar::service::data_streams_flusher::{dsm_table_shm_path, DsmTableKey};
+use datadog_sidecar::service::blocking::{add_dsm_checkpoint, SidecarTransport};
+use datadog_sidecar::service::data_streams_flusher::{dsm_checkpoint_shm_path, DsmTableKey};
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
-use libdd_ipc::shm_dsm::{DsmStatsPointInput, OwnedDsmStatsPoint, ShmDsmTable, MAX_EDGE_TAGS};
+use libdd_ipc::shm_dsm_checkpoint::{
+    DsmCheckpointInput, OwnedDsmCheckpoint, ShmDsmCheckpointTable, MAX_EDGE_TAGS,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -42,7 +44,7 @@ use tracing::trace;
 /// Longest base64 pathway context: 8 hash bytes and two 9-byte varints.
 pub const DSM_CONTEXT_MAX_LEN: usize = 36;
 
-/// Agent endpoint whose presence in `/info` says the agent accepts DSM stats.
+/// Agent endpoint whose presence in `/info` says the agent accepts DSM.
 const PIPELINE_STATS_ENDPOINT: &str = "/v0.1/pipeline_stats";
 
 const FNV1_64_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
@@ -199,7 +201,7 @@ thread_local! {
     static REQUEST_PATHWAY: RefCell<RequestPathway> = RefCell::default();
 }
 
-/// A checkpoint, computed: the point to record and the context to hand on.
+/// A checkpoint, computed: what to record and the context to hand on.
 struct Checkpoint {
     context: PathwayContext,
     parent_hash: u64,
@@ -224,7 +226,7 @@ fn checkpoint(node_hash: u64, parent: Option<PathwayContext>, now_ns: i64) -> Ch
     }
 }
 
-/// Set once the agent's `/info` says it accepts DSM stats; points are dropped until then.
+/// Set once the agent's `/info` says it accepts DSM; checkpoints are dropped until then.
 static AGENT_SUPPORTS_DSM: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn apply_agent_endpoints(endpoints: Option<&[String]>) {
@@ -236,11 +238,11 @@ pub(crate) fn apply_agent_endpoints(endpoints: Option<&[String]>) {
     AGENT_SUPPORTS_DSM.store(supported, Ordering::Release);
 }
 
-/// Opened after the first IPC point for a key. In-flight fallbacks can outlive a cache clear.
-static DSM_TABLES: LazyLock<RwLock<HashMap<String, Arc<OnceLock<ShmDsmTable>>>>> =
+/// Opened after the first IPC checkpoint for a key. In-flight fallbacks can outlive a cache clear.
+static DSM_TABLES: LazyLock<RwLock<HashMap<String, Arc<OnceLock<ShmDsmCheckpointTable>>>>> =
     LazyLock::new(RwLock::default);
 
-/// Drop cached tables so the next point for each key goes through IPC.
+/// Drop cached tables so the next checkpoint for each key goes through IPC.
 #[no_mangle]
 pub extern "C" fn ddog_dsm_tables_clear() {
     DSM_TABLES.write().unwrap().clear();
@@ -270,7 +272,7 @@ fn str_of(s: CharSlice<'_>) -> &str {
 fn record(
     transport: Option<&mut SidecarTransport>,
     identity: &DsmIdentity<'_>,
-    point: &DsmStatsPointInput<'_>,
+    checkpoint: &DsmCheckpointInput<'_>,
 ) {
     let (env, version, service) = (
         str_of(identity.env),
@@ -290,7 +292,7 @@ fn record(
                 .clone(),
         }
     };
-    if reader.get().is_some_and(|table| table.add_point(point)) {
+    if reader.get().is_some_and(|table| table.add_checkpoint(checkpoint)) {
         return;
     }
 
@@ -298,13 +300,13 @@ fn record(
     let Some(transport) = transport else {
         return;
     };
-    let owned = OwnedDsmStatsPoint {
-        hash: point.hash,
-        parent_hash: point.parent_hash,
-        edge_tags: point.edge_tags.iter().map(|t| (*t).to_owned()).collect(),
-        pathway_latency_ns: point.pathway_latency_ns,
-        edge_latency_ns: point.edge_latency_ns,
-        payload_size_bytes: point.payload_size_bytes,
+    let owned = OwnedDsmCheckpoint {
+        hash: checkpoint.hash,
+        parent_hash: checkpoint.parent_hash,
+        edge_tags: checkpoint.edge_tags.iter().map(|t| (*t).to_owned()).collect(),
+        pathway_latency_ns: checkpoint.pathway_latency_ns,
+        edge_latency_ns: checkpoint.edge_latency_ns,
+        payload_size_bytes: checkpoint.payload_size_bytes,
     };
     let key = DsmTableKey {
         env: env.to_owned(),
@@ -312,7 +314,7 @@ fn record(
         service: service.to_owned(),
         primary_tag: String::new(),
     };
-    match add_dsm_stats_point(
+    match add_dsm_checkpoint(
         transport,
         key.env.clone(),
         key.version.clone(),
@@ -321,12 +323,12 @@ fn record(
         owned,
     ) {
         Ok(true) if reader.get().is_none() => {
-            if let Ok(table) = ShmDsmTable::open(&dsm_table_shm_path(&key)) {
+            if let Ok(table) = ShmDsmCheckpointTable::open(&dsm_checkpoint_shm_path(&key)) {
                 let _ = reader.set(table);
             }
         }
         Ok(_) => {}
-        Err(e) => trace!("Failed to send DSM stats point via IPC: {e}"),
+        Err(e) => trace!("Failed to send DSM checkpoint via IPC: {e}"),
     }
 }
 
@@ -336,15 +338,15 @@ fn now_ns() -> i64 {
         .map_or(0, |d| i64::try_from(d.as_nanos()).unwrap_or(i64::MAX))
 }
 
-/// Set a checkpoint on the request's pathway and record its stats point.
+/// Set a checkpoint on the request's pathway and record it.
 ///
 /// `edge_tags` are `key:value` strings, at most `MAX_EDGE_TAGS` of which are kept; their order
 /// does not matter. `carrier` is the `dd-pathway-ctx-base64` value the message arrived with, or
 /// empty. The context to hand on with the message is written to `out` as base64, and its length
 /// returned; `out` must hold `DSM_CONTEXT_MAX_LEN` bytes.
 ///
-/// The stats point is only recorded once the agent has said it accepts DSM stats; the pathway
-/// is tracked, and the context returned, either way.
+/// The checkpoint is only recorded once the agent has said it accepts DSM; the pathway is
+/// tracked, and the context returned, either way.
 ///
 /// # Safety
 /// `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
@@ -392,7 +394,7 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
         record(
             transport.as_mut(),
             identity,
-            &DsmStatsPointInput {
+            &DsmCheckpointInput {
                 hash: checkpoint.context.hash,
                 parent_hash: checkpoint.parent_hash,
                 edge_tags: &tags,
