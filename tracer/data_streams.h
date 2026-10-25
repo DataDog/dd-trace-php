@@ -10,9 +10,6 @@
  * checkpoint for the sidecar - lives in components-rs/data_streams.rs.
  */
 
-// The header (or other carrier key) the pathway context travels in.
-#define DDTRACE_DSM_CONTEXT_KEY "dd-pathway-ctx-base64"
-
 /**
  * Whether Data Streams Monitoring is on: DD_DATA_STREAMS_ENABLED is set, and the sidecar, which
  * aggregates the checkpoints and sends them, is enabled for this process. DD_DATA_STREAMS_ENABLED
