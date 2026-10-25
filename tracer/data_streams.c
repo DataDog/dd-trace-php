@@ -2,6 +2,7 @@
 
 #include "configuration.h"
 #include <components-rs/datadog.h>
+#include <ext/agent_info.h>
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
 #include <ext/process_tags.h>
@@ -18,6 +19,10 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
     if (!ddtrace_dsm_enabled()) {
         return NULL;
     }
+
+    // Pick up agent /info that arrived after RINIT (e.g. in long-running workers), so that
+    // DSM support and the container tags hash are known before checkpointing.
+    datadog_apply_agent_info();
 
     uint32_t tag_count = 0;
     ddog_CharSlice *tags = safe_emalloc(zend_hash_num_elements(edge_tags), sizeof(ddog_CharSlice), 0);
