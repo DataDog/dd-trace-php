@@ -186,6 +186,12 @@ requirements_json_test:
     REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
 
+# One-pipeline bookkeeping job: its script is `exit 0`, so skip the clone and the packaging image.
+finished:
+  image: registry.ddbuild.io/images/mirror/alpine:3.20
+  variables:
+    GIT_STRATEGY: none
+
 
 # dd-trace-php release packaging
 "prepare code":
@@ -194,6 +200,22 @@ requirements_json_test:
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
+    # SYSTEM_TESTS_REF (a branch or tag; default main) lets a pipeline try a
+    # system-tests change before it is merged.
+    - |
+      git init -q /tmp/system-tests
+      if ! err=$(git -C /tmp/system-tests fetch -q --depth 1 --filter=blob:none -- https://github.com/DataDog/system-tests.git "${SYSTEM_TESTS_REF:-main}" 2>&1); then
+        echo "$err" >&2
+        # An unknown ref or SHA exits 1, which is not retried; other fetch failures exit 128, which is.
+        case $err in *"couldn't find remote ref"*|*"not our ref"*) exit 1;; esac
+        exit 128
+      fi
+      SYSTEM_TESTS_SHA=$(git -C /tmp/system-tests rev-parse 'FETCH_HEAD^{commit}')
+      if ! printf '%s\n' "$SYSTEM_TESTS_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Failed to resolve a valid system-tests commit: $SYSTEM_TESTS_SHA"
+        exit 1
+      fi
+      printf 'SYSTEM_TESTS_SHA=%s\n' "$SYSTEM_TESTS_SHA" | tee system-tests.env
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
@@ -206,54 +228,22 @@ requirements_json_test:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+    reports:
+      dotenv: system-tests.env
 
 <?php
-foreach ($build_platforms as $platform) {
-    $image = sprintf($platform['image_template'], "8.1");
-?>
-"cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: prepare
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  variables:
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    IMAGE: "<?= $image ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-  script: |
-    if [ -e "${CARGO_HOME}/.package-cache" ] ; then
-        echo "WARNING: .package-cache was part of the cache and shouldn't be!"
-        rm -vf "${CARGO_HOME}/.package-cache"
-    fi
-
-    mkdir -p "${CARGO_HOME}"
-    cargo fetch -v --target "${TRIPLET}"
-    chmod -R 777 "${CARGO_HOME}"
-
-    # ensure the .package-cache isn't there
-    rm -vf "${CARGO_HOME}/.package-cache"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-
-<?php
-}
-
 foreach ($build_platforms as $platform) {
     foreach ($profiler_minor_major_targets as $major_minor) {
-        $abi_no = $php_versions_to_abi[$major_minor]
+        $abi_no = $php_versions_to_abi[$major_minor];
+        // NTS and ZTS are independent builds, so they run as two parallel jobs.
+        foreach (["nts", "zts"] as $flavour) {
 ?>
-"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]":
   stage: profiler
   image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
   tags: [ "arch:$ARCH" ]
   needs:
     - job: "prepare code"
-      artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
   variables:
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -265,24 +255,45 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "zts"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull  # `Cache Cargo Deps` is used to update/push the cache
+    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "<?= $flavour ?>"
   artifacts:
     paths:
       - "datadog-profiling"
 
 <?php
+        }
     }
 }
 ?>
+
+<?php foreach ($arch_targets as $arch): ?>
+# Keeps package loader under the 50-needs limit now that each profiler build is two jobs.
+"aggregate profiler extension: [<?= $arch ?>]":
+  stage: profiler
+  image: registry.ddbuild.io/images/mirror/alpine:3.20
+  tags: [ "arch:amd64" ]
+  script: ls ./
+  variables:
+    GIT_STRATEGY: none
+  needs:
+<?php
+    foreach ($build_platforms as $platform):
+        if ($platform["arch"] == $arch):
+            foreach ($profiler_minor_major_targets as $major_minor):
+                foreach (["nts", "zts"] as $flavour):
+?>
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]"
+      artifacts: true
+<?php
+                endforeach;
+            endforeach;
+        endif;
+    endforeach;
+?>
+  artifacts:
+    paths:
+      - "datadog-profiling"
+<?php endforeach; ?>
 
 
 <?php
@@ -418,8 +429,6 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
   variables:
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -437,14 +446,6 @@ foreach ($build_platforms as $platform) {
   script:
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull  # `cache cargo deps` is used to update/push the cache
   artifacts:
     paths:
       - "libdatadog_php_*.*"
@@ -655,7 +656,9 @@ $package_extension_needs = function (array $platform, bool $bundle_inputs = true
     foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
     # Profiler extension
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
+      artifacts: true
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
       artifacts: true
 <?php
     }
@@ -757,6 +760,8 @@ foreach ($windows_minor_major_targets as $major_minor) {
       artifacts: true
     - job: "aggregate tracing extension: [<?= $arch ?>]"
       artifacts: true
+    - job: "aggregate profiler extension: [<?= $arch ?>]"
+      artifacts: true
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
@@ -767,15 +772,6 @@ foreach ($windows_minor_major_targets as $major_minor) {
             foreach ($all_minor_major_targets as $major_minor):
 ?>
     - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
-?>
-
-<?php
-            foreach ($profiler_minor_major_targets as $major_minor):
-?>
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
             endforeach;
@@ -1535,9 +1531,16 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    # SYSTEM_TESTS_REF (a branch or tag; default main) lets a pipeline try a
-    # system-tests change before it is merged.
-    - git clone --branch "${SYSTEM_TESTS_REF:-main}" https://github.com/DataDog/system-tests.git
+    # SYSTEM_TESTS_SHA (prepare code's dotenv) is SYSTEM_TESTS_REF (default main) resolved once, so all jobs and shards run the same scenario list.
+    - |
+      if ! printf '%s\n' "${SYSTEM_TESTS_SHA:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Missing or invalid SYSTEM_TESTS_SHA: ${SYSTEM_TESTS_SHA:-}"
+        exit 1
+      fi
+      git init -q system-tests
+      git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$SYSTEM_TESTS_SHA"
+      git -C system-tests checkout --quiet --detach "$SYSTEM_TESTS_SHA"
+      test "$(git -C system-tests rev-parse HEAD)" = "$SYSTEM_TESTS_SHA"
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
@@ -1612,14 +1615,33 @@ $system_tests_weblogs = [
     "php-fpm-7.0", "php-fpm-7.1", "php-fpm-7.2", "php-fpm-7.3", "php-fpm-7.4",
     "php-fpm-8.0", "php-fpm-8.1", "php-fpm-8.2", "php-fpm-8.5",
 ];
+
+// Pack the tracer-release scenarios longest-first into the least-loaded shard, from measured durations
+// (refresh them with .gitlab/refresh-system-tests-durations.py). Every weblog takes ~the same time per scenario.
+$system_tests_shard_count = 4;
+$system_tests_durations = json_decode(file_get_contents(__DIR__ . "/system-tests-durations.json"), true)["scenarios"];
+arsort($system_tests_durations);
+$system_tests_shards = array_fill(0, $system_tests_shard_count, []);
+$system_tests_shard_load = array_fill(0, $system_tests_shard_count, 0);
+foreach ($system_tests_durations as $scenario => $seconds) {
+    $shard = array_search(min($system_tests_shard_load), $system_tests_shard_load);
+    $system_tests_shards[$shard][] = $scenario;
+    $system_tests_shard_load[$shard] += $seconds;
+}
 ?>
+.system_tests_tracer_release_shards:
+  variables:
+<?php foreach ($system_tests_shards as $shard => $scenarios): ?>
+    # ~<?= round($system_tests_shard_load[$shard] / 60) ?> min of scenarios
+    SHARD_<?= $shard + 1 ?>_SCENARIOS: "<?= implode(" ", $scenarios) ?>"
+<?php endforeach; ?>
+
 <?php foreach ($system_tests_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, tracer-release]":
-  extends: .system_tests
-  # Start with two shards as an initial estimate of useful parallelism.
-  # Keep the job count modest across all weblogs to limit shared CI compute usage.
-  parallel: 2
-  timeout: 4h
+  extends: [ .system_tests, .system_tests_tracer_release_shards ]
+  parallel: <?= $system_tests_shard_count, "\n" ?>
+  # ~2x the expected worst shard (~52 min), so a hung DinD job is retried sooner.
+  timeout: 1h 45m
   variables:
     BUILD_SH_ARGS: -w <?= $weblog ?> php
     # Expand the DinD loopback volume to avoid running out of disk space.
@@ -1635,15 +1657,13 @@ $system_tests_weblogs = [
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
-    # Alphabetical splitting clustered slow related scenarios in one shard.
-    # Hash sorting reduces that imbalance, while keeping the order reproducible.
-    # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    # PARAMETRIC is weblog-independent: it runs once, in "System Tests: [parametric]".
     # THREAD_CONTEXT_SHARING needs the CWS runners; it has its own jobs below.
-    - SCENARIOS=$(printf '%s\n' $SCENARIOS | grep -vx THREAD_CONTEXT_SHARING)
-    # Each job builds the full list, then keeps every `Nth` scenario for its shard.
-    # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
-    - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
+    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC,THREAD_CONTEXT_SHARING -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    - test -n "$SCENARIOS" || { echo "system-tests returned no tracer-release scenarios"; exit 1; }
+    # Run this shard's packed scenarios that system-tests still lists, plus every CI_NODE_TOTAL-th (hash order) of those the durations file lacks.
+    - SCENARIOS=$(echo $SCENARIOS | python3 -c "import os,sys;n=int(os.environ['CI_NODE_TOTAL']);k=int(os.environ['CI_NODE_INDEX']);p=[os.environ.get(f'SHARD_{i}_SCENARIOS','').split() for i in range(1,n+1)];known={s for x in p for s in x};a=sys.stdin.read().split();print(' '.join([s for s in a if s in p[k-1]]+[s for s in a if s not in known][k-1::n]))")
+    - echo "Shard $CI_NODE_INDEX/$CI_NODE_TOTAL scenarios:" $SCENARIOS
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
@@ -1670,12 +1690,14 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
 <?php endforeach; ?>
 "System Tests: [parametric]":
   extends: .system_tests
+  # pytest-split (in system-tests' requirements) gives each job half of the tests, as system-tests' own CI does.
+  parallel: 2
   variables:
     BUILD_SH_ARGS: "-i runner"
     # system-tests #8121's buildx --load stores the client image twice, overflowing the 20G default.
     DOCKER_LOOPBACK_SIZE: 50G
   script:
-    - ./run.sh PARAMETRIC
+    - ./run.sh PARAMETRIC --splits=$CI_NODE_TOTAL --group=$CI_NODE_INDEX
 
 <?php foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
