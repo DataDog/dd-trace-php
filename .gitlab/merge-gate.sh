@@ -5,6 +5,10 @@
 # regression and fails the gate. See the `merge-gate` job in .gitlab-ci.yml.
 set -uo pipefail
 
+# TODO(ddci-run migration, CIEXE-2696): the bti-ci-api token mint and the GitLab
+# API calls below (pipeline bridges, failed jobs incl. allow_failure) don't work
+# under DDCI Run. Replace with the DDCI API (requests/{id}/tasks, executions)
+# once job auth to ddci-api is established; no safe replacement yet.
 # Short-lived GitLab API token, same path as `analyze and create pr`
 # (Vault-issued JWT for the 'sdm' audience -> BTI CI API).
 _vault_jwt() {

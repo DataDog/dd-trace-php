@@ -29,6 +29,11 @@ stages:
       LIBDATADOG_PINNED="${LIBDATADOG_PINNED_SHA}"
       echo "libdatadog: ${LIBDATADOG_PINNED:0:8} → ${LIBDATADOG_SHA:0:8}"
 
+      # TODO(ddci-run migration, CIEXE-2696): the bti-ci-api token mint and every
+      # GitLab API call below (bridges, child pipeline jobs, job retry, job trace)
+      # target other pipelines' jobs, which don't exist under DDCI Run. Replace
+      # with the DDCI API (requests/{id}/tasks, executions, logs, retry) once job
+      # auth to ddci-api is established; no safe replacement yet.
       # Obtain a short-lived GitLab project access token (api + read_repository scope)
       # via the BTI CI API.  Authentication to BTI uses a Vault-issued JWT for the
       # 'sdm' audience — the same Vault proxy that Emissary injects (VAULT_ADDR).
