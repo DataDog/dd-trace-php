@@ -629,6 +629,7 @@ TELEMETRY_ENABLED=0
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
@@ -673,6 +674,7 @@ TEST_WEB_70 := \
 TEST_INTEGRATIONS_71 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
@@ -727,6 +729,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
 	test_integrations_amqp_latest \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
@@ -791,6 +794,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
 	test_integrations_amqp_latest \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
@@ -854,6 +858,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
 	test_integrations_amqp_latest \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
@@ -925,6 +930,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
 	test_integrations_amqp_latest \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_laminaslog2 \
@@ -981,6 +987,7 @@ TEST_WEB_80 := \
 TEST_INTEGRATIONS_81 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp_latest \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_kafka \
@@ -1041,6 +1048,7 @@ TEST_WEB_81 := \
 TEST_INTEGRATIONS_82 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp_latest \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_kafka \
@@ -1110,6 +1118,7 @@ TEST_WEB_82 := \
 TEST_INTEGRATIONS_83 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp_latest \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_kafka \
@@ -1174,6 +1183,7 @@ TEST_WEB_83 := \
 TEST_INTEGRATIONS_84 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp_latest \
+	test_integrations_amqp_ext \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_kafka \
@@ -1457,6 +1467,8 @@ test_integrations_amqp2: global_test_run_dependencies tests/Integrations/AMQP/V2
 	$(call run_tests_debug,tests/Integrations/AMQP/V2)
 test_integrations_amqp_latest: global_test_run_dependencies tests/Integrations/AMQP/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/AMQP/Latest)
+test_integrations_amqp_ext: global_test_run_dependencies
+	$(call run_tests_debug,tests/Integrations/AMQP/Ext)
 test_integrations_deferred_loading: global_test_run_dependencies tests/Integrations/DeferredLoading/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/DeferredLoading)
 test_integrations_filesystem: global_test_run_dependencies
