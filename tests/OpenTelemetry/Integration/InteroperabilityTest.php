@@ -1065,13 +1065,11 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame('8765432112345678', $spanLink->spanId);
             $this->assertSame('dd=t.dm:-0', $spanLink->traceState);
             $this->assertSame(['arg1' => 'value1'], $spanLink->attributes);
-            $this->assertEquals(0, $spanLink->droppedAttributesCount);
 
             $otelSpan->end();
         });
 
         $this->assertCount(1, $traces[0]['spans']);
-        // dropped_attributes_count is not surfaced in the V1 structured span_links (no PHP-side source).
         $this->assertSame([[
             'trace_id' => '12345678876543211234567887654321',
             'span_id' => '8765432112345678',
@@ -1109,7 +1107,6 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame('8765432112345678', $datadogSpanLinks[0]->spanId);
             $this->assertSame('dd=t.dm:-0', $datadogSpanLinks[0]->traceState);
             $this->assertSame(['arg1' => 'value1'], $datadogSpanLinks[0]->attributes);
-            $this->assertEquals(0, $datadogSpanLinks[0]->droppedAttributesCount);
 
             $this->assertSame('ff0000000000051791e0000000000041', $datadogSpanLinks[1]->traceId);
             $this->assertSame('ff00000000000517', $datadogSpanLinks[1]->spanId);

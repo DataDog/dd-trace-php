@@ -238,7 +238,6 @@ struct ddtrace_span_link {
             zval property_span_id;
             zval property_trace_state;
             zval property_attributes;
-            zval property_dropped_attributes_count;
         };
     };
 };

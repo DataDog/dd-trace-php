@@ -90,7 +90,8 @@ namespace DDTrace {
         public string $name;
 
         /**
-         * @var array $attributes Event attributes, keeping their type: bool, int, float, string, or nested arrays.
+         * @var array $attributes Event attributes, keeping their type: bool, int, float, string, or nested arrays
+         * and objects. Null values are skipped.
          */
         public array $attributes;
 
@@ -134,14 +135,10 @@ namespace DDTrace {
         public string $traceState;
 
         /**
-         * @var array $attributes Link attributes, keeping their type: bool, int, float, string, or nested arrays.
+         * @var array $attributes Link attributes, keeping their type: bool, int, float, string, or nested arrays
+         * and objects. Null values are skipped.
          */
         public array $attributes;
-
-        /**
-         * @var int $droppedAttributesCount
-         */
-        public int $droppedAttributesCount;
 
         /**
          * Consumes distributed tracing headers, from which a span link will be constructed.

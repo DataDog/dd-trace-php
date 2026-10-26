@@ -29,14 +29,16 @@ for ($i = 0; $i < 100 && $req === null; $i++) {
     $s = \DDTrace\start_span();
     $s->name = "root";
     $s->service = "svc";
+    $s->attributes['empty'] = [];
     \DDTrace\close_span();
     dd_trace_internal_fn("synchronous_flush");
     usleep(100000);
     foreach (($rr->replayAllRequests() ?: []) as $r) {
         if (strpos($r["uri"], "/v1.0/traces") === false) continue;
-        foreach ((json_decode($r["body"], true)["chunks"] ?? []) as $chunk) {
-            foreach (($chunk["spans"] ?? []) as $span) {
-                if (($span["name"] ?? null) === "root" && ($span["service"] ?? null) === "svc") {
+        // Decoded as objects so that an empty list ([]) and an empty map ({}) stay distinct.
+        foreach ((json_decode($r["body"])->chunks ?? []) as $chunk) {
+            foreach (($chunk->spans ?? []) as $span) {
+                if (($span->name ?? null) === "root" && ($span->service ?? null) === "svc") {
                     $req = $r;
                     $foundSpan = $span;
                 }
@@ -47,10 +49,13 @@ for ($i = 0; $i < 100 && $req === null; $i++) {
 echo "uri=" . ($req["uri"] ?? "none") . "\n";
 // Derived from the matched span itself, not from $req's truthiness: proves the
 // v1 payload actually carries the span's own name/service, not just any chunk.
-echo "span_name=" . ($foundSpan["name"] ?? "none") . "\n";
-echo "span_service=" . ($foundSpan["service"] ?? "none") . "\n";
+echo "span_name=" . ($foundSpan->name ?? "none") . "\n";
+echo "span_service=" . ($foundSpan->service ?? "none") . "\n";
+// An empty array attribute is an empty V1 list.
+echo "empty_attribute=" . (isset($foundSpan->attributes->empty) ? json_encode($foundSpan->attributes->empty) : "absent") . "\n";
 ?>
 --EXPECT--
 uri=/v1.0/traces
 span_name=root
 span_service=svc
+empty_attribute=[]

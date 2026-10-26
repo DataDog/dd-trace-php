@@ -636,7 +636,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $spanLink->spanId = $context->getSpanId();
         $spanLink->traceState = (string)$context->getTraceState(); // __toString()
         $spanLink->attributes = $attributes;
-        $spanLink->droppedAttributesCount = 0; // Attributes limit aren't supported/meaningful in DD
 
         // Save the link
         if (is_null($link)) {

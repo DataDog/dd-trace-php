@@ -146,20 +146,23 @@ static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
         ZVAL_LONG(kind, def->kind);
     }
     zend_string *key;
+    zend_ulong num_key;
     zval *value;
     if (def->tags) {
-        ZEND_HASH_FOREACH_STR_KEY_VAL(def->tags, key, value) {
-            if (key) {
-                ddtrace_span_write_meta(span, key, value, false);
-            }
+        ZEND_HASH_FOREACH_KEY_VAL(def->tags, num_key, key, value) {
+            zend_string *tag = key ? zend_string_copy(key) : zend_long_to_str((zend_long)num_key);
+            ddtrace_span_write_meta(span, tag, value, false);
+            zend_string_release(tag);
         } ZEND_HASH_FOREACH_END();
     }
     if (def->attributes) {
         zend_array *attributes = ddtrace_property_array(&span->property_attributes);
-        ZEND_HASH_FOREACH_STR_KEY_VAL(def->attributes, key, value) {
+        ZEND_HASH_FOREACH_KEY_VAL(def->attributes, num_key, key, value) {
+            Z_TRY_ADDREF_P(value);
             if (key) {
-                Z_TRY_ADDREF_P(value);
                 zend_hash_update(attributes, key, value);
+            } else {
+                zend_hash_index_update(attributes, num_key, value);
             }
         } ZEND_HASH_FOREACH_END();
     }
