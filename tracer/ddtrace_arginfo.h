@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: 5a45c3a714b5411e4167d3fac5da8311493fd21c */
+ * Stub hash: b065802f50240d7b61924b6f927209e5d1434709 */
 
 #include "zend_constants.h"
 
@@ -785,12 +785,6 @@ static zend_class_entry *register_class_DDTrace_SpanLink(void)
 	zend_string *property_attributes_name = zend_string_init("attributes", sizeof("attributes") - 1, true);
 	zend_declare_typed_property(class_entry, property_attributes_name, &property_attributes_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release_ex(property_attributes_name, true);
-
-	zval property_droppedAttributesCount_default_value;
-	ZVAL_UNDEF(&property_droppedAttributesCount_default_value);
-	zend_string *property_droppedAttributesCount_name = zend_string_init("droppedAttributesCount", sizeof("droppedAttributesCount") - 1, true);
-	zend_declare_typed_property(class_entry, property_droppedAttributesCount_name, &property_droppedAttributesCount_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
-	zend_string_release_ex(property_droppedAttributesCount_name, true);
 
 	return class_entry;
 }

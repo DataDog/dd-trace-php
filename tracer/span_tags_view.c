@@ -198,6 +198,13 @@ static void dd_tags_special_reset(ddtrace_span_data *span, enum dd_tags_special 
 
 void ddtrace_span_write_meta(ddtrace_span_data *span, zend_string *key, zval *value, bool metric) {
     enum dd_tags_special special = dd_tags_special_of(key);
+    ZVAL_DEREF(value);
+    if (special != DD_TAGS_PLAIN && Z_TYPE_P(value) == IS_NULL) {
+        // null removes the key, as unset() does: the property resets and no same-named attribute is left.
+        dd_tags_special_reset(span, special);
+        zend_hash_del(ddtrace_property_array(&span->property_attributes), key);
+        return;
+    }
     if (special != DD_TAGS_PLAIN && dd_tags_special_write(span, special, value)) {
         return;
     }
