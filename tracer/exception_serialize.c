@@ -489,12 +489,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
                 if (key) {
                     arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(key), .len = ZSTR_LEN(key)};
                 } else if (func && idx < func->common.num_args) {
-                    if (ZEND_USER_CODE(func->type)) {
-                        zend_string *name = func->op_array.arg_info[idx].name;
-                        arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
-                    } else {
-                        arg_name = ddtrace_internal_arg_name(func, (uint32_t) idx);
-                    }
+                    arg_name = ddtrace_arg_name(func, (uint32_t) idx);
                 } else {
                     char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 23);
                     int len = sprintf(integer, "arg" ZEND_LONG_FMT, idx);
