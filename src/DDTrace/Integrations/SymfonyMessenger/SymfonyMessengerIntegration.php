@@ -127,6 +127,23 @@ class SymfonyMessengerIntegration extends Integration
             ]
         );
 
+        // The worker has just fetched the message, so its handler continues the message's Data
+        // Streams Monitoring pathway, and what the worker runs after the handler does not.
+        install_hook(
+            'Symfony\Component\Messenger\Worker::handleMessage',
+            static function (HookData $hook) {
+                if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    \DDTrace\Internal\dsm_push_pathway(true);
+                    $hook->data = true;
+                }
+            },
+            static function (HookData $hook) {
+                if (isset($hook->data)) {
+                    \DDTrace\Internal\dsm_pop_pathway();
+                }
+            }
+        );
+
         $callHandlerExists = \method_exists('Symfony\Component\Messenger\Middleware\HandleMessageMiddleware', 'callHandler');
         if ($callHandlerExists) {
             // Symfony Messenger 6.2+

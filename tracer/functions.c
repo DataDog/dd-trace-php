@@ -2998,15 +2998,26 @@ PHP_FUNCTION(DDTrace_Internal_dsm_track_backlog) {
 }
 
 PHP_FUNCTION(DDTrace_Internal_dsm_push_pathway) {
-    ZEND_PARSE_PARAMETERS_NONE();
+    zend_bool keep_current = 0;
 
-    ddtrace_dsm_push_pathway();
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(keep_current)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_dsm_push_pathway(keep_current);
 }
 
 PHP_FUNCTION(DDTrace_Internal_dsm_pop_pathway) {
     ZEND_PARSE_PARAMETERS_NONE();
 
     ddtrace_dsm_pop_pathway();
+}
+
+PHP_FUNCTION(DDTrace_Internal_dsm_reset_pathway) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    ddtrace_dsm_reset_pathway();
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */
