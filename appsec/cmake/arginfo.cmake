@@ -1,31 +1,27 @@
-# Generate arginfo headers from .stub.php files using gen_stub.php
-# (make generate_arginfo).
+# Generate arginfo headers from .stub.php files (make generate_arginfo).
 #
-# gen_stub.php is deliberately not pinned: the committed headers are generated
-# with php-src master's, which knows the newest PHP versions, so its output
-# changes occasionally. The one of the PHP found here may be older and drop
-# declarations for newer versions; pass -DGEN_STUB_PHP=<php-src>/build/gen_stub.php
-# to use master's.
-find_file(GEN_STUB_PHP gen_stub.php
-    PATHS "${PhpConfig_ROOT_DIR}/lib/php/build"
-    DOC "Path to PHP's gen_stub.php"
-    NO_DEFAULT_PATH
-)
+# Uses php-src master's gen_stub.php, downloaded on every run, not the one of
+# the PHP built against: master's knows the newest PHP versions, an older one
+# drops their declarations. So the output changes occasionally, when
+# gen_stub.php changes upstream. It downloads PHP-Parser next to itself on first
+# use, and needs a PHP 8 interpreter with the tokenizer extension.
+set(GEN_STUB_PHP_URL
+    "https://raw.githubusercontent.com/php/php-src/master/build/gen_stub.php"
+    CACHE STRING "URL of the gen_stub.php used to generate arginfo headers")
+set(GEN_STUB_PHP_EXECUTABLE "${PhpConfig_PHP_BINARY}" CACHE FILEPATH
+    "PHP interpreter running gen_stub.php (PHP 8+)")
+set(_gen_stub_php "${CMAKE_BINARY_DIR}/gen_stub/gen_stub.php")
 
-if(GEN_STUB_PHP)
-    foreach(_stub_name tags entity_body ddappsec)
-        set(_stub ${CMAKE_CURRENT_SOURCE_DIR}/src/extension/${_stub_name}.stub.php)
-        set(_arginfo "${CMAKE_CURRENT_SOURCE_DIR}/src/extension/${_stub_name}_arginfo.h")
-        add_custom_command(
-            OUTPUT ${_arginfo}
-            COMMAND ${PhpConfig_PHP_BINARY} ${GEN_STUB_PHP} ${_stub}
-            DEPENDS ${_stub}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/extension
-            COMMENT "Generating ${_stub_name}_arginfo.h from ${_stub_name}.stub.php"
-        )
-        list(APPEND STUB_ARGINFO_HEADERS ${_arginfo})
-    endforeach()
-    add_custom_target(generate_arginfo DEPENDS ${STUB_ARGINFO_HEADERS})
-else()
-    message(WARNING "gen_stub.php not found; arginfo headers will not be auto-regenerated from stub files")
-endif()
+set(_gen_stub_commands "")
+foreach(_stub_name tags entity_body ddappsec)
+    list(APPEND _gen_stub_commands COMMAND ${GEN_STUB_PHP_EXECUTABLE}
+        ${_gen_stub_php} ${CMAKE_CURRENT_SOURCE_DIR}/src/extension/${_stub_name}.stub.php)
+endforeach()
+
+add_custom_target(generate_arginfo
+    COMMAND ${CMAKE_COMMAND} -DURL=${GEN_STUB_PHP_URL} -DDEST=${_gen_stub_php}
+        -P ${CMAKE_CURRENT_LIST_DIR}/download_file.cmake
+    ${_gen_stub_commands}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/extension
+    COMMENT "Generating arginfo headers with php-src master's gen_stub.php"
+    VERBATIM)
