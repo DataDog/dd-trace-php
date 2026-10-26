@@ -245,7 +245,10 @@ class AMQPIntegration extends Integration
                 $callback = $hook->args[6];
                 $hook->args[6] = static function ($message) use ($queue, $callback) {
                     // Each message gets its own pathway, so what the callback produces links to
-                    // this message only, and nothing after the callback links to it.
+                    // this message only, and nothing after the callback links to it. Not fiber
+                    // safe: callbacks that interleave on fibers would pop each other's pathways.
+                    // That's fine for now, as php-amqplib calls back synchronously, one message
+                    // at a time, from wait().
                     \DDTrace\Internal\dsm_push_pathway();
                     try {
                         if ($message instanceof AMQPMessage) {

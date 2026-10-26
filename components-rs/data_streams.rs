@@ -211,7 +211,10 @@ impl RequestPathway {
 
 thread_local! {
     static REQUEST_PATHWAY: RefCell<RequestPathway> = RefCell::default();
-    /// Pathways set aside by `ddog_dsm_push_pathway`, innermost last.
+    /// Pathways set aside by `ddog_dsm_push_pathway`, innermost last. Pushes and pops must nest,
+    /// so this isn't fiber safe: fibers that interleave on one thread restore each other's
+    /// pathways. That's fine for now, as the only user, php-amqplib's `basic_consume`, calls back
+    /// synchronously.
     static OUTER_PATHWAYS: RefCell<Vec<RequestPathway>> = RefCell::default();
 }
 
