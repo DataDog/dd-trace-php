@@ -24,7 +24,9 @@ if [[ -n $USE_SSI ]]; then
   mkdir -p "$PKG/loader" "$PKG/trace/ext/$PHP_API"
   ln -s /tracer-ssi/libdatadog_php.so "$PKG/loader/libdatadog_php.so"
   ln -s /tracer-ssi/ddtrace.so "$PKG/trace/ext/$PHP_API/ddtrace${EXT_SUFFIX}.so"
-  # ddtrace.so includes AppSec
+  # Like the SSI package (tooling/bin/generate-ssi-package.sh), mark ddtrace.so
+  # as including AppSec: the loader then treats AppSec as provided by ddtrace
+  # instead of injecting a separate ddappsec.so (ddloader_combined_product_available).
   touch "$PKG/trace/ext/$PHP_API/.ddtrace${EXT_SUFFIX}.appsec"
   ln -s /project/src "$PKG/trace/src"
   {

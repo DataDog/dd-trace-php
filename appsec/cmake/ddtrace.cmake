@@ -216,9 +216,18 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
 endif()
 target_compile_definitions(ddtrace_objects PRIVATE
-    ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 MPACK_HAS_CONFIG=1 COMPILE_DL_DDTRACE=1 TRACER=1 SIDECAR=1 APPSEC=1)
-maybe_enable_coverage(ddtrace_objects)
+    ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 MPACK_HAS_CONFIG=1 COMPILE_DL_DDTRACE=1 TRACER=1 SIDECAR=1 APPSEC=1 TESTING=1)
+# Coverage is reported for AppSec only
+maybe_enable_coverage_for_sources(${APPSEC_EXTENSION_SOURCES})
+# config.m4 writes ext/version.h into the source tree, where it is stale if
+# VERSION changed since the last make build. ext/ includes it as "version.h",
+# which resolves next to the including file before any include directory. So
+# force the generated one in: it defines PHP_DDTRACE_VERSION first, and the
+# include guard turns a stale copy into a no-op.
+target_compile_options(ddtrace_objects PRIVATE -include "${VERSION_H_PATH}")
 target_include_directories(ddtrace_objects PRIVATE
+    ${CMAKE_BINARY_DIR}/gen_ddtrace
+    ${CMAKE_BINARY_DIR}/gen_ddtrace/ext
     ${CURL_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/..
     ${CMAKE_SOURCE_DIR}/../src/dogstatsd
@@ -229,8 +238,6 @@ target_include_directories(ddtrace_objects PRIVATE
     ${CMAKE_SOURCE_DIR}/../tracer/vendor
     ${CMAKE_SOURCE_DIR}/../tracer/vendor/mpack
     ${CMAKE_SOURCE_DIR}/../tracer/vendor/mt19937
-    ${CMAKE_BINARY_DIR}/gen_ddtrace
-    ${CMAKE_BINARY_DIR}/gen_ddtrace/ext
 )
 target_link_libraries(ddtrace_objects PRIVATE
     PhpConfig ${CURL_LIBRARIES} PCRE2::pcre2)

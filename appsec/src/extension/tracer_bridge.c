@@ -24,8 +24,10 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "string_helpers.h"
-#include "test_mock_transport.h"
 #include <ext/compatibility.h>
+#ifdef TESTING
+#    include "test_mock_transport.h"
+#endif
 
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
@@ -43,7 +45,9 @@ void dd_trace_startup(void)
 
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
+#ifdef TESTING
         dd_testing_setup_mock_transport();
+#endif
     }
 }
 
@@ -184,6 +188,7 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 ddog_AppsecCResponse dd_trace_send_appsec_message(
     const uint8_t *nonnull request, size_t request_len, bool client_init)
 {
+#ifdef TESTING
     if (dd_testing_send_active) {
         ddog_CharSlice data = {
             .ptr = (const char *)request,
@@ -191,6 +196,7 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
         };
         return dd_testing_mock_send_appsec_message(data);
     }
+#endif
 
     if (DATADOG_G(sidecar) == NULL) {
         mlog_once(dd_log_warning,
@@ -235,10 +241,12 @@ void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)
     if (response.ptr == NULL) {
         return;
     }
+#ifdef TESTING
     if (dd_testing_send_active) {
         free(response.ptr);
         return;
     }
+#endif
     ddog_sidecar_appsec_response_drop(response);
 }
 

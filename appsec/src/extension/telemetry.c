@@ -1,9 +1,9 @@
+#include "telemetry.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "logging.h"
 #include "php_helpers.h"
 #include "string_helpers.h"
-#include "telemetry.h"
 #include "tracer_bridge.h"
 #include <ext/compatibility.h>
 

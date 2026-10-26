@@ -11,44 +11,25 @@
 
 #include <ext/compatibility.h>
 
-#include <limits.h>
-#include <stdlib.h>
+#ifdef TESTING
+static void _register_testing_objects(void);
+#endif
 
-static bool _parse_uint(
-    zai_str value, zval *nonnull decoded_value, long long max)
+void dd_config_minit(void)
 {
-    char *endptr = NULL;
-    const int base = 10;
-    long long ini_value = strtoll(value.ptr, &endptr, base);
-
-    if (endptr == value.ptr || *endptr != '\0') {
-        return false;
-    }
-
-    if (ini_value < 0) {
-        ini_value = 0;
-    } else if (ini_value > max) {
-        ini_value = max;
-    }
-
-    ZVAL_LONG(decoded_value, ini_value);
-    return true;
+#ifdef TESTING
+    _register_testing_objects();
+#endif
 }
 
-bool dd_appsec_parse_uint32(
-    zai_str value, zval *nonnull decoded_value, bool persistent)
+bool dd_cfg_enable_via_remcfg(void)
 {
-    UNUSED(persistent);
-    return _parse_uint(value, decoded_value, UINT32_MAX);
+    return zai_config_memoized_entries[DATADOG_CONFIG_DD_APPSEC_ENABLED]
+                   .name_index == ZAI_CONFIG_ORIGIN_DEFAULT &&
+           get_DD_REMOTE_CONFIG_ENABLED();
 }
 
-bool dd_appsec_parse_uint64(
-    zai_str value, zval *nonnull decoded_value, bool persistent)
-{
-    UNUSED(persistent);
-    return _parse_uint(value, decoded_value, LONG_MAX);
-}
-
+#ifdef TESTING
 static zai_config_entry *nullable _find_entry(zend_string *nonnull name)
 {
     for (unsigned i = 0; i < DATADOG_CONFIG_COUNT; i++) {
@@ -101,16 +82,10 @@ static const zend_function_entry testing_functions[] = {
 };
 // clang-format on
 
-void dd_config_minit(void)
+static void _register_testing_objects(void)
 {
     if (get_global_DD_APPSEC_TESTING()) {
         dd_phpobj_reg_funcs(testing_functions);
     }
 }
-
-bool dd_cfg_enable_via_remcfg(void)
-{
-    return zai_config_memoized_entries[DATADOG_CONFIG_DD_APPSEC_ENABLED]
-                   .name_index == ZAI_CONFIG_ORIGIN_DEFAULT &&
-           get_DD_REMOTE_CONFIG_ENABLED();
-}
+#endif

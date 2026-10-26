@@ -54,7 +54,9 @@ static const double _backoff_max_exponent = 10.0;
 
 #define DD_PATH_FORMAT "%s%sddappsec_" PHP_DDTRACE_VERSION "_%u"
 
+#ifdef TESTING
 static void _register_testing_objects(void);
+#endif
 
 static bool _skip_connecting(dd_helper_shared_state *nonnull s);
 static bool _try_lock_shared_state(dd_helper_shared_state *nonnull s);
@@ -72,7 +74,9 @@ void dd_helper_startup(void)
         mlog_err(dd_log_error, "Failed to mmap shared state");
     }
 
+#ifdef TESTING
     _register_testing_objects();
+#endif
 }
 
 void dd_helper_shutdown(void)
@@ -445,6 +449,7 @@ static void _maybe_reset_failed_counter(void)
     }
 }
 
+#ifdef TESTING
 static PHP_FUNCTION(datadog_appsec_testing_is_connected_to_helper)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -458,7 +463,7 @@ static PHP_FUNCTION(datadog_appsec_testing_is_connected_to_helper)
     }
 }
 
-#define TEN_E9_D 1000000000.0
+#    define TEN_E9_D 1000000000.0
 static PHP_FUNCTION(datadog_appsec_testing_backoff_status)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -539,3 +544,4 @@ static void _register_testing_objects(void)
 
     dd_phpobj_reg_funcs(functions);
 }
+#endif

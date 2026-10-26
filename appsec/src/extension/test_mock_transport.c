@@ -4,16 +4,17 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
+#ifdef TESTING
 // NOLINTNEXTLINE(misc-header-include-cycle)
-#include <php.h>
-#include <string.h>
-#include <unistd.h>
+#    include <php.h>
+#    include <string.h>
+#    include <unistd.h>
 
-#include "attributes.h"
-#include "logging.h"
-#include "php_objects.h"
-#include "test_mock_transport.h"
-#include <ext/compatibility.h>
+#    include "attributes.h"
+#    include "logging.h"
+#    include "php_objects.h"
+#    include "test_mock_transport.h"
+#    include <ext/compatibility.h>
 
 /* In test mode the PHP script creates a socketpair and tells the extension
  * which fd to use via datadog\appsec\testing\set_mock_helper_fd().  The fd is
@@ -160,3 +161,4 @@ void dd_testing_setup_mock_transport(void)
     dd_testing_send_active = true;
     dd_phpobj_reg_funcs(_functions);
 }
+#endif /* TESTING */

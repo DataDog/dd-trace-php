@@ -14,7 +14,7 @@ LOGS_PHP=(
 touch "${LOGS_PHP[@]}"
 chown linux_user "${LOGS_PHP[@]}"
 
-# Enable extensions (writes ddtrace/ddappsec to php.ini)
+# Enable extensions (writes ddtrace to php.ini)
 enable_extensions.sh
 
 # Start PHP-FPM in the background with custom php.ini location

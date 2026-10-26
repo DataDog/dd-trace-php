@@ -44,7 +44,10 @@ option(DD_APPSEC_SSI "Whether to build ddtrace in split configuration (slim ddtr
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
 
 include("cmake/coverage.cmake")
-include("cmake/boost.cmake")
+# Only the tests' mock_helper uses Boost
+if(DD_APPSEC_TESTING)
+    include("cmake/boost.cmake")
+endif()
 
 if(DD_APPSEC_TESTING OR DD_APPSEC_DDTRACE_ALT)
     find_package(PhpConfig REQUIRED)

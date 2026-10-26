@@ -153,6 +153,22 @@ task downloadComposer(type: Download) {
     }
 }
 
+// Modification times (ms) of files in a volume, or null if any is missing
+def volumeFileTimes = { String volumeName, List files ->
+    Process proc = ['docker', 'run', '--rm', '--mount',
+                    "type=volume,src=$volumeName,dst=/vol",
+                    "$dockerMirror/library/busybox", 'sh', '-c',
+                    "stat -c %Y ${files.collect { "'/vol/$it'" }.join(' ')}"]
+            .execute()
+
+    proc.waitForOrKill(5_000)
+    if (proc.exitValue() != 0) {
+        return null
+    }
+    def times = proc.text.readLines()*.trim().findAll { it }.collect { it.toLong() * 1000 }
+    times.size() == files.size() ? times : null
+}
+
 def buildRunInDockerTask = { Map options ->
     String baseName = options.get('baseName')
     def version = options.get('version')
@@ -255,21 +271,11 @@ def buildRunInDockerTask = { Map options ->
                 String volumeName = hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']
                 def files = options['outputs']['files']
                 outputs.upToDateWhen {
-                    Process proc = ['docker', 'run', '--rm', '--mount',
-                                    "type=volume,src=$volumeName,dst=/vol",
-                                    "$dockerMirror/library/busybox", 'sh', '-c',
-                                    "stat -c %Y ${files.collect { "'/vol/$it'" }.join(' ')} 2>/dev/null | sort -n | head -1"]
-                            .execute()
-
-                    proc.waitForOrKill(5_000)
-                    if (proc.exitValue() != 0) {
+                    def outputTimes = volumeFileTimes(volumeName, files)
+                    if (!outputTimes) {
                         return false
                     }
-                    def procOutput = proc.text.trim()
-                    if (procOutput == '') {
-                        return false
-                    }
-                    long outputsTime = procOutput.toLong() * 1000
+                    long outputsTime = outputTimes.min()
                     long latestInputDate =
                             inputs.files.collect { it.lastModified() }.max()
                     if (latestInputDate > outputsTime) {
@@ -278,6 +284,29 @@ def buildRunInDockerTask = { Map options ->
 
                     long imageTime = creationDateOf(imageName)
                     imageTime < outputsTime
+                }
+            }
+
+            // Gradle can't fingerprint files in volumes (e.g. a library built
+            // by another task): the task is out of date when one of them is
+            // newer than the oldest output.
+            def volumeInputs = volumes.findAll { name, spec -> spec['inputFiles'] }
+            if (volumeInputs) {
+                String outputVolume = options['outputs'] ?
+                        (hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']) :
+                        null
+                outputs.upToDateWhen {
+                    def outputTimes = outputVolume ?
+                            volumeFileTimes(outputVolume, options['outputs']['files']) :
+                            outputFiles.collect { file(it) }.findAll { it.exists() }*.lastModified()
+                    if (!outputTimes || (!outputVolume && outputTimes.size() != outputFiles.size())) {
+                        return false
+                    }
+                    long outputsTime = outputTimes.min()
+                    volumeInputs.every { name, spec ->
+                        def inputTimes = volumeFileTimes(name, spec['inputFiles'])
+                        inputTimes != null && inputTimes.max() <= outputsTime
+                    }
                 }
             }
 
@@ -358,7 +387,9 @@ def buildTracerTask = { String version, String variant ->
             inputs: [
                     dirs: [
                             '../../../ext',
+                            '../../../m4',
                             '../../src',
+                            '../../../src/dogstatsd',
                             '../../../tracer',
                             '../../../components',
                             '../../../components-rs',
@@ -377,7 +408,6 @@ def buildTracerTask = { String version, String variant ->
                             '../../../config.m4',
                             '../../../ddtrace-extension-linux.sym',
                             '../../../ddtrace-extension.sym',
-                            '../../../profiling/build.rs',
                             '../../recommended.json',
                     ],
             ],
@@ -395,6 +425,7 @@ def buildTracerTask = { String version, String variant ->
                     'php-portable-libdatadog-php': [
                             mountPoint: '/portable-rust',
                             readonly: true,
+                            inputFiles: ['libdatadog_php.a', 'php_sidecar_mockgen'],
                     ],
             ],
             taskDependencies: ['buildPortableLibdatadogPhp'],
@@ -411,6 +442,12 @@ def buildTracerTask = { String version, String variant ->
                             --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
                         make /project/tmp/build_extension/modules/ddtrace.so
                     TRACER=/project/tmp/build_extension/modules/ddtrace.so
+                    # The musl tests reuse this glibc build
+                    versionInfo=\$(readelf --version-info "\$TRACER")
+                    if grep -q 'GLIBC_' <<< "\$versionInfo"; then
+                        echo 'ddtrace.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
                     mkdir -p /tracer/build_extension/modules
                     cp "\$TRACER" \
                         /tracer/build_extension/modules/ddtrace.so
@@ -435,6 +472,7 @@ def buildTracerCmakeTask = { String version, String variant ->
                     dirs: [
                             '../../../ext',
                             '../../src',
+                            '../../../src/dogstatsd',
                             '../../../tracer',
                             '../../../components',
                             '../../../components-rs',
@@ -453,9 +491,8 @@ def buildTracerCmakeTask = { String version, String variant ->
                             '../../../compile_rust.sh',
                             '../../../ddtrace-extension-linux.sym',
                             '../../../ddtrace-extension.sym',
-                            '../../../profiling/build.rs',
                             '../../CMakeLists.txt',
-                            '../../cmake/ddtrace.cmake',
+                            '../../third_party/CMakeLists.txt',
                             '../../recommended.json',
                     ],
             ],
@@ -473,6 +510,7 @@ def buildTracerCmakeTask = { String version, String variant ->
                     'php-portable-libdatadog-php': [
                             mountPoint: '/portable-rust',
                             readonly: true,
+                            inputFiles: ['libdatadog_php.a', 'php_sidecar_mockgen'],
                     ],
             ],
             taskDependencies: ['buildPortableLibdatadogPhp'],
@@ -490,6 +528,12 @@ def buildTracerCmakeTask = { String version, String variant ->
                           -DDD_APPSEC_PHP_SIDECAR_MOCKGEN=/portable-rust/php_sidecar_mockgen \\
                           /project/appsec
                     make -j ddtrace
+                    # The musl tests reuse this glibc build
+                    versionInfo=\$(readelf --version-info ddtrace.so)
+                    if grep -q 'GLIBC_' <<< "\$versionInfo"; then
+                        echo 'ddtrace.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
                     mkdir -p /tracer/build_extension/modules
                     cp ddtrace.so /tracer/build_extension/modules/ddtrace.so
                     touch /tracer/build_extension/modules/ddtrace.so
@@ -507,6 +551,7 @@ def buildTracerSsiTask = { String version, String variant ->
             'php-portable-libdatadog-php': [
                     mountPoint: '/portable-rust',
                     readonly: true,
+                    inputFiles: ['libdatadog_php.so', 'php_sidecar_mockgen'],
             ],
     ]
 
@@ -622,6 +667,7 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                     dirs: [
                             '../../../ext',
                             '../../src',
+                            '../../../src/dogstatsd',
                             '../../../tracer',
                             '../../../components',
                             '../../../components-rs',
@@ -660,6 +706,7 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                     'php-portable-libdatadog-php': [
                             mountPoint: '/portable-rust',
                             readonly: true,
+                            inputFiles: ['libdatadog_php.so', 'php_sidecar_mockgen'],
                     ],
             ],
             taskDependencies: ['buildPortableLibdatadogPhp'],
@@ -712,10 +759,14 @@ def buildCoverageReportTask = {
             description: "Generate helper-rust coverage for $id",
             needsBoostCache: false,
             needsCargoCache: false,
+            inputs: [
+                    dirs: ['../../helper-rust/src'],
+            ],
             volumes: [
                     'php-portable-libdatadog-php': [
                             mountPoint: '/portable-rust',
                             readonly: true,
+                            inputFiles: ['libdatadog_php.so'],
                     ],
             ],
             taskDependencies: ['buildPortableLibdatadogPhp'],
@@ -786,7 +837,11 @@ def buildLoaderTask = { String version, String variant ->
                     export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
                     PHP_PREFIX=/opt/php/\$PHP_SDK_VERSION
                     echo "Using PHP SDK from: \$PHP_PREFIX"
-                    cd /project/loader
+                    # phpize builds in the source directory: use a copy, so as not
+                    # to write into this task's inputs, which the versions share
+                    rm -rf /loader-build/src
+                    cp -a /project/loader /loader-build/src
+                    cd /loader-build/src
                     make distclean 2>/dev/null || true
                     \$PHP_PREFIX/bin/phpize
                     rm -f config.cache
@@ -1082,6 +1137,9 @@ def helperRustInputs = [
                 '../../helper-rust/Cargo.toml',
                 '../../../Cargo.lock',
                 '../../../Cargo.toml',
+                // Workspace members, which cargo reads even for -p helper-rust
+                '../../../sidecar/Cargo.toml',
+                '../../../components-rs/php_sidecar_mockgen/Cargo.toml',
                 '../../../VERSION',
                 '../../../rust-toolchain.toml',
                 '../../helper-rust/clippy.toml',

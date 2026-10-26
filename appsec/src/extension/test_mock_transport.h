@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#ifdef TESTING
 #    include <components-rs/common.h>
 
 // True while the mock transport is active (set by
@@ -20,3 +21,4 @@ ddog_AppsecCResponse dd_testing_mock_send_appsec_message(ddog_CharSlice data);
 // Activate the mock transport. Call once during extension startup when
 // DD_APPSEC_TESTING is true.
 void dd_testing_setup_mock_transport(void);
+#endif /* TESTING */

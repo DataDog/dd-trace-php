@@ -48,8 +48,21 @@ else()
     endif()
 endif()
 
-# The compilation database has entries for AppSec's sources when ddtrace.so is
-# built with CMake (DD_APPSEC_DDTRACE_ALT).
+# clang-tidy takes the compile flags from compile_commands.json, which only has
+# entries for AppSec's sources when this project compiles them, i.e. builds
+# ddtrace.so (DD_APPSEC_DDTRACE_ALT). CMake rewrites it whenever it regenerates
+# the build system, which make checks before building any target, so it is
+# up to date when tidy runs.
+if(NOT DD_APPSEC_DDTRACE_ALT)
+    foreach(_tidy_target tidy tidy_fix)
+        add_custom_target(${_tidy_target}
+            COMMAND ${CMAKE_COMMAND} -E echo
+                "${_tidy_target} needs -DDD_APPSEC_DDTRACE_ALT=ON for the compilation database"
+            COMMAND ${CMAKE_COMMAND} -E false)
+    endforeach()
+    return()
+endif()
+
 set(FILE_LIST ${APPSEC_EXTENSION_SOURCES})
 
 set(TIDY_DEPS "")

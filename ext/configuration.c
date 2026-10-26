@@ -14,6 +14,9 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #include <tracer/configuration_dependencies.h>
+#ifdef APPSEC
+#include <appsec/src/extension/configuration_dependencies.h>
+#endif
 
 #ifndef SIDECAR
 bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {

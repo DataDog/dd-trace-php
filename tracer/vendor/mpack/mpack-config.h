@@ -23,7 +23,3 @@
 #define MPACK_STDIO 0
 #define MPACK_WRITE_TRACKING 1
 #endif
-
-// The background sender's payload check reads a msgpack array header and then
-// takes the remaining bytes, which read tracking reports as a bug.
-#define MPACK_READ_TRACKING 0

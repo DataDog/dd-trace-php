@@ -1,4 +1,11 @@
 # Generate arginfo headers from .stub.php files using gen_stub.php
+# (make generate_arginfo).
+#
+# gen_stub.php is deliberately not pinned: the committed headers are generated
+# with php-src master's, which knows the newest PHP versions, so its output
+# changes occasionally. The one of the PHP found here may be older and drop
+# declarations for newer versions; pass -DGEN_STUB_PHP=<php-src>/build/gen_stub.php
+# to use master's.
 find_file(GEN_STUB_PHP gen_stub.php
     PATHS "${PhpConfig_ROOT_DIR}/lib/php/build"
     DOC "Path to PHP's gen_stub.php"

@@ -51,7 +51,9 @@ static atomic_int _thread_count;
 #endif
 
 static void _check_enabled(void);
+#ifdef TESTING
 static void _register_testing_objects(void);
+#endif
 
 void dd_appsec_ginit(ddappsec_globals *globals)
 {
@@ -96,7 +98,9 @@ void dd_appsec_minit(int module_number)
     dd_config_minit();
 
     dd_phpobj_reg_funcs(ext_functions);
+#ifdef TESTING
     _register_testing_objects();
+#endif
 
     dd_helper_startup();
     dd_trace_startup();

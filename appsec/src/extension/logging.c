@@ -3,10 +3,10 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#include "logging.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "logging.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "string_helpers.h"
@@ -34,11 +34,15 @@ typedef enum {
 #ifdef ZTS
 __thread char _dd_strerror_buf[1024]; // NOLINT
 #endif
-const int _dd_size_source_prefix =
-    sizeof(__FILE__) - sizeof("appsec_logging.c");
+const int _dd_size_source_prefix = sizeof(__FILE__) - sizeof("logging.c");
 
 static atomic_bool _initialized;
 bool _dd_log_config_ready;
+// The log level while the configuration can't be read: warning before it is
+// loaded. The datadog module destroys the configuration in its MSHUTDOWN, but
+// AppSec still logs during GSHUTDOWN afterwards, so dd_log_detach_cfg() keeps
+// the configured level here; otherwise datadog.appsec.log_level=debug would
+// silently stop applying to GSHUTDOWN.
 dd_log_level_t _dd_log_level_unconfigured = dd_log_warning;
 // mutex used for two purpose:
 //  * initialization (we do it lazily on first log message, not MINIT)
@@ -67,7 +71,9 @@ static int _log_level_to_syslog_pri(dd_log_level_t log_level);
 static void _format_time(
     char *buf, size_t buf_size, struct timespec *time, int precision);
 
+#ifdef TESTING
 static void _register_testing_objects(void);
+#endif
 
 static void _dd_log_errf(const char *format, ...)
 {
@@ -96,7 +102,9 @@ void dd_log_startup_after_cfg(void)
     _dd_log_level_unconfigured = dd_log_warning;
     _dd_log_config_ready = true;
     atomic_store_explicit(&_initialized, false, memory_order_release);
+#ifdef TESTING
     _register_testing_objects();
+#endif
 }
 
 void dd_log_detach_cfg(void)
@@ -543,6 +551,7 @@ bool dd_parse_log_level(
     return true;
 }
 
+#ifdef TESTING
 static PHP_FUNCTION(datadog_appsec_testing_mlog)
 {
     zend_long level;
@@ -603,12 +612,12 @@ static void _register_testing_objects(void)
 
     dd_phpobj_reg_funcs(functions);
 
-#define _REG_LOG_LEVEL(php_name, value)                                        \
-    do {                                                                       \
-        char v[] = "datadog\\appsec\\testing\\log_level\\" php_name;           \
-        dd_phpobj_reg_long_const(                                              \
-            v, sizeof(v) - 1, value, CONST_CS | CONST_PERSISTENT);             \
-    } while (0)
+#    define _REG_LOG_LEVEL(php_name, value)                                    \
+        do {                                                                   \
+            char v[] = "datadog\\appsec\\testing\\log_level\\" php_name;       \
+            dd_phpobj_reg_long_const(                                          \
+                v, sizeof(v) - 1, value, CONST_CS | CONST_PERSISTENT);         \
+        } while (0)
 
     _REG_LOG_LEVEL("OFF", dd_log_off);
     _REG_LOG_LEVEL("FATAL", dd_log_fatal);
@@ -618,3 +627,4 @@ static void _register_testing_objects(void)
     _REG_LOG_LEVEL("DEBUG", dd_log_debug);
     _REG_LOG_LEVEL("TRACE", dd_log_trace);
 }
+#endif

@@ -321,10 +321,6 @@ if test "$PHP_DDTRACE" != "no"; then
   "
 
   DATADOG_APPSEC_SOURCES="\
-    appsec/src/extension/appsec_configuration.c \
-    appsec/src/extension/appsec_ip_extraction.c \
-    appsec/src/extension/appsec_logging.c \
-    appsec/src/extension/appsec_telemetry.c \
     appsec/src/extension/backtrace.c \
     appsec/src/extension/body_parser.c \
     appsec/src/extension/commands/client_init.c \
@@ -334,11 +330,14 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/commands/request_init.c \
     appsec/src/extension/commands/request_shutdown.c \
     appsec/src/extension/commands_helpers.c \
+    appsec/src/extension/configuration.c \
     appsec/src/extension/ddappsec.c \
     appsec/src/extension/dddefs.c \
     appsec/src/extension/duration_acc.c \
     appsec/src/extension/entity_body.c \
     appsec/src/extension/helper_process.c \
+    appsec/src/extension/ip_extraction.c \
+    appsec/src/extension/logging.c \
     appsec/src/extension/msgpack_helpers.c \
     appsec/src/extension/network.c \
     appsec/src/extension/php_helpers.c \
@@ -347,6 +346,7 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/request_lifecycle.c \
     appsec/src/extension/string_helpers.c \
     appsec/src/extension/tags.c \
+    appsec/src/extension/telemetry.c \
     appsec/src/extension/test_mock_transport.c \
     appsec/src/extension/tracer_bridge.c \
     appsec/src/extension/user_tracking.c \
@@ -389,7 +389,9 @@ if test "$PHP_DDTRACE" != "no"; then
 
     if test "$PHP_DDTRACE_APPSEC" != "no"; then
       ALL_DATADOG_SOURCES="$ALL_DATADOG_SOURCES $DATADOG_APPSEC_SOURCES"
-      DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DAPPSEC"
+      dnl AppSec's testing hooks are always compiled in, and only enabled at
+      dnl runtime with DD_APPSEC_TESTING. "#ifdef TESTING" marks that code.
+      DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DAPPSEC -DTESTING"
     fi
   fi
 

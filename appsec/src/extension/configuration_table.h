@@ -7,18 +7,8 @@
 
 // AppSec's settings, part of the table aggregated by ext/configuration.h.
 // Settings shared with the tracer (DD_APPSEC_ENABLED, DD_SERVICE, ...) are
-// defined there. Read them through configuration.h.
-
-#include <config/config.h>
-#include <stdbool.h>
-
-bool dd_parse_log_level(zai_str value, zval *decoded_value, bool persistent);
-bool dd_parse_user_collection_mode(
-    zai_str value, zval *decoded_value, bool persistent);
-bool dd_appsec_parse_uint32(
-    zai_str value, zval *decoded_value, bool persistent);
-bool dd_appsec_parse_uint64(
-    zai_str value, zval *decoded_value, bool persistent);
+// defined there. Read them through configuration.h. The parsers are in
+// configuration_dependencies.h.
 
 // clang-format off
 #define DEFAULT_OBFUSCATOR_KEY_REGEX                                           \
@@ -31,9 +21,9 @@ bool dd_appsec_parse_uint64(
     CONFIG(BOOL, DD_APPSEC_CLI_START_ON_RINIT, "false", .ini_change = zai_config_system_ini_change)                                    \
     CONFIG(STRING, DD_APPSEC_RULES, "", .ini_change = zai_config_system_ini_change)                                                   \
     CONFIG(CUSTOM(INT), DD_APPSEC_WAF_TIMEOUT, "10000", .ini_change = zai_config_system_ini_change,                                   \
-           .parser = dd_appsec_parse_uint64)                                                                                          \
+           .parser = _parse_uint64)                                                                                                   \
     CONFIG(CUSTOM(INT), DD_APPSEC_TRACE_RATE_LIMIT, "100", .ini_change = zai_config_system_ini_change,                                \
-           .parser = dd_appsec_parse_uint32)                                                                                          \
+           .parser = _parse_uint32)                                                                                                   \
     CONFIG(SET_LOWERCASE, DD_APPSEC_EXTRA_HEADERS, "", .ini_change = zai_config_system_ini_change)                                    \
     CONFIG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, DEFAULT_OBFUSCATOR_KEY_REGEX,                                          \
            .ini_change = zai_config_system_ini_change)                                                                                \

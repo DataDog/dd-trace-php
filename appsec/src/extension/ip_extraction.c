@@ -4,8 +4,8 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
-#include "configuration.h"
 #include "ip_extraction.h"
+#include "configuration.h"
 #include "php_objects.h"
 #include "tracer_bridge.h"
 #include <ext/compatibility.h>

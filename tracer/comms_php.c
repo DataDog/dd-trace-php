@@ -5,9 +5,24 @@
 #include "ddtrace.h"
 #include "configuration.h"
 #include <components/log/log.h>
-#include "mpack/mpack.h"
+#include <string.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+// The length of the header of a msgpack array of size 1, in any of the
+// encodings dd_write_array_header (coms.c) may produce, or 0.
+static size_t dd_array_of_one_header_len(const char *payload, size_t payload_len) {
+    if (payload_len >= 1 && memcmp(payload, "\x91", 1) == 0) {
+        return 1;
+    }
+    if (payload_len >= 3 && memcmp(payload, "\xdc\x00\x01", 3) == 0) {
+        return 3;
+    }
+    if (payload_len >= 5 && memcmp(payload, "\xdd\x00\x00\x00\x01", 5) == 0) {
+        return 5;
+    }
+    return 0;
+}
 
 bool ddtrace_send_traces_via_thread(size_t num_traces, const char *payload, size_t payload_len) {
     if (!get_DD_TRACE_ENABLED()) {
@@ -20,33 +35,19 @@ bool ddtrace_send_traces_via_thread(size_t num_traces, const char *payload, size
         // The background sender is capable of sending exactly one trace atm
         return false;
     }
-    bool sent_to_background_sender = false;
 
     /* Encoders encode X traces, but we need to do concatenation at the
      * transport layer too, so we strip away the msgpack array prefix.
      */
-    mpack_reader_t reader;
-    mpack_reader_init_data(&reader, payload, payload_len);
-    do {
-        // 1. Check that it's a msgpack array of size 1
-        mpack_expect_array_match(&reader, 1);
+    size_t header_len = dd_array_of_one_header_len(payload, payload_len);
+    if (!header_len) {
+        LOG(WARN, "Background sender expected a msgpack array of size 1");
+        return false;
+    }
 
-        if (mpack_reader_error(&reader) != mpack_ok) {
-            LOG(WARN, "Background sender expected a msgpack array of size 1");
-            break;
-        }
-
-        // 2. Get the pointer to the bits after the the msgpack array prefix
-        const char *data = payload;
-        size_t data_len = mpack_reader_remaining(&reader, &data);
-
-        if (ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), data, data_len)) {
-            sent_to_background_sender = true;
-        } else {
-            LOG(WARN, "Unable to send payload to background sender's buffer");
-        }
-    } while (false);
-
-    mpack_reader_destroy(&reader);
-    return sent_to_background_sender;
+    if (!ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), payload + header_len, payload_len - header_len)) {
+        LOG(WARN, "Unable to send payload to background sender's buffer");
+        return false;
+    }
+    return true;
 }

@@ -134,12 +134,13 @@ globs work):
 
 ### Build caching
 
-Gradle stores artifacts in Docker volumes (`php-tracer-*`,
-`php-appsec-*`). First run compiles Boost from source; subsequent runs
-reuse it. To force a full rebuild:
+Gradle stores artifacts in Docker volumes: `ddtrace.so` in `php-tracer-*`,
+the CMake build directory of the tests in `php-appsec-unit-*`, and Boost in
+`php-appsec-boost-cache`. First run compiles Boost from source; subsequent
+runs reuse it. To force a full rebuild (keeping Boost):
 
 ```bash
-docker volume rm php-appsec-8.3-debug php-tracer-8.3-debug
+docker volume rm php-appsec-unit-8.3-debug php-tracer-8.3-debug
 ```
 
 ## Appsec lint

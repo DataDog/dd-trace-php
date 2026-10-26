@@ -278,7 +278,7 @@ If you need to inspect sidecar/helper or PHP issues:
 - **c-ares DNS failure in Alpine containers.** Alpine's `curl` and `git` use
   c-ares for DNS, which fails to resolve hosts when the DNS server includes
   EDNS COOKIE options in responses (common with home routers). `wget` and
-  `getent` are unaffected (they use musl's native resolver). This breaks the
-  `buildAppsec-*-musl` task which needs to `git clone` cmake dependencies.
+  `getent` are unaffected (they use musl's native resolver). This breaks
+  tasks that download dependencies inside an Alpine container.
   Fix: pass `--dns 8.8.8.8` to the Docker command.
 - `--info` is recommended for seeing test output in the console. Without it, output goes only to the HTML report in `build/reports/tests/`.
