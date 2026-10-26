@@ -538,7 +538,7 @@ class AMQPIntegration extends Integration
                 $context = \DDTrace\Internal\dsm_set_checkpoint(
                     self::dataStreamsProduceEdgeTags($hook->instance->getName(), $args[1] ?? ''),
                     null,
-                    strlen((string)($args[0] ?? '')) + self::headersSize($headers)
+                    strlen((string)($args[0] ?? '')) + self::nativeHeadersSize($headers)
                 );
                 if ($context === null) {
                     return;
@@ -609,7 +609,7 @@ class AMQPIntegration extends Integration
         \DDTrace\Internal\dsm_set_checkpoint(
             ['direction:in', 'topic:' . (string)$queue->getName(), 'type:rabbitmq'],
             is_string($context) ? $context : null,
-            strlen((string)$envelope->getBody()) + self::headersSize($headers)
+            strlen((string)$envelope->getBody()) + self::nativeHeadersSize($headers)
         );
     }
 
@@ -807,6 +807,26 @@ class AMQPIntegration extends Integration
         $writer = new AMQPWriter();
         $writer->write_table($entries);
         return strlen($writer->getvalue()) - 4;
+    }
+
+    /**
+     * Bytes of ext-amqp headers' names and string values, nested tables and arrays included, as
+     * the Node.js tracer counts them. Numbers, booleans, timestamps and decimals count as 0.
+     */
+    private static function nativeHeadersSize(array $headers): int
+    {
+        $size = 0;
+        foreach ($headers as $name => $value) {
+            if (is_string($name)) {
+                $size += strlen($name);
+            }
+            if (is_string($value)) {
+                $size += strlen($value);
+            } elseif (is_array($value)) {
+                $size += self::nativeHeadersSize($value);
+            }
+        }
+        return $size;
     }
 
     public static function setDataStreamsContextHeader(AMQPMessage $message, string $context)
