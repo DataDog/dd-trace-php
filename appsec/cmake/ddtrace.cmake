@@ -72,6 +72,7 @@ add_custom_target(ddtrace_exports
 endif()
 
 file(READ "${CMAKE_SOURCE_DIR}/../VERSION" VERSION_CONTENTS)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/../VERSION")
 string(STRIP "${VERSION_CONTENTS}" PHP_DDTRACE_VERSION)
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/gen_ddtrace/ext")
 set(VERSION_H_PATH "${CMAKE_BINARY_DIR}/gen_ddtrace/ext/version.h")
@@ -222,9 +223,11 @@ maybe_enable_coverage_for_sources(${APPSEC_EXTENSION_SOURCES})
 # config.m4 writes ext/version.h into the source tree, where it is stale if
 # VERSION changed since the last make build. ext/ includes it as "version.h",
 # which resolves next to the including file before any include directory. So
-# force the generated one in: it defines PHP_DDTRACE_VERSION first, and the
-# include guard turns a stale copy into a no-op.
-target_compile_options(ddtrace_objects PRIVATE -include "${VERSION_H_PATH}")
+# define PHP_DDTRACE_VERSION here: the include guard of every version.h then
+# turns it into a no-op. (Not -include: clang-tidy's llvm-include-order would
+# take that for the main header of every file.)
+target_compile_definitions(ddtrace_objects PRIVATE
+    PHP_DDTRACE_VERSION="${PHP_DDTRACE_VERSION}")
 target_include_directories(ddtrace_objects PRIVATE
     ${CMAKE_BINARY_DIR}/gen_ddtrace
     ${CMAKE_BINARY_DIR}/gen_ddtrace/ext

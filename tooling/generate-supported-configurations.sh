@@ -12,6 +12,7 @@ readonly CONFIG_DEPENDENCY_FILES=(
     "tracer/configuration_dependencies.h"
     "tracer/configuration.h"
     "profiling/configuration.h"
+    "appsec/src/extension/configuration_dependencies.h"
     "appsec/src/extension/configuration_table.h"
 )
 readonly OTEL_CONFIG_FILES=(
@@ -47,10 +48,11 @@ function map_type($raw, $parser) {
     if (preg_match('/^CUSTOM\((.+)\)$/', $raw, $m)) {
         $inner = trim($m[1]);
         // Most CUSTOM(INT) configurations accept textual enum values and only
-        // decode them to integers internally. Sampling distances are different:
-        // their custom parser validates a positive integer and produces IS_LONG.
+        // decode them to integers internally. Sampling distances and AppSec's
+        // _parse_uint* (appsec/src/extension/configuration_dependencies.h) are
+        // different: their custom parser validates an integer.
         if ($inner === 'INT') {
-            $int_parsers = ['ddog_php_prof_config_parse_sampling_distance', 'dd_appsec_parse_uint32', 'dd_appsec_parse_uint64'];
+            $int_parsers = ['ddog_php_prof_config_parse_sampling_distance', '_parse_uint32', '_parse_uint64'];
             return in_array($parser, $int_parsers, true) ? 'int' : 'string';
         }
         if ($inner === 'MAP') {
