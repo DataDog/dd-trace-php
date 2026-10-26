@@ -4,6 +4,7 @@
 #include "../ddtrace.h"
 #include "../configuration.h"
 #include "../span.h"
+#include "../span_tags_view.h"
 #include "uhook_attributes_arginfo.h"
 #include "uhook.h"
 
@@ -17,7 +18,11 @@ typedef struct {
     zend_string *resource;
     zend_string *service;
     zend_string *type;
+    zend_string *component;
+    zend_long kind;
+    bool has_kind;
     zend_array *tags;
+    zend_array *attributes;
     bool args;
     zend_array *arg_whitelist;
     bool retval;
@@ -119,10 +124,10 @@ static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
         zval_ptr_dtor(service);
         ZVAL_STR_COPY(service, def->service);
         if (service_changed) {
-            zend_array *meta = ddtrace_property_array(&span->property_meta);
+            zend_array *attributes = ddtrace_property_array(&span->property_attributes);
             zval val;
             ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
-            zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
+            zend_hash_str_update(attributes, ZEND_STRL("_dd.svc_src"), &val);
         }
     }
     if (def->type) {
@@ -130,20 +135,40 @@ static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
         zval_ptr_dtor(type);
         ZVAL_STR_COPY(type, def->type);
     }
+    if (def->component) {
+        zval *component = &span->property_component;
+        zval_ptr_dtor(component);
+        ZVAL_STR_COPY(component, def->component);
+    }
+    if (def->has_kind) {
+        zval *kind = &span->property_span_kind;
+        zval_ptr_dtor(kind);
+        ZVAL_LONG(kind, def->kind);
+    }
+    zend_string *key;
+    zend_ulong num_key;
+    zval *value;
     if (def->tags) {
-        zend_array *meta = ddtrace_property_array(&span->property_meta);
-        zend_string *key;
-        zval *value;
-        ZEND_HASH_FOREACH_STR_KEY_VAL(def->tags, key, value) {
+        ZEND_HASH_FOREACH_KEY_VAL(def->tags, num_key, key, value) {
+            zend_string *tag = key ? zend_string_copy(key) : zend_long_to_str((zend_long)num_key);
+            ddtrace_span_write_meta(span, tag, value, false);
+            zend_string_release(tag);
+        } ZEND_HASH_FOREACH_END();
+    }
+    if (def->attributes) {
+        zend_array *attributes = ddtrace_property_array(&span->property_attributes);
+        ZEND_HASH_FOREACH_KEY_VAL(def->attributes, num_key, key, value) {
+            Z_TRY_ADDREF_P(value);
             if (key) {
-                Z_TRY_ADDREF_P(value);
-                zend_hash_update(meta, key, value);
+                zend_hash_update(attributes, key, value);
+            } else {
+                zend_hash_index_update(attributes, num_key, value);
             }
         } ZEND_HASH_FOREACH_END();
     }
 }
 
-void dd_uhook_fill_args_in_meta(dd_uhook_def *def, HashTable *meta, zend_execute_data *execute_data) {
+void dd_uhook_fill_args_in_attributes(dd_uhook_def *def, HashTable *attributes, zend_execute_data *execute_data) {
     uint32_t num_args = EX_NUM_ARGS();
 
     if (!num_args || !def->args) {
@@ -162,7 +187,7 @@ void dd_uhook_fill_args_in_meta(dd_uhook_def *def, HashTable *meta, zend_execute
             if (!def->arg_whitelist || zend_hash_exists(def->arg_whitelist, arg_name)) {
                 zend_string *arg = zend_strpprintf(0, "arg.%.*s", (int) ZSTR_LEN(arg_name), ZSTR_VAL(arg_name));
                 zval zv = dd_uhook_save_value(p);
-                zend_hash_update(meta, arg, &zv);
+                zend_hash_update(attributes, arg, &zv);
                 zend_string_release(arg);
             }
         }
@@ -175,7 +200,7 @@ void dd_uhook_fill_args_in_meta(dd_uhook_def *def, HashTable *meta, zend_execute
             if (!def->arg_whitelist || zend_hash_exists(def->arg_whitelist, arg_name)) {
                 zend_string *arg = zend_strpprintf(0, "arg.%.*s", (int) ZSTR_LEN(arg_name), ZSTR_VAL(arg_name));
                 zval zv = dd_uhook_save_value(p);
-                zend_hash_update(meta, arg, &zv);
+                zend_hash_update(attributes, arg, &zv);
                 zend_string_release(arg);
             }
         }
@@ -188,7 +213,7 @@ void dd_uhook_fill_args_in_meta(dd_uhook_def *def, HashTable *meta, zend_execute
         for (zval *end = p + num_args; p < end; ++p) {
             zend_string *arg = zend_strpprintf(0, "arg.%d", varnum++);
             zval zv = dd_uhook_save_value(p);
-            zend_hash_update(meta, arg, &zv);
+            zend_hash_update(attributes, arg, &zv);
             zend_string_release(arg);
         }
     }
@@ -211,7 +236,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     bool new_span;
     dyn->span = ddtrace_alloc_execute_data_span_ex(invocation, execute_data, &new_span);
     dd_fill_span_data(def, dyn->span);
-    dd_uhook_fill_args_in_meta(def, ddtrace_property_array(&dyn->span->property_meta), execute_data);
+    dd_uhook_fill_args_in_attributes(def, ddtrace_property_array(&dyn->span->property_attributes), execute_data);
     if (new_span) {
         ddtrace_observe_opened_span(dyn->span);
     }
@@ -240,9 +265,9 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
     dyn->span = ddtrace_alloc_execute_data_span_ex(invocation, execute_data, &new_span);
     dd_fill_span_data(def, dyn->span);
     if (def->retval) {
-        zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
+        zend_array *attributes = ddtrace_property_array(&dyn->span->property_attributes);
         zval val = dd_uhook_save_value(value);
-        zend_hash_str_update(meta, ZEND_STRL("send_value"), &val);
+        zend_hash_str_update(attributes, ZEND_STRL("send_value"), &val);
     }
     if (new_span) {
         ddtrace_observe_opened_span(dyn->span);
@@ -271,11 +296,11 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
         dd_trace_stop_span_time(dyn->span);
 
         if (def->retval) {
-            zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
+            zend_array *attributes = ddtrace_property_array(&dyn->span->property_attributes);
             zval keyzv = dd_uhook_save_value(key);
-            zend_hash_str_update(meta, ZEND_STRL("yield_key"), &keyzv);
+            zend_hash_str_update(attributes, ZEND_STRL("yield_key"), &keyzv);
             zval val = dd_uhook_save_value(value);
-            zend_hash_str_update(meta, ZEND_STRL("yield_value"), &val);
+            zend_hash_str_update(attributes, ZEND_STRL("yield_value"), &val);
         }
     }
 
@@ -303,9 +328,9 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         dd_trace_stop_span_time(dyn->span);
 
         if (def->retval) {
-            zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
+            zend_array *attributes = ddtrace_property_array(&dyn->span->property_attributes);
             zval val = dd_uhook_save_value(retval);
-            zend_hash_str_update(meta, ZEND_STRL("return_value"), &val);
+            zend_hash_str_update(attributes, ZEND_STRL("return_value"), &val);
         }
     }
 
@@ -339,11 +364,17 @@ static void dd_uhook_dtor(void *data) {
     if (def->type) {
         zend_string_release(def->type);
     }
+    if (def->component) {
+        zend_string_release(def->component);
+    }
     if (def->arg_whitelist) {
         zend_array_release(def->arg_whitelist);
     }
     if (def->tags) {
         zend_array_release(def->tags);
+    }
+    if (def->attributes) {
+        zend_array_release(def->attributes);
     }
     efree(def);
 }
@@ -392,6 +423,15 @@ void dd_uhook_on_function_resolve(zend_function *func) {
                 if (!def->type) {
                     def->type = zend_string_copy(Z_STR(value));
                 }
+            } else if (zend_string_equals_literal(name, "component") && Z_TYPE(value) == IS_STRING) {
+                if (!def->component) {
+                    def->component = zend_string_copy(Z_STR(value));
+                }
+            } else if (zend_string_equals_literal(name, "kind") && Z_TYPE(value) == IS_LONG) {
+                if (!def->has_kind) {
+                    def->has_kind = true;
+                    def->kind = Z_LVAL(value);
+                }
             } else if (zend_string_equals_literal(name, "saveArgs")) {
                 if (!def->arg_whitelist) {
                     if (Z_TYPE(value) == IS_ARRAY) {
@@ -418,6 +458,14 @@ void dd_uhook_on_function_resolve(zend_function *func) {
                     def->tags = Z_ARR(value);
                     // tags may be an immutable array in opcache's shared memory, e.g. a preloaded class constant
                     GC_TRY_ADDREF(def->tags);
+                    if (zend_hash_num_elements(def->tags)) {
+                        zend_error(E_DEPRECATED, "DDTrace\\Trace: $tags is deprecated, use $attributes instead");
+                    }
+                }
+            } else if (zend_string_equals_literal(name, "attributes") && Z_TYPE(value) == IS_ARRAY) {
+                if (!def->attributes) {
+                    def->attributes = Z_ARR(value);
+                    GC_TRY_ADDREF(def->attributes);
                 }
             }
 

@@ -71,29 +71,33 @@ class RatchetTest extends IntegrationTestCase
         });
         Loop::set(Factory::create()); // reset event loop
 
-        foreach ($traces[0] as &$span) {
-            $span["resource"] = preg_replace('(:(\d+)$)', ':%d', $span["resource"]);
-            // Our checker has problems with two root spans being identical in primary attributes
-            if ($span["resource"] === "websocket /" && ($span["metrics"]['websocket.message.length'] ?? "") == '12') {
-                $span["resource"] .= 2;
+        foreach ($traces as &$trace) {
+            foreach ($trace['spans'] as &$span) {
+                $span["resource"] = preg_replace('(:(\d+)$)', ':%d', $span["resource"]);
+                // Our checker has problems with two root spans being identical in primary attributes
+                if ($span["resource"] === "websocket /" && ($span["attributes"]['websocket.message.length'] ?? "") == '12') {
+                    $span["resource"] .= 2;
+                }
             }
+            unset($span);
         }
+        unset($trace);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('websocket.send', 'phpunit', 'websocket', 'websocket ws://127.0.0.1:%d')
-                ->withExactTags([
+                ->withExactAttributes([
                     'span.kind' => 'producer',
                     'component' => 'ratchet',
                     '_dd.svc_src' => 'm',
                     'websocket.message.type' => 'text',
                 ])
-                ->withExactMetrics([
+                ->withExactAttributes([
                     'websocket.message.length' => 12,
                     'websocket.message.frames' => 1,
                 ])
-                ->withExistingTagsNames(["_dd.span_links"]),
+                ->withSpanLinks(),
             SpanAssertion::build('Ratchet\Client\Connector.__invoke', 'ratchet', 'http', 'ws://127.0.0.1:%d')
-                ->withExactTags([
+                ->withExactAttributes([
                     'span.kind' => 'client',
                     'component' => 'ratchet',
                     '_dd.svc_src' => 'ratchet',
@@ -101,129 +105,121 @@ class RatchetTest extends IntegrationTestCase
                     'http.url' => 'ws://127.0.0.1:%d',
                     'network.destination.name' => '127.0.0.1',
                     'http.status_code' => '101',
-                    'http.upgraded' => '1',
+                    'http.upgraded' => true,
                     "_dd.base_service" => "phpunit",
                 ]),
             SpanAssertion::build('websocket.close', 'ratchet', 'websocket', 'websocket /')
-                ->withExactTags([
+                ->withExactAttributes([
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
                     '_dd.svc_src' => 'ratchet',
-                    'websocket.close.code' => '1000',
+                    'websocket.close.code' => 1000,
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
-                    '_dd.p.dm' => "-0",
-                ])
-                ->withExactMetrics([
+                ])->samplingMechanism(0)
+                ->withExactAttributes([
                     '_dd.dm.inherited' => 1,
-                    '_sampling_priority_v1' => 1,
-                ])
-                ->withExistingTagsNames(["_dd.span_links"])
+                ])->samplingPriority(1)
+                ->withSpanLinks()
                 ->withChildren([
                     SpanAssertion::build('websocket.close', 'ratchet', 'websocket', 'websocket /')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'span.kind' => 'producer',
                             'component' => 'ratchet',
                             '_dd.svc_src' => 'ratchet',
-                            'websocket.close.code' => '1000',
+                            'websocket.close.code' => 1000,
                         ])
-                        ->withExistingTagsNames(["_dd.span_links"])
+                        ->withSpanLinks()
                 ]),
             SpanAssertion::build('websocket.receive', 'ratchet', 'websocket', 'websocket /')
-                ->withExactTags([
+                ->withExactAttributes([
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
                     '_dd.svc_src' => 'ratchet',
                     'websocket.message.type' => 'text',
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
-                    '_dd.p.dm' => "-0",
-                ])
-                ->withExactMetrics([
+                ])->samplingMechanism(0)
+                ->withExactAttributes([
                     '_dd.dm.inherited' => 1,
                     'websocket.message.length' => 14,
                     'websocket.message.frames' => 1,
-                    '_sampling_priority_v1' => 1,
-                ])
-                ->withExistingTagsNames(["_dd.span_links"])
+                ])->samplingPriority(1)
+                ->withSpanLinks()
                 ->withChildren([
                     SpanAssertion::build('websocket.send', 'ratchet', 'websocket', 'websocket /')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'span.kind' => 'producer',
                             'component' => 'ratchet',
                             '_dd.svc_src' => 'ratchet',
                             'websocket.message.type' => 'text',
                         ])
-                        ->withExactMetrics([
+                        ->withExactAttributes([
                             'websocket.message.length' => 14,
                             'websocket.message.frames' => 1,
                         ])
-                        ->withExistingTagsNames(["_dd.span_links"])
+                        ->withSpanLinks()
                 ]),
             SpanAssertion::build('websocket.receive', 'ratchet', 'websocket', 'websocket ws://127.0.0.1:%d')
-                ->withExactTags([
+                ->withExactAttributes([
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
                     '_dd.svc_src' => 'ratchet',
                     'websocket.message.type' => 'text',
                     '_dd.dm.service' => 'phpunit',
                     '_dd.dm.resource' => '',
-                    '_dd.p.dm' => "-0",
-                ])
-                ->withExactMetrics([
+                ])->samplingMechanism(0)
+                ->withExactAttributes([
                     '_dd.dm.inherited' => 1,
                     'websocket.message.length' => 12,
                     'websocket.message.frames' => 1,
-                    '_sampling_priority_v1' => 1,
-                ])
-                ->withExistingTagsNames(["_dd.span_links", 'closure.declaration'])
+                ])->samplingPriority(1)
+                ->withExistingAttributeNames(['closure.declaration'])->withSpanLinks()
                 ->withChildren([
                     SpanAssertion::build('websocket.send', 'ratchet', 'websocket', 'websocket ws://127.0.0.1:%d')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'span.kind' => 'producer',
                             'component' => 'ratchet',
                             '_dd.svc_src' => 'ratchet',
                             'websocket.message.type' => 'text',
                         ])
-                        ->withExactMetrics([
+                        ->withExactAttributes([
                             'websocket.message.length' => 14,
                             'websocket.message.frames' => 1,
                         ])
-                        ->withExistingTagsNames(["_dd.span_links"])
+                        ->withSpanLinks()
                 ]),
             SpanAssertion::build('websocket.receive', 'ratchet', 'websocket', 'websocket /2')
-                ->withExactTags([
+                ->withExactAttributes([
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
                     '_dd.svc_src' => 'ratchet',
                     'websocket.message.type' => 'text',
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
-                    '_dd.p.dm' => "-0",
-                ])
-                ->withExactMetrics([
+                ])->samplingMechanism(0)
+                ->withExactAttributes([
                     '_dd.dm.inherited' => 1,
                     'websocket.message.length' => 12,
                     'websocket.message.frames' => 1,
-                    '_sampling_priority_v1' => 1,
-                ])
-                ->withExistingTagsNames(["_dd.span_links"])
+                ])->samplingPriority(1)
+                ->withSpanLinks()
                 ->withChildren([
                     SpanAssertion::build('websocket.send', 'ratchet', 'websocket', 'websocket /2')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'span.kind' => 'producer',
                             'component' => 'ratchet',
                             '_dd.svc_src' => 'ratchet',
                             'websocket.message.type' => 'text',
                         ])
-                        ->withExactMetrics([
+                        ->withExactAttributes([
                             'websocket.message.length' => 12,
                             'websocket.message.frames' => 1,
                         ])
-                        ->withExistingTagsNames(["_dd.span_links"])
+                        ->withSpanLinks()
                 ]),
             SpanAssertion::build('web.request', 'ratchet', 'web', 'GET /')
-                ->withExactTags([
+                ->withExactAttributes([
                     'component' => 'ratchet',
                     '_dd.svc_src' => 'ratchet',
                     'span.kind' => 'server',
@@ -231,7 +227,7 @@ class RatchetTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.useragent' => 'Ratchet-Pawl/0.4.1',
                     'http.status_code' => '101',
-                    'http.upgraded' => '1',
+                    'http.upgraded' => true,
                 ]),
         ]);
     }
@@ -252,7 +248,7 @@ class RatchetTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('Ratchet\Client\Connector.__invoke', 'ratchet', 'http', 'ws://127.0.0.1:1')
-                ->withExactTags([
+                ->withExactAttributes([
                     "span.kind" => "client",
                     "component" => "ratchet",
                     "_dd.svc_src" => "ratchet",

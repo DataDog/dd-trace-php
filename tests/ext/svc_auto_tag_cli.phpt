@@ -10,8 +10,7 @@ $span = \DDTrace\start_span();
 $span->name = 'op';
 \DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
-$processTags = $spans[0]['meta']['_dd.tags.process'];
+$processTags = dd_trace_serialize_closed_spans()['attributes']['_dd.tags.process'];
 
 echo "has svc.user: " . (strpos($processTags, 'svc.user') !== false ? 'YES' : 'NO') . "\n";
 echo "has svc.auto: " . (strpos($processTags, 'svc.auto:') !== false ? 'YES' : 'NO') . "\n";

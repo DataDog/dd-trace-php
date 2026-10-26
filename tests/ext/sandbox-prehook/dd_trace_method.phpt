@@ -95,9 +95,7 @@ array(3) {
 ---
 array(3) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -112,43 +110,32 @@ array(3) {
     string(10) "FooService"
     ["type"]=>
     string(7) "FooType"
-    ["meta"]=>
-    array(5) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["attributes"]=>
+    array(10) {
+      ["runtime-id"]=>
+      string(36) "%s"
+      ["process_id"]=>
+      float(%f)
       ["_dd.svc_src"]=>
       string(1) "m"
       ["args.0"]=>
       string(18) "tracing is awesome"
-      ["runtime-id"]=>
-      string(36) "%s"
-    }
-    ["metrics"]=>
-    array(8) {
-      ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
-      float(1)
-      ["bar"]=>
-      float(0)
       ["foo"]=>
       float(100)
+      ["bar"]=>
+      float(0)
+      ["_dd.agent_psr"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
-      float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
   [1]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -165,16 +152,14 @@ array(3) {
     string(10) "FooService"
     ["type"]=>
     string(7) "FooType"
-    ["meta"]=>
+    ["attributes"]=>
     array(1) {
       ["rand.range"]=>
       string(8) "42 - 999"
     }
   }
   [2]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -189,28 +174,19 @@ array(3) {
     string(19) "dd_trace_method.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(3) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["attributes"]=>
+    array(6) {
       ["runtime-id"]=>
       string(36) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
+      ["process_id"]=>
+      int(%d)
       ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

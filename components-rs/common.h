@@ -1239,12 +1239,34 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
+typedef struct ddog_TracerPayloadBytes ddog_TracerPayloadBytes;
+typedef struct ddog_TraceChunkBytes ddog_TraceChunkBytes;
 typedef struct ddog_SpanBytes ddog_SpanBytes;
 typedef struct ddog_SpanLinkBytes ddog_SpanLinkBytes;
 typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
 typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
+typedef struct ddog_Attributes ddog_Attributes;
+typedef struct ddog_AttrValue ddog_AttrValue;
 
+
+/**
+ * Attribute value type tags from [`ddog_v1_value_type`], so a C caller picks the matching typed
+ * value getter.
+ */
+#define ddog_DDOG_V1_ATTR_STRING 0
+
+#define ddog_DDOG_V1_ATTR_INT 1
+
+#define ddog_DDOG_V1_ATTR_DOUBLE 2
+
+#define ddog_DDOG_V1_ATTR_BOOL 3
+
+#define ddog_DDOG_V1_ATTR_BYTES 4
+
+#define ddog_DDOG_V1_ATTR_KEYVALUE 5
+
+#define ddog_DDOG_V1_ATTR_LIST 6
 
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
@@ -1293,6 +1315,16 @@ typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
 
 typedef struct ddog_Arc_Target ddog_Arc_Target;
+
+/**
+ * An owned `List` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrList ddog_AttrList;
+
+/**
+ * An owned `KeyValue` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrMap ddog_AttrMap;
 
 /**
  * Fundamental configuration of the RC client, which always must be set.
@@ -1495,6 +1527,14 @@ typedef struct ddog_SenderParameters {
   int64_t buffer_size;
   ddog_CharSlice url;
 } ddog_SenderParameters;
+
+/**
+ * Payload-level tracer metadata for the V1 send path not already carried by the sender's
+ * `tracer_headers_tags` (lang, tracer_version, container_id live there and are routed from there).
+ */
+typedef struct ddog_TracerMetadataV1 {
+  ddog_CharSlice runtime_id;
+} ddog_TracerMetadataV1;
 
 /**
  * Raw AppSec response returned by the AppSec message functions.

@@ -34,11 +34,11 @@ try {
 
 array_map(function($span) {
     echo $span['name'];
-    if (isset($span['meta']['error.message'])) {
-        echo ' with exception: ' . $span['meta']['error.message'];
+    if (isset($span['attributes']['error.message'])) {
+        echo ' with exception: ' . $span['attributes']['error.message'];
     }
     echo PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECTF--
 testExceptionIsNull()

@@ -23,8 +23,7 @@ $rr = new RequestReplayer();
 
 $get_sampling = function() use ($rr) {
     $root = json_decode($rr->waitForDataAndReplay()["body"], true);
-    $spans = $root["chunks"][0]["spans"] ?? $root[0];
-    return $spans[0]["metrics"]["_sampling_priority_v1"];
+    return RequestReplayer::chunkPriority($root);
 };
 
 \DDTrace\start_span();

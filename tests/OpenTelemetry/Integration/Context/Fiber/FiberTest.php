@@ -163,7 +163,7 @@ final class FiberTest extends BaseTestCase
                                 SpanAssertion::exists('dd.otherFiber')->withChildren([
                                     SpanAssertion::exists('fiber.suspend')
                                 ])
-                            ])->withExistingTagsNames([
+                            ])->withExistingAttributeNames([
                                 Tag::ERROR_TYPE, Tag::ERROR_STACK, Tag::ERROR_MSG
                             ]),
                             SpanAssertion::exists('fiber.suspend')
@@ -171,7 +171,7 @@ final class FiberTest extends BaseTestCase
                     ])
                 ]),
                 SpanAssertion::exists('fiber.resume'),
-                SpanAssertion::exists('fiber.resume')->withExistingTagsNames([
+                SpanAssertion::exists('fiber.resume')->withExistingAttributeNames([
                     Tag::ERROR_TYPE, Tag::ERROR_STACK, Tag::ERROR_MSG
                 ])
             ])

@@ -58,7 +58,7 @@ $span->getLink();
 DDTrace\close_span();
 var_dump(DDTrace\try_drop_span($span));
 
-foreach (dd_trace_serialize_closed_spans() as $span) {
+foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] as $span) {
     echo $span["name"], "\n";
 }
 

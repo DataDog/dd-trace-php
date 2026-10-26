@@ -98,11 +98,12 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -133,15 +134,16 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ])
                 ->withChildren([
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'GET',
                             '_dd.svc_src' => 'm',
                         ]),
@@ -175,15 +177,16 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ])
                 ->withChildren([
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'GET',
                             '_dd.svc_src' => 'm',
                         ]),
@@ -217,11 +220,12 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -252,15 +256,16 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ])
                 ->withChildren([
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'GET',
                             '_dd.svc_src' => 'm',
                         ]),
@@ -288,11 +293,12 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -317,11 +323,12 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -351,11 +358,12 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -387,11 +395,12 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer-autoload-fails')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer-autoload-fails',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -423,11 +432,12 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /composer-autoload-fails')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/composer-autoload-fails',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }

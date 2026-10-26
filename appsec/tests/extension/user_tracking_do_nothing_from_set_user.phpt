@@ -6,7 +6,7 @@ extension=ddtrace.so
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\track_user_login_success_event;
 use function datadog\appsec\testing\rinit;
 
@@ -34,20 +34,23 @@ $c = $helper->get_commands();
 echo "usr.id:\n";
 var_dump($c[0][1][0]['usr.id']);
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 
 $helper->finished_with_commands();
 ?>
 --EXPECTF--
 usr.id:
 string(5) "Admin"
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
+    [process_id] => %d
     [runtime-id] => %s
-    [usr.id] => Admin
-    [usr.value] => something
-    [usr.metadata] => some other metadata
     [usr.email] => noneofyour@business.com
+    [usr.id] => Admin
+    [usr.metadata] => some other metadata
+    [usr.value] => something
 )

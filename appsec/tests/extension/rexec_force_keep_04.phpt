@@ -6,7 +6,7 @@ datadog.appsec.enabled=1
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit, rshutdown, request_exec, root_span_get_metrics};
+use function datadog\appsec\testing\{rinit, rshutdown, request_exec, root_span_get_attributes};
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -24,17 +24,23 @@ request_exec([
 rshutdown();
 
 
-echo "root_span_get_metrics():\n";
-print_r(root_span_get_metrics());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 
 var_dump(\DDTrace\get_priority_sampling());
 ?>
 --EXPECTF--
-root_span_get_metrics():
+root_span_get_attributes():
 Array
 (
-    [%s] => %d
     [_dd.appsec.enabled] => 1
     [_dd.appsec.waf.duration_ext] => %f
+    [_dd.p.dm] => -5
+    [_dd.p.ts] => 02
+    [_dd.runtime_family] => php
+    [process_id] => %d
+    [runtime-id] => %s
 )
 int(2)

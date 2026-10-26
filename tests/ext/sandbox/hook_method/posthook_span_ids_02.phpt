@@ -55,7 +55,7 @@ function main()
 
 main();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 assert(count($spans) == 2);
 
 foreach ($spans as $span) {

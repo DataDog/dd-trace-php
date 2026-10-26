@@ -6,6 +6,7 @@ use DDTrace\Http\Urls;
 use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -26,8 +27,8 @@ class Psr18Integration extends Integration
                 $span->resource = 'sendRequest';
                 $span->name = 'Psr\Http\Client\ClientInterface.sendRequest';
                 $span->type = Type::HTTP_CLIENT;
-                $span->meta[Tag::SPAN_KIND] = 'client';
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->spanKind = SpanKind::CLIENT;
+                $span->component = self::NAME;
 
                 if (isset($args[0])) {
                     self::addRequestInfo($span, $args[0]);
@@ -36,7 +37,7 @@ class Psr18Integration extends Integration
                 if (isset($retval)) {
                     /** @var \Psr\Http\Message\ResponseInterface $retval */
                     $statusCode = $retval->getStatusCode();
-                    $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+                    $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$statusCode;
                     HttpClientIntegrationHelper::setClientError($span, $statusCode, $retval->getReasonPhrase());
                 }
             }
@@ -52,18 +53,18 @@ class Psr18Integration extends Integration
         $host = Urls::hostname($url);
 
         if ($host) {
-            $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+            $span->attributes[Tag::NETWORK_DESTINATION_NAME] = $host;
         }
 
         if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
             $span->service = Urls::hostnameForTag($url);
-            $span->meta['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+            $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
         }
 
-        $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
+        $span->attributes[Tag::HTTP_METHOD] = $request->getMethod();
 
-        if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
-            $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+        if (!array_key_exists(Tag::HTTP_URL, $span->attributes)) {
+            $span->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
         }
     }
 }

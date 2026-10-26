@@ -30,18 +30,18 @@ spl_autoload_register(function ($class) use ($root) {
 });
 
 // The hook budget is per target, so $probeTargets needs an entry per install site.
-function dd_drupal_render_report(array $spans, array $probeTargets)
+function dd_drupal_render_report(array $payload, array $probeTargets)
 {
     $tags = [];
     $engines = [];
-    foreach ($spans as $span) {
+    foreach (array_merge([], ...array_column($payload['chunks'], 'spans')) as $span) {
         if ($span['name'] !== 'drupal.theme.render') {
             continue;
         }
-        $file = isset($span['meta']['drupal.template.file']) ? $span['meta']['drupal.template.file'] : '<missing>';
+        $file = isset($span['attributes']['drupal.template.file']) ? $span['attributes']['drupal.template.file'] : '<missing>';
         $tags[$file] = (isset($tags[$file]) ? $tags[$file] : 0) + 1;
         // Also reported so that a begin hook exception swallowed by the sandbox cannot pass silently.
-        $engine = isset($span['meta']['drupal.render.engine']) ? $span['meta']['drupal.render.engine'] : '<missing>';
+        $engine = isset($span['attributes']['drupal.render.engine']) ? $span['attributes']['drupal.render.engine'] : '<missing>';
         $engines[$engine] = (isset($engines[$engine]) ? $engines[$engine] : 0) + 1;
     }
     ksort($tags);

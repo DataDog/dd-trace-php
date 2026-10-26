@@ -2,6 +2,8 @@
 Reset distributed tracing context on request init
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 // Initial state
@@ -19,7 +21,8 @@ ini_set("datadog.trace.enabled", 1);
 var_dump(DDTrace\current_context());
 
 ?>
---EXPECT--
+--EXPECTF--
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 array(5) {
   ["trace_id"]=>
   string(1) "0"
@@ -33,6 +36,8 @@ array(5) {
   array(0) {
   }
 }
+
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 array(6) {
   ["trace_id"]=>
   string(3) "123"
@@ -48,6 +53,8 @@ array(6) {
   array(0) {
   }
 }
+
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 array(5) {
   ["trace_id"]=>
   string(1) "0"

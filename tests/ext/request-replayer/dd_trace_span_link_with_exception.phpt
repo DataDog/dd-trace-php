@@ -48,14 +48,27 @@ try {
     echo 'Caught exception: ' . $e->getMessage() . PHP_EOL;
 }
 
-$replay = $rr->waitForDataAndReplay();
+// Find the request carrying our Foo.bar span (v0.4 or v1, whichever the sidecar negotiated).
+$replay = $rr->waitForRequest(function ($r) {
+    if (strpos($r["uri"], "traces") === false) return false;
+    $b = json_decode($r["body"], true);
+    $s = $b["chunks"][0]["spans"][0] ?? ($b[0][0] ?? null);
+    return $s && ($s["name"] ?? null) === "Foo.bar";
+});
 $root = json_decode($replay["body"], true);
 $spans = $root["chunks"][0]["spans"] ?? $root[0];
 $span = $spans[0];
-var_dump($span['meta']['error.message']);
-var_dump($span['meta']['error.type']);
-var_dump($span['meta']['error.stack']);
-var_dump($span['meta']['_dd.span_links']);
+// v1 spans carry typed attributes and hex link ids; v0.4 spans meta and decimal link ids.
+$attributes = $span['attributes'] ?? $span['meta'];
+var_dump($attributes['error.message']);
+var_dump($attributes['error.type']);
+var_dump($attributes['error.stack']);
+$link = $span['span_links'][0];
+if (isset($span['attributes'])) {
+    printf("link=%x:%x\n", hexdec(substr($link['trace_id'], 16)), hexdec($link['span_id']));
+} else {
+    printf("link=%x:%x\n", $link['trace_id'], $link['span_id']);
+}
 ?>
 --EXPECTF--
 Caught exception: Oops!
@@ -64,4 +77,4 @@ string(9) "Exception"
 string(%d) "#0 %sdd_trace_span_link_with_exception.php(12): Foo->doException()
 #1 %sdd_trace_span_link_with_exception.php(33): Foo->bar()
 #2 {main}"
-string(33) "[{"trace_id":"42","span_id":"6"}]"
+link=42:6

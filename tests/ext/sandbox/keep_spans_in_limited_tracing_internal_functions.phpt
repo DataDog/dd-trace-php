@@ -7,6 +7,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand
 --FILE--
 <?php
+include 'dd_dumper.inc';
 DDTrace\trace_function('array_sum', function (\DDTrace\SpanData $span) {
     $span->name = 'array_sum';
 });
@@ -28,7 +29,7 @@ mt_rand();
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_clean_spans());
 ?>
 --EXPECT--
 bool(false)

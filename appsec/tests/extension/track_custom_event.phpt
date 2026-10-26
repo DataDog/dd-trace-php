@@ -6,7 +6,7 @@ extension=ddtrace.so
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\track_custom_event;
 include __DIR__ . '/inc/ddtrace_version.php';
 
@@ -19,18 +19,21 @@ track_custom_event("myevent",
     "email" => "noneofyour@business.com"
 ]);
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
-    [runtime-id] => %s
+    [_dd.p.dm] => -5
+    [_dd.p.ts] => 02
+    [appsec.events.myevent.email] => noneofyour@business.com
+    [appsec.events.myevent.metadata] => some other metadata
     [appsec.events.myevent.track] => true
     [appsec.events.myevent.value] => something
-    [appsec.events.myevent.metadata] => some other metadata
-    [appsec.events.myevent.email] => noneofyour@business.com
-    [_dd.p.ts] => 02
-    [_dd.p.dm] => -5
+    [process_id] => %d
+    [runtime-id] => %s
 )

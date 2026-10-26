@@ -108,16 +108,17 @@ namespace
 
     DDTrace\close_span();
 
-    $spans = dd_trace_serialize_closed_spans();
+    $payload = dd_trace_serialize_closed_spans();
+    $spans = $payload['chunks'][0]['spans'];
     foreach ($spans as $span) {
         if ($span['name'] !== 'drupal.theme.render') {
             continue;
         }
         echo "surviving render span template.file = ",
-            isset($span['meta']['drupal.template.file']) ? $span['meta']['drupal.template.file'] : '<none>',
+            isset($span['attributes']['drupal.template.file']) ? $span['attributes']['drupal.template.file'] : '<none>',
             "\n";
     }
-    dd_drupal_render_report($spans, ['Drupal\Core\Template\TwigThemeEngine::renderTemplate']);
+    dd_drupal_render_report($payload, ['Drupal\Core\Template\TwigThemeEngine::renderTemplate']);
 }
 ?>
 --EXPECT--

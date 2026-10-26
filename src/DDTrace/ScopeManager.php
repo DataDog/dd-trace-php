@@ -5,6 +5,7 @@ namespace DDTrace;
 use DDTrace\Contracts\Scope as ScopeInterface;
 use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
 use DDTrace\Contracts\Span as SpanInterface;
+use DDTrace\Util\BaseConverter;
 use DDTrace\Util\ObjectKVStore;
 
 final class ScopeManager implements ScopeManagerInterface
@@ -125,7 +126,7 @@ final class ScopeManager implements ScopeManagerInterface
 
         if (empty($this->scopes)) {
             if ($internalRootSpan = root_span()) {
-                $traceId = trace_id();
+                $traceId = BaseConverter::convert($internalRootSpan->traceId, 16, 10);
                 if ($this->rootContext) {
                     $parentId = $this->rootContext->spanId;
                 } else {
@@ -142,7 +143,8 @@ final class ScopeManager implements ScopeManagerInterface
         $currentSpanId = $topScope->getSpan()->getSpanId();
         $newScopes = [];
         for ($span = active_span(); $span && ($span->id != $currentSpanId); $span = $span->parent) {
-            $scope = new Scope($this, new Span($span, new SpanContext(trace_id(), $span->id, $span->parent ? $span->parent->id : null)), true);
+            $traceId = $traceId ?? BaseConverter::convert(root_span()->traceId, 16, 10);
+            $scope = new Scope($this, new Span($span, new SpanContext($traceId, $span->id, $span->parent ? $span->parent->id : null)), true);
             $newScopes[] = $scope;
         }
         foreach (array_reverse($newScopes) as $scope) {

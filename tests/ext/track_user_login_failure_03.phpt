@@ -12,7 +12,13 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(1) {
+array(4) {
   ["runtime-id"]=>
   string(%d) %s
+  ["service.name"]=>
+  string(31) "track_user_login_failure_03.php"
+  ["operation.name"]=>
+  string(31) "track_user_login_failure_03.php"
+  ["span.type"]=>
+  string(3) "cli"
 }

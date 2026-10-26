@@ -18,6 +18,7 @@
       "openai.request.method": "POST",
       "openai.request.model": "whisper-1",
       "openai.request.response_format": "json",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.text": "Hello, how are you?",
       "openai.user.api_key": "sk-...9d5d",
@@ -29,7 +30,6 @@
       "_dd.agent_psr": 1,
       "_dd.measured": 1,
       "_sampling_priority_v1": 1,
-      "openai.response.id": 42,
       "openai.response.segments_count": 0
     }
   },

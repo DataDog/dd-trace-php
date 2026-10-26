@@ -52,9 +52,9 @@ final class SidecarThreadModeTest extends WebFrameworkTestCase
 
         // Verify traces were submitted
         $this->assertNotEmpty($traces, 'Expected traces to be submitted through thread-based sidecar');
-        $this->assertCount(1, $traces[0], 'Expected one span in the trace');
+        $this->assertCount(1, $traces[0]['spans'], 'Expected one span in the trace');
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame('web.request', $span['name']);
         $this->assertSame('sidecar-thread-mode-test', $span['service']);
     }
@@ -78,8 +78,8 @@ final class SidecarThreadModeTest extends WebFrameworkTestCase
         $this->assertGreaterThanOrEqual(3, count($traces), 'Expected at least 3 traces from multiple requests');
 
         foreach ($traces as $trace) {
-            $this->assertNotEmpty($trace);
-            $this->assertSame('web.request', $trace[0]['name']);
+            $this->assertNotEmpty($trace['spans']);
+            $this->assertSame('web.request', $trace['spans'][0]['name']);
         }
     }
 }

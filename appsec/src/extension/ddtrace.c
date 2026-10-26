@@ -34,8 +34,8 @@ static int _mod_number;
 static const char *_mod_version;
 static bool _ddtrace_loaded;
 static zend_string *_ddtrace_root_span_fname;
-static zend_string *_meta_propname;
-static zend_string *_metrics_propname;
+static zend_string *_attributes_propname;
+static zend_string *_component_propname;
 static zend_string *_meta_struct_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static uint8_t *_datadog_runtime_id;
@@ -149,8 +149,8 @@ void dd_trace_startup(void)
 {
     _ddtrace_root_span_fname = zend_string_init_interned(
         LSTRARG("ddtrace\\root_span"), 1 /* permanent */);
-    _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
-    _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
+    _attributes_propname = zend_string_init_interned(LSTRARG("attributes"), 1);
+    _component_propname = zend_string_init_interned(LSTRARG("component"), 1);
     _meta_struct_propname =
         zend_string_init_interned(LSTRARG("meta_struct"), 1);
 
@@ -234,13 +234,13 @@ bool dd_trace_enabled(void)
     return _ddtrace_loaded && get_DD_TRACE_ENABLED();
 }
 
-bool dd_trace_span_add_tag(
+bool dd_trace_span_add_attribute(
     zend_object *nonnull span, zend_string *nonnull tag, zval *nonnull value)
 {
-    zval *meta = dd_trace_span_get_meta(span);
-    if (!meta) {
+    zval *attributes = dd_trace_span_get_attributes(span);
+    if (!attributes) {
         if (!get_global_DD_APPSEC_TESTING()) {
-            mlog(dd_log_warning, "Failed to retrieve root span meta");
+            mlog(dd_log_warning, "Failed to retrieve root span attributes");
         }
         zval_ptr_dtor(value);
         return false;
@@ -253,7 +253,7 @@ bool dd_trace_span_add_tag(
         mlog(dd_log_debug, "Adding to root span the tag '%s'", ZSTR_VAL(tag));
     }
 
-    if (zend_hash_add(Z_ARRVAL_P(meta), tag, value) == NULL) {
+    if (zend_hash_add(Z_ARRVAL_P(attributes), tag, value) == NULL) {
         zval_ptr_dtor(value);
         return false;
     }
@@ -261,7 +261,7 @@ bool dd_trace_span_add_tag(
     return true;
 }
 
-bool dd_trace_span_add_tag_str(zend_object *nonnull span,
+bool dd_trace_span_add_attribute_str(zend_object *nonnull span,
     const char *nonnull tag, size_t tag_len, const char *nonnull value,
     size_t value_len)
 {
@@ -270,10 +270,10 @@ bool dd_trace_span_add_tag_str(zend_object *nonnull span,
         return false;
     }
 
-    zval *meta = dd_trace_span_get_meta(span);
-    if (!meta) {
+    zval *attributes = dd_trace_span_get_attributes(span);
+    if (!attributes) {
         if (!get_global_DD_APPSEC_TESTING()) {
-            mlog(dd_log_warning, "Failed to retrieve root span meta");
+            mlog(dd_log_warning, "Failed to retrieve root span attributes");
         }
         return false;
     }
@@ -286,7 +286,7 @@ bool dd_trace_span_add_tag_str(zend_object *nonnull span,
     mlog(dd_log_debug, "Adding to root span the tag '%.*s' with value '%.*s'",
         (int)tag_len, tag, (int)value_len, value);
 
-    bool res = zend_hash_add(Z_ARRVAL_P(meta), ztag, &zvalue) != NULL;
+    bool res = zend_hash_add(Z_ARRVAL_P(attributes), ztag, &zvalue) != NULL;
     zend_string_release(ztag);
 
     if (!res) {
@@ -343,19 +343,34 @@ static zval *_get_span_modifiable_array_property(
     return res;
 }
 
-zval *nullable dd_trace_span_get_meta(zend_object *nonnull zobj)
+zval *nullable dd_trace_span_get_attributes(zend_object *nonnull zobj)
 {
-    return _get_span_modifiable_array_property(zobj, _meta_propname);
-}
-
-zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
-{
-    return _get_span_modifiable_array_property(zobj, _metrics_propname);
+    return _get_span_modifiable_array_property(zobj, _attributes_propname);
 }
 
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
 {
     return _get_span_modifiable_array_property(zobj, _meta_struct_propname);
+}
+
+zend_string *nullable dd_trace_span_get_component(zend_object *nonnull zobj)
+{
+#if PHP_VERSION_ID >= 80000
+    zval *res = zobj->handlers->get_property_ptr_ptr(
+        zobj, _component_propname, BP_VAR_IS, NULL);
+#else
+    zval obj;
+    ZVAL_OBJ(&obj, zobj);
+    zval prop;
+    ZVAL_STR(&prop, _component_propname);
+    zval *res =
+        zobj->handlers->get_property_ptr_ptr(&obj, &prop, BP_VAR_IS, NULL);
+#endif
+    if (res == NULL) {
+        return NULL;
+    }
+    ZVAL_DEREF(res);
+    return Z_TYPE_P(res) == IS_STRING ? Z_STR_P(res) : NULL;
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
@@ -603,7 +618,7 @@ static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)
     }
 }
 
-static PHP_FUNCTION(datadog_appsec_testing_root_span_add_tag)
+static PHP_FUNCTION(datadog_appsec_testing_root_span_add_attribute)
 {
     zend_string *tag = NULL;
     zval *value = NULL;
@@ -621,12 +636,12 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_add_tag)
     }
 
     Z_TRY_ADDREF_P(value);
-    bool result = dd_trace_span_add_tag(root_span, tag, value);
+    bool result = dd_trace_span_add_attribute(root_span, tag, value);
 
     RETURN_BOOL(result);
 }
 
-static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta) // NOLINT
+static PHP_FUNCTION(datadog_appsec_testing_root_span_get_attributes) // NOLINT
 {
     if (zend_parse_parameters_none() == FAILURE) {
         RETURN_FALSE;
@@ -637,9 +652,9 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta) // NOLINT
         RETURN_NULL();
     }
 
-    zval *meta_zv = dd_trace_span_get_meta(root_span);
-    if (meta_zv) {
-        RETURN_ZVAL(meta_zv, 1 /* copy */, 0 /* no destroy original */);
+    zval *attributes_zv = dd_trace_span_get_attributes(root_span);
+    if (attributes_zv) {
+        RETURN_ZVAL(attributes_zv, 1 /* copy */, 0 /* no destroy original */);
     }
 }
 
@@ -657,23 +672,6 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta_struct) // NOLINT
     zval *meta_struct_zv = dd_trace_span_get_meta_struct(root_span);
     if (meta_struct_zv) {
         RETURN_ZVAL(meta_struct_zv, 1 /* copy */, 0 /* no destroy original */);
-    }
-}
-
-static PHP_FUNCTION(datadog_appsec_testing_root_span_get_metrics) // NOLINT
-{
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_FALSE;
-    }
-
-    __auto_type root_span = dd_trace_get_active_root_span();
-    if (!root_span) {
-        RETURN_NULL();
-    }
-
-    zval *metrics_zv = dd_trace_span_get_metrics(root_span);
-    if (metrics_zv) {
-        RETURN_ZVAL(metrics_zv, 1 /* copy */, 0 /* no destroy original */);
     }
 }
 
@@ -701,17 +699,16 @@ ZEND_END_ARG_INFO()
 ZEND_END_ARG_INFO()
 
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_root_span_add_tag, 0, 0, _IS_BOOL, 2)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_root_span_add_attribute, 0, 0, _IS_BOOL, 2)
 ZEND_ARG_TYPE_INFO(0, tag, IS_STRING, 0)
 ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "ddtrace_rshutdown", PHP_FN(datadog_appsec_testing_ddtrace_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_tag", PHP_FN(datadog_appsec_testing_root_span_add_tag), arginfo_root_span_add_tag, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta", PHP_FN(datadog_appsec_testing_root_span_get_meta), void_ret_nullable_array, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_attribute", PHP_FN(datadog_appsec_testing_root_span_add_attribute), arginfo_root_span_add_attribute, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_attributes", PHP_FN(datadog_appsec_testing_root_span_get_attributes), void_ret_nullable_array, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta_struct", PHP_FN(datadog_appsec_testing_root_span_get_meta_struct), void_ret_nullable_array, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_metrics", PHP_FN(datadog_appsec_testing_root_span_get_metrics), void_ret_nullable_array, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0, NULL, NULL)
     PHP_FE_END
 };

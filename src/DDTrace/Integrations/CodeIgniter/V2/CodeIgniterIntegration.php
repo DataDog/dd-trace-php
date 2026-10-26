@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\CodeIgniter\V2;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
@@ -21,7 +22,7 @@ class CodeIgniterIntegration extends Integration
         if (null === $rootSpan) {
             return Integration::NOT_LOADED;
         }
-        $service = \ddtrace_config_app_name(self::NAME);
+        $service = \dd_trace_env_config('DD_SERVICE') ?: self::NAME;
 
         if (!\defined('CI_VERSION') || !isset($router)) {
             return Integration::NOT_LOADED;
@@ -39,12 +40,11 @@ class CodeIgniterIntegration extends Integration
 
     public static function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
     {
-        self::addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->name = 'codeigniter.request';
         $rootSpan->service = $service;
         $rootSpan->type = Type::WEB_SERVLET;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-        $rootSpan->meta[Tag::COMPONENT] = self::NAME;
+        $rootSpan->spanKind = SpanKind::SERVER;
+        $rootSpan->component = self::NAME;
 
         $controller = $router->fetch_class();
         $method = $router->fetch_method();
@@ -57,18 +57,18 @@ class CodeIgniterIntegration extends Integration
                 $span->name = $span->resource = "{$class}.{$method}";
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->component = CodeIgniterIntegration::NAME;
 
                 // We took the assumption that all controllers will extend CI_Controller.
                 // But we've at least seen one healthcheck controller not extending it.
                 if (property_exists($this, 'load') && $this->load && \method_exists($this->load, 'helper')) {
                     $this->load->helper('url');
 
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                    if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                        $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
                             . Normalizer::sanitizedQueryString();
                     }
-                    $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
+                    $rootSpan->attributes['app.endpoint'] = "{$class}::{$method}";
                 }
             }
         );
@@ -90,16 +90,16 @@ class CodeIgniterIntegration extends Integration
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->component = CodeIgniterIntegration::NAME;
 
                 // We took the assumption that all controllers will extend CI_Controller.
                 // But we've at least seen one healthcheck case where it wasn't the case.
                 if ($this->load && \method_exists($this->load, 'helper')) {
                     $this->load->helper('url');
 
-                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                    $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
                         . Normalizer::sanitizedQueryString();
-                    $rootSpan->meta['app.endpoint'] = "{$class}::_remap";
+                    $rootSpan->attributes['app.endpoint'] = "{$class}::_remap";
                 }
             }
         );
@@ -112,7 +112,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
             }
         );
 
@@ -129,7 +129,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::SQL;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->component = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -152,7 +152,7 @@ class CodeIgniterIntegration extends Integration
                         $registered_cache_adapters[$class] = true;
                     }
                 }
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
                 return false;
             }
         );
@@ -175,7 +175,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->component = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -188,7 +188,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->component = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -201,7 +201,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->component = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -214,7 +214,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::CACHE;
                 $span->resource = $span->name;
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->component = CodeIgniterIntegration::NAME;
             }
         );
     }
@@ -229,7 +229,7 @@ class CodeIgniterIntegration extends Integration
         // Is there a literal match?  If so we're done
         if (isset($router->routes[$uri]))
         {
-            $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
+            $rootSpan->attributes[Tag::HTTP_ROUTE] = $uri;
             return;
         }
 
@@ -243,13 +243,13 @@ class CodeIgniterIntegration extends Integration
             // Does the RegEx match?
             if (preg_match('#^'.$key.'$#', $uri))
             {
-                $rootSpan->meta[Tag::HTTP_ROUTE] = $origKey;
+                $rootSpan->attributes[Tag::HTTP_ROUTE] = $origKey;
                 return;
             }
         }
 
         // If we got this far it means we didn't encounter a
         // matching route so we'll set the site default route
-        $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
+        $rootSpan->attributes[Tag::HTTP_ROUTE] = $uri;
     }
 }

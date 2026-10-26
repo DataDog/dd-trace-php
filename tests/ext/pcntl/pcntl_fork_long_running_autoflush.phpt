@@ -33,7 +33,7 @@ function long_running_entry_point()
         // Main
     } else if ($forkPid === 0) {
         // Child
-        if (ddtrace_config_trace_enabled()) {
+        if (\dd_trace_env_config('DD_TRACE_ENABLED')) {
             echo "child is enabled\n";
         }
         call_httpbin();
@@ -44,7 +44,7 @@ function long_running_entry_point()
     }
     call_httpbin();
     pcntl_waitpid($forkPid, $status);
-    if (ddtrace_config_trace_enabled()) {
+    if (\dd_trace_env_config('DD_TRACE_ENABLED')) {
         echo "parent is enabled\n";
     }
 }
@@ -53,13 +53,13 @@ function long_running_entry_point()
 --EXPECTF--
 [ddtrace] [warning] [%d] Error loading deferred integration DDTrace\Integrations\Pcntl\PcntlIntegration: Class not loaded and not autoloadable
 child is enabled
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s
 [ddtrace] [info] [%d] No finished traces to be sent to the agent
 parent is enabled
-[ddtrace] [info] [%d] Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 3 to send-queue for %s
 child is enabled
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s
 [ddtrace] [info] [%d] No finished traces to be sent to the agent
 parent is enabled
-[ddtrace] [info] [%d] Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 3 to send-queue for %s
 [ddtrace] [info] [%d] No finished traces to be sent to the agent

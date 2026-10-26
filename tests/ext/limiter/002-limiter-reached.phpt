@@ -9,7 +9,7 @@ DD_TRACE_RATE_LIMIT=10
 DD_TRACE_SAMPLE_RATE=1
 --FILE--
 <?php
-$spans = [];
+$chunks = [];
 $sampled = 0;
 $loopBreak = 1000;
 
@@ -17,11 +17,11 @@ while (true) {
     \DDTrace\start_span();
     \DDTrace\close_span();
 
-    $spans = array_merge($spans, \dd_trace_serialize_closed_spans());
+    $chunks = array_merge($chunks, \dd_trace_serialize_closed_spans()['chunks']);
     $sampled = 0;
 
-    foreach ($spans as $span) {
-        if (isset($span["metrics"]["_sampling_priority_v1"])) {
+    foreach ($chunks as $chunk) {
+        if (isset($chunk["priority"])) {
             $sampled++;
         }
     }
@@ -36,11 +36,11 @@ while (true) {
     }
 }
 
-$end = $spans[\count($spans)-1];
+$end = $chunks[\count($chunks)-1]["spans"][0];
 
-if (\round($end["metrics"]["_dd.limit_psr"], 1) != 0.5) {
+if (\round($end["attributes"]["_dd.limit_psr"], 1) != 0.5) {
     echo "Fail\n";
-    var_dump($spans);
+    var_dump($chunks);
     exit;
 }
 

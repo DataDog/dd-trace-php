@@ -7,6 +7,7 @@ use DDTrace\Http\Urls;
 use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
@@ -23,7 +24,7 @@ use function DDTrace\start_span;
 function addSpanDataTagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
 {
     if (isset($info[$curlInfoOpt]) && !\trim($info[$curlInfoOpt]) !== '') {
-        $span->meta[$tagName] = $info[$curlInfoOpt];
+        $span->attributes[$tagName] = $info[$curlInfoOpt];
         unset($info[$curlInfoOpt]);
     }
 }
@@ -41,19 +42,19 @@ class CurlSpanInfo {
 
             foreach ($this->spans as $requestSpan) {
                 list($ch, $requestSpan) = $requestSpan;
-                if (isset($requestSpan->meta[Tag::ERROR_MSG])) {
+                if (isset($requestSpan->attributes[Tag::ERROR_MSG])) {
                     continue;
                 }
-                if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
+                if (isset($requestSpan->attributes[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->attributes[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
                     continue;
                 }
                 $info = curl_getinfo($ch);
                 $errorMsg = curl_error($ch);
                 if (empty($info['http_code']) && $errorMsg !== 'No error') {
                     $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
-                    $requestSpan->meta[Tag::ERROR_MSG] = $errorMsg;
-                    $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
-                    $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
+                    $requestSpan->attributes[Tag::ERROR_MSG] = $errorMsg;
+                    $requestSpan->attributes[Tag::ERROR_TYPE] = 'curl error';
+                    $requestSpan->attributes[Tag::ERROR_STACK] = $error_trace;
                 }
                 CurlIntegration::set_curl_attributes($requestSpan, $info);
                 if (isset($info["total_time"])) {
@@ -90,9 +91,9 @@ final class CurlIntegration extends Integration
 
                 $ch = $args[0];
                 if (isset($retval) && $retval === false) {
-                    $span->meta[Tag::ERROR_MSG] = \curl_error($ch);
-                    $span->meta[Tag::ERROR_TYPE] = 'curl error';
-                    $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception, 1);
+                    $span->attributes[Tag::ERROR_MSG] = \curl_error($ch);
+                    $span->attributes[Tag::ERROR_TYPE] = 'curl error';
+                    $span->attributes[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception, 1);
                 }
 
                 self::set_curl_attributes($span, \curl_getinfo($ch));
@@ -132,7 +133,7 @@ final class CurlIntegration extends Integration
             $span->service = "curl";
             $span->type = Type::HTTP_CLIENT;
             Integration::handleInternalSpanServiceName($span, self::NAME);
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            $span->component = self::NAME;
             $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
 
             \DDTrace\collect_code_origins(1);
@@ -173,13 +174,13 @@ final class CurlIntegration extends Integration
                 // finished
                 foreach ($spans as $requestSpan) {
                     list($ch, $requestSpan) = $requestSpan;
-                    $requestSpan->metrics["_dd.measured"] = 1;
+                    $requestSpan->attributes["_dd.measured"] = 1;
                     $info = curl_getinfo($ch);
                     if (empty($info["http_code"])) {
                         $saveSpans = true;
                     }
 
-                    if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
+                    if (isset($requestSpan->attributes[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->attributes[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
                         continue;
                     }
 
@@ -187,11 +188,11 @@ final class CurlIntegration extends Integration
                         if (!isset($error_trace)) {
                             $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
                         }
-                        if (!isset($requestSpan->meta[Tag::ERROR_MSG])) {
-                            $requestSpan->meta[Tag::ERROR_MSG] = "CURL request failure";
+                        if (!isset($requestSpan->attributes[Tag::ERROR_MSG])) {
+                            $requestSpan->attributes[Tag::ERROR_MSG] = "CURL request failure";
                         }
-                        $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
-                        $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
+                        $requestSpan->attributes[Tag::ERROR_TYPE] = 'curl error';
+                        $requestSpan->attributes[Tag::ERROR_STACK] = $error_trace;
                     }
                     self::set_curl_attributes($requestSpan, $info);
                     if (isset($info["total_time"])) {
@@ -214,9 +215,9 @@ final class CurlIntegration extends Integration
                 if (!isset($error_trace)) {
                     $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
                 }
-                $requestSpan->meta[Tag::ERROR_MSG] = curl_multi_strerror($hook->returned);
-                $requestSpan->meta[Tag::ERROR_TYPE] = 'curl_multi error';
-                $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
+                $requestSpan->attributes[Tag::ERROR_MSG] = curl_multi_strerror($hook->returned);
+                $requestSpan->attributes[Tag::ERROR_TYPE] = 'curl_multi error';
+                $requestSpan->attributes[Tag::ERROR_STACK] = $error_trace;
             }
         });
 
@@ -242,18 +243,18 @@ final class CurlIntegration extends Integration
                 foreach ($spans as $requestSpan) {
                     list($ch, $requestSpan) = $requestSpan;
                     if ($ch === $handle) {
-                        if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
+                        if (isset($requestSpan->attributes[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->attributes[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
                             continue;
                         }
                         $info = curl_getinfo($ch);
                         $errorMsg = curl_strerror($hook->returned["result"]);
                         if (empty($info['http_code']) && $errorMsg !== 'No error') {
                             $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
-                            if (!isset($requestSpan->meta[Tag::ERROR_MSG])) {
-                                $requestSpan->meta[Tag::ERROR_MSG] = $errorMsg;
+                            if (!isset($requestSpan->attributes[Tag::ERROR_MSG])) {
+                                $requestSpan->attributes[Tag::ERROR_MSG] = $errorMsg;
                             }
-                            $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
-                            $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
+                            $requestSpan->attributes[Tag::ERROR_TYPE] = 'curl error';
+                            $requestSpan->attributes[Tag::ERROR_STACK] = $error_trace;
                         }
                         self::set_curl_attributes($requestSpan, $info);
                         if (isset($info["total_time"])) {
@@ -268,15 +269,15 @@ final class CurlIntegration extends Integration
             foreach ($spans as $requestSpan) {
                 list($ch, $requestSpan) = $requestSpan;
                 if ($ch === $handle) {
-                    $requestSpan->meta[Tag::ERROR_MSG] = curl_strerror($hook->returned["result"]);
+                    $requestSpan->attributes[Tag::ERROR_MSG] = curl_strerror($hook->returned["result"]);
                     $info = curl_getinfo($ch);
 
-                    if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME])
-                        && 'unparsable-host' !== $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) {
+                    if (isset($requestSpan->attributes[Tag::NETWORK_DESTINATION_NAME])
+                        && 'unparsable-host' !== $requestSpan->attributes[Tag::NETWORK_DESTINATION_NAME]) {
                         continue;
                     }
-                    $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
-                    $requestSpan->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
+                    $requestSpan->attributes[Tag::ERROR_TYPE] = 'curl error';
+                    $requestSpan->attributes[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
                     self::set_curl_attributes($requestSpan, $info);
                     if (isset($info["total_time"])) {
                         $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
@@ -294,21 +295,20 @@ final class CurlIntegration extends Integration
         $span->type = Type::HTTP_CLIENT;
         $span->service = 'curl';
         Integration::handleInternalSpanServiceName($span, self::NAME);
-        self::addTraceAnalyticsIfEnabled($span);
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
+        $span->component = self::NAME;
+        $span->spanKind = SpanKind::CLIENT;
     }
 
     public static function set_curl_attributes($span, $info) {
         $sanitizedUrl = \DDTrace\Util\Normalizer::urlSanitize($info['url']);
         $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($info['url']);
         $host = Urls::hostname($sanitizedUrl);
-        $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+        $span->attributes[Tag::NETWORK_DESTINATION_NAME] = $host;
         unset($info['url']);
 
         if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
             $span->service = Urls::hostnameForTag($sanitizedUrl);
-            $span->meta['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+            $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
         }
 
         $span->resource = $normalizedPath;
@@ -316,8 +316,8 @@ final class CurlIntegration extends Integration
         /* Special case the Datadog Standard Attributes
          * See https://docs.datadoghq.com/logs/processing/attributes_naming_convention/
          */
-        if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
-            $span->meta[Tag::HTTP_URL] = $sanitizedUrl;
+        if (!array_key_exists(Tag::HTTP_URL, $span->attributes)) {
+            $span->attributes[Tag::HTTP_URL] = $sanitizedUrl;
         }
 
         $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
@@ -327,7 +327,10 @@ final class CurlIntegration extends Integration
             HttpClientIntegrationHelper::setClientError($span, (int)$info['http_code']);
         }
 
-        addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
+        if (isset($info['http_code'])) {
+            $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$info['http_code'];
+            unset($info['http_code']);
+        }
 
         addSpanDataTagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
         addSpanDataTagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
@@ -346,7 +349,7 @@ final class CurlIntegration extends Integration
                 if (\substr_compare($key, '_time', -5) === 0) {
                     $val *= 1000000000;
                 }
-                $span->meta["curl.{$key}"] = $val;
+                $span->attributes["curl.{$key}"] = $val;
             }
         }
 

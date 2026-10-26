@@ -43,17 +43,23 @@ class APIGWTest extends WebFrameworkTestCase
             'DD_VERSION' => '1.0',
             'DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED' => 'true',
             'DD_TRACE_HEADER_TAGS' => 'x-dd-proxy-domain-name,x-dd-proxy,x-dd-proxy-httpmethod,x-dd-proxy-path,x-dd-proxy-request-time-ms,x-dd-proxy-stage',
+            'DD_TRACE_AGENT_PROTOCOL_VERSION' => '0.4',
         ]);
+    }
+
+    public static function isApigwTrace($trace)
+    {
+        return \in_array('aws.apigateway', array_column($trace['spans'], 'name'), true);
     }
 
     public function testInferredProxy()
     {
         $until = function ($request) {
             $body = $request["body"] ?? [];
-            $traces = empty($body) ? [[]] : json_decode($body, true);
+            $traces = empty($body) ? [] : $this->parseRawDumpedTraces(json_decode($body, true));
 
             foreach ($traces as $trace) {
-                foreach ($trace as $span) {
+                foreach ($trace['spans'] as $span) {
                     if ($span
                         && isset($span["name"])
                         && $span["name"] === "laravel.request"
@@ -67,42 +73,34 @@ class APIGWTest extends WebFrameworkTestCase
             return false;
         };
 
-        $traces = $this->tracesFromWebRequest(function () {
-            $this->call(
-                GetSpec::create(
-                    'A simple GET request returning a string',
-                    '/simple?key=value&pwd=should_redact',
-                    [
-                        'x-dd-proxy: aws-apigateway',
-                        'x-dd-proxy-request-time-ms: 1739261376000',
-                        'x-dd-proxy-path: /test',
-                        'x-dd-proxy-httpmethod: GET',
-                        'x-dd-proxy-domain-name: example.com',
-                        'x-dd-proxy-stage: aws-prod',
-                    ]
-                )
-            );
-        }, null, $until);
-
-        $apigwTrace = null;
-        foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "aws.apigateway") {
-                $apigwTrace = $trace;
-                break;
-            }
-        }
-
-        $this->snapshotFromTraces([$apigwTrace]);
+        $this->snapshotFromTraces(function () use ($until) {
+            return $this->tracesFromWebRequest(function () {
+                $this->call(
+                    GetSpec::create(
+                        'A simple GET request returning a string',
+                        '/simple?key=value&pwd=should_redact',
+                        [
+                            'x-dd-proxy: aws-apigateway',
+                            'x-dd-proxy-request-time-ms: 1739261376000',
+                            'x-dd-proxy-path: /test',
+                            'x-dd-proxy-httpmethod: GET',
+                            'x-dd-proxy-domain-name: example.com',
+                            'x-dd-proxy-stage: aws-prod',
+                        ]
+                    )
+                );
+            }, null, $until);
+        }, null, null, [self::class, 'isApigwTrace']);
     }
 
     public function testInferredProxyException()
     {
         $until = function ($request) {
             $body = $request["body"] ?? [];
-            $traces = empty($body) ? [[]] : json_decode($body, true);
+            $traces = empty($body) ? [] : $this->parseRawDumpedTraces(json_decode($body, true));
 
             foreach ($traces as $trace) {
-                foreach ($trace as $span) {
+                foreach ($trace['spans'] as $span) {
                     if ($span
                         && isset($span["name"])
                         && $span["name"] === "laravel.request"
@@ -116,31 +114,23 @@ class APIGWTest extends WebFrameworkTestCase
             return false;
         };
 
-        $traces = $this->tracesFromWebRequest(function () {
-            $this->call(
-                GetSpec::create(
-                    'A GET throwing an exception',
-                    '/error?key=value&pwd=should_redact',
-                    [
-                        'x-dd-proxy: aws-apigateway',
-                        'x-dd-proxy-request-time-ms: 1739261376000',
-                        'x-dd-proxy-path: /test',
-                        'x-dd-proxy-httpmethod: GET',
-                        'x-dd-proxy-domain-name: example.com',
-                        'x-dd-proxy-stage: aws-prod',
-                    ]
-                )
-            );
-        }, null, $until);
-
-        $apigwTrace = null;
-        foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "aws.apigateway") {
-                $apigwTrace = $trace;
-                break;
-            }
-        }
-
-        $this->snapshotFromTraces([$apigwTrace]);
+        $this->snapshotFromTraces(function () use ($until) {
+            return $this->tracesFromWebRequest(function () {
+                $this->call(
+                    GetSpec::create(
+                        'A GET throwing an exception',
+                        '/error?key=value&pwd=should_redact',
+                        [
+                            'x-dd-proxy: aws-apigateway',
+                            'x-dd-proxy-request-time-ms: 1739261376000',
+                            'x-dd-proxy-path: /test',
+                            'x-dd-proxy-httpmethod: GET',
+                            'x-dd-proxy-domain-name: example.com',
+                            'x-dd-proxy-stage: aws-prod',
+                        ]
+                    )
+                );
+            }, null, $until);
+        }, null, null, [self::class, 'isApigwTrace']);
     }
 }

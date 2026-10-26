@@ -447,7 +447,7 @@ static bool dd_span_probe_begin(zend_ulong invocation, zend_execute_data *execut
 
     zval probe_id;
     ZVAL_STR_COPY(&probe_id, def->probe_id);
-    zend_hash_str_update(ddtrace_property_array(&dyn->span->property_meta), ZEND_STRL("debugger.probeid"), &probe_id);
+    zend_hash_str_update(ddtrace_property_array(&dyn->span->property_attributes), ZEND_STRL("debugger.probeid"), &probe_id);
 
     if (new_span) {
         ddtrace_observe_opened_span(dyn->span);
@@ -500,7 +500,7 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
     if (def->probe.probe.span_decoration.target == DDOG_SPAN_PROBE_TARGET_ROOT) {
         span = &span->stack->root_span->span;
     }
-    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *attributes = ddtrace_property_array(&span->property_attributes);
 
     bool condition_result = true;
     const ddog_ProbeCondition *const *condition = def->probe.probe.span_decoration.conditions;
@@ -523,11 +523,11 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
             ddog_Vec_SnapshotEvaluationError *error;
             ddog_CaptureConfiguration config_defaults = ddog_capture_defaults();
             ZVAL_STR(&zv, dd_eval_string(spanTag->tag.value, &config_defaults, retval, &error));
-            zend_hash_str_update(meta, spanTag->tag.name.ptr, spanTag->tag.name.len, &zv);
+            zend_hash_str_update(attributes, spanTag->tag.name.ptr, spanTag->tag.name.len, &zv);
 
             zend_string *tag = zend_strpprintf(0, "_dd.di.%.*s.probe_id", (int)spanTag->tag.name.len, spanTag->tag.name.ptr);
             ZVAL_STR_COPY(&zv, def->probe_id);
-            zend_hash_update(meta, tag, &zv);
+            zend_hash_update(attributes, tag, &zv);
             zend_string_release(tag);
 
             if (error) {
@@ -535,7 +535,7 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
 
                 tag = zend_strpprintf(0, "_dd.di.%.*s.evaluation_error", (int)spanTag->tag.name.len, spanTag->tag.name.ptr);
                 ZVAL_STR(&zv, dd_CharSlice_to_zend_string(msg));
-                zend_hash_update(meta, tag, &zv);
+                zend_hash_update(attributes, tag, &zv);
                 zend_string_release(tag);
 
                 ddog_evaluation_error_drop(error);

@@ -38,7 +38,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                     'web',
                     'App\Http\Controllers\RouteCachingController@unnamed unnamed-route'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\RouteCachingController@unnamed',
                         'http.method' => 'GET',
@@ -87,7 +87,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                     'web',
                     'App\Http\Controllers\RouteCachingController@unnamed unnamed-route'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\RouteCachingController@unnamed',
                         'http.method' => 'GET',

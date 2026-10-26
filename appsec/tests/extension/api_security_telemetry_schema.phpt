@@ -35,10 +35,10 @@ var_dump(rinit());
 $helper->get_commands(); // ignore
 
 $rootSpan = root_span();
-$rootSpan->meta["http.method"] = "GET";
-$rootSpan->meta["http.route"] = "/foo/bar";
+$rootSpan->attributes["http.method"] = "GET";
+$rootSpan->attributes["http.route"] = "/foo/bar";
 // framework names are normalized: lowercased, spaces replaced with underscores
-$rootSpan->meta["component"] = "Laravel Framework";
+$rootSpan->component = "Laravel Framework";
 
 var_dump(rshutdown());
 $helper->get_commands(); // ignore

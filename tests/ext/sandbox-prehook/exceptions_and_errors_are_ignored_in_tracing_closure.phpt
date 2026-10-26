@@ -42,7 +42,7 @@ $test->testFoo();
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 var_dump(error_get_last());
 ?>
 --EXPECTF--

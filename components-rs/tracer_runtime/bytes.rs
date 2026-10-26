@@ -1,9 +1,8 @@
-use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use datadog_sidecar_ffi::span::Attributes;
+use libdd_common_ffi::slice::CharSlice;
 use libdd_tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
-use libdd_trace_utils::span::v04::SpanBytes;
+use libdd_trace_utils::span::v1::{AttributeValueBytes, SpanBytes};
 use std::borrow::Cow;
-use std::ffi::CStr;
-use std::os::raw::c_char;
 use std::ptr::NonNull;
 
 /// cbindgen:no-export
@@ -132,212 +131,48 @@ fn convert_zend_to_bytes_string(zend_str: &mut ZendString) -> BytesString {
     }
 }
 
-fn convert_char_slice_to_bytes_string(slice: CharSlice) -> BytesString {
-    match String::from_utf8_lossy(slice.as_bytes().as_ref()) {
-        Cow::Owned(s) => s.into(),
-        Cow::Borrowed(_) => unsafe {
-            BytesString::from_bytes_unchecked(slice.as_bytes().to_vec().into())
-        },
-    }
-}
+// PHP-specific additions to the V1 builder FFI (`datadog_sidecar_ffi::span`): zero-copy
+// zend_string fields.
 
-fn convert_literal_to_bytes_string(string: *const c_char) -> BytesString {
-    unsafe {
-        let cstring = CStr::from_ptr(string);
-
-        match String::from_utf8_lossy(cstring.to_bytes()) {
-            Cow::Owned(s) => s.into(),
-            Cow::Borrowed(s) => BytesString::from_static(s),
-        }
-    }
+#[no_mangle]
+pub extern "C" fn ddog_set_span_service_zstr(span: &mut SpanBytes, str: &mut ZendString) {
+    span.service = convert_zend_to_bytes_string(str);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_set_span_service_zstr(ptr: &mut SpanBytes, str: &mut ZendString) {
-    ptr.service = convert_zend_to_bytes_string(str);
+pub extern "C" fn ddog_set_span_name_zstr(span: &mut SpanBytes, str: &mut ZendString) {
+    span.name = convert_zend_to_bytes_string(str);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_set_span_name_zstr(ptr: &mut SpanBytes, str: &mut ZendString) {
-    ptr.name = convert_zend_to_bytes_string(str);
+pub extern "C" fn ddog_set_span_resource_zstr(span: &mut SpanBytes, str: &mut ZendString) {
+    span.resource = convert_zend_to_bytes_string(str);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_set_span_resource_zstr(ptr: &mut SpanBytes, str: &mut ZendString) {
-    ptr.resource = convert_zend_to_bytes_string(str);
+pub extern "C" fn ddog_set_span_type_zstr(span: &mut SpanBytes, str: &mut ZendString) {
+    span.r#type = convert_zend_to_bytes_string(str);
 }
 
+/// String attribute sharing both zend strings (zero-copy).
 #[no_mangle]
-pub extern "C" fn ddog_set_span_type_zstr(ptr: &mut SpanBytes, str: &mut ZendString) {
-    ptr.r#type = convert_zend_to_bytes_string(str);
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_span_meta_zstr(
-    ptr: &mut SpanBytes,
+pub extern "C" fn ddog_attributes_add_zstr(
+    attrs: &mut Attributes,
     key: &mut ZendString,
-    val: &mut ZendString,
+    value: &mut ZendString,
 ) {
-    ptr.meta.insert(
+    attrs.0.insert(
         convert_zend_to_bytes_string(key),
-        convert_zend_to_bytes_string(val),
+        AttributeValueBytes::String(convert_zend_to_bytes_string(value)),
     );
 }
 
+/// Double attribute under a shared zend string key (zero-copy).
 #[no_mangle]
-pub extern "C" fn ddog_add_CharSlice_span_meta_zstr(
-    ptr: &mut SpanBytes,
-    key: CharSlice,
-    val: &mut ZendString,
-) {
-    ptr.meta.insert(
-        convert_char_slice_to_bytes_string(key),
-        convert_zend_to_bytes_string(val),
-    );
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_zstr_span_meta_str(
-    ptr: &mut SpanBytes,
+pub extern "C" fn ddog_attributes_add_double_zstr(
+    attrs: &mut Attributes,
     key: &mut ZendString,
-    val: *const c_char,
+    value: f64,
 ) {
-    ptr.meta.insert(
-        convert_zend_to_bytes_string(key),
-        convert_literal_to_bytes_string(val),
-    );
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_str_span_meta_str(
-    ptr: &mut SpanBytes,
-    key: *const c_char,
-    val: *const c_char,
-) {
-    ptr.meta.insert(
-        convert_literal_to_bytes_string(key),
-        convert_literal_to_bytes_string(val),
-    );
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_str_span_meta_zstr(
-    ptr: &mut SpanBytes,
-    key: *const c_char,
-    val: &mut ZendString,
-) {
-    ptr.meta.insert(
-        convert_literal_to_bytes_string(key),
-        convert_zend_to_bytes_string(val),
-    );
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_str_span_meta_CharSlice(
-    ptr: &mut SpanBytes,
-    key: *const c_char,
-    val: CharSlice,
-) {
-    ptr.meta.insert(
-        convert_literal_to_bytes_string(key),
-        convert_char_slice_to_bytes_string(val),
-    );
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_del_span_meta_zstr(ptr: &mut SpanBytes, key: &mut ZendString) {
-    ptr.meta.remove_slow(&convert_zend_to_bytes_string(key));
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_del_span_meta_str(ptr: &mut SpanBytes, key: *const c_char) {
-    ptr.meta.remove_slow(&convert_literal_to_bytes_string(key));
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_has_span_meta_zstr(ptr: &mut SpanBytes, key: &mut ZendString) -> bool {
-    ptr.meta.contains_key(&convert_zend_to_bytes_string(key))
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_has_span_meta_str(ptr: &mut SpanBytes, key: *const c_char) -> bool {
-    ptr.meta.contains_key(&convert_literal_to_bytes_string(key))
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_get_span_meta_str(
-    span: &mut SpanBytes,
-    key: *const c_char,
-) -> CharSlice<'static> {
-    match span.meta.get(&convert_literal_to_bytes_string(key)) {
-        Some(value) => unsafe {
-            let string_value = value.as_str();
-            CharSlice::from_raw_parts(string_value.as_ptr().cast(), string_value.len())
-        },
-        None => CharSlice::empty(),
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_span_metrics_zstr(ptr: &mut SpanBytes, key: &mut ZendString, val: f64) {
-    ptr.metrics.insert(convert_zend_to_bytes_string(key), val);
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_has_span_metrics_zstr(ptr: &mut SpanBytes, key: &mut ZendString) -> bool {
-    ptr.metrics.contains_key(&convert_zend_to_bytes_string(key))
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_del_span_metrics_zstr(ptr: &mut SpanBytes, key: &mut ZendString) {
-    ptr.metrics.remove_slow(&convert_zend_to_bytes_string(key));
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_span_metrics_str(ptr: &mut SpanBytes, key: *const c_char, val: f64) {
-    ptr.metrics
-        .insert(convert_literal_to_bytes_string(key), val);
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_get_span_metrics_str(
-    ptr: &mut SpanBytes,
-    key: *const c_char,
-    result: &mut f64,
-) -> bool {
-    match ptr.metrics.get(&convert_literal_to_bytes_string(key)) {
-        Some(&value) => {
-            *result = value;
-            true
-        }
-        None => false,
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_del_span_metrics_str(ptr: &mut SpanBytes, key: *const c_char) {
-    ptr.metrics
-        .remove_slow(&convert_literal_to_bytes_string(key));
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_span_meta_struct_zstr(
-    ptr: &mut SpanBytes,
-    key: &mut ZendString,
-    val: &mut ZendString,
-) {
-    ptr.meta_struct
-        .insert(convert_zend_to_bytes_string(key), convert_to_bytes(val));
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_zstr_span_meta_struct_CharSlice(
-    ptr: &mut SpanBytes,
-    key: &mut ZendString,
-    val: CharSlice,
-) {
-    ptr.meta_struct.insert(
-        convert_zend_to_bytes_string(key),
-        Bytes::copy_from_slice(val.as_bytes()),
-    );
+    attrs.0.insert(convert_zend_to_bytes_string(key), AttributeValueBytes::Float(value));
 }

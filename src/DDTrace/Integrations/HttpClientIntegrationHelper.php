@@ -70,20 +70,20 @@ class HttpClientIntegrationHelper
      */
     public static function setClientError($span, $statusCode, $reasonPhrase = null) {
         // Preserve more specific errors, such as a cURL timeout after receiving HTTP headers.
-        if (isset($span->meta[Tag::ERROR])
-            || isset($span->meta[Tag::ERROR_TYPE])
-            || isset($span->meta[Tag::ERROR_MSG])
+        if (isset($span->attributes[Tag::ERROR])
+            || isset($span->attributes[Tag::ERROR_TYPE])
+            || isset($span->attributes[Tag::ERROR_MSG])
         ) {
             return false;
         }
 
         if (self::isClientError($statusCode)) {
-            $span->meta[Tag::ERROR_TYPE] = 'http_error';
+            $span->attributes[Tag::ERROR_TYPE] = 'http_error';
 
             if ($reasonPhrase) {
-                $span->meta[Tag::ERROR_MSG] = "HTTP $statusCode: $reasonPhrase";
+                $span->attributes[Tag::ERROR_MSG] = "HTTP $statusCode: $reasonPhrase";
             } else {
-                $span->meta[Tag::ERROR_MSG] = "HTTP $statusCode Error";
+                $span->attributes[Tag::ERROR_MSG] = "HTTP $statusCode Error";
             }
 
             return true;

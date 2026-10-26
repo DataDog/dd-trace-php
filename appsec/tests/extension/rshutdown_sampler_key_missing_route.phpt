@@ -25,7 +25,7 @@ var_dump(rinit());
 $helper->get_commands(); // ignore
 
 $rootSpan = root_span();
-$rootSpan->meta["http.method"] = "GET";
+$rootSpan->attributes["http.method"] = "GET";
 
 
 var_dump(rshutdown());

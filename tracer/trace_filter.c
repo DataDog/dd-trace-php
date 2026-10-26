@@ -24,7 +24,7 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uintptr_t key_len, uintptr_t *out_len) {
     ddtrace_span_data *root = (ddtrace_span_data *)ctx;
 
-    // Check well-known span struct properties first (not in meta).
+    // Check well-known span struct properties first (not in attributes).
 #define CHECK_PROP(name_lit, prop)                                              \
     if (key_len == sizeof(name_lit) - 1                                         \
         && memcmp(key, name_lit, sizeof(name_lit) - 1) == 0) {                  \
@@ -44,26 +44,44 @@ static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uint
     CHECK_PROP("resource", property_resource)
 #undef CHECK_PROP
 
-    // Meta hash: string tags.
-    zend_array *meta = ddtrace_property_array(&root->property_meta);
-    if (meta) {
-        zval *val = zend_hash_str_find(meta, key, key_len);
-        if (val && Z_TYPE_P(val) == IS_STRING) {
-            *out_len = Z_STRLEN_P(val);
-            return Z_STRVAL_P(val);
+    // The component and span.kind tags are properties too, when set.
+    if (key_len == sizeof("component") - 1 && memcmp(key, "component", sizeof("component") - 1) == 0) {
+        zval *component = &root->property_component;
+        ZVAL_DEREF(component);
+        if (Z_TYPE_P(component) == IS_STRING && Z_STRLEN_P(component)) {
+            *out_len = Z_STRLEN_P(component);
+            return Z_STRVAL_P(component);
+        }
+    }
+    if (key_len == sizeof("span.kind") - 1 && memcmp(key, "span.kind", sizeof("span.kind") - 1) == 0) {
+        const char *kind = ddtrace_span_kind_str(zval_get_long(&root->property_span_kind));
+        if (kind) {
+            *out_len = strlen(kind);
+            return kind;
         }
     }
 
-    // Metrics hash: numeric tags returned as stringified float.
-    zend_array *metrics = ddtrace_property_array(&root->property_metrics);
-    if (metrics) {
-        zval *val = zend_hash_str_find(metrics, key, key_len);
-        if (val) {
-            ZEND_TLS char metric_buf[32];
-            double d = zval_get_double(val);
-            int len = snprintf(metric_buf, sizeof(metric_buf), "%g", d);
-            *out_len = (uintptr_t)(len > 0 ? len : 0);
-            return metric_buf;
+    // Attributes: string tags as-is, numbers as stringified floats, bools as on the v0.4 wire.
+    zval *attr = zend_hash_str_find(ddtrace_property_array(&root->property_attributes), key, key_len);
+    if (attr) {
+        ZVAL_DEREF(attr);
+        switch (Z_TYPE_P(attr)) {
+            case IS_STRING:
+                *out_len = Z_STRLEN_P(attr);
+                return Z_STRVAL_P(attr);
+            case IS_TRUE:
+                *out_len = 4;
+                return "true";
+            case IS_FALSE:
+                *out_len = 5;
+                return "false";
+            case IS_LONG:
+            case IS_DOUBLE: {
+                ZEND_TLS char attr_buf[32];
+                int len = snprintf(attr_buf, sizeof(attr_buf), "%g", zval_get_double(attr));
+                *out_len = (uintptr_t)(len > 0 ? len : 0);
+                return attr_buf;
+            }
         }
     }
 

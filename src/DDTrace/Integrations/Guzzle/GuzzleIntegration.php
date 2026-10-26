@@ -7,6 +7,7 @@ use DDTrace\Http\Urls;
 use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use GuzzleHttp;
@@ -51,7 +52,7 @@ class GuzzleIntegration extends Integration
     public static function setStatusCode(SpanData $span, $response, $setClientError = true)
     {
         $statusCode = $response->getStatusCode();
-        $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+        $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$statusCode;
         if ($setClientError) {
             HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
         }
@@ -74,8 +75,8 @@ class GuzzleIntegration extends Integration
                 $span->name = 'GuzzleHttp\Client.transfer';
                 Integration::handleInternalSpanServiceName($span, self::NAME);
                 $span->type = Type::HTTP_CLIENT;
-                $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->spanKind = SpanKind::CLIENT;
+                $span->component = self::NAME;
                 $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
 
                 if (isset($hook->args[0])) {
@@ -85,7 +86,7 @@ class GuzzleIntegration extends Integration
                 // Note: We must ALWAYS call overrideArguments() to prevent JIT compilation issues.
                 // See ext/hook/uhook.c: "hooks wishing to override args must do so unconditionally"
 
-                if (\ddtrace_config_distributed_tracing_enabled() !== false) {
+                if (\dd_trace_env_config('DD_DISTRIBUTED_TRACING') !== false) {
                     if (isset($hook->args[0])) {
                         $request = $hook->args[0];
 
@@ -131,8 +132,8 @@ class GuzzleIntegration extends Integration
                 $span->name = 'GuzzleHttp\Client.send';
                 Integration::handleInternalSpanServiceName($span, self::NAME);
                 $span->type = Type::HTTP_CLIENT;
-                $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->spanKind = SpanKind::CLIENT;
+                $span->component = self::NAME;
 
                 if (
                     \defined('GuzzleHttp\ClientInterface::VERSION')
@@ -170,31 +171,31 @@ class GuzzleIntegration extends Integration
         if ($request instanceof \Psr\Http\Message\RequestInterface) {
             $url = $request->getUri();
             $host = Urls::hostname($url);
-            $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+            $span->attributes[Tag::NETWORK_DESTINATION_NAME] = $host;
 
             if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
-                $span->meta['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+                $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
             }
-            $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
+            $span->attributes[Tag::HTTP_METHOD] = $request->getMethod();
 
-            if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
-                $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+            if (!array_key_exists(Tag::HTTP_URL, $span->attributes)) {
+                $span->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
             }
         } elseif ($request instanceof \GuzzleHttp\Message\RequestInterface) {
             $url = $request->getUrl();
             $host = Urls::hostname($url);
             if ($host) {
-                $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+                $span->attributes[Tag::NETWORK_DESTINATION_NAME] = $host;
             }
             if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
-                $span->meta['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+                $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
             }
-            $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
+            $span->attributes[Tag::HTTP_METHOD] = $request->getMethod();
 
-            if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
-                $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+            if (!array_key_exists(Tag::HTTP_URL, $span->attributes)) {
+                $span->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
             }
         }
     }

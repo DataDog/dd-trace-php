@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Slim;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use Psr\Http\Message\ServerRequestInterface;
@@ -30,12 +31,11 @@ class SlimIntegration extends Integration
 
                 // Overwrite root span info
                 $rootSpan = \DDTrace\root_span();
-                SlimIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'slim.request';
-                $rootSpan->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                $rootSpan->service = \dd_trace_env_config('DD_SERVICE') ?: SlimIntegration::NAME;
                 Integration::tagFrameworkServiceSource($rootSpan, SlimIntegration::NAME);
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                $rootSpan->meta[Tag::COMPONENT] = SlimIntegration::NAME;
+                $rootSpan->spanKind = SpanKind::SERVER;
+                $rootSpan->component = SlimIntegration::NAME;
 
                 if ('4' === $majorVersion) {
                     \DDTrace\hook_method('Slim\\MiddlewareDispatcher', 'addMiddleware', function ($This, $self, $args) {
@@ -75,7 +75,7 @@ class SlimIntegration extends Integration
                         null,
                         static function ($router, $scope, $args, $return) use ($rootSpan) {
                             /** @var \Slim\Interfaces\RouteInterface $return */
-                            $rootSpan->meta[Tag::HTTP_ROUTE] = $return->getPattern();
+                            $rootSpan->attributes[Tag::HTTP_ROUTE] = $return->getPattern();
 
                             if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                                 $rootSpan->resource =
@@ -92,7 +92,7 @@ class SlimIntegration extends Integration
                         static function ($router, $scope, $args, $return) use ($rootSpan) {
                             /** @var \Slim\Interfaces\RouteInterface $route */
                             $route = $return;
-                            $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPattern();
+                            $rootSpan->attributes[Tag::HTTP_ROUTE] = $route->getPattern();
                         }
                     );
                 }
@@ -115,25 +115,25 @@ class SlimIntegration extends Integration
                     /** @var ServerRequestInterface $request */
                     $request = $args[1];
 
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] =
+                    if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                        $rootSpan->attributes[Tag::HTTP_URL] =
                                 \DDTrace\Util\Normalizer::urlSanitize((string) $request->getUri());
                     }
 
                     if ('4' === $majorVersion) {
                         $span->name = 'slim.route';
-                        $rootSpan->meta['slim.route.handler'] = $callableName;
+                        $rootSpan->attributes['slim.route.handler'] = $callableName;
 
                         $route = $request->getAttribute(RouteContext::ROUTE);
                         if ($route && $route instanceof \Slim\Interfaces\RouteInterface) {
                             $routeName = $route->getName();
                             if ($routeName) {
-                                $span->meta['slim.route.name'] = $routeName;
-                                $rootSpan->meta['slim.route.name'] = $routeName;
+                                $span->attributes['slim.route.name'] = $routeName;
+                                $rootSpan->attributes['slim.route.name'] = $routeName;
                             }
                         }
                     } else {
-                        $rootSpan->meta['slim.route.controller'] = $callableName;
+                        $rootSpan->attributes['slim.route.controller'] = $callableName;
                         $span->name = 'slim.route.controller';
                     }
                 };
@@ -150,13 +150,13 @@ class SlimIntegration extends Integration
                 // Handling Twig views
                 \DDTrace\trace_method('Slim\Views\Twig', 'render', static function (SpanData $span, $args) {
                     $span->name = 'slim.view';
-                    $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                    $span->service = \dd_trace_env_config('DD_SERVICE') ?: SlimIntegration::NAME;
                     Integration::tagFrameworkServiceSource($span, SlimIntegration::NAME);
                     $span->type = Type::WEB_SERVLET;
                     $template = $args[1];
                     $span->resource = $template;
-                    $span->meta['slim.view'] = $template;
-                    $span->meta[Tag::COMPONENT] = SlimIntegration::NAME;
+                    $span->attributes['slim.view'] = $template;
+                    $span->component = SlimIntegration::NAME;
                 });
             }
         );

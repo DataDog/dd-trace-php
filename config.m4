@@ -301,6 +301,7 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/standalone_limiter.c \
     tracer/span.c \
     tracer/span_stats.c \
+    tracer/span_tags_view.c \
     tracer/trace_filter.c \
     tracer/trace_source.c \
     tracer/tracer_startup_logging.c \

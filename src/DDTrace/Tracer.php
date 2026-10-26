@@ -12,6 +12,7 @@ use DDTrace\Propagators\TextMap;
 use DDTrace\Transport\Internal;
 use DDTrace\Transport\Noop;
 use DDTrace\Transport\Noop as NoopTransport;
+use DDTrace\Util\BaseConverter;
 use DDTrace\Util\ObjectKVStore;
 
 final class Tracer implements TracerInterface
@@ -94,12 +95,23 @@ final class Tracer implements TracerInterface
         $this->serviceVersion = \dd_trace_env_config("DD_VERSION");
         $this->environment = \dd_trace_env_config("DD_ENV");
 
-        $context = current_context();
-        if (isset($context["distributed_tracing_parent_id"])) {
-            $parentId = $context["distributed_tracing_parent_id"];
-            $this->rootContext = new SpanContext($context["trace_id"], $parentId, null, [], true);
-            if (isset($context["distributed_tracing_origin"])) {
-                $this->rootContext->origin = $context["distributed_tracing_origin"];
+        $activeStack = active_stack();
+        if ($activeStack && $activeStack->active && ($rootSpan = root_span())) {
+            $traceId = $rootSpan->traceId;
+            $parentId = isset($rootSpan->parentId) && $rootSpan->parentId !== "" ? $rootSpan->parentId : null;
+            $origin = isset($rootSpan->origin) && $rootSpan->origin !== "" ? $rootSpan->origin : null;
+        } else {
+            // Without an active span, the distributed context is only readable through the propagation headers
+            $headers = generate_distributed_tracing_headers(["datadog", "tracecontext"]);
+            $traceId = isset($headers["traceparent"]) ? substr($headers["traceparent"], 3, 32) : null;
+            $parentId = $headers["x-datadog-parent-id"] ?? null;
+            $origin = $headers["x-datadog-origin"] ?? null;
+        }
+        if ($traceId !== null && $parentId !== null) {
+            $traceId = BaseConverter::convert($traceId, 16, 10);
+            $this->rootContext = new SpanContext($traceId, $parentId, null, [], true);
+            if ($origin !== null) {
+                $this->rootContext->origin = $origin;
             }
         }
 
@@ -116,7 +128,7 @@ final class Tracer implements TracerInterface
      */
     public function reset()
     {
-        if ($this->config['enabled'] && \ddtrace_config_trace_enabled()) {
+        if ($this->config['enabled'] && \dd_trace_env_config('DD_TRACE_ENABLED')) {
             // Do a full shutdown and re-startup of the tracer, which implies clearing the internal span stack
             ini_set("datadog.trace.enabled", 0);
             ini_set("datadog.trace.enabled", 1);
@@ -145,7 +157,7 @@ final class Tracer implements TracerInterface
      */
     public function startSpan($operationName, $options = [])
     {
-        if (!$this->config['enabled'] || !\ddtrace_config_trace_enabled()) {
+        if (!$this->config['enabled'] || !\dd_trace_env_config('DD_TRACE_ENABLED')) {
             return NoopSpan::create();
         }
 
@@ -171,12 +183,6 @@ final class Tracer implements TracerInterface
         $internalSpan->name = (string) $operationName;
         $internalSpan->service = $service;
         $internalSpan->resource = $resource;
-        if (!isset($internalSpan->metrics)) {
-            $internalSpan->metrics = [];
-        }
-        if (!isset($internalSpan->meta)) {
-            $internalSpan->meta = [];
-        }
         $span = new Span($internalSpan, $context);
 
         foreach ($options->getTags() as $key => $val) {
@@ -329,8 +335,7 @@ final class Tracer implements TracerInterface
      */
     public function getTracesAsArray()
     {
-        $trace = \dd_trace_serialize_closed_spans();
-        return $trace ? [$trace] : $trace;
+        return \dd_trace_serialize_closed_spans()['chunks'];
     }
 
     public function addUrlAsResourceNameToSpan(Contracts\Span $span)

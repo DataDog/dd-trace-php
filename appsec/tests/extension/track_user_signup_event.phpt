@@ -6,7 +6,7 @@ extension=ddtrace.so
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\{root_span_get_meta, root_span_get_metrics, rshutdown};
+use function datadog\appsec\testing\{root_span_get_attributes, rshutdown};
 use function datadog\appsec\track_user_signup_event;
 include __DIR__ . '/inc/ddtrace_version.php';
 
@@ -21,35 +21,30 @@ track_user_signup_event("sdkID",
 
 rshutdown();
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
-
-echo "root_span_get_metrics():\n";
-print_r(root_span_get_metrics());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 
 var_dump(\DDTrace\get_priority_sampling());
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
-    [runtime-id] => %s
+    [_dd.appsec.enabled] => 1
+    [_dd.appsec.events.users.signup.sdk] => true
+    [_dd.p.dm] => -5
+    [_dd.p.ts] => 02
+    [_dd.runtime_family] => php
+    [appsec.events.users.signup.email] => noneofyour@business.com
+    [appsec.events.users.signup.metadata] => some other metadata
+    [appsec.events.users.signup.track] => true
     [appsec.events.users.signup.usr.id] => sdkID
     [appsec.events.users.signup.usr.login] => sdkID
-    [_dd.appsec.events.users.signup.sdk] => true
     [appsec.events.users.signup.value] => something
-    [appsec.events.users.signup.metadata] => some other metadata
-    [appsec.events.users.signup.email] => noneofyour@business.com
-    [appsec.events.users.signup.track] => true
+    [process_id] => %d
+    [runtime-id] => %s
     [server.business_logic.users.signup] => null
-    [_dd.p.ts] => 02
-    [_dd.p.dm] => -5
-    [_dd.runtime_family] => php
-)
-root_span_get_metrics():
-Array
-(
-    [%s] => %d
-    [_dd.appsec.enabled] => 1
 )
 int(2)

@@ -6,6 +6,8 @@ HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
 HTTP_X_DATADOG_TAGS=_dd.p.custom_tag=inherited,_dd.p.second_tag=bar
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 
@@ -23,15 +25,20 @@ DDTrace\set_distributed_tracing_context("0", "0", "", [1 => "c"]);
 dump_context();
 
 ?>
---EXPECT--
+--EXPECTF--
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 trace_id: 42
 distributed_tracing_origin: datadog
 distributed_tracing_parent_id: 10
 distributed_tracing_propagated_tags: {"_dd.p.custom_tag":"inherited","_dd.p.second_tag":"bar"}
+
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 trace_id: 123
 distributed_tracing_origin: foo
 distributed_tracing_parent_id: 321
 distributed_tracing_propagated_tags: {"a":"b"}
+
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 trace_id: 0
 distributed_tracing_origin: <none>
 distributed_tracing_parent_id: <none>

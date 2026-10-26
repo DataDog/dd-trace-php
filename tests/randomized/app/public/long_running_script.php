@@ -15,16 +15,16 @@ require "$composerVendor/autoload.php";
     // Access method arguments and change resource name
     $span->resource =  'message:' . $args[0]->id;
     $span->meta['message.content'] = $args[0]->content;
-    $span->service = \ddtrace_config_app_name();
+    $span->service = \dd_trace_env_config('DD_SERVICE');
 });
 
 \DDTrace\trace_method('ProcessingStage1', 'process', function (SpanData $span, $args) {
-    $span->service = \ddtrace_config_app_name();
+    $span->service = \dd_trace_env_config('DD_SERVICE');
     // Resource name defaults to the fully qualified method name.
 });
 
 \DDTrace\trace_method('ProcessingStage2', 'process', function (SpanData $span, $args) {
-    $span->service = \ddtrace_config_app_name();
+    $span->service = \dd_trace_env_config('DD_SERVICE');
     $span->resource = 'message:' . $args[0]->id;
 });
 // End of Datadog manual tracing

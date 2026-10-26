@@ -42,14 +42,15 @@ final class FatalErrorTest extends WebFrameworkTestCase
                     'autoload',
                     'web',
                     'GET /fatal'
-                )->withExactTags([
+                )->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost/fatal',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ])
                 ->setError("E_ERROR", "Intentional E_ERROR")
-                ->withExistingTagsNames(['error.stack']),
+                ->withExistingAttributeNames(['error.stack']),
             ]
         );
     }
