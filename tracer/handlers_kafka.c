@@ -1,6 +1,7 @@
 #include <php.h>
 #include <stdbool.h>
 #include "configuration.h"
+#include "data_streams.h"
 #include "ddtrace.h"
 #include <ext/handlers_api.h>
 
@@ -23,7 +24,7 @@ static bool dd_load_kafka_integration(void) {
     return dd_ext_kafka_loaded &&
            get_DD_TRACE_ENABLED() &&
            get_DD_TRACE_KAFKA_ENABLED() &&
-           get_DD_DISTRIBUTED_TRACING() &&
+           (get_DD_DISTRIBUTED_TRACING() || ddtrace_dsm_enabled()) &&
            rdkafka_version_supported();
 }
 

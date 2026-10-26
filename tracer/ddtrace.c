@@ -49,6 +49,7 @@
 #endif
 #include "distributed_tracing_headers.h"
 #include "engine_hooks.h"
+#include "data_streams.h"
 #include "ffe.h"
 #include "handlers_internal.h"
 #include "inferred_proxy_headers.h"
@@ -585,6 +586,7 @@ static void dd_clean_globals(void) {
     }
 
     ddtrace_internal_handlers_rshutdown();
+    ddtrace_dsm_rshutdown();
 #ifndef _WIN32
     ddtrace_dogstatsd_client_rshutdown();
 #endif
@@ -705,7 +707,8 @@ bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
         || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
-        || get_global_DD_METRICS_OTEL_ENABLED();
+        || get_global_DD_METRICS_OTEL_ENABLED()
+        || get_global_DD_DATA_STREAMS_ENABLED();
 }
 
 #if defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
