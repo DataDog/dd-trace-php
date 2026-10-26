@@ -362,6 +362,13 @@
         "default": ""
       }
     ],
+    "DD_ENTITY_ID": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
     "DD_ENV": [
       {
         "implementation": "A",
@@ -407,6 +414,13 @@
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
         "implementation": "B",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
+      {
+        "implementation": "A",
         "type": "boolean",
         "default": "true"
       }

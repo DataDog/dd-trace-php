@@ -34,14 +34,42 @@ final class DataDogProvider extends AbstractProvider
     private LoggerInterface $datadogLogger;
     private bool $warnedAboutRuntimeNotReady = false;
     private EvaluationMetricRecorder $metricRecorder;
+    private object $mainObservationScope;
+    private \WeakMap $fiberObservationScopes;
 
     public function __construct(?LoggerInterface $logger = null)
     {
         // Native evaluation metrics are disabled here because OpenFeature owns
         // the final provider outcome, including OF-level type mismatch mapping.
-        $this->evaluator = NativeEvaluator::create(false);
+        $this->mainObservationScope = (object) ['pending' => null, 'recorder' => null];
+        $this->fiberObservationScopes = new \WeakMap();
+        $this->evaluator = NativeEvaluator::create(false, function (array $observation): void {
+            $recorder = $this->observationScope()->recorder;
+            if ($recorder !== null) {
+                $recorder->capture($observation);
+            } else {
+                NativeEvaluator::submitFlagEvaluation($observation);
+            }
+        });
         $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
+    }
+
+    public function getHooks(): array
+    {
+        // The SDK asks once per invocation. A fresh hook keeps finalization
+        // state separate even when a before hook fails before ours runs.
+        return array_merge(parent::getHooks(), [new FlagEvaluationHook($this->observationScope())]);
+    }
+
+    private function observationScope(): object
+    {
+        $fiber = class_exists(\Fiber::class, false) ? \Fiber::getCurrent() : null;
+        if ($fiber === null) {
+            return $this->mainObservationScope;
+        }
+        return $this->fiberObservationScopes[$fiber]
+            ?? ($this->fiberObservationScopes[$fiber] = (object) ['pending' => null, 'recorder' => null]);
     }
 
     /**
@@ -107,6 +135,26 @@ final class DataDogProvider extends AbstractProvider
     }
 
     private function resolve(
+        string $flagKey,
+        string $expectedType,
+        mixed $defaultValue,
+        ?EvaluationContext $context
+    ): ResolutionDetailsInterface {
+        $scope = $this->observationScope();
+        $observation = $scope->pending;
+        if ($observation !== null) {
+            $observation->claim();
+        }
+        $previous = $scope->recorder;
+        $scope->recorder = $observation;
+        try {
+            return $this->resolveWithObservation($flagKey, $expectedType, $defaultValue, $context);
+        } finally {
+            $scope->recorder = $previous;
+        }
+    }
+
+    private function resolveWithObservation(
         string $flagKey,
         string $expectedType,
         mixed $defaultValue,

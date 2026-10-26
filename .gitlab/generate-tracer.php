@@ -87,14 +87,6 @@ stages:
     export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
     mkdir -p "${out_dir}"
     mv "tmp/build_extension/modules/ddtrace.so" "${out_dir}"
-  cache:
-    - key:
-        prefix: $CI_JOB_NAME
-        files:
-          - Cargo.lock
-          - Cargo.toml
-      paths:
-        - /rust/cargo/
   artifacts:
     paths:
       - "VERSION"
@@ -205,6 +197,10 @@ windows_test_c_job("windows test_c: zts", "zts", [
 "macos test_c":
   stage: test
   tags: ["macos:tart"]
+  # Builds the extension from source: of the compile stage it only needs the generated bridge files.
+  needs:
+    - job: "Prepare code"
+      artifacts: true
   image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sequoia-latest"
   variables:
     PHP_MACOS_VERSION: "8.5.9"
@@ -217,8 +213,8 @@ windows_test_c_job("windows test_c: zts", "zts", [
     PHP_CLI_SERVER_WORKERS: "16"
     DD_REQUEST_DUMPER_FILE: dump.json
   before_script:
-    # Strip the noisy DD_* env vars from the locally installed agent
-    - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
+<?php unset_dd_runner_env_vars() ?>
+    - unset DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
     - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
     - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
@@ -297,15 +293,14 @@ windows_test_c_job("windows test_c: zts", "zts", [
 
 "Prepare code":
   stage: compile
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  # Same image as the package "prepare code": composer and unzip are baked in, so no apt or getcomposer.org fetch.
+  image: registry.ddbuild.io/images/mirror/composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac
   tags: [ "arch:amd64" ]
   needs: []
   variables:
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
   before_script:
-    - apt update && apt install -y unzip
-    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/composer
     - composer update --no-interaction
   script:
     - make generate
@@ -758,6 +753,8 @@ $services["pdo"] = "mysql";
 $services["kafka"] = ["kafka", "zookeeper"];  // Overwrite auto-generated entry
 
 $jobs = [];
+// Every .cli_integration_test job writes a tested_versions_*.json; "aggregate tested versions" reads only those.
+$tested_versions_jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
 foreach ($matches as $m) {
     $major_minor = "{$m["major"]}.{$m["minor"]}";
@@ -777,9 +774,14 @@ foreach ($jobs as $type => $type_jobs):
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
                 $sapis[] = "fpm-fcgi";
             }
+            // Octane starts its own Swoole server before DD_TRACE_TEST_SAPI is read (tests/WebServer.php), so one cell is enough.
+            if (str_contains($target, "laravel_octane")) {
+                $sapis = ["cli-server"];
+            }
             foreach ($sapis as $sapi):
 ?>
-"<?= $target ?>: [<?= $major_minor, $sapi ? ", $sapi" : "" ?>]":
+<?php $tested_versions_jobs[] = "$target: [$major_minor" . ($sapi ? ", $sapi" : "") . "]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
   needs:
@@ -843,6 +845,13 @@ foreach ($services as $part => $service) {
     KUBERNETES_MEMORY_REQUEST: 6Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
 <?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+  script:
+    # Build FrankenPHP as its own step, in the proxy-free env the harness gave it: from inside PHPUnit its exit 75 is lost.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - tooling/bin/install-frankenphp.sh || exit $?
+    - !reference [.cli_integration_test, script]
+<?php endif; ?>
 
 <?php
             endforeach;
@@ -855,7 +864,8 @@ endforeach;
 foreach ($all_minor_major_targets as $major_minor):
     foreach (["test_auto_instrumentation", "test_composer", "test_integration"] as $test):
 ?>
-"<?= $test ?>: [<?= $major_minor ?>]":
+<?php $tested_versions_jobs[] = "$test: [$major_minor]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   needs:
     - job: "compile extension: debug"
@@ -878,7 +888,8 @@ foreach ($all_minor_major_targets as $major_minor):
 ?>
 
 <?php foreach(["cli-server", "cgi-fcgi"] as $sapi): ?>
-"test_distributed_tracing: [<?= $major_minor ?>, <?= $sapi ?>]":
+<?php $tested_versions_jobs[] = "test_distributed_tracing: [$major_minor, $sapi]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   needs:
     - job: "compile extension: debug"
@@ -956,6 +967,11 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   when: always
+  # Without this list the job downloads every earlier job's artifacts, including ~200 that write no tested_versions_*.json.
+  dependencies:
+<?php foreach ($tested_versions_jobs as $job): ?>
+    - "<?= $job ?>"
+<?php endforeach; ?>
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts

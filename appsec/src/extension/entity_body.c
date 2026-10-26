@@ -6,14 +6,13 @@
 
 // clang-format off
 #include "entity_body.h"
+#include "body_parser.h"
 #include "ddappsec.h"
 #include "php_compat.h" // NOLINT (must come before entity_body_arginfo.h)
 #include "entity_body_arginfo.h"
-#include "json_truncated_parser.h"
 #include "logging.h"
 #include "php_objects.h"
 #include "string_helpers.h"
-#include "xml_truncated_parser.h"
 #include <SAPI.h>
 #include <dlfcn.h>
 #include <ext/json/php_json.h>
@@ -70,14 +69,10 @@ void dd_entity_body_startup(void)
     _json_decode_ex = php_json_decode_ex;
 #endif
 
-    dd_xml_parser_startup();
-
     if (get_global_DD_APPSEC_TESTING()) {
         dd_phpobj_reg_funcs(ext_functions);
     }
 }
-
-void dd_entity_body_shutdown(void) { dd_xml_parser_shutdown(); }
 
 void dd_entity_body_tshutdown(void)
 {
