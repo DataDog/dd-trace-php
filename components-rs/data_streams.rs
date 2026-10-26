@@ -5,6 +5,10 @@
 //! into the sidecar's shared-memory DSM checkpoint table once it exists, and over IPC until then,
 //! the same way span stats reach their concentrator (see `stats.rs`).
 //!
+//! Backlogs - the offsets a Kafka producer has written up to, and a consumer group has
+//! committed - take the same route into the sidecar's backlog table, which keeps the highest
+//! offset per backlog for each bucket.
+//!
 //! ## Hashing
 //! As in the Go tracer, and as system-tests expects of tracers other than Go and Node.js:
 //! - node hash: FNV-1 64 over the service, the env, the edge tags sorted, and the base hash DBM
@@ -24,18 +28,26 @@
 //! checkpoint takes the request's current pathway as its parent. Consecutive outbound
 //! checkpoints share the parent from before the first of them, as in the Java tracer, so that
 //! producing several messages does not chain each to the previous one.
+//!
+//! An integration that hands each message to a callback can push a fresh pathway before the
+//! callback and pop it after, so a long-lived worker's checkpoints for one message neither take
+//! the previous message's pathway nor leak it to what runs between messages.
 
 use base64::alphabet;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use base64::Engine;
-use datadog_sidecar::service::blocking::{add_dsm_checkpoint, SidecarTransport};
-use datadog_sidecar::service::data_streams_flusher::{dsm_checkpoint_shm_path, DsmTableKey};
+use datadog_sidecar::service::blocking::{add_dsm_backlog, add_dsm_checkpoint, SidecarTransport};
+use datadog_sidecar::service::data_streams_flusher::{
+    dsm_backlog_shm_path, dsm_checkpoint_shm_path, DsmTableKey,
+};
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use libdd_ipc::shm_dsm_checkpoint::{
     DsmCheckpointInput, OwnedDsmCheckpoint, ShmDsmCheckpointTable, MAX_EDGE_TAGS,
 };
+use libdd_ipc::shm_dsm_backlog::{DsmBacklogInput, ShmDsmBacklogTable};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -199,6 +211,11 @@ impl RequestPathway {
 
 thread_local! {
     static REQUEST_PATHWAY: RefCell<RequestPathway> = RefCell::default();
+    /// Pathways set aside by `ddog_dsm_push_pathway`, innermost last. Pushes and pops must nest,
+    /// so this isn't fiber safe: fibers that interleave on one thread restore each other's
+    /// pathways. That's fine for now, as the only user, php-amqplib's `basic_consume`, calls back
+    /// synchronously.
+    static OUTER_PATHWAYS: RefCell<Vec<RequestPathway>> = RefCell::default();
 }
 
 /// A checkpoint, computed: what to record and the context to hand on.
@@ -238,8 +255,24 @@ pub(crate) fn apply_agent_endpoints(endpoints: Option<&[String]>) {
     AGENT_SUPPORTS_DSM.store(supported, Ordering::Release);
 }
 
-/// Opened after the first IPC checkpoint for a key. In-flight fallbacks can outlive a cache clear.
-static DSM_TABLES: LazyLock<RwLock<HashMap<String, Arc<OnceLock<ShmDsmCheckpointTable>>>>> =
+/// A key's two tables, which the sidecar creates together.
+struct DsmTables {
+    checkpoints: ShmDsmCheckpointTable,
+    backlogs: ShmDsmBacklogTable,
+}
+
+impl DsmTables {
+    fn open(key: &DsmTableKey) -> Option<Self> {
+        Some(DsmTables {
+            checkpoints: ShmDsmCheckpointTable::open(&dsm_checkpoint_shm_path(key)).ok()?,
+            backlogs: ShmDsmBacklogTable::open(&dsm_backlog_shm_path(key)).ok()?,
+        })
+    }
+}
+
+/// Opened after the first IPC checkpoint or backlog for a key. In-flight fallbacks can outlive a
+/// cache clear.
+static DSM_TABLES: LazyLock<RwLock<HashMap<String, Arc<OnceLock<DsmTables>>>>> =
     LazyLock::new(RwLock::default);
 
 /// Drop cached tables so the next checkpoint for each key goes through IPC.
@@ -252,6 +285,22 @@ pub extern "C" fn ddog_dsm_tables_clear() {
 #[no_mangle]
 pub extern "C" fn ddog_dsm_reset_pathway() {
     REQUEST_PATHWAY.with(|p| *p.borrow_mut() = RequestPathway::default());
+    OUTER_PATHWAYS.with(|o| o.borrow_mut().clear());
+}
+
+/// Set the request's pathway aside and start a fresh one, e.g. while a message's callback runs.
+#[no_mangle]
+pub extern "C" fn ddog_dsm_push_pathway() {
+    let outer = REQUEST_PATHWAY.with(|p| std::mem::take(&mut *p.borrow_mut()));
+    OUTER_PATHWAYS.with(|o| o.borrow_mut().push(outer));
+}
+
+/// Go back to the pathway the last `ddog_dsm_push_pathway` set aside, or to a fresh one if there
+/// is none.
+#[no_mangle]
+pub extern "C" fn ddog_dsm_pop_pathway() {
+    let outer = OUTER_PATHWAYS.with(|o| o.borrow_mut().pop()).unwrap_or_default();
+    REQUEST_PATHWAY.with(|p| *p.borrow_mut() = outer);
 }
 
 /// The service a process's checkpoints are reported under, and what goes into their hashes.
@@ -269,10 +318,13 @@ fn str_of(s: CharSlice<'_>) -> &str {
     s.try_to_utf8().unwrap_or("")
 }
 
+/// Add to the identity's tables with `add`, or, until they are open, send over IPC with `send`
+/// and open them once the sidecar has had the chance to create them.
 fn record(
     transport: Option<&mut SidecarTransport>,
     identity: &DsmIdentity<'_>,
-    checkpoint: &DsmCheckpointInput<'_>,
+    add: impl Fn(&DsmTables) -> bool,
+    send: impl FnOnce(&mut SidecarTransport, &DsmTableKey) -> io::Result<bool>,
 ) {
     let (env, version, service) = (
         str_of(identity.env),
@@ -292,7 +344,7 @@ fn record(
                 .clone(),
         }
     };
-    if reader.get().is_some_and(|table| table.add_checkpoint(checkpoint)) {
+    if reader.get().is_some_and(add) {
         return;
     }
 
@@ -300,36 +352,51 @@ fn record(
     let Some(transport) = transport else {
         return;
     };
-    let owned = OwnedDsmCheckpoint {
-        hash: checkpoint.hash,
-        parent_hash: checkpoint.parent_hash,
-        edge_tags: checkpoint.edge_tags.iter().map(|t| (*t).to_owned()).collect(),
-        pathway_latency_ns: checkpoint.pathway_latency_ns,
-        edge_latency_ns: checkpoint.edge_latency_ns,
-        payload_size_bytes: checkpoint.payload_size_bytes,
-    };
     let key = DsmTableKey {
         env: env.to_owned(),
         version: version.to_owned(),
         service: service.to_owned(),
         primary_tag: String::new(),
     };
-    match add_dsm_checkpoint(
-        transport,
-        key.env.clone(),
-        key.version.clone(),
-        key.service.clone(),
-        key.primary_tag.clone(),
-        owned,
-    ) {
+    match send(transport, &key) {
         Ok(true) if reader.get().is_none() => {
-            if let Ok(table) = ShmDsmCheckpointTable::open(&dsm_checkpoint_shm_path(&key)) {
-                let _ = reader.set(table);
+            if let Some(tables) = DsmTables::open(&key) {
+                let _ = reader.set(tables);
             }
         }
         Ok(_) => {}
-        Err(e) => trace!("Failed to send DSM checkpoint via IPC: {e}"),
+        Err(e) => trace!("Failed to send DSM data via IPC: {e}"),
     }
+}
+
+fn record_checkpoint(
+    transport: Option<&mut SidecarTransport>,
+    identity: &DsmIdentity<'_>,
+    checkpoint: &DsmCheckpointInput<'_>,
+) {
+    record(
+        transport,
+        identity,
+        |tables| tables.checkpoints.add_checkpoint(checkpoint),
+        |transport, key| {
+            let owned = OwnedDsmCheckpoint {
+                hash: checkpoint.hash,
+                parent_hash: checkpoint.parent_hash,
+                edge_tags: checkpoint.edge_tags.iter().map(|t| (*t).to_owned()).collect(),
+                pathway_latency_ns: checkpoint.pathway_latency_ns,
+                edge_latency_ns: checkpoint.edge_latency_ns,
+                payload_size_bytes: checkpoint.payload_size_bytes,
+            };
+            add_dsm_checkpoint(
+                transport,
+                key.env.clone(),
+                key.version.clone(),
+                key.service.clone(),
+                key.primary_tag.clone(),
+                owned,
+            )
+        },
+    );
 }
 
 fn now_ns() -> i64 {
@@ -391,7 +458,7 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
     });
 
     if AGENT_SUPPORTS_DSM.load(Ordering::Acquire) {
-        record(
+        record_checkpoint(
             transport.as_mut(),
             identity,
             &DsmCheckpointInput {
@@ -411,6 +478,61 @@ pub unsafe extern "C" fn ddog_dsm_set_checkpoint(
     }
     std::ptr::copy_nonoverlapping(encoded.as_ptr(), out, encoded.len());
     encoded.len()
+}
+
+/// Record `offset` for the backlog named by `tags`, e.g. a Kafka partition's produce offset or
+/// a consumer group's committed one. The sidecar keeps the highest offset per backlog in each
+/// bucket; negative offsets (unknown to librdkafka) are dropped.
+///
+/// `tags` are `key:value` strings in any order, each with a key `BacklogTag` knows (`topic`,
+/// `type`, `kafka_cluster_id`, `consumer_group`, `partition`); every tag has a fixed position,
+/// which is the order they are reported in. An offset with a tag of any other key is dropped
+/// rather than reported under the tags that remain. Nothing is recorded until the agent has
+/// said it accepts DSM.
+///
+/// # Safety
+/// `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+/// `tags` must point to `tag_count` valid slices.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_dsm_track_backlog(
+    transport: *mut SidecarTransport,
+    identity: &DsmIdentity,
+    tags: *const CharSlice,
+    tag_count: usize,
+    offset: i64,
+) {
+    if offset < 0 || !AGENT_SUPPORTS_DSM.load(Ordering::Acquire) {
+        return;
+    }
+    let tags: &[CharSlice] = if tags.is_null() {
+        &[]
+    } else {
+        std::slice::from_raw_parts(tags, tag_count)
+    };
+    let tags: Vec<&str> = tags
+        .iter()
+        .map(|t| str_of(*t))
+        .filter(|t| !t.is_empty())
+        .collect();
+    let Some(backlog) = DsmBacklogInput::parse(&tags, offset) else {
+        trace!("Dropping a DSM backlog with a tag it has no position for: {tags:?}");
+        return;
+    };
+    record(
+        transport.as_mut(),
+        identity,
+        |tables| tables.backlogs.add_backlog(&backlog),
+        |transport, key| {
+            add_dsm_backlog(
+                transport,
+                key.env.clone(),
+                key.version.clone(),
+                key.service.clone(),
+                key.primary_tag.clone(),
+                backlog.to_owned_backlog(),
+            )
+        },
+    );
 }
 
 #[cfg(test)]
@@ -451,6 +573,51 @@ mod tests {
             produce,
         );
         assert_eq!(consume, 4247242616665718048);
+    }
+
+    /// The hashes system-tests expects of RabbitMQ publishes and consumes through a direct, a
+    /// topic and a fanout exchange (Test_DsmRabbitmq*), for the same service and env.
+    #[test]
+    fn rabbitmq_hashes_match_system_tests() {
+        let hash = |tags: &[&str], parent| {
+            pathway_hash(
+                node_hash("weblog", "system-tests", &sorted(tags), ""),
+                parent,
+            )
+        };
+        let publish = |exchange: &str, has_routing_key| {
+            hash(
+                &[
+                    "direction:out",
+                    &format!("exchange:{exchange}"),
+                    &format!("has_routing_key:{has_routing_key}"),
+                    "type:rabbitmq",
+                ],
+                0,
+            )
+        };
+        let consume = |queue: &str, parent| {
+            hash(
+                &["direction:in", &format!("topic:{queue}"), "type:rabbitmq"],
+                parent,
+            )
+        };
+
+        let direct = publish("dsm-system-tests-exchange", true);
+        assert_eq!(direct, 8945717757344503539);
+        assert_eq!(consume("dsm-system-tests-queue", direct), 247866491670975357);
+
+        let topic = publish("systemTestTopicExchange", true);
+        assert_eq!(topic, 14115675228093516275);
+        assert_eq!(consume("systemTestRabbitmqTopicQueue1", topic), 17456221739323133462);
+        assert_eq!(consume("systemTestRabbitmqTopicQueue2", topic), 6709599110187021152);
+        assert_eq!(consume("systemTestRabbitmqTopicQueue3", topic), 4518514625593640902);
+
+        let fanout = publish("systemTestFanoutExchange", false);
+        assert_eq!(fanout, 528013466165804625);
+        assert_eq!(consume("systemTestRabbitmqFanoutQueue1", fanout), 1551162056316679489);
+        assert_eq!(consume("systemTestRabbitmqFanoutQueue2", fanout), 5919279740143028634);
+        assert_eq!(consume("systemTestRabbitmqFanoutQueue3", fanout), 10096313447786601025);
     }
 
     /// The Go tracer's golden base hash: FNV-1 over "svc", "env" and "ch".
@@ -550,6 +717,58 @@ mod tests {
         assert_eq!(p.parent(Some(Direction::In), None), None);
         p.current = Some(at(11, 200));
         assert_eq!(p.parent(Some(Direction::Out), None), Some(at(11, 200)));
+    }
+
+    fn current() -> Option<PathwayContext> {
+        REQUEST_PATHWAY.with(|p| p.borrow().current)
+    }
+
+    fn set_current(context: PathwayContext) {
+        REQUEST_PATHWAY.with(|p| {
+            let mut p = p.borrow_mut();
+            p.parent(Some(Direction::In), Some(context));
+            p.current = Some(context);
+        });
+    }
+
+    /// A pushed pathway starts empty, and popping it brings back the outer pathway along with
+    /// its run of outbound checkpoints.
+    #[test]
+    fn a_pushed_pathway_is_set_aside_until_popped() {
+        // Consume at(1), then produce at(9) with at(1) as its parent.
+        set_current(at(1, 0));
+        REQUEST_PATHWAY.with(|p| {
+            let mut p = p.borrow_mut();
+            p.parent(Some(Direction::Out), None);
+            p.current = Some(at(9, 0));
+        });
+
+        ddog_dsm_push_pathway();
+        assert_eq!(current(), None);
+        set_current(at(2, 0));
+        ddog_dsm_push_pathway();
+        set_current(at(3, 0));
+
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), Some(at(2, 0)));
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), Some(at(9, 0)));
+        // The next produce is still in the run, so it shares the first produce's parent.
+        let parent = REQUEST_PATHWAY.with(|p| p.borrow_mut().parent(Some(Direction::Out), None));
+        assert_eq!(parent, Some(at(1, 0)));
+
+        // With nothing pushed, popping leaves a fresh pathway.
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), None);
+    }
+
+    #[test]
+    fn a_reset_drops_pushed_pathways() {
+        set_current(at(1, 0));
+        ddog_dsm_push_pathway();
+        ddog_dsm_reset_pathway();
+        ddog_dsm_pop_pathway();
+        assert_eq!(current(), None);
     }
 
     #[test]
