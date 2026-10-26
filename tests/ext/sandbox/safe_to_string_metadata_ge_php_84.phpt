@@ -107,9 +107,6 @@ arg.4: string(4) "true"
 bool(false)
 arg.5: string(5) "false"
 
-NULL
-arg.6: string(4) "null"
-
 object(Closure)#%d (3) {
   ["name"]=>
   string(%d) "{closure%s}"
@@ -118,7 +115,8 @@ object(Closure)#%d (3) {
   ["line"]=>
   int(%d)
 }
-arg.7: string(0) ""
+arg.7: array(0) {
+}
 
 object(DateTime)#%d (3) {
   ["date"]=>

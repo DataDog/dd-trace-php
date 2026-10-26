@@ -23,21 +23,36 @@ $rr = new RequestReplayer();
 $rr->clearDumpedData();
 
 // Without the setting the sidecar switches to v1 once its /info fetch completes (well within 3s).
-$v04 = $v1 = 0;
+$v04 = $v1 = $roots = $empty = 0;
 for ($i = 0; $i < 30; $i++) {
     $s = \DDTrace\start_span();
     $s->name = "root";
+    $s->attributes['empty'] = [];
     \DDTrace\close_span();
     dd_trace_internal_fn("synchronous_flush");
     usleep(100000);
     foreach (($rr->replayAllRequests() ?: []) as $r) {
         if (strpos($r["uri"], "/v1.0/traces") !== false) $v1++;
-        if (strpos($r["uri"], "/v0.4/traces") !== false) $v04++;
+        if (strpos($r["uri"], "/v0.4/traces") === false) continue;
+        $v04++;
+        // v0.4 flattens an empty list to no leaf at all, so the attribute is absent.
+        foreach ((json_decode($r["body"], true) ?: []) as $trace) {
+            foreach ($trace as $span) {
+                if (($span["name"] ?? null) === "root") {
+                    $roots++;
+                    $empty += isset($span["meta"]["empty"]) || isset($span["metrics"]["empty"]);
+                }
+            }
+        }
     }
 }
 echo "v0.4 requests: ", $v04 > 0 ? "some" : "none", "\n";
 echo "v1 requests: $v1\n";
+echo "root spans: ", $roots > 0 ? "some" : "none", "\n";
+echo "root spans with an 'empty' tag: $empty\n";
 ?>
 --EXPECT--
 v0.4 requests: some
 v1 requests: 0
+root spans: some
+root spans with an 'empty' tag: 0

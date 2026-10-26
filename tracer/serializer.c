@@ -186,16 +186,19 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
 static void serialize_meta_struct(mpack_writer_t *writer, zval *meta_struct) {
     zval *tmp;
     zend_string *string_key;
+    zend_ulong num_key;
 
     HashTable *ht = Z_ARRVAL_P(meta_struct);
 
     mpack_start_map(writer, zend_hash_num_elements(ht));
 
-    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, string_key, tmp) {
-        if (!string_key) {
-            continue;
+    ZEND_HASH_FOREACH_KEY_VAL_IND(ht, num_key, string_key, tmp) {
+        if (string_key) {
+            mpack_write_cstr(writer, ZSTR_VAL(string_key));
+        } else {
+            char num_str_buf[MAX_ID_BUFSIZ];
+            mpack_write_str(writer, num_str_buf, sprintf(num_str_buf, ZEND_ULONG_FMT, num_key));
         }
-        mpack_write_cstr(writer, ZSTR_VAL(string_key));
         mpack_write_bin(writer, Z_STRVAL_P(tmp), Z_STRLEN_P(tmp));
     }
     ZEND_HASH_FOREACH_END();
@@ -964,18 +967,9 @@ static inline bool dd_native_is_hidden_member(zend_string *str_key) {
 
 // --- Native attributes --------------------------------------------------------------------------
 //
-// One emitter fills every attribute map (span, link, event, nested map): scalars keep their PHP type,
-// arrays/objects nest as a List/KeyValue (objects as a map of their public properties), and a
-// reference cycle becomes the "*RECURSION*" leaf, as in var_dump. The top-level flags set each node's form.
-#define DD_ATTR_TOP (1 << 0)                    // top-level entry: empty keys are skipped
-#define DD_ATTR_NULL_AS_STRING (1 << 1)         // null is the "null" string (links, events), not skipped
-#define DD_ATTR_EMPTY_ARRAY_AS_STRING (1 << 2)  // an empty array is the "" tag (spans)
-
-#define DD_ATTR_SPAN (DD_ATTR_TOP | DD_ATTR_EMPTY_ARRAY_AS_STRING)
-#define DD_ATTR_EVENT (DD_ATTR_TOP | DD_ATTR_NULL_AS_STRING)
-#define DD_ATTR_LINK (DD_ATTR_TOP | DD_ATTR_NULL_AS_STRING)
-
-static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string *zkey, zval *value, int flags);
+// One rule for every attribute map (span, link, event, nested): scalars keep their PHP type, arrays/objects nest
+// as a List/KeyValue, null is skipped, keys go out as they are and a reference cycle is "*RECURSION*", as in var_dump.
+static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string *zkey, zval *value);
 static void dd_attr_emit_list(ddog_AttrList *dest, zval *value);
 
 // Builds the list for packed array `value`.
@@ -1004,7 +998,7 @@ static ddog_AttrMap *dd_attr_build_map(zval *value) {
     ZEND_HASH_FOREACH_KEY_VAL_IND(arr, num_key, str_key, val) {
         if (!dd_native_is_hidden_member(str_key)) {
             char numbuf[24];
-            dd_attr_emit(attrs, dd_native_member_key(str_key, num_key, numbuf), NULL, val, 0);
+            dd_attr_emit(attrs, dd_native_member_key(str_key, num_key, numbuf), NULL, val);
         }
     } ZEND_HASH_FOREACH_END();
     dd_native_unprotect_recursion(value);
@@ -1012,7 +1006,7 @@ static ddog_AttrMap *dd_attr_build_map(zval *value) {
     return map;
 }
 
-// Emits one list element, preserving the PHP scalar type (nested nulls are skipped).
+// Emits one list element, preserving the PHP scalar type.
 static void dd_attr_emit_list(ddog_AttrList *dest, zval *value) {
     ZVAL_DEREF(value);
     switch (Z_TYPE_P(value)) {
@@ -1042,18 +1036,13 @@ static void dd_attr_emit_list(ddog_AttrList *dest, zval *value) {
 }
 
 // Emits `value` under `key` into `dest`; `zkey`, when given, is `key` as a zend_string (zero-copy).
-static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string *zkey, zval *value, int flags) {
-    if ((flags & DD_ATTR_TOP) && !key.len) {
-        return;
-    }
+static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string *zkey, zval *value) {
     ZVAL_DEREF(value);
     switch (Z_TYPE_P(value)) {
         case IS_ARRAY:
         case IS_OBJECT:
             if (Z_IS_RECURSIVE_P(value)) {
                 ddog_attributes_add_str(dest, key, DDOG_CHARSLICE_C("*RECURSION*"));
-            } else if ((flags & DD_ATTR_EMPTY_ARRAY_AS_STRING) && Z_TYPE_P(value) == IS_ARRAY && !zend_hash_num_elements(Z_ARR_P(value))) {
-                ddog_attributes_add_str(dest, key, DDOG_CHARSLICE_C(""));
             } else if (dd_native_is_list(value)) {
                 ddog_attributes_add_list(dest, key, dd_attr_build_list(value));
             } else {
@@ -1061,10 +1050,7 @@ static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string 
             }
             return;
         case IS_NULL:
-            if (!(flags & DD_ATTR_NULL_AS_STRING)) {
-                return;
-            }
-            break;
+            return; // V1 has no null value
         case IS_TRUE:
         case IS_FALSE:
             ddog_attributes_add_bool(dest, key, Z_TYPE_P(value) == IS_TRUE);
@@ -1089,7 +1075,7 @@ static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string 
     zend_string_release(str);
 }
 
-// Emit each SpanLink into the V1 builder span. V1 links carry no dropped_attributes_count.
+// Emit each SpanLink into the V1 builder span.
 static void dd_span_links_to_rust(zend_array *links, ddog_SpanBytes *span) {
     zval *val;
     ZEND_HASH_FOREACH_VAL(links, val) {
@@ -1121,7 +1107,7 @@ static void dd_span_links_to_rust(zend_array *links, ddog_SpanBytes *span) {
             zval *aval;
             ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(attrs), idx, key, aval) {
                 char numbuf[24];
-                dd_attr_emit(link_attrs, dd_native_member_key(key, idx, numbuf), NULL, aval, DD_ATTR_LINK);
+                dd_attr_emit(link_attrs, dd_native_member_key(key, idx, numbuf), NULL, aval);
             } ZEND_HASH_FOREACH_END();
         }
     } ZEND_HASH_FOREACH_END();
@@ -1176,20 +1162,20 @@ static void dd_span_events_to_rust(zend_array *events, ddog_SpanBytes *span) {
             zval *aval;
             ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(attrs), idx, key, aval) {
                 char numbuf[24];
-                dd_attr_emit(event_attrs, dd_native_member_key(key, idx, numbuf), NULL, aval, DD_ATTR_EVENT);
+                dd_attr_emit(event_attrs, dd_native_member_key(key, idx, numbuf), NULL, aval);
             } ZEND_HASH_FOREACH_END();
         }
     } ZEND_HASH_FOREACH_END();
 }
 
-// Value stored through the $meta/$metrics views: meta leaves become strings, metric leaves doubles,
-// empty arrays/objects the ""/0.0 placeholder and reference cycles "*RECURSION*"/0.0.
+// Value stored through the $meta/$metrics views: meta leaves become strings, metric leaves doubles and
+// reference cycles "*RECURSION*"/0.0; null and empty arrays are stored as they are.
 void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric) {
     ZVAL_DEREF(value);
     if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
         bool release;
         zend_array *arr = dd_native_props(value, &release);
-        if (zend_hash_num_elements(arr) && !Z_IS_RECURSIVE_P(value)) {
+        if (!Z_IS_RECURSIVE_P(value)) {
             bool is_list = dd_native_is_list(value);
             array_init_size(dst, zend_hash_num_elements(arr));
             dd_native_protect_recursion(value);
@@ -1214,15 +1200,14 @@ void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric) {
             dd_native_release_props(arr, release);
             return;
         }
-        bool recursive = Z_IS_RECURSIVE_P(value);
         dd_native_release_props(arr, release);
         if (metric) {
             ZVAL_DOUBLE(dst, 0.0);
-        } else if (recursive) {
-            ZVAL_STRINGL(dst, "*RECURSION*", sizeof("*RECURSION*") - 1);
         } else {
-            ZVAL_EMPTY_STRING(dst);
+            ZVAL_STRINGL(dst, "*RECURSION*", sizeof("*RECURSION*") - 1);
         }
+    } else if (Z_TYPE_P(value) == IS_NULL) {
+        ZVAL_NULL(dst);
     } else if (metric) {
         ZVAL_DOUBLE(dst, zval_get_double(value));
     } else {
@@ -1230,7 +1215,7 @@ void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric) {
     }
 }
 
-static void dd_serialize_array_meta_struct_recursively(ddog_SpanBytes *target, zend_string *str, zval *value) {
+static void dd_serialize_array_meta_struct_recursively(ddog_SpanBytes *target, ddog_CharSlice key, zval *value) {
     char *data;
     size_t size;
 
@@ -1244,9 +1229,7 @@ static void dd_serialize_array_meta_struct_recursively(ddog_SpanBytes *target, z
         return;
     }
 
-    if (ZSTR_LEN(str)) {
-        ddog_attributes_add_bytes(ddog_span_get_attributes(target), dd_zend_string_to_CharSlice(str), (ddog_CharSlice){.ptr = data, .len = size});
-    }
+    ddog_attributes_add_bytes(ddog_span_get_attributes(target), key, (ddog_CharSlice){.ptr = data, .len = size});
     free(data);
 }
 
@@ -1884,11 +1867,11 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
 
     // $meta/$metrics are views onto $attributes, so this emits them too.
     zend_string *attr_str_key;
+    zend_ulong attr_num_key;
     zval *attr_val;
-    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(attributes, attr_str_key, attr_val) {
-        if (attr_str_key) {
-            dd_attr_emit(rattrs, dd_zend_string_to_CharSlice(attr_str_key), attr_str_key, attr_val, DD_ATTR_SPAN);
-        }
+    ZEND_HASH_FOREACH_KEY_VAL_IND(attributes, attr_num_key, attr_str_key, attr_val) {
+        char numbuf[24];
+        dd_attr_emit(rattrs, dd_native_member_key(attr_str_key, attr_num_key, numbuf), attr_str_key, attr_val);
     } ZEND_HASH_FOREACH_END();
 
     zval *exception_zv = &span->property_exception;
@@ -2060,11 +2043,11 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
 
     zend_array *meta_struct = ddtrace_property_array(&span->property_meta_struct);
     zend_string *ms_str_key;
+    zend_ulong ms_num_key;
     zval *ms_val;
-    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(meta_struct, ms_str_key, ms_val) {
-        if (ms_str_key) {
-            dd_serialize_array_meta_struct_recursively(rspan, ms_str_key, ms_val);
-        }
+    ZEND_HASH_FOREACH_KEY_VAL_IND(meta_struct, ms_num_key, ms_str_key, ms_val) {
+        char numbuf[24];
+        dd_serialize_array_meta_struct_recursively(rspan, dd_native_member_key(ms_str_key, ms_num_key, numbuf), ms_val);
     }
     ZEND_HASH_FOREACH_END();
 
@@ -2127,7 +2110,7 @@ static void dd_attributes_to_zval(const ddog_Attributes *attrs, zval *out, zval 
         zval v;
         dd_attr_value_to_zval(value, &v);
         zval *target = bytes_out && ddog_v1_value_type(value) == ddog_DDOG_V1_ATTR_BYTES ? bytes_out : out;
-        zend_hash_str_update(Z_ARR_P(target), dd_CharSlice_ptr(key), key.len, &v);
+        zend_symtable_str_update(Z_ARR_P(target), dd_CharSlice_ptr(key), key.len, &v);
     }
 }
 

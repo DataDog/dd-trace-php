@@ -8,7 +8,7 @@ DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 <?php
 $s = \DDTrace\start_span();
 $s->attributes = [
-    '' => 'empty key', // dropped: a top-level attribute needs a key
+    '' => 'empty key',
     'empty' => '',
     'nested' => ['a' => ['b' => ['' => 1, 'c' => '']]],
     'list' => ['', ['' => '']],
@@ -21,7 +21,7 @@ foreach (['', 'empty', 'nested', 'list'] as $key) {
 }
 ?>
 --EXPECT--
-'' => null
+'' => "empty key"
 'empty' => ""
 'nested' => {"a":{"b":{"":1,"c":""}}}
 'list' => ["",{"":""}]

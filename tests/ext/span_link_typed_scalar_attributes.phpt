@@ -1,5 +1,5 @@
 --TEST--
-Span link scalar attributes keep their PHP type when serialized
+Span link scalar attributes keep their PHP type when serialized, and null is skipped
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
 --FILE--
@@ -26,7 +26,7 @@ $spans = dd_clean_spans();
 var_dump($spans[0]['span_links'][0]['attributes']);
 ?>
 --EXPECT--
-array(6) {
+array(5) {
   ["t"]=>
   bool(true)
   ["f"]=>
@@ -37,6 +37,4 @@ array(6) {
   float(1.5)
   ["s"]=>
   string(3) "str"
-  ["n"]=>
-  string(4) "null"
 }

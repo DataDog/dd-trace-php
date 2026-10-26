@@ -37,7 +37,7 @@ var_dump($merged['num'], $merged['x']);
 $span->meta += ['added' => 'yes'];
 var_dump($span->attributes['added']);
 
-echo "-- nested values keep the old string leaves\n";
+echo "-- nested values keep the old string leaves, null and empty arrays as they are\n";
 $span->meta['nested'] = ['a' => 1, 'b' => [true, null], 'c' => []];
 var_dump($span->attributes['nested']);
 
@@ -101,7 +101,7 @@ bool(false)
 string(2) "42"
 string(1) "y"
 string(3) "yes"
--- nested values keep the old string leaves
+-- nested values keep the old string leaves, null and empty arrays as they are
 array(3) {
   ["a"]=>
   string(1) "1"
@@ -110,10 +110,11 @@ array(3) {
     [0]=>
     string(4) "true"
     [1]=>
-    string(4) "null"
+    NULL
   }
   ["c"]=>
-  string(0) ""
+  array(0) {
+  }
 }
 -- whole-array assignment replaces the bucket
 array(3) {
