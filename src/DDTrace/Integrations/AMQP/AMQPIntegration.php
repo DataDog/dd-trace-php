@@ -9,7 +9,9 @@ use DDTrace\SpanData;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPAbstractCollection;
 use PhpAmqpLib\Wire\AMQPTable;
+use PhpAmqpLib\Wire\AMQPWriter;
 
 use function DDTrace\active_span;
 use function DDTrace\close_span;
@@ -630,9 +632,7 @@ class AMQPIntegration extends Integration
         }
 
         // The message as it is sent, but for the context header the checkpoint computes.
-        $headers = self::getNativeHeaders($message);
-        unset($headers[self::DSM_CONTEXT_HEADER]);
-        $payloadSize = strlen((string)$message->getBody()) + self::headersSize($headers);
+        $payloadSize = strlen((string)$message->getBody()) + self::headersSize($message, self::DSM_CONTEXT_HEADER);
 
         $context = \DDTrace\Internal\dsm_set_checkpoint($edgeTags, null, $payloadSize);
         if ($context !== null) {
@@ -651,7 +651,7 @@ class AMQPIntegration extends Integration
         \DDTrace\Internal\dsm_set_checkpoint(
             ['direction:in', 'topic:' . $queue, 'type:rabbitmq'],
             is_string($context) ? $context : null,
-            strlen((string)$message->getBody()) + self::headersSize($headers)
+            strlen((string)$message->getBody()) + self::headersSize($message)
         );
     }
 
@@ -665,23 +665,31 @@ class AMQPIntegration extends Integration
     }
 
     /**
-     * Bytes of the headers' names and string values, nested tables and arrays included, as the
-     * Node.js tracer counts them. Numbers, booleans, timestamps and decimals count as 0.
+     * Bytes of the message's header entries as AMQP encodes them, leaving out $skip and the
+     * table's 4-byte length.
      */
-    private static function headersSize(array $headers): int
+    private static function headersSize(AMQPMessage $message, $skip = null): int
     {
-        $size = 0;
-        foreach ($headers as $name => $value) {
-            if (is_string($name)) {
-                $size += strlen($name);
-            }
-            if (is_string($value)) {
-                $size += strlen($value);
-            } elseif (is_array($value)) {
-                $size += self::headersSize($value);
+        if (!$message->has('application_headers')) {
+            return 0;
+        }
+        $table = $message->get('application_headers');
+        if (!$table instanceof AMQPTable) {
+            return 0;
+        }
+        // write_table() reads the types of a plain array's entries as protocol symbols.
+        $entries = [];
+        foreach ($table as $name => list($type, $value)) {
+            if ($name !== $skip) {
+                $entries[$name] = [AMQPAbstractCollection::getSymbolForDataType($type), $value];
             }
         }
-        return $size;
+        if (!$entries) {
+            return 0;
+        }
+        $writer = new AMQPWriter();
+        $writer->write_table($entries);
+        return strlen($writer->getvalue()) - 4;
     }
 
     public static function setDataStreamsContextHeader(AMQPMessage $message, string $context)
