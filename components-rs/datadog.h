@@ -143,6 +143,17 @@ void ddog_dsm_tables_clear(void);
 void ddog_dsm_reset_pathway(void);
 
 /**
+ * Set the request's pathway aside and start a fresh one, e.g. while a message's callback runs.
+ */
+void ddog_dsm_push_pathway(void);
+
+/**
+ * Go back to the pathway the last `ddog_dsm_push_pathway` set aside, or to a fresh one if there
+ * is none.
+ */
+void ddog_dsm_pop_pathway(void);
+
+/**
  * Set a checkpoint on the request's pathway and record it.
  *
  * `edge_tags` are `key:value` strings, at most `MAX_EDGE_TAGS` of which are kept; their order

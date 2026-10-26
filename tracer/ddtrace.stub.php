@@ -1127,6 +1127,22 @@ namespace DDTrace\Internal {
      */
     function dsm_track_backlog(array $tags, int $offset): void {}
 
+    /**
+     * Set the request's Data Streams Monitoring pathway aside and start a fresh one, for an
+     * integration to call before it hands a message to a callback. The checkpoints the callback
+     * sets then neither continue the previous message's pathway nor outlive the callback.
+     *
+     * @internal
+     */
+    function dsm_push_pathway(): void {}
+
+    /**
+     * Go back to the pathway the last dsm_push_pathway() set aside.
+     *
+     * @internal
+     */
+    function dsm_pop_pathway(): void {}
+
 }
 
 namespace datadog\appsec\v2 {
