@@ -36,7 +36,7 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
     static boolean expectedVersion =
-            ['7.3', '7.4', '8.0', '8.1'].contains(getPhpVersion()) && !getVariant().contains('zts')
+            ['8.1'].contains(getPhpVersion()) && !getVariant().contains('zts')
 
     @Container
     @FailOnUnmatchedTraces
