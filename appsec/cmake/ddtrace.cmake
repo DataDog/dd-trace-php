@@ -68,6 +68,7 @@ add_custom_target(ddtrace_exports
     COMMAND bash -c "sed 's/^/_/' '${DDTRACE_EXPORT_SYMBOL_ARGUMENTS}' > '${EXPORTS_FILE}'"
     BYPRODUCTS ${EXPORTS_FILE}
     DEPENDS ${DDTRACE_EXPORT_SYMBOL_FILES}
+    VERBATIM
 )
 endif()
 
