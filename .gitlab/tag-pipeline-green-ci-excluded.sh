@@ -19,11 +19,13 @@ set -uo pipefail
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 vault_path="/tmp/vault"
+# Extract with perl: the dd-octo-sts-ci-base image has no unzip.
 if [ ! -x "${vault_path}" ]; then
   "${script_dir}/download-file.sh" \
     "https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip" \
     "${vault_path}.zip" >/dev/null 2>&1 \
-    && unzip -o -q "${vault_path}.zip" -d /tmp \
+    && perl -MIO::Uncompress::Unzip=unzip -e 'unzip($ARGV[0] => $ARGV[1], Name => "vault") or die' \
+      "${vault_path}.zip" "${vault_path}" \
     && chmod +x "${vault_path}" \
     && rm -f "${vault_path}.zip"
 fi
@@ -46,8 +48,10 @@ fi
 
 npm install -g @datadog/datadog-ci >/dev/null 2>&1
 
+# The runner's own DD_TAGS would be merged into the pipeline tags.
+unset DD_TAGS
 DD_API_KEY="${DD_API_KEY}" DD_SITE="datadoghq.com" \
-  datadog-ci tag --level pipeline --tags "green_ci.excluded:true" >/dev/null 2>&1 \
+  datadog-ci tag --level pipeline --tags "green_ci.excluded:true" \
   || echo "WARNING: datadog-ci tag failed" >&2
 
 unset DD_API_KEY
