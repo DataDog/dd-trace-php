@@ -25,15 +25,11 @@ class LaravelIntegration extends Integration
 
     /**
      * Path parameters captured by Laravel before route defaults are applied.
+     * Cleared when Router::findRoute consumes them, or at the end of the request.
      *
-     * PHP 8 uses a WeakMap keyed by the request. Older PHP versions use the
-     * request object hash; entries are removed when the Router::findRoute hook
-     * consumes them, otherwise (e.g. findRoute throws after binding, or a route
-     * is bound outside findRoute) they are only freed at the end of the request.
-     *
-     * @var \WeakMap<object, array>|array<string, array>|null
+     * @var array|null
      */
-    private static $urlMatchedParamsByRequest;
+    private static $urlMatchedParams;
 
     /**
      * {@inheritdoc}
@@ -155,7 +151,7 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
                     if (self::apiSecurityEnabled()) {
                         $allParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
-                        $urlMatchedParams = self::takeLaravelUrlMatchedParams($request);
+                        $urlMatchedParams = self::takeLaravelUrlMatchedParams();
                         if (strpos($httpRoute, '?}') !== false) {
                             // For routes with optional params, filter out default-injected values
                             // (e.g. ->defaults('format', 'html')) that weren't present in the URL.
@@ -219,9 +215,8 @@ class LaravelIntegration extends Integration
             'bindPathParameters',
             null,
             static function ($This, $scope, $args, $matchedParams) {
-                if (isset($args[0]) && is_object($args[0]) && is_array($matchedParams)
-                    && self::urlMatchedParamsWanted()) {
-                    self::rememberLaravelUrlMatchedParams($args[0], $matchedParams);
+                if (is_array($matchedParams) && self::urlMatchedParamsWanted()) {
+                    self::rememberLaravelUrlMatchedParams($matchedParams);
                 }
             }
         );
@@ -234,8 +229,8 @@ class LaravelIntegration extends Integration
             'bindPathParameters',
             null,
             static function ($This, $scope, $args, $matches) {
-                if (!isset($args[0]) || !is_object($args[0]) || !is_array($matches)
-                    || !method_exists($This, 'parameterNames') || !self::urlMatchedParamsWanted()) {
+                if (!is_array($matches) || !method_exists($This, 'parameterNames')
+                    || !self::urlMatchedParamsWanted()) {
                     return;
                 }
 
@@ -244,7 +239,7 @@ class LaravelIntegration extends Integration
                 $matchedParams = array_filter($matchedParams, static function ($value) {
                     return is_string($value) && strlen($value) > 0;
                 });
-                self::rememberLaravelUrlMatchedParams($args[0], $matchedParams);
+                self::rememberLaravelUrlMatchedParams($matchedParams);
             }
         );
 
@@ -852,44 +847,16 @@ class LaravelIntegration extends Integration
         return \DDTrace\root_span() !== null && self::apiSecurityEnabled();
     }
 
-    private static function rememberLaravelUrlMatchedParams($request, array $matchedParams)
+    private static function rememberLaravelUrlMatchedParams(array $matchedParams)
     {
-        if (class_exists('WeakMap', false)) {
-            if (!(self::$urlMatchedParamsByRequest instanceof \WeakMap)) {
-                self::$urlMatchedParamsByRequest = new \WeakMap();
-            }
-            self::$urlMatchedParamsByRequest[$request] = $matchedParams;
-            return;
-        }
-
-        if (!is_array(self::$urlMatchedParamsByRequest)) {
-            self::$urlMatchedParamsByRequest = [];
-        }
-        self::$urlMatchedParamsByRequest[spl_object_hash($request)] = $matchedParams;
+        self::$urlMatchedParams = $matchedParams;
     }
 
     /** @return array|null */
-    private static function takeLaravelUrlMatchedParams($request)
+    private static function takeLaravelUrlMatchedParams()
     {
-        if (self::$urlMatchedParamsByRequest instanceof \WeakMap) {
-            if (!isset(self::$urlMatchedParamsByRequest[$request])) {
-                return null;
-            }
-            $matchedParams = self::$urlMatchedParamsByRequest[$request];
-            unset(self::$urlMatchedParamsByRequest[$request]);
-            return $matchedParams;
-        }
-
-        if (!is_array(self::$urlMatchedParamsByRequest)) {
-            return null;
-        }
-
-        $key = spl_object_hash($request);
-        if (!array_key_exists($key, self::$urlMatchedParamsByRequest)) {
-            return null;
-        }
-        $matchedParams = self::$urlMatchedParamsByRequest[$key];
-        unset(self::$urlMatchedParamsByRequest[$key]);
+        $matchedParams = self::$urlMatchedParams;
+        self::$urlMatchedParams = null;
         return $matchedParams;
     }
 }
