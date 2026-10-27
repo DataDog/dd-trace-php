@@ -51,7 +51,7 @@ RUN set -eux; \
          END { flush() }' "$src" > /tmp/ca-bundle.trust.p11-kit; \
     mv /tmp/ca-bundle.trust.p11-kit "$src"; \
     update-ca-trust extract; \
-    ln -sf /usr/lib64/pkcs11/p11-kit-trust.so /usr/lib64/nss/libnssckbi.so
+    ln -sf /usr/lib64/pkcs11/p11-kit-trust.so /usr/lib64/libnssckbi.so
 
 ENV SRC_DIR=/usr/local/src
 
