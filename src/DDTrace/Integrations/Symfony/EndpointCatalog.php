@@ -265,9 +265,14 @@ class EndpointCatalog
      * compiled tokens differ from the generator's, so that the regex would not
      * be the one Symfony matched.
      *
+     * Public so the unit tests can assert it returns the very regex Symfony
+     * compiled for the route, rather than one of our own making.
+     *
+     * @internal
+     *
      * @return string|null
      */
-    private static function replayRegexFromGeneratorData(array $routeData)
+    public static function replayRegexFromGeneratorData(array $routeData)
     {
         $defaults = isset($routeData[1]) && is_array($routeData[1]) ? $routeData[1] : [];
         $requirements = isset($routeData[2]) && is_array($routeData[2]) ? $routeData[2] : [];
