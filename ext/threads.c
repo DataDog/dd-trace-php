@@ -9,7 +9,7 @@ MUTEX_T datadog_threads_mutex = NULL;
 
 // A SIGVTALRM arriving on the thread holding the lock would deadlock in the handler. HANDLE_BLOCK_INTERRUPTIONS() does not
 // help: it only defers the signals zend_signal handles itself. Pending signals are delivered after unlocking.
-void datadog_threads_lock(datadog_threads_lock_state *state) {
+static void dd_threads_block_signal(datadog_threads_lock_state *state) {
 #ifndef _WIN32
     sigset_t x;
     sigemptyset(&x);
@@ -18,16 +18,39 @@ void datadog_threads_lock(datadog_threads_lock_state *state) {
 #else
     (void)state;
 #endif
-    tsrm_mutex_lock(datadog_threads_mutex);
 }
 
-void datadog_threads_unlock(datadog_threads_lock_state *state) {
-    tsrm_mutex_unlock(datadog_threads_mutex);
+static void dd_threads_restore_signal(datadog_threads_lock_state *state) {
 #ifndef _WIN32
     pthread_sigmask(SIG_SETMASK, state, NULL);
 #else
     (void)state;
 #endif
+}
+
+void datadog_threads_lock(datadog_threads_lock_state *state) {
+    dd_threads_block_signal(state);
+    tsrm_mutex_lock(datadog_threads_mutex);
+}
+
+bool datadog_threads_trylock(datadog_threads_lock_state *state) {
+    dd_threads_block_signal(state);
+#ifndef _WIN32
+    if (pthread_mutex_trylock(datadog_threads_mutex) == 0) {
+        return true;
+    }
+#else
+    if (TryEnterCriticalSection(datadog_threads_mutex)) {
+        return true;
+    }
+#endif
+    dd_threads_restore_signal(state);
+    return false;
+}
+
+void datadog_threads_unlock(datadog_threads_lock_state *state) {
+    tsrm_mutex_unlock(datadog_threads_mutex);
+    dd_threads_restore_signal(state);
 }
 
 void datadog_thread_ginit() {

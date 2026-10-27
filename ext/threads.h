@@ -19,6 +19,7 @@ typedef sigset_t datadog_threads_lock_state;
 
 // Locks datadog_threads_mutex with the remote config signal blocked: its handler takes the lock too
 void datadog_threads_lock(datadog_threads_lock_state *state);
+bool datadog_threads_trylock(datadog_threads_lock_state *state);
 void datadog_threads_unlock(datadog_threads_lock_state *state);
 
 void datadog_thread_ginit(void);
