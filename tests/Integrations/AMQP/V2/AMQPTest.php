@@ -2,13 +2,16 @@
 
 namespace DDTrace\Tests\Integrations\AMQP\V2;
 
+use DDTrace\Integrations\AMQP\AMQPIntegration;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPDecimal;
 use PhpAmqpLib\Wire\AMQPTable;
+use PhpAmqpLib\Wire\AMQPWriter;
 
 class AMQPTest extends IntegrationTestCase
 {
@@ -1164,6 +1167,13 @@ class AMQPTest extends IntegrationTestCase
         return self::dsmHash($last);
     }
 
+    protected static function dsmHeadersSize(array $headers, $skip = null)
+    {
+        $method = new \ReflectionMethod(AMQPIntegration::class, 'headersSize');
+        $method->setAccessible(true);
+        return $method->invoke(null, $headers, $skip);
+    }
+
     /**
      * A message published inside a basic_consume callback links to the message being consumed,
      * and one published after the callback does not.
@@ -1337,5 +1347,85 @@ class AMQPTest extends IntegrationTestCase
 
         $this->assertNull($result['sent']);
         $this->assertTrue($result['callback kept']);
+    }
+
+    /**
+     * Headers are sized from their native values, without encoding them, and come to what
+     * php-amqplib encodes for every type it infers.
+     */
+    public function testDataStreamsHeadersSizeMatchesTheEncoding()
+    {
+        $headers = new AMQPTable([
+            'x-datadog-trace-id' => '1311263442542712053',
+            'traceparent' => '00-66f1a2b30000000011f71fb04cb4dad5-0dbc0f84a3c9d0b1-01',
+            'empty' => '',
+            'int' => 42,
+            'negative' => -7,
+            'long' => 1 << 40,
+            'bool' => false,
+            'float' => 1.5,
+            'null' => null,
+            'timestamp' => new \DateTime('@1700000000'),
+            'decimal' => new AMQPDecimal(12345, 2),
+            'table' => ['a' => 'b', 'n' => 7, 'deep' => ['x' => 'y']],
+            'array' => ['x', 3, ['k' => 'v'], []],
+        ]);
+        $headers->set('bytes', "\x00\x01\x02", AMQPTable::T_BYTES);
+        $headers->set('dd-pathway-ctx-base64', 'Cx3KpnXHzu6m4f3vmQ1Zlv7xs8znDA==');
+        $writer = new AMQPWriter();
+        $writer->write_table($headers);
+        $encoded = strlen($writer->getvalue()) - 4; // without the table's length
+        $contextEntry = 2 + strlen('dd-pathway-ctx-base64') + 4 + strlen('Cx3KpnXHzu6m4f3vmQ1Zlv7xs8znDA==');
+
+        $native = $headers->getNativeData();
+        $this->assertSame($encoded, self::dsmHeadersSize($native));
+        $this->assertSame($encoded - $contextEntry, self::dsmHeadersSize($native, 'dd-pathway-ctx-base64'));
+        $this->assertSame(0, self::dsmHeadersSize([]));
+    }
+
+    /**
+     * A consume checkpoint that fails neither reaches the application nor keeps the message from
+     * the callback, and the callback's own exceptions still reach the application.
+     */
+    public function testDataStreamsConsumeCheckpointFailureStillDeliversTheMessage()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $result = [];
+        $this->isolateTracer(function () use (&$result) {
+            $connection = $this->connectionToServer();
+            // Closed even when the callback throws, so a retry can declare the exclusive queue.
+            try {
+                $channel = $connection->channel();
+                $channel->queue_declare('dsm_failure', false, false, true, false);
+
+                // A message the checkpoint fails on, as it can't read its body.
+                $result['sent'] = new class('order') extends AMQPMessage {
+                    public function getBody()
+                    {
+                        throw new \RuntimeException('unreadable body');
+                    }
+                };
+                $callback = function (AMQPMessage $message) use (&$result) {
+                    $result['delivered'] = $message;
+                };
+                $consumerTag = $channel->basic_consume('dsm_failure', '', false, true, false, false, $callback);
+                $channel->callbacks[$consumerTag]($result['sent']);
+
+                $callback = function (AMQPMessage $message) {
+                    throw new \DomainException('application error');
+                };
+                $consumerTag = $channel->basic_consume('dsm_failure', '', false, true, false, false, $callback);
+                try {
+                    $channel->callbacks[$consumerTag](new AMQPMessage('order'));
+                } catch (\DomainException $e) {
+                    $result['application error'] = $e->getMessage();
+                }
+            } finally {
+                $connection->close();
+            }
+        });
+
+        $this->assertSame($result['sent'], $result['delivered']);
+        $this->assertSame('application error', $result['application error']);
     }
 }
