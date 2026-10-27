@@ -96,6 +96,7 @@ static void datadog_sort_modules(void *base, size_t count, size_t siz, compare_f
 
 #ifndef _WIN32
 void datadog_signal_block_handlers_startup(void);
+void datadog_signal_block_post_deactivate(void);
 #endif
 void datadog_pcntl_handlers_startup(void);
 
@@ -718,6 +719,11 @@ zend_result datadog_post_deactivate(void) {
 
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
+
+#ifndef _WIN32
+    // A bailout within a signal blocking function skips the unblocking
+    datadog_signal_block_post_deactivate();
+#endif
 
     return SUCCESS;
 }
