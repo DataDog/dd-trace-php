@@ -98,7 +98,7 @@ zend_result ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, boo
         // In-process sender (DD_TRACE_SIDECAR_TRACE_SENDER=0): its array-of-1 framing can't
         // parse a native V1 payload (one msgpack MAP), so it downgrades to v0.4 traces.
         // Consumes ctx->builder; returns a v0.4 collection to free below.
-        ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(ctx->builder);
+        ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(ctx->builder, ddog_agent_has_span_events());
         size_t trace_count = ddog_get_traces_size(v04_traces);
         for (size_t i = 0; i < trace_count; i++) {
             // One msgpack array-of-1 per trace, matching the background sender's framing.

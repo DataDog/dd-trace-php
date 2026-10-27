@@ -145,6 +145,12 @@ void ddog_agent_info_json_free(char *ptr);
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
 
+/**
+ * Whether the in-process sender's v0.4 downgrade can send native `span_events`: the agent's
+ * /info advertises them. Otherwise span events go to the legacy `events` meta JSON.
+ */
+bool ddog_agent_has_span_events(void);
+
 void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),
                          ddog_OwnedZendString (*init_func)(ddog_CharSlice));

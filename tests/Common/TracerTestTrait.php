@@ -461,7 +461,15 @@ trait TracerTestTrait
         } else {
             unset($span['error']);
         }
-        if (isset($attributes['events']) && is_array($events = json_decode($attributes['events'], true))) {
+        if (isset($span['span_events'])) {
+            // Native v0.4 events, for agents advertising span_events: typed attribute values.
+            foreach ($span['span_events'] as &$event) {
+                $eventAttributes = array_map([$this, 'fromV04EventValue'], $event['attributes'] ?? []);
+                $event = ['name' => $event['name'], 'time_unix_nano' => $event['time_unix_nano']]
+                    + ($eventAttributes ? ['attributes' => $eventAttributes] : []);
+            }
+            unset($event);
+        } elseif (isset($attributes['events']) && is_array($events = json_decode($attributes['events'], true))) {
             $span['span_events'] = $events;
             unset($attributes['events']);
         }
@@ -475,6 +483,15 @@ trait TracerTestTrait
         }
         $span['_wire'] = 'v0.4';
         return $span;
+    }
+
+    /** A native v0.4 span event attribute value, {"type": <0-4>, "<type>_value": ...}, as a plain value. */
+    private function fromV04EventValue(array $value)
+    {
+        $field = ['string_value', 'bool_value', 'int_value', 'double_value', 'array_value'][$value['type']];
+        return $field === 'array_value'
+            ? array_map([$this, 'fromV04EventValue'], $value[$field]['values'])
+            : $value[$field];
     }
 
     private function parseRawDumpedSpans($rawSpans)

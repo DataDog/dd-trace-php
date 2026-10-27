@@ -5,7 +5,7 @@ v0.4 native span_links and legacy events JSON carry typed floats and objects as 
 if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the in-process sender is not available on Windows');
 if (PHP_VERSION_ID < 70100) die('skip: serialize_precision=-1 requires PHP 7.1');
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
-// Pre-seed a non-v1 /info so the in-process sender negotiates the v0.4 downgrade.
+// Pre-seed a non-v1 /info without span_events so the in-process sender downgrades to v0.4 with JSON events.
 $ctx = stream_context_create(['http' => [
     'method' => 'PUT',
     'header' => ["Content-Type: application/json", "X-Datadog-Test-Session-Token: span_link_event_attributes_v04_wire"],
