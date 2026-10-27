@@ -21,6 +21,11 @@ trace sender enabled, each worker sends a warmup trace and waits for agent info
 and sampling rates before timing the subject. It requires a reachable agent and
 fails setup if readiness times out.
 
+`DataStreamsBench` and `AMQPDataStreamsBench` measure Data Streams Monitoring
+checkpoints as they are recorded in production: written to the sidecar's
+shared-memory tables. They require a reachable agent whose `/info` lists
+`/v0.1/pipeline_stats`, and fail setup otherwise.
+
 ## How to add a new benchmark
 
 The benchmarks are located in the [tests/Benchmarks](.) folder and are written using [PHPBench](https://github.com/phpbench/phpbench).
