@@ -174,6 +174,14 @@ static void datadog_remote_config_notify(void *context) {
 
 void datadog_rinit_remote_config(void) {
     DATADOG_G(reread_remote_configuration) = 0;
+
+#ifndef _WIN32
+    // Threaded SAPIs may run requests with all signals blocked (e.g. the apache worker and event MPMs), where no thread would receive the notifications.
+    sigset_t x;
+    sigemptyset(&x);
+    sigaddset(&x, SIGVTALRM);
+    sigprocmask(SIG_UNBLOCK, &x, NULL);
+#endif
 }
 
 void datadog_rshutdown_remote_config(void) {
