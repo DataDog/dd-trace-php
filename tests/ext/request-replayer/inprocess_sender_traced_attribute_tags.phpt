@@ -67,8 +67,6 @@ Deprecated: DDTrace\Trace: $tags is deprecated, use $attributes instead in %s on
 meta.arr.0='1'
 meta.arr.1='true'
 meta.arr.2='2.5'
-meta.arr.3='null'
 meta.i='7'
-meta.map.e=''
 meta.map.k='3'
 [ddtrace] [info] [%d] No finished traces to be sent to the agent

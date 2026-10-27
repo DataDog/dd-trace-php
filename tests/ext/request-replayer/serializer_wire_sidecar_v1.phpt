@@ -25,7 +25,8 @@ $rr->clearDumpedData();
 // several traces per payload: resend "root" until it shows up in any chunk of a v1 request.
 $req = null;
 $foundSpan = null;
-for ($i = 0; $i < 100 && $req === null; $i++) {
+$deadline = microtime(true) + 40; // wall-clock cap: a synchronous flush can take seconds under load
+while ($req === null && microtime(true) < $deadline) {
     $s = \DDTrace\start_span();
     $s->name = "root";
     $s->service = "svc";

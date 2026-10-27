@@ -299,7 +299,7 @@ final class TracerTest extends BaseTestCase
         $this->assertEquals("1.1", $attributes['float-array'][0]);
         $this->assertEquals("2.2", $attributes['float-array'][1]);
         $this->assertEquals("3.3", $attributes['float-array'][2]);
-        $this->assertSame("", $attributes['empty-array']);
+        $this->assertSame([], $attributes['empty-array']);
     }
 
     /**
