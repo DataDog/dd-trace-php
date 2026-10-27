@@ -32,7 +32,7 @@
 | shardj/zf1-future           | 1.21.4                 | 1.21.4                 |
 | slim/slim                   | 3.12.5                 | 4.15.0                 |
 | spiral/roadrunner           | 2.11.4                 | 2.11.4                 |
-| stripe/stripe-php           | 13.18.0                | 13.18.0                |
+| stripe/stripe-php           | 13.18.1                | 13.18.1                |
 | symfony/console             | 5.2.14                 | 8.0.15                 |
 | symfony/framework-bundle    | 2.3.42                 | 8.0.15                 |
 | symfony/messenger           | 4.4.49                 | 8.0.15                 |
