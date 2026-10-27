@@ -9,9 +9,8 @@ use DDTrace\SpanData;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
 use PhpAmqpLib\Message\AMQPMessage;
-use PhpAmqpLib\Wire\AMQPAbstractCollection;
+use PhpAmqpLib\Wire\AMQPDecimal;
 use PhpAmqpLib\Wire\AMQPTable;
-use PhpAmqpLib\Wire\AMQPWriter;
 
 use function DDTrace\active_span;
 use function DDTrace\close_span;
@@ -252,7 +251,12 @@ class AMQPIntegration extends Integration
                     \DDTrace\Internal\dsm_push_pathway();
                     try {
                         if ($message instanceof AMQPMessage) {
-                            self::setDataStreamsConsumeCheckpoint($message, $queue);
+                            // Unlike in a hook, an exception here would reach the application and
+                            // keep the message from its callback.
+                            try {
+                                self::setDataStreamsConsumeCheckpoint($message, $queue);
+                            } catch (\Throwable $e) {
+                            }
                         }
                         return call_user_func($callback, $message);
                     } finally {
@@ -635,7 +639,8 @@ class AMQPIntegration extends Integration
         }
 
         // The message as it is sent, but for the context header the checkpoint computes.
-        $payloadSize = strlen((string)$message->getBody()) + self::headersSize($message, self::DSM_CONTEXT_HEADER);
+        $payloadSize = strlen((string)$message->getBody())
+            + self::headersSize(self::getNativeHeaders($message), self::DSM_CONTEXT_HEADER);
 
         $context = \DDTrace\Internal\dsm_set_checkpoint($edgeTags, null, $payloadSize);
         if ($context !== null) {
@@ -654,7 +659,7 @@ class AMQPIntegration extends Integration
         \DDTrace\Internal\dsm_set_checkpoint(
             ['direction:in', 'topic:' . $queue, 'type:rabbitmq'],
             is_string($context) ? $context : null,
-            strlen((string)$message->getBody()) + self::headersSize($message)
+            strlen((string)$message->getBody()) + self::headersSize($headers)
         );
     }
 
@@ -668,31 +673,44 @@ class AMQPIntegration extends Integration
     }
 
     /**
-     * Bytes of the message's header entries as AMQP encodes them, leaving out $skip and the
-     * table's 4-byte length.
+     * Bytes of header entries as AMQP encodes them, leaving out $skip and the table's 4-byte
+     * length. Estimated from the entries' native values, as encoding them costs several times
+     * more: exact for strings, the type of nearly every header, and for the types php-amqplib
+     * infers from other values. Numbers a producer gave a narrower or wider type are off by a
+     * few bytes, and a value of any other type counts as empty.
      */
-    private static function headersSize(AMQPMessage $message, $skip = null): int
+    private static function headersSize(array $headers, $skip = null): int
     {
-        if (!$message->has('application_headers')) {
-            return 0;
-        }
-        $table = $message->get('application_headers');
-        if (!$table instanceof AMQPTable) {
-            return 0;
-        }
-        // write_table() reads the types of a plain array's entries as protocol symbols.
-        $entries = [];
-        foreach ($table as $name => list($type, $value)) {
+        $size = 0;
+        foreach ($headers as $name => $value) {
             if ($name !== $skip) {
-                $entries[$name] = [AMQPAbstractCollection::getSymbolForDataType($type), $value];
+                // A table entry is a name length octet, the name, a type octet and the value; an
+                // array element only the type octet and the value. AMQP field names can't be
+                // numeric, so integer keys are array indexes.
+                $size += (is_string($name) ? 2 + strlen($name) : 1) + self::headerValueSize($value);
             }
         }
-        if (!$entries) {
-            return 0;
+        return $size;
+    }
+
+    private static function headerValueSize($value): int
+    {
+        if (is_string($value)) {
+            return 4 + strlen($value);
         }
-        $writer = new AMQPWriter();
-        $writer->write_table($entries);
-        return strlen($writer->getvalue()) - 4;
+        if (is_int($value)) {
+            return $value >= -2147483648 && $value <= 2147483647 ? 4 : 8;
+        }
+        if (is_bool($value)) {
+            return 1;
+        }
+        if (is_float($value) || $value instanceof \DateTimeInterface) {
+            return 8;
+        }
+        if (is_array($value)) {
+            return 4 + self::headersSize($value);
+        }
+        return $value instanceof AMQPDecimal ? 5 : 0;
     }
 
     public static function setDataStreamsContextHeader(AMQPMessage $message, string $context)
