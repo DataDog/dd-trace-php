@@ -42,29 +42,20 @@
     <rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
 
     <!--
-        Enabled: recurring review-feedback theme, now mechanically enforced.
+        Enabled: catches calls to functions the PHP interpreter running
+        phpcs reports as deprecated, via ReflectionFunction::isDeprecated().
+        Exists because reviewers repeatedly had to catch deprecated
+        function usage by hand.
 
-        Over the trailing ~400 days of PR review activity, human reviewers
-        repeatedly had to flag calls to functions that are deprecated (or
-        outright unavailable) on some PHP version this repo still supports,
-        e.g.:
-          - "spl_object_hash is deprecated since PHP 8.6. You can simply
-            use spl_object_id." (Drupal integration)
-          - "Needs a PHP_VERSION_ID < 80000 check to avoid deprecations"
-            (Symfony integration)
-          - "this is php 7.4 syntax" (repo supports PHP 7.0+)
-          - "`const` was missing on the PHP 7.0 and 7.1 versions" (stub
-            signatures)
-        This class of feedback is exactly what Generic.PHP.DeprecatedFunctions
-        is built to catch mechanically: it walks the token stream for calls
-        to any function PHP itself reports as deprecated via
-        ReflectionFunction::isDeprecated() on the interpreter running phpcs
-        (the newest supported PHP in CI, see .gitlab/generate-common.php).
-        It does not parse the file with the runner's parser the way
-        Generic.PHP.Syntax does, so it carries none of that sniff's
-        cross-version syntax risk (see the note below). It was already
-        vetted as a zero-hit, low-risk candidate for src/ (see git history
-        of this file) — this change only turns it on.
+        Limitation: this only reflects deprecations on the single PHP
+        version running phpcs (the newest supported PHP in CI) -- it does
+        NOT catch functions/syntax merely unavailable on an older
+        supported PHP version (minimum-version compatibility). That needs
+        separate, version-aware review/tooling. A legitimate
+        version-guarded call to an otherwise-deprecated function (e.g. a
+        PHP < 7.2 polyfill) must be suppressed individually with
+        `// phpcs:ignore Generic.PHP.DeprecatedFunctions -- <why>`, since
+        this sniff cannot see runtime PHP_VERSION_ID checks.
     -->
     <rule ref="Generic.PHP.DeprecatedFunctions"/>
 
