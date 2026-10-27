@@ -41,7 +41,9 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
 DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
     // broadcast interrupt to all threads on ZTS
 #if ZTS
-    tsrm_mutex_lock(datadog_threads_mutex);
+    // Also called outside of the signal handler
+    datadog_threads_lock_state state;
+    datadog_threads_lock(&state);
 
     void *TSRMLS_CACHE; // EG() accesses a variable named TSRMLS_CACHE. Make use of variable shadowing in scopes...
     ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
@@ -62,7 +64,7 @@ DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
 #if ZTS
     } ZEND_HASH_FOREACH_END();
 
-    tsrm_mutex_unlock(datadog_threads_mutex);
+    datadog_threads_unlock(&state);
 #endif
 }
 
