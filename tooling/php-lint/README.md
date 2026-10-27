@@ -51,11 +51,21 @@ whitespace, open/close tags, backticks, `goto`, `FIXME`, `eval`), plus
 `Generic.PHP.DeprecatedFunctions`, which flags calls to any function
 the PHP interpreter running phpcs reports as deprecated via
 `ReflectionFunction::isDeprecated()`. That one is not purely a style
-choice: it exists because reviewers repeatedly had to catch
-deprecated/version-incompatible function usage by hand (e.g.
-`spl_object_hash` on PHP 8.6, missing `PHP_VERSION_ID` guards). It does
+choice: it exists because reviewers repeatedly had to catch deprecated
+function usage by hand (e.g. `spl_object_hash` on PHP 8.6). It does
 not parse the file with the runner's parser the way `Generic.PHP.Syntax`
 does, so it does not carry that sniff's cross-PHP-version risk.
+
+This sniff only reflects deprecations on the single PHP version running
+phpcs (the newest supported PHP in CI) -- it does **not** catch
+functions/syntax merely unavailable on an older supported PHP version
+(e.g. a missing `PHP_VERSION_ID` guard, or PHP 7.4-only syntax on a
+7.0+ repo). Minimum-version compatibility is a separate, version-aware
+review concern this sniff cannot cover. A legitimate version-guarded
+call to an otherwise-deprecated function (e.g. a PHP < 7.2 polyfill)
+must be suppressed individually with
+`// phpcs:ignore Generic.PHP.DeprecatedFunctions -- <why>`, since this
+sniff cannot see runtime `PHP_VERSION_ID` checks.
 
 `TODO` comments and `php -l` stay commented out in `phpcs.xml`. PSR-12
 is off.
