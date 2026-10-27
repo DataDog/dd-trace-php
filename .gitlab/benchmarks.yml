@@ -239,15 +239,16 @@ benchmarks-appsec:
   variables:
     SCENARIO: "appsec"
 
-# Kafka produce/consume throughput with Data Streams Monitoring off and on,
-# against a real broker and agent; fails if DSM adds more than 3% duration or
-# memory on top of APM. Same methodology as the other tracers'
+# Kafka and RabbitMQ produce/consume throughput with Data Streams Monitoring
+# off and on, against real brokers and agent; fails if DSM adds more than 3%
+# duration or memory on top of APM for either broker. Same methodology as the other tracers'
 # `<lang>/data-streams-monitoring` suites; see that branch's README.
 .benchmarks-dsm-rules: &benchmarks-dsm-rules
   - if: $CI_PIPELINE_SOURCE != "schedule"
     changes:
       paths:
         - src/DDTrace/Integrations/Kafka/**/*
+        - src/DDTrace/Integrations/AMQP/**/*
         - tracer/data_streams.*
         - components-rs/data_streams.rs
         - libdatadog
