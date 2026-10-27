@@ -236,8 +236,17 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
         if ($host !== '') {
             $this->assertNull($regex, "a host route must not be replayed: $path");
         } else {
-            // The replayed regex is Symfony's, not one of our own making.
-            $this->assertSame($compiled->getRegex(), $regex, "replay regex differs from Symfony's for $path");
+            // The replayed regex is Symfony's, not one of our own making. It is
+            // the regex its matcher runs rather than the one its compiler
+            // emits: CompiledUrlMatcherDumper rewrites a declared trailing '/$'
+            // to '/?$', and CompiledUrlMatcherTrait retries the trimmed path to
+            // tell a match from a redirect, so the replay has to accept the
+            // trailing slash and matchedParamsFromReplay() guards the redirect.
+            $this->assertSame(
+                EndpointCatalog::matcherRegexFromRouteRegex($compiled->getRegex()),
+                $regex,
+                "replay regex differs from Symfony's matcher regex for $path"
+            );
         }
 
         $entry = $this->cacheEntry($plan, $regex);
@@ -352,6 +361,11 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
      * this path: a capture that is set in the match took part
      * (CompiledUrlMatcherTrait::doMatch()). preg_match() leaves out captures
      * after the last participating one and leaves earlier ones as ''.
+     *
+     * This uses the compiler's regex, not the matcher's slash-tolerant form, so
+     * "does not match" here means the route itself does not describe the path —
+     * a trailing slash the route never declared makes it a redirect for
+     * Symfony, and an omitted tag for us.
      *
      * @return array<string, bool>|null null when the route does not match
      */
