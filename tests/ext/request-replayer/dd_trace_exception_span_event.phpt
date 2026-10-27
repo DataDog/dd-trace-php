@@ -52,7 +52,7 @@ $replay = $rr->waitForDataAndReplay();
 $root = json_decode($replay["body"], true);
 $span = $root[0][0];
 
-// The in-process sender (v0.4-only) writes span events as legacy `events` meta JSON.
+// The in-process sender (v0.4-only) writes span events as legacy `events` meta JSON: the default /info lacks span_events.
 $event = json_decode($span['meta']['events'], true)[0];
 $attrs = $event['attributes'];
 var_dump($event['name']);

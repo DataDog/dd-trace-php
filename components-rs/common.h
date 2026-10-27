@@ -485,6 +485,11 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
   DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
   DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
+  /**
+   * The consumer evaluates prerequisite conditions against a flag's selected variant key.
+   * Register only when the evaluator implements the dependent-flag variant-key contract.
+   */
+  DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1 = 50,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {

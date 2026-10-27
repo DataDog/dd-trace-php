@@ -1344,7 +1344,7 @@ PHP_FUNCTION(DDTrace_Testing_serialize_closed_spans_v04) {
     add_next_index_zval(return_value, &view);
 
     // The in-process sender's downgrade and per-trace framing (auto_flush.c); consumes the builder.
-    ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(serialize_ctx.builder);
+    ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(serialize_ctx.builder, ddog_agent_has_span_events());
     size_t trace_count = ddog_get_traces_size(v04_traces);
     for (size_t i = 0; i < trace_count; i++) {
         ddog_CharSlice payload = ddog_serialize_trace_into_charslice(ddog_get_trace(v04_traces, i));

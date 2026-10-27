@@ -512,9 +512,11 @@ void ddog_send_traces_to_sidecar_v1(ddog_TracerPayloadBytes *builder,
  * sender (DD_TRACE_SIDECAR_TRACE_SENDER=0). Consumes `builder`. Returns the collection (not one
  * whole-payload CharSlice) so `auto_flush` can frame each trace individually; a single CharSlice
  * would drop extra traces of a multi-trace payload. Empty collection on error; free with
- * [`crate::span_v04::ddog_free_traces`].
+ * [`crate::span_v04::ddog_free_traces`]. Pass `native_span_events` when the agent info
+ * advertises `span_events`; otherwise span events go to the legacy `events` meta JSON.
  */
-ddog_TracesBytes *ddog_downgrade_v1_builder_to_v04_traces(ddog_TracerPayloadBytes *builder);
+ddog_TracesBytes *ddog_downgrade_v1_builder_to_v04_traces(ddog_TracerPayloadBytes *builder,
+                                                          bool native_span_events);
 
 /**
  * Drops the agent info reader.
@@ -703,7 +705,8 @@ ddog_TraceChunkBytes *ddog_new_chunk(ddog_TracerPayloadBytes *builder,
 uintptr_t ddog_chunk_span_count(const ddog_TraceChunkBytes *chunk);
 
 /**
- * Appends an empty span to `chunk`.
+ * Appends an empty span to `chunk`. Its kind starts as `Unspecified`, so a span without
+ * `span.kind` goes out as 0 on V1, as Go and Java send it.
  */
 ddog_SpanBytes *ddog_new_span(ddog_TraceChunkBytes *chunk);
 
@@ -747,7 +750,7 @@ void ddog_set_span_version(ddog_SpanBytes *span, ddog_CharSlice value);
 void ddog_set_span_component(ddog_SpanBytes *span, ddog_CharSlice value);
 
 /**
- * Sets the span kind from an OTEL wire value (unset/unknown → Unspecified).
+ * Sets the span kind from an OTEL wire value (0 → Unspecified, unknown → Internal).
  */
 void ddog_set_span_kind(ddog_SpanBytes *span, uint32_t kind);
 

@@ -237,20 +237,6 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     }
 }
 
-int ddtrace_serialize_simple_array(zval *trace, zval *retval) {
-    // encode to memory buffer
-    char *data;
-    size_t size;
-
-    if (ddtrace_serialize_simple_array_into_c_string(trace, &data, &size)) {
-        ZVAL_STRINGL(retval, data, size);
-        efree(data);
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 typedef struct dd_error_info {
     zend_string *type;
     zend_string *msg;
