@@ -81,7 +81,8 @@ typedef struct {
 
 // zai_function_location_map maps from a filename to a possibly ordered array of values
 ZEND_TLS HashTable zai_function_location_map;
-/* Function -> borrowed filename key. The location map keeps the key alive after destroy_op_array() releases filename. */
+/* Closure opcodes / other function pointers -> borrowed filename key.
+ * The location map keeps the key alive after destroy_op_array() releases filename. */
 ZEND_TLS HashTable zai_function_location_reverse; /* }}} */
 
 #define ZAI_IS_SHARED_HOOK_PTR (IS_PTR+1)
@@ -687,12 +688,18 @@ static void zai_function_location_destroy(zval *zv) {
     efree(Z_PTR_P(zv));
 }
 
+static inline zend_ulong zai_function_location_key(const zend_function *func) {
+    /* The last closure copy can destroy code registered through its compiler-owned definition. */
+    return (zend_ulong)((func->common.fn_flags & ZEND_ACC_CLOSURE) ? (uintptr_t)func->op_array.opcodes : (uintptr_t)func);
+}
+
 static inline void zai_store_func_location(zend_function *func) {
     if (func->type != ZEND_USER_FUNCTION || !func->op_array.filename) {
         return;
     }
 
-    if (zend_hash_index_exists(&zai_function_location_reverse, (zend_ulong)(uintptr_t)func)) {
+    zend_ulong key = zai_function_location_key(func);
+    if (zend_hash_index_exists(&zai_function_location_reverse, key)) {
         return;
     }
 
@@ -714,15 +721,28 @@ static inline void zai_store_func_location(zend_function *func) {
     }
 
     entry->functions[entry->size - 1] = func;
-    zend_hash_index_update_ptr(&zai_function_location_reverse, (zend_ulong)(uintptr_t)func, func->op_array.filename);
+    zend_hash_index_update_ptr(&zai_function_location_reverse, key, func->op_array.filename);
+    zai_hook_register_dynamic_functions(&func->op_array);
+}
+
+void zai_hook_register_dynamic_functions(zend_op_array *op_array) {
+#if PHP_VERSION_ID >= 80100
+    /* Index the definitions themselves; their shared code may outlive the enclosing op_array. */
+    for (uint32_t i = 0; i < op_array->num_dynamic_func_defs; ++i) {
+        zai_store_func_location((zend_function *)op_array->dynamic_func_defs[i]);
+    }
+#else
+    (void)op_array;
+#endif
 }
 
 static void zai_forget_func_location(zend_function *func) {
-    zend_string *filename = zend_hash_index_find_ptr(&zai_function_location_reverse, (zend_ulong)(uintptr_t)func);
+    zend_ulong key = zai_function_location_key(func);
+    zend_string *filename = zend_hash_index_find_ptr(&zai_function_location_reverse, key);
     if (!filename) {
         return;
     }
-    zend_hash_index_del(&zai_function_location_reverse, (zend_ulong)(uintptr_t)func);
+    zend_hash_index_del(&zai_function_location_reverse, key);
 
     zval *entryzv = zend_hash_find(&zai_function_location_map, filename);
     if (!entryzv) {
@@ -730,7 +750,7 @@ static void zai_forget_func_location(zend_function *func) {
     }
     zai_function_location_entry *entry = Z_PTR_P(entryzv);
     for (uint32_t i = 0; i < entry->size; ++i) {
-        if (entry->functions[i] != func) {
+        if (zai_function_location_key(entry->functions[i]) != key) {
             continue;
         }
         entry->functions[i] = entry->functions[--entry->size];
@@ -994,6 +1014,7 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
 void zai_hook_resolve_file(zend_op_array *op_array) {
     zai_install_address addr = zai_hook_install_address_user(op_array);
     zend_hash_index_add_ptr(&zai_hook_resolved, addr, &zai_hook_tls->request_files);
+    zai_hook_register_dynamic_functions(op_array);
 }
 
 void zai_hook_unresolve_op_array(zend_op_array *op_array) {
@@ -1545,7 +1566,7 @@ void zai_hook_mshutdown(void) {
 } /* }}} */
 
 /* {{{ */
-zend_long zai_hook_install_resolved_generator(zend_function *function,
+zend_long zai_hook_install_resolved_generator(zend_function *function, zend_class_entry *scope,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
     if (!PG(modules_activated) && !PG(during_request_startup)) {
@@ -1557,7 +1578,7 @@ zend_long zai_hook_install_resolved_generator(zend_function *function,
     *hook = (zai_hook_t){
         .scope = NULL,
         .function = NULL,
-        .resolved_scope = function->common.scope,
+        .resolved_scope = scope,
         .begin = begin,
         .generator_resume = resumption,
         .generator_yield = yield,
@@ -1577,7 +1598,7 @@ zend_long zai_hook_install_resolved_generator(zend_function *function,
 zend_long zai_hook_install_resolved(zend_function *function,
         zai_hook_begin begin, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
-    return zai_hook_install_resolved_generator(function, begin, NULL, NULL, end, aux, dynamic);
+    return zai_hook_install_resolved_generator(function, function->common.scope, begin, NULL, NULL, end, aux, dynamic);
 }
 
 static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool persistent) {

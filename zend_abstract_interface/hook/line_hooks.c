@@ -38,7 +38,7 @@ typedef struct {
     HashTable sites;
 } zai_line_def;
 
-/* One guard per (opcodes, scope), shared by definitions.
+/* One guard per (opcodes, scope), shared by definitions; closure scopes are normalized to NULL.
    Remove its hook when the last definition releases it. */
 typedef struct {
     zend_long id;
@@ -105,7 +105,16 @@ static void zai_line_site_entry_free(zval *zv) { efree(Z_PTR_P(zv)); }
 
 /* An end-only guard closes open ranges on frame exit.
    Key by opcodes to match Closure op_array copies, then by scope for trait methods shared by distinct classes. */
-ZEND_TLS HashTable zai_line_guards; /* op_array->opcodes -> HashTable(op_array->scope -> zai_line_guard*) */
+ZEND_TLS HashTable zai_line_guards; /* op_array->opcodes -> HashTable(guard scope -> zai_line_guard*) */
+
+#ifndef ZEND_ACC_FAKE_CLOSURE // PHP 7.0 compat
+#define ZEND_ACC_FAKE_CLOSURE ZEND_ACC_CLOSURE
+#endif
+
+static zend_class_entry *zai_line_guard_scope(const zend_op_array *op_array) {
+    /* Anonymous closures may be rebound; callable wrappers still belong to their named method's scope. */
+    return (op_array->fn_flags & (ZEND_ACC_CLOSURE | ZEND_ACC_FAKE_CLOSURE)) == ZEND_ACC_CLOSURE ? NULL : op_array->scope;
+}
 
 #if PHP_VERSION_ID >= 70400
 /* filename -> zend_llist of preloaded op_arrays.
@@ -244,7 +253,7 @@ static bool zai_line_frame_guard_id(zend_execute_data *frame, zend_long *out) {
         return false;
     }
 
-    zai_line_guard *guard = zend_hash_index_find_ptr(set, (zend_ulong)(uintptr_t)op_array->scope);
+    zai_line_guard *guard = zend_hash_index_find_ptr(set, (zend_ulong)(uintptr_t)zai_line_guard_scope(op_array));
     if (!guard) {
         zai_line_guard *any;
         ZEND_HASH_FOREACH_PTR(set, any) {
@@ -957,7 +966,7 @@ static void zai_line_visit_exit(zend_op *target, void *ctx_) {
     zai_line_arm_def(ctx->def, ctx->op_array, target, false);
 }
 
-/* Share one guard per (opcodes, scope).
+/* Share one guard per (opcodes, scope), with one unscoped guard for all closure copies.
    zai_hook filters entry by resolved_scope, so trait methods flattened into different classes need separate guards even when their opcodes are shared. */
 static bool zai_line_install_guard(zai_line_def *def, zend_op_array *op_array) {
     zend_ulong key = (zend_ulong)(uintptr_t)op_array->opcodes;
@@ -969,11 +978,12 @@ static bool zai_line_install_guard(zai_line_def *def, zend_op_array *op_array) {
         zend_hash_index_add_ptr(&zai_line_guards, key, set);
     }
 
-    zend_ulong scope_key = (zend_ulong)(uintptr_t)op_array->scope; /* 0 for functions and closures */
+    zend_class_entry *scope = zai_line_guard_scope(op_array);
+    zend_ulong scope_key = (zend_ulong)(uintptr_t)scope;
     zai_line_guard *guard = zend_hash_index_find_ptr(set, scope_key);
     if (!guard) {
         zend_long id = zai_hook_install_resolved_generator(
-            (zend_function *)op_array, NULL, zai_line_generator_resume, zai_line_generator_yield, zai_line_guard_end,
+            (zend_function *)op_array, scope, NULL, zai_line_generator_resume, zai_line_generator_yield, zai_line_guard_end,
             ZAI_HOOK_AUX_UNUSED, sizeof(zai_line_frame *));
         if (id < 0) {
             return false;

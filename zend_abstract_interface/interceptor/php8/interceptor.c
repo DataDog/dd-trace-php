@@ -292,11 +292,19 @@ static void zai_interceptor_join_running_frames(zend_function *func, zend_long h
     zend_ulong address = zai_hook_install_address(func);
 #if PHP_VERSION_ID >= 80200
     zend_execute_data *head = ZAI_OBSERVED_HEAD_TAKE();
+    zend_execute_data **head_slot = &head;
     zend_execute_data *chain = head, *anchor = NULL;
 #endif
 
     for (zend_execute_data *ex = EG(current_execute_data); ex; ex = ex->prev_execute_data) {
 #if PHP_VERSION_ID >= 80200
+        zend_execute_data **saved_head = zai_sandbox_observed_frame(ex);
+        if (saved_head) {
+            /* Crossing a callback boundary enters the chain that its sandbox will restore. */
+            head_slot = saved_head;
+            chain = *head_slot;
+            anchor = NULL;
+        }
         bool observed = false;
         if (ex == chain) {
             observed = true;
@@ -320,7 +328,7 @@ static void zai_interceptor_join_running_frames(zend_function *func, zend_long h
             if (anchor) {
                 *zai_interceptor_prev_observed_frame(anchor) = ex;
             } else {
-                head = ex;
+                *head_slot = ex;
             }
             anchor = ex;
         }

@@ -429,7 +429,7 @@ void dd_uhook_on_function_resolve(zend_function *func) {
             zval_ptr_dtor(&value);
         }
 
-        zai_hook_install_resolved_generator(func,
+        zai_hook_install_resolved_generator(func, func->common.scope,
                                             dd_uhook_begin, dd_uhook_generator_resumption, dd_uhook_generator_yield, dd_uhook_end,
                                             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
 

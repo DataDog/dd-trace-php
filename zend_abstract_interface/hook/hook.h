@@ -58,8 +58,9 @@ zend_long zai_hook_install_resolved(zend_function *function,
         zai_hook_aux aux, size_t dynamic); /* }}} */
 
 /* {{{ zai_hook_install_resolved_generator may only be executed during request
-        this API works similarly to zai_hook_install_resolved */
-zend_long zai_hook_install_resolved_generator(zend_function *function,
+        this API works similarly to zai_hook_install_resolved;
+        scope is normally function->common.scope, or NULL to match all closure bindings */
+zend_long zai_hook_install_resolved_generator(zend_function *function, zend_class_entry *scope,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic); /* }}} */
 
@@ -127,6 +128,8 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
 void zai_hook_resolve_function(zend_function *function, zend_string *lcname);
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname);
 void zai_hook_resolve_file(zend_op_array *op_array);
+/* Index compiler-owned nested definitions without retaining their enclosing file scope or closure instances. */
+void zai_hook_register_dynamic_functions(zend_op_array *op_array);
 
 /* cleanup function to avoid memory leaking */
 void zai_hook_unresolve_op_array(zend_op_array *op_array);
