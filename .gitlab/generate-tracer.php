@@ -69,7 +69,7 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-10
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -87,14 +87,6 @@ stages:
     export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
     mkdir -p "${out_dir}"
     mv "tmp/build_extension/modules/ddtrace.so" "${out_dir}"
-  cache:
-    - key:
-        prefix: $CI_JOB_NAME
-        files:
-          - Cargo.lock
-          - Cargo.toml
-      paths:
-        - /rust/cargo/
   artifacts:
     paths:
       - "VERSION"
@@ -139,7 +131,7 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0_windows
-    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Enable NTFS long path support so cargo's libgit2-based git checkouts of
     # deeply nested dependencies (e.g. rust-tuf's interop-tests fixtures,
@@ -162,7 +154,11 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
 <?php endforeach ?>
 
     # Run extension tests
-    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
+    # Write full WER dumps directly into the mounted artifact directory and
+    # keep WER enabled for every PHPT child process.
+    docker exec ${CONTAINER_NAME} powershell.exe -File C:\Users\ContainerAdministrator\app\.gitlab\enable-windows-test-dumps.ps1
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    docker exec -e _DD_DEBUG_SIDECAR_LOG_LEVEL=trace ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
   after_script:
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
@@ -178,6 +174,7 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     - 'powershell -NoProfile -Command "try { docker rm -f httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker network rm net } catch {}"'
   artifacts:
+    when: always
     paths:
       - sidecar.log
       - x64/<?= $build_dir ?>/php_ddtrace.dll
@@ -200,7 +197,11 @@ windows_test_c_job("windows test_c: zts", "zts", [
 "macos test_c":
   stage: test
   tags: ["macos:tart"]
-  image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sonoma-latest"
+  # Builds the extension from source: of the compile stage it only needs the generated bridge files.
+  needs:
+    - job: "Prepare code"
+      artifacts: true
+  image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sequoia-latest"
   variables:
     PHP_MACOS_VERSION: "8.5.9"
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
@@ -212,9 +213,9 @@ windows_test_c_job("windows test_c: zts", "zts", [
     PHP_CLI_SERVER_WORKERS: "16"
     DD_REQUEST_DUMPER_FILE: dump.json
   before_script:
-    # Strip the noisy DD_* env vars from the locally installed agent
-    - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
-    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php
+<?php unset_dd_runner_env_vars() ?>
+    - unset DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
+    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php llvm
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
     - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
     - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
@@ -240,7 +241,8 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - make -j"$(sysctl -n hw.ncpu)"
     - make install
     - cd "${CI_PROJECT_DIR}"
-    - rustup update stable && rustup default stable
+    # Use the pinned toolchain, including rust-src, and install the test tools.
+    - rustup component add rustfmt clippy
     - |
       # There's no Docker service network on the macOS Tart runner (unlike the Linux/Windows
       # jobs' "request-replayer" service container), so run request-replayer as a native
@@ -269,6 +271,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
     - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     - php --version
+    - sh appsec/tests/run-body-parser-rust-tests.sh
     - make -j"$(sysctl -n hw.ncpu)"
     - timeout 20m make test_c
     # GitLab's "step_script" (before_script + script) itself doesn't return while
@@ -292,15 +295,14 @@ windows_test_c_job("windows test_c: zts", "zts", [
 
 "Prepare code":
   stage: compile
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  # Same image as the package "prepare code": composer and unzip are baked in, so no apt or getcomposer.org fetch.
+  image: registry.ddbuild.io/images/mirror/composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac
   tags: [ "arch:amd64" ]
   needs: []
   variables:
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
   before_script:
-    - apt update && apt install -y unzip
-    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/composer
     - composer update --no-interaction
   script:
     - make generate
@@ -311,7 +313,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-10
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
   timeout: 60m
   interruptible: true
   rules:
@@ -495,20 +497,12 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_CPU_LIMIT: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-<?php if (version_compare($major_minor, "7.4", ">=")): ?>
     # Match the CPU request.
     MAX_TEST_PARALLELISM: 12
-<?php endif; ?>
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-<?php if (version_compare($major_minor, "7.4", ">=")): ?>
-  timeout: 45m
-<?php else: ?>
-  # run-tests.php only gets -j on PHP >= 7.4 (RUN_TESTS_IS_PARALLEL in the
-  # Makefile), so these versions run serially and need the larger budget.
-  timeout: 120m
-<?php endif; ?>
+  timeout: 20m
   script:
     # Run twice: shared state between .phpt tests only surfaces on a second pass.
     - make test_extension_ci_normal
@@ -529,16 +523,19 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     WAIT_FOR: test-agent:9126
     # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_CPU_LIMIT: 12
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_CPU_REQUEST: 24
+    KUBERNETES_CPU_LIMIT: 24
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
     # Below the CPU request: each worker spawns its own valgrind process.
-    MAX_TEST_PARALLELISM: 4
+    MAX_TEST_PARALLELISM: 20
+    # Memcheck roughly doubles the sidecar's physical memory accounting. Keep
+    # it instrumented, but give its watchdog the same allowance as ASAN jobs.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 4294967296
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-  timeout: 120m
+  timeout: 30m
   script:
     - make test_extension_ci_valgrind
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
@@ -695,7 +692,7 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-<?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
+<?php if (!in_array($major_minor, ["7.4", "8.5"], true)): /* Limit telemetry overhead to two versions with parallel test runners. */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
   timeout: 40m
@@ -713,6 +710,8 @@ foreach ($all_minor_major_targets as $major_minor):
   script:
     - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
+    - export DD_SERVICE=php-language-tests
+    - export DD_VERSION="$(php -n -r 'echo PHP_VERSION;')"
     - .gitlab/run_php_language_tests.sh
 <?php after_script("/usr/local/src/php"); ?>
 <?php
@@ -756,6 +755,8 @@ $services["pdo"] = "mysql";
 $services["kafka"] = ["kafka", "zookeeper"];  // Overwrite auto-generated entry
 
 $jobs = [];
+// Every .cli_integration_test job writes a tested_versions_*.json; "aggregate tested versions" reads only those.
+$tested_versions_jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
 foreach ($matches as $m) {
     $major_minor = "{$m["major"]}.{$m["minor"]}";
@@ -775,9 +776,14 @@ foreach ($jobs as $type => $type_jobs):
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
                 $sapis[] = "fpm-fcgi";
             }
+            // Octane starts its own Swoole server before DD_TRACE_TEST_SAPI is read (tests/WebServer.php), so one cell is enough.
+            if (str_contains($target, "laravel_octane")) {
+                $sapis = ["cli-server"];
+            }
             foreach ($sapis as $sapi):
 ?>
-"<?= $target ?>: [<?= $major_minor, $sapi ? ", $sapi" : "" ?>]":
+<?php $tested_versions_jobs[] = "$target: [$major_minor" . ($sapi ? ", $sapi" : "") . "]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
   needs:
@@ -813,12 +819,23 @@ foreach ($services as $part => $service) {
     _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
     ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_leaks=0
 <?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+    # install-frankenphp.sh runs `go build`; fetch modules through Depot rather than proxy.golang.org directly, with no fallback to direct fetches.
+    GOPROXY: "https://depot-read-api-go.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+    GOPRIVATE: ""
+    GONOPROXY: "none"
+<?php endif; ?>
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
 <?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
+<?php endif; ?>
+<?php if (str_contains($target, "elasticsearch1")): ?>
+    WAIT_FOR: elasticsearch2-integration:9200
+<?php elseif (str_contains($target, "elasticsearch") || str_contains($target, "magento")): ?>
+    WAIT_FOR: elasticsearch7-integration:9200
 <?php endif; ?>
 <?php if (str_contains($target, "sqlsrv")): ?>
     WAIT_FOR: sqlsrv-integration:1433
@@ -829,6 +846,13 @@ foreach ($services as $part => $service) {
 <?php if (preg_match("(test_web_laravel_octane)", $target)): ?>
     KUBERNETES_MEMORY_REQUEST: 6Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
+<?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+  script:
+    # Build FrankenPHP as its own step, in the proxy-free env the harness gave it: from inside PHPUnit its exit 75 is lost.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - tooling/bin/install-frankenphp.sh || exit $?
+    - !reference [.cli_integration_test, script]
 <?php endif; ?>
 
 <?php
@@ -842,7 +866,8 @@ endforeach;
 foreach ($all_minor_major_targets as $major_minor):
     foreach (["test_auto_instrumentation", "test_composer", "test_integration"] as $test):
 ?>
-"<?= $test ?>: [<?= $major_minor ?>]":
+<?php $tested_versions_jobs[] = "$test: [$major_minor]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   needs:
     - job: "compile extension: debug"
@@ -865,7 +890,8 @@ foreach ($all_minor_major_targets as $major_minor):
 ?>
 
 <?php foreach(["cli-server", "cgi-fcgi"] as $sapi): ?>
-"test_distributed_tracing: [<?= $major_minor ?>, <?= $sapi ?>]":
+<?php $tested_versions_jobs[] = "test_distributed_tracing: [$major_minor, $sapi]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   needs:
     - job: "compile extension: debug"
@@ -943,6 +969,11 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   when: always
+  # Without this list the job downloads every earlier job's artifacts, including ~200 that write no tested_versions_*.json.
+  dependencies:
+<?php foreach ($tested_versions_jobs as $job): ?>
+    - "<?= $job ?>"
+<?php endforeach; ?>
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts

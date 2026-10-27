@@ -6,6 +6,16 @@ The profiler is implemented in Rust. To see the currently required Rust
 version, refer to the [rust-toolchain.toml](rust-toolchain.toml) file. The profiler
 requires PHP 7.1+, and does not support debug builds.
 
+## Allocation size accounting
+
+Allocation profiling rounds requested sizes to Zend MM size classes before
+sampling. Recorded allocation bytes (including live-heap samples) and the
+numeric `size class` label use the same rounded size. These roundings do not
+include debug metadata or the heap-protection minimum, and may differ if a
+custom allocator is used. The label separates size classes for Poisson
+upscaling to prevent large errors if the same stack + labels have the large
+variances in allocation size e.g. 32 bytes and 4,096 bytes.
+
 ## Time Profiling
 
 The profiler sets the Zend VM interrupt flag approximately every 10ms. The
@@ -43,9 +53,15 @@ cases where they are ABI compatible.
 
 ## Testing
 
-From the repository root, `cargo test --no-default-features --features profiling,test`
-runs the Rust tests. To also run the stack walking tests, add the
-`stack_walking_tests` feature.
+From the repository root, run the VM-independent Rust tests with:
+
+```sh
+cargo test --no-default-features --features profiling
+```
+
+These tests do not substitute for the PHP engine. Stack walking and other
+engine-dependent behavior are tested inside PHP using the PHPT and
+[correctness tests](tests/correctness).
 
 To see if the profiler is recognised by your PHP version as an extension, run
 `/path/to/php -d extension=modules/datadog-profiling.so --ri datadog-profiling`
@@ -64,17 +80,18 @@ tests.
 
 ## Benchmarks
 
-Benchmarks are implemented using
-[criterion](https://github.com/bheisler/criterion.rs). In order to execute them
-execute them from the repository root using:
+The PHP timeline and exception workloads use `sirun` to compare profiling
+disabled, profiling enabled, and profiling with timeline enabled. From the
+repository root:
 
 ```sh
-cargo bench --no-default-features --features profiling,test,stack_walking_tests
+make compile_profiler PROFILER_FEATURES=trigger_time_sample
+cd profiling
+sirun benches/timeline.json
+sirun benches/exceptions.json
 ```
 
-Note: the `--features stack_walking_tests` is necessary as some code in the
-`php_ffi.c` is only compiled for tests and benchmarks and compilation is guarded
-behind a feature flag.
+The timeline workload needs `trigger_time_sample` to collect samples explicitly.
 
 ## Troubleshooting
 

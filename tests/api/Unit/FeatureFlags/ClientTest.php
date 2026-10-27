@@ -9,7 +9,9 @@ use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
+use DDTrace\Log\ErrorLogLogger;
 use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LogLevel;
 use PHPUnit\Framework\TestCase;
 
 final class ClientTest extends TestCase
@@ -138,6 +140,94 @@ final class ClientTest extends TestCase
         $this->assertSame(1, $logger->warningCount());
     }
 
+    public function testDebugLogsRawEvaluationInputsAndReturnedValue()
+    {
+        $evaluator = new ClientTestEvaluator();
+        $evaluator->setSuccess(
+            'checkout/redesign',
+            1.0,
+            EvaluationReason::SPLIT,
+            'treatment',
+            array('owner' => 'ffe'),
+            array('allocationKey' => 'alloc-1'),
+            array('configVersion' => 3)
+        );
+        $logger = new RecordingLogger();
+        $client = $this->clientForEvaluator($evaluator, $logger);
+
+        $client->getFloatValue('checkout/redesign', 0, array(
+            'targetingKey' => 'user-1',
+            'attributes' => array('email' => 'user@example.com', 'nested' => array('drop')),
+        ));
+        $client->getStringValue('missing', 'fallback');
+
+        $this->assertSame(array(
+            'Feature Flags: evaluated {"flagKey":"checkout/redesign","valueType":"float","targetingKey":"user-1",'
+                . '"attributes":{"email":"user@example.com"},"defaultValue":0.0,"value":1.0,"variant":"treatment",'
+                . '"reason":"SPLIT","errorCode":null,"errorMessage":null,"flagMetadata":{"owner":"ffe"},"configVersion":3}',
+            'Feature Flags: evaluated {"flagKey":"missing","valueType":"string","targetingKey":null,"attributes":{},'
+                . '"defaultValue":"fallback","value":"fallback","variant":null,"reason":"ERROR",'
+                . '"errorCode":"PROVIDER_NOT_READY","errorMessage":"' . UnavailableEvaluator::WARNING_MESSAGE . '",'
+                . '"flagMetadata":{},"configVersion":null}',
+        ), $logger->debugs());
+    }
+
+    public function testDebugLogIsSkippedWhenDebugIsInactive()
+    {
+        $evaluator = new ClientTestEvaluator();
+        $evaluator->setSuccess('flag', true);
+        $logger = new RecordingLogger(false);
+        $client = $this->clientForEvaluator($evaluator, $logger);
+
+        $this->assertTrue($client->getBooleanValue('flag', false));
+        $this->assertSame(array(), $logger->debugs());
+    }
+
+    public function testDebugLogFormattingFailureIsReportedWithoutChangingTheResult()
+    {
+        $logger = new RecordingLogger();
+        $client = $this->clientForEvaluator(new ClientTestEvaluator(), $logger);
+        $default = array('item' => new ThrowingJsonValue());
+
+        $this->assertSame($default, $client->getObjectValue('object.flag', $default));
+        $this->assertSame(array(
+            'Feature Flags: evaluated {"flagKey":"object.flag","reason":"ERROR","errorCode":"PROVIDER_NOT_READY",'
+                . '"detailsUnavailable":"RuntimeException: not serializable"}',
+        ), $logger->debugs());
+    }
+
+    public function testThrowingDebugLoggerDoesNotChangeEvaluation()
+    {
+        $evaluator = new ClientTestEvaluator();
+        $evaluator->setSuccess('flag', 'on');
+        $client = $this->clientForEvaluator($evaluator, new ThrowingLogger());
+
+        $this->assertSame('on', $client->getStringValue('flag', 'off'));
+    }
+
+    public function testPartialJsonOutputDoesNotSilentlyReplaceRawValues()
+    {
+        $logger = new RecordingLogger();
+        $client = $this->clientForEvaluator(new ClientTestEvaluator(), $logger);
+        $default = array('number' => INF);
+
+        $this->assertSame($default, $client->getObjectValue('object.flag', $default));
+        $logged = json_decode(substr($logger->debugs()[0], strlen('Feature Flags: evaluated ')), true);
+        $this->assertSame('Inf and NaN cannot be JSON encoded', $logged['detailsUnavailable']);
+    }
+
+    public function testDebugOffDoesNotSerializeDefaultValues()
+    {
+        $logger = new RecordingLogger(false);
+        $client = $this->clientForEvaluator(new ClientTestEvaluator(), $logger);
+        $item = new CountingJsonValue();
+        $default = array('item' => $item);
+
+        $this->assertSame($default, $client->getObjectValue('object.flag', $default));
+        $this->assertSame(0, $item->calls);
+        $this->assertSame(array(), $logger->debugs());
+    }
+
     /**
      * @dataProvider invalidDefaultProvider
      */
@@ -200,7 +290,7 @@ final class ClientTestEvaluator implements Evaluator
         return $this;
     }
 
-    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = array())
+    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = array(), $targetingKeyInvalid = false)
     {
         $this->calls[] = array(
             'flagKey' => $flagKey,
@@ -250,10 +340,18 @@ final class ClientTestEvaluator implements Evaluator
 
 final class RecordingLogger implements LoggerInterface
 {
+    private $debugEnabled;
+    private $debugs = array();
     private $warnings = array();
+
+    public function __construct($debugEnabled = true)
+    {
+        $this->debugEnabled = $debugEnabled;
+    }
 
     public function debug($message, array $context = array())
     {
+        $this->debugs[] = ErrorLogLogger::interpolate($message, $context);
     }
 
     public function warning($message, array $context = array())
@@ -267,12 +365,38 @@ final class RecordingLogger implements LoggerInterface
 
     public function isLevelActive($level)
     {
-        return true;
+        return $level !== LogLevel::DEBUG || $this->debugEnabled;
+    }
+
+    public function debugs()
+    {
+        return $this->debugs;
     }
 
     public function warnings()
     {
         return $this->warnings;
+    }
+}
+
+final class ThrowingJsonValue implements \JsonSerializable
+{
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize()
+    {
+        throw new \RuntimeException('not serializable');
+    }
+}
+
+final class CountingJsonValue implements \JsonSerializable
+{
+    public $calls = 0;
+
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize()
+    {
+        ++$this->calls;
+        return 'value';
     }
 }
 
@@ -282,6 +406,7 @@ final class ThrowingLogger implements LoggerInterface
 
     public function debug($message, array $context = array())
     {
+        throw new \ErrorException($message);
     }
 
     public function warning($message, array $context = array())

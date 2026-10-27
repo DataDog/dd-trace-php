@@ -96,9 +96,16 @@ final class CliServer implements Sapi
         $this->process = new Process($processCmd);
         $this->process->start();
 
+        // php -S only binds its socket after module startup (all MINITs), which can take seconds on a loaded CI pod
         if (!$this->waitUntilServerRunning()) {
-            error_log("[cli-server] Server never came up...");
-            return;
+            $message = sprintf(
+                "[cli-server] Server never came up (%s)...\nstdout: %s\nstderr: %s",
+                $this->process->isRunning() ? 'still running' : 'exit code ' . $this->process->getExitCode(),
+                $this->process->getOutput(),
+                $this->process->getErrorOutput()
+            );
+            error_log($message);
+            throw new \RuntimeException($message);
         }
         error_log("[cli-server] Server is up and responding...");
     }
@@ -117,16 +124,20 @@ final class CliServer implements Sapi
         return false;
     }
 
-    public function waitUntilServerRunning()
+    public function waitUntilServerRunning($timeout = 30)
     {
-        //Let's wait until server is accepting connections
-        for ($try = 0; $try < 40; $try++) {
-             $socket = @fsockopen($this->host, $this->port);
+        $deadline = microtime(true) + $timeout;
+        do {
+            $socket = @fsockopen($this->host, $this->port);
             if ($socket !== false) {
+                fclose($socket);
                 return true;
             }
+            if (!$this->process->isRunning()) {
+                return false;
+            }
             usleep(50000);
-        }
+        } while (microtime(true) < $deadline);
 
         return false;
     }

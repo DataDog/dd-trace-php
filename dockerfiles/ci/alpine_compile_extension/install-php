@@ -39,6 +39,12 @@ if [ "${PHP_API}" -le "${PHP_70_API}" ]; then
 fi
 
 export CFLAGS="$PHP_CFLAGS"
+if [ "${PHP_API}" -lt "${PHP_81_API}" ]; then
+   # PHP < 8.1's bundled/legacy C code (e.g. ext/mbstring/oniguruma,
+   # ext/standard/scanf.c) relies on K&R-style function pointer semantics
+   # that newer GCC (>=14, defaulting to gnu23) rejects as hard errors.
+   export CFLAGS="$CFLAGS -std=gnu17"
+fi
 if [ "${PHP_API}" -le "${PHP_74_API}" ]; then
    export CFLAGS="$CFLAGS -DHAVE_POSIX_READDIR_R=1 -DHAVE_OLD_READDIR_R=0"
 fi

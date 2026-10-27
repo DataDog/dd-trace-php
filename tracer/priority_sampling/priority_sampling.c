@@ -228,8 +228,10 @@ void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span) {
             } else {
                 zval *rule = ZEND_HASH_ELEMENT(get_DD_TRACE_SAMPLING_RULES(), result.rule);
                 zai_json_encode(&buf, rule, 0);
-                smart_str_0(&buf);
-                rule_str = ZSTR_VAL(buf.s);
+                if (buf.s) {
+                    smart_str_0(&buf);
+                    rule_str = ZSTR_VAL(buf.s);
+                }
             }
             log("Evaluated sampling rules for span %" PRIu64 " on trace %s. Matched rule %s.", span->span_id, Z_STRVAL(span->root->property_trace_id), rule_str);
             smart_str_free(&buf);
@@ -389,6 +391,12 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
                              &limit_zv);
     }
 
+    if (mechanism == DD_MECHANISM_MANUAL || mechanism == DD_MECHANISM_ASM || limited || sample_rate <= 0) {
+        ddtrace_otel_sampling_decide_non_probability(&span->otel_sampling);
+    } else {
+        ddtrace_otel_sampling_decide_probability(&span->otel_sampling, span->trace_id.low, priority, sample_rate);
+    }
+
     zval priority_zv;
     ZVAL_LONG(&priority_zv, priority);
     datadog_assign_variable(&span->property_sampling_priority, &priority_zv);
@@ -451,6 +459,9 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
         dd_update_decision_maker_tag(root_span, mechanism);
         // Default is never explicit - e.g. distributed tracing.
         root_span->explicit_sampling_priority = mechanism != DD_MECHANISM_DEFAULT;
+        if (mechanism != DD_MECHANISM_DEFAULT) {
+            ddtrace_otel_sampling_decide_non_probability(&root_span->otel_sampling);
+        }
     }
 }
 

@@ -1,62 +1,72 @@
 use crate::profiling::SAPI;
-use std::cell::OnceCell;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 #[cfg(php_zts)]
-use crate::profiling::bindings::ddog_php_prof_is_parallel_thread;
-#[cfg(php_zts)]
-use crate::profiling::sapi::Sapi;
-#[cfg(php_zts)]
-use libc::c_char;
+use {
+    crate::profiling::{bindings::ddog_php_prof_is_parallel_thread, sapi::Sapi},
+    libc::c_char,
+};
 
-/// Spawns a thread and masks off the signals that the Zend Engine uses.
+/// Spawns a thread with asynchronous signals masked.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
 where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
 {
-    let result = std::thread::Builder::new()
-        .name(name.to_string())
-        .spawn(move || {
-            /* This helper thread has no valid PHP/TSRM context, so it must not
-             * run any PHP signal handler. The Zend Engine registers a fixed set
-             * of signals (see Zend/zend_signal.c), but a PHP script can install
-             * a handler for *any* signal via pcntl_signal() (e.g. SIGCHLD with
-             * pcntl_async_signals(true)). If such a signal is delivered to this
-             * thread, pcntl_signal_handler() dereferences PCNTL_G(spares) with
-             * no thread context and segfaults
-             * (see ext/pcntl/tests/waiting_on_sigchild_pcntl_wait.phpt).
-             *
-             * So block every signal here; async signals are then delivered to a
-             * PHP thread instead. The synchronous fault signals are left
-             * unblocked so a genuine fault on this thread is still reported
-             * (e.g. by the crashtracker) rather than masked.
-             */
-            unsafe {
-                let mut sigset_mem = MaybeUninit::uninit();
-                let sigset = sigset_mem.as_mut_ptr();
-                libc::sigfillset(sigset);
+    /* This helper thread has no valid PHP/TSRM context, so it must not run
+     * any PHP signal handler. Block asynchronous signals in the parent before
+     * spawning: the new thread inherits the mask atomically with its creation.
+     * Masking only inside the new thread leaves a window in which PHP can
+     * install and trigger an asynchronous handler before the helper runs.
+     *
+     * Synchronous fault signals remain unblocked so a genuine fault on the
+     * helper thread is still reported, for example by the crashtracker.
+     */
+    let mut sigset_mem = MaybeUninit::uninit();
+    let mut previous_mask_mem = MaybeUninit::uninit();
+    let sigset = sigset_mem.as_mut_ptr();
 
-                // Hardware/synchronous fault signals: keep them deliverable to
-                // this thread.
-                const KEEP_UNBLOCKED: [libc::c_int; 6] = [
-                    libc::SIGSEGV,
-                    libc::SIGBUS,
-                    libc::SIGFPE,
-                    libc::SIGILL,
-                    libc::SIGABRT,
-                    libc::SIGTRAP,
-                ];
+    // SAFETY: both signal sets point to valid, suitably aligned storage.
+    let mask_result = unsafe {
+        libc::sigfillset(sigset);
 
-                for signal in KEEP_UNBLOCKED {
-                    libc::sigdelset(sigset, signal);
-                }
-                libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
-            }
-            f()
-        });
+        const KEEP_UNBLOCKED: [libc::c_int; 6] = [
+            libc::SIGSEGV,
+            libc::SIGBUS,
+            libc::SIGFPE,
+            libc::SIGILL,
+            libc::SIGABRT,
+            libc::SIGTRAP,
+        ];
+
+        for signal in KEEP_UNBLOCKED {
+            libc::sigdelset(sigset, signal);
+        }
+
+        libc::pthread_sigmask(libc::SIG_BLOCK, sigset, previous_mask_mem.as_mut_ptr())
+    };
+    assert_eq!(
+        mask_result, 0,
+        "failed to block signals before spawning {name}"
+    );
+
+    let result = std::thread::Builder::new().name(name.to_string()).spawn(f);
+
+    // SAFETY: pthread_sigmask initialized previous_mask_mem above, and this
+    // restores the spawning PHP thread regardless of whether spawn succeeded.
+    let restore_result = unsafe {
+        libc::pthread_sigmask(
+            libc::SIG_SETMASK,
+            previous_mask_mem.as_ptr(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(
+        restore_result, 0,
+        "failed to restore signal mask after spawning {name}"
+    );
 
     match result {
         Ok(handle) => handle,
@@ -71,7 +81,8 @@ pub struct TimeoutError {
     timeout_ms: u128,
 }
 
-const JOIN_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const JOIN_POLL_MIN_INTERVAL: Duration = Duration::from_millis(1);
+const JOIN_POLL_MAX_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Waits for the handle to be finished. If finished, it will join the handle.
 /// Otherwise, it will leak the handle and return an error.
@@ -84,7 +95,10 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Tim
     // https://github.com/DataDog/dd-trace-php/issues/1919
     // Thus far, we have not been able to reproduce it and address the root
     // cause. So, for now, mitigate it instead with a loop.
+    // Threads usually exit within a few ms of being signalled at shutdown, so
+    // back off from a short poll instead of always sleeping the max interval.
     let start = Instant::now();
+    let mut interval = JOIN_POLL_MIN_INTERVAL;
     while !handle.is_finished() {
         let elapsed = start.elapsed();
         if elapsed >= timeout {
@@ -94,7 +108,8 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Tim
         }
 
         let remaining = timeout.saturating_sub(elapsed);
-        std::thread::sleep(std::cmp::min(JOIN_POLL_INTERVAL, remaining));
+        std::thread::sleep(std::cmp::min(interval, remaining));
+        interval = std::cmp::min(interval * 2, JOIN_POLL_MAX_INTERVAL);
     }
 
     if let Err(err) = handle.join() {
@@ -103,71 +118,38 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Tim
     Ok(())
 }
 
-thread_local! {
-    /// This is a cache for the thread name. It will not change after the thread has been
-    /// created, as SAPI's do not change thread names and ext-pthreads / ext-parallel do not
-    /// provide an interface for renaming a thread.
-    static THREAD_NAME: OnceCell<String> = const { OnceCell::new() };
-}
-
 pub fn get_current_thread_name() -> String {
-    THREAD_NAME.with(|name| {
-        name.get_or_init(|| -> String {
-            #[cfg(not(php_zts))]
-            return SAPI.to_string();
+    #[cfg(not(php_zts))]
+    return SAPI.to_string();
 
-            #[cfg(php_zts)]
-            {
-                if unsafe { ddog_php_prof_is_parallel_thread() } {
-                    return "parallel worker".to_string();
-                }
-                let mut thread_name = SAPI.to_string();
-                // So far, only FrankenPHP sets meaningful thread names
-                if *SAPI == Sapi::FrankenPHP {
-                    let mut name = [0u8; 32];
-
-                    let result = unsafe {
-                        libc::pthread_getname_np(
-                            libc::pthread_self(),
-                            name.as_mut_ptr() as *mut c_char,
-                            name.len(),
-                        )
-                    };
-
-                    if result == 0 {
-                        // If successful, convert the result to a Rust String
-                        let cstr =
-                            unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
-                        let str_slice: &str = cstr.to_str().unwrap_or_default();
-                        if !str_slice.is_empty() {
-                            thread_name.push_str(": ");
-                            thread_name.push_str(str_slice);
-                        }
-                    }
-                }
-                thread_name
-            }
-        })
-        .clone()
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use libc::c_char;
-
-    #[test]
-    fn test_get_current_thread_name() {
-        unsafe {
-            // When running `cargo test`, the thread name for this test will be set to
-            // `profiling::thread_utils::tests:` which would interfer with this test
-            libc::pthread_setname_np(
-                #[cfg(target_os = "linux")]
-                libc::pthread_self(),
-                c"".as_ptr() as *const c_char,
-            );
+    #[cfg(php_zts)]
+    {
+        if unsafe { ddog_php_prof_is_parallel_thread() } {
+            return "parallel worker".to_string();
         }
-        assert_eq!(get_current_thread_name(), "unknown");
+        let mut thread_name = SAPI.to_string();
+        // So far, only FrankenPHP sets meaningful thread names
+        if *SAPI == Sapi::FrankenPHP {
+            let mut name = [0u8; 32];
+
+            let result = unsafe {
+                libc::pthread_getname_np(
+                    libc::pthread_self(),
+                    name.as_mut_ptr() as *mut c_char,
+                    name.len(),
+                )
+            };
+
+            if result == 0 {
+                // If successful, convert the result to a Rust String
+                let cstr = unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
+                let str_slice: &str = cstr.to_str().unwrap_or_default();
+                if !str_slice.is_empty() {
+                    thread_name.push_str(": ");
+                    thread_name.push_str(str_slice);
+                }
+            }
+        }
+        thread_name
     }
 }

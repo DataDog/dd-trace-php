@@ -337,16 +337,25 @@ static void dd_probe_dtor(void *data) {
     efree(def);
 }
 
+static void dd_probe_send_status(dd_probe_def *def) {
+    ddog_send_debugger_diagnostics(DATADOG_G(remote_config_state), &DATADOG_G(sidecar), datadog_sidecar_instance_id, &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
+}
+
+// Sets the fields only; callers decide when to publish, as the goto error path in dd_init_live_debugger_probe does.
+static void dd_probe_set_error(dd_probe_def *def, ddog_CharSlice msg, ddog_CharSlice exception) {
+    def->probe.status = DDOG_PROBE_STATUS_ERROR;
+    def->probe.status_msg = msg;
+    def->probe.status_exception = exception;
+}
+
 static void dd_probe_resolved(void *data, bool found) {
     dd_probe_def *def = data;
     if (found) {
         def->probe.status = DDOG_PROBE_STATUS_INSTALLED;
     } else {
-        def->probe.status = DDOG_PROBE_STATUS_ERROR;
-        def->probe.status_msg = DDOG_CHARSLICE_C("Method does not exist on the given class");
-        def->probe.status_exception = DDOG_CHARSLICE_C("METHOD_NOT_FOUND");
+        dd_probe_set_error(def, DDOG_CHARSLICE_C("Method does not exist on the given class"), DDOG_CHARSLICE_C("METHOD_NOT_FOUND"));
     }
-    ddog_send_debugger_diagnostics(DATADOG_G(remote_config_state), &DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
+    dd_probe_send_status(def);
 }
 
 static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def *def, zai_hook_begin begin, zai_hook_end end, void (*def_dtor)(void *), size_t dynamic) {
@@ -393,18 +402,16 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
             dynamic);
 
     if (id < 0) {
-        def->probe.status = DDOG_PROBE_STATUS_ERROR;
-        def->probe.status_msg = DDOG_CHARSLICE_C("Method does not exist on the given class");
-        def->probe.status_exception = DDOG_CHARSLICE_C("METHOD_NOT_FOUND");
+        dd_probe_set_error(def, DDOG_CHARSLICE_C("Method does not exist on the given class"), DDOG_CHARSLICE_C("METHOD_NOT_FOUND"));
 error:
-        ddog_send_debugger_diagnostics(DATADOG_G(remote_config_state), &DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
+        dd_probe_send_status(def);
         def_dtor(def);
         return -1;
     }
 
     if (def->probe.status != DDOG_PROBE_STATUS_INSTALLED) {
         def->probe.status = DDOG_PROBE_STATUS_RECEIVED;
-        ddog_send_debugger_diagnostics(DATADOG_G(remote_config_state), &DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
+        dd_probe_send_status(def);
     }
 
     zend_hash_index_add_new_ptr(&DDTRACE_G(active_live_debugger_hooks), id, def);
@@ -414,7 +421,7 @@ error:
 static void dd_probe_mark_active(dd_probe_def *def) {
     if (def->probe.status != DDOG_PROBE_STATUS_EMITTING) {
         def->probe.status = DDOG_PROBE_STATUS_EMITTING;
-        ddog_send_debugger_diagnostics(DATADOG_G(remote_config_state), &DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
+        dd_probe_send_status(def);
     }
 }
 
@@ -1931,7 +1938,7 @@ bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_val
     }
 
     if (DATADOG_G(request_initialized) && DATADOG_G(sidecar)) {
-        ddog_sidecar_set_request_config(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), enabled ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED);
+        ddog_sidecar_set_request_config(&DATADOG_G(sidecar), enabled ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED);
     }
     return true;
 }
@@ -1945,10 +1952,10 @@ ddog_DynamicInstrumentationConfigState ddtrace_dynamic_instrumentation_state(voi
 
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_data(&payloads););
-    ddog_sidecar_send_debugger_data(&DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), payloads);
+    ddog_sidecar_send_debugger_data(&DATADOG_G(sidecar), payloads);
 }
 
 void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_datum(payload););
-    ddog_sidecar_send_debugger_datum(&DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), payload);
+    ddog_sidecar_send_debugger_datum(&DATADOG_G(sidecar), payload);
 }

@@ -273,7 +273,8 @@ If you need to inspect sidecar/helper or PHP issues:
 - The `test` task itself is disabled (`tasks['test'].enabled = false`). Use versioned tasks like `test8.3-debug`.
 - Docker images are pulled from `docker.io/datadog/dd-appsec-php-ci`. Without `-PfloatingImageTags`, images are resolved by SHA256 digest from `gradle/tag_mappings.gradle`. If a digest is not locally available, Docker will pull it.
 - `buildPortableLibdatadogPhp` uses the
-  `nginx-fpm-php-8.5-release-musl` image with nightly Rust. The image must
+  `nginx-fpm-php-8.5-release-musl` image with stable Rust (`compile_rust.sh`
+  sets `RUSTC_BOOTSTRAP=1` for `-Zbuild-std`). The image must
   be available locally or pullable.
 - On first run, Gradle downloads its wrapper, dependencies, and Docker images. Expect 5-10 minutes. Subsequent runs with warm caches take ~20-50 seconds for a single test.
 - **c-ares DNS failure in Alpine containers.** Alpine's `curl` and `git` use

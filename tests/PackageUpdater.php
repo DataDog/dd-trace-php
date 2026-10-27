@@ -41,17 +41,23 @@ class PackageUpdater
         echo "Processing: $file\n";
 
         try {
-            // Get class info
-            $content = file_get_contents($file);
-            if (!preg_match('/namespace (.+);/', $content, $nsMatch) ||
-                !preg_match('/class (.+) extends/', $content, $classMatch)) {
-                return;
-            }
+            // Standalone integrations declare their tested library in composer.json.
+            // Read it without loading test classes that may depend on uninstalled vendors.
+            $composer = dirname($file) . '/composer.json';
+            $className = null;
+            if (!file_exists($composer)) {
+                // Framework integrations use test metadata to locate their application.
+                $content = file_get_contents($file);
+                if (!preg_match('/namespace (.+);/', $content, $nsMatch) ||
+                    !preg_match('/class (.+) extends/', $content, $classMatch)) {
+                    return;
+                }
 
-            $className = "{$nsMatch[1]}\\{$classMatch[1]}";
-            if (!class_exists($className)) {
-                require_once $file;
-                if (!class_exists($className)) return;
+                $className = "{$nsMatch[1]}\\{$classMatch[1]}";
+                if (!class_exists($className)) {
+                    require_once $file;
+                    if (!class_exists($className)) return;
+                }
             }
 
             // Find library and composer.json
@@ -63,7 +69,9 @@ class PackageUpdater
                 return;
             }
 
-            $composer = $this->findComposerFile($className, $file);
+            if ($className !== null) {
+                $composer = $this->findComposerFile($className, $file);
+            }
             if (!$composer) return;
 
             $this->updatePackageVersion($library, $composer);
@@ -72,9 +80,9 @@ class PackageUpdater
         }
     }
 
-    private function findLibrary(string $className, string $file): ?string
+    private function findLibrary(?string $className, string $file): ?string
     {
-        if (method_exists($className, 'getTestedLibrary')) {
+        if ($className !== null && method_exists($className, 'getTestedLibrary')) {
             return call_user_func([$className, 'getTestedLibrary']);
         }
 

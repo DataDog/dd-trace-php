@@ -39,8 +39,7 @@ class RoadRunnerTests implements WorkerStrategyTests {
                     baseTag: 'php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: 'roadrunner',
-                    www_src: '_handlers',
+                    www: '../../../tests/Frameworks/Roadrunner/Version_2',
             ).withEnv 'DD_REMOTE_CONFIG_ENABLED', 'false'
 
     @BeforeAll

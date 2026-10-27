@@ -8,6 +8,7 @@ publish = false
 
 [features]
 helper-rust-coverage = ["ddappsec-helper/coverage"]
+libddwaf-source-static = ["ddappsec-helper/source-static"]
 
 [dependencies]
 anyhow = "1.0"

@@ -36,6 +36,7 @@ function unset_dd_runner_env_vars() {
     - unset DD_ENV
     - unset DD_TAGS
     - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+    - unset DD_ENTITY_ID
 <?php
 }
 
@@ -61,19 +62,24 @@ function windows_git_setup() {
     }
     Pop-Location
     $remaining = Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue
-    if ($remaining) { Write-Host "WARNING: could not remove: $($remaining.Name -join ', ')" }
+    # git init would reuse leftovers (a clone used to refuse them): retry instead.
+    if ($remaining) { Write-Host "ERROR: could not remove: $($remaining.Name -join ', '); exiting 75 so GitLab auto-retries."; exit 75 }
     Write-Host "Cleanup complete."
 
     # PS 5.1 ignores $PSNativeCommandUseErrorActionPreference — use $LASTEXITCODE checks instead.
     $ErrorActionPreference = 'Stop'
 
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
+    # Fetch the pipeline commit by SHA: once the branch moves on, a --branch clone no longer contains it.
+    Write-Host "Fetching $env:CI_COMMIT_SHA..."
     git config --global core.longpaths true
     git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
+    git init -q .
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    git remote add origin $env:CI_REPOSITORY_URL
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    git fetch --depth 50 origin $env:CI_COMMIT_SHA
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: git clone failed (likely transient network); exiting 75 so GitLab auto-retries. Remaining workspace contents:"
+        Write-Host "ERROR: git fetch failed (likely transient network); exiting 75 so GitLab auto-retries. Remaining workspace contents:"
         Get-ChildItem -Force | Select-Object Name
         exit 75
     }
@@ -82,7 +88,7 @@ function windows_git_setup() {
 
     # Initialize submodules
     Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
+    git submodule update --init --recursive -- libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
     if ($LASTEXITCODE -ne 0) { exit 75 }  # transient network (submodule fetch); 75 triggers default retry
     Write-Host "Git setup complete."
 <?php
@@ -113,10 +119,11 @@ register_shutdown_function(function () use ($_libdatadog_sha) {
         return;
     }
 
+    // `|| exit $?` keeps git's 128 (retried) on the centos-7 images, where bash 4.2 turns an errexit status into 1.
     $step  = <<<STEP
     - git config --global --add safe.directory "\${CI_PROJECT_DIR}/libdatadog"
-    - (cd libdatadog; git fetch --depth=1 origin "$_libdatadog_sha" 2>/dev/null || git fetch origin "$_libdatadog_sha" 2>&1)
-    - (cd libdatadog; git checkout FETCH_HEAD)
+    - (cd libdatadog && { git fetch --depth=1 origin "$_libdatadog_sha" 2>/dev/null || git fetch origin "$_libdatadog_sha" 2>&1; }) || exit \$?
+    - (cd libdatadog && git checkout FETCH_HEAD) || exit \$?
 STEP;
 
     // Scripts whose presence in a job block means the job compiles Rust from libdatadog.
@@ -221,13 +228,16 @@ foreach ($arch_targets as $arch_target) {
       DD_POOL_TRACE_CHECK_FAILURES: true
       DD_DISABLE_ERROR_RESPONSES: true
       SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/dd-trace-php(?=/),httpbin:(?<=//)httpbin-integration:8080'
-      KUBERNETES_SERVICE_CPU_REQUEST: 1
-      KUBERNETES_SERVICE_CPU_LIMIT: 1
-      KUBERNETES_SERVICE_MEMORY_REQUEST: 512Mi
-      KUBERNETES_SERVICE_MEMORY_LIMIT: 512Mi
+      # The runner applies KUBERNETES_SERVICE_* to every service in the pod and the last definition wins, in an
+      # order that varies between pods. Keep these identical to request-replayer's, or Elasticsearch may end up with
+      # 1 CPU / 512Mi and never start listening.
+      KUBERNETES_SERVICE_CPU_REQUEST: 2
+      KUBERNETES_SERVICE_CPU_LIMIT: 2
+      KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
+      KUBERNETES_SERVICE_MEMORY_LIMIT: 1Gi
 
   request-replayer:
-    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:3.0
+    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:4.0
     alias: request-replayer
     command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
     variables:
@@ -260,7 +270,9 @@ foreach ($arch_targets as $arch_target) {
     name: registry.ddbuild.io/images/mirror/library/elasticsearch:7.17.23
     alias: elasticsearch7-integration
     variables:
-      ES_JAVA_OPTS: -Xms1g -Xmx1g
+      # Service containers currently share a 1Gi memory limit. Leave half of it outside the Java heap for native JVM
+      # memory; a 1Gi heap under a 1Gi cgroup limit is OOM-killed during startup before port 9200 starts listening.
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
       discovery.type: single-node
 
   zookeeper:

@@ -9,13 +9,14 @@
 #include <php_ini.h>
 #include <stdbool.h>
 #include <errno.h>
-#include <pthread.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
 
 #include "compat_php.h"
 #include "php_dd_library_loader.h"
+#include "telemetry_reaper.h"
 
 #define MIN_API_VERSION 320151012
 #define MAX_API_VERSION 420250925
@@ -368,43 +369,9 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
     va_end(va);
 }
 
-typedef struct {
-    pid_t pid;
-    void *self_handle; // dlopen handle for this .so, closed by the thread
-} ddloader_reaper_arg;
-
-// Reaps the telemetry child process, then tail-calls dlclose() to release the
-// extra reference on this .so that was acquired before thread creation.
-// The tail call ensures dlclose() returns directly to libpthread's start_thread
-// without ever returning into this .so's code, which may be unmapped when
-// dlclose() releases the last reference and runs munmap.
-//
-// [[clang::musttail]] guarantees the tail call at the source level (compile
-// error if not possible). __attribute__((optimize("O2"))) is the GCC fallback
-// to enable sibling-call optimisation.  Both are needed because musttail
-// requires a single CK_IntegralToPointer cast, while GCC -Wint-to-pointer-cast
-// requires the (intptr_t) intermediate; using __has_attribute lets us pick the
-// right form for each compiler.
-// Redeclare dlclose under a private name with void* return type so the tail
-// call is type-correct without any cast.  int and void* share the same return
-// register on all supported ABIs; the return value is discarded anyway.
-extern void *ddloader_dlclose(void *) __asm__("dlclose");
-
-#if defined(__has_attribute) && __has_attribute(musttail)
-# define DDLOADER_MUSTTAIL __attribute__((musttail))
-#elif defined(__clang__) && __clang_major__ >= 13
-# define DDLOADER_MUSTTAIL [[clang::musttail]]
-#else
-# define DDLOADER_MUSTTAIL
-__attribute__((optimize("O2")))
-#endif
-static void *ddloader_reap_child(void *arg_) {
-    ddloader_reaper_arg *arg = (ddloader_reaper_arg *)arg_;
-    pid_t pid = arg->pid;
-    void *handle = arg->self_handle;
-    free(arg);
-    waitpid(pid, NULL, 0);
-    DDLOADER_MUSTTAIL return ddloader_dlclose(handle);
+static void ddloader_wait_for_child(pid_t pid) {
+    while (waitpid(pid, NULL, 0) == -1 && errno == EINTR) {
+    }
 }
 
 /**
@@ -501,22 +468,16 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         return;
     }
     if (pid > 0) {
-        // reap the child in a background thread to avoid leaking it
-        ddloader_reaper_arg *reaper_arg = malloc(sizeof(*reaper_arg));
-        reaper_arg->pid = pid;
-        // Bump our own refcount so this .so stays mapped while the reaper
-        // thread is running. The thread will tail-call dlclose() to release it.
-        Dl_info info;
-        reaper_arg->self_handle =
-            (dladdr((void *)ddloader_telemetryf, &info) && info.dli_fname)
-            ? dlopen(info.dli_fname, RTLD_LAZY)
-            : NULL;
-        pthread_t reaper;
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        pthread_create(&reaper, &attr, ddloader_reap_child, reaper_arg);
-        pthread_attr_destroy(&attr);
+        // The reaper owns an independent code page, allowing Zend to unload
+        // this DSO during shutdown without waiting for telemetry delivery.
+        int error_code = ddloader_reaper_start(pid);
+        if (error_code) {
+            LOG(config, ERROR, "Telemetry error: cannot start child reaper: %s", strerror(error_code))
+            // Do not let the forwarder block startup when no reaper thread is
+            // available. Reap it synchronously after forcing it to exit.
+            kill(pid, SIGKILL);
+            ddloader_wait_for_child(pid);
+        }
         return;  // parent
     }
 
@@ -609,7 +570,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 
     // If execv failed, exit immediately
     // Return 127 for the most likely case of a missing file
-    exit(127);
+    _exit(127);
 }
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {

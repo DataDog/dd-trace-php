@@ -16,7 +16,7 @@ use libdd_trace_stats::span_concentrator::FixedAggregationKey;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{LazyLock, RwLock};
+use std::sync::{Arc, LazyLock, OnceLock, RwLock};
 use tracing::trace;
 
 /// Number of gRPC status-code keys checked by the stats aggregation (must match
@@ -191,24 +191,12 @@ fn php_span_to_shm_input<'a>(
     }
 }
 
-/// Opaque shared-memory span stats concentrator exposed to C.
-///
-/// Always heap-allocated (as a `Box`) — C holds a raw pointer and must pass it back to
-/// `ddog_span_concentrator_drop` to free.
-///
-/// When `inner` is `None` this is a *virtual* concentrator: the SHM has not been created by the
-/// sidecar yet, but peer-tag keys and span-kinds from `DESIRED_CONFIG` are still available so the
-/// C callback can run eligibility checks and extract peer tags.  A virtual concentrator is always
-/// considered stale (`needs_refresh` returns `true`) so it will be upgraded to a real one on the
-/// next call once the SHM becomes available.
+/// Cached stats reader and metadata borrowed by C during `ddog_span_concentrator_with`.
 pub struct SpanConcentrator {
-    /// `Some` when the backing SHM is open; `None` for virtual concentrators.
-    inner: Option<ShmSpanConcentrator>,
-    /// Whether the backing SHM is available.  False for virtual concentrators.
-    pub has_shm: bool,
+    /// Opened after the first IPC span. In-flight fallbacks can outlive a cache clear.
+    inner: Arc<OnceLock<ShmSpanConcentrator>>,
     peer_tag_keys: Vec<String>,
-    /// Contiguous array of `CharSlice<'static>` views into `peer_tag_keys`.
-    /// Rebuilt whenever `set_peer_tags` is called so that C can get a stable pointer.
+    /// Views into `peer_tag_keys` for the C callback.
     peer_tag_key_slices: Vec<CharSlice<'static>>,
     span_kinds: Vec<String>,
 }
@@ -226,20 +214,16 @@ impl SpanConcentrator {
             .map(|s| unsafe { CharSlice::from_raw_parts(s.as_ptr() as *const c_char, s.len()) })
             .collect();
     }
-
-    /// Returns `true` when the entry should be replaced.
-    /// Virtual concentrators (no SHM) always request a refresh so the caller can upgrade them
-    /// to real concentrators once the SHM becomes available.
-    fn needs_refresh(&self) -> bool {
-        match &self.inner {
-            Some(shm) => shm.needs_reload(),
-            None => true,
-        }
-    }
 }
 
 static SPAN_CONCENTRATORS: LazyLock<RwLock<HashMap<String, SpanConcentrator>>> =
     LazyLock::new(|| RwLock::default());
+
+/// Drop cached concentrators so the next span for each key goes through IPC.
+#[no_mangle]
+pub extern "C" fn ddog_span_concentrators_clear() {
+    SPAN_CONCENTRATORS.write().unwrap().clear();
+}
 
 /// Set to true once `apply_concentrator_config` has been called at least once,
 /// i.e. the sidecar has received and applied the agent's /info response.
@@ -327,100 +311,69 @@ pub(crate) fn apply_concentrator_config(
     }
 }
 
-/// Look up (or lazily create) the concentrator for `(env, version, service)` and invoke
-/// `callback` with a shared reference to it while holding the global read lock.
-///
-/// The callback is **always** invoked — even before the sidecar has created the backing SHM.
-/// When the SHM is not yet available a *virtual* concentrator is used: peer-tag keys and
-/// span-kinds come from `DESIRED_CONFIG` so eligibility and peer-tag extraction still work
-/// correctly.  The C callback should call `ddog_span_concentrator_has_shm` to decide whether to
-/// write to the SHM (real concentrator) or store the stats for the IPC path (virtual).
-///
-/// A virtual concentrator is always considered stale so it will be transparently upgraded to a
-/// real one on the next call once the sidecar has created the SHM.
-///
-/// Returns `true` after the callback returns, `false` only on an internal locking error.
+/// Invoke `callback` with the cached reader and send any returned span through IPC.
+/// SHM is opened after sending, so the first span also creates the sidecar's concentrator.
 ///
 /// # Safety
-/// `env`, `version`, and `service` must be valid `CharSlice`s.  `callback` must be a valid
-/// function pointer. `userdata` is forwarded to `callback` as-is.
+/// `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+/// The slices and callback must be valid. The callback transfers ownership of its result.
 #[no_mangle]
 pub unsafe extern "C" fn ddog_span_concentrator_with(
+    transport: *mut SidecarTransport,
     env: CharSlice<'_>,
     version: CharSlice<'_>,
     service: CharSlice<'_>,
-    callback: unsafe extern "C" fn(*const SpanConcentrator, *mut c_void),
+    callback: unsafe extern "C" fn(
+        *const SpanConcentrator,
+        *mut c_void,
+    ) -> Option<Box<OwnedShmSpanInput>>,
     userdata: *mut c_void,
 ) -> bool {
-    let env_key = char_slice_str(env).to_owned();
-    let version_key = char_slice_str(version).to_owned();
-    let service_key = char_slice_str(service).to_owned();
-    let map_key = format!("{env_key}\0{version_key}\0{service_key}");
+    let env = char_slice_str(env);
+    let version = char_slice_str(version);
+    let service = char_slice_str(service);
+    let map_key = format!("{env}\0{version}\0{service}");
     let map = &SPAN_CONCENTRATORS;
-
-    // Fast path: read lock — entry present and up-to-date (real or virtual).
-    {
+    let (span, reader) = loop {
         let guard = map.read().unwrap();
         if let Some(c) = guard.get(&map_key) {
-            if !c.needs_refresh() {
-                callback(c as *const SpanConcentrator, userdata);
+            let Some(span) = callback(c as *const SpanConcentrator, userdata) else {
                 return true;
-            }
+            };
+            break (span, c.inner.clone());
         }
-    }
+        drop(guard);
 
-    // Slow path: need to create or refresh — acquire write lock.
-    {
-        let mut wg = map.write().unwrap();
-        let refresh = wg.get(&map_key).map_or(true, |c| c.needs_refresh());
-        if refresh {
-            wg.remove(&map_key);
-            let path = datadog_sidecar::service::stats_flusher::env_stats_shm_path(
-                &env_key,
-                &version_key,
-                &service_key,
-            );
-            let (shm, has_shm) = match ShmSpanConcentrator::open(path.as_c_str()) {
-                Ok(s) => (Some(s), true),
-                Err(e) => {
-                    trace!("SHM for env={env_key} version={version_key} service={service_key} not yet available ({e}); using virtual concentrator");
-                    (None, false)
-                }
-            };
-            let (peer_tag_keys, span_kinds) = {
-                let dc = DESIRED_CONFIG.read().unwrap();
-                (dc.peer_tag_keys.clone(), dc.span_kinds.clone())
-            };
+        let mut guard = map.write().unwrap();
+        guard.entry(map_key.clone()).or_insert_with(|| {
+            let dc = DESIRED_CONFIG.read().unwrap();
             let mut c = SpanConcentrator {
-                inner: shm,
-                has_shm,
-                peer_tag_keys,
+                inner: Default::default(),
+                peer_tag_keys: dc.peer_tag_keys.clone(),
                 peer_tag_key_slices: vec![],
-                span_kinds,
+                span_kinds: dc.span_kinds.clone(),
             };
             c.rebuild_key_slices();
-            wg.insert(map_key.clone(), c);
-        }
-    } // write lock dropped
+            c
+        });
+    };
 
-    // Re-acquire read lock after write.
-    let guard = map.read().unwrap();
-    match guard.get(&map_key) {
-        Some(c) => {
-            callback(c as *const SpanConcentrator, userdata);
-            true
+    // Sending can reconnect and clear the cache; no cache lock or borrowed tags remain here.
+    if let Some(transport) = transport.as_mut() {
+        match add_span_to_concentrator(transport, env.to_owned(), version.to_owned(), *span) {
+            Ok(true) if reader.get().is_none() => {
+                let path = datadog_sidecar::service::stats_flusher::env_stats_shm_path(
+                    env, version, service,
+                );
+                if let Ok(shm) = ShmSpanConcentrator::open(&path) {
+                    let _ = reader.set(shm);
+                }
+            }
+            Ok(_) => {}
+            Err(e) => trace!("Failed to send span to concentrator via IPC: {e}"),
         }
-        None => false,
     }
-}
-
-/// Returns `true` when the concentrator is backed by a real SHM and
-/// `ddog_span_concentrator_add_php_span` will actually persist data.
-/// Returns `false` for virtual concentrators (SHM not yet available) — the C callback should
-/// store the stats for the IPC fallback path in that case.
-#[no_mangle]
-pub extern "C" fn ddog_span_concentrator_has_shm(c: &SpanConcentrator) -> bool {
-    c.has_shm
+    true
 }
 
 /// Return a pointer to the concentrator's peer-tag-key array and write the count to `*out_count`.
@@ -469,27 +422,22 @@ pub extern "C" fn ddog_span_concentrator_is_eligible(
     c.span_kinds.iter().any(|k| k == kind)
 }
 
-/// Write a PHP span to the concentrator's backing SHM.
-///
-/// Only valid when `ddog_span_concentrator_has_shm` returns `true`.  For virtual concentrators
-/// (no SHM) the caller should use the IPC path instead.
-///
-/// All `CharSlice` fields in `span` (and in the `peer_tags` array it points to) must remain valid
-/// for the duration of this call.
+/// Write to SHM, or return an owned span for the callback to pass back for IPC.
 ///
 /// # Safety
-/// `span` must point to a valid `PhpSpanStats`.  The concentrator must have a backing SHM
-/// (`ddog_span_concentrator_has_shm` returns `true`).
+/// All slices and peer-tag pointers in `span` must remain valid for this call.
 #[no_mangle]
 pub unsafe extern "C" fn ddog_span_concentrator_add_php_span(
     c: &SpanConcentrator,
     span: &PhpSpanStats<'_>,
-) {
-    if let Some(shm) = &c.inner {
+) -> Option<Box<OwnedShmSpanInput>> {
+    if let Some(shm) = c.inner.get() {
         let mut peer_tag_buf = [("", ""); MAX_PEER_TAGS];
-        let input = php_span_to_shm_input(span, &mut peer_tag_buf);
-        shm.add_span(&input);
+        if shm.add_span(&php_span_to_shm_input(span, &mut peer_tag_buf)) {
+            return None;
+        }
     }
+    Some(Box::new(php_span_to_owned_input(span)))
 }
 
 /// Convert a `PhpSpanStats` to `OwnedShmSpanInput` for IPC transport.
@@ -525,29 +473,5 @@ unsafe fn php_span_to_owned_input(span: &PhpSpanStats<'_>) -> OwnedShmSpanInput 
         duration_ns: span.duration,
         is_error: span.is_error,
         is_top_level: span.has_top_level,
-    }
-}
-
-/// IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for (env, version).
-///
-/// Called when the SHM is not yet available.  The sidecar processes IPC messages sequentially,
-/// and `set_universal_service_tags` is always sent before this message, so the concentrator
-/// is guaranteed to exist when the sidecar handles this call.  The sidecar resolves the service
-/// dimension from the session's `DD_SERVICE` config.
-///
-/// # Safety
-/// All pointers must be valid.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_sidecar_add_php_span_to_concentrator(
-    transport: &mut Box<SidecarTransport>,
-    env: CharSlice<'_>,
-    version: CharSlice<'_>,
-    span: &PhpSpanStats<'_>,
-) {
-    let env_str = char_slice_str(env).to_owned();
-    let version_str = char_slice_str(version).to_owned();
-    let owned_span = php_span_to_owned_input(span);
-    if let Err(e) = add_span_to_concentrator(transport, env_str, version_str, owned_span) {
-        trace!("Failed to send span to concentrator via IPC: {e}");
     }
 }

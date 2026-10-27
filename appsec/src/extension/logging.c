@@ -129,21 +129,30 @@ static void _ensure_init(void)
 
     if (!atomic_load_explicit(&_initialized, memory_order_acquire)) {
         TSRM_MUTEX_LOCK(_mutex);
-        if (!atomic_load(&_initialized)) {
-            dd_result res = _do_dd_log_init();
-            if (res == dd_error) {
-                _mlog_php_varargs(
-                    dd_log_warning, "Could not initialize logging");
-                _log_strategy = log_use_nothing;
-            }
-            if (res != dd_try_later) {
-                atomic_store_explicit(
-                    &_initialized, true, memory_order_release);
-            } else {
-                // While it cant log to file, lets hide the messages
-                _log_strategy = log_use_nothing;
+        zend_try
+        {
+            if (!atomic_load(&_initialized)) {
+                dd_result res = _do_dd_log_init();
+                if (res == dd_error) {
+                    _mlog_php_varargs(
+                        dd_log_warning, "Could not initialize logging");
+                    _log_strategy = log_use_nothing;
+                }
+                if (res != dd_try_later) {
+                    atomic_store_explicit(
+                        &_initialized, true, memory_order_release);
+                } else {
+                    // While it cant log to file, lets hide the messages
+                    _log_strategy = log_use_nothing;
+                }
             }
         }
+        zend_catch
+        {
+            TSRM_MUTEX_UNLOCK(_mutex);
+            zend_bailout();
+        }
+        zend_end_try();
         TSRM_MUTEX_UNLOCK(_mutex);
     }
 }
@@ -277,7 +286,7 @@ static void _mlog_syslog(dd_log_level_t level, const char *format, va_list args,
 
     vspprintf(&message_data, 0, format, args);
 
-#if !defined(ZTS)
+#ifndef ZTS
     syslog(prio, "%s %d:%s %s",
 #else
     syslog(prio, "[%ld] %s:%d:%s %s", (long)tsrm_thread_id(),
@@ -342,7 +351,15 @@ static void _mlog_php(dd_log_level_t level, const char *format, va_list args)
     EG(error_handling) = EH_NORMAL;
 
     const int php_log_level = _log_level_to_php_err_reporting_pri(level);
-    php_verror(NULL, "", php_log_level, new_fmt, args);
+    zend_try { php_verror(NULL, "", php_log_level, new_fmt, args); }
+    zend_catch
+    {
+        EG(error_handling) = orig_err_handling;
+        EG(user_error_handler_error_reporting) = orig_ueher;
+        efree(new_fmt);
+        zend_bailout();
+    }
+    zend_end_try();
 
     EG(error_handling) = orig_err_handling;
     EG(user_error_handler_error_reporting) = orig_ueher;
@@ -378,7 +395,7 @@ static void _mlog_file(dd_log_level_t level, const char *format, va_list args,
         _format_time(time_str, sizeof time_str, &ts, 3);
     }
 
-#if !defined(ZTS)
+#ifndef ZTS
     data_len =
         spprintf(&data, 0, "[%s][%d][%s] %s at %s:%d:%s\n", time_str, getpid(),
 #else
@@ -549,12 +566,10 @@ static PHP_FUNCTION(datadog_appsec_testing_mlog)
         _dd_log_errf("Level %lld is out of range", (long long)level);
         RETURN_FALSE;
     }
-    if (str->len > INT_MAX) {
-        _dd_log_errf("String is too long");
-        RETURN_FALSE;
-    }
-
-    mlog((dd_log_level_t)level, "%.*s", (int)str->len, str->val);
+    // Clamp so the %.*s precision fits in an int. PHP < 8.0 truncates error
+    // messages to log_errors_max_len (1024 by default) in php_error_cb, so
+    // 500 bytes plus php_verror's prefix behaves the same on every version.
+    mlog((dd_log_level_t)level, "%.*s", (int)MIN(str->len, 500), str->val);
     RETURN_TRUE;
 }
 // for closing stderr/stdout. fclose(STDERR) doesn't seem to reliably work

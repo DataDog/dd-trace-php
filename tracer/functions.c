@@ -7,6 +7,7 @@
 #include "code_origins.h"
 #include "engine_hooks.h"
 #include "ffe.h"
+#include <math.h>
 #include "handlers_exception.h"
 #include "memory_limit.h"
 #ifdef __linux__
@@ -244,7 +245,8 @@ void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *res
     zend_hash_copy(Z_ARR(link->property_attributes), &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->meta_tags);
-    zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys);
+    zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys, &result->otel_sampling);
+    full_tracestate = ddtrace_otel_sampling_limit_tracestate(full_tracestate);
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }
@@ -275,12 +277,16 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
     zend_hash_destroy(&result.baggage);
+    ddtrace_otel_sampling_clear(&result.otel_sampling);
 
     if (result.origin) {
         zend_string_release(result.origin);
     }
     if (result.tracestate) {
         zend_string_release(result.tracestate);
+    }
+    if (result.context_headers) {
+        zend_string_release(result.context_headers);
     }
 }
 
@@ -337,6 +343,7 @@ static zend_object *ddtrace_inferred_span_data_create(zend_class_entry *class_ty
 
 static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) {
     ddtrace_root_span_data *span = ecalloc(1, sizeof(*span));
+    span->otel_sampling = (ddtrace_otel_sampling_state)DDTRACE_OTEL_SAMPLING_STATE_INIT;
     dd_init_span_data_object(class_type, &span->span, &ddtrace_root_span_data_handlers);
 #if PHP_VERSION_ID < 80000
     // Not handled in arginfo on these old versions
@@ -431,6 +438,11 @@ static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
     memset(object->properties_table, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
+}
+
+static void ddtrace_root_span_data_free_storage(zend_object *object) {
+    ddtrace_otel_sampling_clear(&ROOTSPANDATA(object)->otel_sampling);
+    ddtrace_span_data_free_storage(object);
 }
 
 #if PHP_VERSION_ID < 80000
@@ -589,8 +601,16 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             root_span_data_changed = true;
         }
         cache_slot = NULL;
+    } else if (zend_string_equals_literal(prop_name, "tracestate") && Z_TYPE_P(value) == IS_STRING) {
+        ZVAL_STR(&zv, ddtrace_otel_sampling_extract_tracestate(Z_STR_P(value), &span->otel_sampling));
+        Z_TRY_DELREF(zv); // zend_std_write_property will incref non-interned strings itself
+        value = &zv;
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+        if (span->explicit_sampling_priority) {
+            ddtrace_otel_sampling_decide_non_probability(&span->otel_sampling);
+        }
 #ifdef __linux__
         sampling_priority_changed = true;
 #endif
@@ -778,6 +798,7 @@ static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_root_span_data_handlers, &ddtrace_span_data_handlers, sizeof(zend_object_handlers));
     ddtrace_root_span_data_handlers.offset = XtOffsetOf(ddtrace_root_span_data, std);
     ddtrace_root_span_data_handlers.clone_obj = ddtrace_root_span_data_clone_obj;
+    ddtrace_root_span_data_handlers.free_obj = ddtrace_root_span_data_free_storage;
     ddtrace_root_span_data_handlers.write_property = ddtrace_root_span_data_write;
 
     ddtrace_ce_span_stack = register_class_DDTrace_SpanStack();
@@ -1178,7 +1199,10 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     ddtrace_mark_all_span_stacks_flushable();
 
     ddog_TracesBytes *traces = ddog_get_traces();
-    ddtrace_serialize_closed_spans_with_cycle(traces, false);
+    if (!ddtrace_serialize_closed_spans_with_cycle(traces, false)) {
+        ddog_free_traces(traces);
+        RETURN_NULL();
+    }
 
     zval traces_zv = dd_serialize_rust_traces_to_zval(traces);
 
@@ -1549,7 +1573,7 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
 PHP_FUNCTION(DDTrace_are_endpoints_collected) {
     UNUSED(execute_data);
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         RETURN_TRUE; // Skip overhead if unnecessary
     }
 
@@ -1605,7 +1629,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
         RETURN_FALSE;
     }
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         RETURN_FALSE;
     }
 
@@ -1630,7 +1654,7 @@ PHP_FUNCTION(DDTrace_flush_endpoints) {
     UNUSED(execute_data);
     UNUSED(return_value);
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id) || !DATADOG_G(telemetry_buffer)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized) || !DATADOG_G(telemetry_buffer)) {
         return;
     }
 
@@ -1642,7 +1666,7 @@ PHP_FUNCTION(DDTrace_flush_endpoints) {
     ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DATADOG_G(last_env_name));
 
     datadog_ffi_try("Failed flushing endpoint telemetry buffer",
-        ddog_sidecar_telemetry_filter_flush(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), datadog_telemetry_buffer(), datadog_telemetry_cache(), service_name, env_name));
+        ddog_sidecar_telemetry_filter_flush(&DATADOG_G(sidecar), datadog_telemetry_buffer(), datadog_telemetry_cache(), service_name, env_name));
 }
 
 PHP_FUNCTION(DDTrace_ffe_has_config) {
@@ -1717,6 +1741,115 @@ static void ddtrace_ffe_record_evaluation_metric_result(
     const char *reason_name = ddtrace_ffe_reason_name(ddtrace_ffe_effective_reason(reason, error_code));
     const char *error_name = ddtrace_ffe_error_name(error_code);
     ddtrace_ffe_record_evaluation_metric(flag_key, variant, reason_name, error_name, allocation_key);
+}
+
+static const char *ddtrace_ffe_type_name(int32_t type_id) {
+    switch (type_id) {
+        case DDTRACE_FFE_TYPE_STRING:
+            return "string";
+        case DDTRACE_FFE_TYPE_INT:
+            return "integer";
+        case DDTRACE_FFE_TYPE_FLOAT:
+            return "float";
+        case DDTRACE_FFE_TYPE_BOOL:
+            return "boolean";
+        case DDTRACE_FFE_TYPE_OBJECT:
+            return "object";
+        default:
+            return "unknown";
+    }
+}
+
+static void ddtrace_ffe_add_nullable_str(zval *details, const char *key, zend_string *value) {
+    if (value) {
+        add_assoc_str(details, key, zend_string_copy(value));
+    } else {
+        add_assoc_null(details, key);
+    }
+}
+
+// Logs the attributes the evaluator uses: only scalars reach it. Skipping other
+// values also keeps JSON encoding from running userland jsonSerialize().
+static void ddtrace_ffe_add_attributes(zval *details, zval *attrs_zv) {
+    zval attributes;
+    zend_ulong num_key;
+    zend_string *key;
+    zval *value;
+
+    array_init(&attributes);
+    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(attrs_zv), num_key, key, value) {
+        switch (Z_TYPE_P(value)) {
+            case IS_STRING:
+            case IS_LONG:
+            case IS_DOUBLE:
+            case IS_TRUE:
+            case IS_FALSE:
+                break;
+            default:
+                continue;
+        }
+        zend_string *owned_key = key ? zend_string_copy(key) : zend_long_to_str((zend_long) num_key);
+        if (Z_TYPE_P(value) == IS_DOUBLE && !isfinite(Z_DVAL_P(value))) {
+            // JSON has no non-finite numbers. Tag the raw value instead of
+            // allowing partial-output encoding to silently turn it into 0.
+            zval tagged;
+            array_init(&tagged);
+            add_assoc_string(&tagged, "nonFiniteFloat", isnan(Z_DVAL_P(value)) ? "NAN" : (Z_DVAL_P(value) < 0 ? "-INF" : "INF"));
+            zend_hash_update(Z_ARRVAL(attributes), owned_key, &tagged);
+        } else {
+            Z_TRY_ADDREF_P(value);
+            zend_hash_update(Z_ARRVAL(attributes), owned_key, value);
+        }
+        zend_string_release(owned_key);
+    } ZEND_HASH_FOREACH_END();
+
+    // Encode an empty map as {} rather than [].
+    if (zend_hash_num_elements(Z_ARRVAL(attributes)) == 0) {
+        zval_ptr_dtor(&attributes);
+        object_init(&attributes);
+    }
+    add_assoc_zval(details, "attributes", &attributes);
+}
+
+// DD_TRACE_DEBUG logs every native evaluation with its raw inputs and result,
+// so customers can explain a flag value. The PHP SDK maps this result to the
+// value it returns, and logs that outcome separately. JSON keeps control
+// characters from splitting the log line; invalid UTF-8 is substituted rather
+// than dropping the line where PHP supports it.
+static void ddtrace_ffe_log_evaluation(zend_string *flag_key, int32_t type_id, zend_string *targeting_key, zval *attrs_zv, struct ddog_FfeResult *result) {
+    if (!ddog_shall_log(DDOG_LOG_DEBUG)) {
+        return;
+    }
+
+    const char *error_name = ddtrace_ffe_error_name(result->error_code);
+    zval details;
+    array_init(&details);
+    add_assoc_str(&details, "flagKey", zend_string_copy(flag_key));
+    add_assoc_string(&details, "valueType", (char *) ddtrace_ffe_type_name(type_id));
+    ddtrace_ffe_add_nullable_str(&details, "targetingKey", targeting_key);
+    ddtrace_ffe_add_attributes(&details, attrs_zv);
+    ddtrace_ffe_add_nullable_str(&details, "valueJson", result->value_json);
+    ddtrace_ffe_add_nullable_str(&details, "variant", result->variant);
+    ddtrace_ffe_add_nullable_str(&details, "allocationKey", result->allocation_key);
+    add_assoc_string(&details, "reason", (char *) ddtrace_ffe_reason_name(ddtrace_ffe_effective_reason(result->reason, result->error_code)));
+    if (error_name) {
+        add_assoc_string(&details, "errorCode", (char *) error_name);
+    } else {
+        add_assoc_null(&details, "errorCode");
+    }
+    add_assoc_long(&details, "configVersion", (zend_long) ddog_ffe_config_version());
+    add_assoc_bool(&details, "doLog", result->do_log);
+
+    int options = PHP_JSON_UNESCAPED_SLASHES | PHP_JSON_PARTIAL_OUTPUT_ON_ERROR;
+#ifdef PHP_JSON_INVALID_UTF8_SUBSTITUTE
+    options |= PHP_JSON_INVALID_UTF8_SUBSTITUTE;
+#endif
+    smart_str buf = {0};
+    zai_json_encode(&buf, &details, options);
+    smart_str_0(&buf);
+    LOG(DEBUG, "Feature Flags: native evaluation %s", buf.s ? ZSTR_VAL(buf.s) : "{}");
+    smart_str_free(&buf);
+    zval_ptr_dtor(&details);
 }
 
 static zend_string *ddtrace_ffe_attributes_json(zval *attrs_zv) {
@@ -1800,6 +1933,10 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         Z_PARAM_BOOL(record_metric)
     ZEND_PARSE_PARAMETERS_END();
 
+    if (!get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG_ONCE(DEBUG, "Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; set DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true at startup (environment or php.ini) and restart");
+    }
+
     type_id = (int32_t) type_id_zl;
     attributes = Z_ARRVAL_P(attrs_zv);
     attrs_count = zend_hash_num_elements(attributes);
@@ -1874,6 +2011,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     if (!result.valid) {
+        LOG(DEBUG, "Feature Flags: evaluation rejected; flag key is not valid UTF-8 or the value type is unknown (valueType=%s)", ddtrace_ffe_type_name(type_id));
         if (record_metric) {
             ddtrace_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
         }
@@ -1905,7 +2043,12 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             result.has_serial_id
         );
         zend_string_release(subject_attributes_json);
+    } else {
+        LOG(DEBUG, "Feature Flags: exposure suppressed; %s",
+            !result.do_log ? "evaluation doLog=false (see native evaluation reason/error)" : "missing allocation key or variant");
     }
+
+    ddtrace_ffe_log_evaluation(flag_key, type_id, targeting_key, attrs_zv, &result);
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
@@ -1914,6 +2057,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
+    ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("observeFullEvaluationData"), result.observe_full_evaluation_data);
     // serialId is only populated when the native result actually carried one
     // (has_serial_id). It stays null otherwise so the PHP accumulator can use
     // the Pattern B "missing variant => runtime default" branch, rather than
@@ -2017,9 +2161,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            ddog_QueueId queueId = DATADOG_G(sidecar_queue_id);
+            // Keeps the application, for the lifecycle end to stop its telemetry
             datadog_sidecar_finalize(false);
-            DATADOG_G(sidecar_queue_id) = queueId; // usually we want to stop using it, except here
             datadog_telemetry_lifecycle_end();
             RETVAL_TRUE;
         } else if (params_count == 3 && FUNCTION_NAME_MATCHES("force_overwrite_property")) {
@@ -2038,7 +2181,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
-            ddtrace_detect_composer_installed_json(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), path);
+            ddtrace_detect_composer_installed_json(&DATADOG_G(sidecar), path);
             RETVAL_TRUE;
         } else if (params_count == 2 && FUNCTION_NAME_MATCHES("mark_integration_loaded")) {
             zval *name = ZVAL_VARARG_PARAM(params, 0);
@@ -2084,7 +2227,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 RETURN_FALSE;
             }
             ddog_sidecar_send_garbage(&DATADOG_G(sidecar));
-            datadog_force_new_instance_id();
             RETURN_TRUE;
         } else if (FUNCTION_NAME_MATCHES("reload_process_tags")) {
             if (datadog_process_tags_enabled()) {
@@ -2109,6 +2251,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 1000;
+            ddog_SidecarFlushOptions flush_options = {.traces_and_stats = true, .flag_evaluations = true};
             if (params_count == 1) {
                 timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
             }
@@ -2117,10 +2260,10 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 if (dd_rinit_once_done) {
                     ddtrace_coms_synchronous_flush(timeout);
                 }
-            } else
+            }
 #endif
             if (DATADOG_G(sidecar)) {
-                datadog_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true}));
+                datadog_ffi_try("Failed synchronously flushing traces and flag evaluations", ddog_sidecar_flush(&DATADOG_G(sidecar), flush_options));
             }
             RETVAL_TRUE;
 #ifndef _WIN32
@@ -2215,6 +2358,10 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else {
                 array_init(return_value);
             }
+        } else if (FUNCTION_NAME_MATCHES("process_remote_config")) {
+            // Test/debug helper for exercising Remote Config at precise lifecycle points.
+            datadog_check_for_new_config_now();
+            RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("await_remote_config")) {
             uint32_t timeout_sec = 10;
             if (params_count == 1) {
@@ -2320,15 +2467,18 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
         RETURN_NULL();
     }
 
+    // FFE's coalescer is shared: evaluations may have come from another PHP
+    // thread even when this thread has never submitted one.
+    ddog_SidecarFlushOptions flush_options = {.traces_and_stats = true, .flag_evaluations = true};
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         if (dd_rinit_once_done) {
             ddtrace_coms_synchronous_flush(timeout);
         }
-    } else
+    }
 #endif
     if (DATADOG_G(sidecar)) {
-        datadog_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true}));
+        datadog_ffi_try("Failed synchronously flushing traces and flag evaluations", ddog_sidecar_flush(&DATADOG_G(sidecar), flush_options));
     }
     RETURN_NULL();
 }
@@ -2831,7 +2981,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 
     *success = parse_tracing_headers_common(INTERNAL_FUNCTION_PARAM_PASSTHRU, &func, &use_server_headers, &array);
     if (!*success || !get_DD_TRACE_ENABLED()) {
-        return (ddtrace_distributed_tracing_result){0};
+        return (ddtrace_distributed_tracing_result){.otel_sampling = DDTRACE_OTEL_SAMPLING_STATE_INIT};
     }
 
     func.fci.param_count = 1;
@@ -2909,6 +3059,30 @@ PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {
     ZEND_PARSE_PARAMETERS_NONE();
 
     RETURN_BOOL(ddtrace_ffe_flush_evaluation_metrics());
+}
+
+PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
+    zend_string *flag_key, *variant = NULL, *allocation_key = NULL, *targeting_key = NULL, *error_type = NULL;
+    HashTable *attributes;
+    zend_bool runtime_default_used, observe_full_evaluation_data;
+    zend_long evaluation_timestamp_ms;
+    zend_bool targeting_key_invalid = false;
+    ZEND_PARSE_PARAMETERS_START(9, 10)
+        Z_PARAM_STR(flag_key)
+        Z_PARAM_STR_OR_NULL(variant)
+        Z_PARAM_STR_OR_NULL(allocation_key)
+        Z_PARAM_STR_OR_NULL(targeting_key)
+        Z_PARAM_ARRAY_HT(attributes)
+        Z_PARAM_STR_OR_NULL(error_type)
+        Z_PARAM_BOOL(runtime_default_used)
+        Z_PARAM_BOOL(observe_full_evaluation_data)
+        Z_PARAM_LONG(evaluation_timestamp_ms)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(targeting_key_invalid)
+    ZEND_PARSE_PARAMETERS_END();
+    RETURN_BOOL(ddtrace_ffe_record_flag_evaluation(flag_key, variant, allocation_key,
+        targeting_key, attributes, error_type, runtime_default_used, observe_full_evaluation_data,
+        evaluation_timestamp_ms, targeting_key_invalid));
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */
@@ -3046,6 +3220,9 @@ PHP_FUNCTION(DDTrace_startup_logs) {
 
     smart_str buf = {0};
     datadog_startup_logging_json(&buf, 0);
+    if (!buf.s) {
+        RETURN_EMPTY_STRING();
+    }
     ZVAL_NEW_STR(return_value, buf.s);
 }
 

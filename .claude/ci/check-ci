@@ -35,6 +35,41 @@ class GitLabError(Exception):
     """Raised on fatal GitLab API errors (auth failure, network error, timeout)."""
 
 
+class GitLabClient:
+    """GitLab API session that refreshes a rejected OAuth token once."""
+
+    def __init__(self, token: str):
+        self.session = aiohttp.ClientSession(
+            headers={"Authorization": f"Bearer {token}"},
+            connector=aiohttp.TCPConnector(limit=20),
+        )
+        self._refresh_lock = asyncio.Lock()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.session.close()
+
+    async def refresh_token(self, rejected_authorization: str | None) -> bool:
+        """Refresh the token unless another request already refreshed it."""
+        async with self._refresh_lock:
+            current_authorization = self.session.headers.get("Authorization")
+            if current_authorization != rejected_authorization:
+                return True
+
+            token = await asyncio.to_thread(get_gitlab_token)
+            if not token:
+                return False
+
+            self.session.headers["Authorization"] = f"Bearer {token}"
+            print(
+                "GitLab token expired or was revoked; refreshed it and retrying.",
+                file=sys.stderr,
+            )
+            return True
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Monitor a GitLab CI pipeline and GitHub Actions workflows.")
     group = parser.add_mutually_exclusive_group()
@@ -107,27 +142,38 @@ def get_gitlab_token() -> str | None:
 # GitLab API helpers
 # ---------------------------------------------------------------------------
 
-async def api_get(session: aiohttp.ClientSession, path: str, params: dict | None = None) -> tuple[int, Any, dict]:
+async def api_get(client: GitLabClient, path: str, params: dict | None = None) -> tuple[int, Any, dict]:
     """Make a GET request. Returns (status_code, json_or_text, headers)."""
     url = f"{API_BASE}{path}"
-    try:
-        async with session.get(url, params=params) as resp:
-            if resp.status in (401, 403):
-                text = await resp.text()
-                msg = f"Error: authentication failed ({resp.status}): {text}"
-                print(msg, file=sys.stderr)
-                raise GitLabError(msg)
-            headers = dict(resp.headers)
-            if resp.content_type and "json" in resp.content_type:
-                return resp.status, await resp.json(), headers
-            return resp.status, await resp.text(), headers
-    except aiohttp.ClientError as e:
-        return 0, str(e), {}
+    for attempt in range(2):
+        rejected_authorization = client.session.headers.get("Authorization")
+        try:
+            async with client.session.get(url, params=params) as resp:
+                if resp.status == 401:
+                    text = await resp.text()
+                    if attempt == 0 and await client.refresh_token(rejected_authorization):
+                        continue
+                    msg = f"Error: authentication failed ({resp.status}): {text}"
+                    print(msg, file=sys.stderr)
+                    raise GitLabError(msg)
+                if resp.status == 403:
+                    text = await resp.text()
+                    msg = f"Error: authentication failed ({resp.status}): {text}"
+                    print(msg, file=sys.stderr)
+                    raise GitLabError(msg)
+                headers = dict(resp.headers)
+                if resp.content_type and "json" in resp.content_type:
+                    return resp.status, await resp.json(), headers
+                return resp.status, await resp.text(), headers
+        except aiohttp.ClientError as e:
+            return 0, str(e), {}
+
+    raise AssertionError("unreachable")
 
 
-async def api_get_json(session: aiohttp.ClientSession, path: str, params: dict | None = None) -> Any:
+async def api_get_json(client: GitLabClient, path: str, params: dict | None = None) -> Any:
     """GET request expecting JSON. Returns None on network error."""
-    status, data, _ = await api_get(session, path, params)
+    status, data, _ = await api_get(client, path, params)
     if status == 0:
         print(f"Warning: network error fetching {path}: {data}", file=sys.stderr)
         return None
@@ -137,15 +183,15 @@ async def api_get_json(session: aiohttp.ClientSession, path: str, params: dict |
     return data
 
 
-async def api_get_text(session: aiohttp.ClientSession, path: str) -> str | None:
+async def api_get_text(client: GitLabClient, path: str) -> str | None:
     """GET request expecting text. Returns None on error."""
-    status, data, _ = await api_get(session, path)
+    status, data, _ = await api_get(client, path)
     if status == 0 or status >= 400:
         return None
     return data
 
 
-async def paginated_get(session: aiohttp.ClientSession, path: str, params: dict | None = None) -> list:
+async def paginated_get(client: GitLabClient, path: str, params: dict | None = None) -> list:
     """Fetch all pages of a paginated endpoint.
 
     Reads X-Total-Pages from the first response, then fetches all remaining pages in parallel.
@@ -154,7 +200,7 @@ async def paginated_get(session: aiohttp.ClientSession, path: str, params: dict 
     p["per_page"] = 100
     p["page"] = 1
 
-    status, first_page, headers = await api_get(session, path, p)
+    status, first_page, headers = await api_get(client, path, p)
     if status == 0:
         print(f"Warning: network error fetching {path}: {first_page}", file=sys.stderr)
         return []
@@ -171,19 +217,19 @@ async def paginated_get(session: aiohttp.ClientSession, path: str, params: dict 
 
     async def fetch_page(n: int) -> list:
         pp = {**p, "page": n}
-        data = await api_get_json(session, path, pp)
+        data = await api_get_json(client, path, pp)
         return data if isinstance(data, list) else []
 
     rest = await asyncio.gather(*[fetch_page(n) for n in range(2, total_pages + 1)])
     return first_page + [item for page in rest for item in page]
 
 
-async def discover_pipeline(session: aiohttp.ClientSession, sha: str, timeout: int) -> int:
+async def discover_pipeline(client: GitLabClient, sha: str, timeout: int) -> int:
     """Poll GitLab until a pipeline is found for the given SHA."""
     deadline = time.monotonic() + timeout
     interval = 5
     while True:
-        status, data, _ = await api_get(session, f"/projects/{PROJECT_ID}/pipelines", {"sha": sha, "per_page": 20})
+        status, data, _ = await api_get(client, f"/projects/{PROJECT_ID}/pipelines", {"sha": sha, "per_page": 20})
         if status == 0:
             msg = f"Error: network error during pipeline discovery: {data}"
             print(msg, file=sys.stderr)
@@ -209,7 +255,7 @@ async def discover_pipeline(session: aiohttp.ClientSession, sha: str, timeout: i
 
 
 async def discover_pipelines_and_jobs(
-    session: aiohttp.ClientSession, root_id: int
+    client: GitLabClient, root_id: int
 ) -> tuple[list[int], dict[int, str], dict[int, list[dict]], dict[int, dict]]:
     """Discover all pipelines and fetch all jobs in a single pass (no double bridge fetches).
 
@@ -230,9 +276,9 @@ async def discover_pipelines_and_jobs(
     async def visit(pid: int, depth: int):
         pipeline_ids.append(pid)
         jobs, bridges, details = await asyncio.gather(
-            paginated_get(session, f"/projects/{PROJECT_ID}/pipelines/{pid}/jobs"),
-            paginated_get(session, f"/projects/{PROJECT_ID}/pipelines/{pid}/bridges"),
-            api_get_json(session, f"/projects/{PROJECT_ID}/pipelines/{pid}"),
+            paginated_get(client, f"/projects/{PROJECT_ID}/pipelines/{pid}/jobs"),
+            paginated_get(client, f"/projects/{PROJECT_ID}/pipelines/{pid}/bridges"),
+            api_get_json(client, f"/projects/{PROJECT_ID}/pipelines/{pid}"),
         )
         jobs_by_pipeline[pid] = list(jobs or []) + list(bridges or [])
         if details and isinstance(details, dict):
@@ -276,10 +322,10 @@ def compute_duration(job: dict) -> int | None:
         return None
 
 
-async def download_job_log(session: aiohttp.ClientSession, job_id: int, log_dir: Path):
+async def download_job_log(client: GitLabClient, job_id: int, log_dir: Path):
     """Download a job's trace log to a file."""
     log_path = log_dir / f"{job_id}.log"
-    text = await api_get_text(session, f"/projects/{PROJECT_ID}/jobs/{job_id}/trace")
+    text = await api_get_text(client, f"/projects/{PROJECT_ID}/jobs/{job_id}/trace")
     if text is None:
         msg = f"Failed to download log for job {job_id}"
         print(f"Warning: {msg}", file=sys.stderr)
@@ -414,10 +460,10 @@ async def gh_download_job_log(session: aiohttp.ClientSession, job_id: int, log_d
 # list-jobs mode
 # ---------------------------------------------------------------------------
 
-async def list_jobs(session: aiohttp.ClientSession, root_id: int, patterns: list[str] | None = None):
+async def list_jobs(client: GitLabClient, root_id: int, patterns: list[str] | None = None):
     """List all GitLab jobs grouped by pipeline, then exit. Filtered to matched jobs when patterns given."""
     patterns = patterns or []
-    pipeline_ids, pipeline_names, jobs_by_pipeline, pipeline_statuses = await discover_pipelines_and_jobs(session, root_id)
+    pipeline_ids, pipeline_names, jobs_by_pipeline, pipeline_statuses = await discover_pipelines_and_jobs(client, root_id)
 
     for pid in pipeline_ids:
         jobs_by_pipeline[pid] = sorted(jobs_by_pipeline.get(pid, []), key=lambda j: j.get("name", ""))
@@ -504,13 +550,10 @@ async def _run(args):
     if sha and not github_token:
         print("Warning: could not get GitHub token via 'ddtool auth github token' — skipping GitHub Actions monitoring", file=sys.stderr)
 
-    gl_connector = aiohttp.TCPConnector(limit=20)
-    gl_headers = {"Authorization": f"Bearer {token}"}
-
     gh_session: aiohttp.ClientSession | None = None
     gh_connector: aiohttp.TCPConnector | None = None
 
-    async with aiohttp.ClientSession(headers=gl_headers, connector=gl_connector) as gl_session:
+    async with GitLabClient(token) as gl_client:
         # Open GitHub session if we have a token and SHA
         if sha and github_token:
             gh_connector = aiohttp.TCPConnector(limit=10)
@@ -522,7 +565,7 @@ async def _run(args):
             gh_session = aiohttp.ClientSession(headers=gh_headers, connector=gh_connector)
 
         try:
-            await _monitor(args, sha, gl_session, gh_session)
+            await _monitor(args, sha, gl_client, gh_session)
         finally:
             if gh_session:
                 await gh_session.close()
@@ -530,20 +573,20 @@ async def _run(args):
                 await gh_connector.close()
 
 
-async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_session: aiohttp.ClientSession | None):
+async def _monitor(args, sha: str | None, gl_client: GitLabClient, gh_session: aiohttp.ClientSession | None):
     # Determine root GitLab pipeline ID
     if args.pipeline is not None:
         root_id = args.pipeline
         print(f"Using pipeline {root_id}")
     else:
-        root_id = await discover_pipeline(gl_session, sha, args.discovery_timeout)
+        root_id = await discover_pipeline(gl_client, sha, args.discovery_timeout)
 
     patterns = parse_job_patterns(args.jobs)
     if patterns:
         print(f"Filtering to jobs matching (any of): {patterns}")
 
     if args.list_jobs:
-        await list_jobs(gl_session, root_id, patterns)
+        await list_jobs(gl_client, root_id, patterns)
         if gh_session and sha:
             await list_github_jobs(gh_session, sha, patterns)
         return
@@ -591,7 +634,7 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
         # Phase 1: fetch GitLab pipeline tree and GitHub run list in parallel.
         if gh_monitoring:
             gl_result, gh_runs_raw = await asyncio.gather(
-                discover_pipelines_and_jobs(gl_session, root_id),
+                discover_pipelines_and_jobs(gl_client, root_id),
                 _gh_get_runs_safe(),
             )
             if gh_runs_raw is None:
@@ -601,7 +644,7 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
             else:
                 all_runs = gh_runs_raw
         else:
-            gl_result = await discover_pipelines_and_jobs(gl_session, root_id)
+            gl_result = await discover_pipelines_and_jobs(gl_client, root_id)
             all_runs = []
 
         pipeline_ids, _, jobs_by_pipeline, pipeline_statuses = gl_result
@@ -689,7 +732,7 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
 
         # Phase 4: download GL and GH failure logs in parallel.
         download_coros = [
-            download_job_log(gl_session, job["id"], fail_log_dir)
+            download_job_log(gl_client, job["id"], fail_log_dir)
             for job in new_failure_jobs
             if "downstream_pipeline" not in job  # bridge/trigger jobs have no trace log
         ]

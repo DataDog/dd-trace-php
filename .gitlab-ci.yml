@@ -8,6 +8,7 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  GITHUB_RELEASES_MIRROR: "https://depot-read-api-github-releases.us1.ddbuild.io/internal/mirror/github-releases"
   # Only clone submodules required by default test jobs
   # libddwaf-rust is needed because the root Cargo workspace includes
   # appsec/helper-rust, which depends on it (see 3f893e263)
@@ -19,7 +20,8 @@ variables:
 
 generate-templates:
   stage: build
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  # The generators only need php-cli: no git history, no submodules.
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli-alpine
   tags: [ "arch:amd64" ]
   needs: []
   script:
@@ -29,8 +31,7 @@ generate-templates:
       # generate-common.php can embed it directly in compilation job before_scripts.
       if [ "${SCHEDULED_LIBDATADOG_LATEST:-}" = "true" ]; then
         set -x
-        apt update
-        apt install -y git
+        apk add --no-cache git
         LIBDATADOG_PINNED_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
         LIBDATADOG_OVERRIDE_SHA=$(git ls-remote https://github.com/DataDog/libdatadog main | cut -f1)
         export LIBDATADOG_OVERRIDE_SHA LIBDATADOG_PINNED_SHA
@@ -44,8 +45,7 @@ generate-templates:
         # Feedback run after a bot commit: the submodule already points to the tested SHA.
         # Don't export — generate-common.php must not inject fetch/checkout (no-op anyway).
         set -x
-        apt update
-        apt install -y git
+        apk add --no-cache git
         LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
         printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
       fi
@@ -57,9 +57,13 @@ generate-templates:
     - php ./.gitlab/generate-ci-images.php | tee .gitlab/ci-images-gen.yml
   variables:
     GIT_SUBMODULE_STRATEGY: none
+    GIT_DEPTH: "1"
   artifacts:
     paths:
       - .gitlab/*-gen.yml
+      # merge-gate runs these without a checkout.
+      - .gitlab/merge-gate.sh
+      - .gitlab/flaky-jobs.txt
     reports:
       dotenv: libdatadog.env
 
@@ -131,15 +135,19 @@ merge-gate:
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   when: always
+  # No clone: merge-gate.sh and flaky-jobs.txt come from this commit's generate-templates artifacts.
+  dependencies: [ generate-templates ]
   variables:
-    GIT_SUBMODULE_STRATEGY: none
-    GIT_DEPTH: "1"
+    GIT_STRATEGY: none
   script:
-    - .gitlab/merge-gate.sh
+    - test -f .gitlab/merge-gate.sh || { echo "generate-templates artifacts missing (expired after 14 days?)"; exit 1; }
+    - bash .gitlab/merge-gate.sh
 
 package-trigger:
   stage: build
   needs: [ "generate-templates" ]
+  inherit:
+    variables: false
   trigger:
     include:
       - artifact: .gitlab/package-gen.yml
@@ -150,8 +158,11 @@ package-trigger:
       pipeline_variables: true
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
     NIGHTLY_BUILD: $NIGHTLY_BUILD
+    # CI_PARENT_PIPELINE_SOURCE is set to $CI_PIPELINE_SOURCE so benchmarks defined on
+    # .gitlab/benchmarks.yml can use rules based on the original pipeline source, instead of the
+    # default source "parent_pipeline", automatically set on any children pipeline.
+    CI_PARENT_PIPELINE_SOURCE: $CI_PIPELINE_SOURCE
 
 # Runs after the full CI completes.  Triggered in two situations:
 #   1. Scheduled libdatadog CI run (SCHEDULED_LIBDATADOG_LATEST=true)

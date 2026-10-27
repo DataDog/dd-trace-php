@@ -21,7 +21,18 @@ impl WafRuleset {
     }
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<WafRuleset> {
-        let mut reader = BufReader::new(File::open(&path)?);
+        // Rules paths come from workers, so thread mode needs a constrained open.
+        let file = {
+            #[cfg(unix)]
+            if libdd_common::unix_utils::worker_file_outputs_restricted() {
+                libdd_common::unix_utils::open_regular_for_read(path.as_ref())?
+            } else {
+                File::open(&path)?
+            }
+            #[cfg(not(unix))]
+            File::open(&path)?
+        };
+        let mut reader = BufReader::new(file);
 
         let rules_version = extract_rules_version(&mut reader);
         reader.rewind()?;

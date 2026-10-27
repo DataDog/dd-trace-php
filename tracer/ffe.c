@@ -2,8 +2,10 @@
 
 #include "configuration.h"
 #include "span.h"
+#include "tracer_telemetry.h"
 #include <components-rs/common.h>
 #include <components-rs/sidecar.h>
+#include <components/log/log.h>
 #include <ext/configuration.h>
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
@@ -15,6 +17,101 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #define DD_FFE_METRIC_BUFFER_LIMIT 1000
 #define DD_FFE_EXPOSURE_BUFFER_LIMIT 1000
+#define DD_FFE_CONTEXT_FIELD_LIMIT 256
+
+bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
+    zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,
+    zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data,
+    int64_t evaluation_timestamp_ms, bool targeting_key_invalid) {
+    if (!get_DD_FLAGGING_EVALUATION_COUNTS_ENABLED()) {
+        return false;
+    }
+    if (!flag_key || !ZSTR_LEN(flag_key)) {
+        ddtrace_telemetry_count_ffe_rejection(DDOG_FFE_SUBMISSION_STATUS_INVALID_INPUT);
+        return false;
+    }
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
+        ddtrace_telemetry_count_ffe_rejection(DDOG_FFE_SUBMISSION_STATUS_UNAVAILABLE);
+        return false;
+    }
+
+    ddog_FfeScalarAttribute scalars[DD_FFE_CONTEXT_FIELD_LIMIT] = {0};
+    zend_string *owned_keys[DD_FFE_CONTEXT_FIELD_LIMIT] = {0};
+    size_t count = 0;
+    ddog_FfeSnapshotState snapshot = {.targeting_key_invalid = targeting_key_invalid};
+    // Protected observations never walk or serialize their context.
+    if (observe_full_evaluation_data) {
+        snapshot.context_truncated = zend_hash_num_elements(attributes) > DD_FFE_CONTEXT_FIELD_LIMIT;
+        zend_ulong index;
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_KEY_VAL(attributes, index, key, value) {
+            if (count == DD_FFE_CONTEXT_FIELD_LIMIT) {
+                break;
+            }
+            if (!key) {
+                key = owned_keys[count] = zend_long_to_str((zend_long) index);
+            }
+            ddog_FfeScalarAttribute *attribute = &scalars[count++];
+            attribute->key = dd_zend_string_to_CharSlice(key);
+            ZVAL_DEREF(value);
+            switch (Z_TYPE_P(value)) {
+                case IS_STRING:
+                    attribute->kind = 0;
+                    attribute->string_value = dd_zend_string_to_CharSlice(Z_STR_P(value));
+                    break;
+                case IS_TRUE:
+                case IS_FALSE:
+                    attribute->kind = 1;
+                    attribute->bool_value = Z_TYPE_P(value) == IS_TRUE;
+                    break;
+                case IS_LONG:
+                    attribute->kind = 2;
+                    attribute->integer_value = Z_LVAL_P(value);
+                    break;
+                case IS_DOUBLE:
+                    attribute->kind = 3;
+                    attribute->double_value = Z_DVAL_P(value);
+                    break;
+                default:
+                    // The evaluator accepts scalars only. Retain an omission
+                    // marker if an internal caller supplies anything else.
+                    attribute->kind = 4;
+                    break;
+            }
+        } ZEND_HASH_FOREACH_END();
+    }
+
+    ddog_FfeFlagEvaluation event = {
+        .timestamp_ms = evaluation_timestamp_ms,
+        .first_evaluation_ms = evaluation_timestamp_ms,
+        .last_evaluation_ms = evaluation_timestamp_ms,
+        .evaluation_count = 1,
+        .flag_key = dd_zend_string_to_CharSlice(flag_key),
+        .variant = dd_zend_string_to_CharSlice(variant),
+        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
+        .targeting_key = dd_zend_string_to_CharSlice(targeting_key),
+        .error_message = dd_zend_string_to_CharSlice(error_type),
+        .runtime_default_used = runtime_default_used,
+        .observe_full_evaluation_data = observe_full_evaluation_data,
+    };
+    // Sidecar application attribution is deferred to FFL-3438/FFL-3439.
+    // The current FFI still requires a context argument.
+    ddog_FfeTelemetryContext context = {0};
+    ddog_FfeSubmissionStatus status = ddog_sidecar_try_submit_ffe_flag_evaluation(
+        DATADOG_G(sidecar), &context, &event,
+        (ddog_Slice_FfeScalarAttribute) {.ptr = scalars, .len = count}, &snapshot);
+    for (size_t i = 0; i < count; ++i) {
+        if (owned_keys[i]) {
+            zend_string_release(owned_keys[i]);
+        }
+    }
+    if (status == DDOG_FFE_SUBMISSION_STATUS_ACCEPTED) {
+        return true;
+    }
+    ddtrace_telemetry_count_ffe_rejection(status);
+    return false;
+}
 
 typedef struct {
     zend_string *flag_key;
@@ -89,8 +186,15 @@ bool ddtrace_ffe_record_evaluation_metric(
     dd_ffe_metric *metric = &buffer[DDTRACE_G(ffe_metric_buffer_len)++];
     metric->flag_key = zend_string_copy(flag_key);
     metric->variant = variant ? zend_string_copy(variant) : ZSTR_EMPTY_ALLOC();
-    metric->reason = reason ? zend_string_init(reason, strlen(reason), 0) : ZSTR_EMPTY_ALLOC();
-    metric->error_type = error_type ? zend_string_init(error_type, strlen(error_type), 0) : ZSTR_EMPTY_ALLOC();
+    // Not as conditional expressions: MSVC computes their strlen() before checking for NULL.
+    metric->reason = ZSTR_EMPTY_ALLOC();
+    if (reason) {
+        metric->reason = zend_string_init(reason, strlen(reason), 0);
+    }
+    metric->error_type = ZSTR_EMPTY_ALLOC();
+    if (error_type) {
+        metric->error_type = zend_string_init(error_type, strlen(error_type), 0);
+    }
     metric->allocation_key = allocation_key ? zend_string_copy(allocation_key) : ZSTR_EMPTY_ALLOC();
 
     return true;
@@ -104,7 +208,7 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
         return false;
     }
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         dd_ffe_clear_evaluation_metrics();
         return false;
     }
@@ -134,8 +238,6 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
         "Failed sending FFE metrics batch to sidecar",
         ddog_sidecar_send_ffe_evaluation_metrics(
             &DATADOG_G(sidecar),
-            datadog_sidecar_instance_id,
-            &DATADOG_G(sidecar_queue_id),
             &context,
             metric_slice));
 
@@ -163,6 +265,7 @@ static void dd_ffe_clear_exposures(void) {
     DDTRACE_G(ffe_exposure_buffer) = NULL;
     DDTRACE_G(ffe_exposure_buffer_len) = 0;
     DDTRACE_G(ffe_exposure_buffer_cap) = 0;
+    DDTRACE_G(ffe_exposures_dropped) = 0;
 }
 
 void ddtrace_ffe_record_exposure(
@@ -175,10 +278,13 @@ void ddtrace_ffe_record_exposure(
     bool has_serial_id
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
+        LOG(DEBUG, "Feature Flags: exposure suppressed; missing flag key or variant");
         return;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
+        // Reported once per flush rather than per dropped exposure.
+        DDTRACE_G(ffe_exposures_dropped)++;
         return;
     }
 
@@ -206,6 +312,7 @@ void ddtrace_ffe_record_exposure(
     exposure->variant = zend_string_copy(variant);
     exposure->serial_id = serial_id;
     exposure->has_serial_id = has_serial_id;
+    LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu); delivery awaits sidecar handoff", DDTRACE_G(ffe_exposure_buffer_len));
 }
 
 bool ddtrace_ffe_flush_exposures(void) {
@@ -213,10 +320,21 @@ bool ddtrace_ffe_flush_exposures(void) {
     dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
 
     if (exposure_count == 0 || !buffer) {
+        if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+            LOG(DEBUG, "Feature Flags: exposure flush complete; empty queue (0 exposures)");
+        }
         return false;
     }
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    LOG(DEBUG, "Feature Flags: exposure flush started (%zu exposure(s)); attempting sidecar handoff", exposure_count);
+
+    if (DDTRACE_G(ffe_exposures_dropped)) {
+        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); buffer limit reached (%d)",
+            DDTRACE_G(ffe_exposures_dropped), DD_FFE_EXPOSURE_BUFFER_LIMIT);
+    }
+
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
+        LOG(DEBUG, "Feature Flags: dropping %zu exposure(s); sidecar or request is not initialized", exposure_count);
         dd_ffe_clear_exposures();
         return false;
     }
@@ -249,10 +367,16 @@ bool ddtrace_ffe_flush_exposures(void) {
         "Failed sending FFE exposure batch to sidecar",
         ddog_sidecar_send_ffe_exposure_batch(
             &DATADOG_G(sidecar),
-            datadog_sidecar_instance_id,
-            &DATADOG_G(sidecar_queue_id),
             &context,
             exposure_slice));
+
+    // A successful IPC handoff is not confirmation of delivery to intake.
+    // datadog_ffi_try already logs the failure reason.
+    if (flushed) {
+        LOG(DEBUG, "Feature Flags: handed off %zu exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher", exposure_count);
+    } else {
+        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); sidecar handoff failed and is not retried", exposure_count);
+    }
 
     efree(ffi_exposures);
     dd_ffe_clear_exposures();

@@ -77,6 +77,36 @@ final class PhpCgi implements Sapi
 
         $this->process = new Process($processCmd);
         $this->process->start();
+
+        // php-cgi only binds its socket after module startup, so nginx being up does not mean php-cgi is
+        if (!$this->waitUntilServerRunning()) {
+            error_log(sprintf(
+                "[php-cgi] Server never came up (%s)...\nstdout: %s\nstderr: %s",
+                $this->process->isRunning() ? 'still running' : 'exit code ' . $this->process->getExitCode(),
+                $this->process->getOutput(),
+                $this->process->getErrorOutput()
+            ));
+            return;
+        }
+        error_log("[php-cgi] Server is up and responding...");
+    }
+
+    public function waitUntilServerRunning($timeout = 30)
+    {
+        $deadline = microtime(true) + $timeout;
+        do {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                fclose($socket);
+                return true;
+            }
+            if (!$this->process->isRunning()) {
+                return false;
+            }
+            usleep(50000);
+        } while (microtime(true) < $deadline);
+
+        return false;
     }
 
     public function stop()

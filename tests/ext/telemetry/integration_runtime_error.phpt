@@ -43,6 +43,9 @@ for ($i = 0; $i < 300; ++$i) {
         foreach (file(__DIR__ . '/integration-runtime-error-telemetry.out') as $l) {
             if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
+                if (!is_array($json)) {
+                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
+                }
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {
                     if ($json["request_type"] == "logs") {

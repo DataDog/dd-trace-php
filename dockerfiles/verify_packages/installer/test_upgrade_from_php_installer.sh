@@ -11,7 +11,7 @@ assert_no_ddtrace
 old_version="0.79.0"
 destdir="/tmp"
 fetch_setup_for_version "$old_version" "$destdir"
-php "$destdir/datadog-setup.php" --php-bin php
+run_released_installer "$destdir/datadog-setup.php" --php-bin php
 assert_ddtrace_version "${old_version}"
 
 # Upgrade using the php installer

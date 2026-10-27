@@ -295,6 +295,9 @@ def buildRunInDockerTask = { Map options ->
             if (!options.get('runAsRoot', false)) {
                 commandLine.addAll(['--user', uuid, '-e', 'HOME=/tmp'])
             }
+            if (System.getenv('GITLAB_CI') != null) {
+                commandLine.addAll(['-e', 'GITLAB_CI'])
+            }
             binds.each { source, dest ->
                 commandLine.addAll(['--mount', "type=bind,src=${source},dst=${dest}"])
             }
@@ -727,8 +730,8 @@ def buildCoverageReportTask = {
             command: [
                     '-e', '-c',
                     """
-                RUST_TOOLCHAIN="nightly-\$(uname -m)-unknown-linux-musl"
-                LLVM_TOOLS="\$(dirname "\$(rustc +\$RUST_TOOLCHAIN --print target-libdir)")/bin"
+                cd /project
+                LLVM_TOOLS="\$(dirname "\$(rustc --print target-libdir)")/bin"
                 test -x "\$LLVM_TOOLS/llvm-profdata"
                 test -x "\$LLVM_TOOLS/llvm-cov"
 
@@ -1177,7 +1180,11 @@ export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
 
 def portableLibdatadogPhpFeatureArgs = useHelperRustCoverage ?
         '--features helper-rust-coverage' : ''
-def portableLibdatadogPhpRustFlags = '-C link-arg=/usr/lib/libunwind.a'
+// Backtraces need unwind tables panic=abort and only 1.92.0 enables them by default
+// We're not there yet
+// See https://github.com/rust-lang/rust/commit/fe66eaa67acc47525db6f13cf97d54780d87b805
+def portableLibdatadogPhpRustFlags = '-C link-arg=/usr/lib/libunwind.a' +
+        ' -C force-unwind-tables=yes'
 if (useHelperRustCoverage) {
     portableLibdatadogPhpRustFlags += ' -C instrument-coverage'
 }
@@ -1185,12 +1192,10 @@ def portableLibdatadogPhpBuildMode = useHelperRustCoverage ?
         'helper-rust-coverage' : 'default'
 def portableLibdatadogPhpCommand = '''
         RUST_TARGET="$(uname -m)-unknown-linux-musl"
-        RUST_TOOLCHAIN="nightly-$RUST_TARGET"
         export CARGO_TARGET_DIR=/portable-rust/cargo-target
 
         cd /project
         RUSTFLAGS='@RUSTFLAGS@' \
-            RUST_TOOLCHAIN="$RUST_TOOLCHAIN" \
             SHARED=1 PROFILE=tracer-release host_os=linux-musl \
             ./compile_rust.sh @FEATURE_ARGS@ \
                 --package datadog-php \
@@ -1234,6 +1239,7 @@ def buildPortableLibdatadogPhp = buildRunInDockerTask(
                         '../../../Cargo.toml',
                         '../../../Cargo.lock',
                         '../../../compile_rust.sh',
+                        '../../../rust-toolchain.toml',
                         '../../../VERSION',
                         '../../../profiling/build.rs',
                         '../../../tracer/mod.rs',
@@ -1281,7 +1287,7 @@ buildRunInDockerTask(
                 cargo fmt -p helper-rust --check
 
                 echo '=== Running Clippy ==='
-                cargo clippy --release -p helper-rust
+                cargo clippy --release -p helper-rust --no-deps
 
                 echo '=== Building helper-rust ==='
                 cargo build --release -p helper-rust
@@ -1290,6 +1296,64 @@ buildRunInDockerTask(
                 cargo test --release -p helper-rust
 
                 echo '=== Build and test successful ==='
+                """
+        ]
+)
+
+def appsecBodyRustEnvSetup = '''
+export PATH="/root/.cargo/bin:$PATH"
+export RUSTUP_HOME=/root/.rustup
+export CARGO_HOME=/root/.cargo
+cd /project
+export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
+'''
+
+buildRunInDockerTask(
+        baseName: 'testAppsecBody',
+        imageTag: 'php-buildonly-rust',
+        description: 'Test and lint the isolated body parser on musl',
+        needsBoostCache: false,
+        inputs: [
+                dirs: ['../../../components-rs/appsec_body'],
+                files: ['../run-body-parser-rust-tests.sh', '../../../rust-toolchain.toml'],
+        ],
+        volumes: [
+                'php-appsec-body-rust': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${appsecBodyRustEnvSetup}
+                sh appsec/tests/run-body-parser-rust-tests.sh
+                """
+        ]
+)
+
+buildRunInDockerTask(
+        baseName: 'coverageAppsecBody',
+        imageTag: 'php-buildonly-rust',
+        description: 'Generate coverage for body parser unit tests',
+        needsBoostCache: false,
+        inputs: [
+                dirs: ['../../../components-rs/appsec_body'],
+                files: ['../../../rust-toolchain.toml'],
+        ],
+        outputs: [
+                volume: 'php-appsec-body-coverage',
+                files: ['coverage-unit.lcov'],
+        ],
+        volumes: [
+                'php-appsec-body-coverage': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${appsecBodyRustEnvSetup}
+                export RUSTC_BOOTSTRAP=ddtrace_appsec_body
+                cargo llvm-cov test --release --locked \\
+                    --manifest-path components-rs/appsec_body/Cargo.toml --lcov \\
+                    --ignore-filename-regex='components-rs/appsec_body/(tests/|tools/|render[.]rs)' \\
+                    --output-path /helper-rust-build/coverage-unit.lcov
                 """
         ]
 )

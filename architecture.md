@@ -7,6 +7,7 @@ describe the project's current architecture and the direction it's headed.
  1. [Components](#components)
  2. [PHP version specific code](#php-version-specific-code)
  3. [Background sender](#background-sender)
+ 4. [Sidecar lifetime](#sidecar-lifetime)
 
 ## Components
 
@@ -84,3 +85,44 @@ thread. To work around this, the configuration is memoized. The directory
 `ext/php$n/` has files `configuration.{c,h}`, `configuration_php_iface.{c,h}`,
 and `configuration_render.h`. If you are not familiar with the term "x macros",
 you need to get acquainted with them before you can understand how it works.
+
+## Sidecar lifetime
+
+The sidecar can run in a separate process or as a thread inside the PHP host
+process (`DD_TRACE_SIDECAR_CONNECTION_MODE=thread`). In PHP-FPM thread mode,
+the master hosts the listener and workers connect to it over IPC. We need
+this model because the extension does not control how its host reaps child
+processes or how its service manager shuts the host down.
+
+PHP-FPM uses `waitpid(-1, ...)` to reap children. PHP applications may also
+use [`pcntl_waitpid(-1, ...)`][pcntl-waitpid]. These calls wait for any child,
+so they can consume the sidecar's exit status instead of an application
+worker's. Keeping the sidecar as a child would make its lifecycle management
+compete with the host's child handling.
+
+Daemonizing normally avoids this by detaching the sidecar from its PHP
+parent. However, that creates problems in some environments:
+
+- If PID 1 adopts the sidecar but does not reap exited children, the sidecar
+  leaves a zombie when it exits.
+- A [systemd unit][systemd] can send the graceful shutdown signal only to
+  its main process. With `KillMode=mixed`, for example, the remaining
+  processes can receive `SIGKILL` as soon as the main process exits. A
+  daemonized sidecar gets no initial shutdown signal and may be killed
+  before it finishes flushing buffered data.
+- [Docker sends the stop signal to the container's main process][docker-stop],
+  PID 1. Without that process forwarding the signal and coordinating
+  shutdown, a separate sidecar can lose buffered data when the container
+  stops.
+
+Once detached, the sidecar is normally no longer a child that PHP can
+simply await with `waitpid`. Waiting for it to flush and terminate would
+require additional coordination before the host exits and its unit or
+container is torn down. Thread mode keeps the sidecar within the host's
+lifetime: shutdown code can coordinate flushing and wait for the listener
+thread before allowing the process to exit, without depending on PID 1 to
+reap a daemon or forward its shutdown signal.
+
+[pcntl-waitpid]: https://www.php.net/manual/en/function.pcntl-waitpid.php
+[systemd]: https://github.com/systemd/systemd/blob/main/man/systemd.kill.xml
+[docker-stop]: https://docs.docker.com/reference/cli/docker/container/stop/

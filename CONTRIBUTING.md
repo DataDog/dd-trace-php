@@ -28,20 +28,8 @@ The easiest way to get the development environment set up is to install [Docker]
 
 ### PHP linting
 
-The PHP tracer conforms to the [PSR-2 coding style guide](https://www.php-fig.org/psr/psr-2/). The code style is checked with [PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer) which can be invoked with the following command:
-
-```bash
-$ composer lint
-```
-
-To try to automatically fix the code style, you can run:
-
-```bash
-$ composer fix-lint
-```
-
-CI does **not** run that PSR ruleset. It runs a separate, nearly-empty
-gate so PRs have a hook that can grow without reformatting the tree:
+CI runs a small PHPCS ruleset plus optional custom scripts over
+`src/`. It is not a PSR-12 / formatter gate.
 
 ```bash
 $ composer ci-lint
@@ -224,5 +212,5 @@ review the snapshot file to maintain the accuracy of the tests.
 There are a number of checks that are run automatically with [CircleCI](https://circleci.com/gh/DataDog/dd-trace-php/tree/master) when a PR is submitted. To ensure your PHP code changes pass the CircleCI checks, make sure to run all the same checks before submitting a PR.
 
 ```bash
-$ composer lint && test-all-<php-version>
+$ composer ci-lint && test-all-<php-version>
 ```

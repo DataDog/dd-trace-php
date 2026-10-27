@@ -56,11 +56,9 @@ class ConnectivityTests {
      * before PHP GSHUTDOWN runs, so the sidecar detects the socket drop and sends
      * disconnect notifications. Clients must exit via ForcefulDisconnect promptly.
      *
-     * Regression test for two bugs:
-     * 1. The Client struct held its own mpsc::Sender, keeping the channel alive
-     *    after CLIENTS dropped its copy, so the receiver never saw EOF.
-     * 2. The session-wide sweep (client_id=0) held the CLIENTS mutex while
-     *    calling remove_client_bookkeeping, causing a deadlock.
+     * Regression test: the Client struct held its own mpsc::Sender, keeping the
+     * channel alive after the sidecar connection dropped its copy, so the
+     * receiver never saw EOF.
      */
     @Test
     @Order(1)
@@ -268,7 +266,7 @@ class ConnectivityTests {
         } finally {
             CONTAINER.execInContainer('sh', '-c',
                     'cp /etc/apache2/mods-enabled/mpm_event.conf.bak4' +
-                    ' /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl ')
+                    ' /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl restart')
         }
     }
 }

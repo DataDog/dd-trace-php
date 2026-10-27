@@ -47,7 +47,10 @@ var_dump(Delayed::foo());
 
 $dlr = new DebuggerLogReplayer;
 $ordered = [];
-$events = 0;
+$missing = [
+    1 => ["EMITTING" => true],
+    2 => ["RECEIVED" => true, "INSTALLED" => true, "EMITTING" => true],
+];
 $log = null;
 $lastResponse = null;
 $lastError = null;
@@ -76,12 +79,16 @@ do {
             }
             $diagnostic = $payload["debugger"]["diagnostics"];
             $ordered[$diagnostic["probeId"]][$payload["timestamp"]][] = $diagnostic["status"];
-            ++$events;
+            // Optional statuses must not end collection before the required ones arrive.
+            unset($missing[$diagnostic["probeId"]][$diagnostic["status"]]);
+            if (empty($missing[$diagnostic["probeId"]])) {
+                unset($missing[$diagnostic["probeId"]]);
+            }
         }
     } catch (Exception $e) {
         $lastError = $e;
     }
-} while ($events < 4 && $time > time() - 30);
+} while ($missing && $time > time() - 30);
 ksort($ordered);
 foreach ($ordered as &$value) {
     ksort($value);
@@ -91,8 +98,9 @@ foreach ($ordered as &$value) {
 }
 unset($value, $v);
 
-if ($events < 4) {
-    printf("ERROR: Received %d of 4 expected debugger diagnostic events.\n", $events);
+if ($missing) {
+    echo "ERROR: Missing debugger diagnostic statuses:\n";
+    var_dump($missing);
     if ($lastError) {
         printf("Last error: %s\n", $lastError->getMessage());
     }

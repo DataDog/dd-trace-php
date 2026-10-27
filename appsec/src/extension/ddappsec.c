@@ -18,6 +18,7 @@
 #include <stdatomic.h>
 
 #include "backtrace.h"
+#include "body_parser.h"
 #include "commands/client_init.h"
 #include "commands/request_exec.h"
 #include "commands_ctx.h"
@@ -336,6 +337,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_tags_startup();
     dd_duration_startup();
     dd_ip_extraction_startup();
+    dd_body_parser_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
     dd_msgpack_helpers_startup();
@@ -350,9 +352,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     UNUSED(type);
     UNUSED(module_number);
 
-    // no other thread is running now. reset config to global config only.
-    runtime_config_first_init = false;
-
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
@@ -361,7 +360,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     dd_helper_shutdown();
 
     dd_phpobj_shutdown();
-    dd_entity_body_shutdown();
 
     return SUCCESS;
 }
@@ -645,7 +643,6 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
         .name = "invalid_command",
         .name_len = sizeof("invalid_command") - 1,
         .num_args = 1,
-        .reconnect_sidecar = true,
         .outgoing_cb = _pack_invalid_command,
         .incoming_cb = _process_invalid_response,
         .config_features_cb = dd_command_process_config_features_unexpected,

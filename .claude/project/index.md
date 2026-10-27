@@ -85,7 +85,7 @@ request crashes and is shared across language tracers. See
 `compile_rust.sh` (invoked from the Makefile) drives it. Minimize FFI surface;
 headers are generated with cbindgen (see [components.md](components.md)).
 Toolchain is pinned — see `Cargo.toml` (`rust-version`) and
-`profiling/rust-toolchain.toml`, not a hardcoded version.
+`rust-toolchain.toml`, not a hardcoded version.
 
 ## Configuration & INI
 
@@ -100,9 +100,8 @@ Toolchain is pinned — see `Cargo.toml` (`rust-version`) and
 - **C/C++:** follow existing patterns; gate version differences on
   `PHP_VERSION_ID`; keep `components/` free of the Zend API; treat the trace
   sender / sidecar paths as thread-safe.
-- **PHP:** PSR-2. `composer lint`, `composer fix-lint` (local, not CI).
-  CI gate: `composer ci-lint`. See
-  [tooling/php-lint/README.md](../../tooling/php-lint/README.md).
+- **PHP:** `composer ci-lint` (see
+  [tooling/php-lint/README.md](../../tooling/php-lint/README.md)).
   Userland in `src/`.
 - **Rust:** standard conventions; keep the FFI boundary small.
 

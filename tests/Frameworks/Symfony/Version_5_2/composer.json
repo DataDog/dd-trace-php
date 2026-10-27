@@ -71,7 +71,8 @@
         ]
     },
     "conflict": {
-        "symfony/symfony": "*"
+        "symfony/symfony": "*",
+        "twig/twig": ">=3.29"
     },
     "extra": {
         "symfony": {

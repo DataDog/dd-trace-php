@@ -39,10 +39,6 @@ if(NOT DD_APPSEC_SSI)
         list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
             "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-unix.sym")
     endif()
-    if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-        list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
-            "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-linux.sym")
-    endif()
 endif()
 string(JOIN "' '" DDTRACE_EXPORT_SYMBOL_ARGUMENTS
     ${DDTRACE_EXPORT_SYMBOL_FILES})
@@ -72,6 +68,7 @@ add_custom_target(ddtrace_exports
     COMMAND bash -c "sed 's/^/_/' '${DDTRACE_EXPORT_SYMBOL_ARGUMENTS}' > '${EXPORTS_FILE}'"
     BYPRODUCTS ${EXPORTS_FILE}
     DEPENDS ${DDTRACE_EXPORT_SYMBOL_FILES}
+    VERBATIM
 )
 endif()
 

@@ -7,6 +7,7 @@
 #endif
 
 #include <ext/datadog.h>
+#include "otel_sampling.h"
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_data ddtrace_span_data;
@@ -44,6 +45,7 @@ typedef struct {
     zend_array root_span_tags_preset;
     zend_array propagated_root_span_tags;
     zend_string *tracestate;
+    ddtrace_otel_sampling_state otel_sampling;
     zend_array tracestate_unknown_dd_keys;
     ddtrace_error_data active_error;
     HashTable baggage;
@@ -116,9 +118,16 @@ typedef struct {
     void *ffe_exposure_buffer;
     size_t ffe_exposure_buffer_len;
     size_t ffe_exposure_buffer_cap;
+    size_t ffe_exposures_dropped;
     void *ffe_metric_buffer;
     size_t ffe_metric_buffer_len;
     size_t ffe_metric_buffer_cap;
+    struct {
+        uint64_t unavailable;
+        uint64_t queue_overflow;
+        uint64_t serialization_error;
+        uint64_t payload_limit;
+    } ffe_submission_drops;
 
 } ddtrace_globals;
 

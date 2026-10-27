@@ -12,6 +12,7 @@
 #include "msgpack_helpers.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
+#include "string_helpers.h"
 #include "tags.h"
 #include "telemetry.h"
 #include "user_tracking.h"
@@ -34,19 +35,25 @@ static void _dump_in_msg(
 static void _dump_out_msg(dd_log_level_t lvl, const dd_mpack_buffer *buffer);
 
 typedef struct _dd_imsg {
+    // Set while the roundtrip is in flight; a bailout then leaves the
+    // helper's state unknown, so dd_command_exec drops the connection.
+    bool _exchanging;
+    // Raw reply, owned by the Rust transport rather than Zend's heap.
     dd_helper_response _response;
+    // Reads only the reply's type, so request_init can record whether the
+    // helper started a request before _tree's emalloc calls can bail out.
+    mpack_reader_t _envelope;
+    // Full parse of _response; root is its root node.
     mpack_tree_t _tree;
     mpack_node_t root;
 } dd_imsg;
 
-// if and only if this returns success, _imsg_destroy must be called
 static dd_result ATTR_WARN_UNUSED _imsg_recv(dd_imsg *nonnull imsg,
     dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer,
-    bool reconnect_sidecar);
+    const dd_command_spec *nonnull spec);
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
-static void _imsg_cleanup(dd_imsg *nullable *nonnull imsg);
 
 static void _set_redirect_code_and_location(
     struct block_params *nonnull block_params,
@@ -60,7 +67,8 @@ static void _set_block_code_and_type(struct block_params *nonnull block_params,
     zend_string *nullable security_response_id);
 
 static dd_result _dd_command_exec(dd_conn *nonnull conn,
-    const dd_command_spec *nonnull spec, void *unspecnull ctx)
+    const dd_command_spec *nonnull spec, void *unspecnull ctx,
+    dd_imsg *nonnull imsg)
 {
 #define NAME_L (int)spec->name_len, spec->name
     mlog(dd_log_debug, "Will start command %.*s with helper", NAME_L);
@@ -69,6 +77,13 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
     _omsg_init(&omsg, spec->name, spec->name_len, spec->num_args);
 
     dd_result res = spec->outgoing_cb(&omsg.writer, ctx);
+    if (res == dd_oom) {
+        // The map is unfinished. Discard it without flushing or allocating
+        // an error log; the caller reports the fatal error after cleanup.
+        mpack_writer_flag_error(&omsg.writer, mpack_error_memory);
+        _omsg_destroy(&omsg);
+        return res;
+    }
     if (res) {
         mlog(dd_log_warning, "Error creating message for command %.*s: %s",
             NAME_L, dd_result_to_string(res));
@@ -84,8 +99,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
         return dd_helper_say_goobye;
     }
 
-    dd_imsg imsg = {0};
-    res = _imsg_recv(&imsg, conn, &omsg.buffer, spec->reconnect_sidecar);
+    res = _imsg_recv(imsg, conn, &omsg.buffer, spec);
     _dump_out_msg(dd_log_trace, &omsg.buffer);
     _omsg_destroy(&omsg);
     if (res) {
@@ -94,15 +108,9 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
         return res;
     }
 
-    // automatic cleanup of imsg on error branches
-    // set to NULL before calling _imsg_destroy
-    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-    __attribute__((cleanup(_imsg_cleanup))) dd_imsg *nullable destroy_imsg =
-        &imsg;
-
     // TODO: it seems we only look at the first response? Why even support
     //       several responses then?
-    mpack_node_t first_response = mpack_node_array_at(imsg.root, 0);
+    mpack_node_t first_response = mpack_node_array_at(imsg->root, 0);
     err = mpack_node_error(first_response);
     if (err != mpack_ok) {
         mlog(dd_log_error, "Array of responses could not be retrieved - %s",
@@ -137,21 +145,9 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
 
     dd_result cb_res = dd_error;
     if (dd_mpack_node_lstr_eq(type, "config_features")) {
-        zend_try { cb_res = spec->config_features_cb(first_message, ctx); }
-        zend_catch
-        {
-            UNUSED(_imsg_destroy(&imsg));
-            zend_bailout();
-        }
-        zend_end_try();
+        cb_res = spec->config_features_cb(first_message, ctx);
     } else if (dd_mpack_node_str_eq(type, spec->name, spec->name_len)) {
-        zend_try { cb_res = spec->incoming_cb(first_message, ctx); }
-        zend_catch
-        {
-            UNUSED(_imsg_destroy(&imsg));
-            zend_bailout();
-        }
-        zend_end_try();
+        cb_res = spec->incoming_cb(first_message, ctx);
     } else if (dd_mpack_node_lstr_eq(type, "error")) {
         mlog(dd_log_warning, "Helper responded with an error and removed this "
                              "client. Check helper logs");
@@ -166,11 +162,9 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
 
     mlog(dd_log_debug, "Processing for command %.*s returned %s", NAME_L,
         dd_result_to_string(cb_res));
-    err = imsg.root.tree->error;
+    err = imsg->root.tree->error;
     _dump_in_msg(err == mpack_ok ? dd_log_trace : dd_log_debug,
-        imsg._response.data, imsg._response.data_len);
-    destroy_imsg = NULL;
-    err = _imsg_destroy(&imsg);
+        imsg->_response.data, imsg->_response.data_len);
     if (err != mpack_ok) {
         mlog(dd_log_warning,
             "Response message for %.*s does not have the expected form",
@@ -196,14 +190,30 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
 dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
-    return _dd_command_exec(conn, spec, ctx);
+    // The reply belongs to the Rust transport, not Zend's request heap.
+    // Keep ownership across bailouts in decoding, callbacks and logging.
+    volatile dd_imsg imsg = {0};
+    dd_result res;
+    zend_try { res = _dd_command_exec(conn, spec, ctx, (dd_imsg *)&imsg); }
+    zend_catch
+    {
+        if (imsg._exchanging) {
+            // The helper's state is unknown if the exchange was interrupted.
+            *conn = (dd_conn){0};
+        }
+        UNUSED(_imsg_destroy((dd_imsg *)&imsg));
+        zend_bailout();
+    }
+    zend_end_try();
+    UNUSED(_imsg_destroy((dd_imsg *)&imsg));
+    return res;
 }
 
 dd_result ATTR_WARN_UNUSED dd_command_exec_req_info(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, struct req_info *nonnull ctx)
 {
     ctx->command_name = spec->name;
-    return _dd_command_exec(conn, spec, ctx);
+    return dd_command_exec(conn, spec, ctx);
 }
 
 // outgoing
@@ -242,14 +252,45 @@ static inline void _omsg_destroy(dd_omsg *nonnull omsg)
 // incoming
 static ATTR_WARN_UNUSED dd_result _imsg_recv(dd_imsg *nonnull imsg,
     dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer,
-    bool reconnect_sidecar)
+    const dd_command_spec *nonnull spec)
 {
     mlog(dd_log_debug, "Will exchange message with helper");
 
-    dd_result res = dd_conn_roundtrip(conn, buffer->data,
-        buffer->final_msg_size, reconnect_sidecar, &imsg->_response);
+    bool request_init = STR_CONS_EQ(spec->name, spec->name_len, "request_init");
+    // In debug builds the reader allocates its tracking stack. Do this before
+    // sending: reading the two array headers and the type needs no more memory.
+    if (request_init) {
+        mpack_reader_init_data(&imsg->_envelope, "", 0);
+    }
+    imsg->_exchanging = true;
+    // Only client_init may reconnect: a new connection has no helper client.
+    dd_result res =
+        dd_conn_roundtrip(conn, buffer->data, buffer->final_msg_size,
+            STR_CONS_EQ(spec->name, spec->name_len, "client_init"),
+            &imsg->_response);
+    imsg->_exchanging = false;
     if (res) {
         return res;
+    }
+
+    // Record the helper's state before decoding or logging can allocate.
+    // config_features means request_init did not start a helper request.
+    if (request_init) {
+        mpack_reader_t *reader = &imsg->_envelope;
+        reader->data = imsg->_response.data;
+        reader->end = reader->data + imsg->_response.data_len;
+        (void)mpack_expect_array_range(reader, 1, UINT32_MAX);
+        (void)mpack_expect_array_range(reader, 2, UINT32_MAX);
+        size_t len = mpack_expect_str(reader);
+        const char *type = mpack_read_bytes_inplace(reader, len);
+        if (mpack_reader_error(reader) == mpack_ok) {
+            conn->request_started =
+                len == spec->name_len && memcmp(type, spec->name, len) == 0;
+        } else {
+            conn->request_started = false;
+        }
+    } else if (STR_CONS_EQ(spec->name, spec->name_len, "request_shutdown")) {
+        conn->request_started = false;
     }
 
     mpack_tree_init(
@@ -262,7 +303,6 @@ static ATTR_WARN_UNUSED dd_result _imsg_recv(dd_imsg *nonnull imsg,
             mpack_error_to_string(err));
         _dump_in_msg(
             dd_log_debug, imsg->_response.data, imsg->_response.data_len);
-        UNUSED(_imsg_destroy(imsg));
         return dd_helper_say_goobye;
     }
 
@@ -272,16 +312,11 @@ static ATTR_WARN_UNUSED dd_result _imsg_recv(dd_imsg *nonnull imsg,
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg)
 {
+    // Only the envelope prefix is read; cancel its remaining tracking entries.
+    mpack_reader_flag_error(&imsg->_envelope, mpack_error_data);
+    UNUSED(mpack_reader_destroy(&imsg->_envelope));
     dd_helper_response_destroy(&imsg->_response);
     return mpack_tree_destroy(&imsg->_tree);
-}
-
-static void _imsg_cleanup(dd_imsg *nullable *nonnull imsg)
-{
-    dd_imsg **imsg_c = imsg;
-    if (*imsg_c) {
-        UNUSED(_imsg_destroy(*imsg_c));
-    }
 }
 
 /* Baked response */

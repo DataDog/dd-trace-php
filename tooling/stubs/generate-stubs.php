@@ -5,7 +5,7 @@ require 'CustomPrinter.php';
 
 use StubsGenerator\{StubsGenerator, Finder};
 
-$SRC_DIR = implode('/', array_slice(explode('/', __DIR__), 0, 4)) . '/src/';
+$SRC_DIR = dirname(__DIR__, 2) . '/src/';
 const FILES_TO_LOAD = [
     "../../src/bridge/_files_api.php",
     "../../src/bridge/_files_tracer.php",

@@ -8,6 +8,9 @@ PHP_ARG_ENABLE(ddtrace, whether to enable Datadog support,
 PHP_ARG_ENABLE(ddtrace-tracer, whether to enable Datadog tracing support,
   [  --disable-ddtrace-tracer Disable Datadog tracing support], yes, no)
 
+PHP_ARG_ENABLE(ddtrace-libddwaf-source, whether to build libddwaf from source,
+  [  --enable-ddtrace-libddwaf-source Build libddwaf from source], no, no)
+
 PHP_ARG_ENABLE(ddtrace-profiling, whether to build the standalone Datadog profiler,
   [  --enable-ddtrace-profiling Build the standalone datadog-profiling extension], no, no)
 
@@ -331,6 +334,7 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
     tracer/live_debugger.c \
     tracer/limiter/limiter.c \
     tracer/memory_limit.c \
+    tracer/otel_sampling.c \
     tracer/tracer_otel_config.c \
     tracer/priority_sampling/priority_sampling.c \
     tracer/profiling.c \
@@ -385,7 +389,17 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
     DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DDDTRACE"
   fi
 
-  PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS)
+  if test "$PHP_DDTRACE_LIBDDWAF_SOURCE" != "no"; then
+    dnl libddwaf-src contains C++ objects. Use the same C++ driver for its
+    dnl CMake build and the final extension link so it selects the C++ runtime.
+    AC_PROG_CXX
+    ddtrace_cxx_env='CXX="$(CXX)"'
+    PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS, yes)
+  else
+    ddtrace_cxx_env=""
+    PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS)
+  fi
+
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
   dnl sidecar requires us to be linked against libm for pow and powf and librt for shm_* functions
@@ -406,8 +420,13 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
   PHP_CHECK_LIBRARY(rt, shm_open,
     [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"; DDTRACE_SHARED_LIBADD="${DDTRACE_SHARED_LIBADD:-} -lrt"])
 
-  dnl rust imports these, so we need them to link
+  dnl Platform linker requirements for the Rust library
   case $host_os in
+   linux*)
+    dnl The signal worker calls _exit with shared TLS. Resolve libc symbols
+    dnl when loading the extension, including when Rust is linked as a static archive.
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-z,now"
+    ;;
    darwin*)
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -framework CoreFoundation -framework Security"
     PHP_ADD_FRAMEWORK([CoreFoundation])
@@ -446,13 +465,6 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
       "$ext_srcdir/components-rs/libdatadog-php-unix.sym" \
       > "$ddtrace_fat_export_symbols"
 
-    case $host_os in
-      linux*)
-        cat "$ext_srcdir/components-rs/libdatadog-php-linux.sym" \
-          >> "$ddtrace_fat_export_symbols"
-      ;;
-    esac
-
     dnl Only export the symbols selected above, which should all be marked as
     dnl DATADOG_PUBLIC in their source files.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
@@ -464,6 +476,11 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
         dnl A fat Linux ddtrace.so is also the sidecar executable. When ld.so
         dnl executes it directly, it jumps to this ELF entry point.
         ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-e,ddog_spawn_direct_entry"
+        dnl AppSec looks up these exports with dlsym. Pull their archive
+        dnl members into the monolithic library even without C references.
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_parse_json"
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_parse_xml"
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_body_msgpack_drop"
       ;;
     esac
 
@@ -578,14 +595,18 @@ EOT
     ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
     ddtrace_rust_lib="\$(builddir)/target-common/$ddtrace_cargo_profile/libdatadog_php.a"
     if test "$PHP_DDTRACE_TRACER" != "no"; then
-      ddtrace_cargo_features="--features tracer"
+      ddtrace_cargo_feature_list="tracer,appsec"
+      if test "$PHP_DDTRACE_LIBDDWAF_SOURCE" != "no"; then
+        ddtrace_cargo_feature_list="$ddtrace_cargo_feature_list,libddwaf-source-static"
+      fi
+      ddtrace_cargo_features="--no-default-features --features $ddtrace_cargo_feature_list"
     else
       ddtrace_cargo_features="--no-default-features"
     fi
 
     cat <<EOT >> Makefile.fragments
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/sidecar" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/appsec/helper-rust" -name "*.rs" -o -name "*.c" -o -name "Cargo.toml" -o -name "build.rs"; find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
-	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR=\$(builddir)/target-common/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR=\$(builddir)/target-common/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $ddtrace_cxx_env $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
 

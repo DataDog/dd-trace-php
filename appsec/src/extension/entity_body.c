@@ -6,14 +6,15 @@
 
 // clang-format off
 #include "entity_body.h"
+#include "body_parser.h"
 #include "ddappsec.h"
 #include "php_compat.h" // NOLINT (must come before entity_body_arginfo.h)
+#ifdef TESTING
 #include "entity_body_arginfo.h"
-#include "json_truncated_parser.h"
+#endif
 #include "logging.h"
 #include "php_objects.h"
 #include "string_helpers.h"
-#include "xml_truncated_parser.h"
 #include <SAPI.h>
 #include <dlfcn.h>
 #include <ext/json/php_json.h>
@@ -39,9 +40,11 @@ static json_decode_ex_t _json_decode_ex;
 ZEND_TLS zend_string *_buffer;
 ZEND_TLS size_t _buffer_size;
 
-static zval _convert_json(char *nonnull entity, size_t entity_len);
-static zval _convert_xml(const char *nonnull entity, size_t entity_len,
-    const char *nonnull content_type, size_t content_type_len);
+static ddog_AppsecBodyMessagePack _convert_json(
+    const char *nonnull entity, size_t entity_len);
+static ddog_AppsecBodyMessagePack _convert_xml(const char *nonnull entity,
+    size_t entity_len, const char *nonnull content_type,
+    size_t content_type_len);
 
 #define DEFAULT_MAX_BUF_SIZE (1024 * 512UL)
 
@@ -70,14 +73,12 @@ void dd_entity_body_startup(void)
     _json_decode_ex = php_json_decode_ex;
 #endif
 
-    dd_xml_parser_startup();
-
+#ifdef TESTING
     if (get_global_DD_APPSEC_TESTING()) {
         dd_phpobj_reg_funcs(ext_functions);
     }
+#endif
 }
-
-void dd_entity_body_shutdown(void) { dd_xml_parser_shutdown(); }
 
 void dd_entity_body_tshutdown(void)
 {
@@ -177,7 +178,7 @@ zend_string *nonnull dd_request_body_buffered(size_t limit)
     return body_data;
 }
 
-zval dd_entity_body_convert(
+ddog_AppsecBodyMessagePack dd_entity_body_convert(
     const char *nonnull ct, size_t ct_len, zend_string *nonnull entity)
 {
     if (ct_len >= LSTRLEN("application/json") &&
@@ -190,18 +191,15 @@ zval dd_entity_body_convert(
             strncasecmp(ct, LSTRARG("application/xml")) == 0)) {
         return _convert_xml(ZSTR_VAL(entity), ZSTR_LEN(entity), ct, ct_len);
     }
-    return (zval){.u1.type_info = IS_NULL};
+    return (ddog_AppsecBodyMessagePack){
+        .status = DDOG_APPSEC_BODY_STATUS_EMPTY};
 }
 
-static zval _convert_json(char *nonnull entity, size_t entity_len)
+static ddog_AppsecBodyMessagePack _convert_json(
+    const char *nonnull entity, size_t entity_len)
 {
 #define MAX_DEPTH 30
-    zval res = dd_parse_json_truncated(entity, entity_len, MAX_DEPTH);
-    if (Z_TYPE(res) == IS_UNDEF) {
-        // Failed to parse JSON
-        ZVAL_NULL(&res);
-    }
-    return res;
+    return dd_parse_json_truncated(entity, entity_len, MAX_DEPTH);
 }
 
 static bool _assume_utf8(const char *ct, size_t ct_len)
@@ -236,17 +234,20 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
 }
 
 enum { MAX_XML_DEPTH = 30 };
-static zval _convert_xml(const char *nonnull entity, size_t entity_len,
-    const char *nonnull content_type, size_t content_type_len)
+static ddog_AppsecBodyMessagePack _convert_xml(const char *nonnull entity,
+    size_t entity_len, const char *nonnull content_type,
+    size_t content_type_len)
 {
     bool is_utf8 = _assume_utf8(content_type, content_type_len);
     if (!is_utf8) {
         mlog(dd_log_info, "Only UTF-8 is supported for XML parsing");
-        return (zval){.u1.type_info = IS_NULL};
+        return (ddog_AppsecBodyMessagePack){
+            .status = DDOG_APPSEC_BODY_STATUS_EMPTY};
     }
     return dd_parse_xml_truncated(entity, entity_len, MAX_XML_DEPTH);
 }
 
+#ifdef TESTING
 PHP_FUNCTION(datadog_appsec_convert_xml)
 {
     zend_string *entity;
@@ -256,10 +257,9 @@ PHP_FUNCTION(datadog_appsec_convert_xml)
     Z_PARAM_STR(content_type)
     ZEND_PARSE_PARAMETERS_END();
 
-    zval result = _convert_xml(ZSTR_VAL(entity), ZSTR_LEN(entity),
-        ZSTR_VAL(content_type), ZSTR_LEN(content_type));
-
-    RETURN_ZVAL(&result, 0, 0);
+    ddog_AppsecBodyMessagePack body = _convert_xml(ZSTR_VAL(entity),
+        ZSTR_LEN(entity), ZSTR_VAL(content_type), ZSTR_LEN(content_type));
+    dd_body_msgpack_to_zval(body, return_value);
 }
 
 PHP_FUNCTION(datadog_appsec_convert_json)
@@ -273,11 +273,8 @@ PHP_FUNCTION(datadog_appsec_convert_json)
     Z_PARAM_LONG(max_depth)
     ZEND_PARSE_PARAMETERS_END();
 
-    zval result = dd_parse_json_truncated(
+    ddog_AppsecBodyMessagePack body = dd_parse_json_truncated(
         ZSTR_VAL(entity), ZSTR_LEN(entity), (int)max_depth);
-    if (Z_TYPE(result) == IS_UNDEF) {
-        // Failed to parse JSON
-        RETURN_NULL();
-    }
-    RETURN_ZVAL(&result, 0, 0);
+    dd_body_msgpack_to_zval(body, return_value);
 }
+#endif

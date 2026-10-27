@@ -96,6 +96,8 @@ static void zai_hook_on_update_empty(zend_function *func, bool remove, zend_obse
 void (*zai_hook_on_update)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) = zai_hook_on_update_empty;
 void zai_hook_on_function_resolve_empty(zend_function *func) { (void)func; }
 void (*zai_hook_on_function_resolve)(zend_function *func) = zai_hook_on_function_resolve_empty;
+static void zai_hook_on_preloaded_function_empty(zend_function *func) { (void)func; }
+void (*zai_hook_on_preloaded_function)(zend_function *func) = zai_hook_on_preloaded_function_empty;
 #endif
 
 #if PHP_VERSION_ID < 70200
@@ -883,8 +885,9 @@ void zai_hook_resolve_file(zend_op_array *op_array) {
 }
 
 void zai_hook_unresolve_op_array(zend_op_array *op_array) {
-    // May be called in shutdown_executor, which is after extension rshutdown
-    if ((zend_long)zai_hook_tls->id == -1) {
+    // May run after RSHUTDOWN, or after GSHUTDOWN when Zend destroys the
+    // global function and class tables and the hook TLS has already been freed.
+    if (!zai_hook_tls || (zend_long)zai_hook_tls->id == -1) {
         return;
     }
 
@@ -1045,6 +1048,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
 
         ++hook->refcount;
         if (!hook->begin) {
+            dynamic_offset += hook->dynamic;
             continue;
         }
 
@@ -1226,8 +1230,29 @@ void zai_hook_post_startup(void) {
 #endif
         {
             zai_hook_register_all_inheritors(ce, true);
+
+#if PHP_VERSION_ID >= 80000
+            // Preloaded classes are linked before the first request and never pass zai_hook_resolve_class()
+            if (ce->type == ZEND_USER_CLASS) {
+                zend_function *function;
+                ZEND_HASH_FOREACH_PTR(&ce->function_table, function) {
+                    if (function->common.scope == ce) {
+                        zai_hook_on_preloaded_function(function);
+                    }
+                } ZEND_HASH_FOREACH_END();
+            }
+#endif
         }
     } ZEND_HASH_FOREACH_END();
+
+#if PHP_VERSION_ID >= 80000
+    zend_function *function;
+    ZEND_HASH_FOREACH_PTR(CG(function_table), function) {
+        if (function->type == ZEND_USER_FUNCTION) {
+            zai_hook_on_preloaded_function(function);
+        }
+    } ZEND_HASH_FOREACH_END();
+#endif
 }
 
 void zai_hook_activate(void) {
@@ -1280,7 +1305,7 @@ void zai_hook_mshutdown(void) {
 zend_long zai_hook_install_resolved_generator(zend_function *function,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
-    if (!PG(modules_activated)) {
+    if (!PG(modules_activated) && !PG(during_request_startup)) {
         /* not allowed: can only do resolved install during request */
         return -1;
     }

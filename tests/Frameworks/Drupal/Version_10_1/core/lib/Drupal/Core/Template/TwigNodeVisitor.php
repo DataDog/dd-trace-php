@@ -58,6 +58,13 @@ class TwigNodeVisitor extends AbstractNodeVisitor {
         // Use our own escape filter that is MarkupInterface aware.
         $node->getNode('filter')->setAttribute('value', 'drupal_escape');
 
+        // Twig 3.30+ compiles escape filters flagged by its escaper visitor
+        // straight to the template's escaper runtime, bypassing the callable
+        // we just swapped in. Opt this node out so drupal_escape gets called.
+        if ($node->hasAttribute('template_escaper')) {
+          $node->setAttribute('template_escaper', FALSE);
+        }
+
         // Store that we have a filter active already that knows
         // how to deal with render arrays.
         $this->skipRenderVarFunction = TRUE;

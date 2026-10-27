@@ -3,13 +3,19 @@
 set -eux
 
 FRANKENPHP_VERSION=${FRANKENPHP_VERSION:-v1.12.7}
-frankenphpTarGzUrl=https://github.com/dunglas/frankenphp/archive/refs/tags/${FRANKENPHP_VERSION}.tar.gz
+frankenphpTarGzPath=github.com/dunglas/frankenphp/archive/refs/tags/${FRANKENPHP_VERSION}.tar.gz
+if [[ -n "${GITLAB_CI:-}" ]]; then
+  frankenphpTarGzUrl=https://depot-read-api-bzl.us1.ddbuild.io/${frankenphpTarGzPath}
+else
+  frankenphpTarGzUrl=https://${frankenphpTarGzPath}
+fi
 FRANKENPHP_SRC_DIR=/usr/local/src/frankenphp
 
 rm -rf $FRANKENPHP_SRC_DIR
 mkdir -p $FRANKENPHP_SRC_DIR
 
-curl -Lo /tmp/frankenphp.tar.gz ${frankenphpTarGzUrl}
+# Retries transient failures (Depot 5xx) and then exits 75, which GitLab retries.
+"$(dirname "${BASH_SOURCE[0]}")/../../.gitlab/download-file.sh" "${frankenphpTarGzUrl}" /tmp/frankenphp.tar.gz
 tar xf /tmp/frankenphp.tar.gz -C ${FRANKENPHP_SRC_DIR} --strip-components=1
 rm -f /tmp/frankenphp.tar.gz
 

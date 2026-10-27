@@ -117,7 +117,9 @@ final class NginxServer
     {
         if ($this->process) {
             error_log("[nginx] Stopping...");
-            $this->process->stop(0);
+            // Grace so the master can reap its worker; a 0s grace SIGKILLs the master
+            // first, leaving the worker orphaned.
+            $this->process->stop(2);
         }
     }
 

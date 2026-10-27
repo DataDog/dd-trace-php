@@ -31,14 +31,14 @@ const PRESET_JOBS = [
     'datadog-setup'          => 'datadog-setup.php',
     'ssi-amd64'              => 'package loader: [amd64]',
     'ssi-aarch64'            => 'package loader: [arm64]',
-    'extension-amd64-gnu-installers'    => 'package extension (installers): [amd64, x86_64-unknown-linux-gnu]',
-    'extension-amd64-gnu-bundles'       => 'package extension (bundles): [amd64, x86_64-unknown-linux-gnu]',
-    'extension-aarch64-gnu-installers'  => 'package extension (installers): [arm64, aarch64-unknown-linux-gnu]',
-    'extension-aarch64-gnu-bundles'     => 'package extension (bundles): [arm64, aarch64-unknown-linux-gnu]',
-    'extension-amd64-musl'   => 'package extension: [amd64, x86_64-alpine-linux-musl]',
-    'extension-aarch64-musl' => 'package extension: [arm64, aarch64-alpine-linux-musl]',
+    'extension-amd64-gnu-installers'    => ['package extension (deb): [amd64, x86_64-unknown-linux-gnu]', 'package extension (rpm): [amd64, x86_64-unknown-linux-gnu]', 'package extension (tar.gz): [amd64, x86_64-unknown-linux-gnu]'],
+    'extension-amd64-gnu-bundles'       => ['package extension (bundles): [amd64, x86_64-unknown-linux-gnu]', 'package extension (per-api bundles): [amd64, x86_64-unknown-linux-gnu]'],
+    'extension-aarch64-gnu-installers'  => ['package extension (deb): [arm64, aarch64-unknown-linux-gnu]', 'package extension (rpm): [arm64, aarch64-unknown-linux-gnu]', 'package extension (tar.gz): [arm64, aarch64-unknown-linux-gnu]'],
+    'extension-aarch64-gnu-bundles'     => ['package extension (bundles): [arm64, aarch64-unknown-linux-gnu]', 'package extension (per-api bundles): [arm64, aarch64-unknown-linux-gnu]'],
+    'extension-amd64-musl'   => ['package extension (apk): [amd64, x86_64-alpine-linux-musl]', 'package extension (bundles): [amd64, x86_64-alpine-linux-musl]', 'package extension (per-api bundles): [amd64, x86_64-alpine-linux-musl]'],
+    'extension-aarch64-musl' => ['package extension (apk): [arm64, aarch64-alpine-linux-musl]', 'package extension (bundles): [arm64, aarch64-alpine-linux-musl]', 'package extension (per-api bundles): [arm64, aarch64-alpine-linux-musl]'],
     'extension-windows'      => 'package extension windows',
-    'extension-asan'         => 'package extension asan',
+    'extension-asan'         => ['package extension asan: [amd64]', 'package extension asan: [arm64]'],
     'link-tracing-amd64-gnu'    => 'link tracing extension: [amd64, x86_64-unknown-linux-gnu]',
     'link-tracing-aarch64-gnu'  => 'link tracing extension: [arm64, aarch64-unknown-linux-gnu]',
     'link-tracing-amd64-musl'   => 'link tracing extension: [amd64, x86_64-alpine-linux-musl]',
@@ -56,7 +56,7 @@ function make_curl(string $token, string $url, array $opts = []) {
     $ch = curl_init($url);
     curl_setopt_array($ch, array(
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER     => array("PRIVATE-TOKEN: $token", "Accept: application/json"),
+        CURLOPT_HTTPHEADER     => array("Authorization: Bearer $token", "Accept: application/json"),
         CURLOPT_TIMEOUT        => 30,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HEADER         => true,
@@ -420,7 +420,7 @@ function download_artifacts_parallel(string $token, array $targets, string $outp
 
         $ch = curl_init($url);
         curl_setopt_array($ch, array(
-            CURLOPT_HTTPHEADER     => array("PRIVATE-TOKEN: $token"),
+            CURLOPT_HTTPHEADER     => array("Authorization: Bearer $token"),
             CURLOPT_TIMEOUT        => 600,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_FILE           => $fp,
@@ -690,6 +690,24 @@ function parse_args(array $argv): array {
 // Main
 // ---------------------------------------------------------------------------
 
+function get_gitlab_token(): string {
+    $output = array();
+    $exitCode = 0;
+    exec('ddtool auth gitlab token 2>/dev/null', $output, $exitCode);
+
+    $token = trim(implode("\n", $output));
+    if ($exitCode !== 0 || $token === '') {
+        fwrite(
+            STDERR,
+            "Error: could not obtain a GitLab token via "
+                . "'ddtool auth gitlab token'\n"
+        );
+        exit(1);
+    }
+
+    return $token;
+}
+
 function main(array $argv) {
     $args = parse_args($argv);
 
@@ -697,17 +715,13 @@ function main(array $argv) {
         echo "Available preset keys:\n";
         $jobs = PRESET_JOBS;
         ksort($jobs);
-        foreach ($jobs as $key => $jobName) {
-            printf("  %-30s -> %s\n", $key, $jobName);
+        foreach ($jobs as $key => $jobNames) {
+            printf("  %-30s -> %s\n", $key, implode(', ', (array) $jobNames));
         }
         return;
     }
 
-    $token = trim(getenv('GITLAB_PERSONAL_ACCESS_TOKEN') ?: '');
-    if ($token === '') {
-        fwrite(STDERR, "Error: GITLAB_PERSONAL_ACCESS_TOKEN not set\n");
-        exit(1);
-    }
+    $token = get_gitlab_token();
 
     $outputDir = $args['output_dir'];
     $tTotal = microtime(true);
@@ -759,16 +773,18 @@ function main(array $argv) {
                 fwrite(STDERR, "Error: unknown preset '$key'. Available: " . implode(', ', $available) . "\n");
                 exit(1);
             }
-            $name = PRESET_JOBS[$key];
-            $matches = array_values(array_filter($allJobs, function ($j) use ($name) {
-                return (isset($j['name']) ? $j['name'] : '') === $name;
-            }));
-            if (count($matches) === 0) {
-                fwrite(STDERR, "Warning: preset '$key' (job '$name') not found\n");
-                continue;
+            // A preset may span several jobs when one deliverable set is split across jobs.
+            foreach ((array) PRESET_JOBS[$key] as $name) {
+                $matches = array_values(array_filter($allJobs, function ($j) use ($name) {
+                    return (isset($j['name']) ? $j['name'] : '') === $name;
+                }));
+                if (count($matches) === 0) {
+                    fwrite(STDERR, "Warning: preset '$key' (job '$name') not found\n");
+                    continue;
+                }
+                usort($matches, function ($a, $b) { return $b['id'] <=> $a['id']; });
+                $targets[] = array('job_id' => $matches[0]['id'], 'name' => $name);
             }
-            usort($matches, function ($a, $b) { return $b['id'] <=> $a['id']; });
-            $targets[] = array('job_id' => $matches[0]['id'], 'name' => $name);
         }
     } elseif ($args['job_name'] !== null) {
         $pattern = $args['job_name'];

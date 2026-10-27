@@ -374,21 +374,7 @@ extern "C" {
     /// if it detects incomplete initialization, which is always a bug but
     /// none-the-less has been seen in the wild. It may also return None if
     /// the run_time_cache is not available on this function type.
-    #[cfg(not(feature = "stack_walking_tests"))]
     pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
-
-    /// mock for testing
-    #[cfg(feature = "stack_walking_tests")]
-    pub fn ddog_test_php_prof_function_run_time_cache(
-        func: &zend_function,
-    ) -> Option<&mut [usize; 2]>;
-
-    /// mock for testing; passthrough stub for zend_generator_check_placeholder_frame
-    /// so `cargo test` builds don't need PHP's Zend symbols at link time.
-    #[cfg(feature = "stack_walking_tests")]
-    pub fn ddog_test_zend_generator_check_placeholder_frame(
-        ptr: *mut zend_execute_data,
-    ) -> *mut zend_execute_data;
 
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.
@@ -658,7 +644,7 @@ impl<'a> ZaiStr<'a> {
         let len = self.len;
         // Safety: the ZaiStr is supposed to uphold all the invariants, and
         // the pointer has been debug_asserted to not be null, so 🤞🏻.
-        unsafe { std::slice::from_raw_parts(self.ptr as *const u8, len) }
+        unsafe { std::slice::from_raw_parts(self.ptr.cast::<u8>(), len) }
     }
 
     #[inline]

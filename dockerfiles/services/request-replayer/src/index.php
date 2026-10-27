@@ -162,17 +162,41 @@ switch ($uri) {
         echo $request ?? '';
         break;
     case '/replay-rc-requests':
-        $request = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
+        $requestLog = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
             if (!file_exists(REQUEST_RC_REQUESTS_FILE)) {
                 logRequest('Cannot replay RC requests; RC requests log does not exist');
                 return null;
             }
-            $request = file_get_contents(REQUEST_RC_REQUESTS_FILE);
-            unlink(REQUEST_RC_REQUESTS_FILE);
-            logRequest('Returned RC requests and deleted RC requests log', $request);
-            return $request;
+
+            $requestLog = REQUEST_RC_REQUESTS_FILE . '.replay.' . bin2hex(random_bytes(8));
+            if (!rename(REQUEST_RC_REQUESTS_FILE, $requestLog)) {
+                throw new RuntimeException('Failed to drain RC requests log');
+            }
+            return $requestLog;
         });
-        echo $request ?? '';
+        if ($requestLog === null) {
+            break;
+        }
+
+        $previousIgnoreUserAbort = ignore_user_abort(true);
+        try {
+            $requestLogHandle = fopen($requestLog, 'r');
+            if ($requestLogHandle === false) {
+                throw new RuntimeException('Failed to open drained RC requests log');
+            }
+            try {
+                header('Content-Type: application/json');
+                if (fpassthru($requestLogHandle) === false) {
+                    throw new RuntimeException('Failed to replay RC requests log');
+                }
+            } finally {
+                fclose($requestLogHandle);
+            }
+            logRequest('Returned RC requests and deleted RC requests log');
+        } finally {
+            unlink($requestLog);
+            ignore_user_abort($previousIgnoreUserAbort);
+        }
         break;
     case '/clear-dumped-data':
         withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
@@ -223,9 +247,33 @@ switch ($uri) {
         $request = file_get_contents('php://input');
         logRequest("Requested remote config", $request);
         $response = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($request) {
-            $tracesStack = file_exists(REQUEST_RC_REQUESTS_FILE) ? json_decode(file_get_contents(REQUEST_RC_REQUESTS_FILE), true) : [];
-            $tracesStack[] = ['uri' => $_SERVER['REQUEST_URI'], 'headers' => getallheaders(), 'body' => $request];
-            file_put_contents(REQUEST_RC_REQUESTS_FILE, json_encode($tracesStack));
+            $requestLogEntry = json_encode(
+                ['uri' => $_SERVER['REQUEST_URI'], 'headers' => getallheaders(), 'body' => $request],
+                JSON_THROW_ON_ERROR
+            );
+            $requestLogHandle = fopen(REQUEST_RC_REQUESTS_FILE, 'c+b');
+            if ($requestLogHandle === false) {
+                throw new RuntimeException('Failed to open RC requests log');
+            }
+            try {
+                $requestLogSize = fstat($requestLogHandle)['size'];
+                if ($requestLogSize === 0) {
+                    $requestLogEntry = '[' . $requestLogEntry . ']';
+                } else {
+                    if (fseek($requestLogHandle, -1, SEEK_END) !== 0 || fgetc($requestLogHandle) !== ']') {
+                        throw new RuntimeException('Invalid RC requests log');
+                    }
+                    if (fseek($requestLogHandle, -1, SEEK_END) !== 0) {
+                        throw new RuntimeException('Failed to append to RC requests log');
+                    }
+                    $requestLogEntry = ',' . $requestLogEntry . ']';
+                }
+                if (fwrite($requestLogHandle, $requestLogEntry) !== strlen($requestLogEntry)) {
+                    throw new RuntimeException('Failed to append to RC requests log');
+                }
+            } finally {
+                fclose($requestLogHandle);
+            }
 
             $decodedRequest = json_decode($request, true);
             $rc_configs = file_exists(REQUEST_RC_CONFIGS_FILE) ? json_decode(file_get_contents(REQUEST_RC_CONFIGS_FILE), true) : [];

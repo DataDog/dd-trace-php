@@ -47,11 +47,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(4) {
+    array(5) {
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["_dd.sdk.otlp_export"]=>
+      string(5) "false"
       ["after"]=>
       string(9) "root_span"
       ["runtime-id"]=>

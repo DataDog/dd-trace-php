@@ -30,7 +30,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createRun([
     response_list(
-        response_client_init(['ok', phpversion('ddappsec'), 1, [],
+        response_client_init(['ok', phpversion('ddappsec'), [],
         ["meta_1" => "value_1", "meta_2" => "value_2"],
         ["metric_1" => 2.0, "metric_2" => 10.0], null])
     ),
@@ -92,6 +92,7 @@ Array
     [_dd.p.dm] => -0
     [_dd.p.tid] => %s
     [_dd.runtime_family] => php
+    [_dd.sdk.otlp_export] => false
     [appsec.event] => true
     [http.endpoint] => /foo
     [http.method] => GET

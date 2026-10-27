@@ -7,6 +7,7 @@ use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::debug;
 
 struct FfeState {
     config: Option<Configuration>,
@@ -20,12 +21,37 @@ thread_local! {
     }) };
 }
 
-pub fn store_config(config: Configuration) {
-    FFE_STATE.with(|state| {
+/// `requested_env` is the environment the SDK asked Remote Configuration for,
+/// labeled separately from the environment the configuration was built for.
+pub fn store_config(config: Configuration, requested_env: Option<&str>) {
+    // Summarized before installing and logged after releasing the state, so a
+    // logging failure can neither prevent nor follow a partial install.
+    let summary = tracing::enabled!(tracing::Level::DEBUG).then(|| ConfigSummary::new(&config));
+    let (version, replaced_version) = FFE_STATE.with(|state| {
         let mut state = state.borrow_mut();
+        let replaced_version = state.config.as_ref().map(|_| state.version);
         state.config = Some(config);
         state.version = state.version.wrapping_add(1);
+        (state.version, replaced_version)
     });
+    if let Some(summary) = summary {
+        debug!(
+            "{}",
+            summary.applied_message(requested_env, version, replaced_version)
+        );
+        debug!(
+            "Feature Flags: readiness={}; configuration applied (version={version}, initial_source={})",
+            if version > 1 && replaced_version.is_none() { "recovered" } else { "ready" },
+            if requested_env.is_some() { "remote_config" } else { "local" }
+        );
+        if !summary.rejected.is_empty() {
+            debug!(
+                "Feature Flags: {} flag(s) rejected as invalid or unsupported; evaluating them returns the default value with PARSE_ERROR: {:?}",
+                summary.rejected.len(),
+                summary.rejected,
+            );
+        }
+    }
 }
 
 pub fn clear_config() {
@@ -34,6 +60,83 @@ pub fn clear_config() {
         state.config = None;
         state.version = state.version.wrapping_add(1);
     });
+    debug!("Feature Flags: readiness=unavailable; configuration removed, evaluations return defaults until recovery");
+}
+
+/// Describes what stays active after a configuration is rejected.
+pub fn retained_config_description() -> String {
+    FFE_STATE.with(|state| {
+        let state = state.borrow();
+        match state.config {
+            Some(_) => format!(
+                "retaining previous configuration (version={})",
+                state.version
+            ),
+            None => "no configuration is loaded, so evaluations return default values".to_string(),
+        }
+    })
+}
+
+struct ConfigSummary {
+    flags: usize,
+    disabled: usize,
+    rejected: Vec<String>,
+    environment: String,
+    created_at: String,
+}
+
+impl ConfigSummary {
+    fn new(config: &Configuration) -> ConfigSummary {
+        // Disabled and rejected flags fail at lookup, before any targeting
+        // runs, so an empty context classifies every flag.
+        let context = EvaluationContext::new(None, Arc::new(HashMap::new()));
+        let now = ffe::now();
+        let mut summary = ConfigSummary {
+            flags: 0,
+            disabled: 0,
+            rejected: Vec::new(),
+            environment: config.environment().to_string(),
+            created_at: config.created_at().to_string(),
+        };
+        for key in config.flag_keys() {
+            summary.flags += 1;
+            match ffe::get_assignment(Some(config), key, &context, ExpectedFlagType::Any, now) {
+                Err(EvaluationError::FlagDisabled) => summary.disabled += 1,
+                Err(EvaluationError::FlagConfigurationInvalid) => {
+                    summary.rejected.push(key.to_string())
+                }
+                _ => {}
+            }
+        }
+        summary.rejected.sort();
+        summary
+    }
+
+    fn applied_message(
+        &self,
+        requested_env: Option<&str>,
+        version: u64,
+        replaced_version: Option<u64>,
+    ) -> String {
+        let requested_env = requested_env
+            .map(|env| format!(", requested env={env:?}"))
+            .unwrap_or_default();
+        let replaced = replaced_version
+            .map(|version| format!("replaced version {version}"))
+            .unwrap_or_else(|| "no previous configuration".to_string());
+        format!(
+            "Feature Flags: configuration applied successfully ({} flag(s): {} usable, {} disabled, {} rejected; delivered env={:?}{}, created_at={}, version={}, {})",
+            self.flags,
+            self.flags - self.disabled - self.rejected.len(),
+            self.disabled,
+            self.rejected.len(),
+            self.environment,
+            requested_env,
+            self.created_at,
+            version,
+            replaced,
+        )
+    }
 }
 
 #[no_mangle]
@@ -44,15 +147,27 @@ pub extern "C" fn ddog_ffe_load_config(json: CharSlice<'_>) -> bool {
 
     let json = match json.try_to_utf8() {
         Ok(json) => json,
-        Err(_) => return false,
+        Err(_) => {
+            debug!(
+                "Feature Flags: configuration rejected: not valid UTF-8; {}",
+                retained_config_description()
+            );
+            return false;
+        }
     };
 
     match UniversalFlagConfig::from_json(json.as_bytes().to_vec()) {
         Ok(ufc) => {
-            store_config(Configuration::from_server_response(ufc));
+            store_config(Configuration::from_server_response(ufc), None);
             true
         }
-        Err(_) => false,
+        Err(error) => {
+            debug!(
+                "Feature Flags: configuration rejected: {error}; {}",
+                retained_config_description()
+            );
+            false
+        }
     }
 }
 
@@ -106,6 +221,8 @@ pub struct FfeResult {
     pub serial_id: i32,
     pub has_serial_id: bool,
     pub do_log: bool,
+    // Consent belongs to the configuration snapshot used for this evaluation.
+    pub observe_full_evaluation_data: bool,
     pub valid: bool,
 }
 
@@ -155,6 +272,7 @@ pub extern "C" fn ddog_ffe_evaluate(
 
     let attributes = parse_attributes(attributes, attributes_count);
     let context = EvaluationContext::new(targeting_key, Arc::new(attributes));
+    let expects_object = matches!(expected_type, ExpectedFlagType::Object);
 
     FFE_STATE.with(|state| {
         let state = state.borrow();
@@ -165,9 +283,38 @@ pub extern "C" fn ddog_ffe_evaluate(
             expected_type,
             ffe::now(),
         );
+        if let Err(error) = &assignment {
+            debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): {error}", state.version);
+        }
 
-        result_from_assignment(assignment)
+        // The PHP SDK returns object flags as arrays, so reject scalar JSON
+        // before recording logs, metrics and exposures. Error observations still
+        // capture the consent setting from the same configuration.
+        let mut result = if expects_object
+            && assignment
+                .as_ref()
+                .is_ok_and(|assignment| !is_json_container(&assignment.value))
+        {
+            if let Ok(assignment) = &assignment {
+                debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): expected object/array, resolved raw JSON={}", state.version, assignment_value_to_json(&assignment.value));
+            }
+            error_result(ERROR_TYPE_MISMATCH, REASON_ERROR)
+        } else {
+            result_from_assignment(assignment)
+        };
+        result.observe_full_evaluation_data = state
+            .config
+            .as_ref()
+            .is_some_and(Configuration::observe_full_evaluation_data);
+        result
     })
+}
+
+fn is_json_container(value: &AssignmentValue) -> bool {
+    match value {
+        AssignmentValue::Json { value, .. } => value.is_object() || value.is_array(),
+        _ => false,
+    }
 }
 
 fn parse_attributes(
@@ -231,6 +378,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 serial_id: assignment.serial_id.unwrap_or(0),
                 has_serial_id: assignment.serial_id.is_some(),
                 do_log: assignment.do_log,
+                observe_full_evaluation_data: false,
                 valid: true,
             }
         }
@@ -248,18 +396,23 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 _ => (ERROR_GENERAL, REASON_ERROR),
             };
 
-            FfeResult {
-                value_json: Some("null".into()),
-                variant: None,
-                allocation_key: None,
-                reason,
-                error_code,
-                serial_id: 0,
-                has_serial_id: false,
-                do_log: false,
-                valid: true,
-            }
+            error_result(error_code, reason)
         }
+    }
+}
+
+fn error_result(error_code: i32, reason: i32) -> FfeResult {
+    FfeResult {
+        value_json: Some("null".into()),
+        variant: None,
+        allocation_key: None,
+        reason,
+        error_code,
+        serial_id: 0,
+        has_serial_id: false,
+        do_log: false,
+        observe_full_evaluation_data: false,
+        valid: true,
     }
 }
 
@@ -273,6 +426,7 @@ fn invalid_result() -> FfeResult {
         serial_id: 0,
         has_serial_id: false,
         do_log: false,
+        observe_full_evaluation_data: false,
         valid: false,
     }
 }
@@ -433,6 +587,103 @@ mod tests {
         clear_config();
     }
 
+    fn json_flag_config(value: &str) -> CString {
+        CString::new(format!(
+            r#"{{
+                "createdAt": "2026-05-22T00:00:00.000Z",
+                "format": "SERVER",
+                "environment": {{"name": "Test"}},
+                "flags": {{
+                    "json.flag": {{
+                        "key": "json.flag",
+                        "enabled": true,
+                        "variationType": "JSON",
+                        "variations": {{"on": {{"key": "on", "value": {value}}}}},
+                        "allocations": [{{
+                            "key": "alloc",
+                            "rules": [],
+                            "splits": [{{"variationKey": "on", "shards": []}}],
+                            "doLog": true
+                        }}]
+                    }}
+                }}
+            }}"#
+        ))
+        .expect("test fixture is valid cstring")
+    }
+
+    fn evaluate_json_flag(value: &str) -> FfeResult {
+        assert!(ddog_ffe_load_config(char_slice(&json_flag_config(value))));
+        let flag_key = CString::new("json.flag").expect("test flag key is valid cstring");
+        ddog_ffe_evaluate(
+            char_slice(&flag_key),
+            TYPE_OBJECT,
+            CharSlice::from("user"),
+            std::ptr::null(),
+            0,
+        )
+    }
+
+    #[test]
+    fn scalar_json_object_flags_are_type_mismatches() {
+        setup_zend_string_functions();
+        clear_config();
+        for value in ["42", r#""text""#, "null"] {
+            let result = evaluate_json_flag(value);
+            assert!(result.valid, "{value}");
+            assert_eq!(result.reason, REASON_ERROR, "{value}");
+            assert_eq!(result.error_code, ERROR_TYPE_MISMATCH, "{value}");
+            assert!(result.variant.is_none(), "{value}");
+            assert!(!result.do_log, "{value}: no exposure for a rejected value");
+        }
+        for value in [r#"{"a": 1}"#, "[1, 2]"] {
+            let result = evaluate_json_flag(value);
+            assert_eq!(result.error_code, ERROR_NONE, "{value}");
+            assert_eq!(result.reason, REASON_STATIC, "{value}");
+            assert!(result.do_log, "{value}");
+        }
+        clear_config();
+    }
+
+    #[test]
+    fn evaluation_captures_consent_from_its_configuration() {
+        setup_zend_string_functions();
+        clear_config();
+        let flag_key = CString::new("empty.targeting.shard.flag").unwrap();
+        let evaluate = |value_type| {
+            ddog_ffe_evaluate(
+                char_slice(&flag_key),
+                value_type,
+                CharSlice::from(""),
+                std::ptr::null(),
+                0,
+            )
+        };
+        assert!(!evaluate(TYPE_STRING).observe_full_evaluation_data);
+
+        let mut config: serde_json::Value =
+            serde_json::from_str(EMPTY_TARGETING_KEY_CONFIG).unwrap();
+        config["observeFullEvaluationData"] = true.into();
+        let json = CString::new(config.to_string()).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&json)));
+        let allowed = evaluate(TYPE_STRING);
+        assert!(allowed.valid);
+        assert!(allowed.observe_full_evaluation_data);
+        // Error observations use the same consent as successful assignments.
+        let mismatch = evaluate(TYPE_BOOLEAN);
+        assert_ne!(mismatch.error_code, ERROR_NONE);
+        assert!(mismatch.observe_full_evaluation_data);
+
+        config["observeFullEvaluationData"] = false.into();
+        let json = CString::new(config.to_string()).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&json)));
+        assert!(!evaluate(TYPE_STRING).observe_full_evaluation_data);
+        // Reloading config must not retroactively change the prior outcome.
+        assert!(allowed.observe_full_evaluation_data);
+        clear_config();
+        assert!(!evaluate(TYPE_STRING).observe_full_evaluation_data);
+    }
+
     #[test]
     fn configuration_state_is_thread_local() {
         clear_config();
@@ -457,6 +708,65 @@ mod tests {
 
         assert!(ddog_ffe_has_config());
         assert_eq!(ddog_ffe_config_version(), loaded_version);
+        clear_config();
+    }
+
+    #[test]
+    fn config_summary_separates_usable_disabled_and_rejected_flags() {
+        let flag = |key: &str, enabled: bool, value: &str| {
+            format!(
+                r#""{key}": {{
+                    "key": "{key}", "enabled": {enabled}, "variationType": "STRING",
+                    "variations": {{"on": {{"key": "on", "value": {value}}}}},
+                    "allocations": [{{"key": "alloc", "rules": [],
+                        "splits": [{{"variationKey": "on", "shards": []}}], "doLog": true}}]
+                }}"#
+            )
+        };
+        let json = format!(
+            r#"{{"createdAt": "2026-05-22T00:00:00.000Z", "environment": {{"name": "staging"}}, "flags": {{{}, {}, {}, {}}}}}"#,
+            flag("usable", true, r#""on""#),
+            flag("disabled", false, r#""on""#),
+            // A number is not a valid STRING variation.
+            flag("wrong.type", true, "1"),
+            r#""malformed": {"key": "malformed"}"#,
+        );
+        let config = Configuration::from_server_response(
+            UniversalFlagConfig::from_json(json.into_bytes()).expect("fixture is a valid envelope"),
+        );
+
+        let summary = ConfigSummary::new(&config);
+        assert_eq!(summary.flags, 4);
+        assert_eq!(summary.disabled, 1);
+        assert_eq!(summary.rejected, vec!["malformed", "wrong.type"]);
+        assert_eq!(
+            summary.applied_message(Some("production"), 3, Some(2)),
+            "Feature Flags: configuration applied successfully (4 flag(s): 1 usable, 1 disabled, 2 rejected; delivered env=\"staging\", requested env=\"production\", created_at=2026-05-22 00:00:00 UTC, version=3, replaced version 2)"
+        );
+        assert_eq!(
+            summary.applied_message(None, 1, None),
+            "Feature Flags: configuration applied successfully (4 flag(s): 1 usable, 1 disabled, 2 rejected; delivered env=\"staging\", created_at=2026-05-22 00:00:00 UTC, version=1, no previous configuration)"
+        );
+    }
+
+    #[test]
+    fn retained_config_description_reports_the_active_configuration() {
+        clear_config();
+        assert_eq!(
+            retained_config_description(),
+            "no configuration is loaded, so evaluations return default values"
+        );
+        assert!(load_empty_config());
+        let invalid = CString::new(r#"{"flags":"#).expect("test fixture is valid cstring");
+        assert!(!ddog_ffe_load_config(char_slice(&invalid)));
+        assert!(ddog_ffe_has_config());
+        assert_eq!(
+            retained_config_description(),
+            format!(
+                "retaining previous configuration (version={})",
+                ddog_ffe_config_version()
+            )
+        );
         clear_config();
     }
 }

@@ -53,7 +53,7 @@ build_extensions() {
         sh -c '
             make -C /work -j"$(nproc)" all \
                 "CFLAGS=-O2 -g0 -DNDEBUG -Wall -Wextra"
-            make -C /work compile_profiler
+            make -C /work compile_profiler PROFILER_FEATURES=trigger_time_sample
         '
 }
 

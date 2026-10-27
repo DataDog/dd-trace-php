@@ -2,13 +2,12 @@ use crate::log::Log;
 use datadog_sidecar::service::telemetry::{path_for_telemetry, TelemetryCachedClientShmData};
 
 use hashbrown::{Equivalent, HashMap};
-use std::ffi::CString;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
-    InstanceId, QueueId, SidecarAction,
+    SidecarAction,
 };
 use libdd_common::tag::parse_tags;
 use libdd_common_ffi::slice::AsBytes;
@@ -43,8 +42,6 @@ macro_rules! windowsify_path {
 #[no_mangle]
 pub extern "C" fn ddtrace_detect_composer_installed_json(
     transport: &mut Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    queue_id: &QueueId,
     path: CharSlice,
 ) -> bool {
     let pathstr = path.to_utf8_lossy();
@@ -54,7 +51,7 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
             &pathstr[..index],
             windowsify_path!("/vendor/composer/installed.json")
         );
-        if parse_composer_installed_json(transport, instance_id, queue_id, path).is_ok() {
+        if parse_composer_installed_json(transport, path).is_ok() {
             return true;
         }
     }
@@ -63,14 +60,12 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
 
 fn parse_composer_installed_json(
     transport: &mut Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    queue_id: &QueueId,
     path: String,
 ) -> Result<(), Box<dyn Error>> {
     let action = vec![SidecarAction::PhpComposerTelemetryFile(PathBuf::from_str(
         path.as_str(),
     )?)];
-    blocking::enqueue_actions(transport, instance_id, queue_id, action)?;
+    blocking::enqueue_actions(transport, action)?;
 
     Ok(())
 }
@@ -176,14 +171,25 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
 // C-unwind to make a panic *here* fall through (as pthread_cancel is implemented as exception, which rust otherwise catches!
 pub extern "C-unwind" fn ddog_sidecar_telemetry_buffer_flush(
     transport: &mut Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    queue_id: &QueueId,
     buffer: Box<SidecarActionsBuffer>,
 ) -> MaybeError {
-    try_c!(blocking::enqueue_actions(
+    try_c!(blocking::enqueue_actions(transport, buffer.buffer));
+
+    MaybeError::None
+}
+
+/// Flushes the buffer for the given service and env instead of the current application.
+#[no_mangle]
+pub extern "C-unwind" fn ddog_sidecar_telemetry_buffer_flush_for_service(
+    transport: &mut Box<SidecarTransport>,
+    service: CharSlice,
+    env: CharSlice,
+    buffer: Box<SidecarActionsBuffer>,
+) -> MaybeError {
+    try_c!(blocking::enqueue_actions_for_service(
         transport,
-        instance_id,
-        queue_id,
+        service.to_utf8_lossy().into_owned(),
+        env.to_utf8_lossy().into_owned(),
         buffer.buffer,
     ));
 
@@ -261,7 +267,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
 
 pub struct ShmCache {
     pub shared: TelemetryCachedClientShmData,
-    pub reader: OneWayShmReader<NamedShmHandle, CString>,
+    pub reader: OneWayShmReader<NamedShmHandle, ShmCacheKey>,
 }
 
 #[derive(Hash, Eq, PartialEq)]
@@ -273,7 +279,24 @@ impl Equivalent<ShmCacheKey> for (&str, &str) {
     }
 }
 
-pub type ShmCacheMap = HashMap<ShmCacheKey, ShmCache>;
+impl From<&(&str, &str)> for ShmCacheKey {
+    fn from(key: &(&str, &str)) -> Self {
+        Self(key.0.to_owned(), key.1.to_owned())
+    }
+}
+
+#[derive(Default)]
+pub struct ShmCacheMap {
+    entries: HashMap<ShmCacheKey, ShmCache>,
+}
+
+impl ShmCacheMap {
+    pub(crate) fn reconnect(&self) {
+        for (key, cache) in &self.entries {
+            cache.reader.reconnect(&path_for_telemetry(&key.0, &key.1));
+        }
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_telemetry_cache_new() -> Box<ShmCacheMap> {
@@ -300,50 +323,26 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     env: CharSlice,
 ) -> &'a ShmCache {
     fn refresh_cache(cache: &mut ShmCache) {
-        let (changed, mut buf) = cache.reader.read();
+        let (changed, buf) = cache.reader.read();
         if changed {
-            // Cache was reset
-            if buf.is_empty() {
-                cache.reader.clear_reader();
-                let (changed, newbuf) = cache.reader.read();
-                if changed {
-                    buf = newbuf;
-                } else {
-                    cache.shared = TelemetryCachedClientShmData::default();
-                    return;
-                }
-            }
-
-            if let Ok(shared) = bincode::deserialize::<TelemetryCachedClientShmData>(buf) {
-                cache.shared = shared;
-            }
+            cache.shared = bincode::deserialize(buf).unwrap_or_default();
         }
     }
 
     let service_str = service.to_utf8_lossy();
     let env_str = env.to_utf8_lossy();
 
-    // I hate you, borrow checker, you get an unsafe from me!
-    if let Some(cached_entry) =
-        (&mut *(cache as *mut ShmCacheMap)).get_mut(&(service_str.as_ref(), env_str.as_ref()))
-    {
-        refresh_cache(cached_entry);
-        return cached_entry;
-    }
-
-    let shm_path = path_for_telemetry(&service_str, &env_str);
-    let reader = OneWayShmReader::<NamedShmHandle, _>::new_with_opener(
-        open_named_shm(&shm_path).ok(),
-        shm_path,
-        |path| open_named_shm(path).ok(),
-    );
     let cached_entry = cache
-        .entry(ShmCacheKey(service_str.into(), env_str.into()))
-        .insert(ShmCache {
-            reader,
+        .entries
+        .entry_ref(&(service_str.as_ref(), env_str.as_ref()))
+        .or_insert_with(|| ShmCache {
+            reader: OneWayShmReader::new_with_opener(
+                None,
+                ShmCacheKey(service_str.to_string(), env_str.to_string()),
+                |key| open_named_shm(&path_for_telemetry(&key.0, &key.1)).ok(),
+            ),
             shared: TelemetryCachedClientShmData::default(),
-        })
-        .into_mut();
+        });
 
     refresh_cache(cached_entry);
     cached_entry
@@ -352,8 +351,6 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
 #[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
     transport: &mut Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    queue_id: &QueueId,
     buffer: &mut SidecarActionsBuffer,
     cache: &mut ShmCacheMap,
     service: CharSlice,
@@ -377,12 +374,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
         .collect();
 
     // Proceed with sending whatever remains, whether filtered or not
-    try_c!(blocking::enqueue_actions(
-        transport,
-        instance_id,
-        queue_id,
-        filtered
-    ));
+    try_c!(blocking::enqueue_actions(transport, filtered));
 
     MaybeError::None
 }

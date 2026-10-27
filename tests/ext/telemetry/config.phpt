@@ -20,6 +20,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_AGENT_HOST=127.0.0.2
 DD_TRACE_AGENT_PORT=3
 DD_AUTOLOAD_NO_COMPILE=
+DD_ENTITY_ID=
 DD_TRACE_AGENT_TIMEOUT=200
 DD_TRACE_RETRY_INTERVAL=1
 DD_TRACE_GIT_METADATA_ENABLED=0
@@ -47,6 +48,9 @@ for ($i = 0; $i < 300; ++$i) {
         foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
             if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
+                if (!is_array($json)) {
+                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
+                }
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {
                     if ($json["request_type"] == "app-client-configuration-change") {

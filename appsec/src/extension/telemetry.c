@@ -32,8 +32,8 @@ static THREAD_LOCAL_ON_ZTS bool _schema_extracted;
 
 static zend_string *nullable _duration_ext_tags_from_cache(void);
 static zend_string *nonnull _framework_tag(zend_object *nullable root_span);
-static void _release_zstr(zend_string *nullable *nonnull slot);
-static void _cache_replace(zend_string *nullable *nonnull slot,
+static void _release_zstr(zend_string * nullable * nonnull slot);
+static void _cache_replace(zend_string * nullable * nonnull slot,
     const char *nonnull val, size_t val_len);
 
 void dd_telemetry_startup(void)
@@ -313,7 +313,7 @@ static zend_string *nullable _duration_ext_tags_from_cache(void)
     return tags_zstr;
 }
 
-static void _release_zstr(zend_string *nullable *nonnull slot)
+static void _release_zstr(zend_string * nullable * nonnull slot)
 {
     if (*slot) {
         zend_string_release(*slot);
@@ -321,7 +321,7 @@ static void _release_zstr(zend_string *nullable *nonnull slot)
     }
 }
 
-static void _cache_replace(zend_string *nullable *nonnull slot,
+static void _cache_replace(zend_string * nullable * nonnull slot,
     const char *nonnull val, size_t val_len)
 {
     _release_zstr(slot);

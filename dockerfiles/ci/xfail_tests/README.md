@@ -6,6 +6,42 @@ This file explains why we decided to disable specific PHP language tests. Invest
 
 # Categories of tests
 
+## IntlTimeZone error handling
+
+- `ext/intl/tests/timezone_getErrorCodeMessage_basic.phpt`
+- `ext/intl/tests/timezone_getOffset_error.phpt`
+
+Disabled in PHP 7.1 - 7.3 on ARM64 only. Also failing without the profiler loaded.
+
+## mb_ereg crashes
+
+- `ext/mbstring/tests/mb_ereg-compat-01.phpt`
+- `ext/mbstring/tests/mb_ereg_basic.phpt`
+- `ext/mbstring/tests/mb_ereg_variation5.phpt`
+
+Disabled in PHP 7.2 on ARM64 only. Crashes even without the profiling
+extension. GDB backtrace points into PHP's bundled Oniguruma engine: `match_at`
+→ `onig_search` → `mb_ereg`.
+
+## Float-to-integer overflow
+
+`7.4-arm64.list` covers the bitwise/modulus operator tests, the
+`decbin`/`dechex`/`decoct` basic 64-bit tests and `pack64.phpt`.
+
+PHP 7.4's configure probe contains undefined behavior. With Clang it enables an
+unsafe float-to-integer cast. Positive overflow then saturates to `INT64_MAX`
+instead of wrapping to `INT64_MIN`. Was fixed [in
+upstream](https://github.com/php/php-src/pull/9215) but not backported to PHP
+7.4
+
+## Hard-timeout timing
+
+`Zend/tests/bug74093.phpt` expects the hard timeout to fire while PHP is in a
+long-running internal operation. It can instead hit the ordinary execution
+timeout during setup. We exclude it on PHP 8.2 and below; on PHP 8.3 and above,
+`.gitlab/run_php_language_tests.sh` adds `--FLAKY--` if needed so the runner can
+retry the individual test once.
+
 ## Object/resource ID skips
 
 The following tests are marked as skipped due to the test relying on a hard-coded resource ID. All of these IDs change when the PHP tracer is enabled due to the resources created in the `datadog.trace.sources_path`.

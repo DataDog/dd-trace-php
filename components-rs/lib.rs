@@ -45,12 +45,17 @@ pub mod log;
 pub mod remote_config;
 #[cfg(not(standalone_profiler))]
 pub mod sidecar;
+#[cfg(all(not(standalone_profiler), target_os = "linux"))]
+pub mod signal_flush;
 #[cfg(not(standalone_profiler))]
 pub mod stats;
 #[cfg(not(standalone_profiler))]
 pub mod telemetry;
 #[cfg(not(standalone_profiler))]
 pub mod trace_filter;
+
+#[cfg(all(feature = "appsec", unix))]
+pub mod appsec_body;
 
 // A standalone profiler must retain the existing profiler-only ABI and size.
 // Cargo's `cdylib` keeps every `no_mangle` common export alive, even though the
@@ -434,26 +439,23 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
 }
 
 /// On macos we cannot easily create a new signal safe connection to the sidecar, so we reuse the
-/// already open fd from datadog_sidecar_for_signal.
+/// already open fd published in datadog_sidecar_crash_fd.
 #[cfg(target_os = "macos")]
 fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
-    // Resolve the optional C-side transport dynamically so common-only builds remain loadable
+    // Resolve the optional C-side fd dynamically so common-only builds remain loadable
     // without the tracer C module.
-    let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_sidecar_for_signal".as_ptr()) }
-        as *const *mut std::ffi::c_void;
+    let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_sidecar_crash_fd".as_ptr()) }
+        as *const std::sync::atomic::AtomicI32;
     if symbol.is_null() {
         return -1;
     }
 
-    // Best-effort, signal context: read the transport pointer and get its current fd via
-    // SidecarTransport::as_raw_fd (which uses get_mut, never locking). Going through the raw
-    // pointer knowingly bypasses aliasing checks — the crashing thread is the only realistic
-    // accessor.
-    let transport = unsafe { *symbol } as *mut datadog_sidecar::service::blocking::SidecarTransport;
-    if transport.is_null() {
+    // The fd is republished whenever its connection is replaced, so it never refers to a
+    // transport which is concurrently being reconnected or freed.
+    let fd = unsafe { &*symbol }.load(std::sync::atomic::Ordering::Acquire);
+    if fd < 0 {
         return -1;
     }
-    let fd = unsafe { (*transport).as_raw_fd() };
     let bytes = crashtracker_receiver_request_bytes();
     let sent = unsafe { libc::send(fd, bytes.as_ptr().cast::<libc::c_void>(), bytes.len(), 0) };
     if sent == bytes.len() as isize {
@@ -463,13 +465,24 @@ fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
     }
 }
 
-// Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions
-// It works well without in the "normal" build
+// Hack: zai_config_stable_file_minit() only resolves the ddog_library_* functions via dlsym, so
+// nothing references them at link time and the linker drops their object files from the static
+// archive. They are spread across several codegen units, so reference each of them here.
 #[no_mangle]
 pub extern "C" fn ddog_library_configurator_new_dummy(
     debug_logs: bool,
     language: CharSlice,
 ) -> Box<Configurator> {
+    std::hint::black_box([
+        ddog_library_configurator_with_local_path as *const (),
+        ddog_library_configurator_with_fleet_path as *const (),
+        ddog_library_configurator_with_detect_process_info as *const (),
+        ddog_library_configurator_get as *const (),
+        ddog_library_config_source_to_string as *const (),
+        ddog_library_config_drop as *const (),
+        ddog_library_configurator_drop as *const (),
+        libdd_common_ffi::ddog_Error_drop as *const (),
+    ]);
     ddog_library_configurator_new(debug_logs, language)
 }
 

@@ -6,15 +6,15 @@
 #pragma once
 
 #include "attributes.h"
+#include "body_parser.h"
 #include "ddappsec.h"
 #include <stdbool.h>
 
 void dd_entity_body_startup(void);
-void dd_entity_body_shutdown(void);
 void dd_entity_body_tshutdown(void);
 void dd_entity_body_rinit(void);
 zend_string *nonnull dd_request_body_buffered(size_t limit);
 zend_string *nonnull dd_response_body_buffered(void);
 
-zval dd_entity_body_convert(
+ddog_AppsecBodyMessagePack dd_entity_body_convert(
     const char *nonnull ct, size_t ct_len, zend_string *nonnull entity);

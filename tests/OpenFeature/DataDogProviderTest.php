@@ -10,6 +10,7 @@ use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
+use DDTrace\Log\ErrorLogLogger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\LogLevel;
 use DDTrace\Log\NullLogger;
@@ -176,6 +177,67 @@ final class DataDogProviderTest extends TestCase
         self::assertSame(EvaluationErrorCode::TYPE_MISMATCH, $details->getError()->getResolutionErrorCode()->getValue());
     }
 
+    public function testDebugLogsProviderResolutionWithRawInputs(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setSuccess('string.flag', 'blue', EvaluationReason::TARGETING_MATCH, 'blue', ['configVersion' => 2]);
+        $logger = new OpenFeatureRecordingLogger();
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
+
+        $client->getStringValue('string.flag', 'red', new EvaluationContext('user-123', new Attributes(['plan' => 'pro'])));
+
+        self::assertSame([
+            'Feature Flags: provider resolved {"flagKey":"string.flag","valueType":"string","targetingKey":"user-123",'
+                . '"attributes":{"plan":"pro"},"defaultValue":"red","value":"blue","variant":"blue",'
+                . '"reason":"TARGETING_MATCH","errorCode":null,"errorMessage":null,"flagMetadata":{},"configVersion":2}',
+        ], $logger->debugs());
+    }
+
+    public function testHookFailuresAreLoggedWithoutClaimingTheReturnedValue(): void
+    {
+        foreach (['before', 'after'] as $stage) {
+            $evaluator = (new OpenFeatureTestEvaluator())->setSuccess('hook.flag', true);
+            $logger = new OpenFeatureRecordingLogger();
+            $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
+            $client->addHooks(new FailingEvaluationHook($stage));
+
+            self::assertFalse($client->getBooleanValue('hook.flag', false, new EvaluationContext(
+                'raw-user', new Attributes(['plan' => 'pro'])
+            )));
+            $logs = implode("\n", $logger->debugs());
+            self::assertStringContainsString('Feature Flags: OpenFeature evaluation error', $logs);
+            self::assertStringContainsString($stage . ' hook failed', $logs);
+            self::assertStringContainsString('"defaultValue":false', $logs);
+            self::assertStringContainsString('"targetingKey":"raw-user","attributes":{"plan":"pro"}', $logs);
+            self::assertStringContainsString('"returnedValueObservable":false', $logs);
+            self::assertCount($stage === 'before' ? 0 : 1, $evaluator->getCalls());
+        }
+    }
+
+    public function testDebugOffDoesNotInstallDiagnosticHooks(): void
+    {
+        $hooks = $this->providerForEvaluator(new OpenFeatureTestEvaluator())->getHooks();
+        self::assertCount(1, $hooks);
+        self::assertInstanceOf(\DDTrace\OpenFeature\FlagEvaluationHook::class, $hooks[0]);
+    }
+
+    public function testHookDiagnosticFormattingFailurePreservesDefault(): void
+    {
+        $logger = new OpenFeatureRecordingLogger();
+        $client = $this->openFeatureClientFor($this->providerForEvaluator(new OpenFeatureTestEvaluator(), $logger));
+        $client->addHooks(new FailingEvaluationHook('before'));
+        $attribute = new class implements \JsonSerializable {
+            public function jsonSerialize(): mixed
+            {
+                throw new \RuntimeException('cannot serialize context');
+            }
+        };
+        self::assertFalse($client->getBooleanValue('hook.flag', false, new EvaluationContext(
+            'user', new Attributes(['object' => $attribute])
+        )));
+        self::assertStringContainsString('detailsUnavailable: cannot serialize context', implode("\n", $logger->debugs()));
+    }
+
     private function providerForEvaluator(Evaluator $evaluator, ?LoggerInterface $logger = null): DataDogProvider
     {
         return DataDogProvider::createWithDependencies($evaluator, $logger ?: new NullLogger(LogLevel::EMERGENCY));
@@ -188,6 +250,27 @@ final class DataDogProviderTest extends TestCase
 
         return $api->getClient('datadog-test');
     }
+}
+
+final class FailingEvaluationHook extends \OpenFeature\implementation\hooks\BooleanHook
+{
+    public function __construct(private string $stage) {}
+
+    public function before(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\hooks\HookHints $hints): ?\OpenFeature\interfaces\flags\EvaluationContext
+    {
+        if ($this->stage === 'before') {
+            throw new \RuntimeException('before hook failed');
+        }
+        return null;
+    }
+
+    public function after(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\provider\ResolutionDetails $details, \OpenFeature\interfaces\hooks\HookHints $hints): void
+    {
+        throw new \RuntimeException('after hook failed');
+    }
+
+    public function error(\OpenFeature\interfaces\hooks\HookContext $context, \Throwable $error, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
+    public function finally(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
 }
 
 final class OpenFeatureTestEvaluator implements Evaluator
@@ -251,7 +334,7 @@ final class OpenFeatureTestEvaluator implements Evaluator
         return $this;
     }
 
-    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = [])
+    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = [], $targetingKeyInvalid = false)
     {
         $this->calls[] = [
             'flagKey' => $flagKey,
@@ -330,10 +413,14 @@ final class OpenFeatureTestEvaluator implements Evaluator
 final class OpenFeatureRecordingLogger implements LoggerInterface
 {
     /** @var string[] */
+    private array $debugs = [];
+
+    /** @var string[] */
     private array $warnings = [];
 
     public function debug($message, array $context = [])
     {
+        $this->debugs[] = ErrorLogLogger::interpolate($message, $context);
     }
 
     public function warning($message, array $context = [])
@@ -353,6 +440,14 @@ final class OpenFeatureRecordingLogger implements LoggerInterface
     /**
      * @return string[]
      */
+    public function debugs(): array
+    {
+        return $this->debugs;
+    }
+
+    /**
+     * @return string[]
+     */
     public function warnings(): array
     {
         return $this->warnings;
@@ -365,6 +460,7 @@ final class OpenFeatureThrowingLogger implements LoggerInterface
 
     public function debug($message, array $context = [])
     {
+        throw new \ErrorException('debug logger failed');
     }
 
     public function warning($message, array $context = [])

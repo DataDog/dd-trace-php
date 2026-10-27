@@ -9,10 +9,10 @@ ENV ACCEPT_EULA=Y
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 ENV DEVLIBS \
-    libclang-20-dev \
-    libclang-rt-20-dev \
-    llvm-20-dev \
-    lld-20 \
+    libclang-21-dev \
+    libclang-rt-21-dev \
+    llvm-21-dev \
+    lld-21 \
     libbrotli-dev \
     libcurl4-openssl-dev \
     libedit-dev \
@@ -48,8 +48,8 @@ ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
-    clang-format-20 \
-    clang-tidy-20 \
+    clang-format-21 \
+    clang-tidy-21 \
     curl \
     debian-goodies \
     git \
@@ -70,7 +70,7 @@ ENV RUNTIME_DEPS \
 ENV PHPIZE_DEPS \
     autoconf \
     bison \
-    clang-20 \
+    clang-21 \
     cmake \
     dpkg-dev \
     file \
@@ -98,12 +98,12 @@ RUN set -eux; \
     echo "deb http://deb.debian.org/debian-debug/ bookworm-debug main" | \
         tee -a /etc/apt/sources.list; \
     \
-# Use LLVM from orig vendor (also LLVM 20 is not shipped with bookworm)
+# Use LLVM from orig vendor (also LLVM 21 is not shipped with bookworm)
     apt-get update; \
     apt-get install -y curl gnupg software-properties-common; \
     curl https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
-    add-apt-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-20 main"; \
-    add-apt-repository "deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-20 main"; \
+    add-apt-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-21 main"; \
+    add-apt-repository "deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-21 main"; \
     \
 # prevent Debian's PHP packages from being installed
 # https://github.com/docker-library/php/pull/542
@@ -139,14 +139,14 @@ RUN set -eux; \
     chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
     \
 # Make clang the default compiler
-    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-20 100; \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-20 100; \
-    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100; \
-    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100; \
-    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-20 100; \
-    echo "-L /usr/lib/llvm-20/lib/clang/20/lib/linux" > /usr/lib/llvm-20/bin/clang.cfg; \
+    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-21 100; \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-21 100; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100; \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100; \
+    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-21 100; \
+    echo "-L /usr/lib/llvm-21/lib/clang/21/lib/linux" > /usr/lib/llvm-21/bin/clang.cfg; \
 # Include libasan library path
-    echo /usr/lib/llvm-20/lib/clang/20/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
+    echo /usr/lib/llvm-21/lib/clang/21/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
 
 ENV CMAKE_VERSION="3.24.4"
 
@@ -307,8 +307,8 @@ RUN set -eux; \
     chown circleci:circleci $PHP_INSTALL_DIR;
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.87.0"
-ARG RUST_NIGHTLY_VERSION="-2025-06-13"
+ARG RUST_VERSION="1.91.1"
+ARG RUST_NIGHTLY_VERSION="-2025-10-31"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

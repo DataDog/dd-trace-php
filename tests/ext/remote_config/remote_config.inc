@@ -16,6 +16,22 @@ function reset_request_replayer() {
     ]));
 }
 
+function await_remote_config(callable $condition, $timeout_seconds = 30) {
+    $deadline = microtime(true) + $timeout_seconds;
+    do {
+        if ($condition()) {
+            return true;
+        }
+
+        // A single notification may belong to an earlier update. Poll until
+        // the requested state is visible instead of treating any interrupt as
+        // proof that the latest request-replayer change was applied.
+        dd_trace_internal_fn("await_remote_config", 1);
+    } while (microtime(true) < $deadline);
+
+    return $condition();
+}
+
 function put_rc_file($path, $contents, $service = null) {
     $ctx = stream_context_create([
         'http' => [

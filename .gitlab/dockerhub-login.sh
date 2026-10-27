@@ -3,6 +3,7 @@
 set -e
 
 export VAULT_VERSION="1.20.0"
+: "${GITHUB_RELEASES_MIRROR:?GITHUB_RELEASES_MIRROR must be set}"
 
 echo "=== Setting up Docker Hub authentication ==="
 
@@ -27,7 +28,7 @@ if ! command -v jq > /dev/null 2>&1; then
 
   jq_path="/tmp/jq"
 
-  if ! curl -L --fail "https://github.com/jqlang/jq/releases/latest/download/jq-linux-${vault_arch}" \
+  if ! curl -L --fail "${GITHUB_RELEASES_MIRROR}/jqlang/jq/releases/download/latest/jq-linux-${vault_arch}" \
       --output "${jq_path}"; then
     echo "Warning: Failed to download jq. Skipping Docker Hub authentication." >&2
     exit 0

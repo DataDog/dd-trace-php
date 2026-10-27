@@ -11,6 +11,12 @@ struct _zend_string;
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
+/**
+ * Log callback for sidecar threads. It may write to `DD_TRACE_LOG_FILE`, but must not call PHP's
+ * error logger, which requires request state and can bail out.
+ */
+extern void (*ddog_log_callback_off_thread)(ddog_CharSlice);
+
 extern ddog_VecRemoteConfigProduct DATADOG_REMOTE_CONFIG_PRODUCTS;
 
 extern ddog_VecRemoteConfigCapabilities DATADOG_REMOTE_CONFIG_CAPABILITIES;
@@ -233,7 +239,6 @@ void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
 ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigState *remote_config_state,
                                                struct ddog_SidecarTransport **transport,
                                                const struct ddog_InstanceId *instance_id,
-                                               ddog_QueueId queue_id,
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
@@ -248,7 +253,14 @@ void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path, ddog_CharSlice log
  * Starts a thread-mode master listener with the PHP-linked AppSec backend
  * registered in the listener's process.
  */
-ddog_MaybeError ddog_sidecar_connect_master_php(int32_t pid);
+ddog_MaybeError ddog_sidecar_connect_master_php(void);
+
+/**
+ * # Safety
+ * Call in the child after fork, before starting threads. Inherited sidecar tasks
+ * and references to their state must not be used afterward.
+ */
+ddog_MaybeError ddog_sidecar_handle_fork_php(void);
 
 /**
  * Ensures the connected sidecar's AppSec backend is started using the
@@ -273,11 +285,42 @@ void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
 
 void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
 
+/**
+ * Retire mappings from a previous namespace so subsequent reads reopen them. To be called on
+ * every (re)connected transport: the connection may be to a new sidecar. Reconnects are rare,
+ * so the process-wide caches are simply reopened by every thread.
+ */
+void ddog_sidecar_reconnect_readers(const struct ddog_ShmCacheMap *telemetry,
+                                    struct ddog_RemoteConfigState *remote_config,
+                                    const struct ddog_AgentInfoReader *agent_info,
+                                    const ddog_AgentRemoteConfigReader *agent_config);
+
+/**
+ * The fd of the transport's current connection; it changes on reconnect.
+ */
+int32_t ddog_sidecar_transport_raw_fd(struct ddog_SidecarTransport *const *transport);
+
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
                                      uint64_t hash,
                                      uint32_t granularity_seconds);
+
+#if defined(__linux__)
+/**
+ * Execute the prepared flush. For a default signal disposition, terminate the process afterward.
+ * The object must remain alive until the raw worker exits; custom handlers use normal shutdown
+ * to join that worker. `_exit` terminates the whole process without runtime cleanup.
+ * The signal handler must reject inherited state before starting a worker after fork.
+ */
+int32_t datadog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush,
+                                         bool terminate_process);
+#endif
+
+/**
+ * Drop cached concentrators so the next span for each key goes through IPC.
+ */
+void ddog_span_concentrators_clear(void);
 
 /**
  * Returns true once the agent /info has been received and applied.
@@ -294,37 +337,20 @@ bool ddog_is_agent_info_ready(void);
 bool ddog_agent_has_stats_computation(void);
 
 /**
- * Look up (or lazily create) the concentrator for `(env, version, service)` and invoke
- * `callback` with a shared reference to it while holding the global read lock.
- *
- * The callback is **always** invoked — even before the sidecar has created the backing SHM.
- * When the SHM is not yet available a *virtual* concentrator is used: peer-tag keys and
- * span-kinds come from `DESIRED_CONFIG` so eligibility and peer-tag extraction still work
- * correctly.  The C callback should call `ddog_span_concentrator_has_shm` to decide whether to
- * write to the SHM (real concentrator) or store the stats for the IPC path (virtual).
- *
- * A virtual concentrator is always considered stale so it will be transparently upgraded to a
- * real one on the next call once the sidecar has created the SHM.
- *
- * Returns `true` after the callback returns, `false` only on an internal locking error.
+ * Invoke `callback` with the cached reader and send any returned span through IPC.
+ * SHM is opened after sending, so the first span also creates the sidecar's concentrator.
  *
  * # Safety
- * `env`, `version`, and `service` must be valid `CharSlice`s.  `callback` must be a valid
- * function pointer. `userdata` is forwarded to `callback` as-is.
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ * The slices and callback must be valid. The callback transfers ownership of its result.
  */
-bool ddog_span_concentrator_with(ddog_CharSlice env,
+bool ddog_span_concentrator_with(struct ddog_SidecarTransport *transport,
+                                 ddog_CharSlice env,
                                  ddog_CharSlice version,
                                  ddog_CharSlice service,
-                                 void (*callback)(const struct ddog_SpanConcentrator*, void*),
+                                 struct ddog_OwnedShmSpanInput *(*callback)(const struct ddog_SpanConcentrator*,
+                                                                            void*),
                                  void *userdata);
-
-/**
- * Returns `true` when the concentrator is backed by a real SHM and
- * `ddog_span_concentrator_add_php_span` will actually persist data.
- * Returns `false` for virtual concentrators (SHM not yet available) — the C callback should
- * store the stats for the IPC fallback path in that case.
- */
-bool ddog_span_concentrator_has_shm(const struct ddog_SpanConcentrator *c);
 
 /**
  * Return a pointer to the concentrator's peer-tag-key array and write the count to `*out_count`.
@@ -351,40 +377,15 @@ bool ddog_span_concentrator_is_eligible(const struct ddog_SpanConcentrator *c,
                                         bool is_partial_snapshot);
 
 /**
- * Write a PHP span to the concentrator's backing SHM.
- *
- * Only valid when `ddog_span_concentrator_has_shm` returns `true`.  For virtual concentrators
- * (no SHM) the caller should use the IPC path instead.
- *
- * All `CharSlice` fields in `span` (and in the `peer_tags` array it points to) must remain valid
- * for the duration of this call.
+ * Write to SHM, or return an owned span for the callback to pass back for IPC.
  *
  * # Safety
- * `span` must point to a valid `PhpSpanStats`.  The concentrator must have a backing SHM
- * (`ddog_span_concentrator_has_shm` returns `true`).
+ * All slices and peer-tag pointers in `span` must remain valid for this call.
  */
-void ddog_span_concentrator_add_php_span(const struct ddog_SpanConcentrator *c,
-                                         const struct ddog_PhpSpanStats *span);
-
-/**
- * IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for (env, version).
- *
- * Called when the SHM is not yet available.  The sidecar processes IPC messages sequentially,
- * and `set_universal_service_tags` is always sent before this message, so the concentrator
- * is guaranteed to exist when the sidecar handles this call.  The sidecar resolves the service
- * dimension from the session's `DD_SERVICE` config.
- *
- * # Safety
- * All pointers must be valid.
- */
-void ddog_sidecar_add_php_span_to_concentrator(struct ddog_SidecarTransport **transport,
-                                               ddog_CharSlice env,
-                                               ddog_CharSlice version,
-                                               const struct ddog_PhpSpanStats *span);
+struct ddog_OwnedShmSpanInput *ddog_span_concentrator_add_php_span(const struct ddog_SpanConcentrator *c,
+                                                                   const struct ddog_PhpSpanStats *span);
 
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
-                                            const struct ddog_InstanceId *instance_id,
-                                            const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
 
 struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
@@ -416,9 +417,15 @@ void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffe
                                                  ddog_CharSlice config_id);
 
 ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(struct ddog_SidecarTransport **transport,
-                                                    const struct ddog_InstanceId *instance_id,
-                                                    const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer);
+
+/**
+ * Flushes the buffer for the given service and env instead of the current application.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_buffer_flush_for_service(struct ddog_SidecarTransport **transport,
+                                                                ddog_CharSlice service,
+                                                                ddog_CharSlice env,
+                                                                struct ddog_SidecarActionsBuffer *buffer);
 
 ddog_MaybeError ddog_sidecar_telemetry_register_metric(struct ddog_SidecarTransport **transport,
                                                        ddog_CharSlice metric_name,
@@ -434,23 +441,21 @@ void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
 
-ddog_ShmCacheMap *ddog_sidecar_telemetry_cache_new(void);
+struct ddog_ShmCacheMap *ddog_sidecar_telemetry_cache_new(void);
 
-void ddog_sidecar_telemetry_cache_drop(ddog_ShmCacheMap*);
+void ddog_sidecar_telemetry_cache_drop(struct ddog_ShmCacheMap*);
 
-bool ddog_sidecar_telemetry_config_sent(ddog_ShmCacheMap *cache,
+bool ddog_sidecar_telemetry_config_sent(struct ddog_ShmCacheMap *cache,
                                         ddog_CharSlice service,
                                         ddog_CharSlice env);
 
 ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport **transport,
-                                                    const struct ddog_InstanceId *instance_id,
-                                                    const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer,
-                                                    ddog_ShmCacheMap *cache,
+                                                    struct ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 
-bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
+bool ddog_sidecar_telemetry_are_endpoints_collected(struct ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 
@@ -469,6 +474,30 @@ bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
 bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
                                    const void *root_span,
                                    ddog_RootTagLookupFn lookup_fn);
+
+/**
+ * Parses a possibly truncated JSON document. Containers nested deeper than
+ * `max_depth` are kept empty.
+ */
+struct ddog_AppsecBodyMessagePack ddog_appsec_parse_json(ddog_CharSlice input,
+                                                         int32_t max_depth,
+                                                         struct ddog_AppsecBodyAllocator allocator);
+
+/**
+ * Parses a possibly truncated XML document into
+ * `{tag: [{"@attr": value, ...}, "text", {child...}, ...]}`. The content of
+ * elements nested deeper than `max_depth` is dropped. External entities are
+ * never loaded.
+ */
+struct ddog_AppsecBodyMessagePack ddog_appsec_parse_xml(ddog_CharSlice input,
+                                                        int32_t max_depth,
+                                                        struct ddog_AppsecBodyAllocator allocator);
+
+/**
+ * # Safety
+ * `body` must come from one of the parse functions and not be dropped twice.
+ */
+void ddog_appsec_body_msgpack_drop(struct ddog_AppsecBodyMessagePack body);
 
 /**
  * # Safety

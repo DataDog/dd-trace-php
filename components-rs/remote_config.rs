@@ -1,15 +1,8 @@
 use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
 use crate::sidecar::MaybeShmLimiter;
 use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
-use libdd_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
-use libdd_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
-use libdd_live_debugger_ffi::data::Probe;
-use libdd_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluator};
-use libdd_live_debugger_ffi::send_data::{
-    ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
-};
 use datadog_sidecar::service::blocking::SidecarTransport;
-use datadog_sidecar::service::{InstanceId, QueueId};
+use datadog_sidecar::service::InstanceId;
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
 use itertools::Itertools;
@@ -17,6 +10,13 @@ use libdd_common::tag::Tag;
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{CharSlice, MaybeError};
+use libdd_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
+use libdd_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
+use libdd_live_debugger_ffi::data::Probe;
+use libdd_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluator};
+use libdd_live_debugger_ffi::send_data::{
+    ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
+};
 use libdd_remote_config::config::dynamic::{
     Configs, DynamicConfigFile, TracingSamplingRuleProvenance,
 };
@@ -35,6 +35,7 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 use tracing::debug;
 
+#[allow(clippy::manual_dangling_ptr)] // cbindgen needs the literal sentinel address.
 pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
 
 #[repr(C)]
@@ -92,7 +93,7 @@ fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>)
 }
 
 pub struct RemoteConfigState {
-    manager: RemoteConfigManager,
+    pub(crate) manager: RemoteConfigManager,
     live_debugger: LiveDebuggerState,
     dynamic_config: DynamicConfig,
 }
@@ -196,7 +197,6 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
             RemoteConfigCapabilities::AsmHeaderFingerprint,
             RemoteConfigCapabilities::AsmProcessorOverrides,
             RemoteConfigCapabilities::AsmCustomDataScanners,
-            RemoteConfigCapabilities::AsmRawResponseBody,
         ]
         .iter()
         .for_each(|c| DATADOG_REMOTE_CONFIG_CAPABILITIES.push(*c));
@@ -268,7 +268,7 @@ fn map_config_name(config: &Configs) -> &'static str {
 
 fn map_config_value(config: &Configs) -> Cow<'_, str> {
     match config {
-        Configs::TracingHeaderTags(tags) => tags.iter().map(|(k, _)| k).join(",").into(),
+        Configs::TracingHeaderTags(tags) => tags.keys().join(",").into(),
         Configs::TracingSamplingRate(rate) => rate.to_string().into(),
         Configs::LogInjectionEnabled(enabled) => bool_config(enabled),
         Configs::TracingTags(tags) => tags.join(",").into(),
@@ -415,9 +415,8 @@ pub extern "C" fn ddog_remote_config_current_generation(remote_config: &RemoteCo
 pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState) -> *const c_char {
     remote_config
         .manager
-        .active_reader
-        .as_ref()
-        .map(|r| r.get_path().as_ptr())
+        .get_path()
+        .map(|path| path.as_ptr())
         .unwrap_or(std::ptr::null())
 }
 
@@ -478,15 +477,34 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                             }
                         }
                         RemoteConfigProduct::FfeFlags => {
-                            debug!("Received FFE flags configuration");
+                            debug!(
+                                "Feature Flags: remote_config configuration received (config_id={})",
+                                value.path.config_id()
+                            );
                             if let Some(ufc) = data.downcast::<UniversalFlagConfig>() {
-                                if let Ok(ufc_owned) =
-                                    UniversalFlagConfig::from_json(ufc.to_json().to_vec())
-                                {
-                                    crate::ffe::store_config(Configuration::from_server_response(
-                                        ufc_owned,
-                                    ));
+                                match UniversalFlagConfig::from_json(ufc.to_json().to_vec()) {
+                                    Ok(ufc_owned) => {
+                                        let requested_env = remote_config
+                                            .manager
+                                            .get_target()
+                                            .map(|target| target.env());
+                                        crate::ffe::store_config(
+                                            Configuration::from_server_response(ufc_owned),
+                                            requested_env,
+                                        );
+                                    }
+                                    Err(error) => {
+                                        debug!(
+                                            "Feature Flags: remote_config configuration rejected: {error}; {}",
+                                            crate::ffe::retained_config_description()
+                                        );
+                                    }
                                 }
+                            } else {
+                                debug!(
+                                    "Feature Flags: remote_config configuration rejected: unexpected configuration type; {}",
+                                    crate::ffe::retained_config_description()
+                                );
                             }
                         }
                         _ => {}
@@ -524,8 +542,12 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 }
                 RemoteConfigProduct::FfeFlags => {
-                    debug!("FFE flags configuration removed");
                     crate::ffe::clear_config();
+                    debug!(
+                        "Feature Flags: remote_config configuration removed (config_id={}, version={}); no configuration is loaded until another is applied",
+                        path.config_id(),
+                        crate::ffe::ddog_ffe_config_version()
+                    );
                 }
                 _ => (),
             },
@@ -857,7 +879,7 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_shutdown_remote_config(_: Box<RemoteConfigState>) {}
+pub extern "C" fn ddog_shutdown_remote_config(_state: Box<RemoteConfigState>) {}
 
 /// Free the FFI-owned allocations in a `Probe` (the `tags` vec and the nested
 /// span-decoration / log allocations) by consuming it; borrowed `CharSlice`s are
@@ -888,7 +910,6 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
     remote_config_state: &RemoteConfigState,
     transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,
-    queue_id: QueueId,
     probe: &'a Probe,
     timestamp: u64,
 ) -> MaybeError {
@@ -915,5 +936,5 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
         serde_json::to_string(&payload).unwrap()
     );
 
-    ddog_sidecar_send_debugger_diagnostics(transport, instance_id, queue_id, payload)
+    ddog_sidecar_send_debugger_diagnostics(transport, payload)
 }

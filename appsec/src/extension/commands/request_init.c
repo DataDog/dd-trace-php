@@ -29,7 +29,7 @@ static void _pack_files_field_names(
     mpack_writer_t *nonnull w, const zend_array *nonnull files);
 static void _pack_path_params(
     mpack_writer_t *nonnull w, const zend_string *nullable uri_raw);
-static void _pack_request_body(mpack_writer_t *nonnull w,
+static dd_result _pack_request_body(mpack_writer_t *nonnull w,
     struct req_info_init *nonnull ctx, const zend_array *nonnull server,
     dd_mpack_limits *nonnull limits);
 
@@ -37,7 +37,6 @@ static const dd_command_spec _spec = {
     .name = "request_init",
     .name_len = sizeof("request_init") - 1,
     .num_args = 1, // a single map
-    .reconnect_sidecar = true,
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features,
@@ -112,7 +111,10 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
 
     // 6.
     dd_mpack_write_lstr(w, "server.request.body");
-    _pack_request_body(w, ctx, server, &limits);
+    dd_result res = _pack_request_body(w, ctx, server, &limits);
+    if (res != dd_success) {
+        return res;
+    }
 
     // 7.
     const zend_array *nonnull files = dd_get_superglob_or_equiv(
@@ -313,7 +315,7 @@ static void _pack_path_params(
     mpack_complete_array(w);
 }
 
-static void _pack_request_body(mpack_writer_t *nonnull w,
+static dd_result _pack_request_body(mpack_writer_t *nonnull w,
     struct req_info_init *nonnull ctx, const zend_array *nonnull server,
     dd_mpack_limits *nonnull limits)
 {
@@ -321,7 +323,7 @@ static void _pack_request_body(mpack_writer_t *nonnull w,
         ZEND_STRL("_POST"), TRACK_VARS_POST, ctx->superglob_equiv);
     if (zend_hash_num_elements(post) != 0) {
         dd_mpack_write_array_lim(w, post, limits);
-        return;
+        return dd_success;
     }
 
     bool written = false;
@@ -329,16 +331,17 @@ static void _pack_request_body(mpack_writer_t *nonnull w,
         zend_string *ct =
             dd_php_get_string_elem_cstr(server, ZEND_STRL("CONTENT_TYPE"));
         if (ct) {
-            zval body_zv =
+            ddog_AppsecBodyMessagePack body =
                 dd_entity_body_convert(ZSTR_VAL(ct), ZSTR_LEN(ct), ctx->entity);
-            if (Z_TYPE(body_zv) != IS_NULL) {
-                dd_mpack_write_zval_lim(w, &body_zv, limits);
-                zval_ptr_dtor(&body_zv);
-                written = true;
+            if (body.status == DDOG_APPSEC_BODY_STATUS_OUT_OF_MEMORY) {
+                return dd_oom;
             }
+            written = dd_body_msgpack_write(w, &body);
+            dd_trace_drop_body_msgpack(body);
         }
     }
     if (!written) {
         dd_mpack_write_array(w, &zend_empty_array);
     }
+    return dd_success;
 }

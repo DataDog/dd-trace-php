@@ -101,9 +101,14 @@ final class RoadrunnerServer implements Sapi
 
     private static function downloadRoadrunner($target, $version)
     {
-        // phpcs:disable Generic.Files.LineLength.TooLong
-        exec("curl -L https://github.com/roadrunner-server/roadrunner/releases/download/v$version/roadrunner-$version-linux-$target.tar.gz | tar xz -O -f - roadrunner-$version-linux-$target/rr > '" . __DIR__ . "/rr-$version-$target'; chmod +x '" . __DIR__ . "/rr-$version-$target'");
-        // phpcs:enable Generic.Files.LineLength.TooLong
+        $baseUrl = getenv('GITHUB_RELEASES_MIRROR') ?: 'https://github.com';
+        $url = "$baseUrl/roadrunner-server/roadrunner/releases/download/v$version/"
+            . "roadrunner-$version-linux-$target.tar.gz";
+        $binary = __DIR__ . "/rr-$version-$target";
+
+        exec("curl -L " . escapeshellarg($url)
+            . " | tar xz -O -f - roadrunner-$version-linux-$target/rr > " . escapeshellarg($binary)
+            . "; chmod +x " . escapeshellarg($binary));
     }
 
     public function start()

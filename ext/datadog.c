@@ -8,6 +8,9 @@
 #include <tracer/tracer_api.h>
 
 #include "configuration.h"
+#ifdef DDTRACE
+#include <tracer/configuration.h>
+#endif
 #include "excluded_modules.h"
 #include "agent_info.h"
 #include "logging.h"
@@ -96,6 +99,7 @@ static void datadog_sort_modules(void *base, size_t count, size_t siz, compare_f
 
 #ifndef _WIN32
 void datadog_signal_block_handlers_startup(void);
+void datadog_signal_block_post_deactivate(void);
 #endif
 void datadog_pcntl_handlers_startup(void);
 
@@ -160,6 +164,12 @@ static void dd_activate_once(void) {
         datadog_generate_runtime_id();
     }
 
+    // Before the first sidecar connection, so that every connection is configured with them. The
+    // script path is already known at activation.
+    if (datadog_disable != 1 && get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
+        datadog_process_tags_first_rinit();
+    }
+
     // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
     if (!datadog_disable) {
         // Only set up the sidecar when it's actually needed (appsec, telemetry, trace sender, or OTLP metrics).
@@ -179,7 +189,12 @@ static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 static bool dd_is_cli_autodisabled(const char *arg) {
     const char *slashend = strrchr(arg, '/');
     const char *backslashend = strrchr(arg, '\\');
-    arg = MAX(MAX(slashend, backslashend) + 1, arg);
+    if (slashend) {
+        arg = slashend + 1;
+    }
+    if (backslashend && (!slashend || backslashend > slashend)) {
+        arg = backslashend + 1;
+    }
     return strcmp(arg, "composer") == 0 || strcmp(arg, "composer.phar") == 0;
 }
 
@@ -272,7 +287,6 @@ static PHP_GINIT_FUNCTION(datadog) {
 #if ZTS
     datadog_thread_ginit();
 #endif
-    datadog_globals->sidecar_universal_service_tags_mutex = tsrm_mutex_alloc();
     zend_hash_init(&datadog_globals->git_metadata, 8, unused, (dtor_func_t)datadog_git_metadata_dtor, 1);
 
 #ifdef DDTRACE
@@ -343,8 +357,13 @@ int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) 
     return 0;
 }
 
-static void dd_clean_main_thread_locals() {
-    dd_run_rust_thread_destructors(NULL);
+static void dd_clean_main_thread_locals(void *unused) {
+    dd_run_rust_thread_destructors(unused);
+    // FrankenPHP unloads ddtrace on php-main before pthreads runs its TLS destructors.
+    // The fallback key must not retain a callback into the unloaded extension.
+    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNAVAILABLE) {
+        pthread_key_delete(dd_cxa_thread_atexit_key);
+    }
 }
 
 extern void *__dso_handle;
@@ -377,8 +396,6 @@ static PHP_GSHUTDOWN_FUNCTION(datadog) {
 
     // Drop the per-thread sidecar transport (thread-lifetime, one per thread).
     datadog_sidecar_gshutdown(datadog_globals);
-
-    tsrm_mutex_free(datadog_globals->sidecar_universal_service_tags_mutex);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
@@ -428,8 +445,8 @@ static PHP_MINIT_FUNCTION(datadog) {
     if (datadog_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_is_main_thread = true;
         glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
-        __cxa_atexit(dd_clean_main_thread_locals, NULL, __dso_handle);
     }
+    __cxa_atexit(dd_clean_main_thread_locals, NULL, __dso_handle);
 #endif
 
     // Reset on every minit for `apachectl graceful`.
@@ -509,6 +526,11 @@ static PHP_MINIT_FUNCTION(datadog) {
     datadog_signals_minit();
 #endif
     ddtrace_set_container_cgroup_path((ddog_CharSlice){ .ptr = DATADOG_G(cgroup_file), .len = strlen(DATADOG_G(cgroup_file)) });
+#ifdef __linux__
+    // Publishing from the master lets worker children reuse inferred TLS offsets.
+    // Process tags are added on the first request in each process.
+    datadog_publish_otel_process_context(DDOG_CHARSLICE_C(""));
+#endif
 
     return SUCCESS;
 }
@@ -534,12 +556,12 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
     datadog_signals_mshutdown();
 #endif
 
-    datadog_log_mshutdown();
-
     zai_config_mshutdown();
     zai_json_shutdown_bindings();
 
     datadog_sidecar_shutdown();
+
+    datadog_log_mshutdown();
 
     datadog_process_tags_mshutdown();
 
@@ -547,11 +569,13 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
 }
 
 static void dd_rinit_once(void) {
-    // Collect process tags now that script path is available
-    if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
-        datadog_process_tags_first_rinit();
-        datadog_sidecar_update_process_tags();
+    /* datadog_disable == 1 returns early from MINIT, so skip first-RINIT
+     * setup entirely. State 2 completes MINIT but may skip activation (e.g.
+     * for excluded modules) */
+    if (datadog_disable == 1) {
+        return;
     }
+
 #ifdef __linux__
     zend_string *process_tags = datadog_process_tags_get_serialized();
     datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
@@ -569,6 +593,8 @@ static void dd_rinit_once(void) {
     datadog_startup_logging_first_rinit();
 
 #ifdef DDTRACE
+    /* The Zend extension activation callback runs before module RINIT, so
+     * ddtrace_coms_minit() has either completed or been skipped here. */
     ddtrace_first_rinit();
 #endif
 }
@@ -652,10 +678,6 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     bool fast_shutdown = is_zend_mm() && !EG(full_tables_cleanup);
 #endif
 
-    if (DATADOG_G(remote_config_state)) {
-        datadog_rshutdown_remote_config();
-    }
-
     if (!datadog_disable) {
         dd_shutdown_observer();
     }
@@ -666,6 +688,16 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
 
     datadog_sidecar_finalize(true);
     DATADOG_G(request_initialized) = false;
+    /* A signal may have queued a Remote Config reread during RSHUTDOWN. */
+    DATADOG_G(reread_remote_configuration) = 0;
+    if (DATADOG_G(remote_config_state)) {
+        datadog_rshutdown_remote_config();
+#ifdef DDTRACE
+        if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+            LOG(DEBUG, "Remote Configuration: request configuration updates stopped; shared sidecar polling may continue for other workers");
+        }
+#endif
+    }
 
     datadog_telemetry_rshutdown();
     datadog_sidecar_rshutdown();
@@ -679,10 +711,6 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     if (DATADOG_G(last_env_name)) {
         zend_string_release(DATADOG_G(last_env_name));
         DATADOG_G(last_env_name) = NULL;
-    }
-    if (DATADOG_G(last_version)) {
-        zend_string_release(DATADOG_G(last_version));
-        DATADOG_G(last_version) = NULL;
     }
 
     return SUCCESS;
@@ -699,6 +727,11 @@ zend_result datadog_post_deactivate(void) {
 
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
+
+#ifndef _WIN32
+    // A bailout within a signal blocking function skips the unblocking
+    datadog_signal_block_post_deactivate();
+#endif
 
     return SUCCESS;
 }

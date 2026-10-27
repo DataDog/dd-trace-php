@@ -151,6 +151,16 @@ impl SystemSettings {
             system_settings.profiling_experimental_heap_live_enabled = false;
         }
 
+        // ext-grpc can run PHP on a native thread while the main thread does I/O.
+        // Sampling that I/O would race with changes to the shared NTS PHP stack.
+        #[cfg(feature = "io_profiling")]
+        if system_settings.profiling_io_enabled
+            && !bindings::datadog_get_module_entry(c"grpc".as_ptr(), 4).is_null()
+        {
+            error!("I/O profiling is disabled because ext-grpc can execute PHP on native threads.");
+            system_settings.profiling_io_enabled = false;
+        }
+
         SystemSettings::log_state(
             (*ptr::addr_of!(SYSTEM_SETTINGS)).state,
             system_settings.state,
@@ -1469,7 +1479,7 @@ mod tests {
                 assert_eq!(0, cmp);
 
                 // Check that it is null terminated.
-                assert_eq!(ini.ptr[ini.len] as u8, b'\0');
+                assert_eq!(ini.ptr[ini.len], 0);
             }
         }
     }
