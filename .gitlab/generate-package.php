@@ -167,6 +167,11 @@ configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
     ALLOW_MULTIPLE_CHILD_LEVELS: "false"
+<?php if ($_libdatadog_sha !== ''): ?>
+  # system-tests generates its own child pipeline, so generate-common.php can't tag it.
+  after_script:
+    - test -f system_tests_pipeline.yml && cat .gitlab/green-ci-exclude-job.yml >> system_tests_pipeline.yml
+<?php endif; ?>
 
 package-oci:
   # Linux only: prepare-oci-package.sh exits at once for other OSes, after downloading both loaders.

@@ -68,7 +68,7 @@ generate-templates:
       dotenv: libdatadog.env
 
 # Builds against libdatadog main, not the pinned submodule: keep it out of Green CI.
-# Child pipelines get the same job from generate-common.php.
+# Child pipelines get the same job from .gitlab/green-ci-exclude-job.yml.
 green-ci-exclude:
   stage: build
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
@@ -76,10 +76,12 @@ green-ci-exclude:
   needs: []
   rules:
     - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
+  timeout: 10 minutes
   allow_failure: true
   variables:
     GIT_SUBMODULE_STRATEGY: none
     GIT_DEPTH: "1"
+    GREEN_CI_EXCLUDE_STRICT: "true"
   script:
     - .gitlab/tag-pipeline-green-ci-excluded.sh
 

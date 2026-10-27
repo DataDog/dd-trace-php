@@ -162,20 +162,7 @@ STEP;
     }
 
     // Green CI counts each child pipeline separately: tag every one, not just the root.
-    $result .= <<<'JOB'
-
-green-ci-exclude:
-  stage: .pre
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
-  tags: [ "arch:amd64" ]
-  allow_failure: true
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
-    GIT_DEPTH: "1"
-  script:
-    - .gitlab/tag-pipeline-green-ci-excluded.sh
-
-JOB;
+    $result .= file_get_contents(__DIR__ . '/green-ci-exclude-job.yml');
 
     echo $result;
 });

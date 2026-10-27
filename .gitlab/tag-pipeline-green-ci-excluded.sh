@@ -18,6 +18,14 @@ set -uo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
+# Strict in the allowed-to-fail green-ci-exclude jobs, so a failure shows as a warning;
+# lenient elsewhere (e.g. a before_script) so it never aborts the caller.
+fail() {
+  echo "WARNING: $1" >&2
+  [ "${GREEN_CI_EXCLUDE_STRICT:-}" = "true" ] && exit 1
+  exit 0
+}
+
 vault_path="/tmp/vault"
 # Extract with perl: the dd-octo-sts-ci-base image has no unzip.
 if [ ! -x "${vault_path}" ]; then
@@ -30,13 +38,10 @@ if [ ! -x "${vault_path}" ]; then
     && rm -f "${vault_path}.zip"
 fi
 
-DD_API_KEY="$("${vault_path}" kv get --format=json \
+api_key="$("${vault_path}" kv get --format=json \
   kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key 2>/dev/null | jq -r '.data.data.key // empty' 2>/dev/null)"
 
-if [ -z "${DD_API_KEY}" ]; then
-  echo "WARNING: could not fetch DD_API_KEY from Vault — skipping green_ci.excluded tag" >&2
-  exit 0
-fi
+[ -n "${api_key}" ] || fail "could not fetch the Datadog API key from Vault — skipping green_ci.excluded tag"
 
 export NVM_DIR="${HOME}/.nvm"
 if ! command -v npx &>/dev/null; then
@@ -48,12 +53,10 @@ fi
 
 npm install -g @datadog/datadog-ci >/dev/null 2>&1
 
-# The runner's own DD_TAGS would be merged into the pipeline tags.
+# datadog-ci prefers DATADOG_* over DD_*; the runner's own DD_TAGS would be merged into the tags.
 unset DD_TAGS
-DD_API_KEY="${DD_API_KEY}" DD_SITE="datadoghq.com" \
+DATADOG_API_KEY="${api_key}" DATADOG_SITE="datadoghq.com" \
   datadog-ci tag --level pipeline --tags "green_ci.excluded:true" \
-  || echo "WARNING: datadog-ci tag failed" >&2
-
-unset DD_API_KEY
+  || fail "datadog-ci tag failed"
 
 exit 0
