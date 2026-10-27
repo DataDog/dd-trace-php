@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Benchmarks\API;
 
+// The subjects warm up for 1000 calls, so that opcache's tracing JIT has compiled them before they
+// are timed. Each takes about 1µs, and with a single warmup call, compiling a subject's trace
+// (~100µs) can land in the 100 timed revs and add about 1µs per call. Whether it does depends on
+// which of the JIT's 128 shared hot counters a subject gets, and those are handed out in turn as
+// code is loaded. So adding a benchmark file or a composer package moved the extra ~1µs between
+// subjects, and check-big-regressions reported ±80% changes in code that hadn't changed.
 class ContextPropagationBench
 {
     public static $traceContext128Bit = [
@@ -36,7 +42,7 @@ class ContextPropagationBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
-     * @Warmup(1)
+     * @Warmup(1000)
      */
     public function benchExtractTraceContext128Bit()
     {
@@ -49,7 +55,7 @@ class ContextPropagationBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
-     * @Warmup(1)
+     * @Warmup(1000)
      */
     public function benchExtractTraceContext64Bit()
     {
@@ -62,7 +68,7 @@ class ContextPropagationBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
-     * @Warmup(1)
+     * @Warmup(1000)
      */
     public function benchExtractHeaders128Bit()
     {
@@ -75,7 +81,7 @@ class ContextPropagationBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
-     * @Warmup(1)
+     * @Warmup(1000)
      */
     public function benchExtractHeaders64Bit()
     {
@@ -88,7 +94,7 @@ class ContextPropagationBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp128BitContext")
-     * @Warmup(1)
+     * @Warmup(1000)
      */
     public function benchInject128Bit()
     {
@@ -101,7 +107,7 @@ class ContextPropagationBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp64BitContext")
-     * @Warmup(1)
+     * @Warmup(1000)
      */
     public function benchInject64Bit()
     {
