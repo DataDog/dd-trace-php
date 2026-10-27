@@ -24,7 +24,12 @@ $rr->clearDumpedData();
 
 // Without the setting the sidecar switches to v1 once its /info fetch completes (well within 3s).
 $v04 = $v1 = $roots = $empty = 0;
-for ($i = 0; $i < 30; $i++) {
+// Bounded by time, not count: a synchronous flush can take seconds on a loaded runner.
+// Run until a v0.4 request was seen and the /info window (~3s) has passed, capped at 40s.
+$start = microtime(true);
+while (true) {
+    $elapsed = microtime(true) - $start;
+    if ($elapsed >= 40 || ($v04 > 0 && $elapsed >= 3)) break;
     $s = \DDTrace\start_span();
     $s->name = "root";
     $s->attributes['empty'] = [];
