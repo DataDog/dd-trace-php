@@ -36,9 +36,29 @@ class KafkaTest extends IntegrationTestCase
         $topicLowLevel = $producer->newTopic('test-lowlevel', $topicConf);
         $topicHighLevel = $producer->newTopic('test-highlevel', $topicConf);
         $topicDsm = $producer->newTopic('test-dsm', $topicConf);
+        $topicClusterId = $producer->newTopic('test-cluster-id', $topicConf);
         $producer->getMetadata(false, $topicLowLevel, 5000);
         $producer->getMetadata(false, $topicHighLevel, 5000);
         $producer->getMetadata(false, $topicDsm, 5000);
+        $producer->getMetadata(false, $topicClusterId, 5000);
+    }
+
+    /**
+     * librdkafka has the cluster id once a client has had a metadata response. Delivery reports
+     * and offset commit callbacks only come after one, so the integration's backlogs carry it.
+     */
+    public function testClusterId()
+    {
+        $output = $this->executeCli(__DIR__ . '/scripts/cluster-id.php', [], [], 'test-cluster-id', true);
+
+        $this->assertRegularExpression("/^unreachable producer: NULL$/m", $output);
+        $this->assertRegularExpression("/^delivery report: '[A-Za-z0-9_-]+'$/m", $output);
+        preg_match("/^delivery report: ('[A-Za-z0-9_-]+')$/m", $output, $matches);
+        foreach (['flushed producer', 'low-level consumer', 'consumer', 'offset commit callback'] as $client) {
+            $this->assertRegularExpression('/^' . $client . ': ' . preg_quote($matches[1], '/') . '$/m', $output);
+        }
+        $this->assertRegularExpression("/^closed consumer: NULL$/m", $output);
+        $this->assertRegularExpression("/^other object: NULL$/m", $output);
     }
 
     /**

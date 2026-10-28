@@ -273,14 +273,14 @@ class KafkaIntegration extends Integration
     public static function trackProduceOffsets($callback)
     {
         return static function (...$args) use ($callback) {
-            $message = $args[1] ?? null;
+            list($kafka, $message) = $args + [null, null];
             if ($message instanceof \RdKafka\Message && $message->err === RD_KAFKA_RESP_ERR_NO_ERROR) {
                 try {
-                    \DDTrace\Internal\dsm_track_backlog([
+                    \DDTrace\Internal\dsm_track_backlog(array_merge([
                         'topic:' . $message->topic_name,
                         'type:kafka_produce',
                         'partition:' . $message->partition,
-                    ], $message->offset);
+                    ], self::clusterIdTags($kafka)), $message->offset);
                 } catch (\Throwable $e) {
                 }
             }
@@ -299,17 +299,18 @@ class KafkaIntegration extends Integration
                 try {
                     $conf = $kafka ? ObjectKVStore::get($kafka, 'conf') : null;
                     $group = 'consumer_group:' . ($conf['group.id'] ?? '');
+                    $cluster = self::clusterIdTags($kafka);
                     foreach ($partitions as $partition) {
                         if (!$partition instanceof \RdKafka\TopicPartition
                                 || (method_exists($partition, 'getErr') && $partition->getErr())) {
                             continue;
                         }
-                        \DDTrace\Internal\dsm_track_backlog([
+                        \DDTrace\Internal\dsm_track_backlog(array_merge([
                             'topic:' . $partition->getTopic(),
                             'type:kafka_commit',
                             $group,
                             'partition:' . $partition->getPartition(),
-                        ], $partition->getOffset());
+                        ], $cluster), $partition->getOffset());
                     }
                 } catch (\Throwable $e) {
                 }
@@ -318,6 +319,16 @@ class KafkaIntegration extends Integration
                 return $callback(...$args);
             }
         };
+    }
+
+    /**
+     * The tag naming the cluster `$kafka` is connected to, from librdkafka's last metadata
+     * response. Delivery reports and commits only come after one, so callbacks always have it.
+     */
+    private static function clusterIdTags($kafka): array
+    {
+        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka);
+        return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
     }
 
     private static function addMetadataToSpan($span, $conf)

@@ -3,6 +3,7 @@
 #include "configuration.h"
 #include "data_streams.h"
 #include "ddtrace.h"
+#include "handlers_kafka.h"
 #include <ext/handlers_api.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
@@ -14,6 +15,67 @@ static bool dd_ext_kafka_loaded = false;
 static uint32_t opaque_param = 0;
 
 static zif_handler dd_kafka_produce_handler = NULL;
+
+// librdkafka's, set only where dd_rdkafka_handle() can read php-rdkafka's objects
+static char *(*dd_rd_kafka_clusterid)(void *rk, int timeout_ms) = NULL;
+static void (*dd_rd_kafka_mem_free)(void *rk, void *ptr) = NULL;
+static zend_class_entry *dd_rdkafka_ce = NULL;
+static zend_class_entry *dd_rdkafka_kafka_consumer_ce = NULL;
+
+/* php-rdkafka keeps a client's rd_kafka_t in a struct that ends with the zend_object, at the offset
+ * its handlers give: a kafka_object for RdKafka\Producer and RdKafka\Consumer, where it follows an
+ * rd_kafka_type_t, and an object_intern for RdKafka\KafkaConsumer, where it comes first. Both are
+ * the same from php-rdkafka 6.0.0 to 7.x (php_rdkafka.h, kafka_consumer.c). The handle is NULL
+ * before the constructor has run and after KafkaConsumer::close(). */
+struct dd_rdkafka_kafka_object {
+    int type;
+    void *rk;
+};
+
+static void *dd_rdkafka_handle(zend_object *kafka) {
+    char *intern = (char *)kafka - kafka->handlers->offset;
+    if (instanceof_function(kafka->ce, dd_rdkafka_kafka_consumer_ce)) {
+        return kafka->handlers->offset >= sizeof(void *) ? *(void **)intern : NULL;
+    }
+    if (instanceof_function(kafka->ce, dd_rdkafka_ce)) {
+        return kafka->handlers->offset >= sizeof(struct dd_rdkafka_kafka_object)
+                   ? ((struct dd_rdkafka_kafka_object *)intern)->rk
+                   : NULL;
+    }
+    return NULL;
+}
+
+zend_string *ddtrace_kafka_cluster_id(zend_object *kafka) {
+    void *rk;
+    if (!dd_rd_kafka_clusterid || !(rk = dd_rdkafka_handle(kafka))) {
+        return NULL;
+    }
+
+    // Without a timeout, librdkafka returns the id it has without waiting for a metadata response
+    char *cluster_id = dd_rd_kafka_clusterid(rk, 0);
+    if (!cluster_id) {
+        return NULL;
+    }
+    zend_string *str = zend_string_init(cluster_id, strlen(cluster_id), 0);
+    dd_rd_kafka_mem_free(rk, cluster_id);
+    return str;
+}
+
+static void dd_kafka_cluster_id_startup(zend_module_entry *rdkafka_me) {
+    // dd_rdkafka_handle() knows the objects of php-rdkafka 6 and 7 only
+    if (!rdkafka_me || !rdkafka_me->handle || (rdkafka_me->version[0] != '6' && rdkafka_me->version[0] != '7') ||
+        rdkafka_me->version[1] != '.') {
+        return;
+    }
+
+    dd_rdkafka_ce = zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("rdkafka"));
+    dd_rdkafka_kafka_consumer_ce = zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("rdkafka\\kafkaconsumer"));
+    // php-rdkafka loads librdkafka, so its handle resolves librdkafka's symbols too
+    dd_rd_kafka_mem_free = (void (*)(void *, void *))DL_FETCH_SYMBOL(rdkafka_me->handle, "rd_kafka_mem_free");
+    if (dd_rdkafka_ce && dd_rdkafka_kafka_consumer_ce && dd_rd_kafka_mem_free) {
+        dd_rd_kafka_clusterid = (char *(*)(void *, int))DL_FETCH_SYMBOL(rdkafka_me->handle, "rd_kafka_clusterid");
+    }
+}
 
 static bool rdkafka_version_supported(void) {
     zend_module_entry *rdkafka_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("rdkafka"));
@@ -86,6 +148,8 @@ void ddtrace_kafka_handlers_startup(void) {
     if (!dd_ext_kafka_loaded) {
         return;
     }
+
+    dd_kafka_cluster_id_startup(zend_hash_str_find_ptr(&module_registry, ZEND_STRL("rdkafka")));
 
     zend_class_entry* producer_topic_ce = zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("rdkafka\\producertopic"));
     if (!producer_topic_ce || !zend_hash_str_exists(&producer_topic_ce->function_table, ZEND_STRL("producev"))) {

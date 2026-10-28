@@ -9,6 +9,7 @@
 #include "data_streams.h"
 #include "ffe.h"
 #include "handlers_exception.h"
+#include "handlers_kafka.h"
 #include "memory_limit.h"
 #ifdef __linux__
 #include "otel_context.h"
@@ -3007,6 +3008,20 @@ PHP_FUNCTION(DDTrace_Internal_dsm_pop_pathway) {
     ZEND_PARSE_PARAMETERS_NONE();
 
     ddtrace_dsm_pop_pathway();
+}
+
+PHP_FUNCTION(DDTrace_Internal_kafka_cluster_id) {
+    zval *kafka;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(kafka)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_string *cluster_id = Z_TYPE_P(kafka) == IS_OBJECT ? ddtrace_kafka_cluster_id(Z_OBJ_P(kafka)) : NULL;
+    if (cluster_id) {
+        RETURN_STR(cluster_id);
+    }
+    RETURN_NULL();
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

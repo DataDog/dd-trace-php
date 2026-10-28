@@ -1143,6 +1143,18 @@ namespace DDTrace\Internal {
      */
     function dsm_pop_pathway(): void {}
 
+    /**
+     * The id of the Kafka cluster a php-rdkafka client is connected to, as librdkafka has it from
+     * the client's last metadata response; it does not wait for one.
+     *
+     * @internal
+     *
+     * @param mixed $kafka an RdKafka\Producer, RdKafka\Consumer or RdKafka\KafkaConsumer
+     * @return string|null the cluster id, or null if the client has had no metadata response yet,
+     *                     the broker sends no id, or the id cannot be read from `$kafka`
+     */
+    function kafka_cluster_id(mixed $kafka): ?string {}
+
 }
 
 namespace datadog\appsec\v2 {

@@ -284,6 +284,10 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_dsm_pop_pathway arginfo_DDTrace_flush
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_kafka_cluster_id, 0, 1, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, kafka, IS_MIXED, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datadog_appsec_v2_track_user_login_success, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, login, IS_STRING, 0)
 	ZEND_ARG_TYPE_MASK(0, user, MAY_BE_STRING|MAY_BE_ARRAY|MAY_BE_NULL, "null")
@@ -475,6 +479,7 @@ ZEND_FUNCTION(DDTrace_Internal_dsm_set_checkpoint);
 ZEND_FUNCTION(DDTrace_Internal_dsm_track_backlog);
 ZEND_FUNCTION(DDTrace_Internal_dsm_push_pathway);
 ZEND_FUNCTION(DDTrace_Internal_dsm_pop_pathway);
+ZEND_FUNCTION(DDTrace_Internal_kafka_cluster_id);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_success);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_failure);
 ZEND_FUNCTION(dd_trace_env_config);
@@ -582,6 +587,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_track_backlog"), zif_DDTrace_Internal_dsm_track_backlog, arginfo_DDTrace_Internal_dsm_track_backlog, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_push_pathway"), zif_DDTrace_Internal_dsm_push_pathway, arginfo_DDTrace_Internal_dsm_push_pathway, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_pop_pathway"), zif_DDTrace_Internal_dsm_pop_pathway, arginfo_DDTrace_Internal_dsm_pop_pathway, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "kafka_cluster_id"), zif_DDTrace_Internal_kafka_cluster_id, arginfo_DDTrace_Internal_kafka_cluster_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_success"), zif_datadog_appsec_v2_track_user_login_success, arginfo_datadog_appsec_v2_track_user_login_success, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_failure"), zif_datadog_appsec_v2_track_user_login_failure, arginfo_datadog_appsec_v2_track_user_login_failure, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
