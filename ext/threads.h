@@ -10,6 +10,18 @@
 extern HashTable datadog_tls_bases;
 extern MUTEX_T datadog_threads_mutex;
 
+#ifdef _WIN32
+typedef int datadog_threads_lock_state;
+#else
+#include <signal.h>
+typedef sigset_t datadog_threads_lock_state;
+#endif
+
+// Locks datadog_threads_mutex with the remote config signal blocked: its handler takes the lock too
+void datadog_threads_lock(datadog_threads_lock_state *state);
+bool datadog_threads_trylock(datadog_threads_lock_state *state);
+void datadog_threads_unlock(datadog_threads_lock_state *state);
+
 void datadog_thread_ginit(void);
 void datadog_thread_gshutdown(void);
 #else

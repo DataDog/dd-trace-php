@@ -5,5 +5,5 @@ datadog_sidecar_send_appsec_message_without_reconnect
 ddog_sidecar_appsec_response_drop
 ddog_appsec_parse_json
 ddog_appsec_parse_xml
-ddog_appsec_body_tape_drop
+ddog_appsec_body_msgpack_drop
 datadog_sidecar_crash_fd

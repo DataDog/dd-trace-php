@@ -28,13 +28,14 @@ static bool dd_block_signal(void) {
         return false;
     }
 
-    sigset_t x, old;
+    sigset_t x;
     sigemptyset(&x);
     sigaddset(&x, SIGVTALRM);
-    sigprocmask(SIG_BLOCK, &x, &old);
-    // Do not unblock it if it was blocked by someone else
-    dd_signal_blocked = !sigismember(&old, SIGVTALRM);
-    return dd_signal_blocked;
+    sigprocmask(SIG_BLOCK, &x, NULL);
+    // Always unblock afterwards, even if it was blocked before: threaded SAPIs (e.g. the apache worker and event MPMs)
+    // start their threads with all signals blocked, which would leave the remote config notifications blocked for good.
+    dd_signal_blocked = true;
+    return true;
 }
 
 static void dd_unblock_signal_now(void) {
