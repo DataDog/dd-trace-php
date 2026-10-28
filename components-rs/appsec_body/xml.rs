@@ -34,19 +34,9 @@ pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyMessagePack {
         Cow::Borrowed(input)
     };
     let input = normalized.as_ref();
-    let mut parser = XmlParser {
-        writer: MsgpackWriter::default(),
-        max_depth,
-        depth: 0,
-        suppressed: 0,
-        root_seen: false,
-        text: Vec::new(),
-        dtd: Dtd::default(),
-        active_entities: HashSet::new(),
-        expansion_budget: input.len().saturating_mul(4).max(MIN_EXPANSION_BUDGET),
-    };
-    let complete =
-        parser.read(input, true) && valid_utf8 && parser.depth == 0 && parser.suppressed == 0;
+    let mut parser = XmlParser::new(input, max_depth);
+    let complete = parser.read(input, true);
+    let complete = complete && valid_utf8 && parser.depth == 0 && parser.suppressed == 0;
     parser.flush_text();
     parser.writer.finish(complete)
 }
@@ -66,6 +56,20 @@ struct XmlParser {
 }
 
 impl XmlParser {
+    fn new(input: &[u8], max_depth: u32) -> Self {
+        XmlParser {
+            writer: MsgpackWriter::default(),
+            max_depth,
+            depth: 0,
+            suppressed: 0,
+            root_seen: false,
+            text: Vec::new(),
+            dtd: Dtd::default(),
+            active_entities: HashSet::new(),
+            expansion_budget: input.len().saturating_mul(4).max(MIN_EXPANSION_BUDGET),
+        }
+    }
+
     fn read(&mut self, input: &[u8], document: bool) -> bool {
         let mut reader = Reader::from_reader(input);
         reader.config_mut().check_end_names = false;
