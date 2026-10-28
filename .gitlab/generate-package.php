@@ -76,6 +76,19 @@ function package_extension_jobs(array $platform, string $kind = "all"): array
     return $jobs;
 }
 
+/**
+ * Emits a job script step that runs each listed system-tests scenario in sequence.
+ * Every scenario runs even when an earlier one fails; the step then fails, listing the failed scenarios.
+ *
+ * @param string $scenarios Shell words expanding to the scenario names: a variable reference such as '$TESTSUITE', or literal names.
+ */
+function system_tests_run_scenarios(string $scenarios): void
+{
+?>
+    - FAILED=""; for S in <?= $scenarios ?>; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+<?php
+}
+
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
@@ -1555,7 +1568,7 @@ endforeach;
         - CROSSED_TRACING_LIBRARIES
         - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_EXPRESSION_LANGUAGE DEBUGGER_INPRODUCT_ENABLEMENT"
   script:
-    - FAILED=""; for S in $TESTSUITE; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+<?php system_tests_run_scenarios('$TESTSUITE') ?>
 
 "System Tests: [php-fpm-8.5, default]":
   extends: .system_tests
@@ -1580,14 +1593,14 @@ endforeach;
         - CROSSED_TRACING_LIBRARIES
         - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_TELEMETRY DEBUGGER_EXCEPTION_REPLAY"
   script:
-    - FAILED=""; for S in $TESTSUITE; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+<?php system_tests_run_scenarios('$TESTSUITE') ?>
 
 "System Tests: [apache-mod-8.0-zts, debugger]":
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i weblog -w apache-mod-8.0-zts php"
   script:
-    - FAILED=""; for S in DEBUGGER_PROBES_SNAPSHOT DEBUGGER_PII_REDACTION; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+<?php system_tests_run_scenarios('DEBUGGER_PROBES_SNAPSHOT DEBUGGER_PII_REDACTION') ?>
 
 <?php
 $system_tests_weblogs = [
@@ -1651,7 +1664,7 @@ foreach ($system_tests_durations as $scenario => $seconds) {
     # Run this shard's packed scenarios that system-tests still lists, plus every CI_NODE_TOTAL-th (hash order) of those the durations file lacks.
     - SCENARIOS=$(echo $SCENARIOS | python3 -c "import os,sys;n=int(os.environ['CI_NODE_TOTAL']);k=int(os.environ['CI_NODE_INDEX']);p=[os.environ.get(f'SHARD_{i}_SCENARIOS','').split() for i in range(1,n+1)];known={s for x in p for s in x};a=sys.stdin.read().split();print(' '.join([s for s in a if s in p[k-1]]+[s for s in a if s not in known][k-1::n]))")
     - echo "Shard $CI_NODE_INDEX/$CI_NODE_TOTAL scenarios:" $SCENARIOS
-    - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+<?php system_tests_run_scenarios('$SCENARIOS') ?>
 
 <?php endforeach; ?>
 # THREAD_CONTEXT_SHARING needs CWS, which needs the kernel filesystems and the
