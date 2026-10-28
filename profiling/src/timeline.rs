@@ -6,7 +6,6 @@ use crate::profiling::zend::{
 };
 use crate::profiling::{RefCellExt, RequestLocals, SAPI};
 use libc::c_char;
-use libdd_common::cstr;
 use log::{error, trace};
 use std::cell::RefCell;
 use std::ptr;
@@ -370,49 +369,49 @@ pub fn timeline_minit() {
 pub unsafe fn timeline_startup() {
     let handlers = [
         zend::datadog_php_zif_handler::new(
-            cstr!("sleep"),
+            c"sleep",
             ptr::addr_of_mut!(SLEEP_HANDLER),
             Some(ddog_php_prof_sleep),
         ),
         zend::datadog_php_zif_handler::new(
-            cstr!("usleep"),
+            c"usleep",
             ptr::addr_of_mut!(USLEEP_HANDLER),
             Some(ddog_php_prof_usleep),
         ),
         zend::datadog_php_zif_handler::new(
-            cstr!("time_nanosleep"),
+            c"time_nanosleep",
             ptr::addr_of_mut!(TIME_NANOSLEEP_HANDLER),
             Some(ddog_php_prof_time_nanosleep),
         ),
         zend::datadog_php_zif_handler::new(
-            cstr!("time_sleep_until"),
+            c"time_sleep_until",
             ptr::addr_of_mut!(TIME_SLEEP_UNTIL_HANDLER),
             Some(ddog_php_prof_time_sleep_until),
         ),
         zend::datadog_php_zif_handler::new(
-            cstr!("stream_select"),
+            c"stream_select",
             ptr::addr_of_mut!(STREAM_SELECT_HANDLER),
             Some(ddog_php_prof_stream_select),
         ),
         zend::datadog_php_zif_handler::new(
-            cstr!("socket_select"),
+            c"socket_select",
             ptr::addr_of_mut!(SOCKET_SELECT_HANDLER),
             Some(ddog_php_prof_socket_select),
         ),
         zend::datadog_php_zif_handler::new(
-            cstr!("curl_multi_select"),
+            c"curl_multi_select",
             ptr::addr_of_mut!(CURL_MULTI_SELECT_HANDLER),
             Some(ddog_php_prof_curl_multi_select),
         ),
         // provided by `ext-uv` from https://pecl.php.net/package/uv
         zend::datadog_php_zif_handler::new(
-            cstr!("uv_run"),
+            c"uv_run",
             ptr::addr_of_mut!(UV_RUN_HANDLER),
             Some(ddog_php_prof_uv_run),
         ),
         // provided by `ext-libevent` from https://pecl.php.net/package/libevent
         zend::datadog_php_zif_handler::new(
-            cstr!("event_base_loop"),
+            c"event_base_loop",
             ptr::addr_of_mut!(EVENT_BASE_LOOP_HANDLER),
             Some(ddog_php_prof_event_base_loop),
         ),
@@ -426,22 +425,22 @@ pub unsafe fn timeline_startup() {
     let handlers = [
         // provided by `ext-ev` from https://pecl.php.net/package/ev
         zend::datadog_php_zim_handler::new(
-            cstr!("evloop"),
-            cstr!("run"),
+            c"evloop",
+            c"run",
             ptr::addr_of_mut!(EV_LOOP_RUN_HANDLER),
             Some(ddog_php_prof_ev_loop_run),
         ),
         // provided by `ext-event` from https://pecl.php.net/package/event
         zend::datadog_php_zim_handler::new(
-            cstr!("eventbase"),
-            cstr!("loop"),
+            c"eventbase",
+            c"loop",
             ptr::addr_of_mut!(EVENTBASE_LOOP_HANDLER),
             Some(ddog_php_prof_eventbase_loop),
         ),
         // provided by `ext-parallel` from https://pecl.php.net/package/parallel
         zend::datadog_php_zim_handler::new(
-            cstr!("parallel\\events"),
-            cstr!("poll"),
+            c"parallel\\events",
+            c"poll",
             ptr::addr_of_mut!(PARALLEL_EVENTS_POLL_HANDLER),
             Some(ddog_php_prof_parallel_events_poll),
         ),
