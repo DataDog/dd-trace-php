@@ -61,7 +61,7 @@ class WordPress48Tests extends AbstractWordPressAppsecTests {
                     phpVersion: phpVersion,
                     phpVariant: variant,
                     www: '../../../tests/Frameworks/WordPress/Version_4_8',
-            ).withNetwork(network) as AppSecContainer
+            ).withNetwork(network).dependsOn(MYSQL) as AppSecContainer
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER, MYSQL)
@@ -69,6 +69,6 @@ class WordPress48Tests extends AbstractWordPressAppsecTests {
 
     @BeforeAll
     static void setup() {
-        installWordPress(CONTAINER, MYSQL)
+        installWordPress(CONTAINER)
     }
 }
