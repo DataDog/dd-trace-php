@@ -6,6 +6,10 @@ import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.testcontainers.containers.MySQLContainer
+import org.testcontainers.containers.Network
+import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.utility.DockerImageName
 
 import java.net.http.HttpResponse
 
@@ -23,6 +27,30 @@ abstract class AbstractWordPressAppsecTests {
 
     AppSecContainer getContainer() {
         getClass().CONTAINER
+    }
+
+    /**
+     * MySQL container for a WordPress suite, reachable from the AppSec
+     * container as {@code mysql-integration} on {@code network}.
+     *
+     * @param mysqlVersion image tag of {@code library/mysql}, e.g. {@code 8.0}
+     * @param databaseName database created for this suite (and used by its
+     *        fixture's {@code wp-config.php})
+     */
+    protected static MySQLContainer newMysqlContainer(Network network, String mysqlVersion, String databaseName) {
+        new MySQLContainer(
+                DockerImageName.parse("${System.getProperty('DOCKER_MIRROR') ?: 'docker.io'}/library/mysql:${mysqlVersion}")
+                        .asCompatibleSubstituteFor('mysql'))
+                .withDatabaseName(databaseName)
+                .withUsername('test')
+                .withPassword('test')
+                .withNetwork(network)
+                .withNetworkAliases('mysql-integration')
+                // Wait for the SECOND "ready for connections": the mysql image boots an
+                // init-only --skip-networking server first, emits the message, shuts down,
+                // then starts the real networked server. Waiting once can race wp-cli into
+                // the gap between the two.
+                .waitingFor(Wait.forLogMessage(".*ready for connections.*", 2)) as MySQLContainer
     }
 
     /**
