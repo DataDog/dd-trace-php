@@ -30,7 +30,9 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 uint64_t dd_find_lowest_deadline_timer(void) {
     uint64_t usec = 0;
     uint64_t next_deadline = ~0ull;
-    tsrm_mutex_lock(datadog_threads_mutex);
+    // Not called from the signal handler: the timer may fire while holding the lock
+    datadog_threads_lock_state state;
+    datadog_threads_lock(&state);
     void *TSRMLS_CACHE;
     ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
         uint64_t deadline = DDTRACE_G(capture_deadline_ns);
@@ -38,7 +40,7 @@ uint64_t dd_find_lowest_deadline_timer(void) {
             next_deadline = MIN(deadline, next_deadline);
         }
     } ZEND_HASH_FOREACH_END();
-    tsrm_mutex_unlock(datadog_threads_mutex);
+    datadog_threads_unlock(&state);
     if (next_deadline != ~0ull) {
         struct timespec now;
         clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);

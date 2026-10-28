@@ -606,7 +606,8 @@ static void dd_sidecar_close_thread_transport_fds(void *tsrm_ls) {
 // their GSHUTDOWN must not drop them.
 static void dd_sidecar_close_inherited_thread_transports(void) {
     // A thread which held the lock during the fork will never release it: rather leak than hang.
-    if (!datadog_threads_mutex || pthread_mutex_trylock(datadog_threads_mutex) != 0) {
+    datadog_threads_lock_state state;
+    if (!datadog_threads_mutex || !datadog_threads_trylock(&state)) {
         return;
     }
     void *tsrm_ls;
@@ -615,7 +616,7 @@ static void dd_sidecar_close_inherited_thread_transports(void) {
             dd_sidecar_close_thread_transport_fds(tsrm_ls);
         }
     } ZEND_HASH_FOREACH_END();
-    pthread_mutex_unlock(datadog_threads_mutex);
+    datadog_threads_unlock(&state);
 }
 #endif
 
