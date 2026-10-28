@@ -1,7 +1,5 @@
 --TEST--
 By default DD_APPSEC_MAX_STACK_TRACE_DEPTH is 32
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 

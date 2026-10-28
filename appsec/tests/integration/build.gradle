@@ -153,6 +153,22 @@ task downloadComposer(type: Download) {
     }
 }
 
+// Modification times (ms) of files in a volume, or null if any is missing
+def volumeFileTimes = { String volumeName, List files ->
+    Process proc = ['docker', 'run', '--rm', '--mount',
+                    "type=volume,src=$volumeName,dst=/vol",
+                    "$dockerMirror/library/busybox", 'sh', '-c',
+                    "stat -c %Y ${files.collect { "'/vol/$it'" }.join(' ')}"]
+            .execute()
+
+    proc.waitForOrKill(5_000)
+    if (proc.exitValue() != 0) {
+        return null
+    }
+    def times = proc.text.readLines()*.trim().findAll { it }.collect { it.toLong() * 1000 }
+    times.size() == files.size() ? times : null
+}
+
 def buildRunInDockerTask = { Map options ->
     String baseName = options.get('baseName')
     def version = options.get('version')
@@ -183,13 +199,6 @@ def buildRunInDockerTask = { Map options ->
         def volName = "php-tracer-${version}-${variant}"
         volumes[volName] = [
                 mountPoint: '/project/tmp',
-                task: createVolumeTask(volName),
-        ]
-    }
-    if (hasVersionVariant && options.get('needsAppsec', true)) {
-        def volName = "php-appsec-${version}-${variant}"
-        volumes[volName] = [
-                mountPoint: '/appsec',
                 task: createVolumeTask(volName),
         ]
     }
@@ -262,21 +271,11 @@ def buildRunInDockerTask = { Map options ->
                 String volumeName = hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']
                 def files = options['outputs']['files']
                 outputs.upToDateWhen {
-                    Process proc = ['docker', 'run', '--rm', '--mount',
-                                    "type=volume,src=$volumeName,dst=/vol",
-                                    "$dockerMirror/library/busybox", 'sh', '-c',
-                                    "stat -c %Y ${files.collect { "'/vol/$it'" }.join(' ')} 2>/dev/null | sort -n | head -1"]
-                            .execute()
-
-                    proc.waitForOrKill(5_000)
-                    if (proc.exitValue() != 0) {
+                    def outputTimes = volumeFileTimes(volumeName, files)
+                    if (!outputTimes) {
                         return false
                     }
-                    def procOutput = proc.text.trim()
-                    if (procOutput == '') {
-                        return false
-                    }
-                    long outputsTime = procOutput.toLong() * 1000
+                    long outputsTime = outputTimes.min()
                     long latestInputDate =
                             inputs.files.collect { it.lastModified() }.max()
                     if (latestInputDate > outputsTime) {
@@ -285,6 +284,29 @@ def buildRunInDockerTask = { Map options ->
 
                     long imageTime = creationDateOf(imageName)
                     imageTime < outputsTime
+                }
+            }
+
+            // Gradle can't fingerprint files in volumes (e.g. a library built
+            // by another task): the task is out of date when one of them is
+            // newer than the oldest output.
+            def volumeInputs = volumes.findAll { name, spec -> spec['inputFiles'] }
+            if (volumeInputs) {
+                String outputVolume = options['outputs'] ?
+                        (hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']) :
+                        null
+                outputs.upToDateWhen {
+                    def outputTimes = outputVolume ?
+                            volumeFileTimes(outputVolume, options['outputs']['files']) :
+                            outputFiles.collect { file(it) }.findAll { it.exists() }*.lastModified()
+                    if (!outputTimes || (!outputVolume && outputTimes.size() != outputFiles.size())) {
+                        return false
+                    }
+                    long outputsTime = outputTimes.min()
+                    volumeInputs.every { name, spec ->
+                        def inputTimes = volumeFileTimes(name, spec['inputFiles'])
+                        inputTimes != null && inputTimes.max() <= outputsTime
+                    }
                 }
             }
 
@@ -359,13 +381,15 @@ def buildTracerTask = { String version, String variant ->
             version: version,
             variant: variant,
             needsTracer: false,
-            needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
             description: 'Build portable tracer extension for PHP',
             inputs: [
                     dirs: [
                             '../../../ext',
+                            '../../../m4',
+                            '../../src',
+                            '../../../src/dogstatsd',
                             '../../../tracer',
                             '../../../components',
                             '../../../components-rs',
@@ -384,7 +408,6 @@ def buildTracerTask = { String version, String variant ->
                             '../../../config.m4',
                             '../../../ddtrace-extension-linux.sym',
                             '../../../ddtrace-extension.sym',
-                            '../../../profiling/build.rs',
                             '../../recommended.json',
                     ],
             ],
@@ -402,6 +425,7 @@ def buildTracerTask = { String version, String variant ->
                     'php-portable-libdatadog-php': [
                             mountPoint: '/portable-rust',
                             readonly: true,
+                            inputFiles: ['libdatadog_php.a', 'php_sidecar_mockgen'],
                     ],
             ],
             taskDependencies: ['buildPortableLibdatadogPhp'],
@@ -413,10 +437,17 @@ def buildTracerTask = { String version, String variant ->
                     PHPRC= \\
                         PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
                         EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
-                        EXTRA_CONFIGURE_OPTIONS="--with-ddtrace-rust-library=/portable-rust/libdatadog_php.a \\
+                        EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-appsec \\
+                            --with-ddtrace-rust-library=/portable-rust/libdatadog_php.a \\
                             --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
                         make /project/tmp/build_extension/modules/ddtrace.so
                     TRACER=/project/tmp/build_extension/modules/ddtrace.so
+                    # The musl tests reuse this glibc build
+                    versionInfo=\$(readelf --version-info "\$TRACER")
+                    if grep -q 'GLIBC_' <<< "\$versionInfo"; then
+                        echo 'ddtrace.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
                     mkdir -p /tracer/build_extension/modules
                     cp "\$TRACER" \
                         /tracer/build_extension/modules/ddtrace.so
@@ -434,13 +465,14 @@ def buildTracerCmakeTask = { String version, String variant ->
             version: version,
             variant: variant,
             needsTracer: false,
-            needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
             description: 'Build tracer for PHP (cmake)',
             inputs: [
                     dirs: [
                             '../../../ext',
+                            '../../src',
+                            '../../../src/dogstatsd',
                             '../../../tracer',
                             '../../../components',
                             '../../../components-rs',
@@ -459,9 +491,8 @@ def buildTracerCmakeTask = { String version, String variant ->
                             '../../../compile_rust.sh',
                             '../../../ddtrace-extension-linux.sym',
                             '../../../ddtrace-extension.sym',
-                            '../../../profiling/build.rs',
                             '../../CMakeLists.txt',
-                            '../../cmake/ddtrace.cmake',
+                            '../../third_party/CMakeLists.txt',
                             '../../recommended.json',
                     ],
             ],
@@ -479,6 +510,7 @@ def buildTracerCmakeTask = { String version, String variant ->
                     'php-portable-libdatadog-php': [
                             mountPoint: '/portable-rust',
                             readonly: true,
+                            inputFiles: ['libdatadog_php.a', 'php_sidecar_mockgen'],
                     ],
             ],
             taskDependencies: ['buildPortableLibdatadogPhp'],
@@ -491,12 +523,17 @@ def buildTracerCmakeTask = { String version, String variant ->
                     cmake -DCMAKE_BUILD_TYPE=${buildType} \\
                           -DCMAKE_C_FLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
                           -DDD_APPSEC_DDTRACE_ALT=ON \\
-                          -DDD_APPSEC_BUILD_EXTENSION=OFF \\
                           -DDD_APPSEC_TESTING=OFF \\
                           -DDD_APPSEC_LIBDATADOG_PHP=/portable-rust/libdatadog_php.a \\
                           -DDD_APPSEC_PHP_SIDECAR_MOCKGEN=/portable-rust/php_sidecar_mockgen \\
                           /project/appsec
                     make -j ddtrace
+                    # The musl tests reuse this glibc build
+                    versionInfo=\$(readelf --version-info ddtrace.so)
+                    if grep -q 'GLIBC_' <<< "\$versionInfo"; then
+                        echo 'ddtrace.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
                     mkdir -p /tracer/build_extension/modules
                     cp ddtrace.so /tracer/build_extension/modules/ddtrace.so
                     touch /tracer/build_extension/modules/ddtrace.so
@@ -514,6 +551,7 @@ def buildTracerSsiTask = { String version, String variant ->
             'php-portable-libdatadog-php': [
                     mountPoint: '/portable-rust',
                     readonly: true,
+                    inputFiles: ['libdatadog_php.so', 'php_sidecar_mockgen'],
             ],
     ]
 
@@ -523,7 +561,6 @@ def buildTracerSsiTask = { String version, String variant ->
             version: version,
             variant: variant,
             needsTracer: false,
-            needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
             description: 'Build tracer in SSI split configuration for PHP',
@@ -531,6 +568,7 @@ def buildTracerSsiTask = { String version, String variant ->
                     dirs: [
                             '../../../components',
                             '../../../ext',
+                            '../../src',
                             '../../../m4',
                             '../../../src/dogstatsd',
                             '../../../tracer',
@@ -567,7 +605,8 @@ def buildTracerSsiTask = { String version, String variant ->
                     PHPRC= \\
                         PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
                         EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
-                        EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-rust-library-split \\
+                        EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-appsec \\
+                            --enable-ddtrace-rust-library-split \\
                             --with-ddtrace-rust-library=/portable-rust/libdatadog_php.so \\
                             --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
                         make /project/tmp/build_extension/modules/ddtrace.so
@@ -621,13 +660,14 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
             version: version,
             variant: variant,
             needsTracer: false,
-            needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
             description: 'Build tracer in SSI split configuration for PHP (cmake)',
             inputs: [
                     dirs: [
                             '../../../ext',
+                            '../../src',
+                            '../../../src/dogstatsd',
                             '../../../tracer',
                             '../../../components',
                             '../../../components-rs',
@@ -666,6 +706,7 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                     'php-portable-libdatadog-php': [
                             mountPoint: '/portable-rust',
                             readonly: true,
+                            inputFiles: ['libdatadog_php.so', 'php_sidecar_mockgen'],
                     ],
             ],
             taskDependencies: ['buildPortableLibdatadogPhp'],
@@ -678,7 +719,6 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                           -DCMAKE_C_FLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
                           -DDD_APPSEC_DDTRACE_ALT=ON \\
                           -DDD_APPSEC_SSI=ON \\
-                          -DDD_APPSEC_BUILD_EXTENSION=OFF \\
                           -DDD_APPSEC_TESTING=OFF \\
                           -DDD_APPSEC_LIBDATADOG_PHP=/portable-rust/libdatadog_php.so \\
                           -DDD_APPSEC_PHP_SIDECAR_MOCKGEN=/portable-rust/php_sidecar_mockgen \\
@@ -719,10 +759,14 @@ def buildCoverageReportTask = {
             description: "Generate helper-rust coverage for $id",
             needsBoostCache: false,
             needsCargoCache: false,
+            inputs: [
+                    dirs: ['../../helper-rust/src'],
+            ],
             volumes: [
                     'php-portable-libdatadog-php': [
                             mountPoint: '/portable-rust',
                             readonly: true,
+                            inputFiles: ['libdatadog_php.so'],
                     ],
             ],
             taskDependencies: ['buildPortableLibdatadogPhp'],
@@ -774,7 +818,6 @@ def buildLoaderTask = { String version, String variant ->
             version: version,
             variant: variant,
             needsTracer: false,
-            needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
             description: 'Build portable dd_library_loader extension for PHP',
@@ -794,7 +837,11 @@ def buildLoaderTask = { String version, String variant ->
                     export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
                     PHP_PREFIX=/opt/php/\$PHP_SDK_VERSION
                     echo "Using PHP SDK from: \$PHP_PREFIX"
-                    cd /project/loader
+                    # phpize builds in the source directory: use a copy, so as not
+                    # to write into this task's inputs, which the versions share
+                    rm -rf /loader-build/src
+                    cp -a /project/loader /loader-build/src
+                    cd /loader-build/src
                     make distclean 2>/dev/null || true
                     \$PHP_PREFIX/bin/phpize
                     rm -f config.cache
@@ -803,62 +850,6 @@ def buildLoaderTask = { String version, String variant ->
                     cp modules/dd_library_loader.so /loader-build/
                     touch /loader-build/dd_library_loader.so
                     """
-            ]
-    )
-}
-
-def buildAppSecTask = { String version, String variant ->
-    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
-    buildRunInDockerTask(
-            baseName: 'buildAppsec',
-            imageTag: 'php-buildonly-rust',
-            version: version,
-            variant: variant,
-            needsTracer: false,
-            needsCargoCache: false,
-            description: 'Build portable appsec extension for PHP',
-            inputs: [
-                    dirs: [
-                            '../../../cmake',
-                            '../../../components-rs',
-                            '../../../zend_abstract_interface',
-                            '../../cmake',
-                            '../../third_party',
-                            '../../src'],
-                    files: [
-                            '../../../VERSION',
-                            '../../CMakeLists.txt'],
-            ],
-            outputs: [
-                    volume: 'php-appsec',
-                    files: ['ddappsec.so'],
-            ],
-            volumes: [
-                    ("php-appsec-buildonly-${version}-${variant}"): [
-                            mountPoint: '/project/tmp',
-                    ],
-            ],
-            command: [
-                    '-e', '-c',
-                    """
-                    cd /project/tmp
-
-                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
-                    cmake -DCMAKE_BUILD_TYPE=$buildType \\
-                          -DCMAKE_C_FLAGS=-Wno-static-in-inline \\
-                          -DCMAKE_INSTALL_PREFIX=/appsec \\
-                          -DDD_APPSEC_TESTING=OFF \\
-                          -DBOOST_CACHE_PREFIX=/var/boost-cache \\
-                          /project/appsec
-                    make -j extension
-                    versionInfo=\$(readelf --version-info ddappsec.so)
-                    if grep -q 'GLIBC_' <<< \"\$versionInfo\"; then
-                        echo 'ddappsec.so has versioned glibc symbols' >&2
-                        exit 1
-                    fi
-                    cp ddappsec.so /appsec/ddappsec.so
-                    touch /appsec/ddappsec.so
-                """
             ]
     )
 }
@@ -874,14 +865,9 @@ def runUnitTestsTask = { String phpVersion, String variant ->
             baseTag: 'php',
             version: phpVersion,
             variant: variant,
-            needsAppsec: false,
             needsCargoCache: false,
             description: 'Run appsec extension tests for PHP',
             volumes: [
-                    ("php-appsec-${phpVersion}-${variant}"): [
-                            mountPoint: '/appsec-artifact',
-                            readonly: true,
-                    ],
                     ("php-appsec-unit-${phpVersion}-${variant}"): [
                             mountPoint: '/appsec',
                     ],
@@ -892,7 +878,6 @@ def runUnitTestsTask = { String phpVersion, String variant ->
                     cd /appsec
                     cmake -DCMAKE_BUILD_TYPE=$buildType \\
                           -DCMAKE_INSTALL_PREFIX=/appsec \\
-                          -DDD_APPSEC_TEST_EXTENSION=/appsec-artifact/ddappsec.so \\
                           -DDD_APPSEC_TEST_TRACER=/project/tmp/build_extension/modules/ddtrace.so \\
                           -DDD_APPSEC_TESTING=ON \\
                           -DBOOST_CACHE_PREFIX=/var/boost-cache \\
@@ -904,7 +889,6 @@ def runUnitTestsTask = { String phpVersion, String variant ->
 
     task.configure {
         dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
-        dependsOn "buildAppsec-$phpVersion-${portableBuildVariant(variant)}"
     }
 }
 
@@ -924,7 +908,6 @@ def runMainTask = { String phpVersion, String variant ->
         systemProperty 'VARIANT', variant
 
         dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
-        dependsOn "buildAppsec-$phpVersion-${portableBuildVariant(variant)}"
     }
 }
 
@@ -941,7 +924,6 @@ def runMainTask = { String phpVersion, String variant ->
     if (!isMusl) {
         buildTracerTask(phpVersion, variant)
         buildTracerCmakeTask(phpVersion, variant)
-        buildAppSecTask(phpVersion, variant)
         runUnitTestsTask(phpVersion, variant)
     }
     if (project.hasProperty('testClass')) {
@@ -992,7 +974,6 @@ def runMainTask = { String phpVersion, String variant ->
         dependsOn project.hasProperty('useCmake') ?
                 "buildTracerCmake-${phpVersion}-${artifactVariant}" :
                 "buildTracer-${phpVersion}-${artifactVariant}"
-        dependsOn "buildAppsec-${phpVersion}-${artifactVariant}"
 
         if (phpVersion in ['7.0', '7.1']) {
             dependsOn downloadComposerOld
@@ -1027,7 +1008,6 @@ if (project.hasProperty('testClass')) {
                     "buildTracerSsiCmake-${phpVersion}-${variant}" :
                     "buildTracerSsi-${phpVersion}-${variant}"
             dependsOn "buildLoader-${phpVersion}-${variant}"
-            dependsOn "buildAppsec-${phpVersion}-${variant}"
             dependsOn downloadComposer
         }
     }
@@ -1107,7 +1087,6 @@ testMatrix.each { ssiSpec ->
                 "buildTracerSsiCmake-${phpVersion}-${variant}" :
                 "buildTracerSsi-${phpVersion}-${variant}"
         dependsOn "buildLoader-${phpVersion}-${variant}"
-        dependsOn "buildAppsec-${phpVersion}-${variant}"
         dependsOn downloadComposer
     }
 }
@@ -1158,6 +1137,9 @@ def helperRustInputs = [
                 '../../helper-rust/Cargo.toml',
                 '../../../Cargo.lock',
                 '../../../Cargo.toml',
+                // Workspace members, which cargo reads even for -p helper-rust
+                '../../../sidecar/Cargo.toml',
+                '../../../components-rs/php_sidecar_mockgen/Cargo.toml',
                 '../../../VERSION',
                 '../../../rust-toolchain.toml',
                 '../../helper-rust/clippy.toml',

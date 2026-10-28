@@ -131,10 +131,19 @@ enum datadog_sidecar_connection_mode {
 #define DDTRACE_PROFILING_CONFIGURATION
 #endif
 
+#ifdef APPSEC
+#include <appsec/src/extension/configuration_table.h>
+#else
+#define DDAPPSEC_CONFIGURATION
+#endif
+
+// AppSec comes last: the profiler's Rust code numbers the entries before it
+// without knowing about AppSec.
 #define DD_ALL_CONFIGURATIONS \
     DATADOG_CONFIGURATION \
     DDTRACE_CONFIGURATION \
     DDTRACE_PROFILING_CONFIGURATION \
+    DDAPPSEC_CONFIGURATION \
 
 #define CALIAS CONFIG
 

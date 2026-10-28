@@ -4,15 +4,14 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "logging.h"
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "string_helpers.h"
 #include <TSRM.h>
+#include <ext/compatibility.h>
 #include <fcntl.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -39,6 +38,12 @@ const int _dd_size_source_prefix = sizeof(__FILE__) - sizeof("logging.c");
 
 static atomic_bool _initialized;
 bool _dd_log_config_ready;
+// The log level while the configuration can't be read: warning before it is
+// loaded. The datadog module destroys the configuration in its MSHUTDOWN, but
+// AppSec still logs during GSHUTDOWN afterwards, so dd_log_detach_cfg() keeps
+// the configured level here; otherwise datadog.appsec.log_level=debug would
+// silently stop applying to GSHUTDOWN.
+dd_log_level_t _dd_log_level_unconfigured = dd_log_warning;
 // mutex used for two purpose:
 //  * initialization (we do it lazily on first log message, not MINIT)
 //  * avoid two threads writing lines to the log file the same time
@@ -94,11 +99,21 @@ void dd_log_startup_before_cfg(void)
 
 void dd_log_startup_after_cfg(void)
 {
+    _dd_log_level_unconfigured = dd_log_warning;
     _dd_log_config_ready = true;
     atomic_store_explicit(&_initialized, false, memory_order_release);
 #ifdef TESTING
     _register_testing_objects();
 #endif
+}
+
+void dd_log_detach_cfg(void)
+{
+    if (_dd_log_config_ready) {
+        _dd_log_level_unconfigured =
+            (dd_log_level_t)get_global_DD_APPSEC_LOG_LEVEL();
+        _dd_log_config_ready = false;
+    }
 }
 
 int _strerror_r_fallback(int errnum, char *buf, size_t buflen)

@@ -72,6 +72,7 @@ add_custom_target(ddtrace_exports
 endif()
 
 file(READ "${CMAKE_SOURCE_DIR}/../VERSION" VERSION_CONTENTS)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/../VERSION")
 string(STRIP "${VERSION_CONTENTS}" PHP_DDTRACE_VERSION)
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/gen_ddtrace/ext")
 set(VERSION_H_PATH "${CMAKE_BINARY_DIR}/gen_ddtrace/ext/version.h")
@@ -189,6 +190,7 @@ if (PhpConfig_VERNUM LESS 80100)
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_fiber.c")
 endif()
 list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows.c")
+list(APPEND FILES_DDTRACE ${APPSEC_EXTENSION_SOURCES})
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/otel_context.c")
 endif()
@@ -196,7 +198,6 @@ endif()
 find_package(CURL REQUIRED)
 message(STATUS "CURL version: ${CURL_VERSION_STRING}")
 
-include(cmake/pcre2.cmake)
 
 add_library(ddtrace_objects OBJECT ${FILES_DDTRACE})
 set_target_properties(ddtrace_objects PROPERTIES
@@ -216,8 +217,20 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
 endif()
 target_compile_definitions(ddtrace_objects PRIVATE
-    ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1 TRACER=1 SIDECAR=1)
+    ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 MPACK_HAS_CONFIG=1 COMPILE_DL_DDTRACE=1 TRACER=1 SIDECAR=1 APPSEC=1 TESTING=1)
+# Coverage is reported for AppSec only
+maybe_enable_coverage_for_sources(${APPSEC_EXTENSION_SOURCES})
+# config.m4 writes ext/version.h into the source tree, where it is stale if
+# VERSION changed since the last make build. ext/ includes it as "version.h",
+# which resolves next to the including file before any include directory. So
+# define PHP_DDTRACE_VERSION here: the include guard of every version.h then
+# turns it into a no-op. (Not -include: clang-tidy's llvm-include-order would
+# take that for the main header of every file.)
+target_compile_definitions(ddtrace_objects PRIVATE
+    PHP_DDTRACE_VERSION="${PHP_DDTRACE_VERSION}")
 target_include_directories(ddtrace_objects PRIVATE
+    ${CMAKE_BINARY_DIR}/gen_ddtrace
+    ${CMAKE_BINARY_DIR}/gen_ddtrace/ext
     ${CURL_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/..
     ${CMAKE_SOURCE_DIR}/../src/dogstatsd
@@ -228,8 +241,6 @@ target_include_directories(ddtrace_objects PRIVATE
     ${CMAKE_SOURCE_DIR}/../tracer/vendor
     ${CMAKE_SOURCE_DIR}/../tracer/vendor/mpack
     ${CMAKE_SOURCE_DIR}/../tracer/vendor/mt19937
-    ${CMAKE_BINARY_DIR}/gen_ddtrace
-    ${CMAKE_BINARY_DIR}/gen_ddtrace/ext
 )
 target_link_libraries(ddtrace_objects PRIVATE
     PhpConfig ${CURL_LIBRARIES} PCRE2::pcre2)
@@ -283,4 +294,5 @@ endif()
 if(DD_APPSEC_PHP_SIDECAR_MOCKGEN)
     add_dependencies(ddtrace ddtrace_weaken_php_symbols)
 endif()
+maybe_enable_coverage(ddtrace)
 add_dependencies(ddtrace ddtrace_exports)

@@ -18,6 +18,9 @@
 #include "target_metadata.h"
 #include "ffi_utils.h"
 #include <tracer/tracer_api.h>
+#ifdef APPSEC
+#include <appsec/src/extension/ddappsec_api.h>
+#endif
 #ifndef _WIN32
 #include <tracer/coms.h>
 #endif
@@ -79,7 +82,7 @@ static void dd_free_endpoints(void) {
     dogstatsd_endpoint = NULL;
 }
 
-DATADOG_PUBLIC struct telemetry_rc_info datadog_get_telemetry_rc_info(void) {
+struct telemetry_rc_info datadog_get_telemetry_rc_info(void) {
     struct telemetry_rc_info info = {
         .service_name = DATADOG_G(last_service_name),
         .env_name = DATADOG_G(last_env_name),
@@ -90,20 +93,6 @@ DATADOG_PUBLIC struct telemetry_rc_info datadog_get_telemetry_rc_info(void) {
 
     return info;
 }
-
-#ifdef ZTS
-DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void *tsrm_ls) {
-    if (tsrm_ls) {
-        void *TSRMLS_CACHE = tsrm_ls; // shadows global
-        return &DATADOG_G(sidecar);
-    }
-    return &DATADOG_G(sidecar);
-}
-#else
-DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
-    return &DATADOG_G(sidecar);
-}
-#endif
 
 // Publishes the connection of `owner` for the signal handlers. Unless refreshing (after `owner` reconnected to `connection`), only claims an unowned slot.
 static void dd_sidecar_arm_signal_transport(ddog_SidecarTransport *owner, ddog_SidecarTransport *connection, bool refresh) {
@@ -498,21 +487,9 @@ static bool datadog_sidecar_configure_appsec(bool *appsec_activation, bool *apps
     *appsec_activation = false;
     *appsec_config = false;
 
-    // this must be done in ddtrace rather than ddappsec because
-    // the sidecar is launched by ddtrace before ddappsec has a chance
-    // to run its first rinit
-
-#if defined(__linux__) || defined(__APPLE__)
-    zend_module_entry *appsec_module = zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1);
-    if (!appsec_module) {
-        return false;
-    }
-    void *handle = dlsym(appsec_module->handle, "dd_appsec_maybe_enable_helper");
-    if (!handle) {
-        return false;
-    }
-    bool (*dd_appsec_maybe_enable_helper)(typeof(&ddog_sidecar_enable_appsec), bool *, bool *) = handle;
-    return dd_appsec_maybe_enable_helper(ddog_sidecar_enable_appsec, appsec_activation, appsec_config);
+    // The sidecar is set up before AppSec's first RINIT.
+#ifdef APPSEC
+    return dd_appsec_maybe_enable_helper(appsec_activation, appsec_config);
 #else
     return false;
 #endif

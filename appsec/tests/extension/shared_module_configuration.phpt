@@ -1,7 +1,5 @@
 --TEST--
 Verify configuration can be shared across dd extensions
---INI--
-extension=ddtrace.so
 --ENV--
 DD_ENV=prod
 DD_SERVICE=appsec_tests

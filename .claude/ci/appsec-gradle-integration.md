@@ -107,8 +107,7 @@ Full list: `./gradlew tasks --group=Verification`
 
 | Task | Description |
 |---|---|
-| `buildTracer-{v}-{var}` | Build ddtrace.so for given PHP version/variant |
-| `buildAppsec-{v}-{var}` | Build ddappsec.so |
+| `buildTracer-{v}-{var}` | Build ddtrace.so (with AppSec) for given PHP version/variant |
 | `buildPortableLibdatadogPhp` | Build portable `libdatadog_php.so` for SSI |
 | `buildLibddwaf` | Build libddwaf shared library |
 
@@ -193,8 +192,7 @@ Gradle uses named Docker volumes for build artifacts and caches. Key volumes:
 | Volume | Contents |
 |---|---|
 | `php-portable-libdatadog-php` | Portable `libdatadog_php.so` used by SSI tests |
-| `php-tracer-{v}-{var}` | Built `ddtrace.so` |
-| `php-appsec-{v}-{var}` | Built `ddappsec.so` |
+| `php-tracer-{v}-{var}` | Built `ddtrace.so` (with AppSec) |
 | `php-tracer-cargo-cache` | Cargo registry cache |
 | `php-tracer-cargo-cache-git` | Cargo git cache |
 | `php-appsec-boost-cache` | Boost build cache |
@@ -280,7 +278,7 @@ If you need to inspect sidecar/helper or PHP issues:
 - **c-ares DNS failure in Alpine containers.** Alpine's `curl` and `git` use
   c-ares for DNS, which fails to resolve hosts when the DNS server includes
   EDNS COOKIE options in responses (common with home routers). `wget` and
-  `getent` are unaffected (they use musl's native resolver). This breaks the
-  `buildAppsec-*-musl` task which needs to `git clone` cmake dependencies.
+  `getent` are unaffected (they use musl's native resolver). This breaks
+  tasks that download dependencies inside an Alpine container.
   Fix: pass `--dns 8.8.8.8` to the Docker command.
 - `--info` is recommended for seeing test output in the console. Without it, output goes only to the HTML report in `build/reports/tests/`.

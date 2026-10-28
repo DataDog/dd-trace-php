@@ -8,13 +8,13 @@
 #include "../commands_helpers.h"
 #include "../configuration.h"
 #include "../ddappsec.h"
-#include "../ddtrace.h"
 #include "../entity_body.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "../php_compat.h"
 #include "../string_helpers.h"
+#include "../tracer_bridge.h"
 #include <SAPI.h>
+#include <ext/compatibility.h>
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
 static void _pack_headers_no_cookies_llist(

@@ -1,7 +1,6 @@
 --TEST--
 request_shutdown — sampler key low priotity
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --GET--
 key=val

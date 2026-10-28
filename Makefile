@@ -14,7 +14,6 @@ APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
 BUILD_SUFFIX = extension
 BUILD_DIR_NAME = tmp/build_$(BUILD_SUFFIX)
 BUILD_DIR = $(PROJECT_ROOT)/$(BUILD_DIR_NAME)
-BUILD_DIR_APPSEC = $(BUILD_DIR)/appsec/
 ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
@@ -65,7 +64,7 @@ RUN_TESTS_PARALLELIZE := $(if $(RUN_TESTS_IS_PARALLEL),,$(PROJECT_ROOT)/tooling/
 # explicitly via --ENV--, which a global -d override here would clobber.
 RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM)) $(if $(filter Darwin,$(shell uname -s)), -d datadog.agent_host=127.0.0.1 -d datadog.trace.agent_port=1)
 
-C_FILES = $(shell find components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+C_FILES = $(shell find appsec/src/extension components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 SIDECAR_RUST_FILES = appsec/recommended.json $(shell find sidecar appsec/helper-rust appsec/third_party/libddwaf-rust \( -type l -o -type f \) \( -path "*/src*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -name '*.c' \) -not -path "*/target/*" -not -path "*/.git/*")
 RUST_SYMBOL_FILES = $(addprefix $(BUILD_DIR)/, \
@@ -168,7 +167,7 @@ $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
 
 set_static_option:
-	$(eval EXTRA_CONFIGURE_OPTIONS := --enable-ddtrace-rust-library-split)
+	$(eval EXTRA_CONFIGURE_OPTIONS := $(EXTRA_CONFIGURE_OPTIONS) --enable-ddtrace-rust-library-split)
 
 static: set_static_option $(AR_FILE)
 
@@ -180,12 +179,13 @@ install_ini: $(INI_FILE)
 delete_ini:
 	$(SUDO) rm $(INI_FILE)
 
-install_appsec:
-	cmake -S $(APPSEC_SOURCE_DIR) -DCMAKE_BUILD_TYPE=RelWithDebInfo -B $(BUILD_DIR_APPSEC)
-	$(MAKE) -C $(BUILD_DIR_APPSEC) extension
-	cp -v $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
+# Tracer with AppSec, without profiling (which does not support PHP 7.0)
+compile_appsec:
+	$(MAKE) BUILD_SUFFIX=appsec EXTRA_CONFIGURE_OPTIONS="$(EXTRA_CONFIGURE_OPTIONS) --enable-ddtrace-appsec" all
+
+install_appsec: compile_appsec
+	$(SUDO) cp $(PROJECT_ROOT)/tmp/build_appsec/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so
 	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
-	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.cli_start_on_rinit=true" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.rules=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.log_file=/tmp/logs/appsec.log" | $(SUDO) tee -a $(INI_FILE)
@@ -434,12 +434,12 @@ PROFILER_BUILD_SUFFIX ?= profiler
 # at configure time; remove the corresponding tmp/build_* dir when changing them.
 PROFILER_FEATURES ?=
 
-# Combined tracer+profiling in a single ddtrace.so, as shipped to users. This is
+# Combined tracer+profiling+AppSec in a single ddtrace.so, as shipped to users. This is
 # the target most people should use locally when they need profiling -- the
 # standalone profiler below (compile_profiler/install_profiler) is only for
 # testing the legacy standalone artifact itself, not a general substitute.
 compile_combined:
-	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling" all
+	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec" all
 
 # Linux release CI alias for the self-contained, non-SSI ddtrace.so.
 # Both names use the same build and output directory. Switch to the desired
@@ -496,7 +496,7 @@ compile_profiler_asan:
 	$(PROFILER_ASAN_ENV) $(MAKE) PROFILER_BUILD_SUFFIX=profiler_asan compile_profiler
 
 compile_combined_asan:
-	$(PROFILER_ASAN_ENV) $(MAKE) BUILD_SUFFIX=combined_asan EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling" all
+	$(PROFILER_ASAN_ENV) $(MAKE) BUILD_SUFFIX=combined_asan EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec" all
 
 clang_find_files_to_lint:
 	@find . \( \

@@ -1,7 +1,6 @@
 --TEST--
 Record response from request_init and ancillary tags in root span
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
@@ -30,7 +29,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createRun([
     response_list(
-        response_client_init(['ok', phpversion('ddappsec'), [],
+        response_client_init(['ok', phpversion('ddtrace'), [],
         ["meta_1" => "value_1", "meta_2" => "value_2"],
         ["metric_1" => 2.0, "metric_2" => 10.0], null])
     ),

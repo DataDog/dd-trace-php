@@ -22,12 +22,11 @@
 #include "commands/request_exec.h"
 #include "commands_ctx.h"
 #include "commands_helpers.h"
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
+#include "ddappsec_api.h"
 #include "ddappsec_arginfo.h"
 #include "dddefs.h"
-#include "ddtrace.h"
 #include "duration_acc.h"
 #include "entity_body.h"
 #include "helper_process.h"
@@ -35,14 +34,14 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "network.h"
-#include "php_compat.h" // NOLINT (must come before ddappsec_arginfo.h)
 #include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "tags.h"
 #include "telemetry.h"
+#include "tracer_bridge.h"
 #include "user_tracking.h"
-#include "version.h"
+#include <ext/compatibility.h>
 
 #include <json/json.h>
 #include <zend_string.h>
@@ -56,274 +55,49 @@ static void _check_enabled(void);
 static void _register_testing_objects(void);
 #endif
 
-static PHP_MINIT_FUNCTION(ddappsec);
-static PHP_MSHUTDOWN_FUNCTION(ddappsec);
-static PHP_RINIT_FUNCTION(ddappsec);
-static PHP_RSHUTDOWN_FUNCTION(ddappsec);
-static PHP_MINFO_FUNCTION(ddappsec);
-static PHP_GINIT_FUNCTION(ddappsec);
-static void _tshutdown_handler(void *unspecnull ptr);
-static PHP_GSHUTDOWN_FUNCTION(ddappsec);
-static int ddappsec_startup(zend_extension *extension);
-#if PHP_VERSION_ID < 80000
-int _post_deactivate(void);
-#else
-zend_result _post_deactivate(void);
-#endif
-
-ZEND_DECLARE_MODULE_GLOBALS(ddappsec)
-
-// clang-format off
-static const  zend_module_dep _ddappsec_deps[] = {
-    ZEND_MOD_OPTIONAL("ddtrace")
-    ZEND_MOD_REQUIRED("json")
-    ZEND_MOD_END
-};
-
-static zend_module_entry ddappsec_module_entry = {
-    STANDARD_MODULE_HEADER_EX,
-    NULL,
-    _ddappsec_deps,
-    PHP_DDAPPSEC_EXTNAME,
-    NULL,
-    PHP_MINIT(ddappsec),
-    PHP_MSHUTDOWN(ddappsec),
-    PHP_RINIT(ddappsec),
-    PHP_RSHUTDOWN(ddappsec),
-    PHP_MINFO(ddappsec),
-    PHP_DDAPPSEC_VERSION,
-    PHP_MODULE_GLOBALS(ddappsec),
-    PHP_GINIT(ddappsec),
-    PHP_GSHUTDOWN(ddappsec),
-    _post_deactivate,
-    STANDARD_MODULE_PROPERTIES_EX
-};
-
-static zend_extension ddappsec_extension_entry = {
-    PHP_DDAPPSEC_EXTNAME,
-    PHP_DDAPPSEC_VERSION,
-    "Datadog",
-    "https://github.com/DataDog/dd-trace-php",
-    "Copyright Datadog",
-    ddappsec_startup,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    STANDARD_ZEND_EXTENSION_PROPERTIES};
-// clang-format on
-
-ZEND_GET_MODULE(ddappsec)
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
-    compare_func_t compare, swap_func_t swp)
-{
-    UNUSED(siz);
-    UNUSED(compare);
-    UNUSED(swp);
-
-    // Reorder ddappsec to ensure it's always after ddtrace
-    for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
-        module < end; ++module) {
-        zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
-        // Compare by value to avoid confusion with the SSI replaced name
-        if (strcmp(m->name, PHP_DDAPPSEC_EXTNAME) == 0) {
-            ddappsec_module = module;
-            continue;
-        }
-        if (ddappsec_module && strcmp(m->name, "ddtrace") == 0) {
-            Bucket tmp = *ddappsec_module;
-            *ddappsec_module = *module;
-            *module = tmp;
-            break;
-        }
-    }
-}
-
-static int ddappsec_startup(zend_extension *extension)
-{
-    UNUSED(extension);
-
-    zend_hash_sort_ex(&module_registry, ddappsec_sort_modules, NULL, 0);
-
-    dd_request_abort_zend_ext_startup();
-
-    return SUCCESS;
-}
-
-// Native (not PHP) thread-local: the thread-exit destructor below may run after
-// PHP has already torn this thread's globals down.
-ZEND_TLS bool _tshutdown_ran;
-
-#if defined(ZTS) && defined(__linux__)
-// Fallback for libcs without __cxa_thread_atexit_impl (musl): a pthread key
-// whose destructor pthreads runs at thread exit. It takes no reference on this
-// DSO -- harmless here, since musl never unmaps one, so the destructor pointer
-// cannot outlive the image.
-static pthread_key_t _tshutdown_key;
-static int _tshutdown_key_err = -1;
-
-static void _create_tshutdown_key(void)
-{
-    _tshutdown_key_err =
-        pthread_key_create(&_tshutdown_key, _tshutdown_handler);
-}
-
-static void _register_pthread_tshutdown_dtor(void)
-{
-    static pthread_once_t once_control = PTHREAD_ONCE_INIT;
-    pthread_once(&once_control, _create_tshutdown_key);
-    if (_tshutdown_key_err == 0) {
-        // Any non-NULL value will do; pthreads skips keys whose value is NULL.
-        pthread_setspecific(_tshutdown_key, (void *)(uintptr_t)1);
-    }
-}
-#endif
-
-// GINIT/GSHUTDOWN run before/after MINIT/MSHUTDOWN
-static PHP_GINIT_FUNCTION(ddappsec)
+void dd_appsec_ginit(ddappsec_globals *globals)
 {
     // Don't log here; the logging subsystem is only initialized in MINIT, and
     // then fully initialized in the first RINIT.
+    memset(globals, '\0', sizeof(*globals)); // NOLINT
+    globals->to_be_configured = true;
 #if ZTS
-    TSRMLS_CACHE = tsrm_get_ls_cache();
-    ATTR_UNUSED __auto_type count = atomic_fetch_add(&_thread_count, 1);
-#endif
-
-    memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
-    ddappsec_globals->to_be_configured = true;
-    _tshutdown_ran = false; // a thread may be reused for fresh globals
-
-#if ZTS
-    // Record which thread these globals belong to so GSHUTDOWN can tell whether
-    // it is running on the owning thread (see GSHUTDOWN).
-    ddappsec_globals->ts_ls_cache = TSRMLS_CACHE;
-#endif
-
-#if defined(ZTS) && (defined(__linux__) || defined(__APPLE__))
-    // Because GSHUTDOWN may run for all exited threads on the main thread,
-    // we register a thread-local destructor for this thread (GINIT runs for the
-    // main thread and for worker threads).
-    //
-    // We skip registering the destructor on the main thread because the main
-    // thread never exits, so the TLS destructor would pin ddappsec.so via
-    // l_tls_dtor_count, which blocks DSO unload on apache graceful reload.
-    // GSHUTDOWN calls _tshutdown_handler() directly for the main thread
-    // instead (see GSHUTDOWN).
-#    if PHP_VERSION_ID >= 70200
-    bool is_main_thread = tsrm_is_main_thread();
-#    else
-    bool is_main_thread = count == 0;
-#    endif
-    if (!is_main_thread) {
-#    if defined(__linux__)
-        extern void *__dso_handle;
-        // Weak because musl exports no __cxa_thread_atexit_impl (it is a glibc
-        // 2.18 internal); a strong reference makes dlopen() of this DSO fail.
-        extern int __cxa_thread_atexit_impl(void (*func)(void *), void *arg,
-            void *dso_handle) __attribute__((weak));
-        if (__cxa_thread_atexit_impl) {
-            __cxa_thread_atexit_impl(_tshutdown_handler, NULL, __dso_handle);
-        } else {
-            _register_pthread_tshutdown_dtor();
-        }
-#    elif defined(__APPLE__)
-        extern void _tlv_atexit(void (*termFunc)(void *), void *objAddr);
-        _tlv_atexit(_tshutdown_handler, NULL);
-#    endif
-    }
+    atomic_fetch_add(&_thread_count, 1);
+    // GSHUTDOWN may run on another thread, which then needs this thread's
+    // storage to reach its sidecar transport.
+    globals->ts_ls_cache = tsrm_get_ls_cache();
 #endif
 }
 
-static void _tshutdown_handler(void *unspecnull ptr)
+void dd_appsec_gshutdown(ddappsec_globals *globals)
 {
-    UNUSED(ptr);
-    // GSHUTDOWN and the thread-exit destructor can both target this thread;
-    // whichever runs first wins, as everything below is read from this thread's
-    // configuration, which the loser would find already freed.
-    if (_tshutdown_ran) {
-        return;
-    }
-    _tshutdown_ran = true;
+    dd_entity_body_gshutdown(globals);
+    dd_telemetry_gshutdown(globals);
+    dd_helper_gshutdown(globals);
 
-    mlog_g(dd_log_debug, "Running tshutdown (thread %" PRIxPTR ")",
-        (uintptr_t)pthread_self());
-
-    dd_entity_body_tshutdown();
-    dd_telemetry_tshutdown();
-
-    mlog_g(dd_log_debug, "Finished tshutdown (thread %" PRIxPTR ")",
-        (uintptr_t)pthread_self());
-}
-
-static PHP_GSHUTDOWN_FUNCTION(ddappsec)
-{
     mlog_g(dd_log_debug, "Finished GSHUTDOWN actions (thread %" PRIxPTR ")",
         (uintptr_t)pthread_self());
-
-#if ZTS
-    // _tshutdown_handler() frees native thread-local storage, so it must run on
-    // the thread that owns it. Do it here whenever we are on that thread, which
-    // is also the only moment its configuration is guaranteed to still be
-    // mapped; the thread-local destructor registered in GINIT covers the other
-    // case, where we are the main thread cleaning up an already exited thread's
-    // globals and its TLS is out of reach.
-    if (ddappsec_globals->ts_ls_cache == tsrm_get_ls_cache()) {
-        _tshutdown_handler(NULL);
-    }
-#else
-    // In non-ZTS mode there is a single thread, so GSHUTDOWN is the right place
-    // to run tshutdown actions.
-    _tshutdown_handler(NULL);
-#endif
-
-    dd_helper_gshutdown(ddappsec_globals);
 
     // delay log shutdown until the last possible moment, so that TSRM
     // destructors can run with logging
 #if ZTS
-    int prev = atomic_fetch_add(&_thread_count, -1);
-    if (prev == 1) {
+    if (atomic_fetch_add(&_thread_count, -1) == 1) {
         dd_log_shutdown();
-        zai_config_mshutdown();
-        zai_json_shutdown_bindings();
     }
 #else
     dd_log_shutdown();
-    zai_config_mshutdown();
-    zai_json_shutdown_bindings();
 #endif
-
-    memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static PHP_MINIT_FUNCTION(ddappsec)
+void dd_appsec_minit_before_config(void) { dd_log_startup_before_cfg(); }
+
+void dd_appsec_minit(int module_number)
 {
-    UNUSED(type);
-
-    zend_module_entry *mod_ptr = zend_hash_str_find_ptr(&module_registry,
-        PHP_DDAPPSEC_EXTNAME, sizeof(PHP_DDAPPSEC_EXTNAME) - 1);
-    zend_register_extension(&ddappsec_extension_entry, mod_ptr->handle);
-    mod_ptr->handle = NULL;
-
     dd_phpobj_startup(module_number);
-
-    dd_log_startup_before_cfg();
-
-    if (!dd_config_minit(module_number)) {
-        return FAILURE;
-    }
+    dd_log_startup_after_cfg();
+    dd_config_minit();
 
     dd_phpobj_reg_funcs(ext_functions);
-
 #ifdef TESTING
     _register_testing_objects();
 #endif
@@ -340,15 +114,12 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_backtrace_startup();
     dd_msgpack_helpers_startup();
     dd_telemetry_startup();
-
-    return SUCCESS;
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static PHP_MSHUTDOWN_FUNCTION(ddappsec)
+void dd_appsec_mshutdown(void)
 {
-    UNUSED(type);
-    UNUSED(module_number);
+    // Say goodbye to the helper while the sidecar connection still exists.
+    dd_helper_mshutdown();
 
     dd_duration_shutdown();
     dd_tags_shutdown();
@@ -359,14 +130,14 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
 
     dd_phpobj_shutdown();
 
-    return SUCCESS;
+    // The configuration is about to be destroyed; logging from GSHUTDOWN must
+    // not read it anymore.
+    dd_log_detach_cfg();
 }
 
-static void _rinit_once(void)
-{
-    dd_config_first_rinit();
-    _check_enabled();
-}
+void dd_appsec_zend_startup(void) { dd_request_abort_zend_ext_startup(); }
+
+static void _rinit_once(void) { _check_enabled(); }
 
 void dd_appsec_rinit_once(void)
 {
@@ -374,21 +145,16 @@ void dd_appsec_rinit_once(void)
     pthread_once(&_rinit_once_control, _rinit_once);
 }
 
-// NOLINTNEXTLINE
-static PHP_RINIT_FUNCTION(ddappsec)
+void dd_appsec_rinit(void)
 {
-    UNUSED(type);
-    UNUSED(module_number);
-
     // Safety precaution
     DDAPPSEC_G(during_request_shutdown) = false;
 
     dd_appsec_rinit_once();
-    zai_config_rinit();
     _check_enabled();
 
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
-        return SUCCESS;
+        return;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
     dd_msgpack_helpers_rinit();
@@ -405,35 +171,20 @@ static PHP_RINIT_FUNCTION(ddappsec)
             }
         }
     }
-
-    return SUCCESS;
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static PHP_RSHUTDOWN_FUNCTION(ddappsec)
+void dd_appsec_rshutdown_hook(void)
 {
-    UNUSED(type);
-    UNUSED(module_number);
-
-    DDAPPSEC_G(during_request_shutdown) = true;
-
-    ZEND_RESULT_CODE result = SUCCESS;
-
     // Here now we have to disconnect from the helper in all the cases but when
     // disabled by config
-    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
-        goto exit;
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED ||
+        DDAPPSEC_G(skip_rshutdown)) {
+        return;
     }
 
-    if (DDAPPSEC_G(skip_rshutdown)) {
-        goto exit;
-    }
-
-    result = dd_appsec_rshutdown(false);
-
-exit:
+    DDAPPSEC_G(during_request_shutdown) = true;
+    dd_appsec_rshutdown(false);
     DDAPPSEC_G(during_request_shutdown) = false;
-    return result;
 }
 
 int dd_appsec_rshutdown(bool ignore_verdict)
@@ -442,44 +193,20 @@ int dd_appsec_rshutdown(bool ignore_verdict)
     return SUCCESS;
 }
 
-#if PHP_VERSION_ID < 80000
-int _post_deactivate(void)
-#else
-zend_result _post_deactivate(void)
-#endif
+void dd_appsec_minfo(void)
 {
-    // zai config may be accessed indirectly via other modules RSHUTDOWN, so
-    // delay this until the last possible time
-    zai_config_rshutdown();
-    return SUCCESS;
-}
-
-static PHP_MINFO_FUNCTION(ddappsec)
-{
-    php_info_print_box_start(0);
-    PUTS("Datadog PHP AppSec extension");
-    PUTS(!sapi_module.phpinfo_as_text ? "<br>" : "\n");
-    PUTS("(c) Datadog 2021\n");
-    php_info_print_box_end();
-
     php_info_print_table_start();
+    php_info_print_table_header(2, "Application Security", "");
     php_info_print_table_row(2, "State managed by remote config",
         DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG ? "Yes" : "No");
     php_info_print_table_row(2, "Current state",
         DDAPPSEC_G(active)             ? "Enabled"
         : DDAPPSEC_G(to_be_configured) ? "Not configured"
                                        : "Disabled");
-    php_info_print_table_row(2, "Version", PHP_DDAPPSEC_VERSION);
     php_info_print_table_row(
         2, "Connected to helper?", dd_helper_mgr_cur_conn() ? "Yes" : "No");
     php_info_print_table_end();
-
-    DISPLAY_INI_ENTRIES();
 }
-
-#ifdef ZTS
-__thread void *unspecnull TSRMLS_CACHE = NULL;
-#endif
 
 static void _check_enabled(void)
 {
@@ -487,7 +214,8 @@ static void _check_enabled(void)
         return;
     }
 
-    if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
+    if (datadog_disable == 1 ||
+        (!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
         (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text)) {
         DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
         DDAPPSEC_G(active) = false;

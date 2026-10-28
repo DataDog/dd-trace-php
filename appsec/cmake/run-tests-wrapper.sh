@@ -52,7 +52,7 @@ function link_extensions {
 EXTRA_FLAGS=()
 function set_extra_flags {
   local -r link_ext_dir="${CMAKE_BINARY_DIR}/extensions"
-  local -r always_loaded_extensions=(json xml)
+  local -r always_loaded_extensions=(json xml ddtrace)
   for ext in "${always_loaded_extensions[@]}"; do
     if [[ -L "$link_ext_dir/$ext.so" ]]; then
       EXTRA_FLAGS+=('-d' "extension=$ext.so")

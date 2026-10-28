@@ -17,7 +17,7 @@ struct _ddtrace_user_req_listeners {
 };
 
 // exported
-DATADOG_PUBLIC bool ddtrace_user_req_add_listeners(ddtrace_user_req_listeners *listeners);
+bool ddtrace_user_req_add_listeners(ddtrace_user_req_listeners *listeners);
 
 void ddtrace_user_req_notify_finish(ddtrace_span_data *span);
 

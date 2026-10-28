@@ -10,6 +10,9 @@
 #ifdef PROFILING
 #include <profiling/src/lifecycle.h>
 #endif
+#ifdef APPSEC
+#include <appsec/src/extension/ddappsec_api.h>
+#endif
 
 #include "configuration.h"
 #include "excluded_modules.h"
@@ -59,6 +62,9 @@ ZEND_DECLARE_MODULE_GLOBALS(datadog)
 
 #ifdef PROFILING
 static bool datadog_profiling_initialized;
+#endif
+#ifdef APPSEC
+static bool datadog_appsec_initialized;
 #endif
 
 #ifdef COMPILE_DL_DDTRACE
@@ -182,6 +188,11 @@ static int datadog_startup(zend_extension *extension) {
 #ifdef TRACER
     if (ddtrace_startup() != SUCCESS) {
         return FAILURE;
+    }
+#endif
+#ifdef APPSEC
+    if (datadog_appsec_initialized) {
+        dd_appsec_zend_startup();
     }
 #endif
 #ifdef PROFILING
@@ -360,6 +371,9 @@ static PHP_GINIT_FUNCTION(datadog) {
 #ifdef TRACER
     ddtrace_ginit(datadog_globals);
 #endif
+#ifdef APPSEC
+    dd_appsec_ginit(&datadog_globals->appsec);
+#endif
 #ifdef PROFILING
     datadog_globals->profiling_globals = pemalloc(ddog_php_prof_globals_size(), true);
     if (datadog_globals->profiling_globals) {
@@ -517,6 +531,9 @@ int __cxa_atexit(void (*func)(void *), void *arg, void *dso_symbol);
 #endif
 
 static PHP_GSHUTDOWN_FUNCTION(datadog) {
+#ifdef APPSEC
+    dd_appsec_gshutdown(&datadog_globals->appsec);
+#endif
 #ifdef PROFILING
     if (datadog_globals->profiling_globals) {
         ddog_php_prof_gshutdown(datadog_globals->profiling_globals);
@@ -623,6 +640,15 @@ static PHP_MINIT_FUNCTION(datadog) {
         return FAILURE;
     }
 #endif
+#ifdef APPSEC
+    if (zend_hash_str_exists(&module_registry, ZEND_STRL("ddappsec"))) {
+        zend_error(E_CORE_ERROR,
+                   "ddappsec cannot be loaded alongside ddtrace, which includes AppSec support; "
+                   "remove extension=ddappsec.so from the PHP configuration");
+        return FAILURE;
+    }
+    datadog_appsec_initialized = false;
+#endif
 
     zval *php_version = zend_get_constant_str(ZEND_STRL("PHP_VERSION"));
     if (php_version && Z_TYPE_P(php_version) == IS_STRING) {
@@ -671,6 +697,9 @@ static PHP_MINIT_FUNCTION(datadog) {
 #ifdef TRACER
     ddtrace_pre_config_minit();
 #endif
+#ifdef APPSEC
+    dd_appsec_minit_before_config();
+#endif
     if (!datadog_config_minit(module_number)) {
         return FAILURE;
     }
@@ -682,6 +711,11 @@ static PHP_MINIT_FUNCTION(datadog) {
         // Preserve the legacy hard-disabled module's PHP API and hook
         // infrastructure without starting either product.
         ddtrace_minit_early(module_number);
+#endif
+#ifdef APPSEC
+        // AppSec's PHP API stays available too; it disables itself.
+        dd_appsec_minit(module_number);
+        datadog_appsec_initialized = true;
 #endif
         return datadog_register_zend_extension();
     }
@@ -717,6 +751,10 @@ static PHP_MINIT_FUNCTION(datadog) {
     }
     datadog_profiling_initialized = true;
 #endif
+#ifdef APPSEC
+    dd_appsec_minit(module_number);
+    datadog_appsec_initialized = true;
+#endif
     if (datadog_register_zend_extension() != SUCCESS) {
         PHP_MSHUTDOWN(datadog)(type, module_number);
         return FAILURE;
@@ -726,6 +764,12 @@ static PHP_MINIT_FUNCTION(datadog) {
 
 static PHP_MSHUTDOWN_FUNCTION(datadog) {
     UNUSED(module_number, type);
+
+#ifdef APPSEC
+    if (datadog_appsec_initialized) {
+        dd_appsec_mshutdown();
+    }
+#endif
 
 #ifdef PROFILING
     int profiler_result = datadog_profiling_initialized ? ddog_php_prof_mshutdown(type, module_number) : SUCCESS;
@@ -802,6 +846,10 @@ static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 static PHP_RINIT_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
+#ifdef APPSEC
+    DATADOG_G(rshutdown_products_done) = false;
+#endif
+
 #ifdef SIDECAR
     if (!DATADOG_G(remote_config_state) && datadog_endpoint) {
         DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
@@ -845,6 +893,13 @@ static PHP_RINIT_FUNCTION(datadog) {
 #endif
     }
 #endif
+#ifdef APPSEC
+    // Last: it needs the root span, and aborting the request here assumes
+    // everything else ran its RINIT.
+    if (datadog_appsec_initialized) {
+        dd_appsec_rinit();
+    }
+#endif
 
     return SUCCESS;
 }
@@ -870,7 +925,11 @@ static void dd_shutdown_observer() {
 
 }
 
-static PHP_RSHUTDOWN_FUNCTION(datadog) {
+#ifdef APPSEC
+int datadog_rshutdown_products(int type, int module_number) {
+#else
+static int datadog_rshutdown_products(int type, int module_number) {
+#endif
     UNUSED(module_number, type);
 
 #ifdef PROFILING
@@ -930,11 +989,28 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
         DATADOG_G(last_env_name) = NULL;
     }
 
+#ifdef APPSEC
+    DATADOG_G(rshutdown_products_done) = true;
+#endif
+
 #ifdef PROFILING
     return profiler_result;
 #else
     return SUCCESS;
 #endif
+}
+
+static PHP_RSHUTDOWN_FUNCTION(datadog) {
+#ifdef APPSEC
+    // First: AppSec still adds to the root span, which the tracer closes.
+    if (datadog_appsec_initialized) {
+        dd_appsec_rshutdown_hook();
+    }
+    if (DATADOG_G(rshutdown_products_done)) {
+        return SUCCESS;
+    }
+#endif
+    return datadog_rshutdown_products(type, module_number);
 }
 
 #if PHP_VERSION_ID < 80000
@@ -965,6 +1041,11 @@ static PHP_MINFO_FUNCTION(datadog) {
     datadog_phpinfo();
 
     DISPLAY_INI_ENTRIES();
+#ifdef APPSEC
+    if (datadog_appsec_initialized) {
+        dd_appsec_minfo();
+    }
+#endif
 #ifdef PROFILING
     if (datadog_profiling_initialized) {
         ddog_php_prof_minfo(zend_module);

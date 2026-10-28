@@ -4,14 +4,13 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "backtrace.h"
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_objects.h"
 #include "string_helpers.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 static const int NO_LIMIT = 0;
 static const double STACK_DEFAULT_TOP_RATE = 0.25;

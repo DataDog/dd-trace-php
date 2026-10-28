@@ -1985,7 +1985,7 @@ PHP_FUNCTION(dd_trace_buffer_span) {
     if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size)) {
         RETVAL_BOOL(ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), data, size));
 
-        free(data);
+        efree(data);
         return;
     } else {
         RETURN_FALSE;
@@ -2158,7 +2158,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             size_t size = 0;
             if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size)) {
                 RETVAL_BOOL(ddtrace_coms_buffer_data(Z_LVAL_P(group_id), data, size));
-                free(data);
+                efree(data);
             } else {
                 RETVAL_FALSE;
             }

@@ -55,7 +55,7 @@ putenv("DD_INSTRUMENT_SERVICE_WITH_APM=false");
 /**
  * The number of items to shift off `get_ini_settings` for config commands.
  */
-const CMD_CONFIG_NUM_SHIFT = 2;
+const CMD_CONFIG_NUM_SHIFT = 1;
 
 function main()
 {
@@ -113,7 +113,7 @@ Options:
     --file <path to .tar.gz>    Path to a dd-library-php-*.tar.gz file. Can be used for offline installation.
     --extension-dir <path>      Specify the extension directory. Default: PHP's extension directory.
     --ini <path>                Specify the INI file to use. Default: <ini-dir>/98-ddtrace.ini
-    --enable-appsec             Enable the application security monitoring module.
+    --enable-appsec             Enable application security monitoring in the ddtrace module.
     --enable-profiling          Enable profiling in the ddtrace module.
     -d setting[=value]          Used in conjunction with `config <set|get>`
                                 command to specify the INI setting to get or set.
@@ -156,7 +156,7 @@ function config_list(array $options)
 {
     $iniSettings = get_ini_settings('', '');
 
-    // The first 3 are 'extension' type of settings.
+    // The first ones are 'extension' type of settings.
     $iniSettings = array_slice($iniSettings, CMD_CONFIG_NUM_SHIFT);
 
     // Build an index by unique names for filtering.
@@ -672,14 +672,27 @@ function install($options)
             safe_copy_extension($profilingExtensionRealPath, $profilingExtensionDestination);
         }
 
-        // Appsec
+        // Current packages compile AppSec into ddtrace as well, again identified
+        // by a marker. Released packages may contain the legacy ddappsec
+        // extension instead, which remains supported.
+        $appsecMarker = "$tmpArchiveTraceRoot/ext/$extensionVersion/.ddtrace$extensionSuffix.appsec";
+        $hasCombinedAppsec = file_exists($appsecMarker);
         $appsecExtensionRealPath = "{$tmpArchiveAppsecRoot}/ext/{$extensionVersion}/"
             . EXTENSION_PREFIX . "ddappsec{$extensionSuffix}." . EXTENSION_SUFFIX;
-        $shouldInstallAppsec = file_exists($appsecExtensionRealPath);
+        $hasLegacyAppsec = !$hasCombinedAppsec && file_exists($appsecExtensionRealPath);
+        $shouldInstallAppsec = $hasCombinedAppsec || $hasLegacyAppsec;
 
-        if ($shouldInstallAppsec) {
-            $appsecExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX;
+        $appsecExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX;
+        if ($hasLegacyAppsec) {
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
+        } elseif ($hasCombinedAppsec && file_exists($appsecExtensionDestination)) {
+            // Loading ddappsec next to a ddtrace which includes AppSec is a fatal
+            // startup error, also from INI files the installer does not manage.
+            if (unlink($appsecExtensionDestination)) {
+                echo "Removed '$appsecExtensionDestination', AppSec is now part of ddtrace\n";
+            } else {
+                print_warning("Error while removing $appsecExtensionDestination. It must be removed manually.");
+            }
         }
         $iniPathsFromUser = isset($options[OPT_PHP_INI]);
         if ($iniPathsFromUser) {
@@ -767,34 +780,34 @@ function install($options)
             // Load AppSec and enable/disable as required
 
             // phpcs:disable Generic.Files.LineLength.TooLong
-            if ($shouldInstallAppsec) {
-                $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
+            if ($hasLegacyAppsec) {
                 $iniAppsecExtension = isset($options[OPT_EXTENSION_DIR])
                     ? $appsecExtensionDestination
                     : ("ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX));
-                $replacements += [
-                    '(^\s*;?\s*extension\s*=\s*.*ddappsec.*)m' => "extension = $iniAppsecExtension",
-                    // Update and comment rules path
-                    '(^[\s;]*datadog.appsec.rules\s*=\s*' . $rulesPathRegex . ')m' => "; datadog.appsec.rules = " . $appSecRulesPath,
-                ];
-                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                    $replacements += ['(^[\s;]*datadog.appsec.enabled\s*=.*)m' => 'datadog.appsec.enabled = On'];
-                }
+                $replacements['(^\s*;?\s*extension\s*=\s*.*ddappsec.*)m'] = "extension = $iniAppsecExtension";
             } else {
-                // Ensure AppSec isn't loaded if not compatible
+                // Ensure the legacy extension isn't loaded: it is either not
+                // compatible, or AppSec is already part of ddtrace.
                 $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
+            }
 
+            if ($shouldInstallAppsec) {
+                $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
+                // Update and comment rules path
+                $replacements['(^[\s;]*datadog.appsec.rules\s*=\s*' . $rulesPathRegex . ')m'] = "; datadog.appsec.rules = " . $appSecRulesPath;
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                    $enableAppsec = OPT_ENABLE_APPSEC;
-                    print_error_and_exit(
-                        "Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n"
-                    );
+                    $replacements['(^[\s;]*datadog.appsec.enabled\s*=.*)m'] = 'datadog.appsec.enabled = On';
                 }
+            } elseif (is_truthy($options[OPT_ENABLE_APPSEC])) {
+                $enableAppsec = OPT_ENABLE_APPSEC;
+                print_error_and_exit(
+                    "Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n"
+                );
             }
 
             add_missing_ini_settings(
                 $iniFilePath,
-                get_ini_settings($installDirSrcDir, $appSecRulesPath, $hasStandaloneProfiling),
+                get_ini_settings($installDirSrcDir, $appSecRulesPath, $hasStandaloneProfiling, $hasLegacyAppsec),
                 $replacements
             );
 
@@ -2250,10 +2263,15 @@ function map_env_to_ini($env)
  * @param string $sourcesDir
  * @param string $appsecRulesPath
  * @param bool $includeStandaloneProfiling
+ * @param bool $includeLegacyAppsec
  * @return array
  */
-function get_ini_settings($sourcesDir, $appsecRulesPath, $includeStandaloneProfiling = false)
-{
+function get_ini_settings(
+    $sourcesDir,
+    $appsecRulesPath,
+    $includeStandaloneProfiling = false,
+    $includeLegacyAppsec = false
+) {
     // phpcs:disable Generic.Files.LineLength.TooLong
     $settings = [
         [
@@ -2262,16 +2280,11 @@ function get_ini_settings($sourcesDir, $appsecRulesPath, $includeStandaloneProfi
             'commented' => false,
             'description' => 'Loads the Datadog PHP SDK (set by the installer, do not change it)',
         ],
-        [
-            'name' => 'extension',
-            'default' => 'ddappsec' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
-            'commented' => false,
-            'description' => 'Enables the appsec module',
-        ],
 
         /* IMPORTANT! These extension ones are shifted off for config commands.
          * If the number of extension= things changes, change the constant
-         * CMD_CONFIG_NUM_SHIFT accordingly.
+         * CMD_CONFIG_NUM_SHIFT accordingly. The ones for legacy packages
+         * inserted below are not part of the config commands.
          */
 
         [
@@ -2588,8 +2601,8 @@ function get_ini_settings($sourcesDir, $appsecRulesPath, $includeStandaloneProfi
             'default' => 'Off',
             'commented' => true,
             'description' => [
-                'Enables or disables the loaded dd-appsec extension.',
-                'If disabled, the extension will do no work during the requests.',
+                'Enables or disables application security monitoring.',
+                'If disabled, AppSec will do no work during the requests.',
                 'If not present/commented out, appsec will be enabled/disabled by remote config',
             ],
         ],
@@ -2598,7 +2611,7 @@ function get_ini_settings($sourcesDir, $appsecRulesPath, $includeStandaloneProfi
             'default' => 'warn',
             'commented' => true,
             'description' => [
-                'Sets the verbosity of the logs of the dd-appsec extension.',
+                'Sets the verbosity of the AppSec logs.',
                 'The valid values are \'off\', \'error\', \'fatal\', \'warn\' (or \'warning\'), \'info\',',
                 '\'debug\' and \'trace\', in increasing order of verbosity',
             ],
@@ -2665,6 +2678,14 @@ function get_ini_settings($sourcesDir, $appsecRulesPath, $includeStandaloneProfi
             'description' => 'Customises the JSON output provided on a blocked request',
         ],
     ];
+    if ($includeLegacyAppsec) {
+        array_splice($settings, 1, 0, [[
+            'name' => 'extension',
+            'default' => 'ddappsec' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+            'commented' => false,
+            'description' => 'Enables the appsec module from legacy packages',
+        ]]);
+    }
     if ($includeStandaloneProfiling) {
         array_splice($settings, 1, 0, [[
             'name' => 'extension',

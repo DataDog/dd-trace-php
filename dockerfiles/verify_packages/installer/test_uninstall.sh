@@ -10,7 +10,7 @@ assert_no_ddtrace
 extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
-appsec=$(is_appsec_installable && echo 1 || true)
+appsec=$(is_legacy_appsec_installable && echo 1 || true)
 
 # Install using the php installer
 version="0.79.0"

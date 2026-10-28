@@ -9,17 +9,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "string_helpers.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 #include "attributes.h"
 
@@ -668,20 +667,26 @@ static void _emit_error(const char *format, ...)
 }
 
 /* work around bugs in extensions that expect their request_shutdown to be
- * called once their request_init has been called */
+ * called once their request_init has been called. PHP skips RSHUTDOWN when
+ * RINIT bails out. AppSec runs at the end of the datadog module's RINIT, so
+ * the modules before it, and the other products of the datadog module, have
+ * run their RINIT already. */
 static void _run_rshutdowns(void)
 {
     HashPosition pos;
     zend_module_entry *module;
-    bool found_ddappsec = false;
+    bool found_datadog = false;
 
     mlog_g(dd_log_debug, "Running remaining extensions' RSHUTDOWN");
     for (zend_hash_internal_pointer_end_ex(&module_registry, &pos);
         (module = zend_hash_get_current_data_ptr_ex(&module_registry, &pos)) !=
         NULL;
         zend_hash_move_backwards_ex(&module_registry, &pos)) {
-        if (!found_ddappsec && strcmp("ddappsec", module->name) == 0) {
-            found_ddappsec = true;
+        if (!found_datadog && module == datadog_module) {
+            found_datadog = true;
+            // AppSec's own RSHUTDOWN already ran, or is skipped in testing
+            mlog_g(dd_log_debug, "Running RSHUTDOWN of the other products");
+            datadog_rshutdown_products(module->type, module->module_number);
             continue;
         }
 
@@ -689,7 +694,7 @@ static void _run_rshutdowns(void)
             continue;
         }
 
-        if (found_ddappsec) {
+        if (found_datadog) {
             mlog_g(dd_log_debug, "Running RSHUTDOWN function for module %s",
                 module->name);
             module->request_shutdown_func(module->type, module->module_number);

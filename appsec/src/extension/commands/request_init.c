@@ -13,10 +13,10 @@
 #include "../entity_body.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "../php_compat.h" // NOLINT(unused-includes)
 #include "../php_helpers.h"
 #include "../string_helpers.h"
 #include "request_init.h"
+#include <ext/compatibility.h> // NOLINT(unused-includes)
 #include <mpack.h>
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);

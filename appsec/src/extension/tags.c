@@ -4,29 +4,24 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "ext/pcre/php_pcre.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_lifecycle.h"
 #include "string_helpers.h"
 #include "tags_arginfo.h"
 #include "telemetry.h"
+#include "tracer_bridge.h"
 #include "user_tracking.h"
 #include <SAPI.h>
 #include <Zend/zend.h>
+#include <ext/compatibility.h>
 #include <zend_smart_str.h>
 #include <zend_string.h>
 #include <zend_types.h>
-
-#if PHP_VERSION_ID < 70200
-#    define zend_strpprintf strpprintf
-#endif
 
 #define DD_SDK "sdk"
 #define DD_TAG_DATA "_dd.appsec.json"

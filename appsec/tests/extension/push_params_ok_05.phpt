@@ -1,7 +1,6 @@
 --TEST--
 Rasp addresses are not sent to the helper if RASP disabled
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 DD_APPSEC_RASP_ENABLED=false

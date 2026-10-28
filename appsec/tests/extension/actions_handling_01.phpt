@@ -1,7 +1,6 @@
 --TEST--
 There can be multiple ok actions
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

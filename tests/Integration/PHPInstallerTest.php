@@ -94,6 +94,36 @@ final class PHPInstallerTest extends BaseTestCase
         ];
     }
 
+    public function testConfigCommandsShiftOffAllExtensionSettings()
+    {
+        $settings = \get_ini_settings('', '');
+        $shifted = array_slice($settings, 0, \CMD_CONFIG_NUM_SHIFT);
+        $configurable = array_slice($settings, \CMD_CONFIG_NUM_SHIFT);
+
+        $this->assertSame(['extension'], array_unique(array_column($shifted, 'name')));
+        $this->assertNotContains('extension', array_column($configurable, 'name'));
+        $this->assertNotContains('zend_extension', array_column($configurable, 'name'));
+    }
+
+    public function testLegacyExtensionsAreOnlyAddedForLegacyPackages()
+    {
+        $extensions = function (array $settings) {
+            $defaults = [];
+            foreach ($settings as $setting) {
+                if ($setting['name'] === 'extension') {
+                    $defaults[] = $setting['default'];
+                }
+            }
+            return $defaults;
+        };
+
+        $this->assertSame(['ddtrace.so'], $extensions(\get_ini_settings('', '')));
+        $this->assertSame(
+            ['ddtrace.so', 'datadog-profiling.so', 'ddappsec.so'],
+            $extensions(\get_ini_settings('', '', true, true))
+        );
+    }
+
     public function testBuildCommandNamesMatrix()
     {
         $names = \build_known_command_names_matrix();

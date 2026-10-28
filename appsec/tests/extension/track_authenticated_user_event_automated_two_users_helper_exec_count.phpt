@@ -1,7 +1,6 @@
 --TEST--
 track_authenticated_user_event_automated issues one request_exec per distinct user id
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 DD_APPSEC_ENABLED=1

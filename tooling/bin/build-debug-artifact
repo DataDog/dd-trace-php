@@ -39,7 +39,7 @@ Target format: {libc}-{arch}-{php_version}-{thread_safety}
 
 Options:
   --profiler    Build profiling into the combined ddtrace extension
-  --appsec      Also build the AppSec extension
+  --appsec      Build AppSec into the combined ddtrace extension
 
 If the current directory contains a Dockerfile, it will be patched to COPY the
 artifact and add --file to any datadog-setup.php invocations.
@@ -136,7 +136,8 @@ CACHE_VOLUME="ddtrace-build-cache"
 # The persistent build cache contains copied source files under tmp/build_extension.
 # Keep sibling worktrees from reusing stale copied headers for the same PHP target.
 CACHE_SOURCE_KEY="$(printf '%s' "$REPO_ROOT" | cksum | awk '{print $1}')"
-CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}-${CACHE_SOURCE_KEY}"
+# The cached build directory is not reconfigured when --profiler/--appsec change.
+CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}-p${BUILD_PROFILER}a${BUILD_APPSEC}-${CACHE_SOURCE_KEY}"
 CACHE_TAG_LABEL="ddtrace.build.target"
 
 if docker volume inspect "$CACHE_VOLUME" &>/dev/null; then
@@ -244,17 +245,17 @@ _preamble() {  # $1 = shell commands to run as the host user
 
 TRACE_PRODUCTS=""
 if [[ "$BUILD_PROFILER" == "1" ]]; then
-    TRACE_PRODUCTS="EXTRA_CONFIGURE_OPTIONS=--enable-ddtrace-profiling"
+    TRACE_PRODUCTS="${TRACE_PRODUCTS} --enable-ddtrace-profiling"
 fi
-TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 CFLAGS='-std=gnu11 -O0 -g' make ${TRACE_PRODUCTS}
-cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
-
 if [[ "$BUILD_APPSEC" == "1" ]]; then
-    # Use a per-variant cmake build dir in the cache volume (nts and zts need separate builds).
-    APPSEC_SCRIPT="$(_preamble "git config --global --add safe.directory '*' 2>/dev/null || true
-mkdir -p tmp/build_appsec${EXT_SUFFIX}
-(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=OFF && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
+    TRACE_PRODUCTS="${TRACE_PRODUCTS} --enable-ddtrace-appsec"
 fi
+TRACE_MAKE_ARGS=""
+if [[ -n "$TRACE_PRODUCTS" ]]; then
+    TRACE_MAKE_ARGS="EXTRA_CONFIGURE_OPTIONS='${TRACE_PRODUCTS# }'"
+fi
+TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 CFLAGS='-std=gnu11 -O0 -g' make ${TRACE_MAKE_ARGS}
+cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 # ─── Launch all builds in parallel ────────────────────────────────────────────
 _PIDS=()
@@ -287,10 +288,6 @@ fi
 
 _launch "trace"   docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$TRACE_SCRIPT"
 
-if [[ "$BUILD_APPSEC" == "1" ]]; then
-    _launch "appsec" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
-fi
-
 # ─── Wait for all builds ──────────────────────────────────────────────────────
 _FAILED=0
 for _i in "${!_PIDS[@]}"; do
@@ -321,9 +318,9 @@ if [[ "$BUILD_PROFILER" == "1" ]]; then
 fi
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
+    touch "${TRACE_BASE}/ext/${php_api}/.ddtrace${EXT_SUFFIX}.appsec"
     APPSEC_BASE="${TMP_PKG}/dd-library-php/appsec"
-    mkdir -p "${APPSEC_BASE}/ext/${php_api}" "${APPSEC_BASE}/etc"
-    cp "${TMP_OUT}/ddappsec${EXT_SUFFIX}.so" "${APPSEC_BASE}/ext/${php_api}/ddappsec${EXT_SUFFIX}.so"
+    mkdir -p "${APPSEC_BASE}/etc"
     if [[ -f "${REPO_ROOT}/appsec/recommended.json" ]]; then
         cp "${REPO_ROOT}/appsec/recommended.json" "${APPSEC_BASE}/etc/recommended.json"
     fi

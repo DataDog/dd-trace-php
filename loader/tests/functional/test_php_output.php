@@ -9,10 +9,11 @@ assertNotContains($output, 'dd_library_loader');
 assertNotContains($output, 'datadog-profiling');
 assertNotContains($output, 'ddappsec');
 
+// AppSec is part of the injected ddtrace, no separate ddappsec is loaded
 $output = runCLI('-v', true);
 assertContains($output, 'with ddtrace v');
 assertContains($output, 'with dd_library_loader v');
-assertContains($output, 'with ddappsec v');
+assertNotContains($output, 'ddappsec');
 
 $output = runCLI('-m', false);
 assertNotContains($output, 'ddtrace');
@@ -23,4 +24,4 @@ assertNotContains($output, 'ddappsec');
 $output = runCLI('-m', true);
 assertContains($output, 'ddtrace');
 assertContains($output, 'dd_library_loader');
-assertContains($output, 'ddappsec');
+assertNotContains($output, 'ddappsec');

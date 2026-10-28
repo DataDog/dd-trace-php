@@ -1,7 +1,5 @@
 --TEST--
 Track an automated user login failure event without user provided and verify the tags in the root span
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

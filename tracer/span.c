@@ -696,7 +696,7 @@ void ddtrace_push_root_span(void) {
     ddtrace_observe_opened_span(span);
 }
 
-DATADOG_PUBLIC zend_object *ddtrace_get_root_span()
+zend_object *ddtrace_get_root_span()
 {
     if (!DDTRACE_G(active_stack)) {
         return NULL;

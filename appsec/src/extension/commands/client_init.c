@@ -10,14 +10,14 @@
 #include "../commands_helpers.h"
 #include "../configuration.h"
 #include "../ddappsec.h"
-#include "../ddtrace.h"
 #include "../helper_process.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "../php_compat.h"
 #include "../string_helpers.h"
-#include "../version.h"
+#include "../tracer_bridge.h"
 #include "client_init.h"
+#include <ext/compatibility.h>
+#include <ext/version.h>
 
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nullable ctx);
 static dd_result _process_response(mpack_node_t root, void *nonnull ctx);
@@ -48,7 +48,7 @@ static dd_result _pack_command(
     mpack_writer_t *nonnull w, ATTR_UNUSED void *nullable ctx)
 {
     mpack_write(w, (uint32_t)getpid());
-    dd_mpack_write_lstr(w, PHP_DDAPPSEC_VERSION);
+    dd_mpack_write_lstr(w, PHP_DDTRACE_VERSION);
     dd_mpack_write_lstr(w, PHP_VERSION);
 
     if (DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG) {
@@ -234,11 +234,11 @@ static dd_result _check_helper_version(mpack_node_t root)
                              "reading helper version");
         return dd_error;
     }
-    if (!STR_CONS_EQ(version, version_len, PHP_DDAPPSEC_VERSION)) {
+    if (!STR_CONS_EQ(version, version_len, PHP_DDTRACE_VERSION)) {
         mlog(dd_log_warning,
             "Mismatch of helper and extension version. "
             "helper %.*s and extension %s",
-            version_len_int, version, PHP_DDAPPSEC_VERSION);
+            version_len_int, version, PHP_DDTRACE_VERSION);
         return dd_error;
     }
     return dd_success;

@@ -7,12 +7,11 @@
 // NOLINTNEXTLINE(misc-header-include-cycle)
 #include <php.h>
 
-#include "compatibility.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
-#include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
+#include <ext/compatibility.h>
 
 #if !MPACK_HAS_CONFIG
 #    error "MPACK_HAS_CONFIG is not defined"

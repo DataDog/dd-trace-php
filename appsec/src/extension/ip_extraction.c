@@ -5,11 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
 #include "ip_extraction.h"
-#include "compatibility.h"
 #include "configuration.h"
-#include "ddtrace.h"
-#include "php_compat.h"
 #include "php_objects.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 static void _register_testing_objects(void);
 

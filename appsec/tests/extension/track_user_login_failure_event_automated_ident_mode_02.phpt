@@ -1,7 +1,5 @@
 --TEST--
 Verify on identification mode sensitive ids are not discarded
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=ident

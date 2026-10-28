@@ -9,8 +9,8 @@
 
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "php_compat.h"
 #include "php_objects.h"
+#include <ext/compatibility.h>
 
 #include "attributes.h"
 
