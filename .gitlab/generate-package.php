@@ -1553,9 +1553,9 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
-        - DEBUGGER_PROBES_SNAPSHOT_WITH_SCM
+        - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_EXPRESSION_LANGUAGE DEBUGGER_INPRODUCT_ENABLEMENT"
   script:
-    - ./run.sh $TESTSUITE
+    - FAILED=""; for S in $TESTSUITE; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 "System Tests: [php-fpm-8.5, default]":
   extends: .system_tests
@@ -1578,9 +1578,16 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
-        - DEBUGGER_PROBES_SNAPSHOT_WITH_SCM
+        - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_TELEMETRY DEBUGGER_EXCEPTION_REPLAY"
   script:
-    - ./run.sh $TESTSUITE
+    - FAILED=""; for S in $TESTSUITE; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+
+"System Tests: [apache-mod-8.0-zts, debugger]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: "-i weblog -w apache-mod-8.0-zts php"
+  script:
+    - FAILED=""; for S in DEBUGGER_PROBES_SNAPSHOT DEBUGGER_PII_REDACTION; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php
 $system_tests_weblogs = [
