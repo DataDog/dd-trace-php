@@ -1,8 +1,8 @@
-//! XML events and entity replacements feed the same writer. Rust owns all
-//! parser state; PHP allocations happen only after it returns.
+//! XML events and entity replacements feed the same MessagePack writer.
+//! The private allocator accounts for both parser state and output in Zend.
 
 use super::xml_dtd::Dtd;
-use super::{AppsecBodyTape, TapeWriter};
+use super::{AppsecBodyMessagePack, MsgpackWriter};
 use quick_xml::errors::{Error, SyntaxError};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
@@ -14,7 +14,7 @@ use std::rc::Rc;
 const MIN_EXPANSION_BUDGET: usize = 64 * 1024;
 pub(super) const MAX_ENTITY_DEPTH: usize = 32;
 
-pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyTape {
+pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyMessagePack {
     // The body API supports UTF-8 only. Keep the valid prefix on malformed or
     // truncated UTF-8, and never send undecoded bytes to AppSec.
     let (input, valid_utf8) = match std::str::from_utf8(input) {
@@ -35,7 +35,7 @@ pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyTape {
     };
     let input = normalized.as_ref();
     let mut parser = XmlParser {
-        tape: TapeWriter::default(),
+        writer: MsgpackWriter::default(),
         max_depth,
         depth: 0,
         suppressed: 0,
@@ -48,11 +48,11 @@ pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyTape {
     let complete =
         parser.read(input, true) && valid_utf8 && parser.depth == 0 && parser.suppressed == 0;
     parser.flush_text();
-    parser.tape.finish(complete)
+    parser.writer.finish(complete)
 }
 
 struct XmlParser {
-    tape: TapeWriter,
+    writer: MsgpackWriter,
     max_depth: u32,
     /// Number of open elements whose content is recorded.
     depth: u32,
@@ -107,15 +107,15 @@ impl XmlParser {
             return;
         }
         self.root_seen = true;
-        self.tape.map_start();
-        self.tape.key(name);
-        self.tape.list_start();
+        self.writer.map_start();
+        self.writer.key(name);
+        self.writer.list_start();
         if let Some(e) = e {
             self.attributes(e);
         }
         if empty || self.depth >= self.max_depth {
-            self.tape.end();
-            self.tape.end();
+            self.writer.end();
+            self.writer.end();
             if !empty {
                 self.suppressed = 1;
             }
@@ -154,7 +154,7 @@ impl XmlParser {
                 }
                 // The name is copied for every matching element, even for an
                 // empty value. A long default name must not amplify a small
-                // document into an unbounded tape outside PHP's memory limit.
+                // document into unbounded MessagePack output.
                 if !seen.contains(name.as_slice())
                     && self.charge(name.len().saturating_add(value.len()))
                 {
@@ -163,7 +163,7 @@ impl XmlParser {
             }
         }
         if opened {
-            self.tape.end();
+            self.writer.end();
         }
     }
 
@@ -181,14 +181,14 @@ impl XmlParser {
                 .join(&b' ');
         }
         if !*opened {
-            self.tape.map_start();
+            self.writer.map_start();
             *opened = true;
         }
         let mut key = Vec::with_capacity(name.len() + 1);
         key.push(b'@');
         key.extend_from_slice(name);
-        self.tape.key(&key);
-        self.tape.str(&value);
+        self.writer.key(&key);
+        self.writer.str(&value);
     }
 
     fn end(&mut self) {
@@ -196,8 +196,8 @@ impl XmlParser {
         if self.suppressed > 0 {
             self.suppressed -= 1;
         } else if self.depth > 0 {
-            self.tape.end();
-            self.tape.end();
+            self.writer.end();
+            self.writer.end();
             self.depth -= 1;
         }
     }
@@ -285,7 +285,7 @@ impl XmlParser {
 
     fn flush_text(&mut self) {
         if !self.text.is_empty() {
-            self.tape.str(&self.text);
+            self.writer.str(&self.text);
             self.text.clear();
         }
     }
@@ -530,9 +530,9 @@ mod tests {
             r#"<!DOCTYPE r [<!ATTLIST a {name} CDATA "">]><r>{}<after>visible</after></r>"#,
             "<a/>".repeat(4000)
         );
-        let tape = super::parse(input.as_bytes(), 30);
-        assert!(tape.len < input.len() * 8, "{}", tape.len);
-        let (status, out) = render(tape);
+        let writer = super::parse(input.as_bytes(), 30);
+        assert!(writer.len < input.len() * 8, "{}", writer.len);
+        let (status, out) = render(writer);
         assert_eq!(status, AppsecBodyStatus::Complete);
         assert!(out.contains(&format!(r#""@{name}":"""#)));
         assert_eq!(out.matches(r#"{"a":"#).count(), 4000);

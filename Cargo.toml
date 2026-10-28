@@ -4,8 +4,15 @@ members = [
   "sidecar",
   "appsec/helper-rust",
 ]
-# Don't add vendored libddwaf crates to the this workspace; it would break them
-exclude = ["appsec/third_party/libddwaf-rust"]
+exclude = [
+  # Workspace membership would break the vendored libddwaf crates.
+  "appsec/third_party/libddwaf-rust",
+  # Build the parsers separately with panic=unwind and their own allocator.
+  # Localize their staticlib symbols before linking so the allocator and panic
+  # runtime stay isolated from the rest of the tracer.
+  # See components-rs/appsec_body/tools/isolate.rs.
+  "components-rs/appsec_body",
+]
 resolver = "2"
 
 [workspace.package]
@@ -37,7 +44,7 @@ default = ["tracer", "appsec"]
 tracer = ["dep:ddtrace-sidecar"]
 helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
 libddwaf-source-static = ["ddtrace-sidecar/libddwaf-source-static"]
-appsec = ["dep:quick-xml"]
+appsec = []
 profiling = [
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
   "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",
@@ -73,7 +80,6 @@ libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", defau
 spawn_worker = { path = "libdatadog/spawn_worker" }
 anyhow = "1.0"
 arc-swap.workspace = true
-quick-xml = { workspace = true, optional = true }
 const-str = "0.5.6"
 itertools = "0.11.0"
 serde = "1.0.196"

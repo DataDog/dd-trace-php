@@ -1,31 +1,57 @@
 #include "threads.h"
-#define zend_signal_globals_id zend_signal_globals_id_dummy
-#define zend_signal_globals_offset zend_signal_globals_offset_dummy
-#define zend_signal_handler_unblock zend_signal_handler_unblock_dummy
 #include <Zend/zend.h>
-#undef zend_signal_globals_id
-#undef zend_signal_globals_offset
-#undef zend_signal_handler_unblock
 #include "datadog.h"
 
 #if ZTS
 
-#ifdef ZEND_SIGNALS
-#ifdef __APPLE__
-extern __attribute__((weak, weak_import)) int zend_signal_globals_id;
-extern __attribute__((weak, weak_import)) size_t zend_signal_globals_offset;
-#elif defined(_WIN32)
-#error "Found zend_signals under windows!?"
-#else
-__attribute__((weak)) int zend_signal_globals_id;
-__attribute__((weak)) size_t zend_signal_globals_offset;
-#endif
-
-__attribute__((weak)) void zend_signal_handler_unblock(void);
-#endif
-
 HashTable datadog_tls_bases; // map thread id to TSRMLS_CACHE
 MUTEX_T datadog_threads_mutex = NULL;
+
+// A SIGVTALRM arriving on the thread holding the lock would deadlock in the handler. HANDLE_BLOCK_INTERRUPTIONS() does not
+// help: it only defers the signals zend_signal handles itself. Pending signals are delivered after unlocking.
+static void dd_threads_block_signal(datadog_threads_lock_state *state) {
+#ifndef _WIN32
+    sigset_t x;
+    sigemptyset(&x);
+    sigaddset(&x, SIGVTALRM);
+    pthread_sigmask(SIG_BLOCK, &x, state);
+#else
+    (void)state;
+#endif
+}
+
+static void dd_threads_restore_signal(datadog_threads_lock_state *state) {
+#ifndef _WIN32
+    pthread_sigmask(SIG_SETMASK, state, NULL);
+#else
+    (void)state;
+#endif
+}
+
+void datadog_threads_lock(datadog_threads_lock_state *state) {
+    dd_threads_block_signal(state);
+    tsrm_mutex_lock(datadog_threads_mutex);
+}
+
+bool datadog_threads_trylock(datadog_threads_lock_state *state) {
+    dd_threads_block_signal(state);
+#ifndef _WIN32
+    if (pthread_mutex_trylock(datadog_threads_mutex) == 0) {
+        return true;
+    }
+#else
+    if (TryEnterCriticalSection(datadog_threads_mutex)) {
+        return true;
+    }
+#endif
+    dd_threads_restore_signal(state);
+    return false;
+}
+
+void datadog_threads_unlock(datadog_threads_lock_state *state) {
+    tsrm_mutex_unlock(datadog_threads_mutex);
+    dd_threads_restore_signal(state);
+}
 
 void datadog_thread_ginit() {
     if (!datadog_threads_mutex) {
@@ -33,42 +59,22 @@ void datadog_thread_ginit() {
         zend_hash_init(&datadog_tls_bases, 8, NULL, NULL, 1);
     }
 
-#ifdef ZEND_SIGNALS
-    // avoid deadlocks due to signal handlers accessing this
-    if (zend_signal_globals_id) {
-        HANDLE_BLOCK_INTERRUPTIONS();
-    }
-#endif
-    tsrm_mutex_lock(datadog_threads_mutex);
+    datadog_threads_lock_state state;
+    datadog_threads_lock(&state);
 
     zend_hash_index_add_new_ptr(&datadog_tls_bases, (zend_ulong)(uintptr_t)tsrm_thread_id(), TSRMLS_CACHE);
 
-    tsrm_mutex_unlock(datadog_threads_mutex);
-#ifdef ZEND_SIGNALS
-    if (zend_signal_globals_id) {
-        HANDLE_UNBLOCK_INTERRUPTIONS();
-    }
-#endif
+    datadog_threads_unlock(&state);
 }
 
 void datadog_thread_gshutdown() {
     if (datadog_threads_mutex) {
-#ifdef ZEND_SIGNALS
-        // avoid deadlocks due to signal handlers accessing this
-        if (zend_signal_globals_id) {
-            HANDLE_BLOCK_INTERRUPTIONS();
-        }
-#endif
-        tsrm_mutex_lock(datadog_threads_mutex);
+        datadog_threads_lock_state state;
+        datadog_threads_lock(&state);
 
         zend_hash_index_del(&datadog_tls_bases, (zend_ulong)(uintptr_t)tsrm_thread_id());
 
-        tsrm_mutex_unlock(datadog_threads_mutex);
-#ifdef ZEND_SIGNALS
-        if (zend_signal_globals_id) {
-            HANDLE_UNBLOCK_INTERRUPTIONS();
-        }
-#endif
+        datadog_threads_unlock(&state);
 
         if (zend_hash_num_elements(&datadog_tls_bases) == 0) {
             tsrm_mutex_free(datadog_threads_mutex);

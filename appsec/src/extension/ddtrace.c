@@ -81,11 +81,14 @@ static ddog_AppsecCResponse (
     bool client_init);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);
-static ddog_AppsecBodyTape (*nullable _ddog_appsec_parse_json)(
-    ddog_CharSlice input, int32_t max_depth);
-static ddog_AppsecBodyTape (*nullable _ddog_appsec_parse_xml)(
-    ddog_CharSlice input, int32_t max_depth);
-static void (*nullable _ddog_appsec_body_tape_drop)(ddog_AppsecBodyTape tape);
+static ddog_AppsecBodyMessagePack (*nullable _ddog_appsec_parse_json)(
+    ddog_CharSlice input, int32_t max_depth,
+    ddog_AppsecBodyAllocator allocator);
+static ddog_AppsecBodyMessagePack (*nullable _ddog_appsec_parse_xml)(
+    ddog_CharSlice input, int32_t max_depth,
+    ddog_AppsecBodyAllocator allocator);
+static void (*nullable _ddog_appsec_body_msgpack_drop)(
+    ddog_AppsecBodyMessagePack body);
 
 static void _test_datadog_metric_register_buffer(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
@@ -142,7 +145,8 @@ static void dd_trace_load_symbols(zend_module_entry *module)
         "ddog_sidecar_appsec_response_drop");
     ASSIGN_DLSYM(_ddog_appsec_parse_json, "ddog_appsec_parse_json");
     ASSIGN_DLSYM(_ddog_appsec_parse_xml, "ddog_appsec_parse_xml");
-    ASSIGN_DLSYM(_ddog_appsec_body_tape_drop, "ddog_appsec_body_tape_drop");
+    ASSIGN_DLSYM(
+        _ddog_appsec_body_msgpack_drop, "ddog_appsec_body_msgpack_drop");
 }
 
 void dd_trace_startup(void)
@@ -437,34 +441,36 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
         &sidecar, request_slice, false);
 }
 
-static ddog_AppsecBodyTape _parse_body(
-    ddog_AppsecBodyTape (*nullable parse)(ddog_CharSlice, int32_t),
-    const char *nonnull data, size_t len, int max_depth)
+ddog_AppsecBodyMessagePack dd_trace_parse_json_body(const char *nonnull data,
+    size_t len, int max_depth, ddog_AppsecBodyAllocator allocator)
 {
-    if (!parse || !_ddog_appsec_body_tape_drop) {
+    if (!_ddog_appsec_parse_json || !_ddog_appsec_body_msgpack_drop) {
         mlog_once(dd_log_error,
             "Could not parse the request body. Some symbols are missing");
-        return (ddog_AppsecBodyTape){.status = DDOG_APPSEC_BODY_STATUS_EMPTY};
+        return (ddog_AppsecBodyMessagePack){
+            .status = DDOG_APPSEC_BODY_STATUS_EMPTY};
     }
-    return parse((ddog_CharSlice){.ptr = data, .len = len}, max_depth);
+    return _ddog_appsec_parse_json(
+        (ddog_CharSlice){.ptr = data, .len = len}, max_depth, allocator);
 }
 
-ddog_AppsecBodyTape dd_trace_parse_json_body(
-    const char *nonnull data, size_t len, int max_depth)
+ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(const char *nonnull data,
+    size_t len, int max_depth, ddog_AppsecBodyAllocator allocator)
 {
-    return _parse_body(_ddog_appsec_parse_json, data, len, max_depth);
+    if (!_ddog_appsec_parse_xml || !_ddog_appsec_body_msgpack_drop) {
+        mlog_once(dd_log_error,
+            "Could not parse the request body. Some symbols are missing");
+        return (ddog_AppsecBodyMessagePack){
+            .status = DDOG_APPSEC_BODY_STATUS_EMPTY};
+    }
+    return _ddog_appsec_parse_xml(
+        (ddog_CharSlice){.ptr = data, .len = len}, max_depth, allocator);
 }
 
-ddog_AppsecBodyTape dd_trace_parse_xml_body(
-    const char *nonnull data, size_t len, int max_depth)
+void dd_trace_drop_body_msgpack(ddog_AppsecBodyMessagePack body)
 {
-    return _parse_body(_ddog_appsec_parse_xml, data, len, max_depth);
-}
-
-void dd_trace_drop_body_tape(ddog_AppsecBodyTape tape)
-{
-    if (_ddog_appsec_body_tape_drop) {
-        _ddog_appsec_body_tape_drop(tape);
+    if (_ddog_appsec_body_msgpack_drop) {
+        _ddog_appsec_body_msgpack_drop(body);
     }
 }
 
