@@ -260,6 +260,9 @@ static bool _charset_is_utf8_compatible(const char *value, const char *end)
         size_t len;
     } charsets[] = {
         {LSTRARG("utf-8")},
+        // US-ASCII text is also valid UTF-8 with the same meaning. The XML
+        // declaration, not this header, then decides how it is decoded.
+        {LSTRARG("us-ascii")},
     };
     for (size_t i = 0; i < ARRAY_SIZE(charsets); i++) {
         if (_charset_equals(value, end, charsets[i].name, charsets[i].len)) {
@@ -307,7 +310,8 @@ static ddog_AppsecBodyMessagePack _convert_xml(const char *nonnull entity,
 {
     bool is_utf8 = _assume_utf8(content_type, content_type_len);
     if (!is_utf8) {
-        mlog(dd_log_info, "Only UTF-8 is supported for XML parsing");
+        mlog(dd_log_info,
+            "Only UTF-8 and US-ASCII are supported for XML parsing");
         return (ddog_AppsecBodyMessagePack){
             .status = DDOG_APPSEC_BODY_STATUS_EMPTY};
     }

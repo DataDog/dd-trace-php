@@ -4,6 +4,8 @@ XML content-type parsing recognizes complete charset parameters
 RFC 9110 section 5.6.6 allows quoted parameter values. Parameter names
 and values must be matched in full, and other parameter values must not
 be interpreted as charset declarations.
+US-ASCII is accepted because its text is also valid UTF-8; its aliases
+are not.
 Retain the existing tolerance for whitespace around '='.
 --FILE--
 <?php
@@ -22,10 +24,14 @@ $cases = [
     'escaped quote' => 'application/xml; note="a\\";charset=ascii"; charset=UTF-8',
     'escaped backslash' => 'application/xml; note="a\\\\"; charset="UTF-8"',
     'unrelated before UTF-8' => 'application/xml; note="charset=ascii"; charset=UTF-8',
+    'US-ASCII' => 'application/xml; charset=US-ASCII',
+    'quoted mixed-case US-ASCII' => 'application/xml; charset="uS-AsCiI"',
     'unrelated before Latin-1' => 'application/xml; note="charset=utf-8"; charset=ISO-8859-1',
     'Latin-1' => 'application/xml; charset=ISO-8859-1',
     'quoted Latin-1' => 'application/xml; charset="ISO-8859-1"',
     'short charset' => 'application/xml; charset=GBK',
+    'ASCII alias' => 'application/xml; charset=ascii',
+    'US-ASCII prefix' => 'application/xml; charset=US-ASCII2',
     'UTF-8 prefix' => 'application/xml; charset=UTF-80',
     'quoted UTF-8 prefix' => 'application/xml; charset="UTF-80"',
     'space inside quotes' => 'application/xml; charset="UTF-8 "',
@@ -54,10 +60,14 @@ quoted semicolon: {"r":["payload"]}
 escaped quote: {"r":["payload"]}
 escaped backslash: {"r":["payload"]}
 unrelated before UTF-8: {"r":["payload"]}
+US-ASCII: {"r":["payload"]}
+quoted mixed-case US-ASCII: {"r":["payload"]}
 unrelated before Latin-1: null
 Latin-1: null
 quoted Latin-1: null
 short charset: null
+ASCII alias: null
+US-ASCII prefix: null
 UTF-8 prefix: null
 quoted UTF-8 prefix: null
 space inside quotes: null

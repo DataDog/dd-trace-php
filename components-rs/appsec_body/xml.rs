@@ -36,6 +36,18 @@ pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyMessagePack {
     let input = normalized.as_ref();
     let mut parser = XmlParser::new(input, max_depth);
     let complete = parser.read(input, true);
+    let (mut parser, complete, valid_utf8) = match parser.ascii_end {
+        // A US-ASCII declaration was followed by a non-ASCII byte. The
+        // declaration comes first, so nothing has been recorded yet: restart
+        // on the ASCII prefix, as libxml's recovery does.
+        Some(end) => {
+            let input = &input[..end];
+            let mut parser = XmlParser::new(input, max_depth);
+            let complete = parser.read(input, true);
+            (parser, complete, false)
+        }
+        None => (parser, complete, valid_utf8),
+    };
     let complete = complete && valid_utf8 && parser.depth == 0 && parser.suppressed == 0;
     parser.flush_text();
     parser.writer.finish(complete)
@@ -55,6 +67,9 @@ struct XmlParser {
     dtd: Dtd,
     active_entities: HashSet<Vec<u8>>,
     expansion_budget: usize,
+    /// Document length up to the first non-ASCII byte after a US-ASCII
+    /// declaration.
+    ascii_end: Option<usize>,
 }
 
 impl XmlParser {
@@ -71,6 +86,7 @@ impl XmlParser {
             dtd: Dtd::default(),
             active_entities: HashSet::new(),
             expansion_budget: input.len().saturating_mul(4).max(MIN_EXPANSION_BUDGET),
+            ascii_end: None,
         }
     }
 
@@ -78,6 +94,7 @@ impl XmlParser {
         // An entity must balance its own elements, including those whose
         // content is suppressed by the depth limit (XML 1.0 section 4.3.2).
         let initial_depth = (self.depth, self.suppressed);
+        let document_len = input.len();
         let mut input = if document {
             // Strip the document BOM ourselves so buffer positions include
             // exactly the bytes in `input` when intercepting the DOCTYPE.
@@ -162,6 +179,14 @@ impl XmlParser {
                     if let Some(encoding) = e.encoding() {
                         match encoding {
                             Ok(name) if name.eq_ignore_ascii_case(b"UTF-8") => {}
+                            // ASCII is a subset of UTF-8, so only the bytes
+                            // after the first non-ASCII one need dropping.
+                            Ok(name) if name.eq_ignore_ascii_case(b"US-ASCII") => {
+                                if let Some(i) = input.iter().position(|b| !b.is_ascii()) {
+                                    self.ascii_end = Some(document_len - input.len() + i);
+                                    return false;
+                                }
+                            }
                             _ => return false,
                         }
                     }
@@ -931,6 +956,32 @@ mod tests {
                 r#"{"r":["before",{"x":[]}]}"#.to_owned()
             )
         );
+    }
+
+    #[test]
+    fn us_ascii_is_accepted_up_to_the_first_non_ascii_byte() {
+        for declaration in [
+            r#"<?xml version="1.0" encoding="US-ASCII"?>"#,
+            r#"<?xml version="1.0" encoding="us-ascii"?>"#,
+            "\u{feff}<?xml version=\"1.0\" encoding=\"US-ASCII\"?>",
+        ] {
+            assert_eq!(
+                complete(&format!("{declaration}<r a=\"x\">text</r>")),
+                r#"{"r":[{"@a":"x"},"text"]}"#
+            );
+            // Valid UTF-8 is still not ASCII. Like libxml's recovery, keep
+            // only the content before the first non-ASCII byte.
+            assert_eq!(
+                partial(&format!("{declaration}<r>ab<c/>café tail</r>")),
+                r#"{"r":["ab",{"c":[]},"caf"]}"#
+            );
+        }
+        let (status, out) = render(super::parse(
+            b"<?xml version=\"1.0\" encoding=\"US-ASCII\"?><r>caf\xe9</r>",
+            30,
+        ));
+        assert_eq!(status, AppsecBodyStatus::Partial);
+        assert_eq!(out, r#"{"r":["caf"]}"#);
     }
 
     #[test]
