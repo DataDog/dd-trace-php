@@ -1553,6 +1553,7 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
+        - DEBUGGER_PROBES_SNAPSHOT_WITH_SCM
   script:
     - ./run.sh $TESTSUITE
 
@@ -1577,6 +1578,7 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
+        - DEBUGGER_PROBES_SNAPSHOT_WITH_SCM
   script:
     - ./run.sh $TESTSUITE
 
