@@ -11,7 +11,7 @@ use RdKafka\Producer;
 $topicName = $argv[1];
 $brokers = $argv[2] ?? 'kafka-integration:9092';
 
-function report(string $what, $client): void
+function report(string $what, $client)
 {
     echo sprintf("%s: %s\n", $what, var_export(\DDTrace\Internal\kafka_cluster_id($client), true));
 }
