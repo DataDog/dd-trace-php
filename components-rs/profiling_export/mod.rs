@@ -109,11 +109,13 @@ impl Drop for Profile {
     }
 }
 
+#[repr(C)]
 pub enum AgentEndpoint {
     Uri(String),
     Socket(PathBuf),
 }
 
+#[repr(C)]
 pub struct Upload {
     pub profile: Profile,
     pub end_time: SystemTime,
