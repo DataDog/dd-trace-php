@@ -1,9 +1,8 @@
 --TEST--
 HOOK_INSTANCE on partial function applications
 --DESCRIPTION--
-Each evaluation of a partial function application is a fresh static closure whose declaration the
-install cannot locate. The failed lookup is remembered per declaration and scope; instance hooks must
-still only cover their own instance.
+Each evaluation of a partial function application is a fresh static closure without a lambda
+declaration opcode to look up. Instance hooks must still only cover their own instance.
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80600) die('skip: partial function application is PHP 8.6+'); ?>
 --INI--

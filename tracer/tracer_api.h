@@ -19,7 +19,6 @@ void ddtrace_rinit_early(void);
 void ddtrace_rinit(void);
 void ddtrace_rshutdown(bool fast_shutdown);
 void ddtrace_post_deactivate(void);
-void ddtrace_op_array_dtor(zend_op_array *op_array);
 void ddtrace_recreate_agent_config_reader(void);
 
 // fork handling

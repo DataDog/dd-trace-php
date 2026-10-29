@@ -1,9 +1,9 @@
 --TEST--
 HOOK_INSTANCE on a static closure whose opcodes reuse those of a freed, unlocatable declaration
 --DESCRIPTION--
-On PHP 8.6 the install remembers, by opcodes address, the declarations that it cannot locate. Once
-such a declaration (eval'd code) is freed, a later declaration may get the same address: its install
-must still find it and uncache it, so later evaluations stay fresh.
+The eval'd file's code is freed before the install, while its returned closure stays alive. The
+declaration lookup must forget the freed parent without losing the child location. Once the child
+is also freed, reused opcode addresses must not interfere with later declaration lookups.
 --INI--
 datadog.trace.generate_root_span=0
 --FILE--

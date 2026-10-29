@@ -578,23 +578,9 @@ static void dd_uhook_dtor(void *data) {
     efree(def);
 }
 
-#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
+#if PHP_VERSION_ID >= 80600
 // Unused by php-src 8.6 (fn_flags2 bits 1-31 are free): the declaration of this closure no longer caches it
 #define DD_ACC2_UNCACHED_LAMBDA (1u << 31)
-
-static zend_op_array *dd_uhook_find_lambda_decl(zend_op_array *op_array, const zend_op *opcodes, uint32_t *def) {
-    for (uint32_t i = 0; i < op_array->num_dynamic_func_defs; ++i) {
-        zend_op_array *nested = op_array->dynamic_func_defs[i], *found;
-        if (nested->opcodes == opcodes) {
-            *def = i;
-            return op_array;
-        }
-        if ((found = dd_uhook_find_lambda_decl(nested, opcodes, def))) {
-            return found;
-        }
-    }
-    return NULL;
-}
 
 // PHP 8.6 caches static closures without captured state, so later evaluations would share the instance hook: disable it at
 // the declaration. Re-verify with the php-src#23911 fix. With opcache, workers share it: on debug and -fno-strict-aliasing builds,
@@ -608,49 +594,29 @@ static void dd_uhook_uncache_closure(zend_object *closure) {
     // Look up each instance once; evaluations of an uncached declaration copy its mark
     op_array->fn_flags2 |= DD_ACC2_UNCACHED_LAMBDA;
 
-    uint32_t def = 0;
-    zend_op_array *decl = NULL;
-    for (zend_execute_data *ex = EG(current_execute_data); ex && !decl; ex = ex->prev_execute_data) {
-        if (ex->func && ZEND_USER_CODE(ex->func->type)) {
-            decl = dd_uhook_find_lambda_decl(&ex->func->op_array, op_array->opcodes, &def);
-        }
-    }
-    if (!decl) {
-        // Unlike the stack, the function tables cannot gain the declaration later: search them once per declaration and scope
-        zval *miss = zend_hash_index_lookup(&DDTRACE_G(uhook_lambda_decl_misses), (zend_ulong)(uintptr_t)op_array->opcodes);
-        if (Z_TYPE_P(miss) == IS_PTR && Z_PTR_P(miss) == op_array->scope) {
-            return;
-        }
-        zend_function *func;
-        ZEND_HASH_REVERSE_FOREACH_PTR(op_array->scope ? &op_array->scope->function_table : EG(function_table), func) {
-            if (func->type == ZEND_USER_FUNCTION) {
-                if ((decl = dd_uhook_find_lambda_decl(&func->op_array, op_array->opcodes, &def))) {
-                    break;
-                }
-            } else if (!op_array->scope) {
-                break; // user functions follow the internal ones
-            }
-        } ZEND_HASH_FOREACH_END();
-        if (!decl) {
-            ZVAL_PTR(miss, op_array->scope);
-            return;
-        }
-    }
-
-    zend_op *opline = decl->opcodes, *end = opline + decl->last;
-    while (opline < end && (opline->opcode != ZEND_DECLARE_LAMBDA_FUNCTION || opline->op2.num != def)) {
-        ++opline;
-    }
-    zend_op_array *src = decl->dynamic_func_defs[def];
-    // Opcache shared memory (immutable op_arrays) is read-only with opcache.protect_memory
-    if (opline == end || ((src->fn_flags & ZEND_ACC_IMMUTABLE) && zai_jit_shm_protected())) {
+    zend_op_array *containing = zai_hook_find_containing_op_array(op_array);
+    if (!containing) {
         return;
     }
-    if (opline->extended_value != (uint32_t)-1) {
-        // The engine's value for closures it does not cache
-        *(volatile uint32_t *)&opline->extended_value = (uint32_t)-1;
+    for (zend_op *opline = containing->opcodes, *end = opline + containing->last; opline < end; ++opline) {
+        if (opline->opcode != ZEND_DECLARE_LAMBDA_FUNCTION) {
+            continue;
+        }
+        zend_op_array *src = containing->dynamic_func_defs[opline->op2.num];
+        if (src->opcodes != op_array->opcodes) {
+            continue;
+        }
+        // Opcache shared memory (immutable op_arrays) is read-only with opcache.protect_memory
+        if ((src->fn_flags & ZEND_ACC_IMMUTABLE) && zai_jit_shm_protected()) {
+            return;
+        }
+        if (opline->extended_value != (uint32_t)-1) {
+            // The engine's value for closures it does not cache
+            *(volatile uint32_t *)&opline->extended_value = (uint32_t)-1;
+        }
+        *(volatile uint32_t *)&src->fn_flags2 = src->fn_flags2 | DD_ACC2_UNCACHED_LAMBDA;
+        return;
     }
-    *(volatile uint32_t *)&src->fn_flags2 = src->fn_flags2 | DD_ACC2_UNCACHED_LAMBDA;
 }
 #endif
 
@@ -813,7 +779,7 @@ type_error:
                 zend_hash_index_add_new_ptr(&DDTRACE_G(uhook_closure_hooks), (zend_ulong)(uintptr_t)closure, hooks);
             }
             hooks->id[hooks->size - 1] = id;
-#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
+#if PHP_VERSION_ID >= 80600
             dd_uhook_uncache_closure(closure);
 #endif
         }
@@ -1320,38 +1286,15 @@ ZEND_METHOD(DDTrace_HookData, getSourceFile) {
     }
 }
 
-#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
-ZEND_TLS bool dd_uhook_lambda_decl_misses_live;
-#endif
-
 void zai_uhook_rinit() {
     zend_hash_init(&DDTRACE_G(uhook_active_hooks), 8, NULL, NULL, 0);
     zend_hash_init(&DDTRACE_G(uhook_closure_hooks), 8, NULL, NULL, 0);
     ddtrace_uhook_line_rinit();
-#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
-    zend_hash_init(&DDTRACE_G(uhook_lambda_decl_misses), 8, NULL, NULL, 0);
-    dd_uhook_lambda_decl_misses_live = true;
-#endif
 }
 
 void zai_uhook_rshutdown() {
-#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
-    dd_uhook_lambda_decl_misses_live = false;
-    zend_hash_destroy(&DDTRACE_G(uhook_lambda_decl_misses));
-#endif
     zend_hash_destroy(&DDTRACE_G(uhook_closure_hooks));
     zend_hash_destroy(&DDTRACE_G(uhook_active_hooks));
-}
-
-// Zend calls it when an op_array's opcodes are freed, also outside of requests and after GSHUTDOWN
-void ddtrace_op_array_dtor(zend_op_array *op_array) {
-    zai_hook_unresolve_op_array(op_array);
-#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
-    // A later declaration may get the same opcodes address
-    if (dd_uhook_lambda_decl_misses_live) {
-        zend_hash_index_del(&DDTRACE_G(uhook_lambda_decl_misses), (zend_ulong)(uintptr_t)op_array->opcodes);
-    }
-#endif
 }
 
 static zend_object_free_obj_t dd_uhook_closure_free_obj;

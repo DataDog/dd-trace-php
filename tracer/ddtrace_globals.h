@@ -106,9 +106,6 @@ typedef struct {
 
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
-#if PHP_VERSION_ID >= 80600 && PHP_VERSION_ID < 80700
-    HashTable uhook_lambda_decl_misses;
-#endif
 
     zend_object *git_object;
 

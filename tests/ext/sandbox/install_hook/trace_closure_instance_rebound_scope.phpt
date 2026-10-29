@@ -1,9 +1,8 @@
 --TEST--
 HOOK_INSTANCE on a static closure rebound to another scope, then on one of its own scope
 --DESCRIPTION--
-On PHP 8.6 the install looks up the declaration in the methods of the closure's scope. A copy rebound
-to another class is not found there, and that miss is remembered: it must not stop a later install on
-an evaluation of the original scope from finding the declaration, so later evaluations stay fresh.
+On PHP 8.6 the declaration lookup uses the closure's shared opcodes, so rebinding to another class
+must still find and uncache the original declaration. Later evaluations stay fresh.
 --INI--
 datadog.trace.generate_root_span=0
 --FILE--
@@ -14,6 +13,7 @@ class B {}
 
 $rebound = Closure::bind(A::make(), null, B::class);
 DDTrace\install_hook($rebound, function () { echo "rebound: traced\n"; }, null, DDTrace\HOOK_INSTANCE);
+echo "fresh after rebound install: ", var_export(A::make() !== A::make(), true), "\n";
 
 $own = A::make();
 DDTrace\install_hook($own, function () { echo "own scope: traced\n"; }, null, DDTrace\HOOK_INSTANCE);
@@ -26,6 +26,7 @@ $rebound();
 
 ?>
 --EXPECT--
+fresh after rebound install: true
 fresh after the install: true
 own scope: traced
 rebound: traced

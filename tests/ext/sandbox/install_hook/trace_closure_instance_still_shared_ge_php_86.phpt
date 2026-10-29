@@ -1,9 +1,8 @@
 --TEST--
-HOOK_INSTANCE on evaluations of a static closure that PHP 8.6 still shares
+HOOK_INSTANCE caching boundaries for PHP 8.6 static closures
 --DESCRIPTION--
-Pins the cases documented on DDTrace\HOOK_INSTANCE where PHP 8.6 keeps handing out the instance-hooked
-static closure: evaluations obtained before the install, and declarations that the install cannot
-locate (in a closure that is not executing, declared outside of any function, or in a property hook).
+Pins the PHP 8.6 closure caching boundaries: evaluations obtained before the install stay shared,
+while indexed declarations in inactive closures and property hooks produce fresh closures after it.
 Also pins php-src#23911: an evaluation through a second subclass is the closure cached for the first
 one, with its static::.
 --SKIPIF--
@@ -26,8 +25,8 @@ unset($routes, $route);
 $make = eval('return function () { return static function () { return 1; }; };');
 for ($i = 0; $i < 2; ++$i) {
     $closure = $make();
-    DDTrace\install_hook($closure, function () use ($i) { echo "not located hook $i\n"; }, null, DDTrace\HOOK_INSTANCE);
-    echo "not located iteration $i\n";
+    DDTrace\install_hook($closure, function () use ($i) { echo "nested hook $i\n"; }, null, DDTrace\HOOK_INSTANCE);
+    echo "nested iteration $i\n";
     $closure();
 }
 
@@ -37,6 +36,7 @@ $hooked = $hooks->closure;
 DDTrace\install_hook($hooked, function () { echo "property hook: traced\n"; }, null, DDTrace\HOOK_INSTANCE);
 echo "property hook: ", var_export($hooks->closure === $hooked, true), "\n";
 ($hooks->closure)();
+$hooked();
 
 class P { static function make() { return static function () { return static::class; }; } }
 class A extends P {}
@@ -50,11 +50,10 @@ echo "second subclass: ", var_export($a === $b, true), " ", $b(), "\n";
 obtained before the install: true
 route hook 0
 route hook 1
-not located iteration 0
-not located hook 0
-not located iteration 1
-not located hook 0
-not located hook 1
-property hook: true
+nested iteration 0
+nested hook 0
+nested iteration 1
+nested hook 1
+property hook: false
 property hook: traced
 second subclass: true A
