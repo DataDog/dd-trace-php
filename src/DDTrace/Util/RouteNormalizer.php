@@ -10,17 +10,8 @@ namespace DDTrace\Util;
  */
 class RouteNormalizer
 {
-    /**
-     * Memo of WordPress rule plans. Each entry stores whether the rule is safe
-     * to normalize (result of the hasOnlyCapturedWordPressDynamics scan), a
-     * pure function of the rule. Like any PHP static it is reset at the end of
-     * every request under FPM, mod_php and CGI, so there it saves nothing:
-     * WordPress matches one rule per request. It only avoids rescanning in
-     * runtimes that keep PHP state across requests, or across repeated calls.
-     *
-     * @var array<string, array{safe: bool}>
-     */
-    private static $wordPressRulePlans = [];
+    /** Cache key prefix for the per-rule WordPress safety scan. */
+    const WORDPRESS_RULE_CACHE_PREFIX = "wordpress-rule\0";
 
     /**
      * Normalize a Laravel route URI.
@@ -190,17 +181,26 @@ class RouteNormalizer
      *     'safe' => bool,  // result of hasOnlyCapturedWordPressDynamics
      *   ]
      *
+     * The scan is a pure function of the rule, so the verdict is kept in the
+     * routing cache, which lives for the life of the process and is bounded.
+     * WordPress matches one rule per request, so a PHP static would be reset
+     * before it was ever read again under FPM, mod_php and CGI, and would grow
+     * unbounded in runtimes that keep PHP state across requests.
+     *
      * @return array{safe: bool}
      */
     public static function wordPressRulePlan(string $rule): array
     {
-        if (isset(self::$wordPressRulePlans[$rule])) {
-            return self::$wordPressRulePlans[$rule];
+        $cacheKey = self::WORDPRESS_RULE_CACHE_PREFIX . $rule;
+        $cached = \DDTrace\routing_cache_get($cacheKey);
+        if ($cached !== false) {
+            return ['safe' => $cached === '1'];
         }
 
-        return self::$wordPressRulePlans[$rule] = [
-            'safe' => self::hasOnlyCapturedWordPressDynamics($rule),
-        ];
+        $safe = self::hasOnlyCapturedWordPressDynamics($rule);
+        \DDTrace\routing_cache_set($cacheKey, $safe ? '1' : '0');
+
+        return ['safe' => $safe];
     }
 
     /**

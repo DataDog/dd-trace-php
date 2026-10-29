@@ -737,9 +737,16 @@ class WordPressIntegrationLoader
                         && dd_trace_env_config("DD_API_SECURITY_ENABLED")
                         && \property_exists($This, 'request') && is_string($This->request)
                         && !self::requestHasPathInfo($This->request)) {
-                        // Not cached: the rule alone does not determine the
-                        // route (optional captures participate per request),
-                        // and finding out which did is the whole computation.
+                        // The route is not cached, because unlike a Laravel or
+                        // Symfony template a rule plus the captures that took
+                        // part does not determine it: '^([^/]+)(?:/x)?/([^/]+)$'
+                        // matches both 'a/x/b' and 'a/b' with both captures
+                        // present, and normalizes to '/{param1}/x/{param2}' and
+                        // '/{param1}/{param2}'. Keying on the rule and the
+                        // participation would serve one for the other, and
+                        // telling them apart is the whole computation. What is
+                        // cached per rule is the safety scan, in
+                        // RouteNormalizer::wordPressRulePlan().
                         $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress(
                             $matchedRule,
                             $This->request

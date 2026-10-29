@@ -327,6 +327,27 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame($first, $second);
     }
 
+    public function testWordPressRulePlanIsKeptInTheRoutingCache()
+    {
+        // The scan is a pure function of the rule, so its verdict belongs in
+        // the same process-lifetime cache the other integrations use, rather
+        // than in a PHP static that FPM resets before it is ever read again.
+        $safeRule = '^cache-probe/([^/]+)/?$';
+        $this->assertTrue(RouteNormalizer::wordPressRulePlan($safeRule)['safe']);
+        $this->assertSame(
+            '1',
+            \DDTrace\routing_cache_get(RouteNormalizer::WORDPRESS_RULE_CACHE_PREFIX . $safeRule)
+        );
+
+        // A rejected rule is cached too, so an unsafe rule is scanned once.
+        $unsafeRule = '^cache-probe/.+/?$';
+        $this->assertFalse(RouteNormalizer::wordPressRulePlan($unsafeRule)['safe']);
+        $this->assertSame(
+            '0',
+            \DDTrace\routing_cache_get(RouteNormalizer::WORDPRESS_RULE_CACHE_PREFIX . $unsafeRule)
+        );
+    }
+
     public function testWordPressCaptureAcceptingEmptyStringDependsOnUrl()
     {
         // ([^/]*) accepts an empty match: the normalized route differs per URL.
