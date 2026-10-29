@@ -44,17 +44,14 @@ namespace DDTrace {
          * If called outside the pre-hook and no span is attached yet, it will return an empty span object.
          *
          * @param SpanStack|SpanData|null $parent May be specified to start a span on a specific stack.
-         *                                        As an example, when instrumenting closures, it might conceptually make
-         *                                        sense to attach the Closure to the current executing function instead of
-         *                                        where it ends up called. In that case the initial call to span() needs to
-         *                                        provide the proper stack.
+         *                                        As an example, when instrumenting closures, it might conceptually make sense to attach the Closure to the current executing function instead of where it ends up called.
+         *                                        In that case the initial call to span() needs to provide the proper stack.
          * @return SpanData The new or existing span.
          */
         public function span(SpanStack|SpanData|null $parent = null): SpanData {}
 
         /**
-         * Works similarly to self::spqn(), but always pushes the span onto the active span stack, even if running in
-         * limited mode.
+         * Works similarly to self::spqn(), but always pushes the span onto the active span stack, even if running in limited mode.
          *
          * @param SpanStack|SpanData|null $parent See self::span().
          * @return SpanData The new or existing span.
@@ -63,8 +60,7 @@ namespace DDTrace {
 
         /**
          * Replaces the arguments of a function call. Must be called within a pre-hook.
-         * It is not allowed to pass more arguments to a function that currently on the stack or total number or arguments,
-         * whichever is greater.
+         * It is not allowed to pass more arguments to a function that currently on the stack or total number or arguments, whichever is greater.
          *
          * @param array $arguments An array of arguments, which will replace the hooked functions arguments.
          * @return bool 'true' on success, otherwise 'false'
@@ -74,6 +70,10 @@ namespace DDTrace {
         /**
          * Replaces the return value of a function call. Must be called within a post-hook.
          * Note that the return value is not checked.
+         *
+         * Generator-creation pre-hooks may override the Generator returned to the caller.
+         * The original stays alive and cannot be resumed during the callback.
+         * If replaced, the paired post-hook runs immediately with a null return value.
          *
          * @prefer-ref $value
          * @param mixed $value A value which will replace the original return value.
@@ -131,17 +131,19 @@ namespace DDTrace {
     const HOOK_INSTANCE = UNKNOWN;
 
     /**
+     * Runs callbacks at the start and/or end of a file, function, or method.
+     *
+     * End-only hooks on named functions or methods also join matching calls already on the stack, except calls currently running end hooks.
+     * Their arguments reflect the parameters' current values.
+     *
      * @param string|\Closure|\Generator $target The function to hook.
-     *                                           If a string is passed, it must be either a function name or referencing
-     *                                           a method in "Classname::methodname" format. Alternatively it may be a file
-     *                                           name or the DDTrace\HOOK_ALL_FILES constant. Can be a relative path
-     *                                           starting with ./ or ../ too.
-     *                                           If a Closure is passed, the hook only applies to the current instance
-     *                                           of that Closure.
-     *                                           If a Generator is passed, the active function name or Closure is extracted
-     *                                           and the hook applied to that.
+     *                                           If a string is passed, it must be either a function name or referencing a method in "Classname::methodname" format.
+     *                                           Alternatively it may be a file name or the DDTrace\HOOK_ALL_FILES constant.
+     *                                           Can be a relative path starting with ./ or ../ too.
+     *                                           If a Closure is passed, the hook only applies to the current instance of that Closure.
+     *                                           If a Generator is passed, the active function name or Closure is extracted and the hook applied to that.
      * @param null|\Closure(\DDTrace\HookData) $begin Called before the hooked function is invoked.
-     * @param null|\Closure(\DDTrace\HookData) $end Called after the hooked function is invoked.
+     * @param null|\Closure(\DDTrace\HookData) $end Called after the hooked function returns or otherwise exits.
      * @param int $flags The only accepted flag currently is DDTrace\HOOK_INSTANCE.
      * @return int An integer which can be used to remove a hook via DDTrace\remove_hook.
      */
@@ -152,14 +154,100 @@ namespace DDTrace {
         int                                 $flags = 0
     ): int {}
 
+    class LineHookData {
+        /**
+         * Data shared between the begin and end callbacks.
+         */
+        public mixed $data;
+
+        /**
+         * The negative id returned by install_line_hook().
+         */
+        public int $id;
+
+        /**
+         * The file of the instrumented frame.
+         */
+        public string $file;
+
+        /**
+         * The line reached. Lines without instructions resolve forward to the next executable line.
+         */
+        public int $line;
+
+        /**
+         * Creates a span for this execution of the line or range, or returns its existing span.
+         * Create it in the begin callback; it closes automatically when the range exits, even without an end callback.
+         * Returning false from the end callback drops the span.
+         * If first called elsewhere, while tracing is disabled, or at the trace limit, returns an empty span.
+         * A parent selects the span stack, as with HookData::span().
+         * Generators use a child stack so their spans detach while yielded.
+         */
+        public function span(SpanStack|SpanData|null $parent = null): SpanData {}
+
+        /**
+         * Like span(), but bypasses the trace limit.
+         */
+        public function unlimitedSpan(SpanStack|SpanData|null $parent = null): SpanData {}
+
+        /**
+         * The value of a variable in the instrumented frame, or null if it is not defined at this point.
+         *
+         * @param string $name Variable name, without the leading dollar.
+         * @return mixed
+         */
+        public function var(string $name): mixed {}
+
+        /**
+         * All variables defined in the instrumented frame at this point, as name => value.
+         *
+         * @return array
+         */
+        public function vars(): array {}
+    }
+
     /**
-     * Removes an installed hook by its id, as returned by install_hook or HookData->id.
+     * Hooks a source line or line range.
+     *
+     * A range must reach its begin site before its end callback can run, including end-only ranges.
+     * Installing a range does not open it for executions already inside it.
+     * Overlap validation also applies to begin-only hooks.
+     * Ranges sharing a begin site run their begin callbacks from outermost to innermost.
+     *
+     * Runtime limits, logged as warnings when detected:
+     *  - Hooks may not fire in code already compiled by the JIT. Before compilation, tracing and compile-on-first-execution are supported; hot-counter and profiling triggers are not.
+     *    Use opcache.jit=tracing.
+     *  - Functions whose constant return is inlined by OPcache cannot be hooked at the inlined call sites.
+     *  - If the shared arm table is full, instrumented sites remain armed for the life of the process pool.
+     *
+     * OPcache optimization can make source paths indistinguishable, including some finally entries and terminal jumps. Source-line mapping is best-effort in these cases.
+     *
+     * @param string $file File to hook, suffix-matched like install_hook's file targets.
+     * @param int $line Line to hook. Slides forward to the next line that compiled to an instruction.
+     * @param null|\Closure(\DDTrace\LineHookData) $begin Called before the resolved start line executes.
+     * @param int|null $endLine Last line in the range; defaults to $line. A range extending beyond its function ends at function exit.
+     * @param null|\Closure(\DDTrace\LineHookData) $end Called after the end line executes, or when control leaves the range.
+     * @return int A negative id for DDTrace\remove_hook(); function-hook ids are positive. Zero is never valid.
+     * @throws \Error If $endLine is before $line, if the range partially overlaps an already installed range in the same file, or if this PHP build's VM dispatch cannot be instrumented.
+     */
+    function install_line_hook(
+        string    $file,
+        int       $line,
+        ?\Closure $begin = null,
+        ?int      $endLine = null,
+        ?\Closure $end = null
+    ): int {}
+
+    /**
+     * Removes a hook using the id from install_hook(), install_line_hook(), or HookData::$id.
+     *
+     * New begin callbacks stop immediately.
+     * Calls and ranges already in progress retain their end callbacks at the normal closing point.
+     * Closures are released after the last such invocation ends; line sites remain armed until then.
      *
      * @param int $id The id to remove.
-     * @param string $location A class name (which inherits this hook through inheritance), which to specifically remove
-     * this hook from.
-     * @return void no return, not formally declared void because of a buggy debug assertion in PHP 7.1
-     *              ("return value must be of type void, null returned")
+     * @param string $location A class name (which inherits this hook through inheritance), which to specifically remove this hook from.
+     * @return void no return, not formally declared void because of a buggy debug assertion in PHP 7.1 ("return value must be of type void, null returned")
      */
     function remove_hook(int $id, string $location = "") {}
 }

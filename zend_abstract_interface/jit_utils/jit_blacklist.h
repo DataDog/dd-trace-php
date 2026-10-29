@@ -12,10 +12,20 @@
 #define ZAI_JIT_BLACKLIST_ACTIVE 0
 #endif
 
+/* Delivery limitations reported to arm callers. The result type is also needed on builds without JIT. */
+typedef enum {
+    ZAI_JIT_BLACKLIST_APPLIED = 0,         /* no bypass reported; unavailable metadata also takes this fallback */
+    ZAI_JIT_BLACKLIST_ALREADY_COMPILED,    /* existing compiled code can bypass the handler */
+    ZAI_JIT_BLACKLIST_UNSUPPORTED_TRIGGER, /* a remaining JIT trigger may compile the function later */
+} zai_jit_blacklist_result;
+
 #if ZAI_JIT_BLACKLIST_ACTIVE
-void zai_jit_minit(void);
 int zai_get_zend_func_rid(zend_op_array *op_array);
-void zai_jit_blacklist_function_inlining(zend_op_array *op_array);
+
+/* Attempt to disable further JIT compilation.
+   Non-APPLIED results identify known bypasses.
+   APPLIED also covers unavailable metadata/symbols or a failed protection change, so it does not guarantee delivery. */
+zai_jit_blacklist_result zai_jit_blacklist_function_inlining(zend_op_array *op_array);
 #endif
 
 #endif // ZAI_JIT_BLACKLIST_H
