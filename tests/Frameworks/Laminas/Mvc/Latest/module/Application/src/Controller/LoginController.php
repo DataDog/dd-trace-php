@@ -33,17 +33,20 @@ class LoginController extends AbstractActionController
             return $response;
         }
 
-        // Set up authentication adapter
+        // Portable: passwords stored as MD5 hex; MD5 computed in PHP, compared
+        // as a bound value. SQLite has no native MD5(), so pushing the hash
+        // computation into SQL via 'MD5(?)' breaks the appsec fixture (which
+        // runs on SQLite). This matches the Mvc/Version_3_3 pattern.
         $authAdapter = new CredentialTreatmentAdapter(
             $this->dbAdapter,
             'users',
             'email',
             'password',
-            'MD5(?)'
+            '?'
         );
 
         $authAdapter->setIdentity($email);
-        $authAdapter->setCredential($password);
+        $authAdapter->setCredential(md5($password));
 
         // Perform authentication
         $result = $this->authService->authenticate($authAdapter);

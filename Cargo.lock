@@ -1253,7 +1253,6 @@ dependencies = [
  "log",
  "mach2",
  "paste",
- "quick-xml",
  "rand 0.9.4",
  "rand_distr",
  "regex",
@@ -2802,6 +2801,8 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tower-service",
+ "webpki-root-certs",
+ "webpki-roots",
  "windows-sys 0.52.0",
 ]
 
@@ -2981,12 +2982,19 @@ dependencies = [
 name = "libdd-ffe"
 version = "2.0.0"
 dependencies = [
+ "base64 0.22.1",
  "bincode",
  "chrono",
  "derive_more",
+ "fastrand",
  "faststr",
+ "flate2",
+ "futures-util",
  "http 1.4.2",
+ "http-body-util",
+ "httpdate",
  "httpmock",
+ "hyper",
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
@@ -2995,6 +3003,7 @@ dependencies = [
  "log",
  "lru",
  "md5",
+ "percent-encoding",
  "prost",
  "pyo3",
  "semver",
@@ -3005,6 +3014,8 @@ dependencies = [
  "strum_macros",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
+ "url",
 ]
 
 [[package]]
@@ -3305,6 +3316,7 @@ name = "libdd-tinybytes"
 version = "1.1.5"
 dependencies = [
  "libdd-tinybytes",
+ "libdd-trace-model",
  "once_cell",
  "pretty_assertions",
  "proptest",
@@ -3313,6 +3325,10 @@ dependencies = [
  "serde_json",
  "test-case",
 ]
+
+[[package]]
+name = "libdd-trace-model"
+version = "0.1.0"
 
 [[package]]
 name = "libdd-trace-normalization"
@@ -3336,6 +3352,7 @@ dependencies = [
  "fluent-uri",
  "libdd-common",
  "libdd-tinybytes",
+ "libdd-trace-model",
  "libdd-trace-protobuf",
  "libdd-trace-utils",
  "log",
@@ -3393,6 +3410,7 @@ dependencies = [
 name = "libdd-trace-utils"
 version = "14.0.0"
 dependencies = [
+ "allocator-api2",
  "anyhow",
  "base64 0.22.1",
  "bolero",
@@ -3417,6 +3435,7 @@ dependencies = [
  "libdd-capabilities-impl",
  "libdd-common",
  "libdd-tinybytes",
+ "libdd-trace-model",
  "libdd-trace-normalization",
  "libdd-trace-protobuf",
  "libdd-trace-utils",
@@ -4998,9 +5017,9 @@ checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.13"
+version = "0.103.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
+checksum = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281"
 dependencies = [
  "aws-lc-rs",
  "ring",
@@ -6558,18 +6577,18 @@ dependencies = [
 
 [[package]]
 name = "webpki-root-certs"
-version = "1.0.6"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "804f18a4ac2676ffb4e8b5b5fa9ae38af06df08162314f96a68d2a363e21a8ca"
+checksum = "58ec80e73fd8baf57bf0d9615554c75348bda990d6d5bbeab964dd068319fecb"
 dependencies = [
  "rustls-pki-types",
 ]
 
 [[package]]
 name = "webpki-roots"
-version = "1.0.6"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22cfaf3c063993ff62e73cb4311efde4db1efb31ab78a3e5c457939ad5cc0bed"
+checksum = "1c1c8e20c8a38fc7d65abfe74eb7280e4aa667e8eec8bc84996d2874810748d9"
 dependencies = [
  "rustls-pki-types",
 ]

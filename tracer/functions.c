@@ -7,6 +7,7 @@
 #include "code_origins.h"
 #include "engine_hooks.h"
 #include "ffe.h"
+#include <math.h>
 #include "handlers_exception.h"
 #include "memory_limit.h"
 #ifdef __linux__
@@ -1742,6 +1743,115 @@ static void ddtrace_ffe_record_evaluation_metric_result(
     ddtrace_ffe_record_evaluation_metric(flag_key, variant, reason_name, error_name, allocation_key);
 }
 
+static const char *ddtrace_ffe_type_name(int32_t type_id) {
+    switch (type_id) {
+        case DDTRACE_FFE_TYPE_STRING:
+            return "string";
+        case DDTRACE_FFE_TYPE_INT:
+            return "integer";
+        case DDTRACE_FFE_TYPE_FLOAT:
+            return "float";
+        case DDTRACE_FFE_TYPE_BOOL:
+            return "boolean";
+        case DDTRACE_FFE_TYPE_OBJECT:
+            return "object";
+        default:
+            return "unknown";
+    }
+}
+
+static void ddtrace_ffe_add_nullable_str(zval *details, const char *key, zend_string *value) {
+    if (value) {
+        add_assoc_str(details, key, zend_string_copy(value));
+    } else {
+        add_assoc_null(details, key);
+    }
+}
+
+// Logs the attributes the evaluator uses: only scalars reach it. Skipping other
+// values also keeps JSON encoding from running userland jsonSerialize().
+static void ddtrace_ffe_add_attributes(zval *details, zval *attrs_zv) {
+    zval attributes;
+    zend_ulong num_key;
+    zend_string *key;
+    zval *value;
+
+    array_init(&attributes);
+    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(attrs_zv), num_key, key, value) {
+        switch (Z_TYPE_P(value)) {
+            case IS_STRING:
+            case IS_LONG:
+            case IS_DOUBLE:
+            case IS_TRUE:
+            case IS_FALSE:
+                break;
+            default:
+                continue;
+        }
+        zend_string *owned_key = key ? zend_string_copy(key) : zend_long_to_str((zend_long) num_key);
+        if (Z_TYPE_P(value) == IS_DOUBLE && !isfinite(Z_DVAL_P(value))) {
+            // JSON has no non-finite numbers. Tag the raw value instead of
+            // allowing partial-output encoding to silently turn it into 0.
+            zval tagged;
+            array_init(&tagged);
+            add_assoc_string(&tagged, "nonFiniteFloat", isnan(Z_DVAL_P(value)) ? "NAN" : (Z_DVAL_P(value) < 0 ? "-INF" : "INF"));
+            zend_hash_update(Z_ARRVAL(attributes), owned_key, &tagged);
+        } else {
+            Z_TRY_ADDREF_P(value);
+            zend_hash_update(Z_ARRVAL(attributes), owned_key, value);
+        }
+        zend_string_release(owned_key);
+    } ZEND_HASH_FOREACH_END();
+
+    // Encode an empty map as {} rather than [].
+    if (zend_hash_num_elements(Z_ARRVAL(attributes)) == 0) {
+        zval_ptr_dtor(&attributes);
+        object_init(&attributes);
+    }
+    add_assoc_zval(details, "attributes", &attributes);
+}
+
+// DD_TRACE_DEBUG logs every native evaluation with its raw inputs and result,
+// so customers can explain a flag value. The PHP SDK maps this result to the
+// value it returns, and logs that outcome separately. JSON keeps control
+// characters from splitting the log line; invalid UTF-8 is substituted rather
+// than dropping the line where PHP supports it.
+static void ddtrace_ffe_log_evaluation(zend_string *flag_key, int32_t type_id, zend_string *targeting_key, zval *attrs_zv, struct ddog_FfeResult *result) {
+    if (!ddog_shall_log(DDOG_LOG_DEBUG)) {
+        return;
+    }
+
+    const char *error_name = ddtrace_ffe_error_name(result->error_code);
+    zval details;
+    array_init(&details);
+    add_assoc_str(&details, "flagKey", zend_string_copy(flag_key));
+    add_assoc_string(&details, "valueType", (char *) ddtrace_ffe_type_name(type_id));
+    ddtrace_ffe_add_nullable_str(&details, "targetingKey", targeting_key);
+    ddtrace_ffe_add_attributes(&details, attrs_zv);
+    ddtrace_ffe_add_nullable_str(&details, "valueJson", result->value_json);
+    ddtrace_ffe_add_nullable_str(&details, "variant", result->variant);
+    ddtrace_ffe_add_nullable_str(&details, "allocationKey", result->allocation_key);
+    add_assoc_string(&details, "reason", (char *) ddtrace_ffe_reason_name(ddtrace_ffe_effective_reason(result->reason, result->error_code)));
+    if (error_name) {
+        add_assoc_string(&details, "errorCode", (char *) error_name);
+    } else {
+        add_assoc_null(&details, "errorCode");
+    }
+    add_assoc_long(&details, "configVersion", (zend_long) ddog_ffe_config_version());
+    add_assoc_bool(&details, "doLog", result->do_log);
+
+    int options = PHP_JSON_UNESCAPED_SLASHES | PHP_JSON_PARTIAL_OUTPUT_ON_ERROR;
+#ifdef PHP_JSON_INVALID_UTF8_SUBSTITUTE
+    options |= PHP_JSON_INVALID_UTF8_SUBSTITUTE;
+#endif
+    smart_str buf = {0};
+    zai_json_encode(&buf, &details, options);
+    smart_str_0(&buf);
+    LOG(DEBUG, "Feature Flags: native evaluation %s", buf.s ? ZSTR_VAL(buf.s) : "{}");
+    smart_str_free(&buf);
+    zval_ptr_dtor(&details);
+}
+
 static zend_string *ddtrace_ffe_attributes_json(zval *attrs_zv) {
     smart_str buf = {0};
     zai_json_encode(&buf, attrs_zv, 0);
@@ -1823,6 +1933,10 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         Z_PARAM_BOOL(record_metric)
     ZEND_PARSE_PARAMETERS_END();
 
+    if (!get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG_ONCE(DEBUG, "Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; set DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true at startup (environment or php.ini) and restart");
+    }
+
     type_id = (int32_t) type_id_zl;
     attributes = Z_ARRVAL_P(attrs_zv);
     attrs_count = zend_hash_num_elements(attributes);
@@ -1897,6 +2011,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     if (!result.valid) {
+        LOG(DEBUG, "Feature Flags: evaluation rejected; flag key is not valid UTF-8 or the value type is unknown (valueType=%s)", ddtrace_ffe_type_name(type_id));
         if (record_metric) {
             ddtrace_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
         }
@@ -1928,7 +2043,12 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             result.has_serial_id
         );
         zend_string_release(subject_attributes_json);
+    } else {
+        LOG(DEBUG, "Feature Flags: exposure suppressed; %s",
+            !result.do_log ? "evaluation doLog=false (see native evaluation reason/error)" : "missing allocation key or variant");
     }
+
+    ddtrace_ffe_log_evaluation(flag_key, type_id, targeting_key, attrs_zv, &result);
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);

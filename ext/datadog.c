@@ -8,6 +8,9 @@
 #include <tracer/tracer_api.h>
 
 #include "configuration.h"
+#ifdef DDTRACE
+#include <tracer/configuration.h>
+#endif
 #include "excluded_modules.h"
 #include "agent_info.h"
 #include "logging.h"
@@ -96,6 +99,7 @@ static void datadog_sort_modules(void *base, size_t count, size_t siz, compare_f
 
 #ifndef _WIN32
 void datadog_signal_block_handlers_startup(void);
+void datadog_signal_block_post_deactivate(void);
 #endif
 void datadog_pcntl_handlers_startup(void);
 
@@ -688,6 +692,11 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     DATADOG_G(reread_remote_configuration) = 0;
     if (DATADOG_G(remote_config_state)) {
         datadog_rshutdown_remote_config();
+#ifdef DDTRACE
+        if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+            LOG(DEBUG, "Remote Configuration: request configuration updates stopped; shared sidecar polling may continue for other workers");
+        }
+#endif
     }
 
     datadog_telemetry_rshutdown();
@@ -718,6 +727,11 @@ zend_result datadog_post_deactivate(void) {
 
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
+
+#ifndef _WIN32
+    // A bailout within a signal blocking function skips the unblocking
+    datadog_signal_block_post_deactivate();
+#endif
 
     return SUCCESS;
 }

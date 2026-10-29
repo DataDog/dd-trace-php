@@ -118,6 +118,7 @@ typedef struct {
     void *ffe_exposure_buffer;
     size_t ffe_exposure_buffer_len;
     size_t ffe_exposure_buffer_cap;
+    size_t ffe_exposures_dropped;
     void *ffe_metric_buffer;
     size_t ffe_metric_buffer_len;
     size_t ffe_metric_buffer_cap;

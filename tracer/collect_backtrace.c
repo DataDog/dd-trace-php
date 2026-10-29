@@ -38,8 +38,10 @@ void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool s
     zend_array *locals = zend_new_array(op_array->last_var - op_array->num_args);
     for (int i = skip_args ? (int)op_array->num_args : 0; i < op_array->last_var; ++i) {
         zval *var = ZEND_CALL_VAR_NUM(call, i);
-        Z_TRY_ADDREF_P(var);
-        zend_hash_add_new(locals, op_array->vars[i], var);
+        if (Z_TYPE_P(var) != IS_UNDEF) {
+            Z_TRY_ADDREF_P(var);
+            zend_hash_add_new(locals, op_array->vars[i], var);
+        }
     }
     ZVAL_ARR(locals_array, locals);
 }

@@ -33,14 +33,14 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
         InspectContainerHelper.run(CONTAINER)
     }
 
-    // 14 routes come from the fixture controllers. `_errors` is dev-only
+    // All 14 routes from the fixture controllers are listed. `_errors` is dev-only
     // (gated by `when@dev` in config/routes/framework.yaml) and docker-init.sh
     // runs under APP_ENV=prod, so `/_error/{code}.{_format}` is not registered.
     @Override
-    int expectedEndpointCount() { 14 }
+    boolean isAllowUnenumeratedRoutes() { false }
 
     @Override
-    List<List<String>> expectedEndpoints() {
+    List<List<String>> getExpectedEndpoints() {
         [
                 ['/', 'GET', 'GET /'],
                 ['/dynamic-path/{param01}', 'GET', 'GET /dynamic-path/{param01}'],
