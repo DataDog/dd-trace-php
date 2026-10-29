@@ -93,7 +93,7 @@ stages:
   stage: docker-publish
   needs:
     - "push appsec docker images multiarch"
-  image: registry.ddbuild.io/agent-delivery/dd-pkg@sha256:d17807b4184af571f80b2fe48b0b84b550d39a88fe27dd518a4015ff774867c9
+  image: registry.ddbuild.io/agent-delivery/dd-pkg@sha256:8822416fd5d94532c6c93ef9f58bea0236489f1431fd228f39a23d24af1a7894
   tags: [ "arch:arm64" ]
   variables:
     IMG_REGISTRIES: "dev"
