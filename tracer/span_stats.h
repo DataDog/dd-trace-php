@@ -66,6 +66,12 @@ void ddtrace_free_span_precomputed(ddtrace_span_precomputed *pre);
 bool dd_compute_span_is_error(const ddtrace_span_precomputed *pre);
 
 /**
+ * Change handler of DD_TRACE_STATS_ADDITIONAL_TAGS and DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT,
+ * dropping the normalized keys and limit computed from the previous value.
+ */
+bool ddtrace_alter_stats_additional_tags(zval *old_value, zval *new_value, zend_string *new_str);
+
+/**
  * Feed a closed PHP span into the appropriate per-(env,version) concentrator.
  * pre must have been filled by ddtrace_precompute_span().
  */

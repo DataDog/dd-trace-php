@@ -7,6 +7,7 @@
 #include <php.h>
 #include <stdbool.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_smart_str.h>
 
 #include <components-rs/datadog.h>
 #include <components/log/log.h>
@@ -38,6 +39,104 @@ static const size_t GRPC_META_KEY_LENS[] = {
 // This bounds matched tags on a single span, not the number of peer tag keys configured by the
 // agent, which is larger and must be scanned in full.
 #define DDTRACE_MAX_PEER_TAGS 32
+
+#define DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT 100
+#define DD_STATS_ADDITIONAL_TAGS_MAX_CARDINALITY_LIMIT 1000000
+
+// The configuration last warned about, so that it is reported once and not with every span.
+ZEND_TLS zend_ulong dd_stats_additional_tags_warned_keys;
+// We want to only warn once about that.
+ZEND_TLS zend_long dd_stats_additional_tags_warned_limit = DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT;
+
+static int dd_zend_string_cmp(const zend_string *a, const zend_string *b) {
+    return zend_binary_strcmp(ZSTR_VAL(a), ZSTR_LEN(a), ZSTR_VAL(b), ZSTR_LEN(b));
+}
+
+// The configuration can differ per request (e.g. per vhost) and change mid-request. Startup values
+// are interned, so their keys are hashed already and shared read-only across threads; runtime
+// values belong to the request.
+static void dd_stats_additional_tags_from_config(ddtrace_stats_additional_tags *tags) {
+    zend_array *configured = get_DD_TRACE_STATS_ADDITIONAL_TAGS();
+    tags->count = 0;
+    tags->cardinality_limit = DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT;
+    if (!zend_hash_num_elements(configured)) {
+        return;
+    }
+
+    zend_string *key;
+    ZEND_HASH_FOREACH_STR_KEY(configured, key) {
+        if (!key) {
+            continue;
+        }
+        // Insert into the sorted keys, dropping whichever ends up past the maximum.
+        size_t pos = tags->count;
+        while (pos > 0 && dd_zend_string_cmp(key, tags->keys[pos - 1]) < 0) {
+            pos--;
+        }
+        if (pos == ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS) {
+            continue;
+        }
+        if (tags->count < ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS) {
+            tags->count++;
+        }
+        for (size_t i = tags->count - 1; i > pos; i--) {
+            tags->keys[i] = tags->keys[i - 1];
+        }
+        tags->keys[pos] = key;
+    } ZEND_HASH_FOREACH_END();
+
+    if (zend_hash_num_elements(configured) > ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS) {
+        zend_ulong signature = 0;
+        ZEND_HASH_FOREACH_STR_KEY(configured, key) {
+            if (key) {
+                signature += zend_string_hash_val(key);
+            }
+        } ZEND_HASH_FOREACH_END();
+        if (signature != dd_stats_additional_tags_warned_keys) {
+            dd_stats_additional_tags_warned_keys = signature;
+            zend_string *last_kept = tags->keys[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS - 1];
+            smart_str dropped = {0};
+            ZEND_HASH_FOREACH_STR_KEY(configured, key) {
+                if (key && dd_zend_string_cmp(key, last_kept) > 0) {
+                    if (dropped.s) {
+                        smart_str_appends(&dropped, ", ");
+                    }
+                    smart_str_append(&dropped, key);
+                }
+            } ZEND_HASH_FOREACH_END();
+            smart_str_0(&dropped);
+            LOG(WARN, "DD_TRACE_STATS_ADDITIONAL_TAGS has %u keys, more than the maximum of %d; dropping: %s",
+                zend_hash_num_elements(configured), ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS, ZSTR_VAL(dropped.s));
+            smart_str_free(&dropped);
+        }
+    }
+
+    zend_long limit = get_DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT();
+    if (limit <= 0 || limit > DD_STATS_ADDITIONAL_TAGS_MAX_CARDINALITY_LIMIT) {
+        if (limit != dd_stats_additional_tags_warned_limit) {
+            dd_stats_additional_tags_warned_limit = limit;
+            LOG(WARN, "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT must be positive and smaller than a million, got " ZEND_LONG_FMT "; using the default of %d",
+                limit, DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT);
+        }
+        limit = DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT;
+    }
+    tags->cardinality_limit = (uint32_t)limit;
+}
+
+static const ddtrace_stats_additional_tags *dd_stats_additional_tags(void) {
+    ddtrace_stats_additional_tags *tags = &DDTRACE_G(stats_additional_tags);
+    if (!tags->computed) {
+        dd_stats_additional_tags_from_config(tags);
+        tags->computed = true;
+    }
+    return tags;
+}
+
+bool ddtrace_alter_stats_additional_tags(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_value, new_str);
+    DDTRACE_G(stats_additional_tags).computed = false;
+    return true;
+}
 
 void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
     pre->meta    = ddtrace_property_array(&span->property_meta);
@@ -366,7 +465,41 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
     stats.peer_tags_count = actual_peer_tags;
     stats.peer_tags = actual_peer_tags > 0 ? peer_tags : NULL;
 
-    return ddog_span_concentrator_add_php_span(c, &stats);
+    // Additional metric tags: the configured keys present in meta, stringified like the serializer
+    // does. It flattens arrays and objects into sub-keys, so those are no value of the key itself.
+    const ddtrace_stats_additional_tags *configured = dd_stats_additional_tags();
+    ddog_PhpPeerTag additional_tags[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS];
+    zend_string *additional_tag_values[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS];
+    size_t actual_additional_tags = 0;
+    for (uint32_t i = 0; i < configured->count && pre->meta; i++) {
+        zval *val = zend_hash_find(pre->meta, configured->keys[i]);
+        if (!val) {
+            continue;
+        }
+        ZVAL_DEREF(val);
+        if (Z_TYPE_P(val) == IS_ARRAY || Z_TYPE_P(val) == IS_OBJECT) {
+            continue;
+        }
+        zend_string *str = datadog_convert_to_str(val);
+        if (ZSTR_LEN(str) == 0) {
+            zend_string_release(str);
+            continue;
+        }
+        additional_tag_values[actual_additional_tags] = str;
+        additional_tags[actual_additional_tags].key   = dd_zend_string_to_CharSlice(configured->keys[i]);
+        additional_tags[actual_additional_tags].value = dd_zend_string_to_CharSlice(str);
+        actual_additional_tags++;
+    }
+    stats.additional_tags_count = actual_additional_tags;
+    stats.additional_tags = actual_additional_tags > 0 ? additional_tags : NULL;
+    stats.additional_tags_cardinality_limit = configured->cardinality_limit;
+
+    // The tags are copied into SHM, or into the returned span for IPC.
+    ddog_OwnedShmSpanInput *owned_span = ddog_span_concentrator_add_php_span(c, &stats);
+    for (size_t i = 0; i < actual_additional_tags; i++) {
+        zend_string_release(additional_tag_values[i]);
+    }
+    return owned_span;
 }
 
 void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_span_precomputed *pre) {
