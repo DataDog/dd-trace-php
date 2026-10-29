@@ -711,6 +711,7 @@ static inline void zai_store_func_location(zend_function *func) {
         entry = emalloc(sizeof(zai_function_location_entry) + min_size * sizeof(zend_function *));
         entry->size = 1;
         entry->ordered = 1;
+        entry->filename = func->op_array.filename;
         zend_hash_add_new_ptr(&zai_function_location_map, func->op_array.filename, entry);
     } else {
         entry = Z_PTR_P(entryzv);
@@ -721,7 +722,8 @@ static inline void zai_store_func_location(zend_function *func) {
     }
 
     entry->functions[entry->size - 1] = func;
-    zend_hash_index_update_ptr(&zai_function_location_reverse, key, func->op_array.filename);
+    /* Repeated compiles can use distinct filename strings; only the map's key is kept alive. */
+    zend_hash_index_update_ptr(&zai_function_location_reverse, key, entry->filename);
     zai_hook_register_dynamic_functions(&func->op_array);
 }
 

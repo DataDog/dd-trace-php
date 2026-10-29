@@ -141,6 +141,7 @@ bool zai_hook_match_filepath(zend_string *file, zend_string *source);
 typedef struct {
     uint32_t ordered;
     uint32_t size;
+    zend_string *filename; /* Borrowed from the location map's key. */
     zend_function *functions[];
 } zai_function_location_entry;
 HashTable *zai_hook_function_location_map(void);
