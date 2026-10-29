@@ -545,7 +545,9 @@ bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
  * Parses a possibly truncated JSON document. Containers nested deeper than
  * `max_depth` are kept empty.
  */
-struct ddog_AppsecBodyTape ddog_appsec_parse_json(ddog_CharSlice input, int32_t max_depth);
+struct ddog_AppsecBodyMessagePack ddog_appsec_parse_json(ddog_CharSlice input,
+                                                         int32_t max_depth,
+                                                         struct ddog_AppsecBodyAllocator allocator);
 
 /**
  * Parses a possibly truncated XML document into
@@ -553,13 +555,15 @@ struct ddog_AppsecBodyTape ddog_appsec_parse_json(ddog_CharSlice input, int32_t 
  * elements nested deeper than `max_depth` is dropped. External entities are
  * never loaded.
  */
-struct ddog_AppsecBodyTape ddog_appsec_parse_xml(ddog_CharSlice input, int32_t max_depth);
+struct ddog_AppsecBodyMessagePack ddog_appsec_parse_xml(ddog_CharSlice input,
+                                                        int32_t max_depth,
+                                                        struct ddog_AppsecBodyAllocator allocator);
 
 /**
  * # Safety
- * `tape` must come from one of the parse functions and not be dropped twice.
+ * `body` must come from one of the parse functions and not be dropped twice.
  */
-void ddog_appsec_body_tape_drop(struct ddog_AppsecBodyTape tape);
+void ddog_appsec_body_msgpack_drop(struct ddog_AppsecBodyMessagePack body);
 
 /**
  * # Safety

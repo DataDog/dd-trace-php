@@ -250,7 +250,7 @@ stages:
       - targets:
           - test8.3-release-ssi
 
-"helper-rust build and test":
+"build and test appsec crates":
   stage: test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
@@ -276,8 +276,7 @@ stages:
         echo "Loading cache from $CACHE_PATH"
         TERM=dumb ./gradlew loadCaches --info
       fi
-      # Build and test helper-rust (includes formatting check and cargo test)
-      TERM=dumb ./gradlew testHelperRust --info -Pbuildscan --scan
+      TERM=dumb ./gradlew testHelperRust testAppsecBody --info -Pbuildscan --scan
       TERM=dumb ./gradlew saveCaches --info
   cache:
     - key: "appsec int test cache"
@@ -285,7 +284,7 @@ stages:
         - appsec/tests/integration/build/*.tar.gz
         - .gradle-home/wrapper/dists/
 
-"helper-rust code coverage":
+"appsec crates code coverage":
   stage: test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
@@ -312,19 +311,23 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
       # Run unit tests with coverage instrumentation
-      TERM=dumb ./gradlew coverageHelperRust --info -Pbuildscan --scan
+      TERM=dumb ./gradlew coverageHelperRust coverageAppsecBody --info -Pbuildscan --scan
       TERM=dumb ./gradlew saveCaches --info
     - |
       echo "Extracting coverage data from Docker volume"
-      mkdir -p "$CI_PROJECT_DIR"/appsec/helper-rust
+      mkdir -p "$CI_PROJECT_DIR"/appsec/helper-rust "$CI_PROJECT_DIR"/components-rs/appsec_body
       docker run --rm -v php-helper-rust-coverage:/vol alpine cat /vol/coverage-unit.lcov > "$CI_PROJECT_DIR"/appsec/helper-rust/coverage-unit.lcov
+      docker run --rm -v php-appsec-body-coverage:/vol alpine cat /vol/coverage-unit.lcov > "$CI_PROJECT_DIR"/components-rs/appsec_body/coverage-unit.lcov
     - |
       cd "$CI_PROJECT_DIR"
       DD_COVERAGE_FLAGS=helper-rust-unit \
         .gitlab/upload-code-coverage-to-datadog.sh appsec/helper-rust/coverage-unit.lcov
+      DD_COVERAGE_FLAGS=appsec-body-unit \
+        .gitlab/upload-code-coverage-to-datadog.sh components-rs/appsec_body/coverage-unit.lcov
   artifacts:
     paths:
       - appsec/helper-rust/coverage-unit.lcov
+      - components-rs/appsec_body/coverage-unit.lcov
     when: always
   cache:
     - key: "appsec int test cache"

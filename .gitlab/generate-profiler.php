@@ -435,6 +435,16 @@ foreach ($profiler_minor_major_targets as $version) {
     - php -r 'exit((int) !extension_loaded("datadog-profiling"));' || { echo 'ERROR datadog-profiling extension is not loaded'; exit 1; }
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
+    # Profiler interrupts expose upstream JIT bugs fixed in PHP 8.4.28 / 8.5.13:
+    # https://github.com/php/php-src/pull/24610
+    # https://github.com/php/php-src/pull/24793
+    - |
+      if php -r 'exit((version_compare(PHP_VERSION, "8.4.28", "<") || (PHP_VERSION_ID >= 80500 && version_compare(PHP_VERSION, "8.5.13", "<"))) ? 0 : 1);'; then
+        echo 'ext/opcache/tests/jit' >> /tmp/profiler-php-language-xfail.list
+        # Also exclude JIT-specific PHPTs outside the main JIT test directory.
+        (cd /usr/local/src/php && { grep -rlF --include='*.phpt' 'opcache.jit' . || [ "$?" -eq 1 ]; }) >> /tmp/profiler-php-language-xfail.list
+        echo 'Skipping all JIT tests in the profiler PHP language suite until PHP 8.4.28 / 8.5.13'
+      fi
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
     # Keep version-specific ARM64 failures running as XFAILs.
     - |

@@ -126,10 +126,17 @@ int datadog_log_with_time(int fd, const char *msg, int msg_len) {
     // todo: we only need 20-ish for the main part, but how much for the timezone?
     // Wish PHP printed -hhmm or +hhmm instead of the name
     char *msgbuf = malloc(msg_len + 70);
+    if (!msgbuf) {
+        return -1;
+    }
 
     time_t now;
     time(&now);
     struct tm *now_local = localtime(&now);
+    if (!now_local) {
+        free(msgbuf);
+        return -1;
+    }
     char *p = msgbuf;
     *(p++) = '[';
     int time_len = (int)strftime(p, 64, "%d-%b-%Y %H:%M:%S %Z", now_local);

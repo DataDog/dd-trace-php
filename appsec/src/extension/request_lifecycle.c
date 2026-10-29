@@ -37,6 +37,11 @@ static zend_string *nullable _extract_ip_from_autoglobal(void);
 static zend_string *nullable _get_entity_as_string(zval *rbe_zv);
 static void _set_cur_span(zend_object *nullable span);
 static void _reset_globals(void);
+static zend_long _raise_shutdown_memory_limit(void);
+static bool _restore_shutdown_memory_limit(zend_long limit);
+static zend_array *_request_finish_user_req(bool ignore_verdict,
+    zend_array *nonnull superglob_equiv, int status_code,
+    zend_array *nullable resp_headers, zend_string *nullable entity);
 const zend_array *nonnull _get_server_equiv(
     const zend_array *nonnull superglob_equiv);
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
@@ -50,7 +55,6 @@ static THREAD_LOCAL_ON_ZTS zend_object *nullable _cur_req_span;
 static THREAD_LOCAL_ON_ZTS zend_array *nullable _superglob_equiv;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
 static THREAD_LOCAL_ON_ZTS zval _blocking_function;
-static THREAD_LOCAL_ON_ZTS bool _between_init_shutdown_msgs;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 static THREAD_LOCAL_ON_ZTS bool _request_blocked;
@@ -188,17 +192,6 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
     return true;
 }
 
-// Whether the result of dd_request_init means the helper has entered its
-// in-request (inner) loop and a request_shutdown will follow for this request.
-// The helper enters the inner loop for any WAF verdict (clean, record, block or
-// redirect); only a communication failure or other error leaves it in the outer
-// loop with no matching shutdown.
-static bool _req_init_started_request(dd_result res)
-{
-    return res == dd_success || res == dd_should_record ||
-           res == dd_should_block || res == dd_should_redirect;
-}
-
 static zend_array *nullable _do_request_begin(
     zval *nullable rbe_zv /* needs free */)
 {
@@ -248,24 +241,21 @@ retry:;
         if (res == dd_success && DDAPPSEC_G(active)) {
             struct timespec start = dd_monotime_start();
             res = dd_request_init(conn, &req_info);
-            if (_req_init_started_request(res)) {
-                _between_init_shutdown_msgs = true;
-            }
             dd_duration_waf_ext_account(&start);
         }
     } else if (DDAPPSEC_G(active)) {
         // request_init
         struct timespec start = dd_monotime_start();
         res = dd_request_init(conn, &req_info);
-        if (_req_init_started_request(res)) {
-            _between_init_shutdown_msgs = true;
-        }
         dd_duration_waf_ext_account(&start);
     }
 
     // we might have been disabled by request_init
 
     zend_array *spec = NULL;
+    if (res == dd_oom) {
+        goto cleanup;
+    }
     if (res == dd_helper_say_goobye) {
         mlog_g(dd_log_info, "request_init/config_sync failed with "
                             "dd_helper_say_goobye; closing "
@@ -295,11 +285,17 @@ retry:;
         goto retry;
     }
 
+cleanup:
     if (rbe) {
         zend_string_release(rbe);
     }
 
     dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
+    if (res == dd_oom) {
+        _reset_globals();
+        zend_error_noreturn(E_ERROR,
+            "Failed to allocate memory while parsing the AppSec request body");
+    }
 
     return spec;
 }
@@ -310,12 +306,12 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 {
     // temporarily remove the memory limit to avoid bailouts
     // and as a safety net do a try-catch
-    __auto_type orig_mem_limit = PG(memory_limit);
-    zend_set_memory_limit((size_t)Z_L(-1) >> 1);
+    zend_long orig_mem_limit = _raise_shutdown_memory_limit();
 
     zend_try { _do_req_lifecycle_rshutdown(ignore_verdict, force); }
     zend_catch
     {
+        dd_helper_close_conn(false, NULL, 0);
         if (PG(last_error_message)) {
 #if PHP_VERSION_ID < 80000
             const char *last_err = PG(last_error_message);
@@ -329,22 +325,15 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
             mlog_g(dd_log_error,
                 "Bailout in request shutdown; disconnecting from helper");
         }
+        (void)_restore_shutdown_memory_limit(orig_mem_limit);
         _reset_globals();
-        // dd_helper_close_conn may debug-log and allocate; keep the raised
-        // memory limit in place.
-        dd_helper_close_conn(false, NULL, 0);
     }
     zend_end_try();
 
-#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
-    // PHP 8.0: zend_set_memory_limit returns void
-    zend_set_memory_limit(orig_mem_limit);
-#else
-    if (zend_set_memory_limit(orig_mem_limit) == FAILURE) {
+    if (!_restore_shutdown_memory_limit(orig_mem_limit)) {
         mlog(
             dd_log_error, "Failed to restore memory limit in request shutdown");
     }
-#endif
 }
 
 static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
@@ -411,7 +400,7 @@ static void _do_request_finish_php(bool ignore_verdict)
     dd_conn *conn = dd_helper_mgr_cur_conn();
     struct req_shutdown_info ctx = {0};
 
-    if (conn && DDAPPSEC_G(active)) {
+    if (conn && conn->request_started) {
         const int status_code = SG(sapi_headers).http_response_code;
         dd_api_sec_outcome api_sec_outcome;
         ctx = (struct req_shutdown_info){
@@ -464,11 +453,42 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     zend_array *nonnull superglob_equiv, int status_code,
     zend_array *nullable resp_headers, zend_string *nullable entity)
 {
+    zend_long orig_mem_limit = _raise_shutdown_memory_limit();
+    zend_array *volatile result = NULL;
+    zend_try
+    {
+        result = _request_finish_user_req(
+            ignore_verdict, superglob_equiv, status_code, resp_headers, entity);
+    }
+    zend_catch
+    {
+        dd_helper_close_conn(false, NULL, 0);
+        (void)_restore_shutdown_memory_limit(orig_mem_limit);
+        _reset_globals();
+        zend_bailout();
+    }
+    zend_end_try();
+
+    if (!_restore_shutdown_memory_limit(orig_mem_limit)) {
+        if (result) {
+            zend_array_destroy(result);
+        }
+        _reset_globals();
+        zend_error_noreturn(E_ERROR,
+            "Failed to restore memory limit after AppSec request shutdown");
+    }
+    return result;
+}
+
+static zend_array *_request_finish_user_req(bool ignore_verdict,
+    zend_array *nonnull superglob_equiv, int status_code,
+    zend_array *nullable resp_headers, zend_string *nullable entity)
+{
     int verdict = dd_success;
     dd_conn *conn = dd_helper_mgr_cur_conn();
     struct req_shutdown_info ctx = {0};
 
-    if (conn && DDAPPSEC_G(active)) {
+    if (conn && conn->request_started) {
         dd_api_sec_outcome api_sec_outcome;
         ctx = (struct req_shutdown_info){
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
@@ -516,35 +536,67 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     return spec;
 }
 
-// Should be bailout-safe -- means, in particular, no emalloc allocations
+static zend_long _raise_shutdown_memory_limit(void)
+{
+    zend_long orig_mem_limit = PG(memory_limit);
+    zend_set_memory_limit(ZEND_LONG_MAX);
+    // The old-PHP parser preflight reads PG(memory_limit), not Zend's private
+    // heap limit. Keep both in sync, including for nested shutdown calls.
+    PG(memory_limit) = ZEND_LONG_MAX;
+    return orig_mem_limit;
+}
+
+static bool _restore_shutdown_memory_limit(zend_long limit)
+{
+    PG(memory_limit) = limit;
+#if PHP_VERSION_ID < 80100
+    // Older setters may accept a limit below current usage, letting the
+    // allocator's remaining-space subtraction wrap. Reclaim cached memory
+    // before checking whether the original limit fits.
+    if ((size_t)limit < zend_memory_usage(true)) {
+        zend_mm_gc(zend_mm_get_heap());
+        if ((size_t)limit < zend_memory_usage(true)) {
+            return false;
+        }
+    }
+#endif
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+    zend_set_memory_limit(limit);
+    return true;
+#else
+    return zend_set_memory_limit(limit) == SUCCESS;
+#endif
+}
+
+// Detach request-owned values before releasing them: user destructors can bail.
 static void _reset_globals(void)
 {
-    _set_cur_span(NULL);
-
-    if (_superglob_equiv) {
-        if (GC_TRY_DELREF(_superglob_equiv), // could be zend_empty_array
-            GC_REFCOUNT(_superglob_equiv) == 0) {
-            zend_array_destroy(_superglob_equiv);
-        }
-
-        _superglob_equiv = NULL;
-    }
+    zend_object *span = _cur_req_span;
+    zend_array *superglob_equiv = _superglob_equiv;
+    zval blocking_function = _blocking_function;
+    _cur_req_span = NULL;
+    _superglob_equiv = NULL;
+    ZVAL_UNDEF(&_blocking_function);
 
     if (_client_ip && _client_ip != CLIENT_IP_LOOKUP_FAILED) {
         zend_string_release(_client_ip);
     }
     _client_ip = NULL;
-
-    if (Z_TYPE(_blocking_function) != IS_UNDEF) {
-        zval_ptr_dtor(&_blocking_function);
-    }
-    ZVAL_UNDEF(&_blocking_function);
-
-    _between_init_shutdown_msgs = false;
     _shutdown_done_on_commit = false;
     _request_blocked = false;
     dd_tags_rshutdown();
     dd_duration_reset_globals();
+
+    if (span && GC_DELREF(span) == 0) {
+        zend_objects_store_del(span);
+    }
+    if (superglob_equiv &&
+        (GC_TRY_DELREF(superglob_equiv), GC_REFCOUNT(superglob_equiv) == 0)) {
+        zend_array_destroy(superglob_equiv);
+    }
+    if (Z_TYPE(blocking_function) != IS_UNDEF) {
+        zval_ptr_dtor(&blocking_function);
+    }
 }
 
 static zend_string *nullable _extract_ip_from_autoglobal(void)
@@ -560,20 +612,20 @@ static zend_string *nullable _extract_ip_from_autoglobal(void)
 
 static void _set_cur_span(zend_object *nullable span)
 {
-    if (_cur_req_span) {
-        if (GC_DELREF(_cur_req_span) == 0) {
-            zend_objects_store_del(_cur_req_span);
-        }
-    }
+    zend_object *previous = _cur_req_span;
     _cur_req_span = span;
-    if (_cur_req_span) {
-        GC_ADDREF(_cur_req_span);
+    if (span) {
+        GC_ADDREF(span);
+    }
+    if (previous && GC_DELREF(previous) == 0) {
+        zend_objects_store_del(previous);
     }
 }
 
 bool dd_req_lifecycle_is_active(void)
 {
-    return _between_init_shutdown_msgs && DDAPPSEC_G(active);
+    dd_conn *conn = dd_helper_mgr_cur_conn();
+    return conn && conn->request_started && DDAPPSEC_G(active);
 }
 
 zend_object *nullable dd_req_lifecycle_get_cur_span(void)
@@ -685,7 +737,6 @@ static zend_array *nullable _response_commit(
     }
 
     _shutdown_done_on_commit = true;
-    _between_init_shutdown_msgs = false;
 
     return res;
 }
@@ -877,6 +928,10 @@ static void _set_blocking_function(ddtrace_user_req_listeners *nonnull self,
     zend_object *nonnull span, zval *nonnull blocking_function)
 {
     UNUSED(self);
+
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        return;
+    }
 
     if (_cur_req_span == NULL) {
         mlog(dd_log_warning, "set_blocking_function called, but there is no "

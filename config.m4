@@ -353,6 +353,7 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
     tracer/user_request.c \
     tracer/weak_resources.c \
     tracer/hook/uhook.c \
+    tracer/hook/uhook_line.c \
     tracer/hook/uhook_legacy.c \
   "
 
@@ -366,6 +367,9 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
     zend_abstract_interface/exceptions/exceptions.c \
     zend_abstract_interface/headers/headers.c \
     zend_abstract_interface/hook/hook.c \
+    zend_abstract_interface/hook/line_hooks.c \
+    zend_abstract_interface/interceptor/line_hook.c \
+    zend_abstract_interface/jit_utils/opcache_symbols.c \
     zend_abstract_interface/json/json.c \
     zend_abstract_interface/sandbox/call.c \
     zend_abstract_interface/uri_normalization/uri_normalization.c \
@@ -477,6 +481,11 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
         dnl A fat Linux ddtrace.so is also the sidecar executable. When ld.so
         dnl executes it directly, it jumps to this ELF entry point.
         ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-e,ddog_spawn_direct_entry"
+        dnl AppSec looks up these exports with dlsym. Pull their archive
+        dnl members into the monolithic library even without C references.
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_parse_json"
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_parse_xml"
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-u,ddog_appsec_body_msgpack_drop"
       ;;
     esac
 

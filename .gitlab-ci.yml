@@ -67,6 +67,24 @@ generate-templates:
     reports:
       dotenv: libdatadog.env
 
+# Builds against libdatadog main, not the pinned submodule: keep it out of Green CI.
+# Child pipelines get the same job from .gitlab/green-ci-exclude-job.yml.
+green-ci-exclude:
+  stage: build
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  needs: []
+  rules:
+    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
+  timeout: 10 minutes
+  allow_failure: true
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    GIT_DEPTH: "1"
+    GREEN_CI_EXCLUDE_STRICT: "true"
+  script:
+    - .gitlab/tag-pipeline-green-ci-excluded.sh
+
 tracer-trigger:
   stage: tests
   needs: [ "generate-templates" ]
@@ -146,6 +164,8 @@ merge-gate:
 package-trigger:
   stage: build
   needs: [ "generate-templates" ]
+  inherit:
+    variables: false
   trigger:
     include:
       - artifact: .gitlab/package-gen.yml
@@ -156,7 +176,6 @@ package-trigger:
       pipeline_variables: true
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
     NIGHTLY_BUILD: $NIGHTLY_BUILD
     # CI_PARENT_PIPELINE_SOURCE is set to $CI_PIPELINE_SOURCE so benchmarks defined on
     # .gitlab/benchmarks.yml can use rules based on the original pipeline source, instead of the
