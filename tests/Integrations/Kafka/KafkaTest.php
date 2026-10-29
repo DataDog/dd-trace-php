@@ -61,34 +61,56 @@ class KafkaTest extends IntegrationTestCase
         $this->assertRegularExpression("/^other object: NULL$/m", $output);
     }
 
+    const DSM_ENV = [
+        'DD_DATA_STREAMS_ENABLED' => 'true',
+        'DD_SERVICE' => 'kafka_test',
+        'DD_ENV' => 'dsm-test',
+        'DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED' => 'false',
+        'DD_TRACE_CLI_ENABLED' => 'true',
+        'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+        'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+        'DD_TRACE_EXEC_ENABLED' => 'false',
+    ];
+
     /**
      * A produced message carries the Data Streams Monitoring pathway context, and the consumer
-     * receives it. The hash is FNV-1 over the service, the env and the sorted edge tags
-     * (direction:out, topic:test-dsm, type:kafka), then over the parent hash 0.
+     * receives it. Both checkpoints name the Kafka cluster, as the Java tracer's do; how their
+     * tags are hashed is covered by components-rs/data_streams.rs.
      */
     public function testDataStreamsContextPropagation()
     {
-        $env = [
-            'DD_DATA_STREAMS_ENABLED' => 'true',
-            'DD_SERVICE' => 'kafka_test',
-            'DD_ENV' => 'dsm-test',
-            'DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED' => 'false',
-            'DD_TRACE_CLI_ENABLED' => 'true',
-            'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-            'DD_TRACE_EXEC_ENABLED' => 'false',
-        ];
-        list(, $producerOutput) = $this->inCli(__DIR__ . '/scripts/producerv.php', $env, [], 'test-dsm', true);
+        list(, $producerOutput) = $this->inCli(__DIR__ . '/scripts/producer-dsm.php', self::DSM_ENV, [], 'test-dsm', true);
         // The integration wraps the application's delivery report callback to record produce
         // offsets; the application's own callback still runs.
-        $this->assertStringContains('Message sent SUCCESSFULLY', $producerOutput);
-        list(, $output) = $this->inCli(__DIR__ . '/scripts/consumer-dsm.php', $env, [], 'test-dsm', true);
+        $this->assertStringContains('delivered: true', $producerOutput);
+        $produce = '/^checkpoint: direction:out,kafka_cluster_id:([A-Za-z0-9_-]+),topic:test-dsm,type:kafka -> (\d+)$/m';
+        $this->assertRegularExpression($produce, $producerOutput);
+        preg_match($produce, $producerOutput, $produced);
+        list(, $output) = $this->inCli(__DIR__ . '/scripts/consumer-dsm.php', self::DSM_ENV, [], 'test-dsm', true);
 
         $this->assertRegularExpression('/^dsm-context: (\\S+)$/m', $output);
         preg_match('/^dsm-context: (\\S+)$/m', $output, $matches);
         $bytes = base64_decode($matches[1], true);
         $this->assertNotFalse($bytes);
-        $this->assertSame('16517612558976788512', sprintf('%u', unpack('P', substr($bytes, 0, 8))[1]));
+        $this->assertSame($produced[2], sprintf('%u', unpack('P', substr($bytes, 0, 8))[1]));
+        $this->assertRegularExpression(
+            '/^checkpoint: direction:in,group:consumer-dsm,kafka_cluster_id:' . preg_quote($produced[1], '/')
+                . ',topic:test-dsm,type:kafka -> \d+$/m',
+            $output
+        );
+    }
+
+    /**
+     * A producer that has not had its brokers' answer yet gets the cluster id another process read
+     * from a client with the same bootstrap servers, through the sidecar.
+     */
+    public function testClusterIdSharedBetweenProcesses()
+    {
+        $learned = $this->executeCli(__DIR__ . '/scripts/cluster-id-shared.php', self::DSM_ENV, [], 'learn', true);
+        $this->assertRegularExpression("/^learn: '[A-Za-z0-9_-]+'$/m", $learned);
+        preg_match("/^learn: ('[A-Za-z0-9_-]+')$/m", $learned, $matches);
+        $read = $this->executeCli(__DIR__ . '/scripts/cluster-id-shared.php', self::DSM_ENV, [], 'read', true);
+        $this->assertRegularExpression('/^read: ' . preg_quote($matches[1], '/') . '$/m', $read);
     }
 
     public function testDistributedTracingHighLevel()

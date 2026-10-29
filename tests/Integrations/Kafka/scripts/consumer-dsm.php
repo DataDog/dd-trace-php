@@ -5,6 +5,8 @@ declare(strict_types=1);
 use RdKafka\Conf;
 use RdKafka\KafkaConsumer;
 
+require __DIR__ . '/print-dsm-checkpoints.php';
+
 $conf = new Conf();
 $conf->set('bootstrap.servers', 'kafka-integration:9092');
 $conf->set('group.id', 'consumer-dsm');

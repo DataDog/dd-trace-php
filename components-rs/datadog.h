@@ -198,6 +198,30 @@ void ddog_dsm_track_backlog(struct ddog_SidecarTransport *transport,
                             uintptr_t tag_count,
                             int64_t offset);
 
+/**
+ * Write the id of the cluster the Kafka clients with `bootstrap_servers` reach to `out`, if this
+ * process or another process of the sidecar has read it from such a client, and return its
+ * length; 0 if no process has, or it does not fit in `out_cap` bytes.
+ *
+ * # Safety
+ * `out` must point to `out_cap` writable bytes.
+ */
+uintptr_t ddog_dsm_get_kafka_cluster_id(ddog_CharSlice bootstrap_servers,
+                                        uint8_t *out,
+                                        uintptr_t out_cap);
+
+/**
+ * Record that the Kafka clients with `bootstrap_servers` reach the cluster `cluster_id`, as the
+ * caller read it from one of them, and share it with the sidecar's other processes the first
+ * time.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ */
+void ddog_dsm_set_kafka_cluster_id(struct ddog_SidecarTransport *transport,
+                                   ddog_CharSlice bootstrap_servers,
+                                   ddog_CharSlice cluster_id);
+
 bool ddog_ffe_load_config(ddog_CharSlice json);
 
 bool ddog_ffe_has_config(void);

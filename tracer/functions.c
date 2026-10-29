@@ -3012,12 +3012,18 @@ PHP_FUNCTION(DDTrace_Internal_dsm_pop_pathway) {
 
 PHP_FUNCTION(DDTrace_Internal_kafka_cluster_id) {
     zval *kafka;
+    zend_string *bootstrap_servers = NULL;
+    zend_long wait_ms = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_ZVAL(kafka)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STR_OR_NULL(bootstrap_servers)
+        Z_PARAM_LONG(wait_ms)
     ZEND_PARSE_PARAMETERS_END();
 
-    zend_string *cluster_id = Z_TYPE_P(kafka) == IS_OBJECT ? ddtrace_kafka_cluster_id(Z_OBJ_P(kafka)) : NULL;
+    zend_string *cluster_id =
+        Z_TYPE_P(kafka) == IS_OBJECT ? ddtrace_kafka_cluster_id(Z_OBJ_P(kafka), bootstrap_servers, wait_ms) : NULL;
     if (cluster_id) {
         RETURN_STR(cluster_id);
     }

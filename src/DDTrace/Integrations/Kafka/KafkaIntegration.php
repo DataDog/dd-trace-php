@@ -90,11 +90,11 @@ class KafkaIntegration extends Integration
         // The message as it is sent, but for the context header the checkpoint computes.
         $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
             + self::headersSize(array_merge($args[4] ?? [], $headers));
-        return \DDTrace\Internal\dsm_set_checkpoint([
+        return \DDTrace\Internal\dsm_set_checkpoint(array_merge([
             'direction:out',
             'topic:' . $producerTopic->getName(),
             'type:kafka',
-        ], null, $payloadSize);
+        ], self::clusterIdTags(ObjectKVStore::get($producerTopic, 'kafka'))), null, $payloadSize);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
@@ -207,6 +207,8 @@ class KafkaIntegration extends Integration
         }
         $edgeTags[] = 'topic:' . $message->topic_name;
         $edgeTags[] = 'type:kafka';
+        $kafka = $consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : $consumer;
+        $edgeTags = array_merge($edgeTags, self::clusterIdTags($kafka));
 
         \DDTrace\Internal\dsm_set_checkpoint(
             $edgeTags,
@@ -322,12 +324,15 @@ class KafkaIntegration extends Integration
     }
 
     /**
-     * The tag naming the cluster `$kafka` is connected to, from librdkafka's last metadata
-     * response. Delivery reports and commits only come after one, so callbacks always have it.
+     * The tag naming the cluster `$kafka` is connected to. librdkafka has its id from the client's
+     * last metadata response, and delivery reports, commits and consumed messages only come after
+     * one. A producer too new to have had one gets the id another client with the same bootstrap
+     * servers read, in this process or another one of the sidecar's.
      */
     private static function clusterIdTags($kafka): array
     {
-        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka);
+        $conf = $kafka ? ObjectKVStore::get($kafka, 'conf') : null;
+        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null);
         return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
     }
 
@@ -388,6 +393,8 @@ class KafkaIntegration extends Integration
                 if (in_array($method, ['newTopic', 'newQueue'])) {
                     $conf = ObjectKVStore::get($This, 'conf');
                     ObjectKVStore::put($returnValue, 'conf', $conf);
+                    // The client, for its cluster id
+                    ObjectKVStore::put($returnValue, 'kafka', $This);
                 }
             }
         );
