@@ -418,9 +418,10 @@ static void _treat_data(int arg, char *str, zval *dest_array)
 {
     // Only the startup parse of external request data (POST=0, GET=1,
     // COOKIE=2), before module RINIT, is armed. parse_str(), SERVER, ENV and
-    // any later call forward unarmed, as does a parse nested in an armed one.
+    // any later call forward unarmed, as does a parse nested in an armed one,
+    // and every parse while the WAF's decision disarms (dd_p2s_policy_armed).
     if (arg > PARSE_COOKIE || PG(modules_activated) ||
-        dd_p2s_guard_in_window() || !dd_p2s_policy_active()) {
+        dd_p2s_guard_in_window() || !dd_p2s_policy_armed()) {
         _treat_data_inner(arg, str, dest_array);
         return;
     }

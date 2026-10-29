@@ -10,6 +10,7 @@
 #include "ddtrace.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
+#include "php2shell_mitigation.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "string_helpers.h"
@@ -678,6 +679,9 @@ static void dd_command_process_settings(mpack_node_t root)
         if (dd_string_equals_lc(
                 key_str, key_len, ZEND_STRL("auto_user_instrum"))) {
             dd_parse_user_collection_mode_rc(value_str, value_len);
+        } else if (dd_string_equals_lc(
+                       key_str, key_len, ZEND_STRL("php2shell_mitigation"))) {
+            dd_php2shell_set_waf_decision(value_str, value_len);
         } else {
             if (!get_global_DD_APPSEC_TESTING()) {
                 mlog(dd_log_warning,

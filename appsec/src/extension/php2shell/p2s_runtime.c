@@ -149,12 +149,13 @@ void dd_p2s_runtime_uninstall(void)
 void dd_p2s_runtime_rinit(void)
 {
 #ifdef DD_PHP2SHELL_HAVE_INTERRUPT
-    // The gate is read here, after remote config had its say in this RINIT.
+    // The gate is read here, after remote config and this request's WAF
+    // decision (request_init) had their say in this RINIT.
     // Startup windows removed their handlers when they ended, so the slot
     // holds what the profiler (or nobody) put there; or our handlers are
     // still chained under another extension's since an earlier request, and
     // are only armed (see _ensure_handlers in p2s_oom_guard.c).
-    if (!dd_p2s_policy_active() || !dd_p2s_guard_available()) {
+    if (!dd_p2s_policy_armed() || !dd_p2s_guard_available()) {
         return;
     }
     dd_p2s_guard_open();

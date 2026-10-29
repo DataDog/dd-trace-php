@@ -23,8 +23,10 @@
 // module MINIT), and not written again until MSHUTDOWN: sapi_module.treat_data,
 // the sapi_module.input_filter / input_filter_init pair, php_rfc1867_callback,
 // sapi_module.deactivate, sapi_module.read_post, on PHP 8.4+ the handler of
-// request_parse_body(), and, for the request level (p2s_runtime.c), on PHP 7.1+
-// zend_interrupt_function and on PHP 7.1-8.3 the handler of gc_mem_caches(). A
+// request_parse_body(), for the request level (p2s_runtime.c), on PHP 7.1+
+// zend_interrupt_function and on PHP 7.1-8.3 the handler of gc_mem_caches(),
+// and, for the monitor state (p2s_monitor.c), zend_error_cb (on PHP 8.0 from
+// zend_post_startup_cb, over opcache's wrapper; see p2s_monitor.c). A
 // slot that another extension replaces later is not repaired (see
 // php2shell/p2s_hook.h); since another extension may also wrap ours and chain
 // to it, "displaced" means only that ours is no longer on top. The Zend MM
@@ -35,6 +37,18 @@
 // php2shell/p2s_policy.c): appsec or the tracer explicitly disabled, the mode
 // off, or the mode auto on a patched runtime.
 //
+// WAF decision. Under the mode auto, every request_init sends
+// php.php2shell.vulnerable = full (unpatched) or partial (only the minimal fix
+// of the EOL branches) to the WAF, whose ruleset decides through the response's
+// php2shell_mitigation setting: none (disarmed), monitor (disarmed; native
+// memory errors are detected as they are raised and reported on the span) or
+// block (armed). The decision is process-wide and sticky: it starts pending,
+// which arms as block does, and only an explicit answer changes it. The mode on
+// arms whatever the WAF says and sends nothing; off, and auto on a patched
+// runtime, send nothing (see php2shell/p2s_policy.c and Coverage: WAF
+// decision). The helper evaluates the address in a WAF run of its own, without
+// a timeout, and keeps the rule's match out of the request's appsec events.
+//
 // The mechanisms are described at the top of the unit, under php2shell/, that
 // implements them:
 //   - Windows, and the hard limit of a window: p2s_startup_parse.c (the
@@ -42,15 +56,23 @@
 //   - Arming, our Zend MM handlers and the deferred raise: p2s_oom_guard.c;
 //   - Request level (PHP 7.1+): p2s_runtime.c;
 //   - CVE-2026-109619 sub-mitigations B and C: p2s_stale_state.c;
-//   - Gate: p2s_policy.c.
+//   - Gate and WAF decision: p2s_policy.c;
+//   - Monitor state, the detection of native memory errors: p2s_monitor.c;
+//   - Span tags and trace keep: p2s_report.c.
 //
 // Observability: two metrics (DD_METRIC_* in p2s_oom_guard.c), flushed
 // synchronously to the sidecar, tagged with the mode; the deferred one also
 // with the phase where the error was raised (phase:startup,
 // phase:request_parse_body or phase:runtime, see dd_deferred_phase), which its
-// log line names too; one log line per displaced hook, and one for an expanding
-// filter.default (see Coverage: filter.default); MINFO rows for the state, the
-// mode, the patch state and each hook (Installed / Displaced / Not installed).
+// log line names too; span tags on the request's root span, best effort (none
+// before RINIT, see p2s_report.c), each of which also keeps the trace (user
+// keep, as an appsec event): _dd.appsec.php2shell.deferred = <phase> for a
+// deferred error (block state, and the mode on), and, in the monitor state,
+// _dd.appsec.php2shell.memory_error = memory_limit or out_of_memory with
+// _dd.appsec.php2shell.phase = <phase> for a native one; one log line per
+// displaced hook, and one for an expanding filter.default (see Coverage:
+// filter.default); MINFO rows for the state, the mode, the patch state, the WAF
+// decision and each hook (Installed / Displaced / Not installed).
 //
 // Goals:
 //   A. On an unpatched runtime, a memory-limit error during the startup
@@ -63,8 +85,10 @@
 //   B. The CVE-2026-109619 stale request state is reset in post_deactivate,
 //      and session upload progress is off during the startup POST parse.
 //   C. Gated on the unpatched runtime, the mode toggle, the appsec flag and
-//      the SAPI.
-//   D. Two metrics (soft-deferred and hard-exit), flushed synchronously.
+//      the SAPI; under the mode auto, armed only as the WAF decides.
+//   D. Two metrics (soft-deferred and hard-exit), flushed synchronously, and
+//      span tags for deferred errors and, in the monitor state, for native
+//      memory errors, with the trace kept.
 //   E. No hard exit for bodies within post_max_size, up to the constant cap.
 //
 // Coverage limits, grouped by consequence. Each entry has a label, cited
@@ -89,6 +113,16 @@
 //     output handlers flushed after our RSHUTDOWN.
 //   - After a deferred fatal: the request is disarmed, so shutdown functions
 //     run unarmed.
+//   - Monitor mode: nothing is armed, as under the decision none, so the CVEs
+//     stay reachable; native memory errors are only reported. One raised
+//     before every module RINIT has run (the startup parse) has the phase
+//     startup, which is never tagged: it is only logged, at info level, and no
+//     metric counts it. An "Out of memory" error is reported while zend_mm's
+//     overflow flag is set, so if the operating system refuses again one of
+//     the small allocations of the report (the tags), zend_mm ends the process
+//     (exit(1)) instead of the fatal error. The trace keep, here as for a
+//     deferred error, has no rate limit: an application that crosses
+//     memory_limit on every request keeps every trace.
 //   - CLI SAPIs: under cli, phpdbg and embed the mitigation is off in every
 //     mode, as if appsec were fully disabled (see _sapi_excluded).
 //   - USE_ZEND_ALLOC=0: nothing is armed. The plain stub enforces no limit;
@@ -123,6 +157,12 @@
 //     which resolves the mode and the appsec gate there, so the workers do
 //     not see the pool env[] values. appsec's own configuration behaves the
 //     same way.
+//   - WAF decision: it reaches the process from a request's RINIT
+//     (request_init), so that request's startup parse follows the previous
+//     decision, and a new process (each php-fpm worker) arms its first startup
+//     parse whatever the ruleset says. No answer (appsec not active, the
+//     helper unreachable, an error, an older helper) keeps the last decision.
+//     A remote-config ruleset without the rule answers none and disarms.
 //   - Per-directory datadog.appsec.enabled: follows appsec's own
 //     once-per-process resolution. It reaches the flag only when set for the
 //     first request (from that request's RINIT, after its startup parse), and
@@ -234,8 +274,8 @@
 //     would catch it, at a cost on every allocation for these exotic values.
 //   - Ordinary out-of-memory errors: whole-request arming applies to every
 //     request on an unpatched runtime, so an application's own crossing of
-//     memory_limit is deferred too, and counted in the deferred metric
-//     (phase:runtime).
+//     memory_limit is deferred too, counted in the deferred metric
+//     (phase:runtime), tagged on the span and the trace kept.
 //
 // 5. Not addressed.
 //   - Unrelated stock-PHP bugs: those not about memory (e.g. the parse_str
@@ -267,7 +307,9 @@
 
 #include "configuration.h"
 #include "ddappsec.h" // TSRMLS_CACHE as local-dynamic: no STATIC_TLS
+#include "logging.h"
 
+#include "php2shell/p2s_monitor.h"
 #include "php2shell/p2s_oom_guard.h"
 #include "php2shell/p2s_policy.h"
 #include "php2shell/p2s_request_parse_body.h"
@@ -326,6 +368,7 @@ void dd_php2shell_startup(void)
         dd_p2s_stale_state_install();
         dd_p2s_request_parse_body_install();
         dd_p2s_runtime_install();
+        dd_p2s_monitor_install();
         dd_p2s_policy_hooks_installed();
     }
 }
@@ -342,6 +385,7 @@ void dd_php2shell_mshutdown(void)
     dd_p2s_stale_state_uninstall();
     dd_p2s_request_parse_body_uninstall();
     dd_p2s_runtime_uninstall();
+    dd_p2s_monitor_uninstall();
     dd_p2s_policy_mshutdown();
     _minit_done = false;
 }
@@ -351,6 +395,23 @@ void dd_php2shell_set_allowed(bool allowed)
     dd_p2s_policy_set_allowed(allowed);
 }
 
+void dd_php2shell_set_waf_decision(const char *nonnull value, size_t len)
+{
+    dd_p2s_decision decision;
+    if (!dd_p2s_policy_parse_decision(value, len, &decision)) {
+        mlog(dd_log_warning,
+            "PHP2Shell mitigation: unknown WAF decision '%.*s', ignored",
+            (int)MIN(len, INT_MAX), value);
+        return;
+    }
+    dd_p2s_policy_set_decision(decision);
+}
+
+const char *nullable dd_php2shell_vulnerable_value(void)
+{
+    return dd_p2s_policy_vulnerable_value();
+}
+
 void dd_php2shell_rinit(void) { dd_p2s_runtime_rinit(); }
 
 void dd_php2shell_rshutdown(void) { dd_p2s_runtime_rshutdown(); }
@@ -358,11 +419,11 @@ void dd_php2shell_rshutdown(void) { dd_p2s_runtime_rshutdown(); }
 // One check and one MINFO row per hook (see dd_p2s_hook_check_displaced): the
 // displacement check runs in post_deactivate, in the order treat_data,
 // input_filter, deactivate, request_parse_body(), rfc1867, read_post,
-// zend_interrupt_function, gc_mem_caches(). The deactivate, rfc1867 and
-// zend_interrupt_function slots are captured whenever dd_php2shell_startup()
-// installed the hooks, even if they held NULL; request_parse_body() and
-// gc_mem_caches() count as not captured once they are gone
-// (disable_functions). Relaxed loads only.
+// zend_interrupt_function, gc_mem_caches(), zend_error_cb. The deactivate,
+// rfc1867, zend_interrupt_function and zend_error_cb slots are captured
+// whenever dd_php2shell_startup() installed the hooks, even if they held NULL;
+// request_parse_body() and gc_mem_caches() count as not captured once they are
+// gone (disable_functions). Relaxed loads only.
 void dd_php2shell_minfo(void)
 {
     dd_p2s_policy_minfo();
@@ -380,6 +441,7 @@ void dd_php2shell_minfo(void)
     dd_p2s_request_parse_body_minfo();
     dd_p2s_runtime_minfo_interrupt();
     dd_p2s_runtime_minfo_gc_mem_caches();
+    dd_p2s_monitor_minfo_error_cb();
 }
 
 void dd_php2shell_post_deactivate(void)
@@ -402,5 +464,6 @@ void dd_php2shell_post_deactivate(void)
     dd_p2s_startup_parse_check_read_post();
     dd_p2s_runtime_check_interrupt();
     dd_p2s_runtime_check_gc_mem_caches();
+    dd_p2s_monitor_check_error_cb();
     dd_p2s_stale_state_post_deactivate();
 }

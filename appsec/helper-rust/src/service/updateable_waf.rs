@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
+};
 
 use arc_swap::ArcSwap;
 use libddwaf::{
@@ -19,8 +22,23 @@ pub struct UpdateableWafInstance {
 
 struct UpdateableWafInstanceInner {
     prot_state: Mutex<ProtectedState>,
-    waf_handle: ArcSwap<Handle>,
+    waf_handle: ArcSwap<GenerationalHandle>,
     initial_ruleset: WafObject,
+}
+
+// The generation is swapped together with the handle so that a reader can never
+// pair a handle with the generation of another build.
+struct GenerationalHandle {
+    handle: Arc<Handle>,
+    generation: u64,
+}
+
+// Process-wide, so that generations never collide across instances (e.g. when
+// a client switches to another service).
+static NEXT_WAF_GENERATION: AtomicU64 = AtomicU64::new(1);
+
+fn next_waf_generation() -> u64 {
+    NEXT_WAF_GENERATION.fetch_add(1, Ordering::Relaxed)
 }
 
 struct ProtectedState {
@@ -66,18 +84,23 @@ impl UpdateableWafInstance {
                     builder,
                     initial_ruleset_added: true,
                 }),
-                waf_handle: ArcSwap::from_pointee(waf),
+                waf_handle: ArcSwap::from_pointee(GenerationalHandle {
+                    handle: Arc::new(waf),
+                    generation: next_waf_generation(),
+                }),
                 initial_ruleset: ruleset,
             }),
         })
     }
 
-    /// Returns a reference to the current WAF handle.
+    /// Returns the current WAF handle together with its generation, a
+    /// process-wide unique number identifying the build of the handle.
     ///
-    /// This can be used to create new contexts for processing requests.
+    /// The handle can be used to create new contexts for processing requests.
     #[must_use]
-    pub fn current(&self) -> Arc<Handle> {
-        self.inner.waf_handle.load_full()
+    pub fn current_with_generation(&self) -> (Arc<Handle>, u64) {
+        let cur = self.inner.waf_handle.load();
+        (cur.handle.clone(), cur.generation)
     }
 
     /// Adds or updates a configuration at the specified path.
@@ -211,7 +234,10 @@ impl UpdateableWafInstance {
             .build()
             .ok_or_else(|| anyhow::anyhow!("Failed to build WAF instance"))?;
         let new_instance = Arc::new(new_instance);
-        self.inner.waf_handle.store(new_instance.clone());
+        self.inner.waf_handle.store(Arc::new(GenerationalHandle {
+            handle: new_instance.clone(),
+            generation: next_waf_generation(),
+        }));
         Ok(new_instance)
     }
 }
@@ -293,6 +319,27 @@ mod tests {
 "#;
 
     #[test]
+    fn generation_changes_on_new_and_update() {
+        let ruleset: WafObject = serde_json::from_str(ARACHNI_RULE).unwrap();
+        let waf1 =
+            UpdateableWafInstance::new(ruleset.clone(), Some(&Config::default()), None).unwrap();
+        let waf2 = UpdateableWafInstance::new(ruleset, Some(&Config::default()), None).unwrap();
+
+        let (handle1, gen1) = waf1.current_with_generation();
+        let (_, gen2) = waf2.current_with_generation();
+        assert_ne!(gen1, gen2);
+
+        let (handle1_again, gen1_again) = waf1.current_with_generation();
+        assert_eq!(gen1_again, gen1);
+        assert!(Arc::ptr_eq(&handle1_again, &handle1));
+
+        let new_handle = waf1.update().unwrap();
+        let (handle1b, gen1b) = waf1.current_with_generation();
+        assert!(gen1b > gen1 && gen1b > gen2);
+        assert!(Arc::ptr_eq(&handle1b, &new_handle));
+    }
+
+    #[test]
     fn threaded_updateable_waf_instance() {
         let ruleset: WafObject = serde_json::from_str(ARACHNI_RULE).unwrap();
         let upd_waf = UpdateableWafInstance::new(ruleset, Some(&Config::default()), None).unwrap();
@@ -356,7 +403,7 @@ mod tests {
                     let mut non_matches = 0u64;
                     move || {
                         while !stop_signal.load(Relaxed) {
-                            let cur_instance = upd_waf_copy.current();
+                            let (cur_instance, _) = upd_waf_copy.current_with_generation();
                             println!("address of instance: {:p}", Arc::as_ptr(&cur_instance));
                             let mut ctx = cur_instance.new_context();
                             let res =

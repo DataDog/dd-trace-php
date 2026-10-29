@@ -39,6 +39,8 @@ void dd_config_first_rinit(void);
     SYSCFG(BOOL, DD_APPSEC_TESTING_RAW_BODY, "false")                                                                                 \
     SYSCFG(BOOL, DD_APPSEC_TESTING_HELPER_METRICS, "false")                                                                           \
     SYSCFG(BOOL, DD_APPSEC_TESTING_INVALID_COMMAND, "false")                                                                           \
+    SYSCFG(STRING, DD_APPSEC_TESTING_PHP2SHELL_RUNTIME, "")                                                                           \
+    SYSCFG(STRING, DD_APPSEC_TESTING_PHP2SHELL_DECISION, "")                                                                          \
     CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                                                    \
     SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                                         \
     SYSCFG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true")                                                                               \

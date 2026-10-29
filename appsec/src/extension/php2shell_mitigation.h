@@ -37,6 +37,8 @@
 #include <php.h>
 #include <stdbool.h>
 
+#include "attributes.h"
+
 // Resolve whether this PHP is patched and the initial appsec gate. Installs no
 // hook. Called from PHP_MINIT, after configuration is available.
 void dd_php2shell_minit(void);
@@ -53,6 +55,15 @@ void dd_php2shell_mshutdown(void);
 // Set whether appsec's state lets the mitigation run. Process-wide; writes
 // only when the value changes.
 void dd_php2shell_set_allowed(bool allowed);
+
+// Apply the WAF's decision from the request_init response (none, monitor or
+// block). Process-wide and sticky; ignored unless the mode is auto. An unknown
+// value is logged and changes nothing.
+void dd_php2shell_set_waf_decision(const char *nonnull value, size_t len);
+
+// The value of php.php2shell.vulnerable to send in request_init ("full" or
+// "partial"), or NULL when the address is not to be sent.
+const char *nullable dd_php2shell_vulnerable_value(void);
 
 // On PHP 7.1+, if the mitigation is active, install the Zend MM handlers for
 // the request and arm it until dd_php2shell_rshutdown(). Called at the end of

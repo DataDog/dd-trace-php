@@ -13,6 +13,7 @@
 #include "../entity_body.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
+#include "../php2shell_mitigation.h"
 #include "../php_compat.h" // NOLINT(unused-includes)
 #include "../php_helpers.h"
 #include "../string_helpers.h"
@@ -54,12 +55,12 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
 
     bool send_raw_body = get_global_DD_APPSEC_TESTING() &&
                          get_global_DD_APPSEC_TESTING_RAW_BODY();
+    // The WAF decides whether to arm the PHP2Shell mitigation from this
+    // address (see php2shell_mitigation.c, WAF decision).
+    const char *nullable p2s_vulnerable = dd_php2shell_vulnerable_value();
 #define REQUEST_INIT_MAP_NUM_ENTRIES 10
-    if (send_raw_body) {
-        mpack_start_map(w, REQUEST_INIT_MAP_NUM_ENTRIES + 1);
-    } else {
-        mpack_start_map(w, REQUEST_INIT_MAP_NUM_ENTRIES);
-    }
+    mpack_start_map(w, REQUEST_INIT_MAP_NUM_ENTRIES + (send_raw_body ? 1 : 0) +
+                           (p2s_vulnerable ? 1 : 0));
 
     // Pack data from SAPI request_info
     sapi_request_info *request_info = &SG(request_info);
@@ -138,6 +139,12 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
     if (send_raw_body && ctx->entity) {
         dd_mpack_write_lstr(w, "server.request.body.raw");
         dd_mpack_write_zstr(w, ctx->entity);
+    }
+
+    // 12.
+    if (p2s_vulnerable) {
+        dd_mpack_write_lstr(w, "php.php2shell.vulnerable");
+        mpack_write_cstr(w, p2s_vulnerable);
     }
 
     mpack_finish_map(w);

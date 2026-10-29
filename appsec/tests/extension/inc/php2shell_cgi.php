@@ -23,6 +23,11 @@ const P2S_STUB = 'p2s_stub.so';
 const P2S_ROW_STATE = 'PHP2Shell mitigation (CVE-2026-109618/109619)';
 const P2S_ROW_MODE = 'PHP2Shell mitigation mode';
 const P2S_ROW_PATCHED = 'PHP2Shell patched runtime';
+const P2S_ROW_DECISION = 'PHP2Shell WAF decision';
+const P2S_WAF_ADDRESS = 'php.php2shell.vulnerable';
+const P2S_WAF_SETTING = 'php2shell_mitigation';
+const P2S_WAF_CHILD = __DIR__ . '/php2shell_child_waf.php';
+const P2S_WAF_HELPER_CHILD = __DIR__ . '/php2shell_child_waf_helper.php';
 
 // ---- skip conditions (call from --SKIPIF--) ---------------------------------
 
@@ -150,6 +155,52 @@ function p2s_minfo_active() {
 function p2s_request_hard_limit($soft) {
     $floor = $soft < 1024 * P2S_MIB ? 2 * $soft : $soft + 1024 * P2S_MIB;
     return max($floor, $soft + 8 * P2S_MIB);
+}
+
+// The environment of a php-cgi child for mode $mode (auto, on or off) and,
+// under mode auto, the initial WAF decision $decision (none, monitor or block;
+// null: pending, as before the first answer) and the runtime $runtime (full,
+// partial or patched; null: detected). Both are testing-only overrides
+// (datadog.appsec.testing is on in these tests): the decision is the one the
+// process starts with, before any helper answer, and the runtime replaces the
+// detection, so that the tests also run on a patched runtime. All three are
+// always set (empty: no override), so none leaks in from this process.
+function p2s_waf_env($mode, $decision = null, $runtime = null) {
+    return [
+        'DD_APPSEC_PHP2SHELL_MITIGATION' => $mode,
+        'DD_APPSEC_TESTING_PHP2SHELL_DECISION' => (string)$decision,
+        'DD_APPSEC_TESTING_PHP2SHELL_RUNTIME' => (string)$runtime,
+    ];
+}
+
+// The value of php.php2shell.vulnerable in a request_init command the mock
+// helper received ([name, [data, ...]]), or 'absent'.
+function p2s_waf_address(array $cmd) {
+    return isset($cmd[1][0][P2S_WAF_ADDRESS]) ? (string)$cmd[1][0][P2S_WAF_ADDRESS] : 'absent';
+}
+
+// The WAF TAGS line that php2shell_child_waf.php printed, as [key => value],
+// or null.
+function p2s_waf_tags(array $r) {
+    if (!preg_match('/^WAF TAGS (.*?)\r?$/m', $r['out'], $m)) {
+        return null;
+    }
+    $kv = [];
+    foreach (explode(' ', $m[1]) as $pair) {
+        $p = explode('=', $pair, 2);
+        $kv[$p[0]] = isset($p[1]) ? $p[1] : '';
+    }
+    return $kv;
+}
+
+// The WAF TAGS line in the order the tests print it.
+function p2s_waf_tags_str($tags) {
+    if ($tags === null) {
+        return 'no tags line';
+    }
+    return "span={$tags['span']} deferred={$tags['deferred']}"
+        . " memory_error={$tags['memory_error']} phase={$tags['phase']}"
+        . " user_keep={$tags['user_keep']}";
 }
 
 // ---- outcomes ---------------------------------------------------------------

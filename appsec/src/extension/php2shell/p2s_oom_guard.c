@@ -56,6 +56,7 @@
 #include "../php_compat.h" // zend_string_init_interned (PHP < 7.2)
 #include "../telemetry.h"  // dd_telemetry_add_metric
 #include "p2s_policy.h"
+#include "p2s_report.h"
 
 // The engine's real limit while the mitigation is armed. Effectively disables
 // the engine's own enforcement so that this file is the sole authority on
@@ -113,7 +114,6 @@ static zend_string *nullable _metric_hard_exit_name;
 
 static size_t _request_hard_limit(size_t soft);
 static bool _zend_alloc_disabled(void);
-static const char *_phase_name(dd_deferred_phase phase);
 static void _set_finite_limit(void);
 static bool _ensure_handlers(void);
 static bool _install_handlers(void);
@@ -332,7 +332,7 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise(
     // below without reaching module RSHUTDOWN, so the tracer's request-finish
     // flush never runs. Flush synchronously now so the point reaches the
     // sidecar regardless (from request_parse_body() the flush is merely early).
-    const char *phase_name = _phase_name(phase);
+    const char *phase_name = dd_p2s_phase_name(phase);
     _emit_and_flush(_metric_deferred_name, phase_name);
     if (phase != DD_PHASE_RUNTIME) {
         mlog(dd_log_warning,
@@ -347,10 +347,27 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise(
             "at a VM interrupt (phase:%s)",
             _arm_state.soft, phase_name);
     }
+    // Under the finite limit, so these allocations do not bail either.
+    dd_p2s_report_deferred(phase);
     zend_error_noreturn(E_ERROR,
         "Allowed memory size of %zu bytes exhausted (Datadog AppSec PHP2Shell "
         "mitigation deferred this to avoid heap corruption)",
         _arm_state.soft);
+}
+
+// The value of the deferred metric's phase tag, also used by the span tags
+// (see p2s_report.c).
+const char *nonnull dd_p2s_phase_name(dd_deferred_phase phase)
+{
+    switch (phase) {
+    case DD_PHASE_STARTUP:
+        return "startup";
+    case DD_PHASE_REQUEST_PARSE_BODY:
+        return "request_parse_body";
+    case DD_PHASE_RUNTIME:
+    default:
+        return "runtime";
+    }
 }
 
 // Install (or arm already chained) handlers for the whole request, from
@@ -426,20 +443,6 @@ static bool _zend_alloc_disabled(void)
 #else
     return tmp && !zend_atoi(tmp, 0);
 #endif
-}
-
-// The value of the deferred metric's phase tag.
-static const char *_phase_name(dd_deferred_phase phase)
-{
-    switch (phase) {
-    case DD_PHASE_STARTUP:
-        return "startup";
-    case DD_PHASE_REQUEST_PARSE_BODY:
-        return "request_parse_body";
-    case DD_PHASE_RUNTIME:
-    default:
-        return "runtime";
-    }
 }
 
 // Replace the sentinel engine limit with a finite one on the two exits of an

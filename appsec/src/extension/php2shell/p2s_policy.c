@@ -11,6 +11,19 @@
 // starts true unless datadog.appsec.enabled is explicitly false; RINIT clears
 // it when appsec resolves to fully disabled, and under remote config it
 // follows the helper's latest answer.
+//
+// Armed (parse windows and request level) when active and, under mode auto,
+// the WAF's sticky decision is pending or block; mode on arms whatever the WAF
+// says, and asks nothing. Under mode auto, an unpatched runtime is "full", or
+// "partial" when it carries only the minimal fix of the EOL branches (the
+// zend_mm_safe_error_ex symbol resolves, _femalloc does not); either is sent to
+// the WAF as php.php2shell.vulnerable in every request_init
+// (dd_p2s_policy_vulnerable_value). Each explicit answer in the response
+// (none, monitor or block) replaces the decision for the whole process; no
+// answer (no WAF call, an error, an older helper) leaves it unchanged. The
+// decision starts pending, so a process is armed until the first answer.
+// monitor disarms but has native memory errors reported
+// (dd_p2s_policy_monitoring). The appsec flag wins over any decision.
 
 #include "p2s_policy.h"
 
@@ -21,7 +34,7 @@
 #include <stdatomic.h>
 #include <string.h>
 
-#include <alloc.h> // zend_abstract_interface/alloc.h: zai_resolve__femalloc()
+#include <alloc.h> // zend_abstract_interface/alloc.h: runtime patch detection
 
 #include "../compatibility.h"
 #include "../configuration.h"
@@ -30,6 +43,7 @@
 #include "../logging.h"
 #include "../php_compat.h" // NOLINT (must come before any *_arginfo.h)
 #include "../php_objects.h"
+#include "../string_helpers.h"
 
 typedef enum {
     DD_PHP2SHELL_AUTO = 0,
@@ -58,6 +72,14 @@ typedef enum {
 
 static dd_php2shell_mode _mode = DD_PHP2SHELL_AUTO;
 static bool _patched;
+// Unpatched, but carrying the minimal fix of the EOL branches. Fixed in MINIT,
+// with _patched.
+static bool _partial;
+// The WAF's sticky decision (dd_p2s_decision), consulted under mode auto only.
+// Advisory and publishes no data, so relaxed loads and stores, as _allowed.
+// Set in MINIT (and by the testing knob in _resolve_config), then by
+// dd_p2s_policy_set_decision().
+static atomic_int _decision = DD_P2S_DECISION_PENDING;
 // Whether appsec's state lets the mitigation run: false once
 // appsec is known to be disabled. Advisory and publishes no data, so relaxed
 // loads and stores. Set in MINIT, then changed by dd_php2shell_set_allowed().
@@ -72,7 +94,10 @@ static void _resolve_config(void);
 static bool _sapi_excluded(void);
 static bool _mode_allows_activation(void);
 static const char *_state_name(void);
+static const char *_decision_name(void);
 static dd_php2shell_mode _parse_mode(const zend_string *nullable value);
+static void _apply_testing_runtime(void);
+static void _apply_testing_decision(void);
 #ifdef TESTING
 static PHP_FUNCTION(datadog_appsec_testing_php2shell_set_allowed);
 #endif
@@ -90,10 +115,16 @@ void dd_p2s_policy_minit(void)
 #else
     _patched = zai_resolve__femalloc() != NULL;
 #endif
+    _partial = !_patched && zai_has_zend_mm_safe_error_ex();
+    if (get_global_DD_APPSEC_TESTING()) {
+        _apply_testing_runtime();
+    }
     // Stored rather than left to the static initialiser: statics survive a
     // module restart while the DSO stays mapped. dd_config_minit() has run.
     atomic_store_explicit(
         &_allowed, !dd_cfg_appsec_explicitly_disabled(), memory_order_relaxed);
+    atomic_store_explicit(
+        &_decision, DD_P2S_DECISION_PENDING, memory_order_relaxed);
 }
 
 void dd_p2s_policy_hooks_installed(void) { _hooks_installed = true; }
@@ -114,7 +145,49 @@ void dd_p2s_policy_set_allowed(bool allowed)
     }
 }
 
+void dd_p2s_policy_set_decision(dd_p2s_decision decision)
+{
+    // As dd_p2s_policy_set_allowed(): the testing knob, applied once per
+    // process after the config refresh, must not overwrite this value.
+    _resolve_config_once();
+    if (_mode != DD_PHP2SHELL_AUTO) {
+        return;
+    }
+    // Only write when the value changes, so that requests make no shared
+    // cache-line write.
+    if (atomic_load_explicit(&_decision, memory_order_relaxed) !=
+        (int)decision) {
+        atomic_store_explicit(&_decision, (int)decision, memory_order_relaxed);
+        mlog(dd_log_debug, "PHP2Shell mitigation: WAF decision is now %s",
+            _decision_name());
+    }
+}
+
+bool dd_p2s_policy_parse_decision(
+    const char *nonnull value, size_t len, dd_p2s_decision *nonnull decision)
+{
+    if (dd_string_equals_lc(value, len, ZEND_STRL("none"))) {
+        *decision = DD_P2S_DECISION_OFF;
+    } else if (dd_string_equals_lc(value, len, ZEND_STRL("monitor"))) {
+        *decision = DD_P2S_DECISION_MONITOR;
+    } else if (dd_string_equals_lc(value, len, ZEND_STRL("block"))) {
+        *decision = DD_P2S_DECISION_BLOCK;
+    } else {
+        return false;
+    }
+    return true;
+}
+
 bool dd_p2s_policy_patched(void) { return _patched; }
+
+const char *nullable dd_p2s_policy_vulnerable_value(void)
+{
+    _resolve_config_once(); // once-guarded read of _mode
+    if (!_hooks_installed || _mode != DD_PHP2SHELL_AUTO || _patched) {
+        return NULL;
+    }
+    return _partial ? "partial" : "full";
+}
 
 void dd_p2s_policy_minfo(void)
 {
@@ -125,6 +198,8 @@ void dd_p2s_policy_minfo(void)
         2, "PHP2Shell mitigation mode", dd_p2s_policy_mode_name());
     php_info_print_table_row(
         2, "PHP2Shell patched runtime", _patched ? "Yes" : "No");
+    php_info_print_table_row(2, "PHP2Shell WAF decision",
+        _mode == DD_PHP2SHELL_AUTO ? _decision_name() : "n/a");
 }
 
 // Whether the mitigation is active for request data now: the mode allows it
@@ -139,6 +214,29 @@ bool dd_p2s_policy_active(void)
 {
     return _hooks_installed && _mode_allows_activation() &&
            atomic_load_explicit(&_allowed, memory_order_relaxed);
+}
+
+// Whether to arm the parse windows and the request level. Mode on arms
+// whatever the WAF says; under mode auto, the WAF's last decision, pending
+// (no answer yet, "start enabled") included, decides.
+bool dd_p2s_policy_armed(void)
+{
+    if (!dd_p2s_policy_active()) {
+        return false;
+    }
+    if (_mode == DD_PHP2SHELL_ON) { // resolved by dd_p2s_policy_active()
+        return true;
+    }
+    int decision = atomic_load_explicit(&_decision, memory_order_relaxed);
+    return decision == DD_P2S_DECISION_PENDING ||
+           decision == DD_P2S_DECISION_BLOCK;
+}
+
+bool dd_p2s_policy_monitoring(void)
+{
+    return dd_p2s_policy_active() && _mode == DD_PHP2SHELL_AUTO &&
+           atomic_load_explicit(&_decision, memory_order_relaxed) ==
+               DD_P2S_DECISION_MONITOR;
 }
 
 // Whether to install the hooks at all, from the configuration visible at the
@@ -225,6 +323,21 @@ static const char *_state_name(void)
     return dd_p2s_policy_active() ? "Active" : "Inactive";
 }
 
+static const char *_decision_name(void)
+{
+    switch (atomic_load_explicit(&_decision, memory_order_relaxed)) {
+    case DD_P2S_DECISION_OFF:
+        return "none";
+    case DD_P2S_DECISION_MONITOR:
+        return "monitor";
+    case DD_P2S_DECISION_BLOCK:
+        return "block";
+    case DD_P2S_DECISION_PENDING:
+    default:
+        return "pending";
+    }
+}
+
 // Resolve the effective mode (and build the telemetry tag) exactly once per
 // worker, honoring php.ini, stable-config and -- crucially for php-fpm -- pool
 // env[...] directives. Those are applied in the worker child after MINIT, so a
@@ -246,12 +359,16 @@ static const char *_state_name(void)
 // appsec. The later writers (dd_php2shell_set_allowed()) call
 // _resolve_config_once() before they store, so this store always precedes
 // theirs and their value stands. It is a direct store: calling
-// dd_php2shell_set_allowed() here would re-enter _config_once.
+// dd_php2shell_set_allowed() here would re-enter _config_once. The testing
+// decision knob is applied here for the same reasons.
 static void _resolve_config(void)
 {
     _mode = _parse_mode(get_global_DD_APPSEC_PHP2SHELL_MITIGATION());
     atomic_store_explicit(
         &_allowed, !dd_cfg_appsec_explicitly_disabled(), memory_order_relaxed);
+    if (get_global_DD_APPSEC_TESTING()) {
+        _apply_testing_decision();
+    }
 }
 
 static void _resolve_config_once(void)
@@ -295,6 +412,57 @@ static dd_php2shell_mode _parse_mode(const zend_string *nullable value)
         "PHP2Shell mitigation: unknown mode '%s', defaulting to 'auto'",
         ZSTR_VAL(value));
     return DD_PHP2SHELL_AUTO;
+}
+
+// Testing only (datadog.appsec.testing on): DD_APPSEC_TESTING_PHP2SHELL_RUNTIME
+// = full | partial | patched replaces the detected runtime, which a test image
+// may not provide (a partial runtime cannot be produced otherwise). Read in
+// MINIT and at the zend_extension startup hook, so under php-fpm it must be
+// set in php.ini or the master's environment, not in a pool env[].
+static void _apply_testing_runtime(void)
+{
+    const zend_string *nullable value =
+        get_global_DD_APPSEC_TESTING_PHP2SHELL_RUNTIME();
+    if (value == NULL || ZSTR_LEN(value) == 0) {
+        return;
+    }
+    if (zend_string_equals_literal(value, "full")) {
+        _patched = false;
+        _partial = false;
+    } else if (zend_string_equals_literal(value, "partial")) {
+        _patched = false;
+        _partial = true;
+    } else if (zend_string_equals_literal(value, "patched")) {
+        _patched = true;
+        _partial = false;
+    } else {
+        mlog(dd_log_warning,
+            "PHP2Shell mitigation: unknown testing runtime '%s', ignored",
+            ZSTR_VAL(value));
+    }
+}
+
+// Testing only (datadog.appsec.testing on):
+// DD_APPSEC_TESTING_PHP2SHELL_DECISION = none | monitor | block is the initial
+// decision, in place of pending, for the tests that need it at the startup
+// parse or at RINIT. Ignored unless the mode is auto. Runs under _config_once
+// (_mode is already written).
+static void _apply_testing_decision(void)
+{
+    const zend_string *nullable value =
+        get_global_DD_APPSEC_TESTING_PHP2SHELL_DECISION();
+    if (value == NULL || ZSTR_LEN(value) == 0 || _mode != DD_PHP2SHELL_AUTO) {
+        return;
+    }
+    dd_p2s_decision decision;
+    if (!dd_p2s_policy_parse_decision(
+            ZSTR_VAL(value), ZSTR_LEN(value), &decision)) {
+        mlog(dd_log_warning,
+            "PHP2Shell mitigation: unknown testing decision '%s', ignored",
+            ZSTR_VAL(value));
+        return;
+    }
+    atomic_store_explicit(&_decision, (int)decision, memory_order_relaxed);
 }
 
 #ifdef TESTING
