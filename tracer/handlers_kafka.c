@@ -63,7 +63,7 @@ zend_string *ddtrace_kafka_cluster_id(zend_object *kafka) {
 
 static void dd_kafka_cluster_id_startup(zend_module_entry *rdkafka_me) {
     // dd_rdkafka_handle() knows the objects of php-rdkafka 6 and 7 only
-    if (!rdkafka_me || !rdkafka_me->handle || (rdkafka_me->version[0] != '6' && rdkafka_me->version[0] != '7') ||
+    if (!rdkafka_me->handle || (rdkafka_me->version[0] != '6' && rdkafka_me->version[0] != '7') ||
         rdkafka_me->version[1] != '.') {
         return;
     }
@@ -144,12 +144,13 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
  * Called during MINIT.
  */
 void ddtrace_kafka_handlers_startup(void) {
-    dd_ext_kafka_loaded = zend_hash_str_exists(&module_registry, ZEND_STRL("rdkafka"));
+    zend_module_entry *rdkafka_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("rdkafka"));
+    dd_ext_kafka_loaded = rdkafka_me != NULL;
     if (!dd_ext_kafka_loaded) {
         return;
     }
 
-    dd_kafka_cluster_id_startup(zend_hash_str_find_ptr(&module_registry, ZEND_STRL("rdkafka")));
+    dd_kafka_cluster_id_startup(rdkafka_me);
 
     zend_class_entry* producer_topic_ce = zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("rdkafka\\producertopic"));
     if (!producer_topic_ce || !zend_hash_str_exists(&producer_topic_ce->function_table, ZEND_STRL("producev"))) {
