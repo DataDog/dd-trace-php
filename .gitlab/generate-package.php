@@ -364,10 +364,10 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
-<?php if ($platform['host_os'] === 'linux-gnu'): ?>
     - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
-<?php endif; ?>
+    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
   variables:
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -386,18 +386,29 @@ foreach ($build_platforms as $platform) {
     # Load the function in this shell too, not just the build-tracing subprocess.
     - source "$BASH_ENV"
 <?php endif; ?>
-    # Replace the PHP 7.0 NTS/ZTS release extensions on both libc targets;
-    # Alpine's common archive now contains LLVM bitcode too. Debug stays non-LTO.
+    # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
+    # Every SSI common rebuild must match the canonical DSO, including DWARF.
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?><?= $suffix ?>.so"
+    - export CARGO_BUILD_JOBS=12
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/libdatadog_php.so"
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/libdatadog_php.so"
   artifacts:
+    when: always
     paths:
       - "extensions_*"
       - "standalone_*"
+      # Retain the candidate common DSO if its identity check failed.
+      - "tmp/release-variants/**/ssi/libdatadog_php.so"
       - "ddtrace_*-fat.ldflags"
       - "ddtrace_*-fat.sym"
 
@@ -513,7 +524,7 @@ foreach ($build_platforms as $platform) {
   script:
     - echo "" >> "$BASH_ENV"
     - mkdir -p "ssi_<?= $arch_dir ?>"
-    - cp "libdatadog_php_<?= $arch_dir . $suffix ?>.so" "ssi_<?= $arch_dir ?>/libdatadog_php.so"
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir . $suffix ?>.so"
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
     - switch-php "${PHP_VERSION}"
     - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
@@ -535,6 +546,7 @@ foreach ($build_platforms as $platform) {
         - "${CARGO_HOME}"
       policy: pull
   artifacts:
+    when: always
     paths:
       - "ssi_*"
 <?php
