@@ -669,10 +669,13 @@ class AMQPIntegration extends Integration
     {
         $headers = self::getNativeHeaders($message);
         $context = $headers[self::DSM_CONTEXT_HEADER] ?? null;
+        // The size the message was sent with, as the span counts it: past the channel's body size
+        // limit, getBody() is cut short. Only a received message has one.
+        $bodySize = $message->getBodySize() ?? strlen((string)$message->getBody());
         \DDTrace\Internal\dsm_set_checkpoint(
             ['direction:in', 'topic:' . $queue, 'type:rabbitmq'],
             is_string($context) ? $context : null,
-            strlen((string)$message->getBody()) + self::headersSize($headers)
+            $bodySize + self::headersSize($headers)
         );
     }
 

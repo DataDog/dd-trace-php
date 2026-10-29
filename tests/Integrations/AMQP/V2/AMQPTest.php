@@ -1287,6 +1287,46 @@ class AMQPTest extends IntegrationTestCase
     }
 
     /**
+     * A message cut short by the channel's body size limit is counted at the size it was sent with,
+     * as its span counts it, not at what is left of its body.
+     */
+    public function testDataStreamsConsumeCheckpointCountsATruncatedBodyInFull()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $sizes = [];
+        $received = null;
+        $hook = \DDTrace\install_hook('DDTrace\Internal\dsm_set_checkpoint', function ($hook) use (&$sizes) {
+            if (in_array('direction:in', $hook->args[0], true)) {
+                $sizes[] = $hook->args[2];
+            }
+        });
+        try {
+            $this->isolateTracer(function () use (&$received) {
+                \DDTrace\Internal\dsm_push_pathway();
+                try {
+                    $connection = $this->connectionToServer();
+                    $channel = $connection->channel();
+                    $channel->queue_declare('dsm_truncated', false, false, true, false);
+                    $channel->basic_publish(new AMQPMessage(str_repeat('x', 100)), '', 'dsm_truncated');
+                    $channel->setBodySizeLimit(10);
+                    $received = $channel->basic_get('dsm_truncated', true);
+                    $channel->close();
+                    $connection->close();
+                } finally {
+                    \DDTrace\Internal\dsm_pop_pathway();
+                }
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertTrue($received->isTruncated());
+        $this->assertLessThan(100, strlen($received->getBody()));
+        $headers = $received->get('application_headers')->getNativeData();
+        $this->assertSame([100 + self::dsmHeadersSize($headers)], $sizes);
+    }
+
+    /**
      * Past the span limit, where no spans are made, basic_publish still sets its checkpoint and
      * sends the context, and basic_get still continues it.
      */
