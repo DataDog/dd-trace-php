@@ -2982,19 +2982,12 @@ dependencies = [
 name = "libdd-ffe"
 version = "2.0.0"
 dependencies = [
- "base64 0.22.1",
  "bincode",
  "chrono",
  "derive_more",
- "fastrand",
  "faststr",
- "flate2",
- "futures-util",
  "http 1.4.2",
- "http-body-util",
- "httpdate",
  "httpmock",
- "hyper",
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
@@ -3003,7 +2996,6 @@ dependencies = [
  "log",
  "lru",
  "md5",
- "percent-encoding",
  "prost",
  "pyo3",
  "semver",
@@ -3014,8 +3006,6 @@ dependencies = [
  "strum_macros",
  "thiserror 2.0.18",
  "tokio",
- "tokio-util",
- "url",
 ]
 
 [[package]]
@@ -3316,7 +3306,6 @@ name = "libdd-tinybytes"
 version = "1.1.5"
 dependencies = [
  "libdd-tinybytes",
- "libdd-trace-model",
  "once_cell",
  "pretty_assertions",
  "proptest",
@@ -3325,10 +3314,6 @@ dependencies = [
  "serde_json",
  "test-case",
 ]
-
-[[package]]
-name = "libdd-trace-model"
-version = "0.1.0"
 
 [[package]]
 name = "libdd-trace-normalization"
@@ -3352,7 +3337,6 @@ dependencies = [
  "fluent-uri",
  "libdd-common",
  "libdd-tinybytes",
- "libdd-trace-model",
  "libdd-trace-protobuf",
  "libdd-trace-utils",
  "log",
@@ -3410,7 +3394,6 @@ dependencies = [
 name = "libdd-trace-utils"
 version = "14.0.0"
 dependencies = [
- "allocator-api2",
  "anyhow",
  "base64 0.22.1",
  "bolero",
@@ -3435,7 +3418,6 @@ dependencies = [
  "libdd-capabilities-impl",
  "libdd-common",
  "libdd-tinybytes",
- "libdd-trace-model",
  "libdd-trace-normalization",
  "libdd-trace-protobuf",
  "libdd-trace-utils",
