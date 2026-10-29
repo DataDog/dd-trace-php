@@ -246,6 +246,7 @@ class AMQPIntegration extends Integration
         \DDTrace\install_hook(
             'PhpAmqpLib\Channel\AMQPChannel::basic_consume',
             static function (HookData $hook) {
+                $hook->span();
                 if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
                         || !isset($hook->args[6]) || !is_callable($hook->args[6])) {
                     return;
@@ -274,30 +275,26 @@ class AMQPIntegration extends Integration
                     }
                 };
                 $hook->overrideArguments($hook->args);
-            }
-        );
-
-        trace_method(
-            "PhpAmqpLib\Channel\AMQPChannel",
-            "basic_consume",
-            static function (SpanData $span, $args, $retval, $exception) {
+            },
+            static function (HookData $hook) {
                 /** @var string $queue */
-                $queue = $args[0];
+                $queue = $hook->args[0] ?? null;
                 /** @var string $consumer_tag */
-                $consumerTag = $args[1];
+                $consumerTag = $hook->args[1] ?? null;
 
                 $queueDisplayName = self::formatQueueName($queue);
 
+                $span = $hook->span();
                 self::setGenericTags(
                     $span,
                     'basic.consume',
                     'client',
                     $queueDisplayName,
-                    $exception
+                    $hook->exception
                 );
                 $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
                 $span->meta[Tag::MQ_OPERATION] = 'receive';
-                $span->meta[Tag::MQ_CONSUMER_ID] = $retval ?? $consumerTag;
+                $span->meta[Tag::MQ_CONSUMER_ID] = $hook->returned ?? $consumerTag;
             }
         );
 
