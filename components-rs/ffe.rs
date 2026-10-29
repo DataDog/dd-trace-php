@@ -500,6 +500,9 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
         }
         Err(error) => {
             let (error_code, reason) = match &error {
+                EvaluationError::DependencyEvaluationFailed { source, .. } => {
+                    (dependency_error_code(source), REASON_ERROR)
+                }
                 EvaluationError::TypeMismatch { .. } => (ERROR_TYPE_MISMATCH, REASON_ERROR),
                 EvaluationError::ConfigurationParseError => (ERROR_CONFIG_PARSE, REASON_ERROR),
                 EvaluationError::FlagConfigurationInvalid => (ERROR_CONFIG_PARSE, REASON_ERROR),
@@ -514,6 +517,20 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
 
             error_result(error_code, reason)
         }
+    }
+}
+
+fn dependency_error_code(error: &EvaluationError) -> i32 {
+    match error {
+        EvaluationError::DependencyEvaluationFailed { source, .. } => dependency_error_code(source),
+        EvaluationError::TypeMismatch { .. } => ERROR_TYPE_MISMATCH,
+        EvaluationError::ConfigurationParseError | EvaluationError::FlagConfigurationInvalid => {
+            ERROR_CONFIG_PARSE
+        }
+        EvaluationError::ConfigurationMissing => ERROR_CONFIG_MISSING,
+        EvaluationError::FlagUnrecognizedOrDisabled => ERROR_FLAG_UNRECOGNIZED,
+        EvaluationError::FlagDisabled | EvaluationError::DefaultAllocationNull => ERROR_GENERAL,
+        _ => ERROR_GENERAL,
     }
 }
 
@@ -632,6 +649,83 @@ mod tests {
 
     fn char_slice(value: &CString) -> CharSlice<'_> {
         unsafe { CharSlice::from_raw_parts(value.as_ptr(), value.as_bytes().len()) }
+    }
+
+    fn dependency_failure(flag_key: &'static str, source: EvaluationError) -> EvaluationError {
+        EvaluationError::DependencyEvaluationFailed {
+            flag_key: Str::from_static_str(flag_key),
+            source: Box::new(source),
+        }
+    }
+
+    #[test]
+    fn dependency_failures_preserve_terminal_error_codes() {
+        setup_zend_string_functions();
+        let cases = [
+            (
+                dependency_failure("missing", EvaluationError::FlagUnrecognizedOrDisabled),
+                ERROR_FLAG_UNRECOGNIZED,
+            ),
+            (
+                dependency_failure("invalid", EvaluationError::FlagConfigurationInvalid),
+                ERROR_CONFIG_PARSE,
+            ),
+            (
+                dependency_failure("disabled", EvaluationError::FlagDisabled),
+                ERROR_GENERAL,
+            ),
+            (
+                dependency_failure("unassigned", EvaluationError::DefaultAllocationNull),
+                ERROR_GENERAL,
+            ),
+        ];
+
+        for (error, expected_code) in cases {
+            let result = result_from_assignment(Err(error));
+            assert_eq!(result.reason, REASON_ERROR);
+            assert_eq!(result.error_code, expected_code);
+        }
+    }
+
+    #[test]
+    fn transitive_dependency_failures_preserve_terminal_error_codes() {
+        setup_zend_string_functions();
+        let cases = [
+            (
+                dependency_failure(
+                    "parent",
+                    dependency_failure("missing", EvaluationError::FlagUnrecognizedOrDisabled),
+                ),
+                ERROR_FLAG_UNRECOGNIZED,
+            ),
+            (
+                dependency_failure(
+                    "parent",
+                    dependency_failure("invalid", EvaluationError::FlagConfigurationInvalid),
+                ),
+                ERROR_CONFIG_PARSE,
+            ),
+            (
+                dependency_failure(
+                    "parent",
+                    dependency_failure("disabled", EvaluationError::FlagDisabled),
+                ),
+                ERROR_GENERAL,
+            ),
+            (
+                dependency_failure(
+                    "parent",
+                    dependency_failure("unassigned", EvaluationError::DefaultAllocationNull),
+                ),
+                ERROR_GENERAL,
+            ),
+        ];
+
+        for (error, expected_code) in cases {
+            let result = result_from_assignment(Err(error));
+            assert_eq!(result.reason, REASON_ERROR);
+            assert_eq!(result.error_code, expected_code);
+        }
     }
 
     const EMPTY_CONFIG: &str = r#"{
