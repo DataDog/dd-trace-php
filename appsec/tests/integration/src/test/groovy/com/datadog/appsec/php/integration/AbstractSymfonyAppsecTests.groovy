@@ -1,7 +1,5 @@
 package com.datadog.appsec.php.integration
 
-import com.datadog.appsec.php.TelemetryHelpers
-import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Order
@@ -16,97 +14,31 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue
 /**
  * Shared AppSec tests for Symfony fixtures. Concrete subclasses supply the
  * {@code @Container} static field, declare {@code isExpectedVersion}, and
- * override the {@code supports*} / {@code expected*} hooks when the behaviour
- * diverges per Symfony major version (e.g. Symfony 4.x does not emit the
- * endpoints telemetry, nor the {@code http.route} tag).
+ * override the {@code is*} / {@code get*} hooks when the behaviour diverges
+ * per Symfony major version (e.g. Symfony 4.x does not emit endpoints
+ * telemetry). Endpoint-collection tests come from
+ * {@link AbstractFrameworkAppsecTests}.
  */
-abstract class AbstractSymfonyAppsecTests {
+abstract class AbstractSymfonyAppsecTests extends AbstractFrameworkAppsecTests {
 
-    AppSecContainer getContainer() {
-        getClass().CONTAINER
-    }
-
-    /** Whether this Symfony version exposes endpoints telemetry. */
-    boolean supportsEndpointsCollection() { true }
+    // Pre-existing behaviour of Symfony62Tests, kept when the suites were
+    // unified: the `are_endpoints_collected: true` re-check on
+    // outside_of_framework.php was considered unreliable for Symfony.
+    // Laravel and Laminas run it; try enabling it here too.
+    @Override
+    boolean isEndpointsCollectedFlagChecked() { false }
 
     /** Whether SymfonyIntegration sets the {@code http.route} tag. */
-    boolean supportsHttpRouteTag() { true }
+    boolean isHttpRouteTagSupported() { true }
 
     /** Whether a locale-aliased route (e.g. {@code /caminho-dinamico}) is wired up. */
-    boolean supportsLocaleRoute() { true }
-
-    /**
-     * Expected total number of endpoints when {@link #supportsEndpointsCollection}
-     * is true. Return a negative value to skip the exact-count assertion (useful
-     * when a Symfony version exposes auxiliary routes we don't want to pin on).
-     */
-    int expectedEndpointCount() { -1 }
+    boolean isLocaleRouteSupported() { true }
 
     /** Status code the fixture returns after a successful form_login. */
-    int expectedLoginSuccessStatus() { 302 }
+    int getExpectedLoginSuccessStatus() { 302 }
 
     /** Status code the fixture returns after a failed form_login. */
-    int expectedLoginFailureStatus() { 302 }
-
-    /**
-     * Routes that must appear in the endpoints telemetry. Entries are
-     * {@code [path, method, resourceName]} triples; operation name is
-     * always {@code http.request}.
-     */
-    List<List<String>> expectedEndpoints() { [] }
-
-    @Test
-    @Order(1)
-    void 'Endpoints are not collected before the first request to framework'() {
-        assumeTrue(supportsEndpointsCollection())
-        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
-        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-            assert re.statusCode() == 200
-            assert re.body().contains('are_endpoints_collected: false')
-        }
-    }
-
-    @Test
-    @Order(2)
-    void 'Endpoints are sent'() {
-        assumeTrue(supportsEndpointsCollection())
-        def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
-            assert resp.statusCode() == 200
-        }
-        assert trace.traceId != null
-
-        List<TelemetryHelpers.Endpoint> endpoints
-        TelemetryHelpers.waitForAppEndpoints(container, 30, { List<TelemetryHelpers.Endpoint> messages ->
-            endpoints = messages.collectMany { it.endpoints }
-            endpoints.size() > 0
-        })
-
-        int expected = expectedEndpointCount()
-        if (expected >= 0) {
-            assert endpoints.size() == expected
-        }
-        expectedEndpoints().each { List<String> entry ->
-            String path = entry[0]
-            String method = entry[1]
-            String resource = entry[2]
-            assert endpoints.find {
-                it.path == path && it.method == method &&
-                        it.operationName == 'http.request' && it.resourceName == resource
-            } != null, "Missing endpoint ${method} ${path}"
-        }
-    }
-
-    // Not a @Test on purpose — pre-existing behaviour of Symfony62Tests. The
-    // underlying tracer bookkeeping is per-request, so re-asserting the flag
-    // on a subsequent request to outside_of_framework.php was unreliable.
-    @Order(3)
-    void 'Endpoints are collected after the first request to framework'() {
-        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
-        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-            assert re.statusCode() == 200
-            assert re.body().contains('are_endpoints_collected: true')
-        }
-    }
+    int getExpectedLoginFailureStatus() { 302 }
 
     @Test
     @Order(4)
@@ -117,7 +49,7 @@ abstract class AbstractSymfonyAppsecTests {
                 .header('Content-Type', 'application/x-www-form-urlencoded')
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
-            assert resp.statusCode() == expectedLoginSuccessStatus()
+            assert resp.statusCode() == expectedLoginSuccessStatus
         }
         Span span = trace.first()
         assert span.meta."usr.id" != ""
@@ -134,7 +66,7 @@ abstract class AbstractSymfonyAppsecTests {
                 .header('Content-Type', 'application/x-www-form-urlencoded')
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build()
         Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
-            assert resp.statusCode() == expectedLoginFailureStatus()
+            assert resp.statusCode() == expectedLoginFailureStatus
         }
         Span span = trace.first()
         assert span.meta."appsec.events.users.login.failure.track" == 'true'
@@ -179,7 +111,7 @@ abstract class AbstractSymfonyAppsecTests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
-        if (supportsHttpRouteTag()) {
+        if (httpRouteTagSupported) {
             assert span.meta."http.route" == '/dynamic-path/{param01}'
         }
     }
@@ -187,7 +119,7 @@ abstract class AbstractSymfonyAppsecTests {
     @Test
     @Order(8)
     void 'http route for locale route'() {
-        assumeTrue(supportsHttpRouteTag() && supportsLocaleRoute())
+        assumeTrue(httpRouteTagSupported && localeRouteSupported)
         HttpRequest req = container.buildReq('/caminho-dinamico/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403
@@ -201,7 +133,7 @@ abstract class AbstractSymfonyAppsecTests {
     @Test
     @Order(9)
     void 'http route for utf8 route'() {
-        assumeTrue(supportsHttpRouteTag())
+        assumeTrue(httpRouteTagSupported)
         HttpRequest req = container.buildReq('/café/espresso').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 200
@@ -214,7 +146,7 @@ abstract class AbstractSymfonyAppsecTests {
     @Test
     @Order(10)
     void 'symfony http route disabled'() {
-        assumeTrue(supportsHttpRouteTag())
+        assumeTrue(httpRouteTagSupported)
         try {
             def res = container.execInContainer(
                     'bash', '-c',
