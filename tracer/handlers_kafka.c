@@ -24,9 +24,10 @@ static zend_class_entry *dd_rdkafka_kafka_consumer_ce = NULL;
 
 /* php-rdkafka keeps a client's rd_kafka_t in a struct that ends with the zend_object, at the offset
  * its handlers give: a kafka_object for RdKafka\Producer and RdKafka\Consumer, where it follows an
- * rd_kafka_type_t, and an object_intern for RdKafka\KafkaConsumer, where it comes first. Both are
- * the same from php-rdkafka 6.0.0 to 7.x (php_rdkafka.h, kafka_consumer.c). The handle is NULL
- * before the constructor has run and after KafkaConsumer::close(). */
+ * rd_kafka_type_t, and an object_intern for RdKafka\KafkaConsumer, where it comes first. Neither is
+ * a versioned ABI, but both have been the same in every php-rdkafka release for PHP 7 and later,
+ * 2.0.0 to 7.x (php_rdkafka.h, kafka_consumer.c). The handle is NULL before the constructor has
+ * run and after KafkaConsumer::close(). */
 struct dd_rdkafka_kafka_object {
     int type;
     void *rk;
@@ -62,12 +63,6 @@ zend_string *ddtrace_kafka_cluster_id(zend_object *kafka) {
 }
 
 static void dd_kafka_cluster_id_startup(zend_module_entry *rdkafka_me) {
-    // dd_rdkafka_handle() knows the objects of php-rdkafka 6 and 7 only
-    if (!rdkafka_me->handle || (rdkafka_me->version[0] != '6' && rdkafka_me->version[0] != '7') ||
-        rdkafka_me->version[1] != '.') {
-        return;
-    }
-
     dd_rdkafka_ce = zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("rdkafka"));
     dd_rdkafka_kafka_consumer_ce = zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("rdkafka\\kafkaconsumer"));
     // php-rdkafka loads librdkafka, so its handle resolves librdkafka's symbols too
