@@ -272,8 +272,7 @@ class KafkaIntegration extends Integration
     /** A delivery report callback recording produce offsets, then calling `$callback`. */
     public static function trackProduceOffsets($callback)
     {
-        return static function (...$args) use ($callback) {
-            list($kafka, $message) = $args + [null, null];
+        return static function ($kafka = null, $message = null) use ($callback) {
             if ($message instanceof \RdKafka\Message && $message->err === RD_KAFKA_RESP_ERR_NO_ERROR) {
                 try {
                     \DDTrace\Internal\dsm_track_backlog(array_merge([
@@ -285,7 +284,7 @@ class KafkaIntegration extends Integration
                 }
             }
             if ($callback !== null) {
-                return $callback(...$args);
+                return $callback($kafka, $message);
             }
         };
     }
@@ -293,8 +292,7 @@ class KafkaIntegration extends Integration
     /** An offset commit callback recording committed offsets, then calling `$callback`. */
     public static function trackCommitOffsets($callback)
     {
-        return static function (...$args) use ($callback) {
-            list($kafka, $err, $partitions) = $args + [null, null, null];
+        return static function ($kafka = null, $err = null, $partitions = null) use ($callback) {
             if ($err === RD_KAFKA_RESP_ERR_NO_ERROR && is_array($partitions)) {
                 try {
                     $conf = $kafka ? ObjectKVStore::get($kafka, 'conf') : null;
@@ -316,7 +314,7 @@ class KafkaIntegration extends Integration
                 }
             }
             if ($callback !== null) {
-                return $callback(...$args);
+                return $callback($kafka, $err, $partitions);
             }
         };
     }
