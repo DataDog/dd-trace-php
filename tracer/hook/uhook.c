@@ -646,12 +646,7 @@ static void dd_uhook_uncache_closure(zend_object *closure) {
     if (opline == end || ((src->fn_flags & ZEND_ACC_IMMUTABLE) && zai_jit_shm_protected())) {
         return;
     }
-    uint32_t slot = opline->extended_value;
-    if (slot != (uint32_t)-1) {
-        // Keep the closure cached on another layout than one cache slot per declaration
-        if (slot % sizeof(void *) || slot + sizeof(void *) > decl->cache_size) {
-            return;
-        }
+    if (opline->extended_value != (uint32_t)-1) {
         // The engine's value for closures it does not cache
         *(volatile uint32_t *)&opline->extended_value = (uint32_t)-1;
     }
