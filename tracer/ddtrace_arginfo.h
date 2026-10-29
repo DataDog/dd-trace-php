@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4725b7bd60526a5eeb72ca5e58dbd828c002876a */
+ * Stub hash: 663f5dcb73c51edd7d89408289affd8d940069af */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -285,7 +285,7 @@ ZEND_END_ARG_INFO()
 #define arginfo_DDTrace_Internal_dsm_pop_pathway arginfo_DDTrace_flush
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_kafka_cluster_id, 0, 1, IS_STRING, 1)
-	ZEND_ARG_TYPE_INFO(0, kafka, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, kafka, IS_OBJECT, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datadog_appsec_v2_track_user_login_success, 0, 1, IS_VOID, 0)

@@ -1149,11 +1149,12 @@ namespace DDTrace\Internal {
      *
      * @internal
      *
-     * @param mixed $kafka an RdKafka\Producer, RdKafka\Consumer or RdKafka\KafkaConsumer
+     * @param \RdKafka\KafkaConsumer|\RdKafka $kafka an RdKafka\Producer, RdKafka\Consumer or RdKafka\KafkaConsumer
      * @return string|null the cluster id, or null if the client has had no metadata response yet,
      *                     the broker sends no id, or the id cannot be read from `$kafka`
+     * @throws \TypeError if `$kafka` is not one of them
      */
-    function kafka_cluster_id(mixed $kafka): ?string {}
+    function kafka_cluster_id(object $kafka): ?string {}
 
 }
 

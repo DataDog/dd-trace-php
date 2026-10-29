@@ -324,9 +324,13 @@ class KafkaIntegration extends Integration
     /**
      * The tag naming the cluster `$kafka` is connected to, from librdkafka's last metadata
      * response. Delivery reports and commits only come after one, so callbacks always have it.
+     * Anything but a client has none: kafka_cluster_id() would throw, losing the backlog with it.
      */
     private static function clusterIdTags($kafka): array
     {
+        if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
+            return [];
+        }
         $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka);
         return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
     }

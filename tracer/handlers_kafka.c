@@ -46,6 +46,12 @@ static void *dd_rdkafka_handle(zend_object *kafka) {
     return NULL;
 }
 
+bool ddtrace_kafka_is_client(zend_object *obj) {
+    // The class entries are only set when php-rdkafka is loaded
+    return (dd_rdkafka_ce && instanceof_function(obj->ce, dd_rdkafka_ce)) ||
+           (dd_rdkafka_kafka_consumer_ce && instanceof_function(obj->ce, dd_rdkafka_kafka_consumer_ce));
+}
+
 zend_string *ddtrace_kafka_cluster_id(zend_object *kafka) {
     void *rk;
     if (!dd_rd_kafka_clusterid || !(rk = dd_rdkafka_handle(kafka))) {

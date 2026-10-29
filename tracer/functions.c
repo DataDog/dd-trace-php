@@ -3011,13 +3011,18 @@ PHP_FUNCTION(DDTrace_Internal_dsm_pop_pathway) {
 }
 
 PHP_FUNCTION(DDTrace_Internal_kafka_cluster_id) {
-    zval *kafka;
+    zend_object *kafka;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ZVAL(kafka)
+        Z_PARAM_OBJ(kafka)
     ZEND_PARSE_PARAMETERS_END();
 
-    zend_string *cluster_id = Z_TYPE_P(kafka) == IS_OBJECT ? ddtrace_kafka_cluster_id(Z_OBJ_P(kafka)) : NULL;
+    if (!ddtrace_kafka_is_client(kafka)) {
+        zend_argument_type_error(1, "must be of type RdKafka\\KafkaConsumer|RdKafka, %s given", ZSTR_VAL(kafka->ce->name));
+        RETURN_THROWS();
+    }
+
+    zend_string *cluster_id = ddtrace_kafka_cluster_id(kafka);
     if (cluster_id) {
         RETURN_STR(cluster_id);
     }

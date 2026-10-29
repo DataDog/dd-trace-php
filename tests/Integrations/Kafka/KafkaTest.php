@@ -60,7 +60,7 @@ class KafkaTest extends IntegrationTestCase
             $this->assertRegularExpression('/^' . $client . ': ' . preg_quote($matches[1], '/') . '$/m', $output);
         }
         $this->assertRegularExpression("/^closed consumer: NULL$/m", $output);
-        $this->assertRegularExpression("/^other object: NULL$/m", $output);
+        $this->assertRegularExpression("/^other object: TypeError$/m", $output);
     }
 
     /**
