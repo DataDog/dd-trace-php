@@ -92,7 +92,7 @@ if (PHP_DDTRACE != 'no') {
 		DDTRACE_TRACER_SOURCES += " handlers_fiber.c";
 	}
 
-	var DDTRACE_HOOK_SOURCES = "uhook.c uhook_legacy.c";
+	var DDTRACE_HOOK_SOURCES = "uhook.c uhook_legacy.c uhook_line.c";
 	if (version >= 800) {
 		DDTRACE_HOOK_SOURCES += " uhook_attributes.c uhook_otel.c";
 	}
@@ -128,11 +128,13 @@ if (PHP_DDTRACE != 'no') {
 	ADD_SOURCES(zai_dirname + "/env", "env.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/exceptions", "exceptions.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/headers", "headers.c", "ddtrace");
-	ADD_SOURCES(zai_dirname + "/hook", "hook.c", "ddtrace");
+	ADD_SOURCES(zai_dirname + "/hook", "hook.c line_hooks.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/json", "json.c", "ddtrace");
     ADD_SOURCES(zai_dirname + "/sandbox", "call.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/zai_string", "string.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/uri_normalization", "uri_normalization.c", "ddtrace");
+	ADD_SOURCES(zai_dirname + "/interceptor", "line_hook.c", "ddtrace");
+	ADD_SOURCES(zai_dirname + "/jit_utils", "opcache_symbols.c", "ddtrace");
 	if (version < 800) {
 		ADD_SOURCES(zai_dirname + "/sandbox/php7", "sandbox.c", "ddtrace");
 		ADD_SOURCES(zai_dirname + "/interceptor/php7", "interceptor.c resolver.c", "ddtrace");

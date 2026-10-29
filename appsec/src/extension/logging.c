@@ -566,10 +566,8 @@ static PHP_FUNCTION(datadog_appsec_testing_mlog)
         _dd_log_errf("Level %lld is out of range", (long long)level);
         RETURN_FALSE;
     }
-    // Clamp so the %.*s precision fits in an int. PHP < 8.0 truncates error
-    // messages to log_errors_max_len (1024 by default) in php_error_cb, so
-    // 500 bytes plus php_verror's prefix behaves the same on every version.
-    mlog((dd_log_level_t)level, "%.*s", (int)MIN(str->len, 500), str->val);
+    // Not %.*s, whose precision PHP < 8.1 caps at 500.
+    mlog((dd_log_level_t)level, "%s", ZSTR_VAL(str));
     RETURN_TRUE;
 }
 // for closing stderr/stdout. fclose(STDERR) doesn't seem to reliably work

@@ -216,9 +216,10 @@ stages:
           export NVM_DIR="${HOME}/.nvm"
           curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash - >/dev/null 2>&1
           . "${NVM_DIR}/nvm.sh" >/dev/null 2>&1
-          nvm install --lts --no-progress >/dev/null 2>&1
-          npm install -g @anthropic-ai/claude-code >/dev/null 2>&1
+          nvm install --no-progress 24  # Node 26+ needs libatomic.so.1, absent here
+          npm install -g @anthropic-ai/claude-code
         fi
+        command -v claude >/dev/null || { echo "ERROR: claude is not installed (see the install output above)" >&2; exit 1; }
 
         set +x
         AI_GATEWAY_TOKEN=$(_vault_jwt rapid-ai-platform) || {

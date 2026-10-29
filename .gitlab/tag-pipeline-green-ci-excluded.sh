@@ -18,38 +18,47 @@ set -uo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
+# Strict in the allowed-to-fail green-ci-exclude jobs, so a failure shows as a warning;
+# lenient elsewhere (e.g. a before_script) so it never aborts the caller.
+fail() {
+  echo "WARNING: $1" >&2
+  [ "${GREEN_CI_EXCLUDE_STRICT:-}" = "true" ] && exit 1
+  exit 0
+}
+
 vault_path="/tmp/vault"
+# Extract with perl: the dd-octo-sts-ci-base image has no unzip.
 if [ ! -x "${vault_path}" ]; then
   "${script_dir}/download-file.sh" \
     "https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip" \
     "${vault_path}.zip" >/dev/null 2>&1 \
-    && unzip -o -q "${vault_path}.zip" -d /tmp \
+    && perl -MIO::Uncompress::Unzip=unzip -e 'unzip($ARGV[0] => $ARGV[1], Name => "vault") or die' \
+      "${vault_path}.zip" "${vault_path}" \
     && chmod +x "${vault_path}" \
     && rm -f "${vault_path}.zip"
 fi
 
-DD_API_KEY="$("${vault_path}" kv get --format=json \
+api_key="$("${vault_path}" kv get --format=json \
   kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key 2>/dev/null | jq -r '.data.data.key // empty' 2>/dev/null)"
 
-if [ -z "${DD_API_KEY}" ]; then
-  echo "WARNING: could not fetch DD_API_KEY from Vault — skipping green_ci.excluded tag" >&2
-  exit 0
-fi
+[ -n "${api_key}" ] || fail "could not fetch the Datadog API key from Vault — skipping green_ci.excluded tag"
 
 export NVM_DIR="${HOME}/.nvm"
 if ! command -v npx &>/dev/null; then
-  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash - >/dev/null 2>&1
-  . "${NVM_DIR}/nvm.sh" >/dev/null 2>&1
-  nvm install --lts --no-progress >/dev/null 2>&1
+  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash -
+  . "${NVM_DIR}/nvm.sh"
+  # Not --lts: Node 26+ needs libatomic.so.1, which the dd-octo-sts-ci-base image lacks.
+  nvm install --no-progress 24
 fi
 [ -s "${NVM_DIR}/nvm.sh" ] && . "${NVM_DIR}/nvm.sh" >/dev/null 2>&1
 
-npm install -g @datadog/datadog-ci >/dev/null 2>&1
+npm install -g @datadog/datadog-ci@5.26.1
+command -v datadog-ci >/dev/null || fail "datadog-ci is not installed (see the install output above)"
 
-DD_API_KEY="${DD_API_KEY}" DD_SITE="datadoghq.com" \
-  datadog-ci tag --level pipeline --tags "green_ci.excluded:true" >/dev/null 2>&1 \
-  || echo "WARNING: datadog-ci tag failed" >&2
-
-unset DD_API_KEY
+# datadog-ci prefers DATADOG_* over DD_*; the runner's own DD_TAGS would be merged into the tags.
+unset DD_TAGS
+DATADOG_API_KEY="${api_key}" DATADOG_SITE="datadoghq.com" \
+  datadog-ci tag --level pipeline --tags "green_ci.excluded:true" \
+  || fail "datadog-ci tag failed"
 
 exit 0

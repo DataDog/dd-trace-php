@@ -7,6 +7,9 @@ import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.testcontainers.containers.MySQLContainer
+import org.testcontainers.containers.Network
+import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.utility.DockerImageName
 
 import java.net.http.HttpResponse
 
@@ -27,34 +30,43 @@ abstract class AbstractWordPressAppsecTests {
     }
 
     /**
-     * Install WordPress via wp-cli using the per-subclass {@code MYSQL}
-     * network alias (always {@code mysql-integration}) and seed the admin
-     * user. Called from each subclass's static {@code @BeforeAll}; we take
-     * the container + mysql references as parameters because {@code @BeforeAll}
-     * is static and can't see subclass fields through {@code getClass()}.
+     * MySQL container for a WordPress suite, reachable from the AppSec
+     * container as {@code mysql-integration} on {@code network}.
+     *
+     * @param mysqlVersion image tag of {@code library/mysql}, e.g. {@code 8.0}
+     * @param databaseName database created for this suite (and used by its
+     *        fixture's {@code wp-config.php})
      */
-    protected static void installWordPress(AppSecContainer container, MySQLContainer mysql) {
-        def mysqlInfo = mysql.containerInfo
-        def mysqlIp = mysqlInfo.networkSettings.networks.values().find {
-            it.aliases?.contains('mysql-integration')
-        }?.ipAddress
+    protected static MySQLContainer newMysqlContainer(Network network, String mysqlVersion, String databaseName) {
+        new MySQLContainer(
+                DockerImageName.parse("${System.getProperty('DOCKER_MIRROR') ?: 'docker.io'}/library/mysql:${mysqlVersion}")
+                        .asCompatibleSubstituteFor('mysql'))
+                .withDatabaseName(databaseName)
+                .withUsername('test')
+                .withPassword('test')
+                .withNetwork(network)
+                .withNetworkAliases('mysql-integration')
+                // Wait for the SECOND "ready for connections": the mysql image boots an
+                // init-only --skip-networking server first, emits the message, shuts down,
+                // then starts the real networked server. Waiting once can race wp-cli into
+                // the gap between the two.
+                .waitingFor(Wait.forLogMessage(".*ready for connections.*", 2)) as MySQLContainer
+    }
 
-        assert mysqlIp != null : "Could not determine MySQL container IP"
-        log.info("MySQL IP: {}", mysqlIp)
-
-        // Match any existing DB_HOST value, not just the committed 'mysql-integration' alias.
-        // On local reruns the workvol is cached, so wp-config.php may already contain the
-        // previous run's numeric IP — a literal substitution would then no-op and leave a
-        // stale address when Docker allocates a different IP this run.
-        def res = container.execInContainer('bash', '-c',
-                "sed -i -E \"s/(define\\(\\s*'DB_HOST'\\s*,\\s*)'[^']*'/\\1'${mysqlIp}'/\" /var/www/public/wp-config.php")
-        assert res.exitCode == 0 : "Failed to update wp-config.php: ${res.stderr}"
-
+    /**
+     * Install WordPress via wp-cli and seed the admin user. Called from each
+     * subclass's static {@code @BeforeAll}, so the container is passed in:
+     * {@code @BeforeAll} is static and can't see subclass fields through
+     * {@code getClass()}. The fixture's {@code docker-init.sh} has already
+     * pointed {@code wp-config.php} at the MySQL container, which subclasses
+     * declare as a dependency of {@code CONTAINER}.
+     */
+    protected static void installWordPress(AppSecContainer container) {
         // Run wp-cli with tracing and AppSec disabled so these CLI processes
         // don't interfere with the FPM workers' sidecar/AppSec helper. FPM
         // keeps running throughout so the already-started AppSec helper
         // (launched by the container's initial FPM workers) remains active.
-        res = container.execInContainer('bash', '-c',
+        def res = container.execInContainer('bash', '-c',
                 """export DD_TRACE_CLI_ENABLED=false DD_APPSEC_ENABLED=0
                    wp core install \\
                        --path=/var/www/public \\

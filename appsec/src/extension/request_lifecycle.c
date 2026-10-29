@@ -929,6 +929,10 @@ static void _set_blocking_function(ddtrace_user_req_listeners *nonnull self,
 {
     UNUSED(self);
 
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        return;
+    }
+
     if (_cur_req_span == NULL) {
         mlog(dd_log_warning, "set_blocking_function called, but there is no "
                              "root span currently associated through "
