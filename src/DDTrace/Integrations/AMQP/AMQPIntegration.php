@@ -137,9 +137,6 @@ class AMQPIntegration extends Integration
                     $message = $args[0];
                     if (!is_null($message)) {
                         self::injectContext($message);
-                        if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
-                            self::setDataStreamsProduceCheckpoint($message, $args[1] ?? '', $args[2] ?? '');
-                        }
                     }
                 },
                 'posthook' => static function (SpanData $span, $args, $exception) {
@@ -171,6 +168,19 @@ class AMQPIntegration extends Integration
                     }
                 }
             ]
+        );
+
+        // Data Streams Monitoring hooks run apart from the spans' hooks, which stop once the
+        // tracer reaches its span limit. This one is installed after the span's, so that it runs
+        // after injectContext() and counts the headers that adds in the payload size.
+        \DDTrace\install_hook(
+            'PhpAmqpLib\Channel\AMQPChannel::basic_publish',
+            static function (HookData $hook) {
+                $message = $hook->args[0] ?? null;
+                if ($message instanceof AMQPMessage && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    self::setDataStreamsProduceCheckpoint($message, $hook->args[1] ?? '', $hook->args[2] ?? '');
+                }
+            }
         );
 
         trace_method(
@@ -500,12 +510,18 @@ class AMQPIntegration extends Integration
                             $span->links[] = $spanLinkInstance;
                         }
                     }
+                }
+            }
+        );
 
-                    // The application handles the message after basic_get returns, so the
-                    // checkpoint stays the request's pathway until the next one.
-                    if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
-                        self::setDataStreamsConsumeCheckpoint($message, (string)$queue);
-                    }
+        // Apart from the span's hook, as for basic_publish. The application handles the message
+        // after basic_get returns, so the checkpoint stays the request's pathway until the next.
+        \DDTrace\install_hook(
+            'PhpAmqpLib\Channel\AMQPChannel::basic_get',
+            null,
+            static function (HookData $hook) {
+                if ($hook->returned instanceof AMQPMessage && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    self::setDataStreamsConsumeCheckpoint($hook->returned, (string)($hook->args[0] ?? ''));
                 }
             }
         );

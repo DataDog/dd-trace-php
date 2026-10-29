@@ -1287,6 +1287,57 @@ class AMQPTest extends IntegrationTestCase
     }
 
     /**
+     * Past the span limit, where no spans are made, basic_publish still sets its checkpoint and
+     * sends the context, and basic_get still continues it.
+     */
+    public function testDataStreamsPastTheSpanLimit()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $contexts = [];
+        $traces = $this->isolateLimitedTracer(function () use (&$contexts) {
+            \DDTrace\Internal\dsm_push_pathway();
+            try {
+                $connection = $this->connectionToServer();
+                $channel = $connection->channel();
+                $channel->queue_declare('dsm_limited_queue', false, false, true, false);
+                $channel->queue_declare('dsm_limited_billing', false, false, true, false);
+
+                $order = new AMQPMessage('order');
+                $channel->basic_publish($order, '', 'dsm_limited_queue');
+                $contexts['sent'] = self::dsmContext($order);
+
+                $message = $channel->basic_get('dsm_limited_queue', true);
+                $contexts['received'] = self::dsmContext($message);
+
+                $invoice = new AMQPMessage('invoice');
+                $channel->basic_publish($invoice, '', 'dsm_limited_billing');
+                $contexts['after get'] = self::dsmContext($invoice);
+
+                $channel->close();
+                $connection->close();
+            } finally {
+                \DDTrace\Internal\dsm_pop_pathway();
+            }
+        });
+
+        $this->assertEmpty($traces);
+        $this->assertNotNull($contexts['sent']);
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([[['direction:out', 'topic:dsm_limited_queue', 'type:rabbitmq'], null]]),
+            self::dsmHash($contexts['sent'])
+        );
+        $this->assertSame($contexts['sent'], $contexts['received']);
+        $this->assertNotNull($contexts['after get']);
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([
+                [['direction:in', 'topic:dsm_limited_queue', 'type:rabbitmq'], $contexts['sent']],
+                [['direction:out', 'topic:dsm_limited_billing', 'type:rabbitmq'], null],
+            ]),
+            self::dsmHash($contexts['after get'])
+        );
+    }
+
+    /**
      * The pathway context is sent even with distributed tracing off, and adding it neither
      * changes the AMQP types of the application's headers nor the table the application passed.
      */
