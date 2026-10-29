@@ -16,6 +16,10 @@ class KafkaIntegration extends Integration
     // Header carrying the Data Streams Monitoring pathway context.
     const DSM_CONTEXT_HEADER = 'dd-pathway-ctx-base64';
 
+    // How long a producer that has not had its brokers' first answer waits for it, for the
+    // cluster id, when no process has shared one for its bootstrap servers.
+    const DSM_CLUSTER_ID_WAIT_MS = 100;
+
     // Set while the integration installs its own callback on a Conf, so that the hooks on the
     // setters do not wrap it a second time.
     private static $installingDataStreamsCallback = false;
@@ -90,11 +94,12 @@ class KafkaIntegration extends Integration
         // The message as it is sent, but for the context header the checkpoint computes.
         $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
             + self::headersSize(array_merge($args[4] ?? [], $headers));
+        $producer = ObjectKVStore::get($producerTopic, 'kafka');
         return \DDTrace\Internal\dsm_set_checkpoint(array_merge([
             'direction:out',
             'topic:' . $producerTopic->getName(),
             'type:kafka',
-        ], self::clusterIdTags(ObjectKVStore::get($producerTopic, 'kafka'))), null, $payloadSize);
+        ], self::clusterIdTags($producer, self::DSM_CLUSTER_ID_WAIT_MS)), null, $payloadSize);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
@@ -327,12 +332,13 @@ class KafkaIntegration extends Integration
      * The tag naming the cluster `$kafka` is connected to. librdkafka has its id from the client's
      * last metadata response, and delivery reports, commits and consumed messages only come after
      * one. A producer too new to have had one gets the id another client with the same bootstrap
-     * servers read, in this process or another one of the sidecar's.
+     * servers read, in this process or another one of the sidecar's, or waits up to `$waitMs` for
+     * its own.
      */
-    private static function clusterIdTags($kafka): array
+    private static function clusterIdTags($kafka, int $waitMs = 0): array
     {
         $conf = $kafka ? ObjectKVStore::get($kafka, 'conf') : null;
-        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null);
+        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null, $waitMs);
         return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
     }
 

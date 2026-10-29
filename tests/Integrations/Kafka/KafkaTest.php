@@ -79,14 +79,16 @@ class KafkaTest extends IntegrationTestCase
      */
     public function testDataStreamsContextPropagation()
     {
-        list(, $producerOutput) = $this->inCli(__DIR__ . '/scripts/producer-dsm.php', self::DSM_ENV, [], 'test-dsm', true);
+        $scripts = __DIR__ . '/scripts';
+        list(, $producerOutput) = $this->inCli("$scripts/producer-dsm.php", self::DSM_ENV, [], 'test-dsm', true);
         // The integration wraps the application's delivery report callback to record produce
         // offsets; the application's own callback still runs.
         $this->assertStringContains('delivered: true', $producerOutput);
-        $produce = '/^checkpoint: direction:out,kafka_cluster_id:([A-Za-z0-9_-]+),topic:test-dsm,type:kafka -> (\d+)$/m';
+        $produce = '/^checkpoint: direction:out,kafka_cluster_id:([A-Za-z0-9_-]+),topic:test-dsm,type:kafka'
+            . ' -> (\d+)$/m';
         $this->assertRegularExpression($produce, $producerOutput);
         preg_match($produce, $producerOutput, $produced);
-        list(, $output) = $this->inCli(__DIR__ . '/scripts/consumer-dsm.php', self::DSM_ENV, [], 'test-dsm', true);
+        list(, $output) = $this->inCli("$scripts/consumer-dsm.php", self::DSM_ENV, [], 'test-dsm', true);
 
         $this->assertRegularExpression('/^dsm-context: (\\S+)$/m', $output);
         preg_match('/^dsm-context: (\\S+)$/m', $output, $matches);
@@ -111,6 +113,25 @@ class KafkaTest extends IntegrationTestCase
         preg_match("/^learn: ('[A-Za-z0-9_-]+')$/m", $learned, $matches);
         $read = $this->executeCli(__DIR__ . '/scripts/cluster-id-shared.php', self::DSM_ENV, [], 'read', true);
         $this->assertRegularExpression('/^read: ' . preg_quote($matches[1], '/') . '$/m', $read);
+    }
+
+    /**
+     * A producer that has not had its brokers' answer yet, with bootstrap servers no process has
+     * shared a cluster id for, waits for the answer to tag its first produce.
+     */
+    public function testFirstProduceWaitsForTheClusterId()
+    {
+        list(, $output) = $this->inCli(
+            __DIR__ . '/scripts/producer-dsm.php',
+            self::DSM_ENV,
+            [],
+            ['test-cluster-id', 'first'],
+            true
+        );
+        $this->assertRegularExpression(
+            '/^checkpoint: direction:out,kafka_cluster_id:[A-Za-z0-9_-]+,topic:test-cluster-id,type:kafka -> \d+$/m',
+            $output
+        );
     }
 
     public function testDistributedTracingHighLevel()
