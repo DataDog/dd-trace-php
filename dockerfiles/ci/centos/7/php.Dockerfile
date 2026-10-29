@@ -1,5 +1,5 @@
-ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
-FROM ${CI_REGISTRY_IMAGE}:centos-7 AS base
+ARG BUILD_BASE
+FROM ${BUILD_BASE} AS base
 
 ENV PHP_SRC_DIR=/usr/local/src/php
 ENV PHP_INSTALL_DIR=/opt/php
