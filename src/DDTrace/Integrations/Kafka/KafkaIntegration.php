@@ -367,13 +367,19 @@ class KafkaIntegration extends Integration
 
     private static function installConfigurationHook(string $class, string $method)
     {
-        \DDTrace\hook_method(
-            $class,
-            $method,
-            static function ($This, $scope, $args) use ($class, $method) {
+        \DDTrace\install_hook(
+            "$class::$method",
+            static function (HookData $hook) use ($class, $method) {
                 if ($method === '__construct') {
-                    $conf = $args[0];
-                    ObjectKVStore::put($This, 'conf', $conf->dump());
+                    $conf = $hook->args[0] ?? null;
+                    // A Producer or Consumer constructed without a Conf gets librdkafka's
+                    // defaults, which an empty Conf has too. Pass one, for the integration to
+                    // read and to put its callbacks on.
+                    if ($conf === null && $class !== 'RdKafka\KafkaConsumer') {
+                        $conf = new \RdKafka\Conf();
+                        $hook->overrideArguments([$conf]);
+                    }
+                    ObjectKVStore::put($hook->instance, 'conf', $conf->dump());
                     // The constructor copies the Conf, so callbacks must be on it beforehand. A
                     // low-level Consumer gets none of its own: it serves commit results only
                     // when the application polls it, which it need not do.
@@ -384,10 +390,10 @@ class KafkaIntegration extends Integration
                     }
                 }
             },
-            static function ($This, $scope, $args, $returnValue) use ($method) {
+            static function (HookData $hook) use ($method) {
                 if (in_array($method, ['newTopic', 'newQueue'])) {
-                    $conf = ObjectKVStore::get($This, 'conf');
-                    ObjectKVStore::put($returnValue, 'conf', $conf);
+                    $conf = ObjectKVStore::get($hook->instance, 'conf');
+                    ObjectKVStore::put($hook->returned, 'conf', $conf);
                 }
             }
         );
