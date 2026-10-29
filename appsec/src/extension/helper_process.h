@@ -14,14 +14,6 @@
 #include "dddefs.h"
 #include "network.h"
 
-typedef enum _helper_runtime {
-    HELPER_RUNTIME_UNKNOWN = 0,
-    HELPER_RUNTIME_RUST = 2,
-} helper_runtime;
-
-helper_runtime dd_helper_get_runtime(void);
-void dd_helper_set_runtime(helper_runtime rt);
-
 typedef typeof(&ddog_sidecar_enable_appsec) sidecar_enable_appsec_t;
 
 __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(

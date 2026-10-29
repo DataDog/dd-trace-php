@@ -17,15 +17,6 @@ static const int PRIORITY_SAMPLING_AUTO_REJECT = 0;
 static const int PRIORITY_SAMPLING_USER_KEEP = 2;
 static const int PRIORITY_SAMPLING_USER_REJECT = -1;
 
-enum dd_sampling_mechanism {
-    DD_MECHANISM_DEFAULT = 0,
-    DD_MECHANISM_AGENT_RATE = 1,
-    DD_MECHANISM_REMOTE_RATE = 2,
-    DD_MECHANISM_RULE = 3,
-    DD_MECHANISM_MANUAL = 4,
-    DD_MECHANISM_ASM = 5,
-};
-
 typedef zend_object root_span_t;
 
 void dd_trace_startup(void);
@@ -34,8 +25,6 @@ void dd_trace_shutdown(void);
 // dd_trace_emit_asm_event() emits once per root span.
 void dd_trace_root_span_changed(void);
 
-// Returns the tracer version
-const char *nullable dd_trace_version(void);
 // This function should only be used in RINIT
 bool dd_trace_enabled(void);
 // This function should be used before loading tracer symbols
@@ -87,9 +76,6 @@ ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(
     ddog_AppsecBodyAllocator allocator);
 void dd_trace_drop_body_msgpack(ddog_AppsecBodyMessagePack body);
 
-// Set sampling priority on root span
-void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
-    zend_long priority, enum dd_sampling_mechanism mechanism);
 zend_long dd_trace_get_priority_sampling_on_span_zobj(
     zend_object *nonnull root_span);
 
