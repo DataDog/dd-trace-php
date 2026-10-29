@@ -98,7 +98,7 @@ static ZEND_NAMED_FUNCTION(_request_parse_body)
 {
     // Same gate as _treat_data (p2s_startup_parse.c). A call made while a
     // parse is armed forwards unarmed.
-    if (dd_p2s_guard_in_window() || !dd_p2s_policy_active()) {
+    if (dd_p2s_guard_in_window() || !dd_p2s_policy_armed()) {
         _request_parse_body_orig(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
     }

@@ -229,6 +229,20 @@
         "default": "false"
       }
     ],
+    "DD_APPSEC_TESTING_PHP2SHELL_DECISION": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_TESTING_PHP2SHELL_RUNTIME": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
     "DD_APPSEC_TESTING_RAW_BODY": [
       {
         "implementation": "A",
