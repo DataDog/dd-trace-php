@@ -38,6 +38,21 @@ RUN set -eux; \
     yum install -y --nogpgcheck devtoolset-7; \
     yum clean all;
 
+# EOL RHEL-family base, no fixed ca-certificates package: remove the distrusted
+# eMudhra "emSign ECC Root CA - G3" / "AAA Certificate Services" roots from the
+# p11-kit source bundle, re-extract every derived store (PEM, OpenSSL, Java) and
+# make NSS read the p11-kit trust store instead of its built-in root list.
+RUN set -eux; \
+    src=/usr/share/pki/ca-trust-source/ca-bundle.trust.p11-kit; \
+    awk 'function flush() { if (!drop) printf "%s", buf; buf = ""; drop = 0 } \
+         /^\[p11-kit-object-v1\]/ { flush() } \
+         /^label: "(Comodo AAA Services root|AAA Certificate Services|emSign ECC Root CA - G3)"$/ { drop = 1 } \
+         { buf = buf $0 "\n" } \
+         END { flush() }' "$src" > /tmp/ca-bundle.trust.p11-kit; \
+    mv /tmp/ca-bundle.trust.p11-kit "$src"; \
+    update-ca-trust extract; \
+    ln -sf /usr/lib64/pkcs11/p11-kit-trust.so /usr/lib64/libnssckbi.so
+
 ENV SRC_DIR=/usr/local/src
 
 COPY download-src.sh /root/

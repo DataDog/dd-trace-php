@@ -1,4 +1,4 @@
-FROM cimg/ruby:3.3.4 AS base
+FROM cimg/ruby:4.0.8 AS base
 
 USER root
 WORKDIR /home/circleci
@@ -16,7 +16,7 @@ FROM base as final
 ADD fpm_apk_pax_header.patch /tmp
 ADD fpm_apk_alpine323.patch /tmp
 RUN sudo gem install fpm -v 1.17.0
-RUN (cd /usr/local/lib/ruby/gems/3.3.0/gems/fpm-1.17.0 && \
+RUN (cd /usr/local/lib/ruby/gems/4.0.0/gems/fpm-1.17.0 && \
      patch -p1 < /tmp/fpm_apk_pax_header.patch && \
      patch -p0 < /tmp/fpm_apk_alpine323.patch) && \
     rm -f /tmp/fpm_apk_pax_header.patch /tmp/fpm_apk_alpine323.patch
