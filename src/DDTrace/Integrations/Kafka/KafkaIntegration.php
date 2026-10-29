@@ -374,7 +374,8 @@ class KafkaIntegration extends Integration
                     $conf = $hook->args[0] ?? null;
                     // A Producer or Consumer constructed without a Conf gets librdkafka's
                     // defaults, which an empty Conf has too. Pass one, for the integration to
-                    // read and to put its callbacks on.
+                    // read and to put its callbacks on. A KafkaConsumer requires a Conf: passing
+                    // one would replace the error about the missing Conf with one about group.id.
                     if ($conf === null && $class !== 'RdKafka\KafkaConsumer') {
                         $conf = new \RdKafka\Conf();
                         $hook->overrideArguments([$conf]);
