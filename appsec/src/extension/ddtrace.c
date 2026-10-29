@@ -31,7 +31,6 @@ bool (*nullable datadog_metric_add_point)(
 static int (*_orig_ddtrace_shutdown)(SHUTDOWN_FUNC_ARGS);
 static int _mod_type;
 static int _mod_number;
-static const char *_mod_version;
 static bool _ddtrace_loaded;
 static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
@@ -55,9 +54,6 @@ static ddog_SidecarTransport * nullable *
 #endif
 static zend_object *(*nullable _ddtrace_get_root_span)(void);
 static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
-static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
-    zend_object *nonnull zobj, zend_long priority,
-    enum dd_sampling_mechanism mechanism);
 static zend_long (*nullable _ddtrace_get_priority_sampling_on_span_zobj)(
     zend_object *nonnull root_span);
 static void (*nullable _ddtrace_add_propagated_tag_on_span_zobj)(
@@ -120,8 +116,6 @@ static void dd_trace_load_symbols(zend_module_entry *module)
     ASSIGN_DLSYM(_datadog_runtime_id, "datadog_runtime_id");
     ASSIGN_DLSYM(
         _ddtrace_get_sidecar_transport, "ddtrace_get_sidecar_transport");
-    ASSIGN_DLSYM(_ddtrace_set_priority_sampling_on_span_zobj,
-        "ddtrace_set_priority_sampling_on_span_zobj");
     ASSIGN_DLSYM(_ddtrace_get_priority_sampling_on_span_zobj,
         "ddtrace_get_priority_sampling_on_span_zobj");
     ASSIGN_DLSYM(_ddtrace_add_propagated_tag_on_span_zobj,
@@ -171,7 +165,6 @@ void dd_trace_startup(void)
         _ddtrace_loaded = true;
         _mod_type = mod->type;
         _mod_number = mod->module_number;
-        _mod_version = mod->version;
 
         dd_trace_load_symbols(mod);
 
@@ -229,8 +222,6 @@ static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS)
 
     return _orig_ddtrace_shutdown(SHUTDOWN_FUNC_ARGS_PASSTHRU);
 }
-
-const char *nullable dd_trace_version(void) { return _mod_version; }
 
 bool dd_trace_loaded(void) { return _ddtrace_loaded; }
 bool dd_trace_enabled(void)
@@ -488,20 +479,10 @@ void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)
     _ddog_sidecar_appsec_response_drop(response);
 }
 
-void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
-    zend_long priority, enum dd_sampling_mechanism mechanism)
-{
-    if (_ddtrace_set_priority_sampling_on_span_zobj == NULL) {
-        return;
-    }
-
-    _ddtrace_set_priority_sampling_on_span_zobj(root_span, priority, mechanism);
-}
-
 zend_long dd_trace_get_priority_sampling_on_span_zobj(
     zend_object *nonnull root_span)
 {
-    if (_ddtrace_set_priority_sampling_on_span_zobj == NULL) {
+    if (_ddtrace_get_priority_sampling_on_span_zobj == NULL) {
         return -1;
     }
 

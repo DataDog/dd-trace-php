@@ -108,7 +108,6 @@ static inline HashTable *zend_new_array(uint32_t nSize)
 #endif
 
 #if PHP_VERSION_ID < 70400
-zend_bool try_convert_to_string(zval *op);
 #    define tsrm_env_lock()
 #    define tsrm_env_unlock()
 #endif

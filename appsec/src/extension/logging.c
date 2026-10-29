@@ -49,7 +49,6 @@ static int _mlog_fd = -1;
 static log_strategy _log_strategy;
 
 #define PHP_MSG_PREFIX "[ddappsec] "
-#define DEFAULT_LOG_FILE_NAME "ddog-appsec-php.log"
 #define FORMAT_TIME_BUF_SIZE(precision)                                        \
     ((sizeof "2018-01-08T12:50:47.Z") + (precision))
 
