@@ -99,6 +99,27 @@ final class ResultMapper
         );
     }
 
+    public function telemetryData($rawResult)
+    {
+        $reason = $this->mapReason($this->read($rawResult, array('reason'), self::BRIDGE_REASON_DEFAULT));
+        $errorCode = $this->mapErrorCode(
+            $this->read($rawResult, array('error_code', 'errorCode'), self::BRIDGE_ERROR_GENERAL)
+        );
+        $runtimeDefault = $reason === EvaluationReason::DEFAULT_REASON || $reason === EvaluationReason::ERROR;
+
+        return array(
+            'flagKey' => $this->read($rawResult, array('flag_key', 'flagKey'), null),
+            'variant' => $runtimeDefault ? null : $this->read($rawResult, array('variant'), null),
+            'allocationKey' => $runtimeDefault
+                ? null
+                : $this->read($rawResult, array('allocation_key', 'allocationKey'), null),
+            'errorCode' => $errorCode,
+            'runtimeDefault' => $runtimeDefault,
+            'observeFullEvaluationData' =>
+                $this->read($rawResult, array('observe_full_evaluation_data', 'observeFullEvaluationData'), false) === true,
+        );
+    }
+
     private function defaultDetails($defaultValue, $expectedType, $reason, $rawResult)
     {
         return new EvaluationDetails(

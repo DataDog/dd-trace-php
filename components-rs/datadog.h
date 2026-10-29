@@ -144,6 +144,8 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         const struct ddog_FfeAttribute *attributes,
                                         uintptr_t attributes_count);
 
+void ddog_ffe_result_trace_drop(struct ddog_FfeResult *result);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);

@@ -555,6 +555,19 @@ typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 typedef struct _zend_string *ddog_OwnedZendString;
 
+typedef struct ddog_FfeDependencyEvaluation {
+  _zend_string * flag_key;
+  _zend_string * value_json;
+  _zend_string * variant;
+  _zend_string * allocation_key;
+  _zend_string * error_message;
+  int32_t reason;
+  int32_t error_code;
+  int32_t serial_id;
+  bool has_serial_id;
+  bool do_log;
+} ddog_FfeDependencyEvaluation;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
@@ -566,6 +579,10 @@ typedef struct ddog_FfeResult {
   bool do_log;
   bool observe_full_evaluation_data;
   bool valid;
+  struct ddog_FfeDependencyEvaluation *dependency_evaluations;
+  uintptr_t dependency_evaluations_count;
+  _zend_string **exposure_trace;
+  uintptr_t exposure_trace_count;
 } ddog_FfeResult;
 
 typedef struct ddog_FfeAttribute {

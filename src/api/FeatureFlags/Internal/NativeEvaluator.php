@@ -59,6 +59,14 @@ final class NativeEvaluator implements Evaluator
 
         $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
 
+        $this->recordDependencyEvaluations(
+            $rawResult,
+            $targetingKey,
+            $normalizedAttributes,
+            $evaluationTimestampMs,
+            $targetingKeyInvalid
+        );
+
         // Native clients submit now. OpenFeature can retain this snapshot until
         // its hooks finish, independently of native/OTLP metric recording.
         $this->recordFlagEvaluation($flagKey, $targetingKey, $normalizedAttributes, $rawResult, $details, $evaluationTimestampMs, $targetingKeyInvalid);
@@ -105,6 +113,38 @@ final class NativeEvaluator implements Evaluator
             }
         } catch (\Throwable $ignored) {
             // Best-effort telemetry must not change a flag's evaluation result.
+        }
+    }
+
+    private function recordDependencyEvaluations(
+        $rawResult,
+        $targetingKey,
+        array $attributes,
+        $evaluationTimestampMs,
+        $targetingKeyInvalid
+    ) {
+        $dependencies = is_object($rawResult) && isset($rawResult->dependencyEvaluations)
+            && is_array($rawResult->dependencyEvaluations)
+            ? $rawResult->dependencyEvaluations
+            : array();
+        foreach ($dependencies as $dependency) {
+            $telemetry = $this->mapper->telemetryData($dependency);
+            if (!is_string($telemetry['flagKey']) || $telemetry['flagKey'] === '') {
+                continue;
+            }
+            $observation = array(
+                $telemetry['flagKey'],
+                $telemetry['variant'],
+                $telemetry['allocationKey'],
+                $targetingKeyInvalid ? null : $targetingKey,
+                $telemetry['observeFullEvaluationData'] ? $attributes : array(),
+                $telemetry['errorCode'],
+                $telemetry['runtimeDefault'],
+                $telemetry['observeFullEvaluationData'],
+                $evaluationTimestampMs,
+                $targetingKeyInvalid
+            );
+            self::submitFlagEvaluation($observation);
         }
     }
 

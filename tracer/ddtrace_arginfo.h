@@ -649,6 +649,12 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "FfeResult", NULL);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
 
+	zval property_flagKey_default_value;
+	ZVAL_NULL(&property_flagKey_default_value);
+	zend_string *property_flagKey_name = zend_string_init("flagKey", sizeof("flagKey") - 1, 1);
+	zend_declare_typed_property(class_entry, property_flagKey_name, &property_flagKey_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
+	zend_string_release(property_flagKey_name);
+
 	zval property_valueJson_default_value;
 	ZVAL_NULL(&property_valueJson_default_value);
 	zend_string *property_valueJson_name = zend_string_init("valueJson", sizeof("valueJson") - 1, 1);
@@ -720,6 +726,18 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 	zend_string *property_configVersion_name = zend_string_init("configVersion", sizeof("configVersion") - 1, 1);
 	zend_declare_typed_property(class_entry, property_configVersion_name, &property_configVersion_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG|MAY_BE_NULL));
 	zend_string_release(property_configVersion_name);
+
+	zval property_dependencyEvaluations_default_value;
+	ZVAL_EMPTY_ARRAY(&property_dependencyEvaluations_default_value);
+	zend_string *property_dependencyEvaluations_name = zend_string_init("dependencyEvaluations", sizeof("dependencyEvaluations") - 1, 1);
+	zend_declare_typed_property(class_entry, property_dependencyEvaluations_name, &property_dependencyEvaluations_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_dependencyEvaluations_name);
+
+	zval property_exposureTrace_default_value;
+	ZVAL_EMPTY_ARRAY(&property_exposureTrace_default_value);
+	zend_string *property_exposureTrace_name = zend_string_init("exposureTrace", sizeof("exposureTrace") - 1, 1);
+	zend_declare_typed_property(class_entry, property_exposureTrace_name, &property_exposureTrace_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_exposureTrace_name);
 
 	return class_entry;
 }

@@ -10,6 +10,45 @@ use PHPUnit\Framework\TestCase;
 
 final class ResultMapperTest extends TestCase
 {
+    public function testMapsDependencyTelemetryWithoutDecodingItsValue()
+    {
+        $telemetry = (new ResultMapper())->telemetryData(array(
+            'flag_key' => 'dependency',
+            'value_json' => '{not-needed-for-telemetry',
+            'variant' => 'on',
+            'allocation_key' => 'allocation',
+            'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+            'observe_full_evaluation_data' => true,
+        ));
+
+        $this->assertSame(array(
+            'flagKey' => 'dependency',
+            'variant' => 'on',
+            'allocationKey' => 'allocation',
+            'errorCode' => null,
+            'runtimeDefault' => false,
+            'observeFullEvaluationData' => true,
+        ), $telemetry);
+    }
+
+    public function testDependencyErrorsRetainTheirTelemetryAfterRootCompletion()
+    {
+        $telemetry = (new ResultMapper())->telemetryData(array(
+            'flag_key' => 'failed-ancestor',
+            'variant' => 'stale',
+            'allocation_key' => 'stale',
+            'reason' => ResultMapper::BRIDGE_REASON_ERROR,
+            'error_code' => ResultMapper::BRIDGE_ERROR_GENERAL,
+        ));
+
+        $this->assertSame('failed-ancestor', $telemetry['flagKey']);
+        $this->assertNull($telemetry['variant']);
+        $this->assertNull($telemetry['allocationKey']);
+        $this->assertSame(EvaluationErrorCode::GENERAL, $telemetry['errorCode']);
+        $this->assertTrue($telemetry['runtimeDefault']);
+    }
+
     public function testMapsSuccessfulBridgeResultToEvaluationDetails()
     {
         $details = (new ResultMapper())->map(array(

@@ -1904,6 +1904,35 @@ static void ddtrace_ffe_update_empty_array_property(zval *object, const char *na
     zval_ptr_dtor(&property_value);
 }
 
+static void ddtrace_ffe_update_nullable_string_property_copy(
+    zval *object, const char *name, size_t name_len, zend_string *value
+) {
+    ddtrace_ffe_update_nullable_string_property(
+        object, name, name_len, value ? zend_string_copy(value) : NULL);
+}
+
+static void ddtrace_ffe_dependency_to_object(
+    zval *object, struct ddog_FfeDependencyEvaluation *dependency, bool observe_full_evaluation_data
+) {
+    object_init_ex(object, ddtrace_ce_ffe_result);
+    ddtrace_ffe_update_nullable_string_property_copy(object, ZEND_STRL("flagKey"), dependency->flag_key);
+    ddtrace_ffe_update_nullable_string_property_copy(object, ZEND_STRL("valueJson"), dependency->value_json);
+    ddtrace_ffe_update_nullable_string_property_copy(object, ZEND_STRL("variant"), dependency->variant);
+    ddtrace_ffe_update_nullable_string_property_copy(object, ZEND_STRL("allocationKey"), dependency->allocation_key);
+    ddtrace_ffe_update_nullable_string_property_copy(object, ZEND_STRL("errorMessage"), dependency->error_message);
+    ddtrace_ffe_update_long_property(
+        object, ZEND_STRL("reason"),
+        ddtrace_ffe_effective_reason(dependency->reason, dependency->error_code));
+    ddtrace_ffe_update_long_property(object, ZEND_STRL("errorCode"), dependency->error_code);
+    ddtrace_ffe_update_bool_property(object, ZEND_STRL("doLog"), dependency->do_log);
+    ddtrace_ffe_update_bool_property(
+        object, ZEND_STRL("observeFullEvaluationData"), observe_full_evaluation_data);
+    if (dependency->has_serial_id) {
+        ddtrace_ffe_update_long_property(object, ZEND_STRL("serialId"), dependency->serial_id);
+    }
+    ddtrace_ffe_update_empty_array_property(object, ZEND_STRL("providerState"));
+}
+
 PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zend_string *flag_key;
     zend_long type_id_zl;
@@ -2023,6 +2052,15 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     allocation_key = result.allocation_key;
 
     if (record_metric) {
+        for (size_t i = 0; i < result.dependency_evaluations_count; i++) {
+            struct ddog_FfeDependencyEvaluation *dependency = &result.dependency_evaluations[i];
+            ddtrace_ffe_record_evaluation_metric_result(
+                dependency->flag_key,
+                dependency->variant,
+                dependency->allocation_key,
+                dependency->reason,
+                dependency->error_code);
+        }
         ddtrace_ffe_record_evaluation_metric_result(
             flag_key,
             variant,
@@ -2031,8 +2069,35 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             result.error_code);
     }
 
+    zend_string *subject_attributes_json = NULL;
+    for (size_t i = 0; i < result.exposure_trace_count; i++) {
+        zend_string *exposure_key = result.exposure_trace[i];
+        for (size_t j = 0; j < result.dependency_evaluations_count; j++) {
+            struct ddog_FfeDependencyEvaluation *dependency = &result.dependency_evaluations[j];
+            if (!dependency->flag_key || !zend_string_equals(exposure_key, dependency->flag_key)) {
+                continue;
+            }
+            if (dependency->do_log && dependency->allocation_key && dependency->variant) {
+                subject_attributes_json = subject_attributes_json
+                    ? subject_attributes_json
+                    : ddtrace_ffe_attributes_json(attrs_zv);
+                ddtrace_ffe_record_exposure(
+                    dependency->flag_key,
+                    targeting_key,
+                    subject_attributes_json,
+                    dependency->allocation_key,
+                    dependency->variant,
+                    dependency->serial_id,
+                    dependency->has_serial_id);
+            }
+            break;
+        }
+    }
+
     if (result.do_log && allocation_key && variant) {
-        zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
+        subject_attributes_json = subject_attributes_json
+            ? subject_attributes_json
+            : ddtrace_ffe_attributes_json(attrs_zv);
         ddtrace_ffe_record_exposure(
             flag_key,
             targeting_key,
@@ -2042,10 +2107,12 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             result.serial_id,
             result.has_serial_id
         );
-        zend_string_release(subject_attributes_json);
     } else {
         LOG(DEBUG, "Feature Flags: exposure suppressed; %s",
             !result.do_log ? "evaluation doLog=false (see native evaluation reason/error)" : "missing allocation key or variant");
+    }
+    if (subject_attributes_json) {
+        zend_string_release(subject_attributes_json);
     }
 
     ddtrace_ffe_log_evaluation(flag_key, type_id, targeting_key, attrs_zv, &result);
@@ -2066,6 +2133,28 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
     }
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
+
+    zval dependency_evaluations;
+    array_init_size(&dependency_evaluations, result.dependency_evaluations_count);
+    for (size_t i = 0; i < result.dependency_evaluations_count; i++) {
+        zval dependency;
+        ddtrace_ffe_dependency_to_object(
+            &dependency, &result.dependency_evaluations[i], result.observe_full_evaluation_data);
+        add_next_index_zval(&dependency_evaluations, &dependency);
+    }
+    ddtrace_ffe_update_property(
+        return_value, ZEND_STRL("dependencyEvaluations"), &dependency_evaluations);
+    zval_ptr_dtor(&dependency_evaluations);
+
+    zval exposure_trace;
+    array_init_size(&exposure_trace, result.exposure_trace_count);
+    for (size_t i = 0; i < result.exposure_trace_count; i++) {
+        add_next_index_str(&exposure_trace, zend_string_copy(result.exposure_trace[i]));
+    }
+    ddtrace_ffe_update_property(return_value, ZEND_STRL("exposureTrace"), &exposure_trace);
+    zval_ptr_dtor(&exposure_trace);
+
+    ddog_ffe_result_trace_drop(&result);
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {

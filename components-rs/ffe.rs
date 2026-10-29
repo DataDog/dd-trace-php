@@ -1,7 +1,7 @@
 use crate::bytes::MaybeOwnedZendString;
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
-    EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
+    EvaluationError, EvaluationOptions, ExpectedFlagType, Str, UniversalFlagConfig,
 };
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
@@ -224,6 +224,24 @@ pub struct FfeResult {
     // Consent belongs to the configuration snapshot used for this evaluation.
     pub observe_full_evaluation_data: bool,
     pub valid: bool,
+    pub dependency_evaluations: *mut FfeDependencyEvaluation,
+    pub dependency_evaluations_count: usize,
+    pub exposure_trace: *mut MaybeOwnedZendString,
+    pub exposure_trace_count: usize,
+}
+
+#[repr(C)]
+pub struct FfeDependencyEvaluation {
+    pub flag_key: MaybeOwnedZendString,
+    pub value_json: MaybeOwnedZendString,
+    pub variant: MaybeOwnedZendString,
+    pub allocation_key: MaybeOwnedZendString,
+    pub error_message: MaybeOwnedZendString,
+    pub reason: i32,
+    pub error_code: i32,
+    pub serial_id: i32,
+    pub has_serial_id: bool,
+    pub do_log: bool,
 }
 
 #[repr(C)]
@@ -276,13 +294,21 @@ pub extern "C" fn ddog_ffe_evaluate(
 
     FFE_STATE.with(|state| {
         let state = state.borrow();
-        let assignment = ffe::get_assignment(
-            state.config.as_ref(),
-            flag_key,
-            &context,
-            expected_type,
-            ffe::now(),
-        );
+        let evaluation = match state.config.as_ref() {
+            Some(config) => config.eval_flag_with_trace(
+                flag_key,
+                &context,
+                expected_type,
+                ffe::now(),
+                EvaluationOptions::default(),
+            ),
+            None => ffe::EvaluationResult {
+                result: Err(EvaluationError::ConfigurationMissing),
+                evaluations: Vec::new(),
+                exposure_trace: Vec::new(),
+            },
+        };
+        let assignment = evaluation.result;
         if let Err(error) = &assignment {
             debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): {error}", state.version);
         }
@@ -302,12 +328,98 @@ pub extern "C" fn ddog_ffe_evaluate(
         } else {
             result_from_assignment(assignment)
         };
+        let dependencies = evaluation
+            .evaluations
+            .into_iter()
+            .map(|record| dependency_result(record.flag_key, record.result))
+            .collect();
+        let exposure_trace = if result.error_code == ERROR_NONE {
+            evaluation
+                .exposure_trace
+                .into_iter()
+                .map(|key| Some(key.as_str().into()))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        (result.dependency_evaluations, result.dependency_evaluations_count) = leak_vec(dependencies);
+        (result.exposure_trace, result.exposure_trace_count) = leak_vec(exposure_trace);
         result.observe_full_evaluation_data = state
             .config
             .as_ref()
             .is_some_and(Configuration::observe_full_evaluation_data);
         result
     })
+}
+
+fn leak_vec<T>(values: Vec<T>) -> (*mut T, usize) {
+    if values.is_empty() {
+        return (std::ptr::null_mut(), 0);
+    }
+
+    let values = values.into_boxed_slice();
+    let count = values.len();
+    let pointer = Box::into_raw(values).cast::<T>();
+    (pointer, count)
+}
+
+fn dependency_result(
+    flag_key: Str,
+    assignment: Result<ffe::Assignment, EvaluationError>,
+) -> FfeDependencyEvaluation {
+    let has_no_assignment = matches!(
+        &assignment,
+        Err(EvaluationError::FlagDisabled | EvaluationError::DefaultAllocationNull)
+    );
+    let error_message = if has_no_assignment {
+        Some("prerequisite has no assignment".to_string())
+    } else {
+        assignment.as_ref().err().map(|error| error.to_string())
+    };
+    let result = if has_no_assignment {
+        error_result(ERROR_GENERAL, REASON_ERROR)
+    } else {
+        result_from_assignment(assignment)
+    };
+    FfeDependencyEvaluation {
+        flag_key: Some(flag_key.as_str().into()),
+        value_json: result.value_json,
+        variant: result.variant,
+        allocation_key: result.allocation_key,
+        error_message: error_message.as_deref().map(Into::into),
+        reason: result.reason,
+        error_code: result.error_code,
+        serial_id: result.serial_id,
+        has_serial_id: result.has_serial_id,
+        do_log: result.do_log,
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_result_trace_drop(result: *mut FfeResult) {
+    let Some(result) = (unsafe { result.as_mut() }) else {
+        return;
+    };
+    if !result.dependency_evaluations.is_null() {
+        unsafe {
+            drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                result.dependency_evaluations,
+                result.dependency_evaluations_count,
+            )));
+        }
+    }
+    if !result.exposure_trace.is_null() {
+        unsafe {
+            drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                result.exposure_trace,
+                result.exposure_trace_count,
+            )));
+        }
+    }
+    result.dependency_evaluations = std::ptr::null_mut();
+    result.dependency_evaluations_count = 0;
+    result.exposure_trace = std::ptr::null_mut();
+    result.exposure_trace_count = 0;
 }
 
 fn is_json_container(value: &AssignmentValue) -> bool {
@@ -380,6 +492,10 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 do_log: assignment.do_log,
                 observe_full_evaluation_data: false,
                 valid: true,
+                dependency_evaluations: std::ptr::null_mut(),
+                dependency_evaluations_count: 0,
+                exposure_trace: std::ptr::null_mut(),
+                exposure_trace_count: 0,
             }
         }
         Err(error) => {
@@ -413,6 +529,10 @@ fn error_result(error_code: i32, reason: i32) -> FfeResult {
         do_log: false,
         observe_full_evaluation_data: false,
         valid: true,
+        dependency_evaluations: std::ptr::null_mut(),
+        dependency_evaluations_count: 0,
+        exposure_trace: std::ptr::null_mut(),
+        exposure_trace_count: 0,
     }
 }
 
@@ -428,6 +548,10 @@ fn invalid_result() -> FfeResult {
         do_log: false,
         observe_full_evaluation_data: false,
         valid: false,
+        dependency_evaluations: std::ptr::null_mut(),
+        dependency_evaluations_count: 0,
+        exposure_trace: std::ptr::null_mut(),
+        exposure_trace_count: 0,
     }
 }
 

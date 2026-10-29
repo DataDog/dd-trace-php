@@ -60,6 +60,7 @@ namespace DDTrace {
     const FFE_OBJECT = UNKNOWN;
 
     final class FfeResult {
+        public ?string $flagKey = null;
         public ?string $valueJson = null;
         public ?string $variant = null;
         public ?string $allocationKey = null;
@@ -72,6 +73,8 @@ namespace DDTrace {
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;
         public ?int $configVersion = null;
+        public array $dependencyEvaluations = [];
+        public array $exposureTrace = [];
     }
 
     class SpanEvent implements \JsonSerializable {
