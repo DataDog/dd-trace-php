@@ -34,6 +34,8 @@
     CONFIG(BOOL, DD_APPSEC_TESTING_RAW_BODY, "false", .ini_change = zai_config_system_ini_change)                                     \
     CONFIG(BOOL, DD_APPSEC_TESTING_HELPER_METRICS, "false", .ini_change = zai_config_system_ini_change)                               \
     CONFIG(BOOL, DD_APPSEC_TESTING_INVALID_COMMAND, "false", .ini_change = zai_config_system_ini_change)                              \
+    CONFIG(STRING, DD_APPSEC_TESTING_PHP2SHELL_RUNTIME, "", .ini_change = zai_config_system_ini_change)                               \
+    CONFIG(STRING, DD_APPSEC_TESTING_PHP2SHELL_DECISION, "", .ini_change = zai_config_system_ini_change)                              \
     CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                                                    \
     CONFIG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting", .ini_change = zai_config_system_ini_change)                             \
     CONFIG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true", .ini_change = zai_config_system_ini_change)                                   \

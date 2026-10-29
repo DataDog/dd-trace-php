@@ -40,6 +40,10 @@ typedef enum {
     DD_PHASE_RUNTIME,
 } dd_deferred_phase;
 
+// The name of a phase: the value of the deferred metric's phase tag and of the
+// span tags (see p2s_report.c).
+const char *nonnull dd_p2s_phase_name(dd_deferred_phase phase);
+
 // a + b, or SIZE_MAX on overflow.
 static inline size_t dd_p2s_sat_add(size_t a, size_t b)
 {

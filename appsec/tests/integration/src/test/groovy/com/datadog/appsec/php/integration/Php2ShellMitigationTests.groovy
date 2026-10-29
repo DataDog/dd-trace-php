@@ -5,6 +5,8 @@ import com.datadog.appsec.php.TelemetryHelpers.Metric
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.PhpFpm
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
+import com.datadog.appsec.php.model.Span
+import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Test
@@ -19,6 +21,7 @@ import java.net.http.HttpResponse
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 import static java.net.http.HttpResponse.BodyHandlers.ofString
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 /**
  * End-to-end coverage of the PHP2Shell mitigation (CVE-2026-109618) under
@@ -36,14 +39,22 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
  * Apache (not nginx): nginx's default client_max_body_size (~1 MiB) would 413
  * the large bodies before PHP parsed them.
  *
- * No trace assertions: the attacks end the worker mid-request (a fatal in the
- * startup POST parse makes php-fpm exit it with code 70, a hard limit with
- * 137), leaving partial traces. Plain HTTP calls are used for pool recovery
- * and to drive telemetry flushes.
+ * No trace assertions in a-d: the attacks end the worker mid-request (a fatal
+ * in the startup POST parse makes php-fpm exit it with code 70, a hard limit
+ * with 137), leaving partial traces. Plain HTTP calls are used for pool
+ * recovery and to drive telemetry flushes.
+ *
+ * e_waf_activation leaves the mode at auto and lets the WAF decide: the
+ * default ruleset's PHP2Shell rule (block), a remote-config ruleset with the
+ * rule's action in monitor mode, then one without the rule (off). Its
+ * crossings are runtime allocations, whose fatals end only the request, so
+ * it checks the span tags and the trace keep. It needs a vulnerable runtime
+ * and is skipped on an image whose PHP carries the upstream fix.
  *
  * The methods run in name order. a_bounded is the first to emit a metric, and
  * b_hard waits for a metric only it emits, so no case needs to drain series
- * left by an earlier one; c and d emit nothing that a later case waits for.
+ * left by an earlier one; c, d and e emit nothing that a later case waits
+ * for.
  */
 @Testcontainers
 @Slf4j
@@ -97,6 +108,12 @@ class Php2ShellMitigationTests {
     private static final String METRIC_DEFERRED = 'appsec.php2shell.soft_limit_deferred'
     private static final String METRIC_HARD_EXIT = 'appsec.php2shell.hard_limit_exit'
     private static final String DEFERRED_SUFFIX = 'Datadog AppSec PHP2Shell mitigation deferred'
+    private static final String NO_RULES_INI = '/etc/php/php-p2s-norules.ini'
+    private static final String ASM_DD = 'datadog/2/ASM_DD/php2shell_rules/config'
+    // e_waf_activation: one runtime allocation of WAF_ALLOC under WAF_LIMIT,
+    // between the soft and the hard limit when armed.
+    private static final long WAF_LIMIT = 32L * MIB
+    private static final long WAF_ALLOC = 56L * MIB
 
     @Test
     void 'a_bounded: a field beyond 2 x memory_limit within post_max_size is deferred and reported'() {
@@ -216,9 +233,86 @@ class Php2ShellMitigationTests {
         }
     }
 
+    @Test
+    void 'e_waf_activation: under auto, the PHP2Shell rule of the ruleset decides block, monitor or off'() {
+        // The attack crosses memory_limit at runtime, which only the request
+        // level (PHP 7.1+, a VM interrupt) defers.
+        assumeTrue(phpVersion != '7.0', 'the request level needs PHP 7.1')
+        PhpFpm fpm = new PhpFpm(CONTAINER)
+        // Mode auto, the real helper and its default ruleset (the php.ini
+        // without datadog.appsec.rules, so that remote config can replace it).
+        // One static worker, never recycled: the decision is per worker
+        // process, and the runtime fatals below do not end the worker.
+        withPool(fpm, memoryLimit: "${WAF_LIMIT.intdiv(MIB)}M", postMaxSize: '8M', mode: 'auto',
+                ini: noRulesIni(), poolValues: ['pm.max_requests': '0']) {
+            boolean passed = false
+            try {
+                // A request subscribes the restarted php-fpm; then an empty
+                // config, acknowledged, is the baseline whatever version an
+                // earlier case left.
+                assert httpGet('/hello.php') == 200
+                CONTAINER.applyRemoteConfig(RC_TARGET, [:]).get()
+                Map<String, String> info = p2sInfo()
+                log.info("PHP2Shell MINFO rows: ${info}")
+                // Under auto, only a vulnerable runtime sends the address the
+                // rule matches on. The runtime override
+                // (DD_APPSEC_TESTING_PHP2SHELL_RUNTIME) needs
+                // datadog.appsec.testing, which turns off the automatic
+                // request_init and the helper, so it cannot be used here.
+                assumeTrue(info['PHP2Shell patched runtime'] == 'No',
+                        "this image's PHP carries the upstream fix; got ${info}")
+                assert info['PHP2Shell mitigation mode'] == 'auto'
+
+                // 1. Default ruleset, action mode block: armed. The rule's
+                // match is not an appsec event, on a plain request either.
+                waitForDecision('block')
+                Trace plain = CONTAINER.traceFromRequest('/hello.php', null, true)
+                assertNoAppsecEvent(plain)
+                assert plain.first().metrics._sampling_priority_v1 != 2.0d
+                def (Trace t1, String log1) = wafAttack()
+                assert log1.contains("Allowed memory size of ${WAF_LIMIT} bytes exhausted (${DEFERRED_SUFFIX}") :
+                        "expected the deferred fatal; got: ${log1.take(2000)}"
+                assertP2sTags(t1, [deferred: 'runtime'])
+                assert t1.first().metrics._sampling_priority_v1 == 2.0d
+
+                // 2. A remote-config ruleset whose action has mode monitor: a
+                // new ruleset generation, so the helper's cached decision is
+                // not reused. Disarmed, the engine's own fatal, seen and
+                // reported.
+                CONTAINER.applyRemoteConfig(RC_TARGET, [(ASM_DD): wafRuleset('monitor')]).get()
+                waitForDecision('monitor')
+                def (Trace t2, String log2) = wafAttack()
+                assertWafNativeFatal(log2)
+                assertP2sTags(t2, [memory_error: 'memory_limit', phase: 'runtime'])
+                assert t2.first().metrics._sampling_priority_v1 == 2.0d
+
+                // 3. A remote-config ruleset without the rule: the WAF ran
+                // and nothing matched, so the mitigation is off.
+                CONTAINER.applyRemoteConfig(RC_TARGET, [(ASM_DD): wafRuleset(null)]).get()
+                waitForDecision('none')
+                def (Trace t3, String log3) = wafAttack()
+                assertWafNativeFatal(log3)
+                assertP2sTags(t3, [:])
+                assert t3.first().metrics._sampling_priority_v1 != 2.0d
+                passed = true
+            } finally {
+                // A failed cleanup must not hide the failure of the body.
+                try {
+                    CONTAINER.applyRemoteConfig(RC_TARGET, [:]).get()
+                } catch (Throwable t) {
+                    log.warn("remote config cleanup failed: ${t.message}")
+                    if (passed) {
+                        throw t
+                    }
+                }
+            }
+        }
+    }
+
     // Run `body` with the pool pinned to one static worker, the given
     // memory_limit and post_max_size (php_admin_value: setPoolValue cannot add
-    // a bracketed key), the mitigation forced on through the pool env, plus
+    // a bracketed key), the mitigation mode `mode` (default on) through the
+    // pool env, plus
     // the appended `poolLines` and the rewritten `poolValues`. php-fpm is
     // restarted with `ini` and `env`. The pool file is
     // snapshotted and restored around the block, and php-fpm restarted with
@@ -227,7 +321,7 @@ class Php2ShellMitigationTests {
         List<String> lines = [
                 "php_admin_value[memory_limit] = ${opts.memoryLimit}".toString(),
                 "php_admin_value[post_max_size] = ${opts.postMaxSize}".toString(),
-                'env[DD_APPSEC_PHP2SHELL_MITIGATION] = on',
+                "env[DD_APPSEC_PHP2SHELL_MITIGATION] = ${opts.mode ?: 'on'}".toString(),
         ] + (opts.poolLines ?: [])
         CONTAINER.execInContainer('cp', POOL, "${POOL}.p2s".toString())
         try {
@@ -249,6 +343,112 @@ class Php2ShellMitigationTests {
                 "sed -e '/appsec.enabled/d' -e '/appsec.rules=/d' ${PhpFpm.DEFAULT_INI} > ${NO_APPSEC_INI}".toString())
         assert res.exitCode == 0 : res.stderr
         NO_APPSEC_INI
+    }
+
+    // php.ini without datadog.appsec.rules: the helper's default ruleset
+    // applies, and remote config (ASM_DD) can replace it.
+    private static String noRulesIni() {
+        def res = CONTAINER.execInContainer('bash', '-c',
+                "sed -e '/appsec.rules=/d' ${PhpFpm.DEFAULT_INI} > ${NO_RULES_INI}".toString())
+        assert res.exitCode == 0 : res.stderr
+        NO_RULES_INI
+    }
+
+    // The PHP2Shell rows of the worker's phpinfo(). The request's own
+    // request_init has run by then, so the WAF decision row is that answer.
+    private static Map<String, String> p2sInfo() {
+        HttpResponse<String> resp = CONTAINER.httpClient.send(CONTAINER.buildReq('/phpinfo.php').GET().build(), ofString())
+        assert resp.statusCode() == 200
+        def m = (resp.body() =~ /<td class="e">(PHP2Shell[^<]*?)\s*<\/td><td class="v">([^<]*?)\s*<\/td>/)
+        Map<String, String> rows = [:]
+        while (m.find()) {
+            rows[m.group(1)] = m.group(2)
+        }
+        assert rows : 'no PHP2Shell rows in phpinfo()'
+        rows
+    }
+
+    // Until the worker's sticky decision is `expected`: the helper applies a
+    // remote-config ruleset some time after the agent saw it acknowledged.
+    private static void waitForDecision(String expected) {
+        String decision = null
+        for (int i = 0; i < 30; i++) {
+            decision = p2sInfo()['PHP2Shell WAF decision']
+            if (decision == expected) {
+                return
+            }
+            Thread.sleep(500)
+        }
+        assert decision == expected : "the PHP2Shell WAF decision stayed ${decision}, expected ${expected}"
+    }
+
+    // An ASM_DD ruleset with a scanner rule and, unless `mode` is null, the
+    // PHP2Shell rule of the default ruleset with its action's mode set to
+    // `mode`.
+    private static Map wafRuleset(String mode) {
+        List rules = [[
+                id: 'ua0-600-12x',
+                name: 'Arachni',
+                tags: [type: 'security_scanner', category: 'attack_attempt'],
+                conditions: [[
+                        parameters: [inputs: [[address: 'server.request.headers.no_cookies', key_path: ['user-agent']]],
+                                     regex: '^Arachni\\/v'],
+                        operator: 'match_regex',
+                ]],
+                transformers: [],
+        ]]
+        Map ruleset = [version: '2.2', metadata: [rules_version: '1.99.0'], rules: rules]
+        if (mode != null) {
+            rules << [
+                    id: 'dd-php2shell-001',
+                    name: 'PHP2Shell mitigation for vulnerable PHP runtimes',
+                    tags: [type: 'php2shell_mitigation', category: 'vulnerability_mitigation', module: 'waf'],
+                    conditions: [[
+                            parameters: [inputs: [[address: 'php.php2shell.vulnerable']], list: ['full', 'partial']],
+                            operator: 'exact_match',
+                    ]],
+                    transformers: [],
+                    on_match: ['php2shell_block'],
+            ]
+            ruleset.actions = [[id: 'php2shell_block', type: 'php2shell_mitigation', parameters: [mode: mode]]]
+        }
+        ruleset
+    }
+
+    // A runtime allocation past WAF_LIMIT; its trace and the error log lines
+    // it wrote.
+    private static List wafAttack() {
+        long logOffset = errorLogSize()
+        Trace trace = CONTAINER.traceFromRequest("/php2shell_runtime_oom.php?alloc=${WAF_ALLOC}", null, true)
+        String errLog = errorLogSince(logOffset)
+        log.info("waf attack: root meta=${trace.first().meta.findAll { it.key.contains('php2shell') }} " +
+                "priority=${trace.first().metrics._sampling_priority_v1}")
+        assertNoAppsecEvent(trace)
+        [trace, errLog]
+    }
+
+    private static void assertWafNativeFatal(String log) {
+        assert log.contains("Allowed memory size of ${WAF_LIMIT} bytes exhausted") :
+                "expected the engine's out-of-memory error in the log; got: ${log.take(2000)}"
+        assert !log.contains(DEFERRED_SUFFIX) : "the mitigation must not be armed; got: ${log.take(2000)}"
+    }
+
+    // The root span's _dd.appsec.php2shell.* tags are exactly `expected`
+    // (names without the prefix).
+    private static void assertP2sTags(Trace trace, Map<String, String> expected) {
+        String prefix = '_dd.appsec.php2shell.'
+        Map<String, String> got = trace.first().meta
+                .findAll { it.key.startsWith(prefix) }
+                .collectEntries { [(it.key.substring(prefix.length())): it.value] }
+        assert got == expected
+    }
+
+    // The PHP2Shell rule's match is not an appsec event.
+    private static void assertNoAppsecEvent(Trace trace) {
+        Span root = trace.first()
+        assert !root.meta.containsKey('appsec.event')
+        assert !root.meta.containsKey('_dd.appsec.json')
+        assert !root.meta_struct?.containsKey('appsec')
     }
 
     // A urlencoded body with one field name of `fieldLen` bytes.

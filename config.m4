@@ -342,8 +342,10 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/logging.c \
     appsec/src/extension/msgpack_helpers.c \
     appsec/src/extension/network.c \
+    appsec/src/extension/php2shell/p2s_monitor.c \
     appsec/src/extension/php2shell/p2s_oom_guard.c \
     appsec/src/extension/php2shell/p2s_policy.c \
+    appsec/src/extension/php2shell/p2s_report.c \
     appsec/src/extension/php2shell/p2s_request_parse_body.c \
     appsec/src/extension/php2shell/p2s_runtime.c \
     appsec/src/extension/php2shell/p2s_stale_state.c \
