@@ -6,13 +6,12 @@
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
 #include <ext/process_tags.h>
-#include <ext/sidecar.h>
 #include <ext/target_metadata.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 bool ddtrace_dsm_enabled(void) {
-    return get_DD_DATA_STREAMS_ENABLED() && datadog_endpoint;
+    return get_DD_DATA_STREAMS_ENABLED() && DATADOG_G(sidecar);
 }
 
 // The string tags of `tags`, as slices into it; free with efree. Non-strings are skipped.
