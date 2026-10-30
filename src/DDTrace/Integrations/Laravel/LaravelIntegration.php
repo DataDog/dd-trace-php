@@ -24,6 +24,14 @@ class LaravelIntegration extends Integration
     public static $serviceName;
 
     /**
+     * Path parameters captured by Laravel before route defaults are applied.
+     * Cleared when Router::findRoute consumes them, or at the end of the request.
+     *
+     * @var array|null
+     */
+    private static $urlMatchedParams;
+
+    /**
      * {@inheritdoc}
      */
     public static function requiresExplicitTraceAnalyticsEnabling(): bool
@@ -139,7 +147,43 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }
                 if (\method_exists($route, 'uri')) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $route->uri();
+                    $httpRoute = $route->uri();
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                    if (self::apiSecurityEnabled()) {
+                        $allParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
+                        $urlMatchedParams = self::takeLaravelUrlMatchedParams();
+                        if (strpos($httpRoute, '?}') !== false) {
+                            // For routes with optional params, filter out default-injected values
+                            // (e.g. ->defaults('format', 'html')) that weren't present in the URL.
+                            if ($urlMatchedParams === null) {
+                                $cacheKey = null;
+                            } else {
+                                $matchedParams = array_intersect_key($allParams, $urlMatchedParams);
+                                // The cache key encodes which params are present. Laravel
+                                // parameter names are word characters, so ',' separates them.
+                                $cacheKey = "laravel\0" . $httpRoute . '#' . implode(',', array_keys($matchedParams));
+                            }
+                        } else {
+                            $matchedParams = $allParams;
+                            $cacheKey = "laravel\0" . $httpRoute;
+                        }
+                        $normalizedRoute = null;
+                        if ($cacheKey !== null) {
+                            $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                            if ($normalizedRoute === false) {
+                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel(
+                                    $httpRoute,
+                                    $matchedParams
+                                );
+                                if ($normalizedRoute !== null) {
+                                    \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                                }
+                            }
+                        }
+                        if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        }
+                    }
                 }
                 if (\method_exists($route, 'parameters') && function_exists('\datadog\appsec\push_addresses')) {
                     $parameters = $route->parameters();
@@ -161,6 +205,41 @@ class LaravelIntegration extends Integration
                     }
                     \DDTrace\flush_endpoints();
                 }
+            }
+        );
+
+        // Laravel 5.4+ returns the path-only capture map here, before
+        // RouteParameterBinder::replaceDefaults() injects route defaults.
+        \DDTrace\hook_method(
+            'Illuminate\Routing\RouteParameterBinder',
+            'bindPathParameters',
+            null,
+            static function ($This, $scope, $args, $matchedParams) {
+                if (is_array($matchedParams) && self::urlMatchedParamsWanted()) {
+                    self::rememberLaravelUrlMatchedParams($matchedParams);
+                }
+            }
+        );
+
+        // Laravel <= 5.3 has the binder methods on Route itself and returns the
+        // raw preg_match result. Reproduce only Laravel's cheap match-to-keys
+        // step; the framework's route regex is not evaluated a second time.
+        \DDTrace\hook_method(
+            'Illuminate\Routing\Route',
+            'bindPathParameters',
+            null,
+            static function ($This, $scope, $args, $matches) {
+                if (!is_array($matches) || !method_exists($This, 'parameterNames')
+                    || !self::urlMatchedParamsWanted()) {
+                    return;
+                }
+
+                $parameterNames = $This->parameterNames();
+                $matchedParams = array_intersect_key(array_slice($matches, 1), array_flip($parameterNames));
+                $matchedParams = array_filter($matchedParams, static function ($value) {
+                    return is_string($value) && strlen($value) > 0;
+                });
+                self::rememberLaravelUrlMatchedParams($matchedParams);
             }
         );
 
@@ -751,5 +830,33 @@ class LaravelIntegration extends Integration
         }
 
         return $routeName;
+    }
+
+    private static function apiSecurityEnabled(): bool
+    {
+        return function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+            && dd_trace_env_config("DD_API_SECURITY_ENABLED");
+    }
+
+    /**
+     * Whether the binder hooks should record the URL capture map: only the
+     * normalized route reads it, so it is skipped without API Security.
+     */
+    private static function urlMatchedParamsWanted(): bool
+    {
+        return \DDTrace\root_span() !== null && self::apiSecurityEnabled();
+    }
+
+    private static function rememberLaravelUrlMatchedParams(array $matchedParams)
+    {
+        self::$urlMatchedParams = $matchedParams;
+    }
+
+    /** @return array|null */
+    private static function takeLaravelUrlMatchedParams()
+    {
+        $matchedParams = self::$urlMatchedParams;
+        self::$urlMatchedParams = null;
+        return $matchedParams;
     }
 }
