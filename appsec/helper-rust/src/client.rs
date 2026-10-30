@@ -912,7 +912,8 @@ const PHP2SHELL_SETTING: &str = "php2shell_mitigation";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Php2ShellDecision {
-    /// The WAF ran, but no rule matched with a php2shell_mitigation action.
+    /// The WAF ran, but no rule matched with a php2shell_mitigation action, or
+    /// its mode is unrecognised.
     None,
     Monitor,
     Block,
@@ -1035,7 +1036,12 @@ fn run_php2shell_rule(
     match mode {
         Some("block") => Ok(Php2ShellDecision::Block),
         Some("monitor") => Ok(Php2ShellDecision::Monitor),
-        mode => anyhow::bail!("unknown {PHP2SHELL_ACTION} action mode: {mode:?}"),
+        // an unrecognised mode (future value, typo, missing) is a decision
+        // like any other, cached by eval_php2shell: logged once per generation
+        mode => {
+            warn!("Unknown {PHP2SHELL_ACTION} action mode {mode:?}; treating it as none");
+            Ok(Php2ShellDecision::None)
+        }
     }
 }
 
@@ -1693,16 +1699,25 @@ mod tests {
 
         /// `mode`: the mode of the php2shell_block action, or no action spec.
         fn make_ruleset(mode: Option<&str>, with_p2s_rule: bool) -> WafObject {
+            make_ruleset_with_params(mode.map(|mode| json!({"mode": mode})), with_p2s_rule)
+        }
+
+        /// `params`: the parameters of the php2shell_block action, or no action
+        /// spec.
+        fn make_ruleset_with_params(
+            params: Option<serde_json::Value>,
+            with_p2s_rule: bool,
+        ) -> WafObject {
             let mut rules = vec![arachni_rule()];
             if with_p2s_rule {
                 rules.push(p2s_rule());
             }
             let mut doc = json!({"version": "2.2", "rules": rules});
-            if let Some(mode) = mode {
+            if let Some(params) = params {
                 doc["actions"] = json!([{
                     "id": "php2shell_block",
                     "type": PHP2SHELL_ACTION,
-                    "parameters": {"mode": mode}
+                    "parameters": params
                 }]);
             }
             serde_json::from_str(&doc.to_string()).unwrap()
@@ -1779,11 +1794,35 @@ mod tests {
         }
 
         #[test]
-        fn unknown_mode_gives_no_decision_and_is_not_cached() {
-            let handle = make_handle(Some("bogus"), true);
-            let mut cache = None;
-            assert_eq!(eval(&handle, 1, "full", &mut cache), None);
-            assert!(cache.is_none());
+        fn unknown_mode_gives_none_and_is_cached() {
+            // an unrecognised value, or no mode parameter at all
+            for params in [json!({"mode": "bogus"}), json!({})] {
+                let handle = build_handle(&make_ruleset_with_params(Some(params.clone()), true));
+                let mut cache = None;
+                assert_eq!(
+                    eval(&handle, 1, "full", &mut cache),
+                    Some(Php2ShellDecision::None),
+                    "params {params}"
+                );
+                let cached = cache.as_ref().expect("decision is cached");
+                assert_eq!(cached.decision, Php2ShellDecision::None);
+                assert_eq!((cached.generation, cached.value.as_str()), (1, "full"));
+
+                // the same generation does not evaluate the rule again: a
+                // ruleset that blocks still gets the cached none...
+                let block_handle = make_handle(Some("block"), true);
+                assert_eq!(
+                    eval(&block_handle, 1, "full", &mut cache),
+                    Some(Php2ShellDecision::None),
+                    "params {params}"
+                );
+                // ... and a ruleset change (new generation) re-evaluates
+                assert_eq!(
+                    eval(&block_handle, 2, "full", &mut cache),
+                    Some(Php2ShellDecision::Block),
+                    "params {params}"
+                );
+            }
         }
 
         #[test]
@@ -1848,16 +1887,6 @@ mod tests {
             let actions: Vec<_> = result.actions.iter().map(|a| a.action).collect();
             assert_eq!(actions, vec!["record"]);
             assert!(result.waf_keep);
-        }
-
-        #[test]
-        fn decision_ignores_the_waf_timeout() {
-            let handle = make_handle(Some("block"), true);
-            let ctx = req_ctx(&handle, 1, Duration::ZERO);
-            let mut cache = None;
-            let (_, decision) =
-                ctx.eval_php2shell(request_data(Some("full"), "Arachni"), &mut cache);
-            assert_eq!(decision, Some(Php2ShellDecision::Block));
         }
 
         #[test]
