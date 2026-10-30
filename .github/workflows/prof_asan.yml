@@ -26,7 +26,7 @@ jobs:
       CARGO_HOME: /rust/cargo
       RUSTUP_HOME: /rust/rustup
     container:
-      image: datadog/dd-trace-ci:bookworm-12
+      image: datadog/dd-trace-ci:bookworm-13
       options: --user root
     outputs:
       cache-key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
@@ -87,7 +87,7 @@ jobs:
       # its lockfile, so use offline rather than frozen.
       CARGO_NET_OFFLINE: 'true'
     container:
-      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-11
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-13
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root
 
@@ -152,7 +152,7 @@ jobs:
       CARGO_NET_OFFLINE: 'true'
       UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     container:
-      image: datadog/dd-trace-ci:php-8.5_bookworm-11
+      image: datadog/dd-trace-ci:php-8.5_bookworm-13
       options: --user root
 
     steps:

@@ -115,14 +115,14 @@ case "$php_version" in
 esac
 
 # ─── Docker image selection ───────────────────────────────────────────────────
-BOOKWORM_VERSION=11
+BOOKWORM_VERSION=13
 if [[ "$libc" == "musl" ]]; then
     DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
 else
     # centos-7 targets GLIBC 2.17 — compatible with all weblog base images.
     # bookworm (GLIBC 2.36) produces .so files that fail to load on Bullseye
     # weblogs with "GLIBC_2.32 not found".
-    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_centos-7"
+    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_centos-7-2"
 fi
 
 if [[ "$arch" == "aarch64" ]]; then
