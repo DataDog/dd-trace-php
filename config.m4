@@ -320,6 +320,7 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
     tracer/engine_api.c \
     tracer/engine_hooks.c \
     tracer/exception_serialize.c \
+    tracer/data_streams.c \
     tracer/ffe.c \
     tracer/functions.c \
     tracer/git_metadata.c \

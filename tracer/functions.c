@@ -6,9 +6,11 @@
 #include "auto_flush.h"
 #include "code_origins.h"
 #include "engine_hooks.h"
+#include "data_streams.h"
 #include "ffe.h"
 #include <math.h>
 #include "handlers_exception.h"
+#include "handlers_kafka.h"
 #include "memory_limit.h"
 #ifdef __linux__
 #include "otel_context.h"
@@ -3083,6 +3085,73 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
     RETURN_BOOL(ddtrace_ffe_record_flag_evaluation(flag_key, variant, allocation_key,
         targeting_key, attributes, error_type, runtime_default_used, observe_full_evaluation_data,
         evaluation_timestamp_ms, targeting_key_invalid));
+}
+
+PHP_FUNCTION(DDTrace_Internal_dsm_set_checkpoint) {
+    zend_array *edge_tags;
+    zend_string *context = NULL;
+    zend_long payload_size = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_ARRAY_HT(edge_tags)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STR_OR_NULL(context)
+        Z_PARAM_LONG(payload_size)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_string *next_context = ddtrace_dsm_set_checkpoint(edge_tags, context, payload_size);
+    if (next_context) {
+        RETURN_STR(next_context);
+    }
+    RETURN_NULL();
+}
+
+PHP_FUNCTION(DDTrace_Internal_dsm_track_backlog) {
+    zend_array *tags;
+    zend_long offset;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_ARRAY_HT(tags)
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_dsm_track_backlog(tags, offset);
+}
+
+PHP_FUNCTION(DDTrace_Internal_dsm_push_pathway) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    ddtrace_dsm_push_pathway();
+}
+
+PHP_FUNCTION(DDTrace_Internal_dsm_pop_pathway) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    ddtrace_dsm_pop_pathway();
+}
+
+PHP_FUNCTION(DDTrace_Internal_kafka_cluster_id) {
+    zend_object *kafka;
+    zend_string *bootstrap_servers = NULL;
+    zend_long wait_ms = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_OBJ(kafka)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STR_OR_NULL(bootstrap_servers)
+        Z_PARAM_LONG(wait_ms)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (!ddtrace_kafka_is_client(kafka)) {
+        zend_argument_type_error(1, "must be of type RdKafka\\KafkaConsumer|RdKafka, %s given", ZSTR_VAL(kafka->ce->name));
+        RETURN_THROWS();
+    }
+
+    zend_string *cluster_id = ddtrace_kafka_cluster_id(kafka, bootstrap_servers, wait_ms);
+    if (cluster_id) {
+        RETURN_STR(cluster_id);
+    }
+    RETURN_NULL();
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

@@ -80,6 +80,9 @@ variables:
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/php/laravel-realworld
+  DSM_THROUGHPUT_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-dsm
+  # The Dockerfile to this image is located at:
+  # https://github.com/DataDog/benchmarking-platform/tree/php/data-streams-monitoring
 
 workflow:
   auto_cancel:
@@ -240,6 +243,51 @@ benchmarks-appsec:
     expire_in: 2 days
   variables:
     SCENARIO: "appsec"
+
+# Kafka and RabbitMQ produce/consume throughput with Data Streams Monitoring
+# off and on, against real brokers and agent; fails if DSM adds more than 3%
+# duration or memory on top of APM for either broker. Same methodology as the other tracers'
+# `<lang>/data-streams-monitoring` suites; see that branch's README.
+.benchmarks-dsm-rules: &benchmarks-dsm-rules
+  - if: $CI_PIPELINE_SOURCE != "schedule"
+    changes:
+      paths:
+        - src/DDTrace/Integrations/Kafka/**/*
+        - src/DDTrace/Integrations/AMQP/**/*
+        - tracer/data_streams.*
+        - components-rs/data_streams.rs
+        - libdatadog
+      compare_to: "master"
+    when: on_success
+    allow_failure: true
+    interruptible: true
+  - when: manual
+    allow_failure: true
+    interruptible: true
+
+dsm-throughput:
+  stage: benchmarks
+  retry: *benchmarks-retry
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  rules: *benchmarks-dsm-rules
+  tags: ["runner:apm-k8s-same-cpu"]
+  timeout: 1h
+  image: $DSM_THROUGHPUT_CI_IMAGE
+  script:
+    - export ARTIFACTS_DIR="$(pwd)/artifacts" && (mkdir "${ARTIFACTS_DIR}" || :)
+    # steps/install-tracer.sh installs the packaged build from ../packages.
+    - git clone --branch php/data-streams-monitoring https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - bp-runner bp-runner.yml --debug
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - artifacts/
+    expire_in: 3 months
 
 check-big-regressions:
   rules: *benchmarks-tracer-rules

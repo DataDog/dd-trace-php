@@ -278,6 +278,13 @@
         "default": "true"
       }
     ],
+    "DD_DATA_STREAMS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_DBM_ALWAYS_APPEND_SQL_COMMENT": [
       {
         "implementation": "A",

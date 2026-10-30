@@ -132,6 +132,96 @@ void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
                                               struct _zend_string *key,
                                               ddog_CharSlice val);
 
+/**
+ * Drop cached tables so the next checkpoint for each key goes through IPC.
+ */
+void ddog_dsm_tables_clear(void);
+
+/**
+ * Forget the request's pathway. Called at request shutdown.
+ */
+void ddog_dsm_reset_pathway(void);
+
+/**
+ * Set the request's pathway aside and start a fresh one, e.g. while a message's callback runs.
+ */
+void ddog_dsm_push_pathway(void);
+
+/**
+ * Go back to the pathway the last `ddog_dsm_push_pathway` set aside, or to a fresh one if there
+ * is none.
+ */
+void ddog_dsm_pop_pathway(void);
+
+/**
+ * Set a checkpoint on the request's pathway and record it.
+ *
+ * `edge_tags` are `key:value` strings, at most `MAX_EDGE_TAGS` of which are kept; their order
+ * does not matter. `carrier` is the `dd-pathway-ctx-base64` value the message arrived with, or
+ * empty. The context to hand on with the message is written to `out` as base64, and its length
+ * returned; `out` must hold `DSM_CONTEXT_MAX_LEN` bytes.
+ *
+ * The checkpoint is only recorded once the agent has said it accepts DSM; the pathway is
+ * tracked, and the context returned, either way.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ * `edge_tags` must point to `edge_tag_count` valid slices, and `out` to `out_cap` bytes.
+ */
+uintptr_t ddog_dsm_set_checkpoint(struct ddog_SidecarTransport *transport,
+                                  const struct ddog_DsmIdentity *identity,
+                                  const ddog_CharSlice *edge_tags,
+                                  uintptr_t edge_tag_count,
+                                  ddog_CharSlice carrier,
+                                  int64_t payload_size_bytes,
+                                  uint8_t *out,
+                                  uintptr_t out_cap);
+
+/**
+ * Record `offset` for the backlog named by `tags`, e.g. a Kafka partition's produce offset or
+ * a consumer group's committed one. The sidecar keeps the highest offset per backlog in each
+ * bucket; negative offsets (unknown to librdkafka) are dropped.
+ *
+ * `tags` are `key:value` strings in any order, each with a key `BacklogTag` knows (`topic`,
+ * `type`, `kafka_cluster_id`, `consumer_group`, `partition`); every tag has a fixed position,
+ * which is the order they are reported in. An offset with a tag of any other key is dropped
+ * rather than reported under the tags that remain. Nothing is recorded until the agent has
+ * said it accepts DSM.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ * `tags` must point to `tag_count` valid slices.
+ */
+void ddog_dsm_track_backlog(struct ddog_SidecarTransport *transport,
+                            const struct ddog_DsmIdentity *identity,
+                            const ddog_CharSlice *tags,
+                            uintptr_t tag_count,
+                            int64_t offset);
+
+/**
+ * Write the id of the cluster the Kafka clients with `bootstrap_servers` reach to `out`, if this
+ * process or another process of the sidecar has read it from such a client, and return its
+ * length; 0 if no process has, or it does not fit in `out_cap` bytes.
+ *
+ * # Safety
+ * `out` must point to `out_cap` writable bytes.
+ */
+uintptr_t ddog_dsm_get_kafka_cluster_id(ddog_CharSlice bootstrap_servers,
+                                        uint8_t *out,
+                                        uintptr_t out_cap);
+
+/**
+ * Record that the Kafka clients with `bootstrap_servers` reach the cluster `cluster_id`, as the
+ * caller read it from one of them, and share it with the sidecar's other processes the first
+ * time.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ */
+void ddog_dsm_set_kafka_cluster_id(struct ddog_SidecarTransport *transport,
+                                   ddog_CharSlice bootstrap_servers,
+                                   ddog_CharSlice cluster_id);
+
 bool ddog_ffe_load_config(ddog_CharSlice json);
 
 bool ddog_ffe_has_config(void);
@@ -223,7 +313,7 @@ void ddog_set_dynamic_instrumentation_enabled(struct ddog_RemoteConfigState *rem
 
 void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 
-void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
+void ddog_shutdown_remote_config(struct ddog_RemoteConfigState *_state);
 
 /**
  * Free the FFI-owned allocations in a `Probe` (the `tags` vec and the nested
@@ -476,18 +566,16 @@ bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
                                    ddog_RootTagLookupFn lookup_fn);
 
 /**
- * Parses a possibly truncated JSON document. Containers nested deeper than
- * `max_depth` are kept empty.
+ * Parse JSON directly to MessagePack. A negative depth means unlimited.
+ * Allocator callbacks must not reenter the parser, unwind or longjmp.
  */
 struct ddog_AppsecBodyMessagePack ddog_appsec_parse_json(ddog_CharSlice input,
                                                          int32_t max_depth,
                                                          struct ddog_AppsecBodyAllocator allocator);
 
 /**
- * Parses a possibly truncated XML document into
- * `{tag: [{"@attr": value, ...}, "text", {child...}, ...]}`. The content of
- * elements nested deeper than `max_depth` is dropped. External entities are
- * never loaded.
+ * Parse XML directly to MessagePack; external entities are never loaded.
+ * Allocator callbacks must not reenter the parser, unwind or longjmp.
  */
 struct ddog_AppsecBodyMessagePack ddog_appsec_parse_xml(ddog_CharSlice input,
                                                         int32_t max_depth,
@@ -495,7 +583,7 @@ struct ddog_AppsecBodyMessagePack ddog_appsec_parse_xml(ddog_CharSlice input,
 
 /**
  * # Safety
- * `body` must come from one of the parse functions and not be dropped twice.
+ * `body` must come from a parse function and must not be dropped twice.
  */
 void ddog_appsec_body_msgpack_drop(struct ddog_AppsecBodyMessagePack body);
 

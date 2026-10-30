@@ -19,6 +19,16 @@ All benchmark jobs are defined in `benchmarks.yml`.
     - Steps live in the `php/laravel-realworld` branch of
       [benchmarking-platform](https://github.com/DataDog/benchmarking-platform).
     - `check-slo-breaches` gates releases based on SLOs defined on `bp-runner.fail-on-breach.yml`.
+- `dsm-throughput`: Data Streams Monitoring overhead on Kafka and RabbitMQ
+  produce/consume workloads, against real brokers and agent.
+    - Runs when the Kafka or AMQP integration or DSM code changes, manual
+      elsewhere; allowed to fail.
+    - Steps live in the `php/data-streams-monitoring` branch of
+      [benchmarking-platform](https://github.com/DataDog/benchmarking-platform),
+      which follows the other tracers' `<lang>/data-streams-monitoring`
+      suites.
+    - Fails if DSM adds more than 3% duration or memory on top of APM, for
+      either broker.
 - `linux-php-laravel-realworld-parallel`, `linux-php-symfony-realworld-parallel`,
   `linux-php-wordpress-parallel`: included from
   [apm-sdks-benchmarks](https://github.com/DataDog/apm-sdks-benchmarks/tree/main/.gitlab).
