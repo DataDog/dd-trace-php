@@ -42,6 +42,24 @@
     <rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
 
     <!--
+        Enabled: catches calls to functions the PHP interpreter running
+        phpcs reports as deprecated, via ReflectionFunction::isDeprecated().
+        Exists because reviewers repeatedly had to catch deprecated
+        function usage by hand.
+
+        Limitation: this only reflects deprecations on the single PHP
+        version running phpcs (the newest supported PHP in CI) -- it does
+        NOT catch functions/syntax merely unavailable on an older
+        supported PHP version (minimum-version compatibility). That needs
+        separate, version-aware review/tooling. A legitimate
+        version-guarded call to an otherwise-deprecated function (e.g. a
+        PHP < 7.2 polyfill) must be suppressed individually with
+        `// phpcs:ignore Generic.PHP.DeprecatedFunctions -- <why>`, since
+        this sniff cannot see runtime PHP_VERSION_ID checks.
+    -->
+    <rule ref="Generic.PHP.DeprecatedFunctions"/>
+
+    <!--
         Close, but not a mechanical fix. Uncomment after the TODOs
         are resolved or dropped.
 
@@ -59,11 +77,6 @@
             runs php -l with the job's PHP. A file valid on 7.0 can fail
             on 8.x (and the reverse) without any source change.
 
-        Generic.PHP.DeprecatedFunctions
-            current src/ has no hits, but the sniff list grows with
-            PHPCS releases and tracks language deprecations.
-
         <rule ref="Generic.PHP.Syntax"/>
-        <rule ref="Generic.PHP.DeprecatedFunctions"/>
     -->
 </ruleset>
