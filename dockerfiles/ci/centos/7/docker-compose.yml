@@ -146,3 +146,15 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-8.5.10.tar.gz
         phpSha256Hash: "f5c0ac99b85b3d677de475c2e4f509f9b4f54663f3ee5a84d6d9481a521d4100"
     image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_centos-7'
+
+  php-8.6:
+    build:
+      context: .
+      dockerfile: php.Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "8.6"
+        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC3.tar.gz
+        phpSha256Hash: "a40085cef8bfb560ed3649cd83879e768ab22fe4cee467aa56b1b795c92e057d"
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.6_centos-7'

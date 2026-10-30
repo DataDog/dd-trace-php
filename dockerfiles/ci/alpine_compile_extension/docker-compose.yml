@@ -160,3 +160,17 @@ services:
         phpApi: 20250925
     volumes:
       - ../../:/app
+
+  8.6-alpine:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.6
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: 8.6.0RC3
+        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC3.tar.gz
+        phpSha256Hash: "a40085cef8bfb560ed3649cd83879e768ab22fe4cee467aa56b1b795c92e057d"
+        phpApi: 20260924
+    volumes:
+      - ../../:/app

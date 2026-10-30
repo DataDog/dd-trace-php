@@ -565,7 +565,11 @@ static void _php_verror(int type, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
+#if PHP_VERSION_ID >= 80600
+    php_verror(NULL, type, format, args);
+#else
     php_verror(NULL, "", type, format, args);
+#endif
     va_end(args);
 }
 

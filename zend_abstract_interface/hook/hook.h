@@ -146,6 +146,9 @@ typedef struct {
 } zai_function_location_entry;
 HashTable *zai_hook_function_location_map(void);
 
+/* The lexically enclosing op_array, or NULL if absent or its shared code has been freed. */
+zend_op_array *zai_hook_find_containing_op_array(const zend_op_array *op_array);
+
 /* {{{ private but externed for performance reasons */
 extern TSRM_TLS HashTable zai_hook_resolved;
 /* }}} */

@@ -1,6 +1,7 @@
 #include "../tsrmls_cache.h"
 #include <hook/hook.h>
 #include <hook/table.h>
+#include <hook/line_hooks.h>
 #include <interceptor/line_hook.h>
 #include <jit_utils/jit_blacklist.h>
 
@@ -81,8 +82,13 @@ typedef struct {
 
 // zai_function_location_map maps from a filename to a possibly ordered array of values
 ZEND_TLS HashTable zai_function_location_map;
-/* Closure opcodes / other function pointers -> borrowed filename key.
- * The location map keeps the key alive after destroy_op_array() releases filename. */
+typedef struct {
+    /* The location map keeps its key alive after destroy_op_array() releases filename. */
+    zend_string *filename;
+    zend_op_array *containing;
+} zai_function_location_reverse_entry;
+
+/* Closure opcodes / other function pointers -> location and declaration metadata. */
 ZEND_TLS HashTable zai_function_location_reverse; /* }}} */
 
 #define ZAI_IS_SHARED_HOOK_PTR (IS_PTR+1)
@@ -693,13 +699,17 @@ static inline zend_ulong zai_function_location_key(const zend_function *func) {
     return (zend_ulong)((func->common.fn_flags & ZEND_ACC_CLOSURE) ? (uintptr_t)func->op_array.opcodes : (uintptr_t)func);
 }
 
-static inline void zai_store_func_location(zend_function *func) {
+static inline void zai_store_func_location(zend_function *func, zend_op_array *containing) {
     if (func->type != ZEND_USER_FUNCTION || !func->op_array.filename) {
         return;
     }
 
     zend_ulong key = zai_function_location_key(func);
-    if (zend_hash_index_exists(&zai_function_location_reverse, key)) {
+    zai_function_location_reverse_entry *reverse = zend_hash_index_find_ptr(&zai_function_location_reverse, key);
+    if (reverse) {
+        if (containing) {
+            reverse->containing = containing;
+        }
         return;
     }
 
@@ -723,15 +733,25 @@ static inline void zai_store_func_location(zend_function *func) {
 
     entry->functions[entry->size - 1] = func;
     /* Repeated compiles can use distinct filename strings; only the map's key is kept alive. */
-    zend_hash_index_update_ptr(&zai_function_location_reverse, key, entry->filename);
+    reverse = emalloc(sizeof(*reverse));
+    reverse->filename = entry->filename;
+    reverse->containing = containing;
+    zend_hash_index_add_new_ptr(&zai_function_location_reverse, key, reverse);
     zai_hook_register_dynamic_functions(&func->op_array);
 }
 
 void zai_hook_register_dynamic_functions(zend_op_array *op_array) {
 #if PHP_VERSION_ID >= 80100
+    if (op_array->num_dynamic_func_defs && !op_array->function_name && !op_array->refcount) {
+        /* Opcache frees a cached file's temporary wrapper without calling the op_array dtor.
+         * Its code lives for the request, so keep a shallow copy of the wrapper in the arena. */
+        zend_op_array *containing = zend_arena_alloc(&CG(arena), sizeof(*containing));
+        *containing = *op_array;
+        op_array = containing;
+    }
     /* Index the definitions themselves; their shared code may outlive the enclosing op_array. */
     for (uint32_t i = 0; i < op_array->num_dynamic_func_defs; ++i) {
-        zai_store_func_location((zend_function *)op_array->dynamic_func_defs[i]);
+        zai_store_func_location((zend_function *)op_array->dynamic_func_defs[i], op_array);
     }
 #else
     (void)op_array;
@@ -739,11 +759,22 @@ void zai_hook_register_dynamic_functions(zend_op_array *op_array) {
 }
 
 static void zai_forget_func_location(zend_function *func) {
+#if PHP_VERSION_ID >= 80100
+    /* The child code can outlive its parent. Zend has already freed the parent's opcodes, but dynamic_func_defs is still alive when the op_array dtor runs. */
+    for (uint32_t i = 0; i < func->op_array.num_dynamic_func_defs; ++i) {
+        zai_function_location_reverse_entry *reverse = zend_hash_index_find_ptr(
+            &zai_function_location_reverse, zai_function_location_key((zend_function *)func->op_array.dynamic_func_defs[i]));
+        if (reverse) {
+            reverse->containing = NULL;
+        }
+    }
+#endif
     zend_ulong key = zai_function_location_key(func);
-    zend_string *filename = zend_hash_index_find_ptr(&zai_function_location_reverse, key);
-    if (!filename) {
+    zai_function_location_reverse_entry *reverse = zend_hash_index_find_ptr(&zai_function_location_reverse, key);
+    if (!reverse) {
         return;
     }
+    zend_string *filename = reverse->filename;
     zend_hash_index_del(&zai_function_location_reverse, key);
 
     zval *entryzv = zend_hash_find(&zai_function_location_map, filename);
@@ -762,6 +793,19 @@ static void zai_forget_func_location(zend_function *func) {
     if (entry->size == 0) {
         zend_hash_del(&zai_function_location_map, filename);
     }
+}
+
+zend_op_array *zai_hook_find_containing_op_array(const zend_op_array *op_array) {
+    zai_function_location_reverse_entry *reverse = zend_hash_index_find_ptr(
+        &zai_function_location_reverse, zai_function_location_key((const zend_function *)op_array));
+#if PHP_VERSION_ID >= 80100
+    if (!reverse || !reverse->containing) {
+        /* Preloaded declarations bypass this request's compile observers. Index them once on demand. */
+        zai_line_hooks_index_preloaded();
+        reverse = zend_hash_index_find_ptr(&zai_function_location_reverse, zai_function_location_key((const zend_function *)op_array));
+    }
+#endif
+    return reverse ? reverse->containing : NULL;
 }
 
 static int zai_function_location_map_cmp(const void *a, const void *b) {
@@ -949,7 +993,7 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, ze
 /* {{{ */
 void zai_hook_resolve_function(zend_function *function, zend_string *lcname) {
     zai_hook_resolve(&zai_hook_tls->request_functions, NULL, function, lcname);
-    zai_store_func_location(function);
+    zai_store_func_location(function, NULL);
 }
 
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
@@ -965,7 +1009,7 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
         if (prop_info->hooks && prop_info->ce == ce) {
             for (uint32_t i = 0; i < ZEND_PROPERTY_HOOK_COUNT; ++i) {
                 if (prop_info->hooks[i]) {
-                    zai_store_func_location(prop_info->hooks[i]);
+                    zai_store_func_location(prop_info->hooks[i], NULL);
                 }
             }
         }
@@ -977,7 +1021,7 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
     HashTable *method_table = zend_hash_find_ptr(&zai_hook_tls->request_classes, lcname);
     if (!method_table) {
         ZEND_HASH_FOREACH_STR_KEY_PTR(&ce->function_table, fnname, function) {
-            zai_store_func_location(function);
+            zai_store_func_location(function, NULL);
             if (function->common.scope == ce || !ZEND_USER_CODE(function->type)) {
                 zai_hook_resolve_lookup_inherited(NULL, ce, function, fnname);
             }
@@ -993,7 +1037,7 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
 
     ZEND_HASH_FOREACH_STR_KEY_PTR(&ce->function_table, fnname, function) {
         zai_hook_resolve(method_table, ce, function, fnname);
-        zai_store_func_location(function);
+        zai_store_func_location(function, NULL);
     } ZEND_HASH_FOREACH_END();
 
     if (zend_hash_num_elements(method_table) == 0) {
@@ -1457,7 +1501,7 @@ static void zai_hook_init_hashtables() {
 bool zai_hook_rinit(void) {
     zai_hook_init_hashtables();
     zend_hash_init(&zai_function_location_map, 8, NULL, zai_function_location_destroy, 0);
-    zend_hash_init(&zai_function_location_reverse, 8, NULL, NULL, 0);
+    zend_hash_init(&zai_function_location_reverse, 8, NULL, zai_function_location_destroy, 0);
 
     // reserve low hook ids for static hooks
     zai_hook_tls->id = (zend_ulong)zai_hook_static.nNextFreeElement;
