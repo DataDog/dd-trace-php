@@ -180,8 +180,9 @@
 //     handler is called) arms or disarms the request level for it: the
 //     superglobals FrankenPHP re-imports for it, before that call, and the
 //     worker script's code between HTTP requests follow the previous HTTP
-//     request's decision (see dd_p2s_guard_reconcile; a disarm drops a pending
-//     error). Under remote config, a change of appsec's state reaches the
+//     request's decision (see dd_p2s_guard_reconcile; a pending error is
+//     still raised, at the next VM interrupt outside the tracer's hook
+//     sandbox). Under remote config, a change of appsec's state reaches the
 //     thread the same way.
 //   - Per-directory datadog.appsec.enabled: follows appsec's own
 //     once-per-process resolution. It reaches the thread's flag only when set
@@ -215,14 +216,15 @@
 //     term).
 //   - Timeout at the same interrupt: when max_execution_time expires at the
 //     interrupt that would deliver a pending error, the VM handles the
-//     timeout (zend_timeout()) instead of calling zend_interrupt_function,
-//     and no new interrupt is requested while the error stays pending. A
-//     shutdown function that keeps allocating then runs under the hard limit
-//     and can end in _exit(137) instead of a fatal error.
+//     timeout (zend_timeout()) instead of calling zend_interrupt_function.
+//     No new interrupt is requested while the error stays pending (unless
+//     the tracer's sandbox refused it earlier). A shutdown function that
+//     keeps allocating then runs under the hard limit and can end in
+//     _exit(137) instead of a fatal error.
 //   - Displaced interrupt hook: if zend_interrupt_function is replaced after
-//     our startup hook without chaining to ours, a pending error is never
-//     raised and no new interrupt is requested, so a request that keeps
-//     allocating grows to the hard limit and ends in _exit(137), or the
+//     our startup hook without chaining to ours, the interrupts we ask for
+//     never reach us and a pending error is never raised, so a request that
+//     keeps allocating grows to the hard limit and ends in _exit(137), or the
 //     error is dropped at our RSHUTDOWN (see Coverage: Displaced hooks).
 //   - memory_limit lowered below usage (PHP 7.1-7.3, 7.4.0-7.4.20 and
 //     8.0.0-8.0.7, whose ini_set() accepts such a value; later versions
@@ -269,15 +271,23 @@
 //     memory-safe; recent FrankenPHP versions clear the last error at that
 //     point themselves.
 //   - Request level delivery: the error is raised at the next VM interrupt,
-//     after the inner interrupt handlers (pcntl signal handlers, ddtrace);
-//     code in between runs over memory_limit. A crossing in a module RINIT
-//     that runs after ours is raised at the script's first interrupt
+//     after the inner interrupt handlers (pcntl signal handlers, ddtrace); code
+//     in between runs over memory_limit. Not inside the tracer's sandbox
+//     (EH_THROW: its hook closures), which would swallow it: the rest of the
+//     closure runs on, and each allocation asks for the interrupt again (see
+//     _interrupt in p2s_runtime.c). So the error can come late (code after the
+//     closure that does not allocate runs on); raised after the HTTP request's
+//     span is finished (e.g. a FrankenPHP request the WAF blocks: its handler
+//     never runs and both hook closures are sandboxed), it is not tagged and
+//     the trace not kept. Internal functions that set EH_THROW around a
+//     callback into userland delay it the same way. A crossing in a module
+//     RINIT that runs after ours is raised at the script's first interrupt
 //     (EG(vm_interrupt) is reset only in init_executor(), before the RINITs),
 //     where stock PHP would fail the request startup instead. An error pending
 //     with no later interrupt (other modules' RSHUTDOWN, output handlers,
 //     session write, the end of the script, after EG(active) = 0) is dropped:
-//     the request succeeds within the hard limit. A timeout pending at the
-//     same time wins (see Coverage: Timeout at the same interrupt).
+//     the request succeeds within the hard limit. A timeout pending at the same
+//     time wins (see Coverage: Timeout at the same interrupt).
 //   - No limit after a dropped error: at our RSHUTDOWN the configured
 //     memory_limit is restored with zend_set_memory_limit(), whose result is
 //     not checked. With usage above it (mainly after a pending error was

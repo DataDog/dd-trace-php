@@ -2,7 +2,8 @@
 // Child script for php2shell_mitigation_runtime_hard_limit.phpt,
 // php2shell_mitigation_runtime_ini_set.phpt,
 // php2shell_mitigation_lifecycle_fallbacks.phpt and
-// php2shell_mitigation_sapi_off.phpt: allocations after RINIT, each followed
+// php2shell_mitigation_sapi_off.phpt (and p2s_runtime_kind() of
+// php2shell_cgi.php): allocations after RINIT, each followed
 // by an explicit VM safe point (see php2shell_child_runtime_parse_str.php for
 // why both a user function call and a loop). Each step is driven by an
 // environment variable and skipped when it is unset or empty:

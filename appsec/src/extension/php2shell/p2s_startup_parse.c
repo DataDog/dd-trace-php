@@ -523,7 +523,7 @@ void dd_p2s_startup_parse_run_window(dd_parse_fn parse, void *ctx,
         // $_POST (and friends) are fully built and internally consistent here.
         dd_p2s_guard_window_stop();
         _leave(progress, &error_handler, display_errors);
-        dd_p2s_guard_raise(phase, _input_filter_req.dropped);
+        dd_p2s_guard_raise_deferred_oom(phase, _input_filter_req.dropped);
     }
 
     if (armed) {
@@ -656,7 +656,8 @@ static bool _input_filter_should_drop(
            new_val_len != NULL;
 }
 
-// Count one dropped variable in this request (reported by dd_p2s_guard_raise).
+// Count one dropped variable in this request (reported by
+// dd_p2s_guard_raise_deferred_oom).
 // Does not allocate or log.
 static void _input_filter_count_drop(void) { _input_filter_req.dropped++; }
 

@@ -22,21 +22,49 @@ extension=ddtrace.so
 // detection reports it on the root span whatever the phase. The stub catches
 // the bailout, so that the request goes on and php2shell_child_waf.php can
 // print the root span's PHP2Shell tags and whether the trace is kept (its
-// shutdown function). Mode auto, runtime forced to full; the decision is the
-// testing override the process starts with.
+// shutdown function). Mode auto, detected runtime; the decision is the testing
+// override the process starts with.
+//
+// What the native error does depends on the runtime (behaviour table):
+//  - full: as above.
+//  - partial (monitor row, W-B; none row, native fatal): the engine's error
+//    ends the process with _exit(1) inside the allocation, before any hook or
+//    shutdown function runs: nothing is reported, the trace is lost.
+//  - patched (row "auto, patched runtime"): the mitigation is inactive and the
+//    upstream fix delays the error, which ends the request before the script
+//    runs: nothing is reported either.
 require __DIR__ . '/inc/php2shell_cgi.php';
+$kind = p2s_runtime_kind();
+echo "runtime=$kind\n";
+$want = [
+    'full' => [
+        'monitor' => 'outcome=native bailed=1 span=true deferred=- memory_error=memory_limit phase=startup user_keep=true',
+        'none' => 'outcome=native bailed=1 span=true deferred=- memory_error=- phase=- user_keep=false',
+    ],
+    'partial' => [
+        'monitor' => 'outcome=native status=1 no tags line',
+        'none' => 'outcome=native status=1 no tags line',
+    ],
+    'patched' => [
+        'monitor' => 'outcome=native no tags line',
+        'none' => 'outcome=native no tags line',
+    ],
+];
 foreach (['monitor', 'none'] as $decision) {
-    $env = p2s_cgi_env(P2S_WAF_CHILD) + p2s_waf_env('auto', $decision, 'full');
+    $env = p2s_cgi_env(P2S_WAF_CHILD) + p2s_waf_env('auto', $decision);
     $r = p2s_cgi_run(['memory_limit' => '32M', 'p2s_stub.rinit_alloc' => (string)(56 * P2S_MIB)],
         [], $env, null, ['ext_after' => true]);
     $bailed = preg_match('/^P2S_STUB RINIT alloc bailed=(\d)/m', $r['err'], $m) ? $m[1] : '?';
-    $outcome = p2s_outcome($r, 32 * P2S_MIB);
-    $tags = p2s_waf_tags($r);
-    echo "$decision: outcome=$outcome bailed=$bailed ", p2s_waf_tags_str($tags), "\n";
-    if ($tags === null || $bailed !== '1' || $outcome !== 'native') {
+    $got = 'outcome=' . p2s_outcome($r, 32 * P2S_MIB)
+        . ($kind === 'full' ? " bailed=$bailed" : '')
+        . ($kind === 'partial' ? " status={$r['status']}" : '')
+        . ' ' . p2s_waf_tags_str(p2s_waf_tags($r));
+    echo "$decision: ", $got === $want[$kind][$decision] ? 'as specified' : "got [$got]", "\n";
+    if ($got !== $want[$kind][$decision]) {
         p2s_dump($r);
     }
 }
---EXPECT--
-monitor: outcome=native bailed=1 span=true deferred=- memory_error=memory_limit phase=startup user_keep=true
-none: outcome=native bailed=1 span=true deferred=- memory_error=- phase=- user_keep=false
+--EXPECTF--
+runtime=%s
+monitor: as specified
+none: as specified

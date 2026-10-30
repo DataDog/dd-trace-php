@@ -149,6 +149,25 @@ function p2s_minfo_active() {
     return isset($minfo[P2S_ROW_STATE]) && $minfo[P2S_ROW_STATE] === 'Active';
 }
 
+// The runtime of this build, for tests whose native memory errors differ by
+// runtime: 'patched' (the MINFO row), 'partial' (the minimal fix of the EOL
+// branches: a native memory_limit error ends the process with _exit(1), with
+// no shutdown function run; see Coverage: Monitor on a partial runtime) or
+// 'full'. Probed in a php-cgi child with the mitigation off.
+function p2s_runtime_kind() {
+    $minfo = p2s_minfo();
+    if (isset($minfo[P2S_ROW_PATCHED]) && $minfo[P2S_ROW_PATCHED] === 'Yes') {
+        return 'patched';
+    }
+    $env = p2s_cgi_env(__DIR__ . '/php2shell_child_runtime_alloc.php', 'GET', [
+        'P2S_ALLOC' => (string)(16 * P2S_MIB),
+        'P2S_SHUTDOWN_ALLOC' => '1',
+    ]) + p2s_waf_env('off');
+    $r = p2s_cgi_run(['memory_limit' => '8M'], [], $env);
+    return $r['status'] === 1 && strpos($r['out'], 'SHUTDOWN RAN') === false
+        ? 'partial' : 'full';
+}
+
 // The hard limit outside the windows, at the request level, for the soft limit
 // $soft: max(L, S + 8 MiB), with L upstream's limit (2S below 1 GiB, S + 1 GiB
 // from 1 GiB).

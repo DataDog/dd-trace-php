@@ -168,8 +168,9 @@ void dd_p2s_runtime_rinit(void)
 
 // Called at the start of each HTTP request in FrankenPHP worker mode
 // (dd_php2shell_user_req_begin()), after its request_init applied the WAF
-// decision. Only flags change if the handlers are already there (see
-// dd_p2s_guard_reconcile); they stay until the worker's RSHUTDOWN.
+// decision. Opens the request level if RINIT did not; otherwise only flags
+// change (see dd_p2s_guard_reconcile). The handlers stay until the worker's
+// RSHUTDOWN.
 void dd_p2s_runtime_user_req_begin(void)
 {
 #ifdef DD_PHP2SHELL_HAVE_INTERRUPT
@@ -235,17 +236,25 @@ void dd_p2s_runtime_minfo_gc_mem_caches(void)
 #ifdef DD_PHP2SHELL_HAVE_INTERRUPT
 // The zend_interrupt_function wrapper: chain first, so the inner handlers
 // (pcntl signals, ddtrace, the profiler) see every interrupt, then raise the
-// error a crossing outside a window left pending (see _request_interrupt), if
-// it still is. Code an inner handler runs allocates under the hard limit until
-// the raise. The VM calls it from its interrupt helper, a safe point between
-// opcodes.
+// error a crossing outside a window left pending (see
+// dd_p2s_guard_request_interrupt), if it still is. Code an inner handler runs
+// allocates under the hard limit until the raise. The VM calls it from its
+// interrupt helper, a safe point between opcodes.
 static void _interrupt(zend_execute_data *execute_data)
 {
     if (_interrupt_inner != NULL) {
         _interrupt_inner(execute_data);
     }
     if (UNEXPECTED(dd_p2s_guard_error_pending() && !dd_p2s_guard_in_window())) {
-        dd_p2s_guard_raise(DD_PHASE_RUNTIME, 0);
+        // Not inside the tracer's sandbox (EH_THROW), around its hook
+        // closures: it would swallow the bailout, or, from a begin hook, leave
+        // the hooked call's span open (dropped at shutdown). Later allocations
+        // ask for the interrupt again (see _check_limit).
+        if (EG(error_handling) == EH_THROW) {
+            dd_p2s_guard_raise_refused();
+            return;
+        }
+        dd_p2s_guard_raise_deferred_oom(DD_PHASE_RUNTIME, 0);
     }
 }
 #endif

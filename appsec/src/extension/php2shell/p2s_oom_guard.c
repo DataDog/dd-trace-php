@@ -136,7 +136,6 @@ static void _precheck_hard_limit(size_t size);
 static bool _exceeds_hard(size_t used, size_t size);
 static void _check_limit(size_t add_size);
 static size_t _usage(void);
-static void _request_interrupt(void);
 static ZEND_COLD ZEND_NORETURN void _hard_abort(size_t add_size);
 static void _emit_and_flush(
     zend_string *nullable name, const char *nullable phase);
@@ -145,8 +144,9 @@ static void _emit_and_flush(
 //
 // Our Zend MM handlers are installed by a startup window (a single synchronous
 // treat_data() before RINIT, see dd_p2s_startup_parse_run_window), which
-// removes them when it ends, or, on PHP 7.1+, at the end of appsec's RINIT for
-// the request, removed at the start of appsec's RSHUTDOWN (see
+// removes them when it ends, or, on PHP 7.1+, for the request at the end of
+// appsec's RINIT (or at the start of a worker HTTP request, see
+// dd_p2s_guard_reconcile), removed at the start of appsec's RSHUTDOWN (see
 // dd_php2shell_rinit). Between install and removal the slot is never written:
 // only the bools change. A request_parse_body() window nests inside the request
 // level (see dd_p2s_guard_window_begin). The allocator-facing fields
@@ -177,8 +177,9 @@ ZEND_TLS struct {
     // _settle_handlers, _ensure_handlers, _reset_handlers_at_mshutdown);
     // while set, nothing installs them again.
     bool installed;
-    // They were installed at appsec's RINIT, for the request (see
-    // dd_php2shell_rinit), rather than by a startup window.
+    // They were installed for the request, at appsec's RINIT or at the start
+    // of a worker HTTP request (see dd_p2s_guard_open), rather than by a
+    // startup window.
     bool request;
     // The engine sits at the sentinel and our handlers enforce the limits.
     // Without it, installed handlers only forward.
@@ -186,6 +187,9 @@ ZEND_TLS struct {
     // Inside an armed parse window (see dd_p2s_startup_parse_run_window).
     bool window;
     bool pending;
+    // _interrupt refused to raise it inside the tracer's sandbox (see
+    // dd_p2s_guard_raise_refused).
+    bool raise_refused;
     bool had_prev;
     size_t soft;
     size_t hard;
@@ -298,7 +302,7 @@ void dd_p2s_guard_window_end(bool nested)
 }
 
 // Stop enforcing the window's limits before raising its deferred error: the
-// engine stays on the sentinel (see dd_p2s_guard_raise).
+// engine stays on the sentinel (see dd_p2s_guard_raise_deferred_oom).
 void dd_p2s_guard_window_stop(void) { _disarm(DD_DISARM_KEEP_LIMIT); }
 
 // Stop enforcing the window's limits on a bailout from its parse, and leave
@@ -315,7 +319,7 @@ void dd_p2s_guard_window_abort(void)
 // DD_PHASE_RUNTIME. Either way the request runs unarmed afterwards:
 // request-level handlers stay installed and only forward until RSHUTDOWN.
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise(
+ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     dd_deferred_phase phase, size_t dropped)
 // NOLINTEND(bugprone-easily-swappable-parameters)
 {
@@ -323,6 +327,7 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise(
     // is still on the sentinel limit.
     _disarm(DD_DISARM_KEEP_LIMIT);
     _arm_state.pending = false;
+    _arm_state.raise_refused = false;
     // Leave the sentinel before anything else: the log line below can be
     // displayed, and output can run user code (an output buffer callback);
     // after a deferral in a runtime request_parse_body(), user shutdown
@@ -371,7 +376,8 @@ const char *nonnull dd_p2s_phase_name(dd_deferred_phase phase)
 }
 
 // Install (or arm already chained) handlers for the whole request, from
-// appsec's RINIT; the caller has checked the gate and dd_p2s_guard_available().
+// appsec's RINIT or dd_p2s_guard_reconcile; the caller has checked the gate
+// and dd_p2s_guard_available().
 void dd_p2s_guard_open(void)
 {
     if (!_ensure_handlers()) {
@@ -394,7 +400,15 @@ void dd_p2s_guard_reconcile(bool armed)
             _arm(soft, _request_hard_limit(soft));
         }
     } else if (_arm_state.request && _arm_state.armed && !_arm_state.window) {
-        // A pending error is dropped, as at the end of a request.
+        // A pending error is not dropped: usage is above memory_limit, so
+        // restoring it would fail (7.4.21+, 8.1+) and leave the sentinel
+        // unchecked for the rest of the worker run. Nor raised here, inside
+        // the tracer's hook sandbox (see _interrupt): stay armed until
+        // _interrupt raises it.
+        if (_arm_state.pending) {
+            dd_p2s_guard_request_interrupt();
+            return;
+        }
         _disarm(DD_DISARM_RESTORE_LIMIT);
     }
 }
@@ -686,22 +700,33 @@ static void _check_limit(size_t add_size)
         _hard_abort(add_size);
     }
 
-    if (used > _arm_state.soft && !_arm_state.pending) {
-        // Mirror upstream's "gc then re-check".
-        _run_gc();
+    if (UNEXPECTED(used > _arm_state.soft)) {
+        if (!_arm_state.pending) {
+            // Mirror upstream's "gc then re-check".
+            _run_gc();
 
-        if (_usage() > _arm_state.soft) {
-            _arm_state.pending = true;
-            if (!_arm_state.window) {
-                _request_interrupt();
+            if (_usage() > _arm_state.soft) {
+                _arm_state.pending = true;
+                if (!_arm_state.window) {
+                    dd_p2s_guard_request_interrupt();
+                }
             }
         }
+    } else if (UNEXPECTED(_arm_state.raise_refused) && !_arm_state.window) {
+        // _interrupt left the pending error for later and cannot ask again
+        // itself (the VM would run it again before resuming). Whatever the
+        // usage: it may have fallen back below the soft limit.
+        dd_p2s_guard_request_interrupt();
     }
 }
 
+// _interrupt could not raise the pending error inside the tracer's sandbox:
+// each allocation asks for the interrupt again until it is raised.
+void dd_p2s_guard_raise_refused(void) { _arm_state.raise_refused = true; }
+
 // Ask the VM to run the interrupt helper at its next check, where _interrupt
 // raises the pending error (request level, outside a window).
-static void _request_interrupt(void)
+void dd_p2s_guard_request_interrupt(void)
 {
 #if PHP_VERSION_ID >= 80200
     zend_atomic_bool_store_ex(&EG(vm_interrupt), true);
@@ -993,6 +1018,7 @@ static void _forget_request(void)
     _arm_state.armed = false;
     _arm_state.window = false;
     _arm_state.pending = false;
+    _arm_state.raise_refused = false;
 }
 
 // Arm installed handlers: raise the engine's limit to the sentinel, so that
@@ -1003,6 +1029,7 @@ static void _arm(size_t soft, size_t hard)
 {
     ZEND_ASSERT(_arm_state.installed);
     _arm_state.pending = false;
+    _arm_state.raise_refused = false;
     _arm_state.soft = soft;
     _arm_state.hard = hard;
     _arm_state.memory_limit = (zend_long)PG(memory_limit);
