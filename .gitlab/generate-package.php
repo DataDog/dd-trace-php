@@ -76,6 +76,19 @@ function package_extension_jobs(array $platform, string $kind = "all"): array
     return $jobs;
 }
 
+/**
+ * Emits a job script step that runs each listed system-tests scenario in sequence.
+ * Every scenario runs even when an earlier one fails; the step then fails, listing the failed scenarios.
+ *
+ * @param string $scenarios Shell words expanding to the scenario names: a variable reference such as '$TESTSUITE', or literal names.
+ */
+function system_tests_run_scenarios(string $scenarios): void
+{
+?>
+    - FAILED=""; for S in <?= $scenarios ?>; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+<?php
+}
+
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
@@ -473,7 +486,6 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
@@ -808,7 +820,8 @@ endforeach;
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
-    - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+    # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
+    - php run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
 <?php foreach ($build_platforms as $platform): ?>
 <?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
@@ -1183,7 +1196,8 @@ endforeach;
           - alpine:3.16
           - alpine:3.21
           - alpine:3.24
-      - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      # Pre-GA versions only exist as -rc tags on Docker Hub.
+      - IMAGE: <?= json_encode(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "php:$v-rc-fpm-alpine" : "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1333,7 +1347,7 @@ endforeach;
   extends: .verify_job
   variables:
     INSTALL_MODE: sury
-    PHP_VERSION: "<?= end($all_minor_major_targets) ?>"
+    PHP_VERSION: "<?= $latest_ga_minor_major ?>"
     INSTALL_TYPE: native_package
     IMAGE: "debian:bookworm-slim"
   script:
@@ -1553,9 +1567,9 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
-        - DEBUGGER_PROBES_SNAPSHOT_WITH_SCM
+        - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_EXPRESSION_LANGUAGE DEBUGGER_INPRODUCT_ENABLEMENT"
   script:
-    - ./run.sh $TESTSUITE
+<?php system_tests_run_scenarios('$TESTSUITE') ?>
 
 "System Tests: [php-fpm-8.5, default]":
   extends: .system_tests
@@ -1578,9 +1592,16 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
-        - DEBUGGER_PROBES_SNAPSHOT_WITH_SCM
+        - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_TELEMETRY DEBUGGER_EXCEPTION_REPLAY"
   script:
-    - ./run.sh $TESTSUITE
+<?php system_tests_run_scenarios('$TESTSUITE') ?>
+
+"System Tests: [apache-mod-8.0-zts, debugger]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: "-i weblog -w apache-mod-8.0-zts php"
+  script:
+<?php system_tests_run_scenarios('DEBUGGER_PROBES_SNAPSHOT DEBUGGER_PII_REDACTION') ?>
 
 <?php
 $system_tests_weblogs = [
@@ -1644,7 +1665,7 @@ foreach ($system_tests_durations as $scenario => $seconds) {
     # Run this shard's packed scenarios that system-tests still lists, plus every CI_NODE_TOTAL-th (hash order) of those the durations file lacks.
     - SCENARIOS=$(echo $SCENARIOS | python3 -c "import os,sys;n=int(os.environ['CI_NODE_TOTAL']);k=int(os.environ['CI_NODE_INDEX']);p=[os.environ.get(f'SHARD_{i}_SCENARIOS','').split() for i in range(1,n+1)];known={s for x in p for s in x};a=sys.stdin.read().split();print(' '.join([s for s in a if s in p[k-1]]+[s for s in a if s not in known][k-1::n]))")
     - echo "Shard $CI_NODE_INDEX/$CI_NODE_TOTAL scenarios:" $SCENARIOS
-    - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+<?php system_tests_run_scenarios('$SCENARIOS') ?>
 
 <?php endforeach; ?>
 # THREAD_CONTEXT_SHARING needs CWS, which needs the kernel filesystems and the

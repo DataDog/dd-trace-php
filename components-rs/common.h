@@ -301,6 +301,12 @@ typedef struct _zend_string _zend_string;
  */
 #define ddog_PHP_GRPC_KEY_COUNT 4
 
+/**
+ * Maximum number of additional metric tag keys, excess keys are dropped (must match
+ * `MAX_ADDITIONAL_TAGS` in libdd-ipc/src/shm_stats.rs).
+ */
+#define ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS 4
+
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
 typedef enum ddog_AppsecBodyStatus {
@@ -783,11 +789,12 @@ typedef struct ddog_Vec_DebuggerPayload {
 } ddog_Vec_DebuggerPayload;
 
 /**
- * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
+ * A (key, value) tag pair, borrowed from PHP/concentrator memory.
  */
 typedef struct ddog_PhpPeerTag {
   /**
-   * Key string — borrows from the concentrator's `peer_tag_keys` Vec<String>.
+   * Key string — borrows from the concentrator's `peer_tag_keys` Vec<String> for peer tags,
+   * and from the PHP configuration for additional metric tags.
    */
   ddog_CharSlice key;
   /**
@@ -845,6 +852,20 @@ typedef struct ddog_PhpSpanStats {
    * May be null when `peer_tags_count == 0`.
    */
   const struct ddog_PhpPeerTag *peer_tags;
+  /**
+   * Number of (key,value) pairs in `additional_tags`, at most
+   * `PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS`.
+   */
+  uintptr_t additional_tags_count;
+  /**
+   * Pointer to an array of `additional_tags_count` `PhpPeerTag` pairs, sorted by key.
+   * May be null when `additional_tags_count == 0`.
+   */
+  const struct ddog_PhpPeerTag *additional_tags;
+  /**
+   * Maximum number of entries with unmasked additional metric tags per stats bucket.
+   */
+  uint32_t additional_tags_cardinality_limit;
 } ddog_PhpSpanStats;
 
 /**

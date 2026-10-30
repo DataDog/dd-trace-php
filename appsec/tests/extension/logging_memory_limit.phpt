@@ -22,14 +22,14 @@ register_shutdown_function(function () use (&$warnings, &$returned) {
     fopen(__DIR__ . '/does-not-exist-for-oom-test', 'r');
     var_dump($warnings);
 });
-$message = str_repeat('x', 500);
+$message = str_repeat('x', 4096);
 // Preallocate the slots so adding ballast does not resize the array.
 $ballast = array_fill(0, 32768, null);
 // Leave room for deferred reporting below patched PHP's hard limit.
 $ballast[0] = str_repeat('x', 8 * 1024 * 1024);
 gc_mem_caches();
 // Measure a full chunk with small allocations, then fill the next one.
-// The short log message must need a new page inside php_verror().
+// Above 3 KiB, the log message needs new pages inside php_verror().
 $limit = memory_get_usage(true);
 $first = 0;
 for ($i = 1; $i < 32768; $i++) {

@@ -20,6 +20,8 @@
 #include <interceptor/php8/interceptor.h>
 #endif
 #include <jit_utils/jit_blacklist.h>
+#include <interceptor/line_hook.h>
+#include <jit_utils/opcache_symbols.h>
 #include <php.h>
 #include <php_ini.h>
 #ifndef _WIN32
@@ -71,6 +73,7 @@
 #include <ext/standard/file.h>
 
 #include "hook/uhook.h"
+#include "hook/uhook_line.h"
 #include "handlers_fiber.h"
 #include "git_metadata.h"
 #include "tracer_telemetry.h"
@@ -157,21 +160,21 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 }
 
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_service), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_env), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_version), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }
@@ -179,6 +182,9 @@ bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new
 }
 
 void ddtrace_activate_once(void) {
+    // Install the outer compile wrapper after all extension startup hooks have run.
+    ddtrace_engine_hooks_first_rinit();
+
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!datadog_disable) {
 #ifndef _WIN32
@@ -217,6 +223,8 @@ void ddtrace_activate_early(void) {
     ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
+    // Borrowed from the previous request's configuration, which is gone by now.
+    DDTRACE_G(stats_additional_tags).computed = false;
 }
 
 void ddtrace_activate_late(void) {
@@ -243,10 +251,12 @@ void ddtrace_ginit(zend_datadog_globals *ddtrace_globals) {
     UNUSED(ddtrace_globals);
 #endif
     zai_hook_ginit();
+    zai_line_hook_ginit();
 }
 
 void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
     zai_hook_gshutdown();
+    zai_line_hook_gshutdown();
 
     if (datadog_globals->ddtrace.agent_config_reader) {
         ddog_agent_remote_config_reader_drop(datadog_globals->ddtrace.agent_config_reader);
@@ -337,9 +347,8 @@ void ddtrace_minit_early(int module_number) {
 #if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
 #endif
-#if ZAI_JIT_BLACKLIST_ACTIVE
+    /* Line hooks need OPcache segment bounds even when JIT blacklisting is disabled. */
     zai_jit_minit();
-#endif
 
     ddtrace_register_functions_and_classes(module_number);
 }
@@ -377,6 +386,7 @@ void ddtrace_minit_late() {
 void ddtrace_mshutdown() {
     zai_uhook_mshutdown();
     zai_hook_mshutdown();
+    zai_line_hook_mshutdown();
 
     ddtrace_unregister_functions_and_classes();
 
@@ -637,6 +647,9 @@ static void dd_shutdown_hooks(bool fast_shutdown) {
 }
 
 void ddtrace_rshutdown(bool fast_shutdown) {
+    // Release hook closures while the object store is still live; post_deactivate runs after its teardown.
+    ddtrace_uhook_line_rshutdown();
+
     zend_hash_destroy(&DDTRACE_G(traced_spans));
 
     // this needs to be done before dropping the spans
@@ -766,6 +779,9 @@ void ddtrace_internal_handle_fork() {
     ddtrace_otel_detach();
     ddtrace_otel_tid_fork_handler();
 #endif
+    // Acquire the child's shared line-hook references and re-establish inherited trampolines.
+    zai_line_hook_handle_fork();
+
     if (DATADOG_G(sidecar)) {
         // Unconditionally send, even if root span is NULL
         ddtrace_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->root_span ? &DDTRACE_G(active_stack)->root_span->span : NULL;

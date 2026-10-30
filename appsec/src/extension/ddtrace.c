@@ -188,7 +188,7 @@ void dd_trace_startup(void)
 #endif
 }
 
-void dd_trace_rinit(void) { _asm_event_emitted = false; }
+void dd_trace_root_span_changed(void) { _asm_event_emitted = false; }
 
 static void _setup_testing_telemetry_functions(void)
 {
@@ -318,7 +318,12 @@ void dd_trace_close_all_spans_and_flush(void)
 static zval *_get_span_modifiable_array_property(
     zend_object *nonnull zobj, zend_string *nonnull propname)
 {
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80600
+    // 8.6 asserts type != BP_VAR_IS; BP_VAR_W matches the old IS path (no
+    // undefined-property warning, unlike BP_VAR_RW)
+    zval *res =
+        zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_W, NULL);
+#elif PHP_VERSION_ID >= 80000
     zval *res =
         zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_IS, NULL);
 #else

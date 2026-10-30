@@ -7,11 +7,10 @@ use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimi
 use datadog_sidecar::tracer::shm_limiter_path;
 use datadog_sidecar_ffi::AgentRemoteConfigReader;
 use lazy_static::lazy_static;
-use libdd_common::rate_limiter::LocalLimiter;
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
-use libdd_ipc::rate_limiter::{ShmLimiter, ShmLimiterMemory};
+use libdd_ipc::rate_limiter::{LocalLimiter, ShmLimiter, ShmLimiterMemory};
 use libdd_telemetry_ffi::try_c;
 #[cfg(windows)]
 use spawn_worker::{get_trampoline_target_data, LibDependency};

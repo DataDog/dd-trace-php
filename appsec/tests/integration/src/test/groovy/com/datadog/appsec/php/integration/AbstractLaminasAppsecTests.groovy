@@ -1,7 +1,5 @@
 package com.datadog.appsec.php.integration
 
-import com.datadog.appsec.php.TelemetryHelpers
-import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Order
@@ -11,40 +9,23 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 import static java.net.http.HttpResponse.BodyHandlers.ofInputStream
-import static java.net.http.HttpResponse.BodyHandlers.ofString
 
 /**
  * Shared AppSec tests for the Laminas MVC fixtures. Concrete subclasses supply
  * the {@code @Container} static field, declare {@code isExpectedVersion}, and
  * override the {@code is*} / {@code get*} hooks when a specific MVC version
  * exposes different route literals or a reduced endpoint set.
+ * Endpoint-collection tests come from {@link AbstractFrameworkAppsecTests}.
  *
  * Laminas 3.3 exposes a legacy {@code /authenticate} + {@code /behind-auth}
  * controller pair; newer fixtures standardise on {@code /login/auth} +
  * {@code /behind_auth}. The hooks absorb that divergence so the auth test
  * bodies remain shared.
  */
-abstract class AbstractLaminasAppsecTests {
+abstract class AbstractLaminasAppsecTests extends AbstractFrameworkAppsecTests {
 
-    AppSecContainer getContainer() {
-        getClass().CONTAINER
-    }
-
-    /**
-     * When {@code true} (default), {@link #getExpectedEndpoints} may be a
-     * strict subset of the endpoints emitted by the fixture (extras are
-     * accepted). Set to {@code false} in subclasses that enumerate every
-     * expected route to also assert the exact total count.
-     */
-    boolean isAllowUnenumeratedRoutes() { true }
-
-    /**
-     * Routes that must appear in the endpoints telemetry. Entries are
-     * {@code [path, method, resourceName]} triples; operation name is always
-     * {@code http.request}. Must be exhaustive when
-     * {@link #isAllowUnenumeratedRoutes} is {@code false}.
-     */
-    List<List<String>> getExpectedEndpoints() { [] }
+    @Override
+    String getExpectedRootHttpRoute() { '/' }
 
     /**
      * Path prefix for the login authentication endpoint (no query string).
@@ -70,56 +51,6 @@ abstract class AbstractLaminasAppsecTests {
      * Expected {@code http.route} tag value for behind-auth responses.
      */
     String getBehindAuthHttpRoute() { getBehindAuthPath() }
-
-    @Test
-    @Order(1)
-    void 'Endpoints are not collected before the first request to framework'() {
-        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
-        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-            assert re.statusCode() == 200
-            assert re.body().contains('are_endpoints_collected: false')
-        }
-    }
-
-    @Test
-    @Order(2)
-    void 'Endpoints are sent'() {
-        Trace trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
-            assert resp.statusCode() == 200
-        }
-
-        assert trace.traceId != null
-        assert trace.first().meta.'http.route' == '/'
-
-        List<TelemetryHelpers.Endpoint> endpoints
-        TelemetryHelpers.waitForAppEndpoints(container, 30, { List<TelemetryHelpers.Endpoint> messages ->
-            endpoints = messages.collectMany { it.endpoints }
-            endpoints.size() > 0
-        })
-
-        if (!allowUnenumeratedRoutes) {
-            assert endpoints.size() == expectedEndpoints.size()
-        }
-        expectedEndpoints.each { List<String> entry ->
-            String path = entry[0]
-            String method = entry[1]
-            String resource = entry[2]
-            assert endpoints.find {
-                it.path == path && it.method == method &&
-                        it.operationName == 'http.request' && it.resourceName == resource
-            } != null, "Missing endpoint ${method} ${path}"
-        }
-    }
-
-    @Test
-    @Order(3)
-    void 'Endpoints are collected after the first request to framework'() {
-        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
-        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-            assert re.statusCode() == 200
-            assert re.body().contains('are_endpoints_collected: true')
-        }
-    }
 
     @Test
     @Order(4)

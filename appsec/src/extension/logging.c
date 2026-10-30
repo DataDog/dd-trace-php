@@ -351,7 +351,14 @@ static void _mlog_php(dd_log_level_t level, const char *format, va_list args)
     EG(error_handling) = EH_NORMAL;
 
     const int php_log_level = _log_level_to_php_err_reporting_pri(level);
-    zend_try { php_verror(NULL, "", php_log_level, new_fmt, args); }
+    zend_try
+    {
+#if PHP_VERSION_ID >= 80600
+        php_verror(NULL, php_log_level, new_fmt, args);
+#else
+        php_verror(NULL, "", php_log_level, new_fmt, args);
+#endif
+    }
     zend_catch
     {
         EG(error_handling) = orig_err_handling;
@@ -566,10 +573,8 @@ static PHP_FUNCTION(datadog_appsec_testing_mlog)
         _dd_log_errf("Level %lld is out of range", (long long)level);
         RETURN_FALSE;
     }
-    // Clamp so the %.*s precision fits in an int. PHP < 8.0 truncates error
-    // messages to log_errors_max_len (1024 by default) in php_error_cb, so
-    // 500 bytes plus php_verror's prefix behaves the same on every version.
-    mlog((dd_log_level_t)level, "%.*s", (int)MIN(str->len, 500), str->val);
+    // Not %.*s, whose precision PHP < 8.1 caps at 500.
+    mlog((dd_log_level_t)level, "%s", ZSTR_VAL(str));
     RETURN_TRUE;
 }
 // for closing stderr/stdout. fclose(STDERR) doesn't seem to reliably work
