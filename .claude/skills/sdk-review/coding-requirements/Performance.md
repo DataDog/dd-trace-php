@@ -1,14 +1,19 @@
 # Performance
 
 Allocations and CPU cost on hot paths (span creation and finish, tagging,
-propagation, instrumentation callbacks), at startup, and in tooling.
+propagation, instrumentation callbacks for tracing, similar paths for 
+other products), at startup and shutdown, on error and diagnostic paths,
+and in tooling.
 
 **When planning:** take the rules below into account when designing the
 change.
 
 **When reviewing:** report a finding when the diff matches a rule's `Flag:`
-line on a hot, startup, or high-volume path. Cite the rule ID and say which
-path it is on.
+line, wherever the code runs: hot paths, startup and shutdown, error and
+diagnostic paths, CI and build configuration, and test infrastructure. Don't
+dismiss a match because each call is cheap, the path looks rare, or the
+commit message explains the choice. Cite the rule ID, say which path it is
+on and how often it runs, and let the severity reflect the actual cost.
 
 ## 1. Hot paths
 
