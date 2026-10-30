@@ -31,9 +31,8 @@ typedef struct {
     zend_execute_data *frame;
     zai_line_invocation *invocation;
     const zend_op *begin_opline;
-    struct dd_line_frame_data *frame_state; /* shared by every range open in this frame */
-    zval span;
-    zval prior_stack; /* must stay adjacent to span: get_gc reports the pair */
+    ddtrace_line_span line_span;
+    zval gc_table[2]; /* scratch for get_gc */
     bool is_begin;
     bool opened; /* the manager holds an open range for this invocation */
     zend_object std;
@@ -103,8 +102,12 @@ zend_object *ddtrace_line_hook_data_create(zend_class_entry *class_type) {
 
 static void dd_line_hook_data_free(zend_object *object) {
     dd_line_hook_data *data = dd_line_hook_data_from_obj(object);
-    zval_ptr_dtor(&data->span);
-    zval_ptr_dtor(&data->prior_stack);
+    if (data->line_span.span) {
+        OBJ_RELEASE(&data->line_span.span->std);
+    }
+    if (data->line_span.prior_stack) {
+        OBJ_RELEASE(&data->line_span.prior_stack->std);
+    }
     zend_object_std_dtor(object);
 }
 
@@ -126,8 +129,15 @@ static HashTable *dd_line_hook_data_gc(zval *object, zval **table, int *n) {
 static HashTable *dd_line_hook_data_gc(zend_object *object, zval **table, int *n) {
     dd_line_hook_data *data = dd_line_hook_data_from_obj(object);
 #endif
-    *table = &data->span;
-    *n = 2;
+    int count = 0;
+    if (data->line_span.span) {
+        ZVAL_OBJ(&data->gc_table[count++], &data->line_span.span->std);
+    }
+    if (data->line_span.prior_stack) {
+        ZVAL_OBJ(&data->gc_table[count++], &data->line_span.prior_stack->std);
+    }
+    *table = data->gc_table;
+    *n = count;
     return zend_std_get_properties(object);
 }
 
@@ -287,44 +297,23 @@ static void dd_line_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
     }
 
     dd_line_hook_data *data = dd_line_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
-    if (Z_TYPE(data->span) == IS_OBJECT) {
-        RETURN_COPY(&data->span);
+    if (data->line_span.span) {
+        RETURN_OBJ_COPY(&data->line_span.span->std);
     }
 
-    dd_line_frame_data *state = NULL;
+    ddtrace_span_data *span = NULL;
     if (data->is_begin && data->frame && get_DD_TRACE_ENABLED() && (unlimited || !ddtrace_tracer_is_limited()) && dd_line_track_span(data)) {
-        state = dd_line_frame_get(data->frame, true);
-        data->frame_state = state;
+        span = ddtrace_line_span_open(&data->line_span, data->frame, stack);
     }
-    if (!state) {
-        ZVAL_OBJ(&data->span, &ddtrace_init_dummy_span()->std);
-        RETURN_COPY(&data->span);
-    }
-
-    bool generator = (data->frame->func->common.fn_flags & ZEND_ACC_GENERATOR) != 0;
-    bool first_generator_span = generator && !state->caller_stack;
-    if (first_generator_span) {
-        state->caller_stack = DDTRACE_G(active_stack);
-        GC_ADDREF(&state->caller_stack->std);
-    }
-    if (stack) {
-        ZVAL_OBJ_COPY(&data->prior_stack, &DDTRACE_G(active_stack)->std);
-        ddtrace_switch_span_stack(stack);
-    }
-    if (first_generator_span || (generator && stack)) {
-        ddtrace_span_stack *generator_stack = ddtrace_init_span_stack();
-        ddtrace_switch_span_stack(generator_stack);
-        OBJ_RELEASE(&generator_stack->std);
+    if (!span) {
+        data->line_span.span = ddtrace_init_dummy_span();
+        RETURN_OBJ_COPY(&data->line_span.span->std);
     }
 
-    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
-    ZVAL_OBJ(&data->span, &span->std);
-    ++state->spans;
-    ++dd_line_active_spans;
     zval_ptr_dtor(&span->property_name);
     ZVAL_STR(&span->property_name, strpprintf(0, "%s:%u", ZSTR_VAL(data->frame->func->op_array.filename), data->begin_opline->lineno));
     ddtrace_observe_opened_span(span);
-    RETURN_COPY(&data->span);
+    RETURN_OBJ_COPY(&span->std);
 }
 
 ZEND_METHOD(DDTrace_LineHookData, span) {
@@ -344,11 +333,40 @@ static void dd_line_restore_caller(dd_line_frame_data *state) {
     }
 }
 
-static void dd_line_finish_span(dd_line_hook_data *data, bool keep) {
-    zval span_zv;
-    ZVAL_COPY_VALUE(&span_zv, &data->span);
-    ZVAL_UNDEF(&data->span);
-    ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ(span_zv));
+ddtrace_span_data *ddtrace_line_span_open(ddtrace_line_span *line_span, zend_execute_data *frame, ddtrace_span_stack *stack) {
+    dd_line_frame_data *state = dd_line_frame_get(frame, true);
+    if (!state) {
+        return NULL;
+    }
+    line_span->frame_state = state;
+
+    bool generator = (frame->func->common.fn_flags & ZEND_ACC_GENERATOR) != 0;
+    bool first_generator_span = generator && !state->caller_stack;
+    if (first_generator_span) {
+        state->caller_stack = DDTRACE_G(active_stack);
+        GC_ADDREF(&state->caller_stack->std);
+    }
+    if (stack) {
+        line_span->prior_stack = DDTRACE_G(active_stack);
+        GC_ADDREF(&line_span->prior_stack->std);
+        ddtrace_switch_span_stack(stack);
+    }
+    if (first_generator_span || (generator && stack)) {
+        ddtrace_span_stack *generator_stack = ddtrace_init_span_stack();
+        ddtrace_switch_span_stack(generator_stack);
+        OBJ_RELEASE(&generator_stack->std);
+    }
+
+    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
+    line_span->span = span;
+    ++state->spans;
+    ++dd_line_active_spans;
+    return span;
+}
+
+static void dd_line_close_span(ddtrace_line_span *line_span, bool keep) {
+    ddtrace_span_data *span = line_span->span;
+    line_span->span = NULL;
     if (span->start && !ddtrace_span_is_dropped(span) && span->type != DDTRACE_SPAN_CLOSED) {
         if (keep) {
             ddtrace_close_span(span);
@@ -356,14 +374,36 @@ static void dd_line_finish_span(dd_line_hook_data *data, bool keep) {
             ddtrace_drop_span(span);
         }
     }
-    if (Z_TYPE(data->prior_stack) == IS_OBJECT) {
-        zval prior_stack;
-        ZVAL_COPY_VALUE(&prior_stack, &data->prior_stack);
-        ZVAL_UNDEF(&data->prior_stack);
-        ddtrace_switch_span_stack((ddtrace_span_stack *)Z_OBJ(prior_stack));
-        zval_ptr_dtor(&prior_stack);
+    if (line_span->prior_stack) {
+        ddtrace_span_stack *prior_stack = line_span->prior_stack;
+        line_span->prior_stack = NULL;
+        ddtrace_switch_span_stack(prior_stack);
+        OBJ_RELEASE(&prior_stack->std);
     }
-    zval_ptr_dtor(&span_zv);
+    OBJ_RELEASE(&span->std);
+}
+
+void ddtrace_line_span_finish(ddtrace_line_span *line_span, bool keep) {
+    if (line_span->span) {
+        dd_line_close_span(line_span, keep);
+    }
+
+    /* Only a real span claimed the frame record; a dummy stored by a callback never did. */
+    dd_line_frame_data *state = line_span->frame_state;
+    if (!state) {
+        return;
+    }
+    line_span->frame_state = NULL;
+    --state->spans;
+    --dd_line_active_spans;
+    if (!state->spans) {
+        dd_line_restore_caller(state);
+        /* Keep the record while a suspended generator still has a stack parked in it; the frame may resume and open another span.
+           It goes at the latest with the request. */
+        if (!state->resume_stack) {
+            zend_hash_index_del(&dd_line_frames, state->key);
+        }
+    }
 }
 
 static bool dd_line_begin(zai_line_invocation *invocation, zend_execute_data *frame, const zend_op *opline, uint32_t line, void *auxiliary, void *dynamic) {
@@ -400,39 +440,9 @@ static void dd_line_end(zend_execute_data *frame, uint32_t line, void *auxiliary
         return;
     }
 
-    bool real_span = false;
-    if (Z_TYPE(data->span) == IS_OBJECT) {
-        ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ(data->span));
-        real_span = span->start != 0;
-        if (real_span && !ddtrace_span_is_dropped(span) && span->type != DDTRACE_SPAN_CLOSED) {
-            if (EG(exception) && Z_TYPE(span->property_exception) <= IS_FALSE) {
-                ZVAL_OBJ_COPY(&span->property_exception, EG(exception));
-            }
-            dd_trace_stop_span_time(span);
-        }
-    }
-
+    dd_trace_stop_span_time_with_exception(data->line_span.span);
     bool keep_span = dd_line_call(frame, def, &def->end, data, line, false);
-    if (Z_TYPE(data->span) == IS_OBJECT) {
-        dd_line_finish_span(data, keep_span);
-    }
-
-    dd_line_frame_data *state = data->frame_state;
-    if (real_span) {
-        if (state) {
-            --state->spans;
-        }
-        --dd_line_active_spans;
-    }
-    if (state && !state->spans) {
-        dd_line_restore_caller(state);
-        /* Keep the record while a suspended generator still has a stack parked in it; the frame may resume and open another span.
-           It goes at the latest with the request. */
-        if (!state->resume_stack) {
-            data->frame_state = NULL;
-            zend_hash_index_del(&dd_line_frames, state->key);
-        }
-    }
+    ddtrace_line_span_finish(&data->line_span, keep_span);
 
     data->opened = false;
     OBJ_RELEASE(&data->std);
@@ -456,17 +466,29 @@ static void dd_line_resume(dd_line_frame_data *state) {
     }
 }
 
+void ddtrace_line_span_suspend(ddtrace_line_span *line_span) {
+    dd_line_suspend(line_span->frame_state);
+}
+
+void ddtrace_line_span_resume(ddtrace_line_span *line_span) {
+    dd_line_resume(line_span->frame_state);
+}
+
 /* Delivered once per open range; repeated transitions are no-ops. */
 static void dd_line_frame_suspend(zend_execute_data *frame, void *auxiliary, void *dynamic) {
     (void)frame, (void)auxiliary;
     dd_line_hook_data *data = ((dd_line_dynamic *)dynamic)->data;
-    dd_line_suspend(data ? data->frame_state : NULL);
+    if (data) {
+        ddtrace_line_span_suspend(&data->line_span);
+    }
 }
 
 static void dd_line_frame_resume(zend_execute_data *frame, void *auxiliary, void *dynamic) {
     (void)frame, (void)auxiliary;
     dd_line_hook_data *data = ((dd_line_dynamic *)dynamic)->data;
-    dd_line_resume(data ? data->frame_state : NULL);
+    if (data) {
+        ddtrace_line_span_resume(&data->line_span);
+    }
 }
 
 void ddtrace_line_hook_data_minit(void) {

@@ -5,6 +5,9 @@
 #include "zai_string/string.h"
 #include "span.h"
 #include "hook/uhook.h"
+#include "hook/uhook_line.h"
+#include <hook/line_hooks.h>
+#include <interceptor/line_hook.h>
 #include <ext/sidecar.h>
 #include "hook/hook.h"
 #include "serializer.h"
@@ -204,7 +207,7 @@ void dd_stop_debugger_timeout(void) {
 struct eval_ctx {
     zend_execute_data *frame;
     zend_arena *arena;
-    zval *retval;
+    zval *retval; // NULL at a line, which has no @return, @duration or @exception
     const ddog_CaptureConfiguration *config;
 };
 
@@ -316,7 +319,20 @@ typedef struct {
     zend_string *scope;
     zend_string *file;
     zend_string *probe_id;
+    /* Line probes only: one line hook per where.lines entry, each holding a reference, plus the one active_live_debugger_line_probes holds. */
+    uint32_t refs;
+    uint32_t line_hook_count;
+    zend_long *line_hook_ids;
 } dd_probe_def;
+
+/* The auxiliary of one line hook: a where.lines entry of its probe. */
+typedef struct {
+    dd_probe_def *def;
+    uint32_t from;
+    uint32_t till;
+    bool at_begin; /* work happens before the first line */
+    bool at_end;   /* work happens after the last line, or when control leaves the range */
+} dd_line_probe_entry;
 
 static bool dd_probe_file_mismatch(dd_probe_def *def, zend_execute_data *execute_data) {
     return def->file && (!execute_data->func->op_array.filename || !zai_hook_match_filepath(execute_data->func->op_array.filename, def->file));
@@ -335,8 +351,27 @@ static void dd_probe_dtor(void *data) {
     if (def->function) {
         zend_string_release(def->function);
     }
+    if (def->line_hook_ids) {
+        efree(def->line_hook_ids);
+    }
     zend_string_release(def->probe_id);
     efree(def);
+}
+
+static void dd_probe_def_release(dd_probe_def *def) {
+    if (!--def->refs) {
+        dd_probe_dtor(def);
+    }
+}
+
+static void dd_line_probe_entry_free(void *data) {
+    dd_line_probe_entry *entry = data;
+    dd_probe_def_release(entry->def);
+    efree(entry);
+}
+
+static void dd_line_probe_table_dtor(zval *zv) {
+    dd_probe_def_release(Z_PTR_P(zv));
 }
 
 static void dd_probe_send_status(dd_probe_def *def) {
@@ -360,13 +395,20 @@ static void dd_probe_resolved(void *data, bool found) {
     dd_probe_send_status(def);
 }
 
-static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def *def, zai_hook_begin begin, zai_hook_end end, void (*def_dtor)(void *), size_t dynamic) {
+static void dd_probe_def_init(const ddog_Probe *probe, dd_probe_def *def) {
     def->probe = *probe;
     def->probe_id = dd_CharSlice_to_zend_string(probe->id);
     def->file = NULL;
     def->function = NULL;
     def->scope = NULL;
     def->removed = false;
+    def->refs = 1;
+    def->line_hook_count = 0;
+    def->line_hook_ids = NULL;
+}
+
+static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def *def, zai_hook_begin begin, zai_hook_end end, void (*def_dtor)(void *), size_t dynamic) {
+    dd_probe_def_init(probe, def);
 
     const ddog_ProbeTarget *target = &probe->target;
     if (target->type_name.len) {
@@ -408,7 +450,7 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
 error:
         dd_probe_send_status(def);
         def_dtor(def);
-        return -1;
+        return 0;
     }
 
     if (def->probe.status != DDOG_PROBE_STATUS_INSTALLED) {
@@ -461,9 +503,10 @@ static bool dd_span_probe_begin(zend_ulong invocation, zend_execute_data *execut
 static void dd_span_probe_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     dd_span_probe_dynamic *dyn = dynamic;
 
-    UNUSED(execute_data, retval, auxiliary);
+    UNUSED(retval, auxiliary);
 
     if (dyn->span) {
+        ddtrace_uhook_line_close_frame(execute_data);
         dd_trace_stop_span_time(dyn->span);
         ddtrace_clear_execute_data_span(invocation, true);
     }
@@ -485,13 +528,12 @@ static void dd_submit_probe_eval_error_snapshot(const ddog_Probe *probe, ddog_Ve
     zend_string_release(service_name);
 }
 
-static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
-    dd_probe_def *def = auxiliary;
+// retval is NULL at a line, where @return, @duration and @exception do not exist.
+static void dd_span_decoration_apply(dd_probe_def *def, zend_execute_data *execute_data, zval *retval) {
     ddtrace_span_data *span = ddtrace_active_span();
     if (!span || def->removed) {
         return;
     }
-    UNUSED(invocation, dynamic);
     if (dd_probe_file_mismatch(def, execute_data)) {
         return;
     }
@@ -545,6 +587,11 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
         }
     }
     dd_stop_debugger_timeout();
+}
+
+static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+    UNUSED(invocation, dynamic);
+    dd_span_decoration_apply(auxiliary, execute_data, retval);
 }
 
 static bool dd_span_decoration_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
@@ -619,13 +666,15 @@ static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_
     const ddog_CaptureConfiguration *capture_config = def->parent.probe.probe.log.capture;
     HashTable *symbol_table = dd_uhook_symbol_table(execute_data);
     if (symbol_table) {
+        // File scope shares the global symbol table; leave out $_SERVER and the other superglobals.
+        bool global_scope = symbol_table == &EG(symbol_table);
         zend_string *symbol;
         zval *variable;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(symbol_table, symbol, variable) {
             if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
                 break;
             }
-            if (symbol) {
+            if (symbol && !(global_scope && zend_hash_exists(CG(auto_globals), symbol))) {
                 struct ddog_CaptureValue capture_value = {0};
                 ddog_CharSlice name_slice = dd_zend_string_to_CharSlice(symbol);
                 ddtrace_snapshot_redacted_name(&capture_value, name_slice);
@@ -825,6 +874,42 @@ static void dd_log_probe_add_capture_fields(ddog_DebuggerCapture *capture, dd_lo
     clean_ctx(&ctx);
 }
 
+// Drops a snapshot begun at entry whose probe was removed before its exit.
+static void dd_log_probe_discard(dd_log_probe_dyn *dyn) {
+    if (dyn->payload) {
+        ddog_drop_debugger_payload(dyn->payload);
+        zend_string_release(dyn->service);
+        if (dyn->capture_arena.arena) {
+            dd_free_capture_ephemerals(dyn->capture_arena.ephemerals);
+            zend_arena_destroy(dyn->capture_arena.arena);
+        }
+    }
+}
+
+// Evaluates the message template into the payload, creating the payload if needed. The returned message must outlive the send.
+static zend_string *dd_log_probe_message(dd_log_probe_dyn *dyn, dd_log_probe_def *def, zend_execute_data *execute_data, zval *retval) {
+    ddog_Vec_SnapshotEvaluationError *errors;
+    zend_string *result = dd_eval_string(def->parent.probe.probe.log.segments, def->parent.probe.probe.log.capture, execute_data, retval, &errors);
+    if (errors) {
+        dd_submit_probe_eval_error_snapshot(&def->parent.probe, errors);
+    }
+    ddog_CharSlice result_msg = dd_zend_string_to_CharSlice(result);
+    dd_log_probe_ensure_payload(dyn, def, &result_msg);
+    return result;
+}
+
+// Sends the payload, then frees the capture arena and the strings it borrowed.
+static void dd_log_probe_send(dd_log_probe_dyn *dyn, zend_string *message) {
+    ddtrace_sidecar_send_debugger_datum(dyn->payload);
+    if (DDTRACE_G(debugger_capture_arena).arena) {
+        dd_free_capture_ephemerals(DDTRACE_G(debugger_capture_arena).ephemerals);
+        zend_arena_destroy(DDTRACE_G(debugger_capture_arena).arena);
+        DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){0};
+    }
+    zend_string_release(message);
+    zend_string_release(dyn->service);
+}
+
 static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     dd_log_probe_dyn *dyn = dynamic;
     dd_log_probe_def *def = auxiliary;
@@ -835,14 +920,7 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
     }
 
     if (def->parent.removed) {
-        if (dyn->payload) {
-            ddog_drop_debugger_payload(dyn->payload);
-            zend_string_release(dyn->service);
-            if (dyn->capture_arena.arena) {
-                dd_free_capture_ephemerals(dyn->capture_arena.ephemerals);
-                zend_arena_destroy(dyn->capture_arena.arena);
-            }
-        }
+        dd_log_probe_discard(dyn);
         return;
     }
 
@@ -853,13 +931,7 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         return;
     }
 
-    ddog_Vec_SnapshotEvaluationError *errors;
-    zend_string *result = dd_eval_string(def->parent.probe.probe.log.segments, def->parent.probe.probe.log.capture, execute_data, retval, &errors);
-    if (errors) {
-        dd_submit_probe_eval_error_snapshot(&def->parent.probe, errors);
-    }
-    ddog_CharSlice result_msg = dd_zend_string_to_CharSlice(result);
-    dd_log_probe_ensure_payload(dyn, def, &result_msg);
+    zend_string *result = dd_log_probe_message(dyn, def, execute_data, retval);
 
     bool capture_snapshot = def->parent.probe.probe.log.capture_snapshot;
     bool capture_fields = def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_EXIT && def->parent.probe.probe.log.capture_expressions_num > 0;
@@ -920,14 +992,7 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         }
     }
     dd_stop_debugger_timeout();
-    ddtrace_sidecar_send_debugger_datum(dyn->payload);
-    if (DDTRACE_G(debugger_capture_arena).arena) {
-        dd_free_capture_ephemerals(DDTRACE_G(debugger_capture_arena).ephemerals);
-        zend_arena_destroy(DDTRACE_G(debugger_capture_arena).arena);
-        DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){0};
-    }
-    zend_string_release(result);
-    zend_string_release(dyn->service);
+    dd_log_probe_send(dyn, result);
 }
 
 static bool dd_log_probe_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
@@ -975,23 +1040,22 @@ static int64_t dd_set_log_probe(const ddog_Probe *probe, const ddog_MaybeShmLimi
     return dd_init_live_debugger_probe(probe, &def->parent, dd_log_probe_begin, dd_log_probe_end, dd_probe_dtor, sizeof(dd_log_probe_dyn));
 }
 
-static void dd_metric_probe_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
-    dd_probe_def *def = auxiliary;
-    UNUSED(invocation, dynamic);
+// retval is NULL at a line, where @return, @duration and @exception do not exist.
+static void dd_metric_probe_emit(dd_probe_def *def, zend_execute_data *execute_data, zval *retval) {
     if (def->removed || dd_probe_file_mismatch(def, execute_data)) {
         return;
     }
 
     dd_probe_mark_active(def);
 
-    ddog_CharSlice *name = &def->probe.probe.metric.name;
-    zend_string *metric_name = zend_strpprintf(0, "dynamic.instrumentation.metric.probe.%.*s", (int)name->len, name->ptr);
-
     ddog_ValueEvaluationResult result = dd_eval_value(def->probe.probe.metric.value, execute_data, retval);
     if (result.tag == DDOG_VALUE_EVALUATION_RESULT_ERROR) {
         dd_submit_probe_eval_error_snapshot(&def->probe, result.error);
         return;
     }
+
+    ddog_CharSlice *name = &def->probe.probe.metric.name;
+    zend_string *metric_name = zend_strpprintf(0, "dynamic.instrumentation.metric.probe.%.*s", (int)name->len, name->ptr);
 
     ddog_IntermediateValue value = ddog_evaluated_value_get(result.success);
     double metric_value = 0;
@@ -1033,6 +1097,11 @@ static void dd_metric_probe_end(zend_ulong invocation, zend_execute_data *execut
     zend_string_release(metric_name);
 }
 
+static void dd_metric_probe_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+    UNUSED(invocation, dynamic);
+    dd_metric_probe_emit(auxiliary, execute_data, retval);
+}
+
 static bool dd_metric_probe_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     zval retval;
     ZVAL_NULL(&retval);
@@ -1053,22 +1122,334 @@ static int64_t dd_set_metric_probe(const ddog_Probe *probe) {
     return dd_init_live_debugger_probe(probe, def, begin, end, dd_probe_dtor, 0);
 }
 
-static int64_t dd_set_probe(const ddog_Probe probe, const ddog_MaybeShmLimiter *limiter) {
-    switch (probe.probe.tag) {
-        case DDOG_PROBE_TYPE_METRIC:
-            return dd_set_metric_probe(&probe);
-        case DDOG_PROBE_TYPE_LOG:
-            return dd_set_log_probe(&probe, limiter);
-        case DDOG_PROBE_TYPE_SPAN:
-            return dd_set_span_probe(&probe);
-        case DDOG_PROBE_TYPE_SPAN_DECORATION:
-            return dd_set_span_decoration(&probe);
+static void dd_line_probe_resolved(void *data) {
+    dd_probe_def *def = ((dd_line_probe_entry *)data)->def;
+    // The first entry to arm reports the probe
+    if (def->probe.status == DDOG_PROBE_STATUS_RECEIVED) {
+        def->probe.status = DDOG_PROBE_STATUS_INSTALLED;
+        dd_probe_send_status(def);
     }
-    return -1;
+}
+
+static void dd_line_log_capture(dd_log_probe_dyn *dyn, dd_log_probe_def *def, zend_execute_data *execute_data, uint32_t line, bool with_stack) {
+    bool capture_snapshot = def->parent.probe.probe.log.capture_snapshot;
+    bool capture_fields = def->parent.probe.probe.log.capture_expressions_num > 0;
+    if (!capture_snapshot && !capture_fields) {
+        return;
+    }
+    if (!DDTRACE_G(debugger_capture_arena).arena) {
+        DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){.arena = zend_arena_create(65536), .ephemerals = NULL};
+    }
+    ddog_DebuggerCapture *capture = ddog_snapshot_lines(dyn->payload, line);
+    if (capture_snapshot) {
+        if (with_stack) {
+            dd_probe_capture_stack(dyn->payload, execute_data);
+        }
+        dd_log_probe_capture_snapshot(capture, def, execute_data);
+    }
+    if (capture_fields) {
+        dd_log_probe_add_capture_fields(capture, def, execute_data, NULL);
+    }
+}
+
+static bool dd_line_log_probe_begin(zai_line_invocation *invocation, zend_execute_data *execute_data, const zend_op *opline, uint32_t line, void *auxiliary, void *dynamic) {
+    UNUSED(invocation, opline, line);
+    dd_line_probe_entry *entry = auxiliary;
+    dd_log_probe_def *def = (dd_log_probe_def *)entry->def;
+    dd_log_probe_dyn *dyn = dynamic;
+
+    if (!entry->at_begin) {
+        return true; // evaluated after the line
+    }
+
+    dd_probe_mark_active(&def->parent);
+    dd_start_debugger_timeout();
+
+    if (!dd_log_probe_eval_condition(def, execute_data, NULL)) {
+        dd_stop_debugger_timeout();
+        return false;
+    }
+
+    if (entry->at_end) {
+        // A range: capture its first line now and send the snapshot with its last.
+        dd_log_probe_ensure_payload(dyn, def, NULL);
+        dd_line_log_capture(dyn, def, execute_data, entry->from, true);
+        dyn->capture_arena = DDTRACE_G(debugger_capture_arena);
+        DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){0};
+        dd_stop_debugger_timeout();
+        return true;
+    }
+
+    zend_string *message = dd_log_probe_message(dyn, def, execute_data, NULL);
+    dd_line_log_capture(dyn, def, execute_data, entry->from, true);
+    dd_stop_debugger_timeout();
+    dd_log_probe_send(dyn, message);
+    return false;
+}
+
+static void dd_line_log_probe_end(zend_execute_data *execute_data, uint32_t line, void *auxiliary, void *dynamic) {
+    UNUSED(line);
+    dd_line_probe_entry *entry = auxiliary;
+    dd_log_probe_def *def = (dd_log_probe_def *)entry->def;
+    dd_log_probe_dyn *dyn = dynamic;
+
+    if (def->parent.removed) {
+        dd_log_probe_discard(dyn);
+        return;
+    }
+
+    if (!entry->at_begin) {
+        dd_probe_mark_active(&def->parent);
+    }
+    dd_start_debugger_timeout();
+
+    // A range already passed its condition at its first line.
+    if (!entry->at_begin && !dd_log_probe_eval_condition(def, execute_data, NULL)) {
+        dd_stop_debugger_timeout();
+        return;
+    }
+
+    if (dyn->capture_arena.arena) {
+        DDTRACE_G(debugger_capture_arena) = dyn->capture_arena;
+    }
+    zend_string *message = dd_log_probe_message(dyn, def, execute_data, NULL);
+    dd_line_log_capture(dyn, def, execute_data, entry->till, !entry->at_begin);
+    dd_stop_debugger_timeout();
+    dd_log_probe_send(dyn, message);
+}
+
+static bool dd_line_metric_probe_begin(zai_line_invocation *invocation, zend_execute_data *execute_data, const zend_op *opline, uint32_t line, void *auxiliary, void *dynamic) {
+    UNUSED(invocation, opline, line, dynamic);
+    dd_line_probe_entry *entry = auxiliary;
+    if (entry->at_begin) {
+        dd_metric_probe_emit(entry->def, execute_data, NULL);
+    }
+    return entry->at_end;
+}
+
+static void dd_line_metric_probe_end(zend_execute_data *execute_data, uint32_t line, void *auxiliary, void *dynamic) {
+    UNUSED(line, dynamic);
+    dd_metric_probe_emit(((dd_line_probe_entry *)auxiliary)->def, execute_data, NULL);
+}
+
+static bool dd_line_span_decoration_begin(zai_line_invocation *invocation, zend_execute_data *execute_data, const zend_op *opline, uint32_t line, void *auxiliary, void *dynamic) {
+    UNUSED(invocation, opline, line, dynamic);
+    dd_line_probe_entry *entry = auxiliary;
+    if (entry->at_begin) {
+        dd_span_decoration_apply(entry->def, execute_data, NULL);
+    }
+    return entry->at_end;
+}
+
+static void dd_line_span_decoration_end(zend_execute_data *execute_data, uint32_t line, void *auxiliary, void *dynamic) {
+    UNUSED(line, dynamic);
+    dd_span_decoration_apply(((dd_line_probe_entry *)auxiliary)->def, execute_data, NULL);
+}
+
+static bool dd_line_span_probe_begin(zai_line_invocation *invocation, zend_execute_data *execute_data, const zend_op *opline, uint32_t line, void *auxiliary, void *dynamic) {
+    UNUSED(invocation, opline, line);
+    dd_line_probe_entry *entry = auxiliary;
+    dd_probe_def *def = entry->def;
+    if (def->removed || !get_DD_TRACE_ENABLED()) {
+        return false;
+    }
+
+    ddtrace_span_data *span = ddtrace_line_span_open(dynamic, execute_data, NULL);
+    if (!span) {
+        return false;
+    }
+
+    dd_probe_mark_active(def);
+
+    zval_ptr_dtor(&span->property_name);
+    ZVAL_STRING(&span->property_name, "dd.dynamic.span");
+    zval_ptr_dtor(&span->property_resource);
+    if (entry->from == entry->till) {
+        ZVAL_STR(&span->property_resource, strpprintf(0, "%s:%u", ZSTR_VAL(execute_data->func->op_array.filename), entry->from));
+    } else {
+        ZVAL_STR(&span->property_resource, strpprintf(0, "%s:%u-%u", ZSTR_VAL(execute_data->func->op_array.filename), entry->from, entry->till));
+    }
+
+    zval probe_id;
+    ZVAL_STR_COPY(&probe_id, def->probe_id);
+    zend_hash_str_update(ddtrace_property_array(&span->property_meta), ZEND_STRL("debugger.probeid"), &probe_id);
+
+    ddtrace_observe_opened_span(span);
+    return true;
+}
+
+static void dd_line_span_probe_end(zend_execute_data *execute_data, uint32_t line, void *auxiliary, void *dynamic) {
+    UNUSED(execute_data, line, auxiliary);
+    ddtrace_line_span *line_span = dynamic;
+    dd_trace_stop_span_time_with_exception(line_span->span);
+    ddtrace_line_span_finish(line_span, true);
+}
+
+static void dd_line_span_probe_suspend(zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+    UNUSED(execute_data, auxiliary);
+    ddtrace_line_span_suspend(dynamic);
+}
+
+static void dd_line_span_probe_resume(zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+    UNUSED(execute_data, auxiliary);
+    ddtrace_line_span_resume(dynamic);
+}
+
+typedef struct {
+    zai_line_hooks_begin begin;
+    zai_line_hooks_end end;
+    zai_line_hooks_frame_event suspend; /* span probes only: the span follows its generator */
+    zai_line_hooks_frame_event resume;
+    size_t dynamic;
+} dd_line_probe_callbacks;
+
+static const dd_line_probe_callbacks dd_line_log_callbacks = {
+    .begin = dd_line_log_probe_begin, .end = dd_line_log_probe_end, .dynamic = sizeof(dd_log_probe_dyn),
+};
+static const dd_line_probe_callbacks dd_line_metric_callbacks = {
+    .begin = dd_line_metric_probe_begin, .end = dd_line_metric_probe_end,
+};
+static const dd_line_probe_callbacks dd_line_span_decoration_callbacks = {
+    .begin = dd_line_span_decoration_begin, .end = dd_line_span_decoration_end,
+};
+static const dd_line_probe_callbacks dd_line_span_callbacks = {
+    .begin = dd_line_span_probe_begin, .end = dd_line_span_probe_end,
+    .suspend = dd_line_span_probe_suspend, .resume = dd_line_span_probe_resume, .dynamic = sizeof(ddtrace_line_span),
+};
+
+// The line hook manager's rule: ranges must nest or be disjoint, and sharing a boundary line is a partial overlap.
+static bool dd_line_ranges_cross(const ddog_SourceLine *a, const ddog_SourceLine *b) {
+    bool starts_inside = a->from >= b->from && a->from <= b->till;
+    bool ends_inside = a->till >= b->from && a->till <= b->till;
+    bool contains = a->from <= b->from && a->till >= b->till;
+    return starts_inside != ends_inside && !contains;
+}
+
+static int64_t dd_line_probe_fail(dd_probe_def *def) {
+    dd_probe_send_status(def);
+    dd_probe_dtor(def);
+    return 0;
+}
+
+static int64_t dd_init_line_probe(const ddog_Probe *probe, dd_probe_def *def, const dd_line_probe_callbacks *callbacks) {
+    dd_probe_def_init(probe, def);
+
+    const ddog_ProbeTarget *target = &probe->target;
+    if (target->type_name.len && !ddog_type_can_be_instrumented(DATADOG_G(remote_config_state), target->type_name)) {
+        def->probe.status = DDOG_PROBE_STATUS_BLOCKED;
+        return dd_line_probe_fail(def);
+    }
+    if (!zai_line_hook_available()) {
+        dd_probe_set_error(def, DDOG_CHARSLICE_C("Line probes are not supported on this PHP build"), DDOG_CHARSLICE_C("UNSUPPORTED_RUNTIME"));
+        return dd_line_probe_fail(def);
+    }
+
+    zend_string *file = dd_CharSlice_to_zend_string(target->source_file);
+
+    // Check every entry before arming any, against installed probes and among this probe's own entries.
+    for (uint32_t i = 0; i < target->lines_count; ++i) {
+        const char *conflict = zai_line_hooks_conflict(file, target->lines[i].from, target->lines[i].till);
+        for (uint32_t j = 0; !conflict && j < i; ++j) {
+            if (dd_line_ranges_cross(&target->lines[i], &target->lines[j])) {
+                conflict = "Line ranges of this probe partially overlap";
+            }
+        }
+        if (conflict) {
+            zend_string_release(file);
+            dd_probe_set_error(def, (ddog_CharSlice){ .ptr = conflict, .len = strlen(conflict) }, DDOG_CHARSLICE_C("OVERLAPPING_LINE_RANGE"));
+            return dd_line_probe_fail(def);
+        }
+    }
+
+    bool span = probe->probe.tag == DDOG_PROBE_TYPE_SPAN;
+    def->line_hook_ids = safe_emalloc(target->lines_count, sizeof(*def->line_hook_ids), 0);
+    for (uint32_t i = 0; i < target->lines_count; ++i) {
+        const ddog_SourceLine *line = &target->lines[i];
+        dd_line_probe_entry *entry = emalloc(sizeof(*entry));
+        entry->def = def;
+        entry->from = line->from;
+        entry->till = line->till;
+        // Spans and ranges act at both ends; a single line acts once, before or after it as evaluateAt says.
+        bool both_ends = span || line->from != line->till;
+        entry->at_begin = both_ends || def->probe.evaluate_at == DDOG_EVALUATE_AT_ENTRY;
+        entry->at_end = both_ends || def->probe.evaluate_at == DDOG_EVALUATE_AT_EXIT;
+        ++def->refs;
+
+        zai_line_hooks_aux aux = ZAI_LINE_HOOKS_AUX_RESOLVED(entry, dd_line_probe_entry_free, dd_line_probe_resolved);
+        zend_long id;
+        if (callbacks->suspend) {
+            id = zai_line_hooks_install_generator(file, line->from, line->till, callbacks->begin, callbacks->suspend, callbacks->resume, callbacks->end,
+                                                  true, aux, callbacks->dynamic);
+        } else {
+            id = zai_line_hooks_install(file, line->from, line->till, callbacks->begin, entry->at_end ? callbacks->end : NULL,
+                                        entry->at_end, aux, callbacks->dynamic);
+        }
+        if (!id) {
+            // Outside a request. The manager already released this entry; release the others and the probe.
+            for (uint32_t k = 0; k < def->line_hook_count; ++k) {
+                zai_line_hooks_remove(def->line_hook_ids[k]);
+            }
+            zend_string_release(file);
+            dd_probe_def_release(def);
+            return 0;
+        }
+        def->line_hook_ids[def->line_hook_count++] = id;
+    }
+    zend_string_release(file);
+
+    if (def->probe.status != DDOG_PROBE_STATUS_INSTALLED) {
+        def->probe.status = DDOG_PROBE_STATUS_RECEIVED;
+        dd_probe_send_status(def);
+    }
+
+    // The table takes over the reference dd_probe_def_init() set up.
+    zend_hash_index_add_new_ptr(&DDTRACE_G(active_live_debugger_line_probes), (zend_ulong)def->line_hook_ids[0], def);
+    return def->line_hook_ids[0];
+}
+
+static int64_t dd_set_probe(const ddog_Probe probe, const ddog_MaybeShmLimiter *limiter) {
+    if (!probe.target.method_name.len && probe.target.source_file.len && probe.target.lines_count) {
+        switch (probe.probe.tag) {
+            case DDOG_PROBE_TYPE_METRIC:
+                return dd_init_line_probe(&probe, emalloc(sizeof(dd_probe_def)), &dd_line_metric_callbacks);
+            case DDOG_PROBE_TYPE_LOG: {
+                dd_log_probe_def *def = emalloc(sizeof(*def));
+                def->limiter = limiter;
+                return dd_init_line_probe(&probe, &def->parent, &dd_line_log_callbacks);
+            }
+            case DDOG_PROBE_TYPE_SPAN:
+                return dd_init_line_probe(&probe, emalloc(sizeof(dd_probe_def)), &dd_line_span_callbacks);
+            case DDOG_PROBE_TYPE_SPAN_DECORATION:
+                return dd_init_line_probe(&probe, emalloc(sizeof(dd_probe_def)), &dd_line_span_decoration_callbacks);
+        }
+    } else {
+        switch (probe.probe.tag) {
+            case DDOG_PROBE_TYPE_METRIC:
+                return dd_set_metric_probe(&probe);
+            case DDOG_PROBE_TYPE_LOG:
+                return dd_set_log_probe(&probe, limiter);
+            case DDOG_PROBE_TYPE_SPAN:
+                return dd_set_span_probe(&probe);
+            case DDOG_PROBE_TYPE_SPAN_DECORATION:
+                return dd_set_span_decoration(&probe);
+        }
+    }
+    return 0;
 }
 
 static void dd_remove_live_debugger_probe(int64_t id) {
     dd_probe_def *def;
+    if (id < 0) {
+        // The table's reference keeps def alive here, even once RSHUTDOWN has torn the line hooks down.
+        if ((def = zend_hash_index_find_ptr(&DDTRACE_G(active_live_debugger_line_probes), (zend_ulong)id))) {
+            def->removed = true;
+            for (uint32_t i = 0; i < def->line_hook_count; ++i) {
+                zai_line_hooks_remove(def->line_hook_ids[i]);
+            }
+            zend_hash_index_del(&DDTRACE_G(active_live_debugger_line_probes), (zend_ulong)id);
+        }
+        return;
+    }
     if ((def = zend_hash_index_find_ptr(&DDTRACE_G(active_live_debugger_hooks), (zend_ulong)id))) {
         zend_string *scope = def->scope ? zend_string_copy(def->scope) : NULL;
         zend_string *func = def->function ? zend_string_copy(def->function) : NULL;
@@ -1244,7 +1625,7 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
     }
 
     if (name->len == sizeof("duration") && memcmp(name->ptr, ZEND_STRL("@duration")) == 0) {
-        ddtrace_span_data *span = ddtrace_active_span();
+        ddtrace_span_data *span = eval_ctx->retval ? ddtrace_active_span() : NULL;
         if (span) {
             zval zv; // milliseconds
             ZVAL_DOUBLE(&zv, (zend_hrtime() - span->duration_start) / 1000000.);
@@ -1259,7 +1640,8 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
     }
 
     if (name->len == sizeof("exception") && memcmp(name->ptr, ZEND_STRL("@exception")) == 0) {
-        if (EG(exception)) {
+        // A line hook dispatching a catch still sees the caught exception in EG(exception).
+        if (eval_ctx->retval && EG(exception)) {
             zval zv;
             ZVAL_OBJ_COPY(&zv, EG(exception));
             return dd_persist_eval_arena(eval_ctx, &zv);
@@ -1904,10 +2286,12 @@ void ddtrace_live_debugger_minit(void) {
 
 void ddtrace_live_debugger_rinit(void) {
     zend_hash_init(&DDTRACE_G(active_live_debugger_hooks), 8, NULL, NULL, 0);
+    zend_hash_init(&DDTRACE_G(active_live_debugger_line_probes), 8, NULL, dd_line_probe_table_dtor, 0);
 }
 
 void ddtrace_live_debugger_rshutdown(void) {
     zend_hash_destroy(&DDTRACE_G(active_live_debugger_hooks));
+    zend_hash_destroy(&DDTRACE_G(active_live_debugger_line_probes));
 }
 
 bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_value, zend_string *new_str) {

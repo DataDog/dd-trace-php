@@ -743,6 +743,16 @@ void dd_trace_stop_span_time(ddtrace_span_data *span) {
     span->duration = zend_hrtime() - span->duration_start;
 }
 
+void dd_trace_stop_span_time_with_exception(ddtrace_span_data *span) {
+    if (!span || !span->start || ddtrace_span_is_dropped(span) || span->type == DDTRACE_SPAN_CLOSED) {
+        return;
+    }
+    if (EG(exception) && Z_TYPE(span->property_exception) <= IS_FALSE) {
+        ZVAL_OBJ_COPY(&span->property_exception, EG(exception));
+    }
+    dd_trace_stop_span_time(span);
+}
+
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end) {
     ddtrace_span_properties *pspan = end->stack->active;
     while (pspan) {

@@ -18,14 +18,17 @@
    tracer/hook/uhook_line.c is one consumer. */
 
 /* Shared by every invocation of one definition.
-   The dtor runs when the definition is released, which can be after the request that installed it has begun shutting down. */
+   The dtor runs when the definition is released, which can be after the request that installed it has begun shutting down.
+   resolved runs once, the first time the definition arms a begin site, which may be during install itself; it must not install or remove line hooks. */
 typedef struct {
     void *data;
     void (*dtor)(void *data);
+    void (*resolved)(void *data);
 } zai_line_hooks_aux;
 
-#define ZAI_LINE_HOOKS_AUX_UNUSED ((zai_line_hooks_aux){.data = NULL, .dtor = NULL})
-#define ZAI_LINE_HOOKS_AUX(data_, dtor_) ((zai_line_hooks_aux){.data = (data_), .dtor = (dtor_)})
+#define ZAI_LINE_HOOKS_AUX_UNUSED ((zai_line_hooks_aux){.data = NULL, .dtor = NULL, .resolved = NULL})
+#define ZAI_LINE_HOOKS_AUX(data_, dtor_) ((zai_line_hooks_aux){.data = (data_), .dtor = (dtor_), .resolved = NULL})
+#define ZAI_LINE_HOOKS_AUX_RESOLVED(data_, dtor_, resolved_) ((zai_line_hooks_aux){.data = (data_), .dtor = (dtor_), .resolved = (resolved_)})
 
 typedef struct zai_line_invocation zai_line_invocation;
 
@@ -46,7 +49,7 @@ typedef void (*zai_line_hooks_end)(zend_execute_data *frame, uint32_t line, void
    Must not execute PHP: a range closing underneath the walk would invalidate it. */
 typedef void (*zai_line_hooks_frame_event)(zend_execute_data *frame, void *auxiliary, void *dynamic);
 
-/* Installs a hook on `file`, which is matched as a path suffix, from `line` to `end_line` inclusive.
+/* Installs a hook on `file`, which is matched as a path suffix ignoring ASCII case, from `line` to `end_line` inclusive.
    `eager_range` opens a range at every begin, so an end is always delivered; without it the invocation is begin-only unless it calls zai_line_hooks_open_range().
    Returns a negative id, or 0 outside a request. */
 zend_long zai_line_hooks_install(zend_string *file, uint32_t line, uint32_t end_line,

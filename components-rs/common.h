@@ -674,12 +674,20 @@ typedef struct ddog_Option_CharSlice {
   };
 } ddog_Option_CharSlice;
 
+/**
+ * One `where.lines` entry: a single line `"N"` (`from == till`) or an inclusive range `"A-B"`.
+ */
+typedef struct ddog_SourceLine {
+  uint32_t from;
+  uint32_t till;
+} ddog_SourceLine;
+
 typedef struct ddog_ProbeTarget {
   ddog_CharSlice type_name;
   ddog_CharSlice method_name;
   ddog_CharSlice source_file;
   struct ddog_Option_CharSlice signature;
-  const uint32_t *lines;
+  const struct ddog_SourceLine *lines;
   uint32_t lines_count;
   enum ddog_InBodyLocation in_body_location;
 } ddog_ProbeTarget;
@@ -763,6 +771,9 @@ typedef struct ddog_Probe {
 } ddog_Probe;
 
 typedef struct ddog_LiveDebuggerCallbacks {
+  /**
+   * Returns 0 on failure. Method probes return positive ids, line probes negative ones.
+   */
   int64_t (*set_probe)(struct ddog_Probe probe, const struct ddog_MaybeShmLimiter *limiter);
   void (*remove_probe)(int64_t id);
 } ddog_LiveDebuggerCallbacks;

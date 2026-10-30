@@ -576,7 +576,7 @@ fn apply_config(
                         (callbacks.remove_probe)(old_hook_id);
                     }
                     let hook_id = (callbacks.set_probe)(probe.into(), limiter);
-                    if hook_id >= 0 {
+                    if hook_id != 0 {
                         // Key by config_id, not probe.id: distinct configs can share a
                         // probe id, so a probe.id key would orphan a hook on removal (UAF).
                         remote_config
@@ -854,7 +854,7 @@ pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
                     boxed.0.downcast::<LiveDebuggingData>()
                 {
                     let hook_id = (callbacks.set_probe)(probe.into(), &boxed.1);
-                    if hook_id >= 0 {
+                    if hook_id != 0 {
                         remote_config
                             .live_debugger
                             .spans_map

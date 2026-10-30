@@ -93,6 +93,7 @@ typedef struct {
     volatile sig_atomic_t *capture_timeout_flags[2];
 #endif
     HashTable active_live_debugger_hooks;
+    HashTable active_live_debugger_line_probes; // first line hook id -> owned reference to the probe
     HashTable *agent_rate_by_service;
 
     ddog_AgentRemoteConfigReader *agent_config_reader;
