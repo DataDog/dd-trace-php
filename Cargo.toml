@@ -361,6 +361,7 @@ webpki-root-certs = { version = "1.0.10", default-features = false }
 web-time = { version = "1", default-features = false }
 windows = { version = "0.59.0", default-features = false }
 windows-sys = { version = "0.52", default-features = false }
+winresource = { version = "0.1", default-features = false }
 winver = { version = "1.0.0", default-features = false }
 zip = { version = "4.0.0", default-features = false }
 zrip = { version = "=0.6.0", default-features = false }

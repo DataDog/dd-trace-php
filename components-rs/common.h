@@ -323,7 +323,7 @@ typedef enum ddog_AppsecBodyStatus {
    */
   DDOG_APPSEC_BODY_STATUS_OUT_OF_MEMORY,
   /**
-   * An unexpected panic or a recursive call into the parser.
+   * An unexpected panic.
    */
   DDOG_APPSEC_BODY_STATUS_INTERNAL_ERROR,
 } ddog_AppsecBodyStatus;
@@ -481,6 +481,11 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
   DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
   DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
+  /**
+   * The consumer evaluates prerequisite conditions against a flag's selected variant key.
+   * Register only when the evaluator implements the dependent-flag variant-key contract.
+   */
+  DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1 = 50,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -875,22 +880,6 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             uintptr_t *out_len);
 
 /**
- * All request allocations, except those made while a panic is in progress,
- * go through these callbacks. Neither callback may unwind or longjmp.
- */
-typedef struct ddog_AppsecBodyAllocator {
-  /**
-   * Borrowed only until the parse call returns.
-   */
-  void *context;
-  uint8_t *(*allocate)(void*, uintptr_t);
-  /**
-   * Must remain callable until the returned MessagePack buffer is dropped.
-   */
-  void (*free)(uint8_t*);
-} ddog_AppsecBodyAllocator;
-
-/**
  * Owned by the parser library; release with ddog_appsec_body_msgpack_drop.
  */
 typedef struct ddog_AppsecBodyMessagePack {
@@ -903,6 +892,20 @@ typedef struct ddog_AppsecBodyMessagePack {
   void (*free)(uint8_t*);
   enum ddog_AppsecBodyStatus status;
 } ddog_AppsecBodyMessagePack;
+
+/**
+ * All request allocations, except those made while a panic is in progress,
+ * go through these callbacks. Neither callback may reenter the parser,
+ * unwind or longjmp.
+ */
+typedef struct ddog_AppsecBodyAllocator {
+  void *context;
+  uint8_t *(*allocate)(void*, uintptr_t);
+  /**
+   * Must remain callable until the returned MessagePack buffer is dropped.
+   */
+  void (*free)(uint8_t*);
+} ddog_AppsecBodyAllocator;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,

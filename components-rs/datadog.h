@@ -313,7 +313,7 @@ void ddog_set_dynamic_instrumentation_enabled(struct ddog_RemoteConfigState *rem
 
 void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 
-void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
+void ddog_shutdown_remote_config(struct ddog_RemoteConfigState *_state);
 
 /**
  * Free the FFI-owned allocations in a `Probe` (the `tags` vec and the nested
@@ -566,18 +566,16 @@ bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
                                    ddog_RootTagLookupFn lookup_fn);
 
 /**
- * Parses a possibly truncated JSON document. Containers nested deeper than
- * `max_depth` are kept empty.
+ * Parse JSON directly to MessagePack. A negative depth means unlimited.
+ * Allocator callbacks must not reenter the parser, unwind or longjmp.
  */
 struct ddog_AppsecBodyMessagePack ddog_appsec_parse_json(ddog_CharSlice input,
                                                          int32_t max_depth,
                                                          struct ddog_AppsecBodyAllocator allocator);
 
 /**
- * Parses a possibly truncated XML document into
- * `{tag: [{"@attr": value, ...}, "text", {child...}, ...]}`. The content of
- * elements nested deeper than `max_depth` is dropped. External entities are
- * never loaded.
+ * Parse XML directly to MessagePack; external entities are never loaded.
+ * Allocator callbacks must not reenter the parser, unwind or longjmp.
  */
 struct ddog_AppsecBodyMessagePack ddog_appsec_parse_xml(ddog_CharSlice input,
                                                         int32_t max_depth,
@@ -585,7 +583,7 @@ struct ddog_AppsecBodyMessagePack ddog_appsec_parse_xml(ddog_CharSlice input,
 
 /**
  * # Safety
- * `body` must come from one of the parse functions and not be dropped twice.
+ * `body` must come from a parse function and must not be dropped twice.
  */
 void ddog_appsec_body_msgpack_drop(struct ddog_AppsecBodyMessagePack body);
 

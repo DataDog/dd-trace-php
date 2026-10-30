@@ -185,6 +185,10 @@ fn php_span_to_shm_input<'a>(
     ShmSpanInput {
         fixed: build_fixed_key(span),
         peer_tags: &peer_tag_buf[..peer_tag_count],
+        // No additional metric tags until DD_TRACE_STATS_ADDITIONAL_TAGS is supported; without
+        // any, the cardinality limit is never consulted.
+        additional_tags: &[],
+        additional_tags_cardinality_limit: 0,
         duration_ns: span.duration,
         is_error: span.is_error,
         is_top_level: span.has_top_level,
@@ -470,6 +474,9 @@ unsafe fn php_span_to_owned_input(span: &PhpSpanStats<'_>) -> OwnedShmSpanInput 
             service_source: fixed.service_source.to_owned(),
         },
         peer_tags,
+        // See php_span_to_shm_input.
+        additional_tags: Vec::new(),
+        additional_tags_cardinality_limit: 0,
         duration_ns: span.duration,
         is_error: span.is_error,
         is_top_level: span.has_top_level,
