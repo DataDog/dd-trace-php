@@ -31,11 +31,6 @@ helper or simpler shape.
 - ❌ `dd_del_root_tag(span, key);`
 - ✅ `zend_hash_del(attributes, key);`
 
-### MAINT-1.4: Use `ZEND_ASSERT` for states callers can't produce
-- Flag: an `if` guarding against a state every caller rules out (e.g. an
-  active span without a root).
-- ✅ `ZEND_ASSERT(span->root && "An active span without a root is broken");`
-
 ## 2. Duplication
 
 ### MAINT-2.1: Move repeated sequences into the shared callee
@@ -84,19 +79,6 @@ helper or simpler shape.
 - Flag: test helpers or extension test functions kept in the old shape
   (e.g. separate meta/metrics getters) via a shim instead of migrating the
   tests.
-
-### MAINT-5.3: Normalise volatile values in the shared test parser
-- Flag: per-test normalisation of ids or values that
-  `parseMultipleRequestsFromDumpedData` (or another shared helper) could do.
-
-### MAINT-5.4: Delete tests that cover removed features or can't catch their regression
-- Flag: new tests for deprecated/no-op features, tests named for an
-  unrelated variant (e.g. "V1 wire" for wire-agnostic behaviour), or tests
-  that would still pass if the guarded code were forgotten.
-
-### MAINT-5.5: Keep test output human-readable
-- Flag: rewriting a test's expected output to opaque data (e.g. only hex
-  dumps) and dropping the readable form.
 
 ## Don't flag
 - Magic constants (buffer sizes, `PHP_VERSION_ID` comparisons, bit masks)

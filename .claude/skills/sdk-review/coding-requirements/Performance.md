@@ -33,24 +33,11 @@ on and how often it runs, and let the severity reflect the actual cost.
   vectors per sample, re-encoding values per evaluation, or recomputing a
   hash that `datadog_process_tags_get_base_hash()` already provides.
 
-### PERF-1.4: Prefer configuration over per-request lookups
-- Flag: per-request header lookups for a fixed feature that could be added
-  to `DD_TRACE_HEADER_TAGS`.
-
-### PERF-1.5: Bail out before doing hook work when the tracer is limited
-- Flag: `dd_trace_tracer_is_limited()` checked after work (or an end hook)
-  that it could have skipped.
-
-### PERF-1.6: Pass direct pointers across FFI, not index paths
+### PERF-1.4: Pass direct pointers across FFI, not index paths
 - Flag: FFI that returns `usize` indexes requiring payload → chunk → span →
   link lookups on every call.
 
-### PERF-1.7: Use one aligned atomic store instead of byte-wise copies
-- Flag: byte copies to update an 8-byte field we own and align.
-- ✅ `_Static_assert(offsetof(...) % 8 == 0, "...");` then a single
-  `uint64_t` atomic store.
-
-### PERF-1.8: Bound caches keyed by application data
+### PERF-1.5: Bound caches keyed by application data
 - Flag: a cache or table keyed by routes, URLs or other app values with no
   size limit or eviction (e.g. a route normalization cache without LRU).
 
@@ -87,17 +74,6 @@ on and how often it runs, and let the severity reflect the actual cost.
 ### PERF-3.2: Treat startup cost like request latency
 - Flag: eager initialisation or transformation at MINIT/RINIT that could be
   lazy; CLI processes pay it on every run.
-
-### PERF-3.3: Rate-limit per-event error reporting
-- Flag: a report or log emitted for every failed evaluation/capture with no
-  rate limit.
-
-## 4. CI cost
-
-### PERF-4.1: Don't multiply CI matrices or artifact copies without a reason
-- Flag: duplicating a test matrix across architectures or extra PHP
-  versions where one representative job covers it, or `cp` of large
-  package artifacts where `mv` works.
 
 ## Don't flag
 - Rust FFI crossings or calls to extension functions as expensive; both are

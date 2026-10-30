@@ -40,10 +40,6 @@ Other repositories:
   `traceutil` definition (service-entry spans, chunk-aware, ignoring
   already-submitted spans).
 
-### XSDK-1.2: Confirm V1 payload placement with other SDKs
-- Flag: moving data between span, chunk, and payload level in the V1
-  format (e.g. process tags) without a reference to the agreed placement.
-
 ## 2. Specs and shared formats
 
 ### XSDK-2.1: Follow the W3C/OTel tracestate format exactly

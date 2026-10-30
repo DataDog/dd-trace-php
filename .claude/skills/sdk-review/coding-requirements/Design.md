@@ -78,23 +78,17 @@ alternative.
 
 ## 4. Public API
 
-### DES-4.1: Treat stubs, `src/api`, and `configuration.h` as public API
-- Flag: a breaking change to a `*.stub.php` function, `src/api` class, or
-  config key, or a superseded API not marked `@deprecated`.
-- Not when: the function or config is marked internal (e.g.
-  `DDTrace\Internal`).
-
-### DES-4.2: Expose a public constructor with only user-facing parameters
+### DES-4.1: Expose a public constructor with only user-facing parameters
 - Flag: test-only factories (`createWithDependencies`) or constructor
   parameters that exist only to inject test doubles.
 - ✅ `public function __construct(?LoggerInterface $logger = null)`; tests
   override internals via `Closure::call()`.
 
-### DES-4.3: Throw on bad input to public API; fail soft on internal state
+### DES-4.2: Throw on bad input to public API; fail soft on internal state
 - Flag: silently ignoring invalid arguments to a direct public API call, or
   throwing from behaviour that depends on internal tracer state.
 
-### DES-4.4: Expose magic values in stubs as named constants
+### DES-4.3: Expose magic values in stubs as named constants
 - Flag: integer codes (e.g. expected-type `0`/`1`/`2`) documented only in
   prose and repeated as literals in PHP code.
 - ✅ `const FFE_STRING = UNKNOWN;` with `@cvalue`, used by callers.

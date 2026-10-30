@@ -11,17 +11,7 @@ input or interleaving.
 
 ## 1. Root cause
 
-### COR-1.1: Fix how an invalid state arises instead of guarding against it
-- Flag: a NULL check, retry, or "retire"/skip step added to stop a crash or
-  flake, where the PR doesn't explain how the invalid state is reached and
-  adds no reproducer test.
-- Not when: the value can legitimately be absent by contract (e.g. the
-  sidecar connection failed and the caller handles that case explicitly).
-- ❌ `if (!DDTRACE_G(sidecar)) { return; } // probes installed too early`
-- ✅ don't install probes until the sidecar is initialised; skip them if
-  connecting failed.
-
-### COR-1.2: Wire a feature into its production caller in the same PR
+### COR-1.1: Wire a feature into its production caller in the same PR
 - Flag: a function documented as "called in production" (or by the sidecar)
   that only tests call, or a new component that lands with no consumer.
 
@@ -61,38 +51,22 @@ input or interleaving.
   `ddtrace_switch_span_stack()` that follows; mirror `dd_drop_span`'s
   structure.
 
-### COR-3.3: Mask bit fields instead of overwriting them
-- Flag: assigning one flag to a multi-bit field (`trace_flags`, sampling
-  bits).
-- ❌ `span->trace_flags = DDTRACE_TRACE_FLAG_RANDOM;`
-- ✅ `span->trace_flags = (span->trace_flags & ~DDTRACE_TRACE_FLAG_RANDOM) | (random ? DDTRACE_TRACE_FLAG_RANDOM : 0);`
-
-### COR-3.4: Record derived metadata only when the source value really changed
+### COR-3.3: Record derived metadata only when the source value really changed
 - Flag: a source/override marker (e.g. `_dd.svc_src`) set without an
   `is_identical` check, set unconditionally in the serializer, or keyed on
   an unrelated condition (e.g. comparing with the root span's service).
 
 ## 4. Zend engine semantics
 
-### COR-4.1: Keep refcount semantics when swapping assignment, dup, and copy
-- Flag: a plain zval assignment (no addref) replaced by a dup/`ZVAL_COPY`,
-  or the reverse, without adjusting the matching release.
-
-### COR-4.2: Handle integer keys when iterating user-supplied arrays
+### COR-4.1: Handle integer keys when iterating user-supplied arrays
 - Flag: `ZEND_HASH_FOREACH_STR_KEY_VAL` over user data; PHP turns keys like
   `"1234"` into integer keys, which this loop skips.
 - ✅ `ZEND_HASH_FOREACH_KEY_VAL(ht, num_key, str_key, val)`, converting
   `num_key` when `str_key` is NULL.
 
-### COR-4.3: Guard recursive walks of user arrays and objects
+### COR-4.2: Guard recursive walks of user arrays and objects
 - Flag: recursive serialization or copying of zvals without a
   `GC_PROTECT_RECURSION`/`Z_IS_RECURSIVE` check and a self-referencing test.
-
-### COR-4.4: Check engine-level tricks against the VM mode and new PHP behaviour
-- Flag: interceptor/hook code that returns VM-specific values (e.g.
-  `ZEND_VM_ENTER_BIT`) without checking the tailcall VM is in use, or that
-  attaches state to Closures/oplines PHP may share (PHP 8.6 closure
-  deduplication).
 
 ## 5. Tests
 

@@ -42,29 +42,19 @@ pattern to use.
   `tsrm_ls` pointer.
 - ✅ `void *TSRMLS_CACHE = tsrm_ls; return &DATADOG_G(sidecar);`
 
-### CONV-2.5: Keep PHP lifecycle naming
-- Flag: renaming `minit`/`rinit`/`gshutdown`-style functions unless they
-  really run outside that lifecycle phase.
-
-### CONV-2.6: Wrap whole functions in platform `#ifdef`s
+### CONV-2.5: Wrap whole functions in platform `#ifdef`s
 - Flag: an `#ifdef __linux__` that covers only part of a function body.
 
 ## 3. Stubs and arginfo
 
-### CONV-3.1: Regenerate arginfo with php-src master's `gen_stub.php`
-- Flag: `*_arginfo.h` changes that look produced by an older generator.
-
-### CONV-3.2: Declare stub constants with `UNKNOWN` and `@cvalue`
+### CONV-3.1: Declare stub constants with `UNKNOWN` and `@cvalue`
 - ❌ `const FOO = 3;`
 - ✅ `/** @cvalue DDTRACE_FOO */ const FOO = UNKNOWN;`
 
-### CONV-3.3: Put test-only extension functions in `DDTrace\Testing`
+### CONV-3.2: Put test-only extension functions in `DDTrace\Testing`
 - Flag: test helpers in `DDTrace\Internal` (reserved for `src/`), or
   internal helpers wrapped in `DD_TEST_HELPERS` guards (they're kept
   unconditionally).
-
-### CONV-3.4: Add `@return` phpdoc to public `src/api` methods
-- Flag: new public getters in `src/api` without `@return`.
 
 ## 4. PHP userland
 
@@ -80,10 +70,6 @@ pattern to use.
 ### CONV-4.3: Use `spl_object_id` or `install_hook` data, not `spl_object_hash`
 - Flag: `spl_object_hash()` (deprecated in PHP 8.6).
 - ✅ `install_hook($fn, function (HookData $hook) { $hook->data = ...; })`
-
-### CONV-4.4: Follow PHP-familiar output conventions
-- Flag: invented placeholders where PHP already has a convention.
-- ✅ `"*RECURSION*"` for cyclic values, as `var_dump` prints.
 
 ## 5. Logging
 

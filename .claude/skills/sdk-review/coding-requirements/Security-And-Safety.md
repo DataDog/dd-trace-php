@@ -21,7 +21,7 @@ path (source to sink).
 
 ### SEC-1.2: Bound recursion over user-controlled data
 - Flag: recursive walks of user arrays/objects without a recursion guard
-  (see COR-4.3); self-references crash the customer process.
+  (see COR-4.2); self-references crash the customer process.
 
 ### SEC-1.3: Never install files with the executable bit
 - Flag: installer logic (`datadog-setup.php`) that sets exec permissions;
