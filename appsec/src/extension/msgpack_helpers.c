@@ -64,16 +64,6 @@ void dd_mpack_write_nullable_cstr_lim(
     }
 }
 
-void dd_mpack_write_nullable_str(
-    mpack_writer_t *nonnull w, const char *nullable str, size_t len)
-{
-    if (str) {
-        mpack_write_str(w, str, len);
-    } else {
-        mpack_write_str(w, "", 0);
-    }
-}
-
 void dd_mpack_write_nullable_str_lim(mpack_writer_t *nonnull w,
     const char *nullable str, size_t len, size_t max_len)
 {
@@ -123,19 +113,6 @@ void dd_mpack_write_nullable_zstr_lim(
     } else {
         mpack_write_str(w, "", 0);
     }
-}
-
-void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv)
-{
-    if (mpack_writer_error(w) != mpack_ok) {
-        return;
-    }
-    if (!zv) {
-        mpack_write_nil(w);
-        return;
-    }
-
-    _mpack_write_zval(w, zv, 0);
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)

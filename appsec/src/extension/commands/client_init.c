@@ -21,7 +21,6 @@
 
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nullable ctx);
 static dd_result _process_response(mpack_node_t root, void *nonnull ctx);
-static void _process_helper_runtime(mpack_node_t root);
 static void _process_meta_and_metrics(
     mpack_node_t root, struct req_info *nonnull ctx);
 
@@ -139,13 +138,11 @@ enum {
     ERRORS_INDEX = 2,
     META_INDEX = 3,
     METRICS_INDEX = 4,
-    HELPER_RUNTIME_INDEX = 5,
 };
 static dd_result _process_response(mpack_node_t root, void *nonnull ctx_)
 {
     struct client_init_ctx *ctx = ctx_;
 
-    _process_helper_runtime(root);
     _process_meta_and_metrics(root, ctx->req_info);
 
     // check verdict
@@ -184,20 +181,6 @@ static dd_result _process_response(mpack_node_t root, void *nonnull ctx_)
     }
 
     return dd_error;
-}
-
-static void _process_helper_runtime(mpack_node_t root)
-{
-    mpack_node_t runtime_node = mpack_node_array_at(root, HELPER_RUNTIME_INDEX);
-    if (mpack_node_type(runtime_node) == mpack_type_str) {
-        const char *runtime = mpack_node_str(runtime_node);
-        size_t runtime_len = mpack_node_strlen(runtime_node);
-        if (STR_CONS_EQ(runtime, runtime_len, "rust")) {
-            dd_helper_set_runtime(HELPER_RUNTIME_RUST);
-        } else {
-            dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
-        }
-    }
 }
 
 static void _process_meta_and_metrics(

@@ -317,7 +317,6 @@ fn handle_client_init(
                 crate::telemetry::WAF_VERSION.0.to_string(),
                 Service::waf_version().to_string(),
             );
-            cir.helper_runtime = Some("rust".to_string());
 
             client.service = Some(TrackedService::new(service));
             client.telemetry_client = Some(telemetry_client);
