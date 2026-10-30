@@ -82,6 +82,22 @@ trait WorkerStrategyTests {
     }
 
     @Test
+    void 'each request with an appsec event keeps its trace'() {
+        // Two in a row, on the same worker run: the keep must not be
+        // emitted only once per worker run.
+        2.times {
+            HttpRequest req = container.buildReq('/')
+                    .header('User-Agent', 'Arachni/v1').GET().build()
+            def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+                assert re.statusCode() == 200
+            }
+            Span span = trace.first()
+            assert span.meta.'appsec.event' == 'true'
+            assert span.metrics._sampling_priority_v1 == 2.0d
+        }
+    }
+
+    @Test
     void 'blocking json on request start'() {
         HttpRequest req = container.buildReq('/')
                 .header('X-Forwarded-For', '80.80.80.80').GET().build()
