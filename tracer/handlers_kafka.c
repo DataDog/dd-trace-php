@@ -4,6 +4,9 @@
 #include "data_streams.h"
 #include "ddtrace.h"
 #include "handlers_kafka.h"
+#include <components-rs/datadog.h>
+#include <ext/datadog.h>
+#include <ext/ffi_utils.h>
 #include <ext/handlers_api.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
@@ -52,7 +55,7 @@ bool ddtrace_kafka_is_client(zend_object *obj) {
            (dd_rdkafka_kafka_consumer_ce && instanceof_function(obj->ce, dd_rdkafka_kafka_consumer_ce));
 }
 
-zend_string *ddtrace_kafka_cluster_id(zend_object *kafka) {
+zend_string *ddtrace_kafka_cluster_id(zend_object *kafka, zend_string *bootstrap_servers, zend_long wait_ms) {
     void *rk;
     if (!dd_rd_kafka_clusterid || !(rk = dd_rdkafka_handle(kafka))) {
         return NULL;
@@ -60,11 +63,28 @@ zend_string *ddtrace_kafka_cluster_id(zend_object *kafka) {
 
     // Without a timeout, librdkafka returns the id it has without waiting for a metadata response
     char *cluster_id = dd_rd_kafka_clusterid(rk, 0);
+    if (!cluster_id && bootstrap_servers) {
+        // The client has had no metadata response yet; another client with the same bootstrap
+        // servers, in this process or another one of the sidecar's, may have
+        uint8_t shared[256];
+        size_t len = ddog_dsm_get_kafka_cluster_id(dd_zend_string_to_CharSlice(bootstrap_servers), shared, sizeof(shared));
+        if (len) {
+            return zend_string_init((const char *)shared, len, 0);
+        }
+    }
+    if (!cluster_id && wait_ms > 0) {
+        // librdkafka only waits for the response to the metadata request the client sends anyway
+        cluster_id = dd_rd_kafka_clusterid(rk, wait_ms < INT_MAX ? (int)wait_ms : INT_MAX);
+    }
     if (!cluster_id) {
         return NULL;
     }
     zend_string *str = zend_string_init(cluster_id, strlen(cluster_id), 0);
     dd_rd_kafka_mem_free(rk, cluster_id);
+    if (bootstrap_servers) {
+        ddog_dsm_set_kafka_cluster_id(DATADOG_G(sidecar), dd_zend_string_to_CharSlice(bootstrap_servers),
+                                      dd_zend_string_to_CharSlice(str));
+    }
     return str;
 }
 

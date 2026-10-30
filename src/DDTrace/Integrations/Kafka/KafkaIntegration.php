@@ -16,6 +16,11 @@ class KafkaIntegration extends Integration
     // Header carrying the Data Streams Monitoring pathway context.
     const DSM_CONTEXT_HEADER = 'dd-pathway-ctx-base64';
 
+    // How long a producer that has not had its brokers' first answer waits for it, for the
+    // cluster id, when no process has shared one for its bootstrap servers. Only its first
+    // produce waits.
+    const DSM_CLUSTER_ID_WAIT_MS = 100;
+
     // Set while the integration installs its own callback on a Conf, so that the hooks on the
     // setters do not wrap it a second time.
     private static $installingDataStreamsCallback = false;
@@ -90,11 +95,19 @@ class KafkaIntegration extends Integration
         // The message as it is sent, but for the context header the checkpoint computes.
         $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
             + self::headersSize(array_merge($args[4] ?? [], $headers));
-        return \DDTrace\Internal\dsm_set_checkpoint([
+        $producer = ObjectKVStore::get($producerTopic, 'kafka');
+        // Waiting on every produce would hold up all of them for as long as the brokers do not
+        // answer, so a producer waits once.
+        $waitMs = 0;
+        if ($producer && !ObjectKVStore::get($producer, 'dsm_cluster_id_waited', false)) {
+            ObjectKVStore::put($producer, 'dsm_cluster_id_waited', true);
+            $waitMs = self::DSM_CLUSTER_ID_WAIT_MS;
+        }
+        return \DDTrace\Internal\dsm_set_checkpoint(array_merge([
             'direction:out',
             'topic:' . $producerTopic->getName(),
             'type:kafka',
-        ], null, $payloadSize);
+        ], self::clusterIdTags($producer, $waitMs)), null, $payloadSize);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
@@ -207,6 +220,8 @@ class KafkaIntegration extends Integration
         }
         $edgeTags[] = 'topic:' . $message->topic_name;
         $edgeTags[] = 'type:kafka';
+        $kafka = $consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : $consumer;
+        $edgeTags = array_merge($edgeTags, self::clusterIdTags($kafka));
 
         \DDTrace\Internal\dsm_set_checkpoint(
             $edgeTags,
@@ -320,16 +335,20 @@ class KafkaIntegration extends Integration
     }
 
     /**
-     * The tag naming the cluster `$kafka` is connected to, from librdkafka's last metadata
-     * response. Delivery reports and commits only come after one, so callbacks always have it.
-     * Anything but a client has none: kafka_cluster_id() would throw, losing the backlog with it.
+     * The tag naming the cluster `$kafka` is connected to. librdkafka has its id from the client's
+     * last metadata response, and delivery reports, commits and consumed messages only come after
+     * one. A producer too new to have had one gets the id another client with the same bootstrap
+     * servers read, in this process or another one of the sidecar's, or waits up to `$waitMs` for
+     * its own. Anything but a client has none: kafka_cluster_id() would throw, losing the
+     * checkpoint or backlog with it.
      */
-    private static function clusterIdTags($kafka): array
+    private static function clusterIdTags($kafka, int $waitMs = 0): array
     {
         if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
             return [];
         }
-        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka);
+        $conf = ObjectKVStore::get($kafka, 'conf');
+        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null, $waitMs);
         return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
     }
 
@@ -397,6 +416,8 @@ class KafkaIntegration extends Integration
                 if (in_array($method, ['newTopic', 'newQueue'])) {
                     $conf = ObjectKVStore::get($hook->instance, 'conf');
                     ObjectKVStore::put($hook->returned, 'conf', $conf);
+                    // The client, for its cluster id
+                    ObjectKVStore::put($hook->returned, 'kafka', $hook->instance);
                 }
             }
         );

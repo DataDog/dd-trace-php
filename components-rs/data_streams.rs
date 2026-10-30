@@ -36,10 +36,13 @@
 use base64::alphabet;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use base64::Engine;
-use datadog_sidecar::service::blocking::{add_dsm_backlog, add_dsm_checkpoint, SidecarTransport};
+use datadog_sidecar::service::blocking::{
+    add_dsm_backlog, add_dsm_checkpoint, set_kafka_cluster_id, SidecarTransport,
+};
 use datadog_sidecar::service::data_streams_flusher::{
     dsm_backlog_shm_path, dsm_checkpoint_shm_path, DsmTableKey,
 };
+use datadog_sidecar::service::kafka_cluster_ids::KafkaClusterIdReader;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use libdd_ipc::shm_dsm_checkpoint::{
     DsmCheckpointInput, OwnedDsmCheckpoint, ShmDsmCheckpointTable, MAX_EDGE_TAGS,
@@ -216,6 +219,9 @@ thread_local! {
     /// pathways. That's fine for now, as the only user, php-amqplib's `basic_consume`, calls back
     /// synchronously.
     static OUTER_PATHWAYS: RefCell<Vec<RequestPathway>> = RefCell::default();
+    /// Kafka cluster ids by bootstrap servers, as the sidecar shares them between its processes;
+    /// kept for the life of the process, unlike the request's pathway.
+    static KAFKA_CLUSTER_IDS: RefCell<KafkaClusterIdReader> = RefCell::default();
 }
 
 /// A checkpoint, computed: what to record and the context to hand on.
@@ -535,6 +541,57 @@ pub unsafe extern "C" fn ddog_dsm_track_backlog(
     );
 }
 
+/// Write the id of the cluster the Kafka clients with `bootstrap_servers` reach to `out`, if this
+/// process or another process of the sidecar has read it from such a client, and return its
+/// length; 0 if no process has, or it does not fit in `out_cap` bytes.
+///
+/// # Safety
+/// `out` must point to `out_cap` writable bytes.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_dsm_get_kafka_cluster_id(
+    bootstrap_servers: CharSlice,
+    out: *mut u8,
+    out_cap: usize,
+) -> usize {
+    KAFKA_CLUSTER_IDS.with(|ids| {
+        let mut ids = ids.borrow_mut();
+        match ids.get(str_of(bootstrap_servers)) {
+            Some(id) if id.len() <= out_cap => {
+                std::ptr::copy_nonoverlapping(id.as_ptr(), out, id.len());
+                id.len()
+            }
+            _ => 0,
+        }
+    })
+}
+
+/// Record that the Kafka clients with `bootstrap_servers` reach the cluster `cluster_id`, as the
+/// caller read it from one of them, and share it with the sidecar's other processes the first
+/// time.
+///
+/// # Safety
+/// `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_dsm_set_kafka_cluster_id(
+    transport: *mut SidecarTransport,
+    bootstrap_servers: CharSlice,
+    cluster_id: CharSlice,
+) {
+    let (bootstrap_servers, cluster_id) = (str_of(bootstrap_servers), str_of(cluster_id));
+    let news = KAFKA_CLUSTER_IDS.with(|ids| ids.borrow_mut().learn(bootstrap_servers, cluster_id));
+    if let (true, Some(transport)) = (news, transport.as_mut()) {
+        let sent = set_kafka_cluster_id(transport, bootstrap_servers.into(), cluster_id.into());
+        if !matches!(sent, Ok(true)) {
+            trace!("Could not share the Kafka cluster id of {bootstrap_servers} with the sidecar");
+        }
+    }
+}
+
+/// Follow the sidecar the process now talks to, for the cluster ids it shares.
+pub(crate) fn reconnect_kafka_cluster_ids() {
+    KAFKA_CLUSTER_IDS.with(|ids| ids.borrow().reconnect());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -796,5 +853,27 @@ mod tests {
         assert!(AGENT_SUPPORTS_DSM.load(Ordering::Acquire));
         apply_agent_endpoints(Some(&["/v0.4/traces".into()]));
         assert!(!AGENT_SUPPORTS_DSM.load(Ordering::Acquire));
+    }
+
+    /// Without a sidecar, a process still uses the cluster ids it learned itself.
+    #[test]
+    fn a_learned_kafka_cluster_id_is_used() {
+        let servers = CharSlice::from("kafka-test:9092");
+        let mut out = [0u8; 64];
+        let get = |out: &mut [u8]| unsafe {
+            ddog_dsm_get_kafka_cluster_id(servers, out.as_mut_ptr(), out.len())
+        };
+        assert_eq!(get(&mut out), 0);
+
+        unsafe {
+            ddog_dsm_set_kafka_cluster_id(
+                std::ptr::null_mut(),
+                servers,
+                CharSlice::from("5L6g3nShT-eMCtK--X86sw"),
+            )
+        };
+        let len = get(&mut out);
+        assert_eq!(&out[..len], b"5L6g3nShT-eMCtK--X86sw");
+        assert_eq!(get(&mut out[..4]), 0, "too long for the buffer");
     }
 }
