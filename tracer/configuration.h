@@ -131,6 +131,7 @@
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
     CONFIG(BOOL, DD_DBM_INJECT_SQL_BASEHASH, "false")                                                          \
     CONFIG(BOOL, DD_DBM_ALWAYS_APPEND_SQL_COMMENT, "false")                                                    \
+    CONFIG(BOOL, DD_DBM_TRACE_PREPARED_STATEMENTS, "false")                                                    \
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                     \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "true")                                                         \
     CONFIG(BOOL, DD_INTEGRATION_METRICS_ENABLED, "true",                                                       \
