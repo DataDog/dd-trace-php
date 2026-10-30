@@ -9,7 +9,8 @@ use Psr\Http\Message\ServerRequestInterface;
 // Identifies the worker script run serving the request, for
 // Php2ShellFrankenphpWorkerTests: the id is drawn when the worker script starts
 // (index.php builds its handlers once), so a fatal that restarts the script
-// changes it; tid is the OS thread, which a restart keeps.
+// changes it; tid is the OS thread, which a restart keeps; real is the real
+// memory usage.
 class Php2ShellWorkerHandler
 {
     private string $id;
@@ -27,7 +28,8 @@ class Php2ShellWorkerHandler
         return new Response(
             200,
             ['Content-Type' => 'text/plain'],
-            "worker={$this->id} tid={$tid} requests={$this->requests}"
+            "worker={$this->id} tid={$tid} requests={$this->requests} real=" .
+                memory_get_usage(true)
         );
     }
 }
