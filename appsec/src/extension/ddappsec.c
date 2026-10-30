@@ -394,7 +394,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
     }
     DDAPPSEC_G(skip_rshutdown) = false;
     dd_msgpack_helpers_rinit();
-    dd_trace_rinit();
 
     // Waf calls happen here. Not many rinits should go after this line.
     dd_req_lifecycle_rinit(false);
@@ -419,7 +418,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddappsec)
 
     DDAPPSEC_G(during_request_shutdown) = true;
 
-    ZEND_RESULT_CODE result = SUCCESS;
+    int result = SUCCESS;
 
     // Here now we have to disconnect from the helper in all the cases but when
     // disabled by config

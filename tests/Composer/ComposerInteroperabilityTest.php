@@ -91,9 +91,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'datadog.trace.sources_path' => __DIR__ . '/../../src',
-                'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
@@ -126,9 +125,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'datadog.trace.sources_path' => __DIR__ . '/../../src',
-                'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
@@ -168,9 +166,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'datadog.trace.sources_path' => __DIR__ . '/../../src',
-                'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.composer.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
@@ -210,9 +207,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'datadog.trace.sources_path' => __DIR__ . '/../../src',
-                'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
@@ -245,9 +241,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'datadog.trace.sources_path' => __DIR__ . '/../../src',
-                'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
@@ -344,9 +339,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'datadog.trace.sources_path' => __DIR__ . '/../../src',
-                'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
@@ -380,9 +374,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'datadog.trace.sources_path' => __DIR__ . '/../../src',
-                'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
@@ -416,9 +409,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'datadog.trace.sources_path' => __DIR__ . '/../../src',
-                'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
@@ -456,5 +448,11 @@ class ComposerInteroperabilityTest extends BaseTestCase
     private function getPreloadTouchFilePath()
     {
         return __DIR__ . '/app/touch.preload';
+    }
+
+    private static function opcacheInis()
+    {
+        // PHP 8.5+ has OPcache built in: there is no opcache.so to load
+        return PHP_VERSION_ID < 80500 ? ['zend_extension' => 'opcache.so'] : [];
     }
 }
