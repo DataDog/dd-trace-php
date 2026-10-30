@@ -164,7 +164,8 @@
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
     CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED, "false")                                           \
-    CONFIG(BOOL, DD_FLAGGING_EVALUATION_COUNTS_ENABLED, "true")                                                \
+    CALIAS(BOOL, DD_FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED, "true",                                       \
+           CALIASES("DD_FLAGGING_EVALUATION_COUNTS_ENABLED"))                                                \
     DD_INTEGRATIONS
 
 #ifndef DDTRACE_CONFIGURATION
