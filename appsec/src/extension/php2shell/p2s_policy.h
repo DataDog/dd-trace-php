@@ -16,7 +16,7 @@
 
 #include "../attributes.h"
 
-// The WAF's process-wide sticky decision, consulted under mode auto only.
+// The WAF's sticky decision (per thread), consulted under mode auto only.
 // PENDING (no answer yet) behaves like BLOCK; the two are kept apart so that
 // MINFO and tests can tell them apart.
 typedef enum {
@@ -46,7 +46,7 @@ bool dd_p2s_policy_armed(void);
 // Whether native memory errors are to be detected and reported: active, mode
 // auto and the WAF's decision is monitor.
 bool dd_p2s_policy_monitoring(void);
-// Store the WAF's decision (process-wide, sticky). Ignored unless the mode is
+// Store the WAF's decision (per thread, sticky). Ignored unless the mode is
 // auto.
 void dd_p2s_policy_set_decision(dd_p2s_decision decision);
 // Parse a decision name (none, monitor or block, case-insensitive). False,

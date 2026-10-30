@@ -104,6 +104,12 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise(
     dd_deferred_phase phase, size_t dropped);
 // Arm for the whole request (appsec's RINIT).
 void dd_p2s_guard_open(void);
+// Make the request level armed or not, mid-request (FrankenPHP worker mode,
+// between HTTP requests): opens it if needed; otherwise only flags and the
+// engine limit change, the handlers stay until dd_p2s_guard_close().
+void dd_p2s_guard_reconcile(bool armed);
+// Marker in the deferred fatal's message, so that monitor detection skips it.
+#define DD_P2S_DEFERRED_MARKER "(Datadog AppSec PHP2Shell mitigation deferred"
 // End the request level (appsec's RSHUTDOWN).
 void dd_p2s_guard_close(void);
 // post_deactivate: disarm, forget the request and settle the handlers.

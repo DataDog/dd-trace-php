@@ -52,12 +52,12 @@ void dd_php2shell_startup(void);
 // a failed request startup left them there. Called first in PHP_MSHUTDOWN.
 void dd_php2shell_mshutdown(void);
 
-// Set whether appsec's state lets the mitigation run. Process-wide; writes
-// only when the value changes.
+// Set whether appsec's state lets the mitigation run. Per thread (see
+// php2shell/p2s_policy.c).
 void dd_php2shell_set_allowed(bool allowed);
 
 // Apply the WAF's decision from the request_init response (none, monitor or
-// block). Process-wide and sticky; ignored unless the mode is auto. An unknown
+// block). Per thread and sticky; ignored unless the mode is auto. An unknown
 // value is logged and changes nothing.
 void dd_php2shell_set_waf_decision(const char *nonnull value, size_t len);
 
@@ -70,6 +70,11 @@ const char *nullable dd_php2shell_vulnerable_value(void);
 // PHP_RINIT, after appsec's enabled state is resolved and remote config
 // applied (and dd_php2shell_set_allowed() called for them).
 void dd_php2shell_rinit(void);
+
+// In FrankenPHP worker mode, at the start of each HTTP request (after its
+// request_init): arm or disarm the request level to follow the WAF decision,
+// as dd_php2shell_rinit() does once per PHP request otherwise.
+void dd_php2shell_user_req_begin(void);
 
 // Disarm the request and remove the handlers dd_php2shell_rinit() installed,
 // if the slot still holds them. Called at the start of PHP_RSHUTDOWN.
