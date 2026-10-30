@@ -137,9 +137,6 @@ class AMQPIntegration extends Integration
                     $message = $args[0];
                     if (!is_null($message)) {
                         self::injectContext($message);
-                        if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
-                            self::setDataStreamsProduceCheckpoint($message, $args[1] ?? '', $args[2] ?? '');
-                        }
                     }
                 },
                 'posthook' => static function (SpanData $span, $args, $exception) {
@@ -171,6 +168,19 @@ class AMQPIntegration extends Integration
                     }
                 }
             ]
+        );
+
+        // Data Streams Monitoring hooks run apart from the spans' hooks, which stop once the
+        // tracer reaches its span limit. This one is installed after the span's, so that it runs
+        // after injectContext() and counts the headers that adds in the payload size.
+        \DDTrace\install_hook(
+            'PhpAmqpLib\Channel\AMQPChannel::basic_publish',
+            static function (HookData $hook) {
+                $message = $hook->args[0] ?? null;
+                if ($message instanceof AMQPMessage && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    self::setDataStreamsProduceCheckpoint($message, $hook->args[1] ?? '', $hook->args[2] ?? '');
+                }
+            }
         );
 
         trace_method(
@@ -236,6 +246,7 @@ class AMQPIntegration extends Integration
         \DDTrace\install_hook(
             'PhpAmqpLib\Channel\AMQPChannel::basic_consume',
             static function (HookData $hook) {
+                $hook->span();
                 if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
                         || !isset($hook->args[6]) || !is_callable($hook->args[6])) {
                     return;
@@ -264,30 +275,26 @@ class AMQPIntegration extends Integration
                     }
                 };
                 $hook->overrideArguments($hook->args);
-            }
-        );
-
-        trace_method(
-            "PhpAmqpLib\Channel\AMQPChannel",
-            "basic_consume",
-            static function (SpanData $span, $args, $retval, $exception) {
+            },
+            static function (HookData $hook) {
                 /** @var string $queue */
-                $queue = $args[0];
+                $queue = $hook->args[0] ?? null;
                 /** @var string $consumer_tag */
-                $consumerTag = $args[1];
+                $consumerTag = $hook->args[1] ?? null;
 
                 $queueDisplayName = self::formatQueueName($queue);
 
+                $span = $hook->span();
                 self::setGenericTags(
                     $span,
                     'basic.consume',
                     'client',
                     $queueDisplayName,
-                    $exception
+                    $hook->exception
                 );
                 $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
                 $span->meta[Tag::MQ_OPERATION] = 'receive';
-                $span->meta[Tag::MQ_CONSUMER_ID] = $retval ?? $consumerTag;
+                $span->meta[Tag::MQ_CONSUMER_ID] = $hook->returned ?? $consumerTag;
             }
         );
 
@@ -500,12 +507,18 @@ class AMQPIntegration extends Integration
                             $span->links[] = $spanLinkInstance;
                         }
                     }
+                }
+            }
+        );
 
-                    // The application handles the message after basic_get returns, so the
-                    // checkpoint stays the request's pathway until the next one.
-                    if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
-                        self::setDataStreamsConsumeCheckpoint($message, (string)$queue);
-                    }
+        // Apart from the span's hook, as for basic_publish. The application handles the message
+        // after basic_get returns, so the checkpoint stays the request's pathway until the next.
+        \DDTrace\install_hook(
+            'PhpAmqpLib\Channel\AMQPChannel::basic_get',
+            null,
+            static function (HookData $hook) {
+                if ($hook->returned instanceof AMQPMessage && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    self::setDataStreamsConsumeCheckpoint($hook->returned, (string)($hook->args[0] ?? ''));
                 }
             }
         );
@@ -656,10 +669,13 @@ class AMQPIntegration extends Integration
     {
         $headers = self::getNativeHeaders($message);
         $context = $headers[self::DSM_CONTEXT_HEADER] ?? null;
+        // The size the message was sent with, as the span counts it: past the channel's body size
+        // limit, getBody() is cut short. Only a received message has one.
+        $bodySize = $message->getBodySize() ?? strlen((string)$message->getBody());
         \DDTrace\Internal\dsm_set_checkpoint(
             ['direction:in', 'topic:' . $queue, 'type:rabbitmq'],
             is_string($context) ? $context : null,
-            strlen((string)$message->getBody()) + self::headersSize($headers)
+            $bodySize + self::headersSize($headers)
         );
     }
 

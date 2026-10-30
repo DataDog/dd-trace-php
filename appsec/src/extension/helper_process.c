@@ -130,7 +130,7 @@ void dd_helper_rshutdown(void)
 dd_conn *nullable dd_helper_mgr_acquire_conn(
     client_init_func nonnull init_func, void *unspecnull ctx)
 {
-    dd_conn *conn = &DDAPPSEC_G(conn);
+    dd_conn *volatile conn = &DDAPPSEC_G(conn);
     if (dd_conn_connected(conn)) {
         return conn;
     }
@@ -145,18 +145,26 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
 
     dd_conn_init(conn);
 
-    int res = init_func(conn, ctx);
+    volatile int res;
+    zend_try { res = init_func(conn, ctx); }
+    zend_catch
+    {
+        dd_conn_destroy(conn);
+        dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
+        _release_shared_state_lock(&_mgr.hss);
+        zend_bailout();
+    }
+    zend_end_try();
     if (res) {
+        dd_conn_destroy(conn);
         mlog_g(dd_log_warning, "Initial exchange with helper failed; "
                                "abandoning the connection");
-        dd_conn_destroy(conn);
         goto error;
     }
 
-    mlog(dd_log_debug, "returning fresh connection");
-
     _mgr.connected_this_req = true;
     _release_shared_state_lock(&_mgr.hss);
+    mlog(dd_log_debug, "returning fresh connection");
     dd_telemetry_helper_conn_success();
 
     return conn;

@@ -37,10 +37,12 @@ class KafkaTest extends IntegrationTestCase
         $topicHighLevel = $producer->newTopic('test-highlevel', $topicConf);
         $topicDsm = $producer->newTopic('test-dsm', $topicConf);
         $topicClusterId = $producer->newTopic('test-cluster-id', $topicConf);
+        $topicDefaultConf = $producer->newTopic('test-default-conf', $topicConf);
         $producer->getMetadata(false, $topicLowLevel, 5000);
         $producer->getMetadata(false, $topicHighLevel, 5000);
         $producer->getMetadata(false, $topicDsm, 5000);
         $producer->getMetadata(false, $topicClusterId, 5000);
+        $producer->getMetadata(false, $topicDefaultConf, 5000);
     }
 
     /**
@@ -58,7 +60,7 @@ class KafkaTest extends IntegrationTestCase
             $this->assertRegularExpression('/^' . $client . ': ' . preg_quote($matches[1], '/') . '$/m', $output);
         }
         $this->assertRegularExpression("/^closed consumer: NULL$/m", $output);
-        $this->assertRegularExpression("/^other object: NULL$/m", $output);
+        $this->assertRegularExpression("/^other object: TypeError$/m", $output);
     }
 
     const DSM_ENV = [
@@ -132,6 +134,31 @@ class KafkaTest extends IntegrationTestCase
             '/^checkpoint: direction:out,kafka_cluster_id:[A-Za-z0-9_-]+,topic:test-cluster-id,type:kafka -> \d+$/m',
             $output
         );
+    }
+
+    /**
+     * A Producer constructed without a Conf, or with null, is given an empty one, so that the
+     * integration's delivery report callback records its produce offsets too.
+     */
+    public function testDataStreamsProduceOffsetsWithoutConf()
+    {
+        $env = [
+            'DD_DATA_STREAMS_ENABLED' => 'true',
+            'DD_TRACE_CLI_ENABLED' => 'true',
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
+        ];
+        $script = __DIR__ . '/scripts/producer-default-conf.php';
+        $output = $this->executeCli($script, $env, [], 'test-default-conf', true);
+
+        foreach (['no conf', 'null conf'] as $case) {
+            $this->assertRegularExpression(
+                '/^' . $case . ': topic:test-default-conf,type:kafka_produce,partition:\d+'
+                    . '(,kafka_cluster_id:[A-Za-z0-9_-]+)?$/m',
+                $output
+            );
+        }
     }
 
     public function testDistributedTracingHighLevel()

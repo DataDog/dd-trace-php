@@ -15,6 +15,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog)
 
 void ddtrace_engine_hooks_minit(void);
+void ddtrace_engine_hooks_first_rinit(void);
 void ddtrace_fetch_profiling_symbols(void);
 void ddtrace_engine_hooks_mshutdown(void);
 

@@ -1154,14 +1154,15 @@ namespace DDTrace\Internal {
      *
      * @internal
      *
-     * @param mixed $kafka an RdKafka\Producer, RdKafka\Consumer or RdKafka\KafkaConsumer
+     * @param \RdKafka\KafkaConsumer|\RdKafka $kafka an RdKafka\Producer, RdKafka\Consumer or RdKafka\KafkaConsumer
      * @param string|null $bootstrapServers the client's "metadata.broker.list"
      * @param int $waitMs how long to wait for the client's first metadata response, if no client
      *                    with the same bootstrap servers has had one
      * @return string|null the cluster id, or null if it is not known, the broker sends no id, or
      *                     the id cannot be read from `$kafka`
+     * @throws \TypeError if `$kafka` is not one of them
      */
-    function kafka_cluster_id(mixed $kafka, ?string $bootstrapServers = null, int $waitMs = 0): ?string {}
+    function kafka_cluster_id(object $kafka, ?string $bootstrapServers = null, int $waitMs = 0): ?string {}
 
 }
 

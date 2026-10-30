@@ -161,6 +161,9 @@ STEP;
         $result .= $block;
     }
 
+    // Green CI counts each child pipeline separately: tag every one, not just the root.
+    $result .= file_get_contents(__DIR__ . '/green-ci-exclude-job.yml');
+
     echo $result;
 });
 

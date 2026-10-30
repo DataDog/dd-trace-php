@@ -1,24 +1,36 @@
 --TEST--
-Data Streams Monitoring: kafka_cluster_id() is null for anything but a php-rdkafka client
+Data Streams Monitoring: kafka_cluster_id() only takes a php-rdkafka client
 --DESCRIPTION--
-The id is read from librdkafka through php-rdkafka's own objects, which are only read for
-RdKafka\Producer, RdKafka\Consumer and RdKafka\KafkaConsumer, whatever bootstrap servers and wait
-are given. What a connected client returns is covered by KafkaTest::testClusterId.
+The id is read from librdkafka through php-rdkafka's own objects, so anything but an
+RdKafka\Producer, RdKafka\Consumer or RdKafka\KafkaConsumer is a TypeError, whatever bootstrap
+servers and wait are given. strict_types makes PHP 7 throw it too, as PHP 8 does in any mode. What
+a connected client returns is covered by KafkaTest::testClusterId.
 --FILE--
 <?php
 
-var_dump(\DDTrace\Internal\kafka_cluster_id(new stdClass()));
-var_dump(\DDTrace\Internal\kafka_cluster_id(new ArrayObject()));
-var_dump(\DDTrace\Internal\kafka_cluster_id(null));
-var_dump(\DDTrace\Internal\kafka_cluster_id('5L6g3nShT-eMCtK--X86sw'));
-var_dump(\DDTrace\Internal\kafka_cluster_id(new stdClass(), 'kafka:9092'));
-var_dump(\DDTrace\Internal\kafka_cluster_id(new stdClass(), 'kafka:9092', 100));
+declare(strict_types=1);
+
+$calls = [
+    [new stdClass()],
+    [new ArrayObject()],
+    [null],
+    ['5L6g3nShT-eMCtK--X86sw'],
+    [new stdClass(), 'kafka:9092'],
+    [new stdClass(), 'kafka:9092', 100],
+];
+foreach ($calls as $args) {
+    try {
+        var_dump(\DDTrace\Internal\kafka_cluster_id(...$args));
+    } catch (\TypeError $e) {
+        echo get_class($e), "\n";
+    }
+}
 
 ?>
 --EXPECT--
-NULL
-NULL
-NULL
-NULL
-NULL
-NULL
+TypeError
+TypeError
+TypeError
+TypeError
+TypeError
+TypeError

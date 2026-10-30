@@ -308,33 +308,24 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
-/**
- * Written as a single byte.
- */
-typedef enum ddog_AppsecBodyRecord {
-  DDOG_APPSEC_BODY_RECORD_MAP_START = 1,
-  DDOG_APPSEC_BODY_RECORD_LIST_START,
-  DDOG_APPSEC_BODY_RECORD_END,
-  DDOG_APPSEC_BODY_RECORD_KEY,
-  DDOG_APPSEC_BODY_RECORD_STR,
-  DDOG_APPSEC_BODY_RECORD_INT,
-  DDOG_APPSEC_BODY_RECORD_FLOAT,
-  DDOG_APPSEC_BODY_RECORD_TRUE,
-  DDOG_APPSEC_BODY_RECORD_FALSE,
-  DDOG_APPSEC_BODY_RECORD_NULL,
-} ddog_AppsecBodyRecord;
-
 typedef enum ddog_AppsecBodyStatus {
   /**
-   * Nothing usable was parsed; the tape is empty.
+   * Nothing usable was parsed; the MessagePack buffer is empty.
    */
   DDOG_APPSEC_BODY_STATUS_EMPTY,
   /**
-   * The input was truncated or malformed; the tape holds what preceded the
-   * error, with all containers closed.
+   * Malformed or truncated input; all emitted containers are closed.
    */
   DDOG_APPSEC_BODY_STATUS_PARTIAL,
   DDOG_APPSEC_BODY_STATUS_COMPLETE,
+  /**
+   * Allocation failed; all partial state has been released.
+   */
+  DDOG_APPSEC_BODY_STATUS_OUT_OF_MEMORY,
+  /**
+   * An unexpected panic or a recursive call into the parser.
+   */
+  DDOG_APPSEC_BODY_STATUS_INTERNAL_ERROR,
 } ddog_AppsecBodyStatus;
 
 typedef enum ddog_ConfigurationOrigin {
@@ -884,14 +875,34 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             uintptr_t *out_len);
 
 /**
- * Owned by Rust; release it with `ddog_appsec_body_tape_drop`.
+ * All request allocations, except those made while a panic is in progress,
+ * go through these callbacks. Neither callback may unwind or longjmp.
  */
-typedef struct ddog_AppsecBodyTape {
+typedef struct ddog_AppsecBodyAllocator {
+  /**
+   * Borrowed only until the parse call returns.
+   */
+  void *context;
+  uint8_t *(*allocate)(void*, uintptr_t);
+  /**
+   * Must remain callable until the returned MessagePack buffer is dropped.
+   */
+  void (*free)(uint8_t*);
+} ddog_AppsecBodyAllocator;
+
+/**
+ * Owned by the parser library; release with ddog_appsec_body_msgpack_drop.
+ */
+typedef struct ddog_AppsecBodyMessagePack {
   uint8_t *ptr;
   uintptr_t len;
   uintptr_t capacity;
+  /**
+   * The allocator's free callback, set once the buffer leaves the parser.
+   */
+  void (*free)(uint8_t*);
   enum ddog_AppsecBodyStatus status;
-} ddog_AppsecBodyTape;
+} ddog_AppsecBodyMessagePack;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,

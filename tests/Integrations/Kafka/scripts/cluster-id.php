@@ -61,4 +61,8 @@ while (microtime(true) < $deadline) {
 $consumer->close();
 report('closed consumer', $consumer);
 
-report('other object', new stdClass());
+try {
+    report('other object', new stdClass());
+} catch (\TypeError $e) {
+    echo "other object: TypeError\n";
+}

@@ -279,8 +279,7 @@ class KafkaIntegration extends Integration
     /** A delivery report callback recording produce offsets, then calling `$callback`. */
     public static function trackProduceOffsets($callback)
     {
-        return static function (...$args) use ($callback) {
-            list($kafka, $message) = $args + [null, null];
+        return static function ($kafka = null, $message = null) use ($callback) {
             if ($message instanceof \RdKafka\Message && $message->err === RD_KAFKA_RESP_ERR_NO_ERROR) {
                 try {
                     \DDTrace\Internal\dsm_track_backlog(array_merge([
@@ -292,7 +291,7 @@ class KafkaIntegration extends Integration
                 }
             }
             if ($callback !== null) {
-                return $callback(...$args);
+                return $callback($kafka, $message);
             }
         };
     }
@@ -300,8 +299,7 @@ class KafkaIntegration extends Integration
     /** An offset commit callback recording committed offsets, then calling `$callback`. */
     public static function trackCommitOffsets($callback)
     {
-        return static function (...$args) use ($callback) {
-            list($kafka, $err, $partitions) = $args + [null, null, null];
+        return static function ($kafka = null, $err = null, $partitions = null) use ($callback) {
             if ($err === RD_KAFKA_RESP_ERR_NO_ERROR && is_array($partitions)) {
                 try {
                     $conf = $kafka ? ObjectKVStore::get($kafka, 'conf') : null;
@@ -323,7 +321,7 @@ class KafkaIntegration extends Integration
                 }
             }
             if ($callback !== null) {
-                return $callback(...$args);
+                return $callback($kafka, $err, $partitions);
             }
         };
     }
@@ -333,11 +331,15 @@ class KafkaIntegration extends Integration
      * last metadata response, and delivery reports, commits and consumed messages only come after
      * one. A producer too new to have had one gets the id another client with the same bootstrap
      * servers read, in this process or another one of the sidecar's, or waits up to `$waitMs` for
-     * its own.
+     * its own. Anything but a client has none: kafka_cluster_id() would throw, losing the
+     * checkpoint or backlog with it.
      */
     private static function clusterIdTags($kafka, int $waitMs = 0): array
     {
-        $conf = $kafka ? ObjectKVStore::get($kafka, 'conf') : null;
+        if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
+            return [];
+        }
+        $conf = ObjectKVStore::get($kafka, 'conf');
         $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null, $waitMs);
         return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
     }
@@ -378,13 +380,20 @@ class KafkaIntegration extends Integration
 
     private static function installConfigurationHook(string $class, string $method)
     {
-        \DDTrace\hook_method(
-            $class,
-            $method,
-            static function ($This, $scope, $args) use ($class, $method) {
+        \DDTrace\install_hook(
+            "$class::$method",
+            static function (HookData $hook) use ($class, $method) {
                 if ($method === '__construct') {
-                    $conf = $args[0];
-                    ObjectKVStore::put($This, 'conf', $conf->dump());
+                    $conf = $hook->args[0] ?? null;
+                    // A Producer or Consumer constructed without a Conf gets librdkafka's
+                    // defaults, which an empty Conf has too. Pass one, for the integration to
+                    // read and to put its callbacks on. A KafkaConsumer requires a Conf: passing
+                    // one would replace the error about the missing Conf with one about group.id.
+                    if ($conf === null && $class !== 'RdKafka\KafkaConsumer') {
+                        $conf = new \RdKafka\Conf();
+                        $hook->overrideArguments([$conf]);
+                    }
+                    ObjectKVStore::put($hook->instance, 'conf', $conf->dump());
                     // The constructor copies the Conf, so callbacks must be on it beforehand. A
                     // low-level Consumer gets none of its own: it serves commit results only
                     // when the application polls it, which it need not do.
@@ -395,12 +404,12 @@ class KafkaIntegration extends Integration
                     }
                 }
             },
-            static function ($This, $scope, $args, $returnValue) use ($method) {
+            static function (HookData $hook) use ($method) {
                 if (in_array($method, ['newTopic', 'newQueue'])) {
-                    $conf = ObjectKVStore::get($This, 'conf');
-                    ObjectKVStore::put($returnValue, 'conf', $conf);
+                    $conf = ObjectKVStore::get($hook->instance, 'conf');
+                    ObjectKVStore::put($hook->returned, 'conf', $conf);
                     // The client, for its cluster id
-                    ObjectKVStore::put($returnValue, 'kafka', $This);
+                    ObjectKVStore::put($hook->returned, 'kafka', $hook->instance);
                 }
             }
         );
