@@ -224,6 +224,8 @@ void ddtrace_activate_early(void) {
     ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
+    // Borrowed from the previous request's configuration, which is gone by now.
+    DDTRACE_G(stats_additional_tags).computed = false;
 }
 
 void ddtrace_activate_late(void) {

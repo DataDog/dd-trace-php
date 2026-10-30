@@ -10,7 +10,9 @@
 use crate::trace_filter;
 use datadog_sidecar::service::blocking::{add_span_to_concentrator, SidecarTransport};
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
-use libdd_ipc::shm_stats::{OwnedShmSpanInput, ShmSpanConcentrator, ShmSpanInput, MAX_PEER_TAGS};
+use libdd_ipc::shm_stats::{
+    OwnedShmSpanInput, ShmSpanConcentrator, ShmSpanInput, MAX_ADDITIONAL_TAGS, MAX_PEER_TAGS,
+};
 use libdd_trace_protobuf::pb::Trilean;
 use libdd_trace_stats::span_concentrator::FixedAggregationKey;
 use std::collections::HashMap;
@@ -23,11 +25,16 @@ use tracing::trace;
 /// `GRPC_STATUS_CODE_FIELD` in libdd-trace-stats/src/span_concentrator/aggregation.rs).
 pub const PHP_GRPC_KEY_COUNT: usize = 4;
 
-/// A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
+/// Maximum number of additional metric tag keys, excess keys are dropped (must match
+/// `MAX_ADDITIONAL_TAGS` in libdd-ipc/src/shm_stats.rs).
+pub const PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS: usize = 4;
+
+/// A (key, value) tag pair, borrowed from PHP/concentrator memory.
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PhpPeerTag<'a> {
-    /// Key string — borrows from the concentrator's `peer_tag_keys` Vec<String>.
+    /// Key string — borrows from the concentrator's `peer_tag_keys` Vec<String> for peer tags,
+    /// and from the PHP configuration for additional metric tags.
     pub key: CharSlice<'a>,
     /// Value string — borrows from PHP span meta memory.
     pub value: CharSlice<'a>,
@@ -76,6 +83,15 @@ pub struct PhpSpanStats<'a> {
     /// Pointer to an array of `peer_tags_count` `PhpPeerTag` pairs.
     /// May be null when `peer_tags_count == 0`.
     pub peer_tags: *const PhpPeerTag<'a>,
+
+    /// Number of (key,value) pairs in `additional_tags`, at most
+    /// `PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS`.
+    pub additional_tags_count: usize,
+    /// Pointer to an array of `additional_tags_count` `PhpPeerTag` pairs, sorted by key.
+    /// May be null when `additional_tags_count == 0`.
+    pub additional_tags: *const PhpPeerTag<'a>,
+    /// Maximum number of entries with unmasked additional metric tags per stats bucket.
+    pub additional_tags_cardinality_limit: u32,
 }
 
 #[inline]
@@ -125,14 +141,14 @@ fn extract_http_endpoint<'a>(span: &'a PhpSpanStats<'a>) -> &'a str {
     }
 }
 
-/// Decode the raw peer-tags pointer into a slice.
+/// Decode a raw tags pointer into a slice.
 ///
 /// # Safety
-/// `span.peer_tags` must be valid for `span.peer_tags_count` elements when non-null.
+/// `tags` must be valid for `count` elements when non-null.
 #[inline]
-unsafe fn peer_tags_slice<'a>(span: &'a PhpSpanStats<'a>) -> &'a [PhpPeerTag<'a>] {
-    if span.peer_tags_count > 0 && !span.peer_tags.is_null() {
-        std::slice::from_raw_parts(span.peer_tags, span.peer_tags_count)
+unsafe fn tags_slice<'a>(tags: *const PhpPeerTag<'a>, count: usize) -> &'a [PhpPeerTag<'a>] {
+    if count > 0 && !tags.is_null() {
+        std::slice::from_raw_parts(tags, count)
     } else {
         &[]
     }
@@ -168,27 +184,34 @@ fn build_fixed_key<'a>(span: &'a PhpSpanStats<'a>) -> FixedAggregationKey<&'a st
 
 /// Extract a `ShmSpanInput` from a `PhpSpanStats`.
 ///
-/// `peer_tag_buf` must be a caller-allocated buffer of at least `MAX_PEER_TAGS` entries; it is
-/// filled in-place so that `ShmSpanInput::peer_tags` can borrow from it.
+/// `tag_buf` is filled in-place with the additional metric tags followed by as many peer tags
+/// as still fit, so that `ShmSpanInput::additional_tags` and `peer_tags` can borrow from it.
 #[inline]
 fn php_span_to_shm_input<'a>(
     span: &'a PhpSpanStats<'a>,
-    peer_tag_buf: &'a mut [(&'a str, &'a str); MAX_PEER_TAGS],
+    tag_buf: &'a mut [(&'a str, &'a str); MAX_PEER_TAGS],
 ) -> ShmSpanInput<'a> {
-    let mut peer_tag_count = 0usize;
+    const { assert!(PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS == MAX_ADDITIONAL_TAGS) };
     // Safety: caller guarantees PhpSpanStats validity (see ddog_span_concentrator_add_php_span).
-    for pt in unsafe { peer_tags_slice(span) }.iter().take(MAX_PEER_TAGS) {
-        peer_tag_buf[peer_tag_count] = (char_slice_str(pt.key), char_slice_str(pt.value));
-        peer_tag_count += 1;
+    let additional_tags = unsafe { tags_slice(span.additional_tags, span.additional_tags_count) };
+    let additional_tags = &additional_tags[..additional_tags.len().min(MAX_ADDITIONAL_TAGS)];
+    let peer_tags = unsafe { tags_slice(span.peer_tags, span.peer_tags_count) };
+    let mut tag_count = 0usize;
+    for (slot, tag) in tag_buf
+        .iter_mut()
+        .zip(additional_tags.iter().chain(peer_tags))
+    {
+        *slot = (char_slice_str(tag.key), char_slice_str(tag.value));
+        tag_count += 1;
     }
+    let tag_buf: &'a [(&'a str, &'a str)] = &tag_buf[..tag_count];
+    let (additional_tags, peer_tags) = tag_buf.split_at(additional_tags.len());
 
     ShmSpanInput {
         fixed: build_fixed_key(span),
-        peer_tags: &peer_tag_buf[..peer_tag_count],
-        // No additional metric tags until DD_TRACE_STATS_ADDITIONAL_TAGS is supported; without
-        // any, the cardinality limit is never consulted.
-        additional_tags: &[],
-        additional_tags_cardinality_limit: 0,
+        peer_tags,
+        additional_tags,
+        additional_tags_cardinality_limit: span.additional_tags_cardinality_limit,
         duration_ns: span.duration,
         is_error: span.is_error,
         is_top_level: span.has_top_level,
@@ -436,8 +459,8 @@ pub unsafe extern "C" fn ddog_span_concentrator_add_php_span(
     span: &PhpSpanStats<'_>,
 ) -> Option<Box<OwnedShmSpanInput>> {
     if let Some(shm) = c.inner.get() {
-        let mut peer_tag_buf = [("", ""); MAX_PEER_TAGS];
-        if shm.add_span(&php_span_to_shm_input(span, &mut peer_tag_buf)) {
+        let mut tag_buf = [("", ""); MAX_PEER_TAGS];
+        if shm.add_span(&php_span_to_shm_input(span, &mut tag_buf)) {
             return None;
         }
     }
@@ -446,16 +469,25 @@ pub unsafe extern "C" fn ddog_span_concentrator_add_php_span(
 
 /// Convert a `PhpSpanStats` to `OwnedShmSpanInput` for IPC transport.
 unsafe fn php_span_to_owned_input(span: &PhpSpanStats<'_>) -> OwnedShmSpanInput {
-    let peer_tags = peer_tags_slice(span)
-        .iter()
-        .take(MAX_PEER_TAGS)
-        .map(|pt| {
-            (
-                char_slice_str(pt.key).to_owned(),
-                char_slice_str(pt.value).to_owned(),
-            )
-        })
-        .collect();
+    let to_owned = |tags: &[PhpPeerTag<'_>], max: usize| -> Vec<(String, String)> {
+        tags.iter()
+            .take(max)
+            .map(|t| {
+                (
+                    char_slice_str(t.key).to_owned(),
+                    char_slice_str(t.value).to_owned(),
+                )
+            })
+            .collect()
+    };
+    let additional_tags = to_owned(
+        tags_slice(span.additional_tags, span.additional_tags_count),
+        MAX_ADDITIONAL_TAGS,
+    );
+    let peer_tags = to_owned(
+        tags_slice(span.peer_tags, span.peer_tags_count),
+        MAX_PEER_TAGS - additional_tags.len(),
+    );
     let fixed = build_fixed_key(span);
 
     OwnedShmSpanInput {
@@ -474,9 +506,8 @@ unsafe fn php_span_to_owned_input(span: &PhpSpanStats<'_>) -> OwnedShmSpanInput 
             service_source: fixed.service_source.to_owned(),
         },
         peer_tags,
-        // See php_span_to_shm_input.
-        additional_tags: Vec::new(),
-        additional_tags_cardinality_limit: 0,
+        additional_tags,
+        additional_tags_cardinality_limit: span.additional_tags_cardinality_limit,
         duration_ns: span.duration,
         is_error: span.is_error,
         is_top_level: span.has_top_level,
