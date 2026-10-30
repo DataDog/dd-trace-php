@@ -188,7 +188,7 @@ void dd_trace_startup(void)
 #endif
 }
 
-void dd_trace_rinit(void) { _asm_event_emitted = false; }
+void dd_trace_root_span_changed(void) { _asm_event_emitted = false; }
 
 static void _setup_testing_telemetry_functions(void)
 {
