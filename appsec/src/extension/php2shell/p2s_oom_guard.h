@@ -30,7 +30,7 @@
 #define DD_PHP2SHELL_HARD_MARGIN (8 * DD_ONE_MIB)
 
 // Where a deferred out-of-memory error is raised: the phase tag of the
-// deferred metric and the log line (see dd_p2s_guard_raise).
+// deferred metric and the log line (see dd_p2s_guard_raise_deferred_oom).
 typedef enum {
     // At the end of the startup parse (a treat_data window, before RINIT).
     DD_PHASE_STARTUP = 0,
@@ -88,6 +88,11 @@ size_t dd_p2s_guard_hard_limit_floor(size_t soft);
 bool dd_p2s_guard_in_window(void);
 // Armed, with a soft-limit crossing pending.
 bool dd_p2s_guard_error_pending(void);
+// Ask the VM to run the interrupt helper at its next check.
+void dd_p2s_guard_request_interrupt(void);
+// The pending error could not be raised at this interrupt: each allocation
+// asks for the interrupt again until it is raised.
+void dd_p2s_guard_raise_refused(void);
 // Arm for a parse window; false if it could not arm. `nested` gets whether
 // the request level was armed when the window began.
 bool dd_p2s_guard_window_begin(size_t soft, size_t hard, bool *nonnull nested);
@@ -100,13 +105,14 @@ void dd_p2s_guard_window_stop(void);
 void dd_p2s_guard_window_abort(void);
 // Raise the deferred out-of-memory error at a safe point. `dropped` is the
 // number of request variables dropped (logged for a window phase).
-ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise(
+ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     dd_deferred_phase phase, size_t dropped);
-// Arm for the whole request (appsec's RINIT).
+// Arm for the whole request (appsec's RINIT, or dd_p2s_guard_reconcile).
 void dd_p2s_guard_open(void);
 // Make the request level armed or not, mid-request (FrankenPHP worker mode,
 // between HTTP requests): opens it if needed; otherwise only flags and the
-// engine limit change, the handlers stay until dd_p2s_guard_close().
+// engine limit change, the handlers stay until dd_p2s_guard_close(). A
+// disarm with an error pending is left to the interrupt that raises it.
 void dd_p2s_guard_reconcile(bool armed);
 // Marker in the deferred fatal's message, so that monitor detection skips it.
 #define DD_P2S_DEFERRED_MARKER "(Datadog AppSec PHP2Shell mitigation deferred"
