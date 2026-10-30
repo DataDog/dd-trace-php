@@ -481,10 +481,6 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
             continue;
         }
         zend_string *str = datadog_convert_to_str(val);
-        if (ZSTR_LEN(str) == 0) {
-            zend_string_release(str);
-            continue;
-        }
         additional_tag_values[actual_additional_tags] = str;
         additional_tags[actual_additional_tags].key   = dd_zend_string_to_CharSlice(configured->keys[i]);
         additional_tags[actual_additional_tags].value = dd_zend_string_to_CharSlice(str);

@@ -95,7 +95,7 @@ foreach ($groups as $key => $count) {
 --EXPECT--
 both: ["region:us-east-1","tenant_id:acme"] x1
 customer: ["app:shop","customer:big"] x1
-empty: [] x1
+empty: ["app:"] x1
 int: ["tenant_id:42"] x1
 none: [] x1
 oversized: ["tenant_id:tracer_blocked_value"] x1
