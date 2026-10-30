@@ -1,10 +1,11 @@
 <?php
-// Child script for php2shell_mitigation_waf_address.phpt and
-// php2shell_mitigation_waf_sticky.phpt: one exchange with the mock helper, as
-// appsec's RINIT has it (with datadog.appsec.testing on, the real RINIT skips
-// the helper, so the testing rinit() and rshutdown() drive it). The
-// request_init response carries the WAF decision P2S_WAF_ANSWER in its
-// settings, or no decision when that is unset or empty. Prints
+// Child script for php2shell_mitigation_waf_address.phpt,
+// php2shell_mitigation_waf_sticky.phpt and
+// php2shell_mitigation_waf_monitor_after_arming.phpt: one exchange with the
+// mock helper, as appsec's RINIT has it (with datadog.appsec.testing on, the
+// real RINIT skips the helper, so the testing rinit() and rshutdown() drive
+// it). The request_init response carries the WAF decision P2S_WAF_ANSWER in
+// its settings, or no decision when that is unset or empty. Prints
 //   WAF ASKED address=V decision=V
 // with address the value of php.php2shell.vulnerable in the request_init the
 // helper received (absent when not sent) and decision the MINFO row after the
@@ -14,6 +15,11 @@
 // there does this (and creates it); the following ones run
 // php2shell_child_waf.php, so that they start with the decision that this
 // exchange left behind.
+//
+// With P2S_WAF_THEN set: after the exchange, run php2shell_child_waf.php in
+// the same request, so that its scenario runs under the decision this
+// exchange applied mid-request, while the request keeps the arming its RINIT
+// gave it.
 require_once __DIR__ . '/php2shell_cgi.php';
 
 $mark = getenv('P2S_WAF_MARK');
@@ -37,3 +43,6 @@ $helper = Helper::createInitedRun([
 $minfo = p2s_minfo();
 echo "WAF ASKED address=", p2s_waf_address($helper->get_command('request_init')),
     " decision=", isset($minfo[P2S_ROW_DECISION]) ? $minfo[P2S_ROW_DECISION] : 'absent', "\n";
+if (getenv('P2S_WAF_THEN')) {
+    require __DIR__ . '/php2shell_child_waf.php';
+}

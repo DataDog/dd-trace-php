@@ -692,7 +692,12 @@ static zend_array *nullable _start_user_req(
     _set_cur_span(span);
     GC_TRY_ADDREF(super_global_equiv);
     _superglob_equiv = super_global_equiv;
-    return _do_request_begin_user_req(rbe_zv);
+    zend_array *spec = _do_request_begin_user_req(rbe_zv);
+    // In worker mode one PHP request spans every HTTP request, so the
+    // PHP2Shell request level follows this HTTP request's WAF decision
+    // (applied by request_init above) here, as RINIT does otherwise.
+    dd_php2shell_user_req_begin();
+    return spec;
 }
 
 static zend_array *nullable _response_commit(

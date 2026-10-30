@@ -41,13 +41,18 @@
 // php.php2shell.vulnerable = full (unpatched) or partial (only the minimal fix
 // of the EOL branches) to the WAF, whose ruleset decides through the response's
 // php2shell_mitigation setting: none (disarmed), monitor (disarmed; native
-// memory errors are detected as they are raised and reported on the span) or
-// block (armed). The decision is process-wide and sticky: it starts pending,
-// which arms as block does, and only an explicit answer changes it. The mode on
-// arms whatever the WAF says and sends nothing; off, and auto on a patched
-// runtime, send nothing (see php2shell/p2s_policy.c and Coverage: WAF
-// decision). The helper evaluates the address in a WAF run of its own, without
-// a timeout, and keeps the rule's match out of the request's appsec events.
+// memory errors are detected as they are raised and reported on the span, on a
+// full runtime only: see Coverage: Monitor on a partial runtime) or block
+// (armed). The decision is per thread and sticky: it starts pending, which
+// arms as block does, and only an explicit answer changes it. It applies from
+// the request_init that brought it: to that request's arming at RINIT, and in
+// FrankenPHP worker mode, where one PHP request spans every HTTP request, to
+// the request level at the start of each HTTP request (see
+// dd_p2s_runtime_user_req_begin). The mode on arms whatever the WAF says and
+// sends nothing; off, and auto on a patched runtime, send nothing (see
+// php2shell/p2s_policy.c and Coverage: WAF decision). The helper evaluates the
+// address in a WAF run of its own, without a timeout, and keeps the rule's
+// match out of the request's appsec events.
 //
 // The mechanisms are described at the top of the unit, under php2shell/, that
 // implements them:
@@ -64,10 +69,11 @@
 // synchronously to the sidecar, tagged with the mode; the deferred one also
 // with the phase where the error was raised (phase:startup,
 // phase:request_parse_body or phase:runtime, see dd_deferred_phase), which its
-// log line names too; span tags on the request's root span, best effort (none
-// before RINIT, see p2s_report.c), each of which also keeps the trace (user
-// keep, as an appsec event): _dd.appsec.php2shell.deferred = <phase> for a
-// deferred error (block state, and the mode on), and, in the monitor state,
+// log line names too; span tags on the request's root span, whenever one
+// exists (none before ddtrace's RINIT, see p2s_report.c), each of which also
+// keeps the trace (user keep, as an appsec event):
+// _dd.appsec.php2shell.deferred = <phase> for a deferred error (block state,
+// and the mode on), and, in the monitor state,
 // _dd.appsec.php2shell.memory_error = memory_limit or out_of_memory with
 // _dd.appsec.php2shell.phase = <phase> for a native one; one log line per
 // displaced hook, and one for an expanding filter.default (see Coverage:
@@ -99,11 +105,10 @@
 //   - PHP 7.0, after RINIT: without EG(vm_interrupt) there is no request
 //     level, so parse_str() and internal functions that build arrays with
 //     add_assoc_*_ex() still use the vulnerable zend_hash_str_* insertion
-//     unarmed, as do the superglobals FrankenPHP re-imports per HTTP request
-//     in worker mode. A crossing there matters only if the array stays
-//     reachable after the bailout and is walked: the global symbol table's
-//     top-level entries (read by shutdown_destructors()) or what a shutdown
-//     function reads. No destructor runs after a fatal error. Builders with
+//     unarmed. A crossing there matters only if the array stays reachable
+//     after the bailout and is walked: the global symbol table's top-level
+//     entries (read by shutdown_destructors()) or what a shutdown function
+//     reads. No destructor runs after a fatal error. Builders with
 //     zend_string keys (unserialize, json_decode, array_*, VM writes) do not
 //     have the bug.
 //   - Outside RINIT..RSHUTDOWN: the request level spans our RINIT to our
@@ -114,15 +119,22 @@
 //   - After a deferred fatal: the request is disarmed, so shutdown functions
 //     run unarmed.
 //   - Monitor mode: nothing is armed, as under the decision none, so the CVEs
-//     stay reachable; native memory errors are only reported. One raised
-//     before every module RINIT has run (the startup parse) has the phase
-//     startup, which is never tagged: it is only logged, at info level, and no
-//     metric counts it. An "Out of memory" error is reported while zend_mm's
-//     overflow flag is set, so if the operating system refuses again one of
-//     the small allocations of the report (the tags), zend_mm ends the process
-//     (exit(1)) instead of the fatal error. The trace keep, here as for a
-//     deferred error, has no rate limit: an application that crosses
-//     memory_limit on every request keeps every trace.
+//     stay reachable; native memory errors are only reported (on a full
+//     runtime, see Coverage: Monitor on a partial runtime). One raised before
+//     every module RINIT has run has the phase startup; raised before
+//     ddtrace's RINIT (the startup parse), there is no root span, so it is
+//     only logged, at info level, and no metric counts it. An "Out of memory"
+//     error is reported while zend_mm's overflow flag is set, so if the
+//     operating system refuses again one of the small allocations of the
+//     report (the tags), zend_mm ends the process (exit(1)) instead of the
+//     fatal error. The trace keep, here as for a deferred error, has no rate
+//     limit: an application that crosses memory_limit on every request keeps
+//     every trace.
+//   - Monitor on a partial runtime: with the minimal fix of the EOL branches,
+//     zend_mm_safe_error() calls zend_mm_safe_error_ex(), which writes the
+//     fatal error to stderr and ends the process with _exit(1) without calling
+//     zend_error_cb. Memory errors thus end the process before any hook runs:
+//     not tagged, logged or counted, and the trace is lost.
 //   - CLI SAPIs: under cli, phpdbg and embed the mitigation is off in every
 //     mode, as if appsec were fully disabled (see _sapi_excluded).
 //   - USE_ZEND_ALLOC=0: nothing is armed. The plain stub enforces no limit;
@@ -157,16 +169,25 @@
 //     which resolves the mode and the appsec gate there, so the workers do
 //     not see the pool env[] values. appsec's own configuration behaves the
 //     same way.
-//   - WAF decision: it reaches the process from a request's RINIT
+//   - WAF decision: it reaches the thread from a request's RINIT
 //     (request_init), so that request's startup parse follows the previous
-//     decision, and a new process (each php-fpm worker) arms its first startup
-//     parse whatever the ruleset says. No answer (appsec not active, the
+//     decision, and a new process or thread (each php-fpm worker, each ZTS
+//     thread, which converge separately) arms its first startup parse
+//     whatever the ruleset says. No answer (appsec not active, the
 //     helper unreachable, an error, an older helper) keeps the last decision.
 //     A remote-config ruleset without the rule answers none and disarms.
+//     In FrankenPHP worker mode, each HTTP request's request_init (when its
+//     handler is called) arms or disarms the request level for it: the
+//     superglobals FrankenPHP re-imports for it, before that call, and the
+//     worker script's code between HTTP requests follow the previous HTTP
+//     request's decision (see dd_p2s_guard_reconcile; a disarm drops a pending
+//     error). Under remote config, a change of appsec's state reaches the
+//     thread the same way.
 //   - Per-directory datadog.appsec.enabled: follows appsec's own
-//     once-per-process resolution. It reaches the flag only when set for the
-//     first request (from that request's RINIT, after its startup parse), and
-//     an off in a later request does not close the gate for that request.
+//     once-per-process resolution. It reaches the thread's flag only when set
+//     for the first request (from that request's RINIT, after its startup
+//     parse), and an off in a later request does not close the gate for that
+//     request.
 //
 // 3. Protected, but ending in _exit(137) instead of the deferred fatal.
 //   - Displaced input_filter: a parse is still armed but has no per-variable
@@ -185,11 +206,13 @@
 //     The hard limit computed from that soft limit can then be at or below the
 //     usage.
 //   - Request level, no safe point: growth inside one long internal call (one
-//     parse_str() or array builder), or with no VM interrupt before the end
-//     of the request, can reach max(L, S + 8 MiB) and end in _exit(137), as
-//     can a single allocation that would cross it (upstream's hard limit
-//     does the same). That is equal to upstream's L from 8 MiB, higher below
-//     8 MiB (the 8 MiB term).
+//     parse_str() or array builder, or the superglobals FrankenPHP re-imports
+//     per HTTP request in worker mode, armed with these semantics: no variable
+//     is dropped), or with no VM interrupt before the end of the request, can
+//     reach max(L, S + 8 MiB) and end in _exit(137), as can a single
+//     allocation that would cross it (upstream's hard limit does the same).
+//     That is equal to upstream's L from 8 MiB, higher below 8 MiB (the 8 MiB
+//     term).
 //   - Timeout at the same interrupt: when max_execution_time expires at the
 //     interrupt that would deliver a pending error, the VM handles the
 //     timeout (zend_timeout()) instead of calling zend_interrupt_function,
@@ -413,6 +436,8 @@ const char *nullable dd_php2shell_vulnerable_value(void)
 }
 
 void dd_php2shell_rinit(void) { dd_p2s_runtime_rinit(); }
+
+void dd_php2shell_user_req_begin(void) { dd_p2s_runtime_user_req_begin(); }
 
 void dd_php2shell_rshutdown(void) { dd_p2s_runtime_rshutdown(); }
 

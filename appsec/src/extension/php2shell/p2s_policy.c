@@ -7,10 +7,10 @@
 // Gate. Active when the mode allows it and appsec is not known to be disabled.
 // DD_APPSEC_PHP2SHELL_MITIGATION is off, on (also on a patched runtime), auto
 // (the default: only on an unpatched runtime, i.e. when the _femalloc symbol
-// of the fix does not resolve). The appsec flag is process-wide: it
-// starts true unless datadog.appsec.enabled is explicitly false; RINIT clears
-// it when appsec resolves to fully disabled, and under remote config it
-// follows the helper's latest answer.
+// of the fix does not resolve). The appsec flag is per thread (see the
+// per-thread state note below): it starts true unless datadog.appsec.enabled
+// is explicitly false; RINIT clears it when appsec resolves to fully disabled,
+// and under remote config it follows the helper's latest answer.
 //
 // Armed (parse windows and request level) when active and, under mode auto,
 // the WAF's sticky decision is pending or block; mode on arms whatever the WAF
@@ -19,9 +19,10 @@
 // zend_mm_safe_error_ex symbol resolves, _femalloc does not); either is sent to
 // the WAF as php.php2shell.vulnerable in every request_init
 // (dd_p2s_policy_vulnerable_value). Each explicit answer in the response
-// (none, monitor or block) replaces the decision for the whole process; no
-// answer (no WAF call, an error, an older helper) leaves it unchanged. The
-// decision starts pending, so a process is armed until the first answer.
+// (none, monitor or block) replaces the decision for the thread's later
+// reads; no answer (no WAF call, an error, an older helper) leaves it
+// unchanged. The decision starts pending, so a thread is armed until its first
+// answer.
 // monitor disarms but has native memory errors reported
 // (dd_p2s_policy_monitoring). The appsec flag wins over any decision.
 
@@ -31,7 +32,6 @@
 #include <ext/standard/info.h>
 #include <php.h>
 #include <pthread.h> // thread-safe lazy config
-#include <stdatomic.h>
 #include <string.h>
 
 #include <alloc.h> // zend_abstract_interface/alloc.h: runtime patch detection
@@ -75,20 +75,38 @@ static bool _patched;
 // Unpatched, but carrying the minimal fix of the EOL branches. Fixed in MINIT,
 // with _patched.
 static bool _partial;
-// The WAF's sticky decision (dd_p2s_decision), consulted under mode auto only.
-// Advisory and publishes no data, so relaxed loads and stores, as _allowed.
-// Set in MINIT (and by the testing knob in _resolve_config), then by
-// dd_p2s_policy_set_decision().
-static atomic_int _decision = DD_P2S_DECISION_PENDING;
-// Whether appsec's state lets the mitigation run: false once
-// appsec is known to be disabled. Advisory and publishes no data, so relaxed
-// loads and stores. Set in MINIT, then changed by dd_php2shell_set_allowed().
-static atomic_bool _allowed = true;
+// Bumped by each MINIT; a thread whose state is from an earlier generation (or
+// none) starts again from the initial state (see _thread_state). Statics, and
+// the thread-local state of a thread that survives it, outlive a module
+// restart while the DSO stays mapped. Written in MINIT only, before any thread
+// serves a request.
+static unsigned _generation;
 // Whether dd_php2shell_startup() installed the hooks. Without them the
 // mitigation is off for the process (see dd_p2s_policy_active). Written during
 // startup and in MSHUTDOWN only.
 static bool _hooks_installed;
 
+// ---- per-thread state ------------------------------------------------------
+//
+// The WAF's sticky decision and the appsec flag are thread-local on ZTS (plain
+// statics on NTS). Their sources are per thread: DDAPPSEC_G(active) is a
+// per-thread module global, and each thread has its own helper connection,
+// whose answers the helper caches per connection. So they change only at this
+// thread's own RINIT and request_init, between its requests, and every read of
+// one request sees the same values. Each thread starts from the initial state
+// (see _thread_state) and converges separately: armed until its first answer.
+
+// The generation of this thread's state; 0 (none) until _thread_state().
+ZEND_TLS unsigned _thread_generation;
+// The WAF's sticky decision, consulted under mode auto only. Pending, or the
+// testing knob's, initially; then set by dd_p2s_policy_set_decision().
+ZEND_TLS dd_p2s_decision _decision = DD_P2S_DECISION_PENDING;
+// Whether appsec's state lets the mitigation run: false once appsec is known
+// to be disabled. Initially true unless datadog.appsec.enabled is explicitly
+// false; then changed by dd_php2shell_set_allowed().
+ZEND_TLS bool _allowed = true;
+
+static void _thread_state(void);
 static void _resolve_config_once(void);
 static void _resolve_config(void);
 static bool _sapi_excluded(void);
@@ -119,12 +137,9 @@ void dd_p2s_policy_minit(void)
     if (get_global_DD_APPSEC_TESTING()) {
         _apply_testing_runtime();
     }
-    // Stored rather than left to the static initialiser: statics survive a
-    // module restart while the DSO stays mapped. dd_config_minit() has run.
-    atomic_store_explicit(
-        &_allowed, !dd_cfg_appsec_explicitly_disabled(), memory_order_relaxed);
-    atomic_store_explicit(
-        &_decision, DD_P2S_DECISION_PENDING, memory_order_relaxed);
+    // Rather than relying on the initialisers: statics, and a surviving
+    // thread's state, outlive a module restart while the DSO stays mapped.
+    _generation++;
 }
 
 void dd_p2s_policy_hooks_installed(void) { _hooks_installed = true; }
@@ -133,31 +148,25 @@ void dd_p2s_policy_mshutdown(void) { _hooks_installed = false; }
 
 void dd_p2s_policy_set_allowed(bool allowed)
 {
-    // The initial value, resolved once per process after the config refresh,
-    // must not overwrite this one: resolve it first. Usually done already by
-    // the startup parse, but not when it called no dd_p2s_policy_active() (e.g.
+    // The initial value, set once per thread after the config refresh, must
+    // not overwrite this one: set it first. Usually done already by the
+    // startup parse, but not when it called no dd_p2s_policy_active() (e.g.
     // variables_order without G, P and C).
-    _resolve_config_once();
-    // Only write when the value changes, so that requests make no shared
-    // cache-line write.
-    if (atomic_load_explicit(&_allowed, memory_order_relaxed) != allowed) {
-        atomic_store_explicit(&_allowed, allowed, memory_order_relaxed);
-    }
+    _thread_state();
+    _allowed = allowed;
 }
 
 void dd_p2s_policy_set_decision(dd_p2s_decision decision)
 {
     // As dd_p2s_policy_set_allowed(): the testing knob, applied once per
-    // process after the config refresh, must not overwrite this value.
+    // thread after the config refresh, must not overwrite this value.
     _resolve_config_once();
+    _thread_state();
     if (_mode != DD_PHP2SHELL_AUTO) {
         return;
     }
-    // Only write when the value changes, so that requests make no shared
-    // cache-line write.
-    if (atomic_load_explicit(&_decision, memory_order_relaxed) !=
-        (int)decision) {
-        atomic_store_explicit(&_decision, (int)decision, memory_order_relaxed);
+    if (_decision != decision) {
+        _decision = decision;
         mlog(dd_log_debug, "PHP2Shell mitigation: WAF decision is now %s",
             _decision_name());
     }
@@ -192,6 +201,7 @@ const char *nullable dd_p2s_policy_vulnerable_value(void)
 void dd_p2s_policy_minfo(void)
 {
     _resolve_config_once();
+    _thread_state();
     php_info_print_table_row(
         2, "PHP2Shell mitigation (CVE-2026-109618/109619)", _state_name());
     php_info_print_table_row(
@@ -204,16 +214,19 @@ void dd_p2s_policy_minfo(void)
 
 // Whether the mitigation is active for request data now: the mode allows it
 // for this runtime, and appsec is not known to be disabled. _allowed starts
-// true unless datadog.appsec.enabled is explicitly false (MINIT, then again
-// in _resolve_config after the per-process config refresh); RINIT clears it
+// true unless datadog.appsec.enabled is explicitly false (per thread, after
+// the per-process config refresh, see _thread_state); RINIT clears it
 // when appsec resolves to fully disabled; under remote config, it follows the
 // latest config_features answer. The treat_data slot is not consulted;
 // whether our wrapper occupies it is reported separately
 // (_treat_data_hook_active).
 bool dd_p2s_policy_active(void)
 {
-    return _hooks_installed && _mode_allows_activation() &&
-           atomic_load_explicit(&_allowed, memory_order_relaxed);
+    if (!_hooks_installed || !_mode_allows_activation()) {
+        return false;
+    }
+    _thread_state();
+    return _allowed;
 }
 
 // Whether to arm the parse windows and the request level. Mode on arms
@@ -227,16 +240,15 @@ bool dd_p2s_policy_armed(void)
     if (_mode == DD_PHP2SHELL_ON) { // resolved by dd_p2s_policy_active()
         return true;
     }
-    int decision = atomic_load_explicit(&_decision, memory_order_relaxed);
-    return decision == DD_P2S_DECISION_PENDING ||
-           decision == DD_P2S_DECISION_BLOCK;
+    // The thread's state is set by dd_p2s_policy_active().
+    return _decision == DD_P2S_DECISION_PENDING ||
+           _decision == DD_P2S_DECISION_BLOCK;
 }
 
 bool dd_p2s_policy_monitoring(void)
 {
     return dd_p2s_policy_active() && _mode == DD_PHP2SHELL_AUTO &&
-           atomic_load_explicit(&_decision, memory_order_relaxed) ==
-               DD_P2S_DECISION_MONITOR;
+           _decision == DD_P2S_DECISION_MONITOR;
 }
 
 // Whether to install the hooks at all, from the configuration visible at the
@@ -325,7 +337,7 @@ static const char *_state_name(void)
 
 static const char *_decision_name(void)
 {
-    switch (atomic_load_explicit(&_decision, memory_order_relaxed)) {
+    switch (_decision) {
     case DD_P2S_DECISION_OFF:
         return "none";
     case DD_P2S_DECISION_MONITOR:
@@ -353,19 +365,29 @@ static const char *_decision_name(void)
 // state note above); dd_appsec_config_first_rinit_once() runs first, outside
 // it, because it populates the memoized config that _resolve_config() reads.
 //
-// The appsec gate's initial value is stored again here, after that refresh, in
-// both directions: MINIT (in the php-fpm master) cannot see the pool env[]
-// directives, nor php-cgi the FastCGI params, and either may enable or disable
-// appsec. The later writers (dd_php2shell_set_allowed()) call
-// _resolve_config_once() before they store, so this store always precedes
-// theirs and their value stands. It is a direct store: calling
-// dd_php2shell_set_allowed() here would re-enter _config_once. The testing
-// decision knob is applied here for the same reasons.
+// The per-thread initial state (see _thread_state) is set only after this
+// refresh: MINIT (in the php-fpm master) cannot see the pool env[] directives,
+// nor php-cgi the FastCGI params, and either may enable or disable appsec.
 static void _resolve_config(void)
 {
     _mode = _parse_mode(get_global_DD_APPSEC_PHP2SHELL_MITIGATION());
-    atomic_store_explicit(
-        &_allowed, !dd_cfg_appsec_explicitly_disabled(), memory_order_relaxed);
+}
+
+// Set this thread's initial state, the first time it is needed in this module
+// generation: the appsec flag from the configuration (after the config refresh
+// of _resolve_config_once), and the decision pending, or the testing knob's.
+// Every reader and writer of _decision and _allowed calls it first, so the
+// writers' values (dd_php2shell_set_allowed(), dd_php2shell_set_decision())
+// are never overwritten by it.
+static void _thread_state(void)
+{
+    if (EXPECTED(_thread_generation == _generation)) {
+        return;
+    }
+    _thread_generation = _generation;
+    _resolve_config_once();
+    _allowed = !dd_cfg_appsec_explicitly_disabled();
+    _decision = DD_P2S_DECISION_PENDING;
     if (get_global_DD_APPSEC_TESTING()) {
         _apply_testing_decision();
     }
@@ -445,8 +467,8 @@ static void _apply_testing_runtime(void)
 // Testing only (datadog.appsec.testing on):
 // DD_APPSEC_TESTING_PHP2SHELL_DECISION = none | monitor | block is the initial
 // decision, in place of pending, for the tests that need it at the startup
-// parse or at RINIT. Ignored unless the mode is auto. Runs under _config_once
-// (_mode is already written).
+// parse or at RINIT. Ignored unless the mode is auto. Runs from _thread_state
+// (_mode is already resolved).
 static void _apply_testing_decision(void)
 {
     const zend_string *nullable value =
@@ -462,7 +484,7 @@ static void _apply_testing_decision(void)
             ZSTR_VAL(value));
         return;
     }
-    atomic_store_explicit(&_decision, (int)decision, memory_order_relaxed);
+    _decision = decision;
 }
 
 #ifdef TESTING
@@ -488,7 +510,7 @@ void dd_p2s_policy_register_testing(void)
 }
 
 // Write the appsec flag through the same writer as RINIT and remote config
-// (dd_php2shell_set_allowed), for later requests of this process.
+// (dd_php2shell_set_allowed), for later requests of this thread.
 static PHP_FUNCTION(datadog_appsec_testing_php2shell_set_allowed)
 {
     zend_bool allowed;

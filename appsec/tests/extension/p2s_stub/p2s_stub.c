@@ -23,7 +23,17 @@
 //                       startup hook: the hooks are displaced after capture;
 //   p2s_stub.post_deactivate_error=1
 //                       raise an E_WARNING from post_deactivate, after
-//                       php_request_shutdown() cleared PG(last_error_*).
+//                       php_request_shutdown() cleared PG(last_error_*);
+//   p2s_stub.rinit_alloc=N
+//                       allocate (and free) N bytes in RINIT, inside a
+//                       zend_try. Loaded after ddappsec (so after ddtrace),
+//                       this runs after ddtrace's RINIT created the root span,
+//                       while PG(modules_activated) is still 0. The bailout of
+//                       a memory error is caught, so the request goes on and
+//                       its script can inspect what the error left on the span
+//                       (an observation device: a real module's RINIT would
+//                       fail the request startup). Prints
+//                       "P2S_STUB RINIT alloc bailed=0|1" to stderr.
 //
 // Switches for the lifecycle of ddappsec's request-level Zend MM handlers
 // (php2shell_mitigation_lifecycle_fallbacks.phpt):
@@ -148,6 +158,7 @@ static p2s_rfc1867_ret _rfc1867_callback(
 static bool _minit_mode;
 static bool _startup_mode;
 static bool _post_deactivate_error;
+static size_t _rinit_alloc;
 static bool _rinit_bailout;
 static bool _rshutdown_bailout;
 static bool _activate_mm;
@@ -187,6 +198,7 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("p2s_stub.minit", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.startup", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.post_deactivate_error", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.rinit_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_bailout", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_bailout", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.activate_mm", "0", PHP_INI_SYSTEM, NULL)
@@ -247,6 +259,8 @@ static PHP_MINIT_FUNCTION(p2s_stub)
     _startup_mode = zend_ini_long(ZEND_STRL("p2s_stub.startup"), 0) != 0;
     _post_deactivate_error =
         zend_ini_long(ZEND_STRL("p2s_stub.post_deactivate_error"), 0) != 0;
+    zend_long rinit_alloc = zend_ini_long(ZEND_STRL("p2s_stub.rinit_alloc"), 0);
+    _rinit_alloc = rinit_alloc > 0 ? (size_t)rinit_alloc : 0;
     _rinit_bailout = zend_ini_long(ZEND_STRL("p2s_stub.rinit_bailout"), 0) != 0;
     _rshutdown_bailout =
         zend_ini_long(ZEND_STRL("p2s_stub.rshutdown_bailout"), 0) != 0;
@@ -298,6 +312,15 @@ static PHP_RINIT_FUNCTION(p2s_stub)
         fprintf(stderr, "P2S_STUB bailout in RINIT\n");
         fflush(stderr);
         zend_bailout();
+    }
+    if (_rinit_alloc > 0) {
+        // volatile: set after the longjmp, read after zend_end_try().
+        volatile bool bailed = false;
+        zend_try { efree(emalloc(_rinit_alloc)); }
+        zend_catch { bailed = true; }
+        zend_end_try();
+        fprintf(stderr, "P2S_STUB RINIT alloc bailed=%d\n", bailed ? 1 : 0);
+        fflush(stderr);
     }
     return SUCCESS;
 }

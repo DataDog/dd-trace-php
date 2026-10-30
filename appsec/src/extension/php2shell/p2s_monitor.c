@@ -11,10 +11,13 @@
 // "Allowed memory size of " (memory_limit) or "Out of memory" (out_of_memory),
 // and reports it on the span with its phase (see p2s_report.c) before chaining
 // to the handler it replaced, which records and displays the error and bails
-// out. A zend_error_cb wrapper rather than an error observer, which PHP 7.x
-// lacks. It is installed from the zend_extension startup hook, after ddtrace
-// wrapped zend_error_cb in its MINIT, so the tags are on the span before
-// ddtrace records the error. On PHP 8.0 only, it is installed from
+// out. On a partial runtime nothing is detected: zend_mm_safe_error() calls
+// zend_mm_safe_error_ex() there, which ends the process with _exit(1) without
+// calling zend_error_cb (see Coverage: Monitor on a partial runtime). A
+// zend_error_cb wrapper rather than an error observer, which PHP 7.x lacks. It
+// is installed from the zend_extension startup hook, after ddtrace wrapped
+// zend_error_cb in its MINIT, so the tags are on the span before ddtrace
+// records the error. On PHP 8.0 only, it is installed from
 // zend_post_startup_cb instead: opcache's post-startup callback
 // (accel_post_startup, 8.0 only) puts its own zend_error_cb wrapper
 // (persistent_error_cb, which records compile warnings) on top for good, which
@@ -24,9 +27,10 @@
 // installs the wrapper after opcache's returns. Accepted consequence: the
 // opcache.preload script, which runs inside opcache's callback, is not
 // monitored on PHP 8.0. Outside the monitor state, and for any other
-// error type, it only forwards. The phase: startup before the module RINITs
-// (PG(modules_activated) is still 0; the startup parse runs then), where no
-// span exists, so the error is only logged (see Coverage: Monitor mode);
+// error type, it only forwards. The phase: startup until every module RINIT
+// has run (PG(modules_activated) is still 0; the startup parse runs then, with
+// no span yet, so an error there is only logged, see Coverage: Monitor mode;
+// one in a module RINIT after ddtrace's is reported);
 // request_parse_body inside a call to request_parse_body() (PHP 8.4+, its frame
 // is the current one: it calls no user code); runtime otherwise.
 
@@ -170,6 +174,10 @@ static void _error_cb(DD_P2S_ERROR_CB_PARAMS)
 static ZEND_COLD void _detect(const char *nonnull message)
 {
     dd_p2s_memory_error kind;
+    if (strstr(message, DD_P2S_DEFERRED_MARKER) != NULL) {
+        // Ours, raised while still armed when the decision became monitor.
+        return;
+    }
     // Not ZEND_STRL: glibc 2.17 defines strncmp as a 3-parameter macro at -O2.
     if (strncmp(message, "Allowed memory size of ",
             sizeof("Allowed memory size of ") - 1) == 0) {

@@ -350,8 +350,8 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise(
     // Under the finite limit, so these allocations do not bail either.
     dd_p2s_report_deferred(phase);
     zend_error_noreturn(E_ERROR,
-        "Allowed memory size of %zu bytes exhausted (Datadog AppSec PHP2Shell "
-        "mitigation deferred this to avoid heap corruption)",
+        "Allowed memory size of %zu bytes exhausted " DD_P2S_DEFERRED_MARKER
+        " this to avoid heap corruption)",
         _arm_state.soft);
 }
 
@@ -382,6 +382,21 @@ void dd_p2s_guard_open(void)
     // ini_set() can tighten it (see _follow_limit).
     size_t soft = dd_p2s_guard_soft_limit();
     _arm(soft, _request_hard_limit(soft));
+}
+
+void dd_p2s_guard_reconcile(bool armed)
+{
+    if (armed) {
+        if (!_arm_state.request) {
+            dd_p2s_guard_open();
+        } else if (!_arm_state.armed) {
+            size_t soft = dd_p2s_guard_soft_limit();
+            _arm(soft, _request_hard_limit(soft));
+        }
+    } else if (_arm_state.request && _arm_state.armed && !_arm_state.window) {
+        // A pending error is dropped, as at the end of a request.
+        _disarm(DD_DISARM_RESTORE_LIMIT);
+    }
 }
 
 void dd_p2s_guard_close(void) { _request_end(); }

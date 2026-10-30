@@ -6,16 +6,16 @@
 
 // Span reporting, best effort. The tags go on the request's root span: the one
 // appsec's request lifecycle holds, else the tracer's active root span. There
-// is none during the startup parse (before RINIT), nor once the tracer has
-// serialized the trace (after its RSHUTDOWN); the error is then reported only
-// by the deferred metric (block) or not at all (monitor, see Coverage:
-// Monitor mode in php2shell_mitigation.c). A hard exit is never tagged: the
-// trace is not sent. Tags are added, never replaced, so the first error of the
-// request wins. Setting one also keeps the trace (user keep, mechanism ASM),
-// as an appsec event does. Called while the error is being raised: under the
-// finite limit of a deferred error, or, for a native one, with zend_mm's
-// overflow flag set, so the allocations here do not bail out again (see
-// Coverage: Monitor mode for an out-of-memory error).
+// is none during the startup parse (before ddtrace's RINIT), nor once the
+// tracer has serialized the trace (after its RSHUTDOWN); the error is then
+// reported only by the deferred metric (block) or not at all (monitor, see
+// Coverage: Monitor mode in php2shell_mitigation.c). A hard exit is never
+// tagged: the trace is not sent. Tags are added, never replaced, so the first
+// error of the request wins. Setting one also keeps the trace (user keep,
+// mechanism ASM), as an appsec event does. Called while the error is being
+// raised: under the finite limit of a deferred error, or, for a native one,
+// with zend_mm's overflow flag set, so the allocations here do not bail out
+// again (see Coverage: Monitor mode for an out-of-memory error).
 
 #include "p2s_report.h"
 
@@ -48,12 +48,11 @@ void dd_p2s_report_deferred(dd_deferred_phase phase)
     }
 }
 
+// Whatever the phase: phase startup includes the module RINITs (ddtrace's
+// creates the root span), so only the startup parse before them has no span.
 void dd_p2s_report_memory_error(
     dd_p2s_memory_error kind, dd_deferred_phase phase)
 {
-    if (phase == DD_PHASE_STARTUP) {
-        return;
-    }
     zend_object *span = _root_span();
     if (span == NULL) {
         return;
