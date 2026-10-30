@@ -257,9 +257,6 @@ check-big-regressions:
     else
       echo "Reports directory found with content - running regression check"
       export ARTIFACTS_DIR="$(pwd)/reports/"
-      if [[ -n "$CI_JOB_TOKEN" ]]; then
-        git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-      fi
       git clone --branch dd-trace-php https://github.com/DataDog/benchmarking-platform /platform
       export PATH="$PATH:/platform/steps"
       bp-runner /platform/bp-runner.fail-on-regression.yml --debug
