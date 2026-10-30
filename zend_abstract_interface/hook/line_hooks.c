@@ -31,6 +31,7 @@ typedef struct {
     size_t dynamic;      /* payload bytes handed to each invocation */
     bool eager_range;    /* open a range at every begin, rather than on request */
     bool removed;        /* removal was requested; no further begin fires, but open ranges still close */
+    bool reported;       /* aux.resolved already ran */
     uint32_t open_count; /* frames with this range currently open, across the whole request */
     HashTable guards;    /* zai_line_guard* -> itself: the guards this def is keeping alive */
     /* Sites armed by this definition: mixed opline key -> raw opline.
@@ -1110,7 +1111,7 @@ static bool zai_line_arm_range(zai_line_def *def, zend_op_array *op_array, zend_
 static bool zai_line_resolve_op_array(zai_line_def *def, zend_op_array *op_array, HashTable *by_file, bool arm) {
     bool armed = false;
 
-    if (op_array->type != ZEND_USER_FUNCTION || !op_array->filename || !zai_hook_match_filepath(op_array->filename, def->file)) {
+    if (op_array->type != ZEND_USER_FUNCTION || !op_array->filename || !zai_hook_match_filepath_ci(op_array->filename, def->file)) {
         return false;
     }
 
@@ -1303,7 +1304,7 @@ static bool zai_line_resolve_preloaded(zai_line_def *def, HashTable *by_file, bo
     zend_string *filename;
     zend_llist *list;
     ZEND_HASH_FOREACH_STR_KEY_PTR(&zai_line_preloaded, filename, list) {
-        if (!filename || !zai_hook_match_filepath(filename, def->file)) {
+        if (!filename || !zai_hook_match_filepath_ci(filename, def->file)) {
             continue;
         }
         for (zend_llist_element *el = list->head; el; el = el->next) {
@@ -1337,7 +1338,7 @@ static bool zai_line_resolve_pass(zai_line_def *def, zend_op_array *extra, HashT
     zend_string *filename;
     zai_function_location_entry *entry;
     ZEND_HASH_FOREACH_STR_KEY_PTR(zai_hook_function_location_map(), filename, entry) {
-        if (!filename || !zai_hook_match_filepath(filename, def->file)) {
+        if (!filename || !zai_hook_match_filepath_ci(filename, def->file)) {
             continue;
         }
         for (uint32_t i = 0; i < entry->size; ++i) {
@@ -1370,6 +1371,13 @@ static bool zai_line_resolve(zai_line_def *def, zend_op_array *extra) {
     bool armed = zend_hash_num_elements(&by_file) && zai_line_resolve_pass(def, extra, &by_file, true);
 
     zend_hash_destroy(&by_file);
+
+    if (armed && !def->reported && !def->removed) {
+        def->reported = true;
+        if (def->aux.resolved) {
+            def->aux.resolved(def->aux.data);
+        }
+    }
     return armed;
 }
 
@@ -1381,7 +1389,8 @@ void zai_line_hooks_file_compiled(zend_op_array *op_array) {
 
     zai_line_def *def;
     ZEND_HASH_FOREACH_PTR(&zai_line_defs, def) {
-        if (zai_hook_match_filepath(op_array->filename, def->file)) {
+        /* A removed definition only waits for its open ranges to close; it must not arm new sites. */
+        if (!def->removed && zai_hook_match_filepath_ci(op_array->filename, def->file)) {
             /* Full rescan rather than just this op_array: the functions the file declares are early-bound into the function table by now, and are not reachable through its dynamic_func_defs. */
             zai_line_resolve(def, op_array);
         }
@@ -1482,7 +1491,7 @@ const char *zai_line_hooks_conflict(zend_string *file, uint32_t line, uint32_t e
     zai_line_def *other;
     ZEND_HASH_FOREACH_PTR(&zai_line_defs, other) {
         /* Either may be the shorter spelling, so the suffix match has to be tried both ways round. */
-        if (!zai_hook_match_filepath(other->file, file) && !zai_hook_match_filepath(file, other->file)) {
+        if (!zai_hook_match_filepath_ci(other->file, file) && !zai_hook_match_filepath_ci(file, other->file)) {
             continue;
         }
         bool starts_inside = line >= other->line && line <= other->end_line;
