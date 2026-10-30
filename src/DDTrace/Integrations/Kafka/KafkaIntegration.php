@@ -17,7 +17,8 @@ class KafkaIntegration extends Integration
     const DSM_CONTEXT_HEADER = 'dd-pathway-ctx-base64';
 
     // How long a producer that has not had its brokers' first answer waits for it, for the
-    // cluster id, when no process has shared one for its bootstrap servers.
+    // cluster id, when no process has shared one for its bootstrap servers. Only its first
+    // produce waits.
     const DSM_CLUSTER_ID_WAIT_MS = 100;
 
     // Set while the integration installs its own callback on a Conf, so that the hooks on the
@@ -95,11 +96,18 @@ class KafkaIntegration extends Integration
         $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
             + self::headersSize(array_merge($args[4] ?? [], $headers));
         $producer = ObjectKVStore::get($producerTopic, 'kafka');
+        // Waiting on every produce would hold up all of them for as long as the brokers do not
+        // answer, so a producer waits once.
+        $waitMs = 0;
+        if ($producer && !ObjectKVStore::get($producer, 'dsm_cluster_id_waited', false)) {
+            ObjectKVStore::put($producer, 'dsm_cluster_id_waited', true);
+            $waitMs = self::DSM_CLUSTER_ID_WAIT_MS;
+        }
         return \DDTrace\Internal\dsm_set_checkpoint(array_merge([
             'direction:out',
             'topic:' . $producerTopic->getName(),
             'type:kafka',
-        ], self::clusterIdTags($producer, self::DSM_CLUSTER_ID_WAIT_MS)), null, $payloadSize);
+        ], self::clusterIdTags($producer, $waitMs)), null, $payloadSize);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)

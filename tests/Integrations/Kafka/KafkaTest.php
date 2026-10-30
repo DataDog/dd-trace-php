@@ -118,6 +118,26 @@ class KafkaTest extends IntegrationTestCase
     }
 
     /**
+     * A producer whose brokers never answer waits for the cluster id on its first produce only:
+     * waiting on every produce would hold up all of them for as long as the brokers stay down.
+     */
+    public function testOnlyTheFirstProduceWaitsForTheClusterId()
+    {
+        $output = $this->executeCli(
+            __DIR__ . '/scripts/producer-unreachable.php',
+            self::DSM_ENV,
+            [],
+            'test-cluster-id',
+            true
+        );
+        $this->assertRegularExpression('/^produce times: \d+( \d+){4}$/m', $output);
+        preg_match('/^produce times: (.*)$/m', $output, $matches);
+        $times = array_map('intval', explode(' ', $matches[1]));
+        // Without a wait, a produce only queues the message.
+        $this->assertLessThan(50, max(array_slice($times, 1)), $output);
+    }
+
+    /**
      * A producer that has not had its brokers' answer yet, with bootstrap servers no process has
      * shared a cluster id for, waits for the answer to tag its first produce.
      */
