@@ -218,6 +218,10 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
         array $served,
         array $notServed
     ) {
+        if (strpos($path, '{!') !== false && !self::supportsImportantVariables()) {
+            $this->markTestSkipped('symfony/routing here has no important variables');
+        }
+
         $route = new Route($path, $defaults, $requirements, [], $host);
         $compiled = $route->compile();
         $generatorData = [
@@ -354,6 +358,22 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
         ksort($params);
 
         return $params;
+    }
+
+    /**
+     * Whether this symfony/routing knows important variables ('{!name}').
+     * They arrived in 4.1; before that compilePattern() matches variables with
+     * '#\{\w+\}#', so the '!' leaves the whole placeholder as static text and
+     * the route compiles with no variable at all. On PHP 7.0 the newest
+     * resolvable version is 3.4, since 4.x requires PHP 7.1.3.
+     *
+     * @return bool
+     */
+    private static function supportsImportantVariables()
+    {
+        $route = new Route('/{!x}');
+
+        return $route->compile()->getPathVariables() === ['x'];
     }
 
     /**
