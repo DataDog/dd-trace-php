@@ -1006,6 +1006,18 @@ void datadog_sidecar_activate(void) {
     } ZEND_HASH_FOREACH_END();
 }
 
+// Register (or refresh) the telemetry application (service/env) on the sidecar
+// connection. The tracer does this in its own RINIT, but other extensions
+// (appsec) may need to flush telemetry earlier -- during request startup,
+// before this module's RINIT runs -- where no application is registered yet and
+// a plain buffer flush would be dropped sidecar-side. set_application does
+// nothing when the application is unchanged, so this is safe to call again.
+DATADOG_PUBLIC void datadog_sidecar_ensure_telemetry_application(void) {
+    if (DATADOG_G(sidecar)) {
+        ddtrace_sidecar_submit_span_data_direct_defaults(&DATADOG_G(sidecar), NULL);
+    }
+}
+
 void datadog_sidecar_rinit(void) {
     if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
         zend_string *commit = NULL, *repo = NULL;

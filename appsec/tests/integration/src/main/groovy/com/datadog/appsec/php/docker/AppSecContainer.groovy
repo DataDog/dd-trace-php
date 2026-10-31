@@ -591,6 +591,12 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 : "php-tracer-$phpVersion-$artifactVariant"
             addVolumeMount(tracerVol, '/project/tmp')
         }
+        if (options['profiler']) {
+            // built by buildProfiler-<version>-<variant> (gradle -PwithProfiler);
+            // enable_extensions.sh loads it when ENABLE_PROFILER is set
+            addVolumeMount("php-profiler-$phpVersion-$artifactVariant", '/profiler')
+            withEnv 'ENABLE_PROFILER', '1'
+        }
         withEnv 'RUST_BACKTRACE', '1'
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"

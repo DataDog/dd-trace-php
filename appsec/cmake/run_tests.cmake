@@ -55,3 +55,6 @@ if(TARGET ddtrace)
 endif()
 
 add_subdirectory(tests/mock_helper EXCLUDE_FROM_ALL)
+# Test-only extension loaded by the PHP2Shell mitigation tests.
+add_subdirectory(tests/extension/p2s_stub EXCLUDE_FROM_ALL)
+add_dependencies(xtest p2s_stub)

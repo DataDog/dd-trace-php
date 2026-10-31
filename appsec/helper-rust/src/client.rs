@@ -101,6 +101,7 @@ pub struct Client {
     session: ConnectionSessionHandle,
     telemetry_client: Option<InProcessTelemetryClient>,
     metrics_last_registered: Cell<Option<Instant>>,
+    php2shell_cache: Option<Php2ShellCacheEntry>,
 }
 
 static CLIENT_SERIAL: AtomicU64 = AtomicU64::new(1);
@@ -118,6 +119,7 @@ impl Client {
             session,
             telemetry_client: None,
             metrics_last_registered: Cell::new(None),
+            php2shell_cache: None,
         }
     }
 
@@ -489,7 +491,8 @@ async fn run_request(
     req_init: Box<protocol::RequestInitArgs>,
     response_tx: oneshot::Sender<sidecar_msg::HelperResponse>,
 ) -> anyhow::Result<()> {
-    let result = match req_ctx.run_waf(req_init.data, &protocol::RequestExecOptions::regular()) {
+    let (data, php2shell) = req_ctx.eval_php2shell(req_init.data, &mut client.php2shell_cache);
+    let result = match req_ctx.run_waf(data, &protocol::RequestExecOptions::regular()) {
         Ok(r) => r,
         Err(e) => return Err(FatalRequestError(e, response_tx).into()),
     };
@@ -498,7 +501,7 @@ async fn run_request(
         triggers: &result.triggers,
         actions: &result.actions,
         force_keep: req_ctx.should_force_keep(client.get_service(), result.waf_keep),
-        settings: req_ctx.settings(),
+        settings: req_ctx.settings(php2shell),
     });
     send_command_resp(response_tx, resp)?;
 
@@ -638,6 +641,7 @@ struct WafRunResult {
 
 struct ReqContext {
     waf_ctx: libddwaf::Context,
+    waf_generation: u64,
     waf_subctxs: HashMap<String, libddwaf::Subcontext>,
     config_snapshot: Arc<crate::service::ConfigSnapshot>,
     limiter_result: Option<bool>,
@@ -651,13 +655,23 @@ impl ReqContext {
     const MAX_SCHEMA_SIZE: usize = 25000;
 
     fn new(service: &Service, config_snapshot: Arc<crate::service::ConfigSnapshot>) -> Self {
-        let rules_version = config_snapshot.rules_version.clone();
         let waf_timeout = service
             .configured_waf_timeout()
             .unwrap_or(Self::DEFAULT_WAF_TIMEOUT);
+        let (waf_ctx, waf_generation) = service.new_context_with_generation();
+        Self::with_context(waf_ctx, waf_generation, config_snapshot, waf_timeout)
+    }
 
+    fn with_context(
+        waf_ctx: libddwaf::Context,
+        waf_generation: u64,
+        config_snapshot: Arc<crate::service::ConfigSnapshot>,
+        waf_timeout: Duration,
+    ) -> Self {
+        let rules_version = config_snapshot.rules_version.clone();
         Self {
-            waf_ctx: service.new_context(),
+            waf_ctx,
+            waf_generation,
             waf_subctxs: HashMap::new(),
             config_snapshot,
             limiter_result: None,
@@ -837,11 +851,25 @@ impl ReqContext {
         }
     }
 
-    fn settings(&self) -> HashMap<&'static str, String> {
-        HashMap::from([(
+    /// Evaluates the PHP2Shell rule if `data` has [`PHP2SHELL_ADDRESS`]; see
+    /// [`eval_php2shell`].
+    fn eval_php2shell(
+        &self,
+        data: libddwaf::object::WafMap,
+        cache: &mut Option<Php2ShellCacheEntry>,
+    ) -> (libddwaf::object::WafMap, Option<Php2ShellDecision>) {
+        eval_php2shell(&self.waf_ctx, self.waf_generation, data, cache)
+    }
+
+    fn settings(&self, php2shell: Option<Php2ShellDecision>) -> HashMap<&'static str, String> {
+        let mut settings = HashMap::from([(
             "auto_user_instrum",
             self.config_snapshot.auto_user_instrum.as_str().to_string(),
-        )])
+        )]);
+        if let Some(decision) = php2shell {
+            settings.insert(PHP2SHELL_SETTING, decision.as_str().to_string());
+        }
+        settings
     }
 
     pub fn record_shutdown_context(&mut self, input_truncated: bool) {
@@ -869,6 +897,150 @@ impl crate::telemetry::SpanMetaGenerator for ReqContext {
         // (WAF_VERSION and EVENT_RULES_ERRORS are sent only on client_init)
         if let Some(rules_ver) = self.config_snapshot.rules_version.as_deref() {
             submitter.submit_meta(crate::telemetry::EVENT_RULES_VERSION, rules_ver.to_string());
+        }
+    }
+}
+
+/// Address the extension sends in request_init when the PHP runtime is
+/// vulnerable to PHP2Shell (CVE-2026-109618/109619): `full` or `partial`.
+const PHP2SHELL_ADDRESS: &str = "php.php2shell.vulnerable";
+/// Type of the action of the rule matching [`PHP2SHELL_ADDRESS`].
+const PHP2SHELL_ACTION: &str = "php2shell_mitigation";
+const PHP2SHELL_ACTION_MODE: &str = "mode";
+/// Key of the request_init response settings carrying the decision.
+const PHP2SHELL_SETTING: &str = "php2shell_mitigation";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Php2ShellDecision {
+    /// The WAF ran, but no rule matched with a php2shell_mitigation action, or
+    /// its mode is unrecognised.
+    None,
+    Monitor,
+    Block,
+}
+impl Php2ShellDecision {
+    fn as_str(self) -> &'static str {
+        match self {
+            Php2ShellDecision::None => "none",
+            Php2ShellDecision::Monitor => "monitor",
+            Php2ShellDecision::Block => "block",
+        }
+    }
+}
+
+/// The last decision for a client. The extension sends the same address value
+/// on every request, so the rule needs evaluating again only when the ruleset
+/// (generation) or the value changes.
+struct Php2ShellCacheEntry {
+    generation: u64,
+    value: String,
+    decision: Php2ShellDecision,
+}
+
+/// Removes [`PHP2SHELL_ADDRESS`] from `data` and, if it was there, returns the
+/// PHP2Shell decision for its value: cached for (`generation`, value), or
+/// computed by [`run_php2shell_rule`]. Returns no decision on errors, which
+/// leaves the extension's state unchanged.
+///
+/// The address never reaches the main context, so the regular run can neither
+/// evaluate the rule under the normal timeout nor report its event, actions,
+/// keep or metrics; this also makes a cache hit and a miss equivalent.
+fn eval_php2shell(
+    waf_ctx: &libddwaf::Context,
+    generation: u64,
+    data: libddwaf::object::WafMap,
+    cache: &mut Option<Php2ShellCacheEntry>,
+) -> (libddwaf::object::WafMap, Option<Php2ShellDecision>) {
+    let Some(entry) = data.get_str(PHP2SHELL_ADDRESS) else {
+        return (data, None);
+    };
+    let value = entry.value().to_str().map(str::to_owned);
+    let data = without_key(data, PHP2SHELL_ADDRESS);
+    let Some(value) = value else {
+        warn!("{PHP2SHELL_ADDRESS} is not a UTF-8 string; ignoring it");
+        return (data, None);
+    };
+
+    if let Some(cached) = cache
+        .as_ref()
+        .filter(|c| c.generation == generation && c.value == value)
+    {
+        debug!(
+            "PHP2Shell decision for {value} (cached): {}",
+            cached.decision.as_str()
+        );
+        return (data, Some(cached.decision));
+    }
+
+    let decision = match run_php2shell_rule(waf_ctx, &value) {
+        Ok(decision) => decision,
+        Err(err) => {
+            warn!("Failed to evaluate the PHP2Shell rule for {value}: {err:#}");
+            return (data, None);
+        }
+    };
+    debug!("PHP2Shell decision for {value}: {}", decision.as_str());
+    *cache = Some(Php2ShellCacheEntry {
+        generation,
+        value,
+        decision,
+    });
+    (data, Some(decision))
+}
+
+fn without_key(data: libddwaf::object::WafMap, key: &str) -> libddwaf::object::WafMap {
+    let kept: Vec<_> = data
+        .into_iter()
+        .filter(|kv| kv.key_str().ok() != Some(key))
+        .collect();
+    let mut new_data =
+        libddwaf::object::WafMap::new(kept.len()).expect("not larger than an existing map");
+    for (i, entry) in kept.into_iter().enumerate() {
+        new_data[i] = entry;
+    }
+    new_data
+}
+
+/// Runs the WAF with only [`PHP2SHELL_ADDRESS`] and no timeout, so the rule is
+/// always evaluated: only rules with new targets are, i.e. those reading this
+/// address. A transient subcontext keeps the run out of the main context: the
+/// match would otherwise also set waf.context.event there.
+fn run_php2shell_rule(
+    waf_ctx: &libddwaf::Context,
+    value: &str,
+) -> anyhow::Result<Php2ShellDecision> {
+    let mut subctx = waf_ctx
+        .new_subcontext()
+        .map_err(|e| anyhow!("Failed to create subcontext: {e}"))?;
+    let mut data = libddwaf::object::WafMap::new(1)?;
+    data[0] = (PHP2SHELL_ADDRESS, value).into();
+    let res = subctx
+        .run(data, Duration::MAX)
+        .map_err(|e| anyhow!("WAF evaluation error: {e}"))?;
+    drop(subctx);
+
+    let output = match res {
+        libddwaf::RunResult::Match(output) | libddwaf::RunResult::NoMatch(output) => output,
+    };
+    let Some(action) = output
+        .actions()
+        .and_then(|actions| actions.value().get_str(PHP2SHELL_ACTION))
+    else {
+        return Ok(Php2ShellDecision::None);
+    };
+    let mode = action
+        .value()
+        .as_type::<libddwaf::object::WafMap>()
+        .and_then(|params| params.get_str(PHP2SHELL_ACTION_MODE))
+        .and_then(|mode| mode.value().to_str());
+    match mode {
+        Some("block") => Ok(Php2ShellDecision::Block),
+        Some("monitor") => Ok(Php2ShellDecision::Monitor),
+        // an unrecognised mode (future value, typo, missing) is a decision
+        // like any other, cached by eval_php2shell: logged once per generation
+        mode => {
+            warn!("Unknown {PHP2SHELL_ACTION} action mode {mode:?}; treating it as none");
+            Ok(Php2ShellDecision::None)
         }
     }
 }
@@ -1467,6 +1639,358 @@ mod tests {
                 "Cancellation should return CleanShutdown, got: {:?}",
                 err
             );
+        }
+    }
+
+    mod php2shell {
+        use super::*;
+        use libddwaf::{
+            object::{WafMap, WafObject},
+            waf_map, Builder, Config, Handle,
+        };
+        use serde_json::json;
+
+        const TIMEOUT: Duration = Duration::from_secs(10);
+
+        fn p2s_rule() -> serde_json::Value {
+            json!({
+                "id": "dd-php2shell-001",
+                "name": "PHP2Shell mitigation",
+                "tags": {
+                    "type": "php2shell_mitigation",
+                    "category": "vulnerability_mitigation",
+                    "module": "waf"
+                },
+                "conditions": [{
+                    "operator": "exact_match",
+                    "parameters": {
+                        "inputs": [{"address": PHP2SHELL_ADDRESS}],
+                        "list": ["full", "partial"]
+                    }
+                }],
+                "transformers": [],
+                "on_match": ["php2shell_block"]
+            })
+        }
+
+        fn arachni_rule() -> serde_json::Value {
+            json!({
+                "id": "arachni_rule",
+                "name": "Arachni",
+                "tags": {"type": "security_scanner", "category": "attack_attempt"},
+                "conditions": [{
+                    "operator": "match_regex",
+                    "parameters": {
+                        "inputs": [{
+                            "address": "server.request.headers.no_cookies",
+                            "key_path": ["user-agent"]
+                        }],
+                        "regex": "Arachni"
+                    }
+                }],
+                "transformers": [],
+                "on_match": []
+            })
+        }
+
+        fn make_handle(mode: Option<&str>, with_p2s_rule: bool) -> Handle {
+            build_handle(&make_ruleset(mode, with_p2s_rule))
+        }
+
+        /// `mode`: the mode of the php2shell_block action, or no action spec.
+        fn make_ruleset(mode: Option<&str>, with_p2s_rule: bool) -> WafObject {
+            make_ruleset_with_params(mode.map(|mode| json!({"mode": mode})), with_p2s_rule)
+        }
+
+        /// `params`: the parameters of the php2shell_block action, or no action
+        /// spec.
+        fn make_ruleset_with_params(
+            params: Option<serde_json::Value>,
+            with_p2s_rule: bool,
+        ) -> WafObject {
+            let mut rules = vec![arachni_rule()];
+            if with_p2s_rule {
+                rules.push(p2s_rule());
+            }
+            let mut doc = json!({"version": "2.2", "rules": rules});
+            if let Some(params) = params {
+                doc["actions"] = json!([{
+                    "id": "php2shell_block",
+                    "type": PHP2SHELL_ACTION,
+                    "parameters": params
+                }]);
+            }
+            serde_json::from_str(&doc.to_string()).unwrap()
+        }
+
+        fn build_handle(ruleset: &WafObject) -> Handle {
+            let mut builder = Builder::new(Some(&Config::default())).unwrap();
+            assert!(builder.add_or_update_config("rules", ruleset, None));
+            builder.build().unwrap()
+        }
+
+        fn req_ctx(handle: &Handle, generation: u64, timeout: Duration) -> ReqContext {
+            ReqContext::with_context(
+                handle.new_context(),
+                generation,
+                Arc::new(crate::service::ConfigSnapshot::new(true, None)),
+                timeout,
+            )
+        }
+
+        fn request_data(p2s_value: Option<&str>, user_agent: &str) -> WafMap {
+            let mut data = WafMap::new(1 + usize::from(p2s_value.is_some())).unwrap();
+            let mut i = 0;
+            if let Some(value) = p2s_value {
+                data[i] = (PHP2SHELL_ADDRESS, value).into();
+                i += 1;
+            }
+            data[i] = (
+                "server.request.headers.no_cookies",
+                waf_map!(("user-agent", user_agent)),
+            )
+                .into();
+            data
+        }
+
+        fn eval(
+            handle: &Handle,
+            generation: u64,
+            value: &str,
+            cache: &mut Option<Php2ShellCacheEntry>,
+        ) -> Option<Php2ShellDecision> {
+            req_ctx(handle, generation, TIMEOUT)
+                .eval_php2shell(request_data(Some(value), "Mozilla"), cache)
+                .1
+        }
+
+        #[test]
+        fn decision_follows_the_rule_action() {
+            use Php2ShellDecision as D;
+            let cases = [
+                (Some("block"), true, "full", D::Block),
+                (Some("block"), true, "partial", D::Block),
+                (Some("monitor"), true, "full", D::Monitor),
+                (Some("monitor"), true, "partial", D::Monitor),
+                (Some("block"), true, "patched", D::None),
+                (Some("block"), false, "full", D::None),
+                // a match whose action has no spec yields no action
+                (None, true, "full", D::None),
+            ];
+            for (mode, with_rule, value, expected) in cases {
+                let handle = make_handle(mode, with_rule);
+                let mut cache = None;
+                let decision = eval(&handle, 1, value, &mut cache);
+                assert_eq!(
+                    decision,
+                    Some(expected),
+                    "mode {mode:?}, rule {with_rule}, value {value}"
+                );
+                let cached = cache.expect("decision is cached");
+                assert_eq!(cached.decision, expected);
+                assert_eq!(cached.value, value);
+                assert_eq!(cached.generation, 1);
+            }
+        }
+
+        #[test]
+        fn unknown_mode_gives_none_and_is_cached() {
+            // an unrecognised value, or no mode parameter at all
+            for params in [json!({"mode": "bogus"}), json!({})] {
+                let handle = build_handle(&make_ruleset_with_params(Some(params.clone()), true));
+                let mut cache = None;
+                assert_eq!(
+                    eval(&handle, 1, "full", &mut cache),
+                    Some(Php2ShellDecision::None),
+                    "params {params}"
+                );
+                let cached = cache.as_ref().expect("decision is cached");
+                assert_eq!(cached.decision, Php2ShellDecision::None);
+                assert_eq!((cached.generation, cached.value.as_str()), (1, "full"));
+
+                // the same generation does not evaluate the rule again: a
+                // ruleset that blocks still gets the cached none...
+                let block_handle = make_handle(Some("block"), true);
+                assert_eq!(
+                    eval(&block_handle, 1, "full", &mut cache),
+                    Some(Php2ShellDecision::None),
+                    "params {params}"
+                );
+                // ... and a ruleset change (new generation) re-evaluates
+                assert_eq!(
+                    eval(&block_handle, 2, "full", &mut cache),
+                    Some(Php2ShellDecision::Block),
+                    "params {params}"
+                );
+            }
+        }
+
+        #[test]
+        fn no_address_gives_no_decision() {
+            let handle = make_handle(Some("block"), true);
+            let ctx = req_ctx(&handle, 1, TIMEOUT);
+            let mut cache = None;
+            let (data, decision) = ctx.eval_php2shell(request_data(None, "Mozilla"), &mut cache);
+            assert_eq!(decision, None);
+            assert!(cache.is_none());
+            assert_eq!(data, request_data(None, "Mozilla"));
+        }
+
+        #[test]
+        fn rule_has_no_effect_on_the_regular_run() {
+            let handle = make_handle(Some("block"), true);
+            let mut ctx = req_ctx(&handle, 1, TIMEOUT);
+            let mut cache = None;
+
+            let metrics_before = format!("{:?}", ctx.waf_metrics);
+            let (data, decision) =
+                ctx.eval_php2shell(request_data(Some("full"), "Mozilla"), &mut cache);
+            assert_eq!(decision, Some(Php2ShellDecision::Block));
+            assert_eq!(format!("{:?}", ctx.waf_metrics), metrics_before);
+            assert!(data.get_str(PHP2SHELL_ADDRESS).is_none());
+            assert_eq!(data, request_data(None, "Mozilla"));
+
+            let result = ctx
+                .run_waf(data, &protocol::RequestExecOptions::regular())
+                .unwrap();
+            assert!(result.triggers.is_empty(), "{:?}", result.triggers);
+            assert!(result.actions.is_empty());
+            assert!(!result.waf_keep);
+
+            // nor on a later call adding new data to the main context
+            let result = ctx
+                .run_waf(
+                    waf_map!(("server.request.query", "a")),
+                    &protocol::RequestExecOptions::regular(),
+                )
+                .unwrap();
+            assert!(result.triggers.is_empty());
+            assert!(!result.waf_keep);
+        }
+
+        #[test]
+        fn other_rules_still_match_in_the_same_request() {
+            let handle = make_handle(Some("block"), true);
+            let mut ctx = req_ctx(&handle, 1, TIMEOUT);
+            let mut cache = None;
+
+            let (data, decision) =
+                ctx.eval_php2shell(request_data(Some("full"), "Arachni"), &mut cache);
+            assert_eq!(decision, Some(Php2ShellDecision::Block));
+
+            let result = ctx
+                .run_waf(data, &protocol::RequestExecOptions::regular())
+                .unwrap();
+            assert_eq!(result.triggers.len(), 1, "{:?}", result.triggers);
+            assert!(result.triggers[0].contains("arachni_rule"));
+            assert!(!result.triggers[0].contains("dd-php2shell-001"));
+            let actions: Vec<_> = result.actions.iter().map(|a| a.action).collect();
+            assert_eq!(actions, vec!["record"]);
+            assert!(result.waf_keep);
+        }
+
+        #[test]
+        fn cache_hit_and_misses() {
+            // the ruleset says block; a cached monitor shows a hit
+            let handle = make_handle(Some("block"), true);
+            let stale = || {
+                Some(Php2ShellCacheEntry {
+                    generation: 7,
+                    value: "full".to_string(),
+                    decision: Php2ShellDecision::Monitor,
+                })
+            };
+
+            let mut cache = stale();
+            assert_eq!(
+                eval(&handle, 7, "full", &mut cache),
+                Some(Php2ShellDecision::Monitor)
+            );
+
+            let mut cache = stale();
+            assert_eq!(
+                eval(&handle, 7, "partial", &mut cache),
+                Some(Php2ShellDecision::Block)
+            );
+            let cached = cache.unwrap();
+            assert_eq!((cached.generation, cached.value.as_str()), (7, "partial"));
+
+            let mut cache = stale();
+            assert_eq!(
+                eval(&handle, 8, "full", &mut cache),
+                Some(Php2ShellDecision::Block)
+            );
+            assert_eq!(cache.unwrap().generation, 8);
+        }
+
+        #[test]
+        fn cache_is_invalidated_by_a_ruleset_update() {
+            let mut builder = Builder::new(Some(&Config::default())).unwrap();
+            assert!(builder.add_or_update_config(
+                "rules",
+                &make_ruleset(Some("block"), true),
+                None
+            ));
+            let handle1 = builder.build().unwrap();
+            let mut cache = None;
+            assert_eq!(
+                eval(&handle1, 1, "full", &mut cache),
+                Some(Php2ShellDecision::Block)
+            );
+
+            // a ruleset update without a generation change would be missed...
+            assert!(builder.add_or_update_config(
+                "rules",
+                &make_ruleset(Some("monitor"), true),
+                None
+            ));
+            let handle2 = builder.build().unwrap();
+            assert_eq!(
+                eval(&handle2, 1, "full", &mut cache),
+                Some(Php2ShellDecision::Block)
+            );
+            // ... the new generation makes the decision follow the new ruleset
+            assert_eq!(
+                eval(&handle2, 2, "full", &mut cache),
+                Some(Php2ShellDecision::Monitor)
+            );
+        }
+
+        #[test]
+        fn default_ruleset_blocks_vulnerable_runtimes() {
+            let ruleset: WafObject = serde_json::from_slice(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../recommended.json"
+            )))
+            .unwrap();
+            let handle = build_handle(&ruleset);
+            let mut cache = None;
+            for (value, expected) in [
+                ("full", Php2ShellDecision::Block),
+                ("partial", Php2ShellDecision::Block),
+                ("patched", Php2ShellDecision::None),
+            ] {
+                assert_eq!(eval(&handle, 1, value, &mut cache), Some(expected));
+            }
+        }
+
+        #[test]
+        fn settings_carry_the_decision() {
+            let handle = make_handle(Some("block"), true);
+            let ctx = req_ctx(&handle, 1, TIMEOUT);
+            assert!(!ctx.settings(None).contains_key(PHP2SHELL_SETTING));
+            for decision in [
+                Php2ShellDecision::None,
+                Php2ShellDecision::Monitor,
+                Php2ShellDecision::Block,
+            ] {
+                assert_eq!(
+                    ctx.settings(Some(decision))
+                        .get(PHP2SHELL_SETTING)
+                        .map(String::as_str),
+                    Some(decision.as_str())
+                );
+            }
         }
     }
 }

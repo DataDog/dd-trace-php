@@ -159,6 +159,13 @@
         "default": "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:[_-]?phrase)?|secret(?:[_-]?key)?|(?:(?:api|private|public|access)[_-]?)key(?:[_-]?id)?|(?:(?:auth|access|id|refresh)[_-]?)?token|consumer[_-]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?|jsessionid|phpsessid|asp\\.net(?:[_-]|-)sessionid|sid|jwt)(?:\\s*=([^;&]+)|\"\\s*:\\s*(\"[^\"]+\"|\\d+))|bearer\\s+([a-z0-9\\._\\-]+)|token\\s*:\\s*([a-z0-9]{13})|gh[opsu]_([0-9a-zA-Z]{36})|ey[I-L][\\w=-]+\\.(ey[I-L][\\w=-]+(?:\\.[\\w.+\\/=-]+)?)|[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}([^\\-]+)[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY|ssh-rsa\\s*([a-z0-9\\/\\.+]{100,})"
       }
     ],
+    "DD_APPSEC_PHP2SHELL_MITIGATION": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "auto"
+      }
+    ],
     "DD_APPSEC_RASP_ENABLED": [
       {
         "implementation": "A",
@@ -220,6 +227,20 @@
         "implementation": "A",
         "type": "boolean",
         "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_PHP2SHELL_DECISION": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_TESTING_PHP2SHELL_RUNTIME": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
       }
     ],
     "DD_APPSEC_TESTING_RAW_BODY": [

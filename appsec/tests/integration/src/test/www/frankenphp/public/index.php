@@ -14,6 +14,9 @@ $router->addRoute('/', new \App\HomePageHandler());
 $router->addRoute('/phpinfo', new \App\PhpInfoHandler());
 $router->addRoute('/json', new \App\JsonHandler());
 $router->addRoute('/xml', new \App\XmlHandler());
+$router->addRoute('/p2s_worker', new \App\Php2ShellWorkerHandler());
+$router->addRoute('/p2s_oom', new \App\Php2ShellOomHandler());
+$router->addRoute('/p2s_hold', new \App\Php2ShellHoldHandler());
 
 $req_handler = function () use ($router) {
     // Called when a request is received,

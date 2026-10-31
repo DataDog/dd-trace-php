@@ -45,7 +45,7 @@ All commands are run from the repo root. Replace `8.3` with the desired PHP vers
   datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 sudo apt-get update -qq && sudo apt-get install -y -qq \
-  libc++-17-dev libc++abi-17-dev > /dev/null 2>&1
+  libc++-21-dev libc++abi-21-dev > /dev/null 2>&1
 
 # Build and run appsec extension tests
 # (cmake's xtest target builds ddtrace.so automatically as a dependency)
@@ -58,7 +58,7 @@ ASAN_OPTIONS=malloc_context_size=0 make -j$(nproc) xtest
 '
 ```
 
-`clang-tidy-17` is installed by CI's shared `before_script` template but is not needed
+`clang-tidy-21` is installed by CI's shared `before_script` template but is not needed
 for extension tests — only for `appsec lint`. Omitting it saves ~10 seconds of apt time.
 
 `ASAN_OPTIONS=malloc_context_size=0` is passed by CI unconditionally (even for non-ASAN
@@ -84,14 +84,14 @@ ASAN_OPTIONS=malloc_context_size=0 make -j4 xtest
 
 Once the build directory exists (cmake has already been run), re-run a
 single test using the `TESTS` env var. Paths are relative to `appsec/`
-(the cmake source directory). Drop `clang-tidy-17` from the apt install
+(the cmake source directory). Drop `clang-tidy-21` from the apt install
 to save ~10 seconds:
 
 ```bash
 .claude/ci/dockerh --cache appsec-ext-8.3-debug --overlayfs --php debug \
   datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 sudo apt-get update -qq && sudo apt-get install -y -qq \
-  libc++-17-dev libc++abi-17-dev > /dev/null 2>&1
+  libc++-21-dev libc++abi-21-dev > /dev/null 2>&1
 cd appsec/build
 TESTS=tests/extension/waf_timeout_default.phpt ASAN_OPTIONS=malloc_context_size=0 make xtest
 '
@@ -168,9 +168,11 @@ make tidy_fix    # fix clang-tidy violations
   `~/.cache/dd-ci/<NAME>/appsec/build/boost_cache/` (extension tests) or
   in the `php-appsec-boost-cache` Docker volume (Gradle).
 
-- The `libc++-17-dev` and `libc++abi-17-dev` packages must be installed
+- The `libc++-21-dev` and `libc++abi-21-dev` packages must be installed
   in every new container — the cmake cache references libc++ headers and
-  will fail to compile without them.
+  will fail to compile without them. Use the version CI installs (see
+  `.gitlab/generate-appsec.php`); older ones such as `libc++-17-dev` are
+  not available in the `bookworm-11` images and `apt-get` exits with 100.
 
 - When switching PHP versions or variants, use a distinct `--cache` name
   per version/variant (e.g. `appsec-ext-8.3-debug` vs

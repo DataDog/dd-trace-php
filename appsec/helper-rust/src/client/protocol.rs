@@ -763,6 +763,40 @@ mod tests {
         assert!(!buf.is_empty());
     }
 
+    // The extension reads the settings map (index 3) of the request_init
+    // response; the PHP2Shell decision travels there as a string.
+    #[tokio::test]
+    async fn test_request_init_response_php2shell_setting() {
+        let resp = CommandResponse::RequestInit(RequestInitResp {
+            actions: &vec![],
+            triggers: &vec![],
+            force_keep: false,
+            settings: HashMap::from([
+                ("auto_user_instrum", "identification".to_string()),
+                ("php2shell_mitigation", "monitor".to_string()),
+            ]),
+        });
+
+        let mut buf = BytesMut::new();
+        CommandCodec.encode(resp, &mut buf).unwrap();
+
+        type Body = (
+            Vec<(String, HashMap<String, String>)>,
+            Vec<String>,
+            bool,
+            HashMap<String, String>,
+        );
+        let decoded: Vec<(String, Body)> =
+            rmp_serde::from_slice(&buf[std::mem::size_of::<Header>()..]).unwrap();
+        assert_eq!(decoded.len(), 1);
+        let (name, (_, _, _, settings)) = &decoded[0];
+        assert_eq!(name, "request_init");
+        assert_eq!(
+            settings.get("php2shell_mitigation").map(String::as_str),
+            Some("monitor")
+        );
+    }
+
     // The PHP extension omits rasp_rule entirely for regular (non-RASP) calls,
     // sending an empty options map. Verify this deserializes without error.
     #[test]

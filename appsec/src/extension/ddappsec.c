@@ -36,6 +36,7 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "network.h"
+#include "php2shell_mitigation.h"
 #include "php_compat.h" // NOLINT (must come before ddappsec_arginfo.h)
 #include "php_objects.h"
 #include "request_abort.h"
@@ -155,6 +156,10 @@ static int ddappsec_startup(zend_extension *extension)
     zend_hash_sort_ex(&module_registry, ddappsec_sort_modules, NULL, 0);
 
     dd_request_abort_zend_ext_startup();
+
+    // zend_startup_extensions() runs after zend_startup_modules(): capture the
+    // PHP2Shell hook slots once, now that every module MINIT has run.
+    dd_php2shell_startup();
 
     return SUCCESS;
 }
@@ -325,6 +330,8 @@ static PHP_MINIT_FUNCTION(ddappsec)
 
     dd_phpobj_reg_funcs(ext_functions);
 
+    dd_php2shell_minit();
+
 #ifdef TESTING
     _register_testing_objects();
 #endif
@@ -352,6 +359,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     UNUSED(type);
     UNUSED(module_number);
 
+    // First: it takes our Zend MM handlers off the heap if a failed request
+    // startup left them there, before anything else frees through them.
+    dd_php2shell_mshutdown();
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
@@ -366,7 +376,14 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
 
 static void _rinit_once(void)
 {
-    dd_config_first_rinit();
+    dd_appsec_config_first_rinit_once();
+    // _check_enabled() reads runtime config (zai_config_get_value()). The
+    // config once above may have run on another thread (ZTS) or in an earlier
+    // request whose startup ended before RINIT, after which post_deactivate
+    // released that request's runtime config. Make sure the calling thread has
+    // one for the current request; zai_config_rinit() is idempotent within a
+    // request.
+    zai_config_rinit();
     _check_enabled();
 }
 
@@ -374,6 +391,12 @@ void dd_appsec_rinit_once(void)
 {
     static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
     pthread_once(&_rinit_once_control, _rinit_once);
+}
+
+void dd_appsec_config_first_rinit_once(void)
+{
+    static pthread_once_t _config_once_control = PTHREAD_ONCE_INIT;
+    pthread_once(&_config_once_control, dd_config_first_rinit);
 }
 
 // NOLINTNEXTLINE
@@ -390,6 +413,8 @@ static PHP_RINIT_FUNCTION(ddappsec)
     _check_enabled();
 
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        // Turn the PHP2Shell mitigation off for later requests' startup parses.
+        dd_php2shell_set_allowed(false);
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
@@ -407,6 +432,12 @@ static PHP_RINIT_FUNCTION(ddappsec)
         }
     }
 
+    // Arm the PHP2Shell mitigation for the request. Last, so that it sees the
+    // gate as remote config left it, and LIFO with the profiler, which
+    // installs its Zend MM handlers in its RINIT and removes them in its
+    // RSHUTDOWN.
+    dd_php2shell_rinit();
+
     return SUCCESS;
 }
 
@@ -415,6 +446,9 @@ static PHP_RSHUTDOWN_FUNCTION(ddappsec)
 {
     UNUSED(type);
     UNUSED(module_number);
+
+    // First, mirroring dd_php2shell_rinit() at the end of RINIT.
+    dd_php2shell_rshutdown();
 
     DDAPPSEC_G(during_request_shutdown) = true;
 
@@ -449,6 +483,12 @@ int _post_deactivate(void)
 zend_result _post_deactivate(void)
 #endif
 {
+    // Reset the request-owned engine globals an OOM bailout can leave stale
+    // (PHP2Shell CVE-2026-109619 sub-mitigation B). This is the only sound
+    // window: zend_deactivate() has run (creating the stale state) but the next
+    // request's init_executor has not, and the memory manager is still live.
+    dd_php2shell_post_deactivate();
+
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so
     // delay this until the last possible time
     zai_config_rshutdown();
@@ -473,6 +513,7 @@ static PHP_MINFO_FUNCTION(ddappsec)
     php_info_print_table_row(2, "Version", PHP_DDAPPSEC_VERSION);
     php_info_print_table_row(
         2, "Connected to helper?", dd_helper_mgr_cur_conn() ? "Yes" : "No");
+    dd_php2shell_minfo();
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
