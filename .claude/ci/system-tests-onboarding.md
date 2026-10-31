@@ -47,14 +47,17 @@ Image: `docker:29.4.0-noble`
 
 ### CI secrets
 
-CI fetches secrets from AWS SSM (parameter store). The relevant parameters:
+CI fetches secrets with `read-system-tests-secret`. For
+`DataDog/dd-trace-php`, the wrapper reads the `ssi-onboarding` secret from
+`kv/k8s/gitlab-runner/dd-trace-php/system-tests/ssi-onboarding`.
 
-| SSM parameter | Maps to env var |
-|---|---|
-| `ci.dd-trace-php.dd-api-key-onboarding` | `DD_API_KEY_ONBOARDING` |
-| `ci.dd-trace-php.dd-app-key-onboarding` | `DD_APP_KEY_ONBOARDING` |
-| `ci.dd-trace-php.onboarding-aws-infra-subnet-id` | `ONBOARDING_AWS_INFRA_SUBNET_ID` |
-| `ci.dd-trace-php.onboarding-aws-infra-security-groups-id` | `ONBOARDING_AWS_INFRA_SECURITY_GROUPS_ID` |
+The relevant Vault fields and environment variables are:
+
+- `dd_api_key_onboarding` → `DD_API_KEY_ONBOARDING`
+- `dd_app_key_onboarding` → `DD_APP_KEY_ONBOARDING`
+- `aws_infra_subnet_id` → `ONBOARDING_AWS_INFRA_SUBNET_ID`
+- `aws_infra_security_groups_id` →
+  `ONBOARDING_AWS_INFRA_SECURITY_GROUPS_ID`
 
 Backend validation hits the production `system-tests` Datadog organization at
 `dd.datadoghq.com`. The API/APP keys come from that org.
