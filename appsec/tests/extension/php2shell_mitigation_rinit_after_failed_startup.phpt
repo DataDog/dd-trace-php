@@ -55,7 +55,11 @@ $soft_mib = max(4, (int)round((int)$cal[0]['peak'] * 0.7 / P2S_MIB));
 // enabled via remote config, the default).
 echo "control_active={$cal[0]['active']}\n";
 
-$srv = p2s_server_start(['memory_limit' => "{$soft_mib}M"]);
+// report_memleaks=0: php -S (7.x at least) never shuts down a request whose
+// startup failed, so request #2's shutdown reports request #1's allocations as
+// leaks, and the leak checker of PHP 7.0-7.3.16 debug builds can loop forever
+// over them (fixed upstream in 45b4368d5c; the CI images patch it).
+$srv = p2s_server_start(['memory_limit' => "{$soft_mib}M", 'report_memleaks' => '0']);
 $r1 = p2s_http($srv, $big);
 $r2 = p2s_child_lines(p2s_http($srv, $nul));
 // DDAPPSEC_G(enabled) is resolved once per process (per thread on ZTS), so a

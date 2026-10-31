@@ -33,8 +33,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue
  *
  * memory_limit and post_max_size are set with php_admin_value in the pool, so
  * they are in force before the body is parsed. The mitigation is forced on
- * through the pool env, so the runs do not depend on whether this image's PHP
- * carries the upstream fix.
+ * through the pool env and the master's environment (the hooks are installed
+ * from the master's configuration, see dd_p2s_policy_startup_may_hook), so the
+ * runs do not depend on whether this image's PHP carries the upstream fix.
  *
  * Apache (not nginx): nginx's default client_max_body_size (~1 MiB) would 413
  * the large bodies before PHP parsed them.
@@ -330,7 +331,10 @@ class Php2ShellMitigationTests {
             (opts.poolValues ?: [:]).each { k, v -> fpm.setPoolValue(k as String, v as String) }
             CONTAINER.execInContainer('bash', '-c',
                     "cat >> ${POOL} <<'EOF'\n${lines.join('\n')}\nEOF".toString())
-            fpm.restart((opts.env ?: [:]) as Map<String, String>, (opts.ini ?: PhpFpm.DEFAULT_INI) as String)
+            // The mode also goes to the master: the hooks are installed (or
+            // not, under auto on a patched runtime) from its environment.
+            fpm.restart([DD_APPSEC_PHP2SHELL_MITIGATION: (opts.mode ?: 'on') as String] +
+                    ((opts.env ?: [:]) as Map<String, String>), (opts.ini ?: PhpFpm.DEFAULT_INI) as String)
             return body()
         } finally {
             CONTAINER.execInContainer('bash', '-c', "mv -f ${POOL}.p2s ${POOL}".toString())

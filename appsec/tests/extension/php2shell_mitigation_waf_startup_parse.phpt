@@ -5,6 +5,7 @@ PHP2Shell mitigation (CVE-2026-109618/109619): a startup-parse crossing of memor
 require __DIR__ . '/inc/php2shell_cgi.php';
 p2s_skip_unless_cgi();
 p2s_skip_if_no_zend_mm();
+p2s_skip_if_partial();
 --INI--
 extension=ddtrace.so
 post_max_size=32M

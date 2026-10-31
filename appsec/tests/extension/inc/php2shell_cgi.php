@@ -44,6 +44,16 @@ function p2s_skip_if_patched() {
     }
 }
 
+// The minimal fix of the EOL branches (a partial runtime) makes the engine's
+// memory_limit error exit (zend_mm_safe_error_ex) and keeps only two headers
+// per multipart part. Call after p2s_skip_unless_cgi() and
+// p2s_skip_if_no_zend_mm() (see p2s_runtime_kind).
+function p2s_skip_if_partial() {
+    if (p2s_runtime_kind() === 'partial') {
+        die("skip: partial runtime (minimal fix of the EOL branches)");
+    }
+}
+
 function p2s_skip_unless_cgi() {
     if (!p2s_cgi_available()) {
         die("skip: php-cgi not available");
