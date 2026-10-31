@@ -6,6 +6,7 @@ require __DIR__ . '/inc/php2shell_cgi.php';
 p2s_skip_unless(70100);
 p2s_skip_unless_cgi();
 p2s_skip_if_no_zend_mm();
+p2s_skip_if_partial();
 --FILE--
 <?php
 // One php-cgi child per row of the behaviour table. The decision is the

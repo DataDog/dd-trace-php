@@ -265,10 +265,10 @@ class Php2ShellProfilerTests {
     // Run `body` with php-fpm restarted with `ini` and the pool pinned to one
     // static worker that is never recycled, memory_limit `memoryLimit` (as
     // php_value, so that ini_set() can change it), post_max_size=32M, worker
-    // stderr in the FPM log and the mitigation forced on through the pool env,
-    // and the master's output (with the profiler's log) appended to
-    // PROFILER_LOG. The pool file is restored and php-fpm restarted with the
-    // default php.ini afterwards.
+    // stderr in the FPM log, the mitigation forced on through the pool env and
+    // the master's environment, and the master's output (with the profiler's
+    // log) appended to PROFILER_LOG. The pool file is restored and php-fpm
+    // restarted with the default php.ini afterwards.
     private static <T> T withPool(PhpFpm fpm, String ini, String memoryLimit, Closure<T> body) {
         fpm.withPool(values: ['pm.max_children': '1', 'pm.max_requests': '0'],
                 lines: [
@@ -277,7 +277,10 @@ class Php2ShellProfilerTests {
                         "env[DD_APPSEC_PHP2SHELL_MITIGATION] = ${MODE}".toString(),
                         'catch_workers_output = yes',
                 ],
-                ini: ini, outputLog: PROFILER_LOG, body)
+                // The mode also goes to the master: the hooks are installed
+                // (or not, under auto on a patched runtime) from its
+                // environment.
+                env: [DD_APPSEC_PHP2SHELL_MITIGATION: MODE], ini: ini, outputLog: PROFILER_LOG, body)
     }
 
     // The base usage, peak and pid reported by php2shell_runtime.php.
