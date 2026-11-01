@@ -46,10 +46,9 @@
 #include <ext/telemetry.h> // datadog_telemetry_commit_user_request_metrics
 #include <php.h>
 #include <stdatomic.h>
-#include <stddef.h> // offsetof
+#include <stddef.h> // size_t
 #include <stdio.h>
 #include <stdlib.h> // getenv
-#include <string.h> // memcpy
 #include <unistd.h> // _exit
 
 #include "../ddappsec.h" // DDAPPSEC_G, EG/PG
@@ -520,10 +519,7 @@ typedef struct {
 // The engine's current limit on `heap` (zend_set_memory_limit() writes it).
 static size_t _heap_limit(zend_mm_heap *nonnull heap)
 {
-    size_t limit;
-    memcpy(&limit, (const char *)heap + offsetof(dd_mm_heap_head, limit),
-        sizeof(limit));
-    return limit;
+    return ((const dd_mm_heap_head *)heap)->limit;
 }
 
 // Garbage-collect the armed heap, as the engine does before it reports a
