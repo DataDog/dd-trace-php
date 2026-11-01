@@ -135,8 +135,8 @@ static ZEND_COLD void _follow_limit(void);
 static size_t _run_gc(void);
 static void _precheck_hard_limit(size_t size);
 static bool _exceeds_hard(size_t used, size_t size);
-static void _check_limit(size_t add_size);
-static size_t _usage(void);
+static zend_always_inline void _check_limit(size_t add_size);
+static zend_always_inline size_t _usage(void);
 static ZEND_COLD ZEND_NORETURN void _hard_abort(size_t add_size);
 static void _emit_and_flush(
     zend_string *nullable name, const char *nullable phase);
@@ -192,6 +192,9 @@ ZEND_TLS struct {
     // dd_p2s_guard_raise_refused).
     bool raise_refused;
     bool had_prev;
+    // _usage() reads real_size from `heap` itself: _arm() found the layout of
+    // dd_mm_heap_head right. Otherwise it calls zend_memory_usage().
+    bool usage_direct;
     size_t soft;
     size_t hard;
     // PG(memory_limit) when `soft` was last computed from it; a different
@@ -496,8 +499,9 @@ static void _set_finite_limit(void)
 // The start of zend_mm_heap (Zend/zend_alloc.c) up to its limit, which no API
 // reads, with the default ZEND_MM_CUSTOM, ZEND_MM_STORAGE, ZEND_MM_STAT and
 // ZEND_MM_LIMIT. PHP 8.4 added shadow_key; ZEND_MM_BINS is 30 on every
-// version. _arm() checks the layout in debug builds; were it wrong, a release
-// build would only reset the sentinel on every allocation.
+// version. _arm() checks the layout; were it wrong, _usage() would go back to
+// zend_memory_usage() and _keep_sentinel() would reset the sentinel on every
+// allocation.
 #define DD_ZEND_MM_BINS 30
 typedef struct {
     int use_custom_heap;
@@ -690,7 +694,7 @@ static bool _exceeds_hard(size_t used, size_t size)
 // GC attempt, mirroring upstream) we record a pending OOM. We never bail here
 // -- that is the whole point: the in-progress hash insertion must be allowed
 // to complete.
-static void _check_limit(size_t add_size)
+static zend_always_inline void _check_limit(size_t add_size)
 {
     if (!_arm_state.armed) {
         return;
@@ -740,7 +744,15 @@ void dd_p2s_guard_request_interrupt(void)
 // The usage the soft/hard checks compare against: zend_mm's real usage
 // (chunks plus huge blocks), the figure the engine's own limit check uses.
 // Only a real zend_mm heap is armed (see dd_p2s_startup_parse_run_window).
-static size_t _usage(void) { return zend_memory_usage(true); }
+// Read from the heap directly: the call to zend_memory_usage() is a measurable
+// part of every armed allocation.
+static zend_always_inline size_t _usage(void)
+{
+    if (EXPECTED(_arm_state.usage_direct)) {
+        return ((const dd_mm_heap_head *)_arm_state.heap)->real_size;
+    }
+    return zend_memory_usage(true);
+}
 
 static ZEND_COLD ZEND_NORETURN void _hard_abort(size_t add_size)
 {
@@ -1040,9 +1052,14 @@ static void _arm(size_t soft, size_t hard)
     _arm_state.hard = hard;
     _arm_state.memory_limit = (zend_long)PG(memory_limit);
     zend_set_memory_limit(DD_PHP2SHELL_SENTINEL_LIMIT);
-    // The layout _heap_limit() assumes.
-    ZEND_ASSERT(zend_mm_get_heap() != _arm_state.heap ||
-                _heap_limit(_arm_state.heap) == DD_PHP2SHELL_SENTINEL_LIMIT);
+    // The layout _heap_limit() and _usage() assume.
+    _arm_state.usage_direct =
+        zend_mm_get_heap() == _arm_state.heap &&
+        _heap_limit(_arm_state.heap) == DD_PHP2SHELL_SENTINEL_LIMIT &&
+        ((const dd_mm_heap_head *)_arm_state.heap)->real_size ==
+            zend_memory_usage(true);
+    ZEND_ASSERT(
+        zend_mm_get_heap() != _arm_state.heap || _arm_state.usage_direct);
     _arm_state.armed = true;
 }
 
