@@ -708,15 +708,6 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
 
     datadog_git_rshutdown();
 
-    if (DATADOG_G(last_service_name)) {
-        zend_string_release(DATADOG_G(last_service_name));
-        DATADOG_G(last_service_name) = NULL;
-    }
-    if (DATADOG_G(last_env_name)) {
-        zend_string_release(DATADOG_G(last_env_name));
-        DATADOG_G(last_env_name) = NULL;
-    }
-
     return SUCCESS;
 }
 
@@ -728,6 +719,17 @@ zend_result datadog_post_deactivate(void) {
 #ifdef DDTRACE
     ddtrace_post_deactivate();
 #endif
+
+    // These usually hold request-heap strings. Release them here rather than in RSHUTDOWN: PHP skips all RSHUTDOWNs
+    // when a later module's RINIT bails out, but always runs post_deactivate before resetting the request heap.
+    if (DATADOG_G(last_service_name)) {
+        zend_string_release(DATADOG_G(last_service_name));
+        DATADOG_G(last_service_name) = NULL;
+    }
+    if (DATADOG_G(last_env_name)) {
+        zend_string_release(DATADOG_G(last_env_name));
+        DATADOG_G(last_env_name) = NULL;
+    }
 
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
