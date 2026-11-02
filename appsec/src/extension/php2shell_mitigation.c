@@ -321,9 +321,13 @@
 //     startup.
 //   - Extensions that need plain zend_mm: with our handlers installed for the
 //     whole request, is_zend_mm() is false, so an extension that requires it
-//     stops working. memprof's runtime memprof_enable() does not profile, and
-//     MEMPROF_PROFILE=1 profiles only if memprof's RINIT runs before ours (it
-//     then swaps in its own heap, and ours are installed on that one).
+//     stops working. memprof is ruled out instead: it swaps in its own heap
+//     in its RINIT, so armed on that one the guard would miss the real heap's
+//     limit, and a client can turn it on per request (MEMPROF_PROFILE).
+//     Snuffleupagus is ruled out too: its upload hook re-wraps ours and
+//     recurses, and its INI protection turns our upload-progress toggle into
+//     a bailout. With either loaded no hook is installed and MINFO names it
+//     (see _incompatible_module in p2s_policy.c).
 //   - Handlers reset after a bailout: when a bailout skipped our RSHUTDOWN,
 //     post_deactivate resets the heap to plain zend_mm instead of restoring
 //     the handlers found at install, so an extension below us that keeps its
