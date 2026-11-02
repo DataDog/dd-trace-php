@@ -357,10 +357,16 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     }
     // Under the finite limit, so these allocations do not bail either.
     dd_p2s_report_deferred(phase);
-    zend_error_noreturn(E_ERROR,
+    // Bail out ourselves, as zend_mm_safe_error does: a zend_error_cb that
+    // swallows E_ERROR makes zend_error() return.
+    zend_error(E_ERROR,
         "Allowed memory size of %zu bytes exhausted " DD_P2S_DEFERRED_MARKER
         " this to avoid heap corruption)",
         _arm_state.soft);
+    zend_bailout();
+#if PHP_VERSION_ID < 80000
+    __builtin_unreachable(); // _zend_bailout() is not noreturn before 8.0
+#endif
 }
 
 // The value of the deferred metric's phase tag, also used by the span tags
