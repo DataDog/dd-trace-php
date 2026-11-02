@@ -266,6 +266,9 @@ DATADOG_PUBLIC zend_object *ddtrace_get_root_span(void);
 
 uint64_t ddtrace_nanoseconds_realtime(void);
 void dd_trace_stop_span_time(ddtrace_span_data *span);
+/* The code a span covers finished: record an exception propagating out of it, unless one is already set, and stop its clock.
+   NULL, dummy, dropped and closed spans are left alone. */
+void dd_trace_stop_span_time_with_exception(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);
 void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until);
 int ddtrace_close_userland_spans_until(ddtrace_span_data *until);

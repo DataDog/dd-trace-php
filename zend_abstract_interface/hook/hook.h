@@ -136,6 +136,8 @@ void zai_hook_unresolve_op_array(zend_op_array *op_array);
 
 /* True if `source`, a path suffix, names `file`. An empty `source` matches every file. */
 bool zai_hook_match_filepath(zend_string *file, zend_string *source);
+/* As zai_hook_match_filepath(), ignoring ASCII case. */
+bool zai_hook_match_filepath_ci(zend_string *file, zend_string *source);
 
 /* Filename -> declared user functions, including closures. Entries are removed when their op_array is destroyed. */
 typedef struct {

@@ -459,14 +459,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
     }
 
     ddtrace_span_data *span = dyn->hook_data->span;
-    if (span && span->duration != DDTRACE_DROPPED_SPAN && span->duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
-        zval *exception_zv = &span->property_exception;
-        if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
-            ZVAL_OBJ_COPY(exception_zv, EG(exception));
-        }
-
-        dd_trace_stop_span_time(span);
-    }
+    dd_trace_stop_span_time_with_exception(span);
 
     bool keep_span = true;
 

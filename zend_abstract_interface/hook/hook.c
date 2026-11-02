@@ -865,7 +865,7 @@ HashTable *zai_hook_function_location_map(void) {
 
 /* File targets are written as a path suffix, so "Foo/Bar.php" matches "/app/src/Foo/Bar.php" but not "/app/src/MyFoo/Bar.php": the character before the match must be a separator.
    An empty source is a wildcard. */
-bool zai_hook_match_filepath(zend_string *file, zend_string *source) {
+static bool zai_hook_match_filepath_ex(zend_string *file, zend_string *source, bool ignore_case) {
     if (ZSTR_LEN(source) == 0) {
         return true; // empty path is wildcard
     }
@@ -875,20 +875,21 @@ bool zai_hook_match_filepath(zend_string *file, zend_string *source) {
     }
 
     const char *suffix = ZSTR_VAL(file) + ZSTR_LEN(file) - ZSTR_LEN(source);
-#ifdef ZEND_WIN32
-    /* PHP accepts both separators, but compiled filenames use backslashes. */
     for (size_t i = 0; i < ZSTR_LEN(source); ++i) {
-        char source_char = ZSTR_VAL(source)[i] == '\\' ? '/' : ZSTR_VAL(source)[i];
-        char file_char = suffix[i] == '\\' ? '/' : suffix[i];
+        char source_char = ZSTR_VAL(source)[i], file_char = suffix[i];
+#ifdef ZEND_WIN32
+        /* PHP accepts both separators, but compiled filenames use backslashes. */
+        source_char = source_char == '\\' ? '/' : source_char;
+        file_char = file_char == '\\' ? '/' : file_char;
+#endif
+        if (ignore_case) {
+            source_char = source_char >= 'A' && source_char <= 'Z' ? source_char - 'A' + 'a' : source_char;
+            file_char = file_char >= 'A' && file_char <= 'Z' ? file_char - 'A' + 'a' : file_char;
+        }
         if (source_char != file_char) {
-            return false;
+            return false; // suffix doesn't match
         }
     }
-#else
-    if (memcmp(ZSTR_VAL(source), suffix, ZSTR_LEN(source)) != 0) {
-        return false; // suffix doesn't match
-    }
-#endif
 
     if (ZSTR_LEN(source) == ZSTR_LEN(file)) {
         return true; // it's exact match
@@ -900,6 +901,14 @@ bool zai_hook_match_filepath(zend_string *file, zend_string *source) {
     }
 
     return false;
+}
+
+bool zai_hook_match_filepath(zend_string *file, zend_string *source) {
+    return zai_hook_match_filepath_ex(file, source, false);
+}
+
+bool zai_hook_match_filepath_ci(zend_string *file, zend_string *source) {
+    return zai_hook_match_filepath_ex(file, source, true);
 }
 
 static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, zend_function *function, zend_string *lcname) {
