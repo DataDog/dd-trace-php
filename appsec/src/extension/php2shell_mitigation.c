@@ -29,7 +29,7 @@
 // zend_post_startup_cb, over opcache's wrapper; see p2s_monitor.c). A
 // slot that another extension replaces later is not repaired (see
 // php2shell/p2s_hook.h); since another extension may also wrap ours and chain
-// to it, "displaced" means only that ours is no longer on top. The Zend MM
+// to it, "replaced" means only that ours is no longer on top. The Zend MM
 // handlers are not among them: they are installed per request (see Request
 // level in p2s_runtime.c). No hook is installed, and the mitigation stays off
 // for the process, under the cli, phpdbg, embed and micro SAPIs, or when the
@@ -76,9 +76,9 @@
 // and the mode on), and, in the monitor state,
 // _dd.appsec.php2shell.memory_error = memory_limit or out_of_memory with
 // _dd.appsec.php2shell.phase = <phase> for a native one; one log line per
-// displaced hook, and one for an expanding filter.default (see Coverage:
-// filter.default); MINFO rows for the state, the mode, the patch state, the WAF
-// decision and each hook (Installed / Displaced / Not installed).
+// replaced hook (appsec log only), and one for an expanding filter.default (see
+// Coverage: filter.default); MINFO rows for the state, the mode, the patch
+// state, the WAF decision and each hook (Installed / Replaced / Not installed).
 //
 // Goals:
 //   A. On an unpatched runtime, a memory-limit error during the startup
@@ -164,10 +164,12 @@
 //     called, yet arming still lifts the engine limit to the sentinel: those
 //     requests run with no memory limit at all, until the slot shows ours or
 //     plain zend_mm again.
-//   - Displaced hooks: a hook displaced after our startup hook is detected,
-//     logged and shown in MINFO, but not repaired. For the startup-window
-//     hooks, its window is not armed (for input_filter, see Hard exit:
-//     displaced input_filter). The request stays armed whatever happens to
+//   - Displaced hooks: a hook replaced after our startup hook is detected,
+//     logged to the appsec log (not when that is PHP error reporting) and
+//     shown in MINFO as Replaced, but not repaired. A replacement that chains
+//     to ours is reported the same way. For the startup-window hooks, its
+//     window is not armed (for input_filter, see Hard exit: displaced
+//     input_filter). The request stays armed whatever happens to
 //     zend_interrupt_function (see Coverage: Displaced interrupt hook) or to
 //     gc_mem_caches(), whose replacement, if it does not chain to our wrapper,
 //     may free nothing again.
@@ -326,6 +328,18 @@
 //     request on an unpatched runtime, so an application's own crossing of
 //     memory_limit is deferred too, counted in the deferred metric
 //     (phase:runtime), tagged on the span and the trace kept.
+//   - gc_mem_caches() replaced first: when another extension replaced the
+//     handler of gc_mem_caches() before our startup hook (PHP 7.1-8.3), ours
+//     is not installed, and gc_mem_caches() frees nothing while a request is
+//     armed unless that handler turns use_custom_heap off itself. This is
+//     detected only for a handler in another DSO (see _in_engine_or_ours):
+//     ours is installed over one in the PHP binary, such as a statically
+//     built extension's, and over any if dladdr() fails, and then calls it
+//     with use_custom_heap off while our allocator handlers are in the chain.
+//     The Datadog profiler built into ddtrace.so is not such a replacement:
+//     its wrapper is installed before our capture, lives in our own DSO and
+//     always calls the engine's handler, so ours is installed over it and
+//     turns use_custom_heap off whatever the profiler's settings.
 //
 // 5. Not addressed.
 //   - Unrelated stock-PHP bugs: those not about memory (e.g. the parse_str

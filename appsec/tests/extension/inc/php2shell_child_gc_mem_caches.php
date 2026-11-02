@@ -1,5 +1,5 @@
 <?php
-// Child script for php2shell_mitigation_gc_mem_caches.phpt: allocates many
+// Child script for php2shell_mitigation_gc_mem_caches*.phpt: allocates many
 // small strings and frees them, which leaves their zend_mm pages on the free
 // lists of the small bins (only zend_mm_gc() returns such pages), then prints
 // GC freed=N with what gc_mem_caches() returned. P2S_ALLOC, if set, is then

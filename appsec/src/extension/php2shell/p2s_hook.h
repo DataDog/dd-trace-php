@@ -42,9 +42,12 @@
 // an unpatched runtime without it, except for zend_interrupt_function and
 // gc_mem_caches(): the request stays armed, and a replacement that does not
 // chain to ours keeps runtime errors from being delivered before the hard
-// limit, or frees nothing (see Coverage: Displaced hooks). The first time a
-// slot is found displaced, one warning is logged for the process; MINFO shows
-// it as "Displaced". Only reads the slot; `logged` is written once at most.
+// limit, or frees nothing (see Coverage: Displaced hooks). The replacement
+// may chain to ours, which cannot be told from here. The first time a slot is
+// found displaced, one warning is logged for the process, to the appsec log
+// only: never to PHP error reporting, which can reach the response. MINFO
+// shows it as "Replaced". Only reads the slot; `logged` is written once at
+// most.
 static inline void dd_p2s_hook_check_displaced(bool captured, bool ours,
     atomic_bool *nonnull logged, const char *nonnull name,
     const char *nonnull effect)
@@ -58,9 +61,13 @@ static inline void dd_p2s_hook_check_displaced(bool captured, bool ours,
     if (atomic_exchange_explicit(logged, true, memory_order_relaxed)) {
         return;
     }
+    if (dd_log_to_php()) {
+        return;
+    }
     mlog(dd_log_warning,
-        "PHP2Shell mitigation: %s was replaced after startup; %s", name,
-        effect);
+        "PHP2Shell mitigation: %s was replaced after startup by another "
+        "extension; %s unless that extension chains to ours",
+        name, effect);
 }
 
 // The MINFO row of one hook.
@@ -69,7 +76,7 @@ static inline void dd_p2s_hook_minfo_row(
 {
     const char *value = "Not installed";
     if (captured) {
-        value = ours ? "Installed" : "Displaced";
+        value = ours ? "Installed" : "Replaced";
     }
     php_info_print_table_row(2, label, value);
 }
