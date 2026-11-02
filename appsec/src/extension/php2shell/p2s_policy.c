@@ -87,6 +87,9 @@ static unsigned _generation;
 // mitigation is off for the process (see dd_p2s_policy_active). Written during
 // startup and in MSHUTDOWN only.
 static bool _hooks_installed;
+// The loaded extension that ruled the mitigation out at startup, if any (see
+// _incompatible_module).
+static const char *nullable _incompatible;
 
 // ---- per-thread state ------------------------------------------------------
 //
@@ -112,6 +115,7 @@ static void _thread_state(void);
 static void _resolve_config_once(void);
 static void _resolve_config(void);
 static bool _sapi_excluded(void);
+static const char *nullable _incompatible_module(void);
 static bool _mode_allows_activation(void);
 static const char *_state_name(void);
 static const char *_decision_name(void);
@@ -147,7 +151,11 @@ void dd_p2s_policy_minit(void)
 
 void dd_p2s_policy_hooks_installed(void) { _hooks_installed = true; }
 
-void dd_p2s_policy_mshutdown(void) { _hooks_installed = false; }
+void dd_p2s_policy_mshutdown(void)
+{
+    _hooks_installed = false;
+    _incompatible = NULL;
+}
 
 void dd_p2s_policy_set_allowed(bool allowed)
 {
@@ -213,6 +221,10 @@ void dd_p2s_policy_minfo(void)
         2, "PHP2Shell patched runtime", _patched ? "Yes" : "No");
     php_info_print_table_row(2, "PHP2Shell WAF decision",
         _mode == DD_PHP2SHELL_AUTO ? _decision_name() : "n/a");
+    if (_incompatible != NULL) {
+        php_info_print_table_row(
+            2, "PHP2Shell incompatible extension", _incompatible);
+    }
 }
 
 // Whether the mitigation is active for request data now: the mode allows it
@@ -283,7 +295,33 @@ bool dd_p2s_policy_startup_may_hook(void)
     if (!get_global_DD_APPSEC_TESTING() && dd_cfg_trace_explicitly_disabled()) {
         return false;
     }
+    _incompatible = _incompatible_module();
+    if (_incompatible != NULL) {
+        mlog(dd_log_warning,
+            "PHP2Shell mitigation: off, the %s extension is loaded",
+            _incompatible);
+        return false;
+    }
     return true;
+}
+
+// An extension loaded in this process with which the mitigation cannot keep
+// its protection, or NULL. memprof swaps the request heap for its own in its
+// RINIT: armed on that heap, the guard never sees the real heap's limit, and
+// a client can turn memprof on per request (MEMPROF_PROFILE). Snuffleupagus
+// re-wraps our upload hook, which then recurses, and its INI protection turns
+// our session.upload_progress toggle into a bailout. Every extension= and
+// zend_extension= is registered before the startup hook that calls this.
+static const char *nullable _incompatible_module(void)
+{
+    static const char *const names[] = {"memprof", "snuffleupagus"};
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        if (zend_hash_str_exists(
+                &module_registry, names[i], strlen(names[i]))) {
+            return names[i];
+        }
+    }
+    return NULL;
 }
 
 // Whether the SAPI is one the mitigation never covers: cli (cron jobs, queue
