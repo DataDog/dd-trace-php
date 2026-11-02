@@ -1296,6 +1296,7 @@ dependencies = [
  "libdd-ipc",
  "libdd-ipc-macros",
  "libdd-live-debugger",
+ "libdd-process-utils",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-tinybytes",
@@ -2753,6 +2754,7 @@ dependencies = [
  "http-body-util",
  "libdd-capabilities",
  "libdd-common",
+ "libdd-process-utils",
  "tempfile",
  "tokio",
 ]
@@ -2776,8 +2778,8 @@ dependencies = [
  "hyper-util",
  "indexmap 2.12.1",
  "libc",
+ "libdd-process-utils",
  "maplit",
- "nix 0.29.0",
  "pin-project",
  "proptest",
  "rand 0.8.8",
@@ -2837,6 +2839,7 @@ dependencies = [
  "libdd-common",
  "libdd-gotter",
  "libdd-libunwind-sys",
+ "libdd-process-utils",
  "libdd-telemetry",
  "nix 0.29.0",
  "num-derive",
@@ -2967,6 +2970,7 @@ dependencies = [
  "cadence",
  "http 1.4.2",
  "libdd-common",
+ "libdd-process-utils",
  "libdd-shared-runtime",
  "serde",
  "tokio",
@@ -3155,6 +3159,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libdd-process-utils"
+version = "1.0.0"
+dependencies = [
+ "libc",
+ "nix 0.29.0",
+ "tempfile",
+ "thiserror 2.0.18",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "libdd-profiling"
 version = "1.0.0"
 dependencies = [
@@ -3174,6 +3189,7 @@ dependencies = [
  "indexmap 2.12.1",
  "libdd-alloc",
  "libdd-common",
+ "libdd-process-utils",
  "libdd-profiling-protobuf",
  "opentelemetry-proto",
  "parking_lot",
