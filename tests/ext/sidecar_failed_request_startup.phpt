@@ -12,6 +12,8 @@ materializes $_SERVER.
 <?php
 if (PHP_OS !== 'Linux') die('skip: Linux only');
 if (PHP_VERSION_ID < 80100) die('skip: the CLI server ends failed request startups only on PHP 8.1+');
+// mbstring's RINIT frees its previous detect order list since PHP 8.6, which dangles when RSHUTDOWN was skipped
+if (PHP_VERSION_ID >= 80600 && extension_loaded('mbstring')) die('skip: mbstring corrupts the heap after a failed request startup on PHP 8.6+');
 if (!function_exists('proc_open')) die('skip: proc_open required');
 if (!function_exists('stream_socket_server')) die('skip: stream sockets required');
 if (!getenv('TEST_PHP_EXECUTABLE')) die('skip: TEST_PHP_EXECUTABLE required');
