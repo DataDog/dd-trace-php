@@ -71,7 +71,8 @@ const char *nullable dd_php2shell_vulnerable_value(void);
 // applied (and dd_php2shell_set_allowed() called for them).
 void dd_php2shell_rinit(void);
 
-// In FrankenPHP worker mode, at the start of each HTTP request (after its
+// In worker scripts using ddtrace's user-request API (FrankenPHP, RoadRunner,
+// Ratchet), at the start of each HTTP request (after its
 // request_init): arm or disarm the request level to follow the WAF decision,
 // as dd_php2shell_rinit() does once per PHP request otherwise.
 void dd_php2shell_user_req_begin(void);

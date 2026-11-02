@@ -68,10 +68,11 @@ ZAI_OPTIONAL_ALLOC_API(zval*, zend_hash_fupdate, (HashTable * ht, zend_string* k
 ZAI_OPTIONAL_ALLOC_API(zval*, zend_hash_index_fupdate, (HashTable * ht, zend_ulong key, zval* value), 3)
 ZAI_OPTIONAL_ALLOC_API(zval*, zend_hash_next_index_finsert, (HashTable * ht, zval* value), 2)
 
-/* The minimal fix for the EOL branches (PHP-7.4/8.0/8.1, php-src 1d7dec178a)
- * exports zend_mm_safe_error_ex() and none of the fallible APIs above. It is
- * variadic and not ZEND_FASTCALL, so it is only probed for, never called.
- * cdecl variadic exports are undecorated on Windows. */
+/* The minimal fix for the EOL branches (PHP-7.4/8.0/8.1, php-src 1d7dec178a;
+ * distributions also backport it to 7.0-7.3) exports zend_mm_safe_error_ex()
+ * and none of the fallible APIs above. It is variadic and not ZEND_FASTCALL,
+ * so it is only probed for, never called. cdecl variadic exports are
+ * undecorated on Windows. */
 #ifdef _WIN32
 static inline bool zai_has_zend_mm_safe_error_ex(void) {
     return zai_alloc_symbol("zend_mm_safe_error_ex", 0) != NULL;
