@@ -11,13 +11,13 @@ datadog.appsec.enabled=1
 DD_APPSEC_PHP2SHELL_MITIGATION=on
 --FILE--
 <?php
-// The cli, phpdbg and embed SAPIs run no attacker-controlled request (cron,
-// queue workers, composer), so the whole mitigation is off there in every
-// mode, as if appsec were fully disabled: the zend_extension startup hook
-// installs no hook, and MINFO reports it inactive with no hook rows. Mode on
-// (set in this test's environment, which the children inherit) is the
-// strongest setting: it even ignores the patch check, so this needs no
-// unpatched runtime.
+// The cli, phpdbg, embed and micro (phpmicro) SAPIs run no
+// attacker-controlled request (cron, queue workers, composer), so the whole
+// mitigation is off there in every mode, as if appsec were fully disabled: the
+// zend_extension startup hook installs no hook, and MINFO reports it inactive
+// with no hook rows. Mode on (set in this test's environment, which the
+// children inherit) is the strongest setting: it even ignores the patch check,
+// so this needs no unpatched runtime.
 //  - this CLI test process, and a CLI child: Inactive, no hook rows;
 //  - the CLI child, memory_limit=16M, a 20M allocation followed by a VM safe
 //    point: the engine's own error, nothing deferred;

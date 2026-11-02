@@ -334,7 +334,7 @@ static bool _sapi_excluded(void)
     const char *name = sapi_module.name;
     return name != NULL &&
            (strcmp(name, "cli") == 0 || strcmp(name, "phpdbg") == 0 ||
-               strcmp(name, "embed") == 0);
+               strcmp(name, "embed") == 0 || strcmp(name, "micro") == 0);
 }
 
 // The process-constant part of dd_p2s_policy_active(): whether the configured
