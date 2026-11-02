@@ -38,20 +38,19 @@ RUN set -eux; \
     yum install -y --nogpgcheck devtoolset-7; \
     yum clean all;
 
-# EOL RHEL-family base, no fixed ca-certificates package: remove the distrusted
-# eMudhra "emSign ECC Root CA - G3" / "AAA Certificate Services" roots from the
-# p11-kit source bundle, re-extract every derived store (PEM, OpenSSL, Java) and
-# make NSS read the p11-kit trust store instead of its built-in root list.
+# EOL RHEL-family base, no fixed ca-certificates package: blacklist the distrusted
+# eMudhra "emSign ECC Root CA - G3" / "AAA Certificate Services" roots through
+# /etc/pki/ca-trust/source/blacklist, which survives a ca-certificates reinstall,
+# re-extract every derived store, and fail the build if either root is left.
 RUN set -eux; \
-    src=/usr/share/pki/ca-trust-source/ca-bundle.trust.p11-kit; \
-    awk 'function flush() { if (!drop) printf "%s", buf; buf = ""; drop = 0 } \
-         /^\[p11-kit-object-v1\]/ { flush() } \
-         /^label: "(Comodo AAA Services root|AAA Certificate Services|emSign ECC Root CA - G3)"$/ { drop = 1 } \
-         { buf = buf $0 "\n" } \
-         END { flush() }' "$src" > /tmp/ca-bundle.trust.p11-kit; \
-    mv /tmp/ca-bundle.trust.p11-kit "$src"; \
+    awk '/^# / { label = substr($0, 3) } \
+         /BEGIN CERTIFICATE/ { keep = (label ~ /^(AAA Certificate Services|Comodo AAA Services root|emSign ECC Root CA - G3)$/); n += keep } \
+         keep { f = "/etc/pki/ca-trust/source/blacklist/emudhra-" n ".pem"; print > f } \
+         /END CERTIFICATE/ { keep = 0 }' /etc/pki/tls/certs/ca-bundle.crt; \
+    test "$(ls /etc/pki/ca-trust/source/blacklist/emudhra-*.pem | wc -l)" -ge 2; \
     update-ca-trust extract; \
-    ln -sf /usr/lib64/pkcs11/p11-kit-trust.so /usr/lib64/libnssckbi.so
+    ! grep -E '^# (AAA Certificate Services|Comodo AAA Services root|emSign ECC Root CA - G3)$' /etc/pki/tls/certs/ca-bundle.crt; \
+    test "$(readlink -f /usr/lib64/libnssckbi.so)" = /usr/lib64/pkcs11/p11-kit-trust.so
 
 ENV SRC_DIR=/usr/local/src
 

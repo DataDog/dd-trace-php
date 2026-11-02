@@ -123,13 +123,13 @@ RUN set -eux; \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
     \
-# Make sure the fixed ca-certificates (>= 20250419~deb12u2, without the eMudhra
-# "emSign ECC Root CA - G3" / "AAA Certificate Services" roots) is installed \
-    apt-get install -y --only-upgrade ca-certificates; \
+# Fail if the installed ca-certificates predates 20250419~deb12u2, the bookworm-security
+# release that drops the eMudhra "emSign ECC Root CA - G3" / "AAA Certificate Services" roots \
+    dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge 20250419~deb12u2 || exit 1; \
     \
 # Disable DST ROOT X3 certificate explicitly to fix conflicts with older openssl versions \
     sed -ri 's/(mozilla\/DST_Root_CA_X3.crt)/!\1/' /etc/ca-certificates.conf; \
-    update-ca-certificates -f; \
+    update-ca-certificates; \
     \
 # circleci user + sudo
     groupadd --gid 3434 circleci; \
