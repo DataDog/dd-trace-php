@@ -32,7 +32,7 @@
 // to it, "displaced" means only that ours is no longer on top. The Zend MM
 // handlers are not among them: they are installed per request (see Request
 // level in p2s_runtime.c). No hook is installed, and the mitigation stays off
-// for the process, under the cli, phpdbg and embed SAPIs, or when the
+// for the process, under the cli, phpdbg, embed and micro SAPIs, or when the
 // configuration seen at startup already rules it out (see
 // php2shell/p2s_policy.c): appsec or the tracer explicitly disabled, the mode
 // off, or the mode auto on a patched runtime.
@@ -146,8 +146,9 @@
 //     fatal error to stderr and ends the process with _exit(1) without calling
 //     zend_error_cb. Memory errors thus end the process before any hook runs:
 //     not tagged, logged or counted, and the trace is lost.
-//   - CLI SAPIs: under cli, phpdbg and embed the mitigation is off in every
-//     mode, as if appsec were fully disabled (see _sapi_excluded).
+//   - CLI SAPIs: under cli, phpdbg, embed and micro (phpmicro) the
+//     mitigation is off in every mode, as if appsec were fully disabled (see
+//     _sapi_excluded).
 //   - USE_ZEND_ALLOC=0: nothing is armed. The plain stub enforces no limit;
 //     with USE_TRACKED_ALLOC=1 (PHP 8.0+, test-only) a crossing bails as on
 //     an unprotected runtime.
