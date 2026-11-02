@@ -87,7 +87,7 @@ jobs:
       # its lockfile, so use offline rather than frozen.
       CARGO_NET_OFFLINE: 'true'
     container:
-      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-13
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-${{ matrix.php-version == '8.6' && '11' || '13' }}
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root
 
