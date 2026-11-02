@@ -25,7 +25,6 @@
 #include <ext/compatibility.h>
 #include <ext/version.h>
 
-#define MAX_WAIT_TIME_MS (1ULL << 55)
 typedef struct _dd_helper_shared_state {
     uint8_t failed_count : 7;
     bool try_in_progress : 1; // only for log messages
@@ -44,15 +43,11 @@ typedef struct _dd_helper_mgr {
 static _Atomic(dd_helper_shared_state) *_shared_state;
 
 static THREAD_LOCAL_ON_ZTS dd_helper_mgr _mgr;
-static THREAD_LOCAL_ON_ZTS helper_runtime _helper_runtime =
-    HELPER_RUNTIME_UNKNOWN;
 
 static const double _backoff_initial = 3.0;
 static const double _backoff_base = 2.0;
 // max retry will be 3 * 2^10 =~ 51 mins */
 static const double _backoff_max_exponent = 10.0;
-
-#define DD_PATH_FORMAT "%s%sddappsec_" PHP_DDTRACE_VERSION "_%u"
 
 #ifdef TESTING
 static void _register_testing_objects(void);
@@ -189,10 +184,6 @@ dd_conn *nullable dd_helper_mgr_cur_conn(void)
     return NULL;
 }
 
-helper_runtime dd_helper_get_runtime(void) { return _helper_runtime; }
-
-void dd_helper_set_runtime(helper_runtime rt) { _helper_runtime = rt; }
-
 static inline ddog_CharSlice to_char_slice(zend_string *zs)
 {
     return (ddog_CharSlice){.len = ZSTR_LEN(zs), .ptr = ZSTR_VAL(zs)};
@@ -251,7 +242,6 @@ void dd_helper_close_conn(
 
     dd_conn_destroy(&DDAPPSEC_G(conn));
 
-    dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
     if (error) {
         dd_telemetry_helper_conn_close();
     }
@@ -471,7 +461,6 @@ static PHP_FUNCTION(datadog_appsec_testing_is_connected_to_helper)
     }
 }
 
-#    define TEN_E9_D 1000000000.0
 static PHP_FUNCTION(datadog_appsec_testing_backoff_status)
 {
     if (zend_parse_parameters_none() == FAILURE) {
