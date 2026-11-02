@@ -2,6 +2,18 @@
 // Generated on Thu Oct 22 14:08:31 WEST 2026
 
 ext.tag_mappings = [
+    'php-8.6-release': 'sha256:3ba06f7259b67249b61e17f2a2a8b392f8d102aaa94eecc6d363641147334296',
+    'php-8.6-debug': 'sha256:2a71c240484b096c35dd4144fd4448ff723465bbe1572ab44d2d360177302a41',
+    'php-8.6-release-zts': 'sha256:0712e76f6b6332fb897c2f9bc31cec0eb36de617ec3cabebd9bc77bb6b7a1132',
+    'apache2-mod-php-8.6-release': 'sha256:342d5f0036188ae0983d6d894bd3035fc5acdf3cbc11ae7b0705021f47f0eec3',
+    'apache2-mod-php-8.6-debug': 'sha256:14f3fa693a69610a886723546971ff2024740f142e853ef4f4793229fd1aabb0',
+    'apache2-mod-php-8.6-release-zts': 'sha256:163fcf7c605e15ee275d5840585a90ec53076bdb72cfe252642cacf0905656da',
+    'apache2-fpm-php-8.6-release': 'sha256:9106f2e13b9ddab2a1b68835a5a7d30012026602255f1e30c95aeeb448713100',
+    'apache2-fpm-php-8.6-debug': 'sha256:b7342639b86d47d0da44fe1ebd3a19d26f7adf91675bac50a1f9abc0601f2120',
+    'apache2-fpm-php-8.6-release-zts': 'sha256:d41282aebbf12064ad0f0d1632bafe1dd5f8091155767789f970308801a92808',
+    'nginx-fpm-php-8.6-release': 'sha256:b26980d8e2d342cddf37ff5b01c58c2aa1208e2ec298909d0ddb310ef8389f28',
+    'nginx-fpm-php-8.6-debug': 'sha256:91a5e127d9155ecfceff0e3018635409ebe9bf2c5cee25ea68eb539f80dea07e',
+    'nginx-fpm-php-8.6-release-zts': 'sha256:aab7cff7d161172088d278e8652b8014d26519e96b159a0e1e8f133a93375208',
     'apache2-mod-php-8.0-release-zts': 'sha256:24ab3432cb6eec298d5b32086b1fc51d6093352d2ccd90d33e57d7826131dfab',
     'apache2-mod-php-8.1-release-zts': 'sha256:c026a3320c877307349e163e1136a2791de6396173811a37de69d2b7cf9dba09',
     'apache2-mod-php-8.0-debug': 'sha256:c51bb70435f91f7f2a52ffb9126a02de442212c11c0709004b2b075909ce9e50',
@@ -55,7 +67,7 @@ ext.tag_mappings = [
     'apache2-mod-php-8.1-debug': 'sha256:a25a1d54768dab962faedb3a526f9b1929429a5bbeda460eae5a8f5511e58593',
     'nginx-fpm-php-8.5-release': 'sha256:68116e4cdfe8d053a8b540828efb44caa17aa830f2196e69117a21658fa2b011',
     'nginx-fpm-php-7.0-release': 'sha256:3846f36d5c8bcca7f18f3f9d62a7fe43c03680de79640d2815753fae1beb9d19',
-    'php-buildonly-rust': 'sha256:d81972d89095c57003e82845ccdc8f285e845d70abf9b4401d6585d65e7629bd',
+    'php-buildonly-rust': 'sha256:d553dd248f95b004d5faa109d8dd730b2ace9551e091d3b7f3c862328cf22920',
     'php-7.4-debug': 'sha256:7cf41d090b9ff985d4f3dae91508f5b62a5ff2d4bfade0e8c613ca16029d321d',
     'php-8.3-release': 'sha256:9408f2eeed45acaf1e8583292949149c3ba52a780f8b9bc3d9aa59cb01207148',
     'nginx-fpm-php-8.2-debug': 'sha256:575fe684c4a18bcc68607018def3282364f49f420d6827222bdfa111cc37f3cd',

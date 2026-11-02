@@ -90,11 +90,11 @@ static dd_line_frame_data *dd_line_frame_get(zend_execute_data *frame, bool crea
 static zend_object_handlers dd_line_hook_data_handlers;
 
 static inline dd_line_hook_data *dd_line_hook_data_from_obj(zend_object *obj) {
-    return (dd_line_hook_data *)((char *)obj - XtOffsetOf(dd_line_hook_data, std));
+    return (dd_line_hook_data *)((char *)obj - offsetof(dd_line_hook_data, std));
 }
 
 zend_object *ddtrace_line_hook_data_create(zend_class_entry *class_type) {
-    dd_line_hook_data *data = ecalloc(1, XtOffsetOf(dd_line_hook_data, std) + sizeof(zend_object) + zend_object_properties_size(class_type));
+    dd_line_hook_data *data = ecalloc(1, offsetof(dd_line_hook_data, std) + sizeof(zend_object) + zend_object_properties_size(class_type));
     zend_object_std_init(&data->std, class_type);
     object_properties_init(&data->std, class_type);
     data->std.handlers = &dd_line_hook_data_handlers;
@@ -471,7 +471,7 @@ static void dd_line_frame_resume(zend_execute_data *frame, void *auxiliary, void
 
 void ddtrace_line_hook_data_minit(void) {
     dd_line_hook_data_handlers = *zend_get_std_object_handlers();
-    dd_line_hook_data_handlers.offset = XtOffsetOf(dd_line_hook_data, std);
+    dd_line_hook_data_handlers.offset = offsetof(dd_line_hook_data, std);
     dd_line_hook_data_handlers.free_obj = dd_line_hook_data_free;
     dd_line_hook_data_handlers.clone_obj = dd_line_hook_data_clone;
     dd_line_hook_data_handlers.get_gc = dd_line_hook_data_gc;

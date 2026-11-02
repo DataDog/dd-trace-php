@@ -51,6 +51,7 @@ The following tests are marked as skipped due to the test relying on a hard-code
 - `Zend/tests/type_declarations/scalar_return_basic_64bit.phpt`
 - `Zend/tests/weakrefs/weakmap_basic_map_behaviour.phpt`
 - `ext/standard/tests/filters/bug54350.phpt`
+- `ext/spl/tests/spl_object_hash_deprecated.phpt` (8.6+; the object handle is shifted by objects ddtrace creates)
 
 ## Random port selection
 
@@ -136,6 +137,18 @@ Test does http request to shut down server.
 ## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_DEBUGFUNCTION.phpt`
 
 Distributed tracing headers are injected
+
+## `ext/curl/tests/curl_getinfo_CURLINFO_HEADER_OUT.phpt`, `ext/standard/tests/http/ghsa-fpwc-w8rq-cr92-002.phpt`
+
+Disabled on versions: `8.6`.
+
+The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
+
+## `ext/standard/tests/filters/stream_filter_register_*.phpt` (the 5 listed in `8.6.list`)
+
+Disabled on versions: `8.6` (the tests are new in 8.6).
+
+They expect a shutdown-time `Invalid callback` fatal. ddtrace's uncaught-exception rethrow ends in `zend_bailout()`, which sets `CG(unclean_shutdown)`, so `userfilter_filter` returns early and the fatal is never emitted. Pre-existing ddtrace behaviour, not 8.6-specific.
 
 ## `ext/intl/tests/bug60192-sort.phpt`
 
@@ -276,6 +289,8 @@ PHP 8.5 completely removed the `disable_classes` INI directive (see [RFC](https:
 
 These tests use object ids, and %00; changing the EXPECT to EXPECTF will cause the %00 to be matched as literal NULL-Bytes, breaking the test.
 
+`ext/uri/tests/whatwg/builder/username_success_tab_newline.phpt` (8.6+) fails the same way: its object ids trigger the EXPECTF rewrite, and its `%0A`/`%0D`/`%09` then match as NUL bytes.
+
 ## `ext/soap/tests/soap_qname_crash.phpt`
 
 Disabled on versions: `8.1+`.
@@ -290,7 +305,7 @@ The bundled test certificates expired on 2026-04-02. The TLS handshake fails bec
 
 ## `ext/sockets/tests/gh21161.phpt`
 
-Disabled on versions: `8.4`, `8.5`.
+Disabled on versions: `8.4`, `8.5`, `8.6`.
 
 The test calls `socket_create(AF_INET6, ...)` without a SKIPIF guard for IPv6 availability (only skips on Windows). In CI (Kubernetes pods), IPv6 is not available, so `socket_create` returns `false`. The subsequent `socket_set_option(false, ...)` call throws a `TypeError` instead of producing the expected warnings. This is an upstream bug in the test's SKIPIF section.
 

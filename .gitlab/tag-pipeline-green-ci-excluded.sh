@@ -45,13 +45,15 @@ api_key="$("${vault_path}" kv get --format=json \
 
 export NVM_DIR="${HOME}/.nvm"
 if ! command -v npx &>/dev/null; then
-  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash - >/dev/null 2>&1
-  . "${NVM_DIR}/nvm.sh" >/dev/null 2>&1
-  nvm install --lts --no-progress >/dev/null 2>&1
+  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash -
+  . "${NVM_DIR}/nvm.sh"
+  # Not --lts: Node 26+ needs libatomic.so.1, which the dd-octo-sts-ci-base image lacks.
+  nvm install --no-progress 24
 fi
 [ -s "${NVM_DIR}/nvm.sh" ] && . "${NVM_DIR}/nvm.sh" >/dev/null 2>&1
 
-npm install -g @datadog/datadog-ci >/dev/null 2>&1
+npm install -g @datadog/datadog-ci@5.26.1
+command -v datadog-ci >/dev/null || fail "datadog-ci is not installed (see the install output above)"
 
 # datadog-ci prefers DATADOG_* over DD_*; the runner's own DD_TAGS would be merged into the tags.
 unset DD_TAGS

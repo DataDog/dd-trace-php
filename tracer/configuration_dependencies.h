@@ -2,6 +2,7 @@
 #include "tracer_otel_config.h"
 #include <ext/otel_config.h>
 #include "span.h"
+#include "span_stats.h"
 #include "random.h"
 #include "ip_extraction.h"
 #include "live_debugger.h"

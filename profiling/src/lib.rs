@@ -38,7 +38,6 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, CStr};
 use core::ptr;
-use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
 use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
 use profiler::{LocalRootSpanResourceMessage, ProfileIndex, Profiler, VmInterrupt};
@@ -184,18 +183,18 @@ static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
 
 /// Module dependencies for the profiler extension.
 static MODULE_DEPS: [zend::ModuleDep; 9] = [
-    zend::ModuleDep::required(cstr!("standard")),
-    zend::ModuleDep::required(cstr!("json")),
+    zend::ModuleDep::required(c"standard"),
+    zend::ModuleDep::required(c"json"),
     // Load after optional context publishers so their Process and Thread Context
     // are available when profiling starts.
-    zend::ModuleDep::optional(cstr!("ddtrace")),
-    zend::ModuleDep::optional(cstr!("opentelemetry")),
+    zend::ModuleDep::optional(c"ddtrace"),
+    zend::ModuleDep::optional(c"opentelemetry"),
     // Optionally, be dependent on these event extensions so that the functions they provide
     // are registered in the function table and we can hook into them.
-    zend::ModuleDep::optional(cstr!("ev")),
-    zend::ModuleDep::optional(cstr!("event")),
-    zend::ModuleDep::optional(cstr!("libevent")),
-    zend::ModuleDep::optional(cstr!("uv")),
+    zend::ModuleDep::optional(c"ev"),
+    zend::ModuleDep::optional(c"event"),
+    zend::ModuleDep::optional(c"libevent"),
+    zend::ModuleDep::optional(c"uv"),
     zend::ModuleDep::end(),
 ];
 
@@ -957,6 +956,12 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             }
         };
 
+    // Only blame JIT on PHP versions where it actually disables allocation profiling.
+    #[cfg(php_zend_mm_set_custom_handlers_ex)]
+    use allocation::allocation_ge84::first_rinit_should_disable_due_to_jit;
+    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+    use allocation::allocation_le83::first_rinit_should_disable_due_to_jit;
+
     // PHP calls may re-enter the profiler through sampling hooks.
     {
         let yes = c"true".as_ptr();
@@ -1008,7 +1013,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             c"Allocation Profiling Enabled".as_ptr(),
             if system_settings.profiling_allocation_enabled {
                 yes
-            } else if zend::ddog_php_jit_enabled() {
+            } else if first_rinit_should_disable_due_to_jit() {
                 // Work around version-specific issues.
                 if cfg!(not(php_zend_mm_set_custom_handlers_ex)) {
                     c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.".as_ptr()

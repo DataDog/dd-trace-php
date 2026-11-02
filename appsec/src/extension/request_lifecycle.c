@@ -575,6 +575,7 @@ static void _reset_globals(void)
     zend_array *superglob_equiv = _superglob_equiv;
     zval blocking_function = _blocking_function;
     _cur_req_span = NULL;
+    dd_trace_root_span_changed();
     _superglob_equiv = NULL;
     ZVAL_UNDEF(&_blocking_function);
 
@@ -620,6 +621,7 @@ static void _set_cur_span(zend_object *nullable span)
     if (previous && GC_DELREF(previous) == 0) {
         zend_objects_store_del(previous);
     }
+    dd_trace_root_span_changed();
 }
 
 bool dd_req_lifecycle_is_active(void)

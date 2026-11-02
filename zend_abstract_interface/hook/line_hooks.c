@@ -1239,6 +1239,7 @@ static void zai_line_preloaded_add(zend_op_array *op_array) {
         zend_hash_add_ptr(&zai_line_preloaded, op_array->filename, list);
     }
     zend_llist_add_element(list, &op_array);
+    zai_hook_register_dynamic_functions(op_array);
 }
 
 static void zai_line_preloaded_list_free(zval *zv) {
@@ -1249,7 +1250,8 @@ static void zai_line_preloaded_list_free(zval *zv) {
 
 /* Preloaded declarations bypass this request's observers.
    Index ZEND_ACC_PRELOADED functions once by filename, so later resolution scans matching files without revisiting every declaration. */
-static void zai_line_preloaded_build(void) {
+/* TODO for future: Check whether we can persist that after preloading */
+void zai_line_hooks_index_preloaded(void) {
     if (zai_line_preloaded_built) {
         return;
     }
@@ -1296,7 +1298,7 @@ static void zai_line_preloaded_build(void) {
 
 static bool zai_line_resolve_preloaded(zai_line_def *def, HashTable *by_file, bool arm) {
     bool armed = false;
-    zai_line_preloaded_build();
+    zai_line_hooks_index_preloaded();
 
     zend_string *filename;
     zend_llist *list;

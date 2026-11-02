@@ -77,6 +77,11 @@ void zai_line_hooks_close_frame(zend_execute_data *frame);
 /* Re-resolve pending definitions against a freshly compiled file. */
 void zai_line_hooks_file_compiled(zend_op_array *op_array);
 
+#if PHP_VERSION_ID >= 70400
+/* Populate the request's preloaded file index and nested function locations once, on demand. */
+void zai_line_hooks_index_preloaded(void);
+#endif
+
 void zai_line_hooks_rinit(void);
 void zai_line_hooks_rshutdown(void);
 

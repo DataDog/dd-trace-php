@@ -282,6 +282,10 @@ quick-xml = { version = "0.37", default-features = false }
 quote = { version = "1", default-features = false }
 rand = { version = "0.8", default-features = false }
 rand_chacha = { version = "0.3.1", default-features = false }
+# Test-only: self-signed certificate generation for local TLS servers in integration tests.
+# allow(workspace-deps-features): `pem` is required for certificate generation and `ring` selects
+# the ring backend instead of rcgen's default aws-lc-rs, which the workspace avoids outside fips.
+rcgen = { version = "0.13", default-features = false, features = ["pem", "ring"] }
 regex = { version = "1.5", default-features = false }
 regex-lite = { version = "0.1", default-features = false }
 reqwest = { version = "0.13", default-features = false }
@@ -333,6 +337,8 @@ thiserror = { version = "2.0.3", default-features = false }
 thread_local = { version = "1.1", default-features = false }
 time = { version = "0.3", default-features = false }
 tokio = { version = "1.49", default-features = false }
+# allow(workspace-deps-features): `tls12` matches the TLS clients under test, which enable rustls/tls12.
+tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
 tokio-util = { version = "0.7.11", default-features = false }
 toml = { version = "0.8.19", default-features = false }
 tonic = { version = "0.14", default-features = false }
@@ -354,10 +360,11 @@ webpki-root-certs = { version = "1.0.10", default-features = false }
 web-time = { version = "1", default-features = false }
 windows = { version = "0.59.0", default-features = false }
 windows-sys = { version = "0.52", default-features = false }
+winresource = { version = "0.1", default-features = false }
 winver = { version = "1.0.0", default-features = false }
 zip = { version = "4.0.0", default-features = false }
 zrip = { version = "=0.6.0", default-features = false }
-zstd = { version = "0.13", default-features = false }
+zstd = { version = "0.14.3", default-features = false }
 zwohash = { version = "0.1.2", default-features = false }
 
 

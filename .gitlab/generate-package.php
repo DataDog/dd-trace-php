@@ -486,7 +486,6 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
@@ -821,7 +820,8 @@ endforeach;
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
-    - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+    # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
+    - php run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
 <?php foreach ($build_platforms as $platform): ?>
 <?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
@@ -1196,7 +1196,8 @@ endforeach;
           - alpine:3.16
           - alpine:3.21
           - alpine:3.24
-      - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      # Pre-GA versions only exist as -rc tags on Docker Hub.
+      - IMAGE: <?= json_encode(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "php:$v-rc-fpm-alpine" : "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1346,7 +1347,7 @@ endforeach;
   extends: .verify_job
   variables:
     INSTALL_MODE: sury
-    PHP_VERSION: "<?= end($all_minor_major_targets) ?>"
+    PHP_VERSION: "<?= $latest_ga_minor_major ?>"
     INSTALL_TYPE: native_package
     IMAGE: "debian:bookworm-slim"
   script:

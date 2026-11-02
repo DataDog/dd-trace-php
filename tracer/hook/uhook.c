@@ -77,7 +77,7 @@ typedef struct {
 static zend_object_handlers dd_hook_data_handlers;
 
 static inline dd_hook_data *dd_hook_data_from_obj(zend_object *obj) {
-    return (dd_hook_data *)((char *)obj - XtOffsetOf(dd_hook_data, std));
+    return (dd_hook_data *)((char *)obj - offsetof(dd_hook_data, std));
 }
 
 #define EXCEPTION_OVERRIDE_CLEAR ((zend_object *)0x1)
@@ -129,7 +129,7 @@ void dd_uhook_callback_apply_scope(dd_uhook_callback *cb, zend_class_entry *scop
 
 
 static zend_object *dd_hook_data_create(zend_class_entry *class_type) {
-    dd_hook_data *hook_data = ecalloc(1, XtOffsetOf(dd_hook_data, std) + sizeof(zend_object) + zend_object_properties_size(class_type));
+    dd_hook_data *hook_data = ecalloc(1, offsetof(dd_hook_data, std) + sizeof(zend_object) + zend_object_properties_size(class_type));
     zend_object_std_init(&hook_data->std, class_type);
     object_properties_init(&hook_data->std, class_type);
     hook_data->std.handlers = &dd_hook_data_handlers;
@@ -154,11 +154,7 @@ HashTable *dd_uhook_symbol_table(zend_execute_data *frame) {
     if (!dd_uhook_frame_is_live(frame)) {
         return NULL;
     }
-    if (!ZEND_USER_CODE(frame->func->type)
-#if PHP_VERSION_ID >= 80600
-        && !frame->func->internal_function.arg_info
-#endif
-    ) {
+    if (!ZEND_USER_CODE(frame->func->type)) {
         return NULL;
     }
 
@@ -582,6 +578,48 @@ static void dd_uhook_dtor(void *data) {
     efree(def);
 }
 
+#if PHP_VERSION_ID >= 80600
+// Unused by php-src 8.6 (fn_flags2 bits 1-31 are free): the declaration of this closure no longer caches it
+#define DD_ACC2_UNCACHED_LAMBDA (1u << 31)
+
+// PHP 8.6 caches static closures without captured state, so later evaluations would share the instance hook: disable it at
+// the declaration. Re-verify with the php-src#23911 fix. With opcache, workers share it: on debug and -fno-strict-aliasing builds,
+// ZEND_DECLARE_LAMBDA_FUNCTION re-reads extended_value, so a racing worker may use -1 as its cache slot and crash (php-src should read it once).
+static void dd_uhook_uncache_closure(zend_object *closure) {
+    zend_op_array *op_array = &((zend_function *)zend_get_closure_method_def(closure))->op_array;
+    if (op_array->type != ZEND_USER_FUNCTION || !(op_array->fn_flags & ZEND_ACC_STATIC) || (op_array->fn_flags & ZEND_ACC_FAKE_CLOSURE)
+            || op_array->static_variables || (op_array->fn_flags2 & DD_ACC2_UNCACHED_LAMBDA)) {
+        return;
+    }
+    // Look up each instance once; evaluations of an uncached declaration copy its mark
+    op_array->fn_flags2 |= DD_ACC2_UNCACHED_LAMBDA;
+
+    zend_op_array *containing = zai_hook_find_containing_op_array(op_array);
+    if (!containing) {
+        return;
+    }
+    for (zend_op *opline = containing->opcodes, *end = opline + containing->last; opline < end; ++opline) {
+        if (opline->opcode != ZEND_DECLARE_LAMBDA_FUNCTION) {
+            continue;
+        }
+        zend_op_array *src = containing->dynamic_func_defs[opline->op2.num];
+        if (src->opcodes != op_array->opcodes) {
+            continue;
+        }
+        // Opcache shared memory (immutable op_arrays) is read-only with opcache.protect_memory
+        if ((src->fn_flags & ZEND_ACC_IMMUTABLE) && zai_jit_shm_protected()) {
+            return;
+        }
+        if (opline->extended_value != (uint32_t)-1) {
+            // The engine's value for closures it does not cache
+            *(volatile uint32_t *)&opline->extended_value = (uint32_t)-1;
+        }
+        *(volatile uint32_t *)&src->fn_flags2 = src->fn_flags2 | DD_ACC2_UNCACHED_LAMBDA;
+        return;
+    }
+}
+#endif
+
 #if PHP_VERSION_ID < 70400
 #define _error_code error_code
 #endif
@@ -741,6 +779,9 @@ type_error:
                 zend_hash_index_add_new_ptr(&DDTRACE_G(uhook_closure_hooks), (zend_ulong)(uintptr_t)closure, hooks);
             }
             hooks->id[hooks->size - 1] = id;
+#if PHP_VERSION_ID >= 80600
+            dd_uhook_uncache_closure(closure);
+#endif
         }
     } else {
         const char *colon = strchr(ZSTR_VAL(name), ':');
@@ -1140,6 +1181,10 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
 
     zval_ptr_dtor(hookData->retval_ptr);
     ZVAL_COPY(hookData->retval_ptr, retval);
+#if PHP_VERSION_ID >= 80600
+    // Redo the by-ref unwrap into a TMP: internal functions did it before the end hook
+    zend_return_unwrap_ref(hookData->execute_data, hookData->retval_ptr);
+#endif
 
     RETURN_TRUE;
 }
@@ -1277,7 +1322,7 @@ void zai_uhook_minit(int module_number) {
     ddtrace_line_hook_data_minit();
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
     dd_hook_data_handlers = *zend_get_std_object_handlers();
-    dd_hook_data_handlers.offset = XtOffsetOf(dd_hook_data, std);
+    dd_hook_data_handlers.offset = offsetof(dd_hook_data, std);
 #if PHP_VERSION_ID >= 80000
     ddtrace_hook_data_returned_prop_info = zend_hash_str_find_ptr(&ddtrace_hook_data_ce->properties_info, ZEND_STRL("returned"));
 #endif

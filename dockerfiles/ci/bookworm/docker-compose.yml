@@ -14,6 +14,21 @@ services:
         BUILD_BASE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:bookworm-$BOOKWORM_NEXT_VERSION
         MAKE_JOBS: ${MAKE_JOBS:-}
 
+  # Built on NEXT with the other images: the bookworm-13 generation drops the
+  # distrusted eMudhra roots (IR-62343).
+  php-8.6:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.6_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-8.6/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        BUILD_BASE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:bookworm-$BOOKWORM_NEXT_VERSION
+        phpVersion: "8.6"
+        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC3.tar.gz
+        phpSha256Hash: "a40085cef8bfb560ed3649cd83879e768ab22fe4cee467aa56b1b795c92e057d"
+
   php-8.5:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_bookworm-$BOOKWORM_NEXT_VERSION
     build:
