@@ -3,7 +3,8 @@
 // begin closure, which the tracer runs in its sandbox, allocates P2S_ALLOC
 // bytes, crossing memory_limit, then reaches VM safe points and prints
 // CLOSURE DONE. With P2S_KEEP the allocation outlives the closure, so usage
-// stays above memory_limit after it. SCRIPT RAN is printed only if no error
+// stays above memory_limit after it. With P2S_ML the closure then sets
+// memory_limit to it, before the error is raised. SCRIPT RAN is printed only if no error
 // was raised after the hooked call returned.
 function p2s_safe_point() {}
 
@@ -16,6 +17,9 @@ DDTrace\install_hook('ltrim', static function (DDTrace\HookData $hook) {
     }
     p2s_safe_point();
     for ($i = 0; $i < 2; $i++) {}
+    if (getenv('P2S_ML')) {
+        ini_set('memory_limit', getenv('P2S_ML'));
+    }
     echo "CLOSURE DONE len=", strlen($s), "\n";
 });
 

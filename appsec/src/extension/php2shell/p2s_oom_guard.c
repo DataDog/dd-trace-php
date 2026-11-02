@@ -205,6 +205,10 @@ ZEND_TLS struct {
     // dd_mm_heap_head right. Otherwise it calls zend_memory_usage().
     bool usage_direct;
     size_t soft;
+    // `soft` when `pending` was set: memory_limit can change before the raise
+    // (e.g. appsec's shutdown raise to ZEND_LONG_MAX). Survives _disarm(), as
+    // dd_p2s_guard_raise_deferred_oom reads it after.
+    size_t breached_soft;
     size_t hard;
     // PG(memory_limit) when `soft` was last computed from it; a different
     // value means memory_limit changed since (see _follow_limit).
@@ -366,13 +370,13 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
             "PHP2Shell mitigation: request data parse exceeded memory_limit "
             "(%zu bytes); dropped %zu request variables; raising deferred "
             "out-of-memory error at a safe point (phase:%s)",
-            _arm_state.soft, dropped, phase_name);
+            _arm_state.breached_soft, dropped, phase_name);
     } else {
         mlog(dd_log_warning,
             "PHP2Shell mitigation: allocation after request startup exceeded "
             "memory_limit (%zu bytes); raising deferred out-of-memory error "
             "at a VM interrupt (phase:%s)",
-            _arm_state.soft, phase_name);
+            _arm_state.breached_soft, phase_name);
     }
     // Under the finite limit, so these allocations do not bail either.
     dd_p2s_report_deferred(phase);
@@ -381,7 +385,7 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     zend_error(E_ERROR,
         "Allowed memory size of %zu bytes exhausted " DD_P2S_DEFERRED_MARKER
         " this to avoid heap corruption)",
-        _arm_state.soft);
+        _arm_state.breached_soft);
     zend_bailout();
 #if PHP_VERSION_ID < 80000
     __builtin_unreachable(); // _zend_bailout() is not noreturn before 8.0
@@ -792,6 +796,7 @@ static ZEND_COLD void _check_limit_slow(size_t used, size_t add_size)
 
             if (_usage() > _arm_state.soft) {
                 _arm_state.pending = true;
+                _arm_state.breached_soft = _arm_state.soft;
                 if (!_arm_state.window) {
                     dd_p2s_guard_request_interrupt();
                 }
@@ -1131,6 +1136,7 @@ static void _arm(size_t soft, size_t hard)
     ZEND_ASSERT(_arm_state.installed);
     _arm_state.pending = false;
     _arm_state.raise_refused = false;
+    _arm_state.breached_soft = 0;
     _arm_state.soft = soft;
     _arm_state.hard = hard;
     // _check_limit tests only the soft limit on its fast path.
