@@ -34,6 +34,22 @@
 //                       (an observation device: a real module's RINIT would
 //                       fail the request startup). Prints
 //                       "P2S_STUB RINIT alloc bailed=0|1" to stderr;
+//   p2s_stub.rshutdown_alloc=N
+//                       the same in RSHUTDOWN. Loaded before ddtrace.so, this
+//                       runs after AppSec's RSHUTDOWN restored memory_limit.
+//                       Prints "P2S_STUB RSHUTDOWN alloc bailed=0|1";
+//   p2s_stub_hold_chunks($n) and p2s_stub.rshutdown_pad=N
+//                       a PHP function that allocates $n blocks of 1.5 MiB
+//                       (one per Zend MM chunk) and keeps them. Loaded after
+//                       ddtrace.so, the stub's RSHUTDOWN, before AppSec's,
+//                       frees them (the last emptied chunk is cached), then
+//                       allocates one huge block that brings real usage to N
+//                       bytes, kept until post_deactivate. Prints
+//                       "P2S_STUB RSHUTDOWN usage=<real usage>";
+//   p2s_stub.post_deactivate_alloc=N
+//                       as rinit_alloc, in post_deactivate, which runs after
+//                       AppSec's when loaded after ddtrace.so. Prints
+//                       "P2S_STUB post_deactivate alloc bailed=0|1";
 //   p2s_stub.error_cb_swallow=1
 //                       from MINIT, wrap zend_error_cb so that an E_ERROR
 //                       is not chained, but printed to stderr as
@@ -187,12 +203,15 @@ static PHP_RSHUTDOWN_FUNCTION(p2s_stub);
 static ZEND_MODULE_POST_ZEND_DEACTIVATE_D(p2s_stub);
 static PHP_FUNCTION(p2s_stub_mm_install);
 static PHP_FUNCTION(p2s_stub_retain);
+static PHP_FUNCTION(p2s_stub_hold_chunks);
 #if PHP_VERSION_ID >= 70100
 static PHP_FUNCTION(p2s_stub_interrupt_callback);
 static PHP_FUNCTION(p2s_stub_vm_interrupt);
 static void _interrupt(zend_execute_data *execute_data);
 #endif
 static ZEND_NAMED_FUNCTION(_gc_mem_caches);
+static void _alloc_report(const char *where, size_t size);
+static void _release_held(void);
 static void _gc_install(void);
 static void _gc_restore(void);
 static int _startup(zend_extension *extension);
@@ -225,6 +244,14 @@ static bool _post_deactivate_error;
 static bool _error_cb_swallow;
 static void (*_prev_error_cb)(P2S_ERROR_CB_PARAMS);
 static size_t _rinit_alloc;
+static size_t _rshutdown_alloc;
+static size_t _rshutdown_pad;
+static size_t _post_deactivate_alloc;
+// p2s_stub_hold_chunks(): the held blocks, then the RSHUTDOWN pad.
+enum { P2S_HELD_MAX = 64 };
+static void *_held[P2S_HELD_MAX];
+static size_t _held_count;
+static void *_pad;
 static bool _rinit_bailout;
 static bool _rshutdown_bailout;
 static bool _activate_mm;
@@ -276,6 +303,9 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("p2s_stub.post_deactivate_error", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.error_cb_swallow", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_alloc", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.rshutdown_alloc", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.rshutdown_pad", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.post_deactivate_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_bailout", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_bailout", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.activate_mm", "0", PHP_INI_SYSTEM, NULL)
@@ -292,6 +322,10 @@ ZEND_BEGIN_ARG_INFO_EX(_retain_arginfo, 0, 0, 1)
     ZEND_ARG_INFO(0, object)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(_hold_chunks_arginfo, 0, 0, 1)
+    ZEND_ARG_INFO(0, count)
+ZEND_END_ARG_INFO()
+
 #if PHP_VERSION_ID >= 70100
 ZEND_BEGIN_ARG_INFO_EX(_interrupt_callback_arginfo, 0, 0, 1)
     ZEND_ARG_INFO(0, callback)
@@ -301,6 +335,7 @@ ZEND_END_ARG_INFO()
 static const zend_function_entry _functions[] = {
     PHP_FE(p2s_stub_mm_install, _mm_install_arginfo)
     PHP_FE(p2s_stub_retain, _retain_arginfo)
+    PHP_FE(p2s_stub_hold_chunks, _hold_chunks_arginfo)
 #if PHP_VERSION_ID >= 70100
     PHP_FE(p2s_stub_interrupt_callback, _interrupt_callback_arginfo)
     PHP_FE(p2s_stub_vm_interrupt, _mm_install_arginfo)
@@ -357,6 +392,16 @@ static PHP_MINIT_FUNCTION(p2s_stub)
         zend_ini_long(ZEND_STRL("p2s_stub.error_cb_swallow"), 0) != 0;
     zend_long rinit_alloc = zend_ini_long(ZEND_STRL("p2s_stub.rinit_alloc"), 0);
     _rinit_alloc = rinit_alloc > 0 ? (size_t)rinit_alloc : 0;
+    zend_long rshutdown_alloc =
+        zend_ini_long(ZEND_STRL("p2s_stub.rshutdown_alloc"), 0);
+    _rshutdown_alloc = rshutdown_alloc > 0 ? (size_t)rshutdown_alloc : 0;
+    zend_long rshutdown_pad =
+        zend_ini_long(ZEND_STRL("p2s_stub.rshutdown_pad"), 0);
+    _rshutdown_pad = rshutdown_pad > 0 ? (size_t)rshutdown_pad : 0;
+    zend_long post_deactivate_alloc =
+        zend_ini_long(ZEND_STRL("p2s_stub.post_deactivate_alloc"), 0);
+    _post_deactivate_alloc =
+        post_deactivate_alloc > 0 ? (size_t)post_deactivate_alloc : 0;
     _rinit_bailout = zend_ini_long(ZEND_STRL("p2s_stub.rinit_bailout"), 0) != 0;
     _rshutdown_bailout =
         zend_ini_long(ZEND_STRL("p2s_stub.rshutdown_bailout"), 0) != 0;
@@ -433,13 +478,7 @@ static PHP_RINIT_FUNCTION(p2s_stub)
         zend_bailout();
     }
     if (_rinit_alloc > 0) {
-        // volatile: set after the longjmp, read after zend_end_try().
-        volatile bool bailed = false;
-        zend_try { efree(emalloc(_rinit_alloc)); }
-        zend_catch { bailed = true; }
-        zend_end_try();
-        fprintf(stderr, "P2S_STUB RINIT alloc bailed=%d\n", bailed ? 1 : 0);
-        fflush(stderr);
+        _alloc_report("RINIT", _rinit_alloc);
     }
     return SUCCESS;
 }
@@ -455,6 +494,10 @@ static PHP_RSHUTDOWN_FUNCTION(p2s_stub)
     zval_ptr_dtor(&_interrupt_cb);
     ZVAL_UNDEF(&_interrupt_cb);
 #endif
+    _release_held();
+    if (_rshutdown_alloc > 0) {
+        _alloc_report("RSHUTDOWN", _rshutdown_alloc);
+    }
     if (_rshutdown_bailout) {
         fprintf(stderr, "P2S_STUB bailout in RSHUTDOWN\n");
         fflush(stderr);
@@ -463,10 +506,49 @@ static PHP_RSHUTDOWN_FUNCTION(p2s_stub)
     return SUCCESS;
 }
 
+// Allocate (and free) `size` bytes inside a zend_try and print whether a
+// memory error bailed out.
+static void _alloc_report(const char *where, size_t size)
+{
+    // volatile: set after the longjmp, read after zend_end_try().
+    volatile bool bailed = false;
+    zend_try { efree(emalloc(size)); }
+    zend_catch { bailed = true; }
+    zend_end_try();
+    fprintf(stderr, "P2S_STUB %s alloc bailed=%d\n", where, bailed ? 1 : 0);
+    fflush(stderr);
+}
+
+// Free the blocks of p2s_stub_hold_chunks() and pad real usage up to
+// p2s_stub.rshutdown_pad.
+static void _release_held(void)
+{
+    if (_held_count == 0) {
+        return;
+    }
+    for (size_t i = 0; i < _held_count; i++) {
+        efree(_held[i]);
+    }
+    _held_count = 0;
+    size_t usage = zend_memory_usage(true);
+    if (_rshutdown_pad > usage + 4096) {
+        _pad = emalloc(_rshutdown_pad - usage - 4096);
+    }
+    fprintf(stderr, "P2S_STUB RSHUTDOWN usage=%zu\n", zend_memory_usage(true));
+    fflush(stderr);
+}
+
 static ZEND_MODULE_POST_ZEND_DEACTIVATE_D(p2s_stub)
 {
     if (_post_deactivate_error) {
         zend_error(E_WARNING, "P2S_STUB late error");
+    }
+    if (_post_deactivate_alloc > 0) {
+        _alloc_report("post_deactivate", _post_deactivate_alloc);
+    }
+    if (_pad) {
+        efree(_pad);
+        _pad = NULL;
     }
     if (Z_TYPE(_retained) != IS_UNDEF) {
         // A fast shutdown (release builds) takes no reference on an object
@@ -501,6 +583,18 @@ static PHP_FUNCTION(p2s_stub_retain)
     }
     zval_ptr_dtor(&_retained);
     ZVAL_COPY(&_retained, object);
+    RETURN_TRUE;
+}
+
+static PHP_FUNCTION(p2s_stub_hold_chunks)
+{
+    zend_long count;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &count) == FAILURE) {
+        RETURN_FALSE;
+    }
+    while (count-- > 0 && _held_count < P2S_HELD_MAX) {
+        _held[_held_count++] = emalloc(3 * 512 * 1024);
+    }
     RETURN_TRUE;
 }
 

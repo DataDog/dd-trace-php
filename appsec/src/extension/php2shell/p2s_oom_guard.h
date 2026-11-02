@@ -58,6 +58,14 @@ static inline size_t dd_p2s_sat_mul(size_t a, size_t b)
     return __builtin_mul_overflow(a, b, &res) ? SIZE_MAX : res;
 }
 
+// The finite limit that replaces one the usage may no longer fit: `floor`, or
+// `usage` + DD_PHP2SHELL_HARD_MARGIN when that is higher (see
+// _set_finite_limit in p2s_oom_guard.c).
+static inline size_t dd_p2s_finite_limit(size_t floor, size_t usage)
+{
+    return MAX(floor, dd_p2s_sat_add(usage, DD_PHP2SHELL_HARD_MARGIN));
+}
+
 static zend_always_inline int dd_p2s_heap_disable_custom(
     zend_mm_heap *nonnull heap)
 {

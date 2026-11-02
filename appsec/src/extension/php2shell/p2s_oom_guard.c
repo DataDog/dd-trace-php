@@ -514,8 +514,7 @@ static bool _zend_alloc_disabled(void)
 // the soft limit. PG(memory_limit) keeps the configured value.
 static void _set_finite_limit(void)
 {
-    zend_set_memory_limit(MAX(
-        _arm_state.soft, dd_p2s_sat_add(_usage(), DD_PHP2SHELL_HARD_MARGIN)));
+    zend_set_memory_limit(dd_p2s_finite_limit(_arm_state.soft, _usage()));
 }
 
 // ---- custom Zend MM allocator handlers -------------------------------------

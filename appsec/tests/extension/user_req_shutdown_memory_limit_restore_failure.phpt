@@ -1,10 +1,12 @@
 --TEST--
-User request shutdown enforces the memory limit after retaining reply tags
+User request shutdown ends the worker under a finite memory limit after retaining reply tags
 --INI--
 datadog.appsec.enabled=1
 datadog.appsec.cli_start_on_rinit=false
 memory_limit=64M
-display_errors=0
+display_errors=1
+fatal_error_backtraces=0
+error_reporting=E_ALL & ~E_WARNING
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
@@ -13,15 +15,15 @@ use function DDTrace\UserRequest\{notify_start, notify_commit};
 use function DDTrace\start_span;
 
 include __DIR__ . '/inc/mock_helper.php';
-$helper = null;
-$returned = false;
-register_shutdown_function(function () use (&$helper, &$returned) {
-    ini_set('memory_limit', '64M');
-    $error = error_get_last();
-    var_dump(!$returned && $error['type'] === E_ERROR &&
-        strpos($error['message'], 'Failed to restore memory limit after AppSec request shutdown') !== false);
+register_shutdown_function(function () {
+    // The restore failed: the worker ends, but usage + 8 MiB still bounds the
+    // rest. The memory error is last: on a partial runtime (EOL minimal fix)
+    // it ends the process.
+    var_dump(error_get_last()['message']);
     var_dump($GLOBALS['span']->meta['k8999']);
-    var_dump(array_column($helper->get_commands(), 0));
+    var_dump(array_column($GLOBALS['helper']->get_commands(), 0));
+    str_repeat('x', 16 * 1024 * 1024);
+    echo "unbounded\n";
 });
 $tags = [];
 for ($i = 0; $i < 9000; $i++) {
@@ -45,11 +47,13 @@ while (memory_get_usage(false) < $limit - 512 * 1024) {
 }
 var_dump(ini_set('memory_limit', (string)$limit) !== false);
 notify_commit($span, 200, [], '');
-$returned = true;
+echo "not reached\n";
 ?>
---EXPECT--
+--EXPECTF--
 bool(true)
-bool(true)
+
+Fatal error: Failed to restore memory limit after AppSec request shutdown in %s on line %d
+string(60) "Failed to restore memory limit after AppSec request shutdown"
 string(1) "v"
 array(3) {
   [0]=>
@@ -59,3 +63,5 @@ array(3) {
   [2]=>
   string(16) "request_shutdown"
 }
+
+Fatal error: Allowed memory size of %d bytes exhausted%s(tried to allocate %d bytes) in %s on line %d

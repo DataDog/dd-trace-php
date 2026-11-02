@@ -92,6 +92,9 @@ void dd_php2shell_rshutdown(void);
 // disabled).
 void dd_php2shell_post_deactivate(void);
 
+// The finite memory limit to use when `limit` is below the current usage, as
+// after a deferred fatal: the usage plus the hard margin.
+size_t dd_php2shell_finite_limit(size_t limit);
 // Emit the mitigation state into `php --ri ddtrace` (MINFO).
 void dd_php2shell_minfo(void);
 
