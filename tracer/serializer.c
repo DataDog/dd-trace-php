@@ -1914,6 +1914,7 @@ bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceByte
             ddog_add_span_metrics_str(rust_span, "php.memory.peak_usage_bytes", zend_memory_peak_usage(false));
             ddog_add_span_metrics_str(rust_span, "php.memory.peak_real_usage_bytes", zend_memory_peak_usage(true));
         }
+        ddog_add_str_span_meta_CharSlice(rust_span, "php.version", php_version_rt);
     }
 
     if (inferred_span) {

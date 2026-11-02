@@ -491,6 +491,10 @@ final class SpanChecker
             if (!isset($expectedTags['runtime-id'])) {
                 unset($filtered['runtime-id']);
             }
+            // Ignore php.version unless explicitly tested
+            if (!isset($expectedTags['php.version'])) {
+                unset($filtered['php.version']);
+            }
             // Ignore _dd.sdk.otlp_export unless explicitly tested
             if (!isset($expectedTags['_dd.sdk.otlp_export'])) {
                 unset($filtered['_dd.sdk.otlp_export']);
