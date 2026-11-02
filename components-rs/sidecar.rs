@@ -320,6 +320,8 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
     LIMITERS.probes.reconnect();
     LIMITERS.exceptions.reconnect();
     crate::stats::ddog_span_concentrators_clear();
+    crate::data_streams::ddog_dsm_tables_clear();
+    crate::data_streams::reconnect_kafka_cluster_ids();
     if let Some(telemetry) = telemetry {
         telemetry.reconnect();
     }
