@@ -1,13 +1,15 @@
 --TEST--
-PHP2Shell mitigation (CVE-2026-109618/109619): the patched-runtime detection matches the first fixed release of this PHP minor
+PHP2Shell mitigation (CVE-2026-109618/109619): the patched-runtime detection reports a patched runtime from the first fixed release of this PHP minor
 --FILE--
 <?php
 // The mitigation detects the upstream fix at runtime (the engine exports
 // _femalloc) and, in mode auto, stays inactive on a patched runtime; most
-// php2shell tests then skip. This test does not skip: it fails when the
-// detection disagrees with the release table below, so a CI image moving to
-// a fixed point release shows up here instead of silently skipping the
-// suite. A new minor needs a row.
+// php2shell tests then skip. This test does not skip: it fails when a release
+// at or past the first fixed one of its minor (table below) is not detected
+// as patched, so a CI image moving to a fixed point release shows up here
+// instead of silently skipping the suite. Below that release either answer
+// is accepted: distro builds backport the fix (e.g. Ubuntu noble's 8.3.6).
+// A new minor needs a row.
 //
 // The versions are the first releases of each minor that export _femalloc,
 // as listed in php2shell_mitigation.c. null: no fixed release; 7.0-8.1 are
@@ -25,13 +27,14 @@ $version = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . '.' . PHP_RELEASE_VERSI
 if (!array_key_exists($minor, $first_fixed)) {
     echo "minor $minor missing from the table\n";
 } else {
-    $expected = $first_fixed[$minor] !== null && version_compare($version, $first_fixed[$minor], '>=');
+    $fixed = $first_fixed[$minor] !== null && version_compare($version, $first_fixed[$minor], '>=');
     $minfo = p2s_minfo();
     $row = isset($minfo[P2S_ROW_PATCHED]) ? $minfo[P2S_ROW_PATCHED] : 'absent';
-    echo "detection_matches_table=", var_export($row === ($expected ? 'Yes' : 'No'), true), "\n";
-    if ($row !== ($expected ? 'Yes' : 'No')) {
-        echo "PHP $version: MINFO patched row=$row, table expects ", $expected ? 'Yes' : 'No', "\n";
+    $ok = $row === 'Yes' || ($row === 'No' && !$fixed);
+    echo "detection_ok=", var_export($ok, true), "\n";
+    if (!$ok) {
+        echo "PHP $version: MINFO patched row=$row, fixed release: ", $fixed ? 'yes' : 'no', "\n";
     }
 }
 --EXPECT--
-detection_matches_table=true
+detection_ok=true

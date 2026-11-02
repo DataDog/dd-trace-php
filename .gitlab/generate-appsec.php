@@ -167,6 +167,80 @@ stages:
       -DENABLE_ASAN=$ASAN_FLAG || exit $?"
     - ASAN_OPTIONS=malloc_context_size=0 ../../.gitlab/run-with-retryable-download.sh make -j 4 xtest || exit $?
 
+# The php2shell tests on a real partial runtime (the minimal PHP2Shell fix of
+# the EOL branches): Ubuntu jammy's php8.1. The CI images are unfixed builds.
+# Built here (same API number, NTS, non-debug), run in the next job under
+# jammy's own php. ddtrace.so (with AppSec) too: the release one comes from
+# the package child pipeline, whose artifacts `needs` cannot reach. Not a
+# merge-gate blocker until it has proven stable.
+"appsec php2shell partial runtime: build":
+  stage: test
+  extends: .appsec_test
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.1_bookworm-14
+  allow_failure: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 3
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    ARCH: amd64
+  script:
+    - switch-php nts
+    - cd appsec/build
+    # mock_helper links libc++ statically: jammy has no libc++ 21.
+    - "../../.gitlab/run-with-retryable-download.sh cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++ -static-libstdc++'
+      -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache || exit $?"
+    - ../../.gitlab/run-with-retryable-download.sh make -j 4 p2s_stub mock_helper ddtrace || exit $?
+    - objcopy --compress-debug-sections ../../tmp/build_appsec/modules/ddtrace.so
+    # jammy has glibc 2.35: fail here rather than at load time there.
+    - "objdump -T ../../tmp/build_appsec/modules/ddtrace.so | grep -E 'GLIBC_2\\.(3[6-9]|[4-9][0-9])' && exit 1 || true"
+  artifacts:
+    paths:
+      - appsec/build/extensions/p2s_stub.so
+      - appsec/build/tests/mock_helper/mock_helper
+      - tmp/build_appsec/modules/ddtrace.so
+
+"appsec php2shell partial runtime":
+  stage: test
+  image: registry.ddbuild.io/images/mirror/ubuntu:jammy
+  tags: [ "arch:amd64" ]
+  interruptible: true
+  allow_failure: true
+  needs:
+    - job: "appsec php2shell partial runtime: build"
+      artifacts: true
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+  script:
+    - apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
+      php8.1-cli php8.1-cgi php8.1-xml libcurl4 binutils
+    - |
+      # Partial: zend_mm_safe_error_ex exported, _femalloc (the full fix) not.
+      for b in /usr/bin/php8.1 /usr/bin/php-cgi8.1; do
+        syms="$(nm -D --defined-only "$b")"
+        grep -qw zend_mm_safe_error_ex <<< "$syms" && ! grep -qw _femalloc <<< "$syms" \
+          || { echo "$b is not a partial runtime"; exit 1; }
+      done
+    # As the CI images: posix and sockets loaded, not root.
+    - useradd -m tester && mkdir -p /tmp/appsec-ext-test && chown -R tester . /tmp/appsec-ext-test
+    - |
+      B="$CI_PROJECT_DIR/appsec/build"
+      su tester -s /bin/bash -c "cd appsec && TESTS='tests/extension/php2shell_*.phpt \
+        tests/extension/user_req_shutdown_memory_limit_restore_failure.phpt' \
+        DD_TRACE_GIT_METADATA_ENABLED=0 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0 \
+        cmake/run-tests-wrapper.sh $B $B/tests/mock_helper/mock_helper \
+        $CI_PROJECT_DIR/tmp/build_appsec/modules/ddtrace.so \
+        /usr/bin/php8.1 -n -d variables_order=EGPCS run-tests-internal.php \
+        -n -c tests/extension/test-php.ini -d extension_dir=$B/extensions \
+        -d extension=posix.so -d extension=sockets.so \
+        --show-diff tests/extension/"
+
 .appsec_integration_tests:
   stage: test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with java pre-installed?

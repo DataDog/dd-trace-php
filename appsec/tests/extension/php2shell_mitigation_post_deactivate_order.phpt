@@ -6,6 +6,9 @@ require __DIR__ . '/inc/php2shell_cgi.php';
 p2s_skip_if_patched();
 p2s_skip_unless_cgi();
 p2s_skip_unless_stub();
+// The minimal fix resets the store before every post_deactivate, as upstream
+// does: the stub's release crashes there with the mode off too.
+p2s_skip_if_partial();
 --FILE--
 <?php
 // Some modules keep a request object until their post_deactivate and release
