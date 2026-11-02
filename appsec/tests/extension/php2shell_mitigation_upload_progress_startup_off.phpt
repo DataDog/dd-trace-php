@@ -4,7 +4,9 @@ PHP2Shell mitigation (CVE-2026-109619 C): session upload progress is off during 
 <?php
 require __DIR__ . '/inc/php2shell_cgi.php';
 p2s_skip_if_patched();
+p2s_skip_unless_cgi();
 p2s_skip_if_no_zend_mm();
+p2s_skip_if_partial();
 p2s_skip_unless_ext('session');
 if (!function_exists('proc_open') || !function_exists('fsockopen'))
     die("skip: proc_open/fsockopen not available");

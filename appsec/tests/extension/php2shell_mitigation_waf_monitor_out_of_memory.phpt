@@ -3,8 +3,10 @@ PHP2Shell mitigation (CVE-2026-109618/109619): under the WAF decision monitor, a
 --SKIPIF--
 <?php
 require __DIR__ . '/inc/php2shell_cgi.php';
+p2s_skip_if_patched();
 p2s_skip_unless_cgi();
 p2s_skip_if_no_zend_mm();
+p2s_skip_if_partial();
 p2s_skip_unless_ext('posix');
 if (!is_readable('/proc/self/status')) {
     die("skip: needs /proc/self/status (Linux)");

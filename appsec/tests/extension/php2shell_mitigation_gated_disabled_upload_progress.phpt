@@ -4,6 +4,9 @@ PHP2Shell mitigation (CVE-2026-109619 C): with appsec explicitly disabled, sessi
 <?php
 require __DIR__ . '/inc/php2shell_cgi.php';
 p2s_skip_if_patched();
+p2s_skip_unless_cgi();
+p2s_skip_if_no_zend_mm();
+p2s_skip_if_partial();
 p2s_skip_unless_ext('session');
 --INI--
 datadog.appsec.enabled=0

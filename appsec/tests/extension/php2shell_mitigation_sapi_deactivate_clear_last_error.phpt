@@ -6,6 +6,10 @@ require __DIR__ . '/inc/php2shell_cgi.php';
 p2s_skip_if_patched();
 p2s_skip_unless_cgi();
 p2s_skip_unless_stub();
+// The minimal fix of 8.0/8.1 clears the last error in php_request_shutdown().
+if (PHP_VERSION_ID >= 80000) {
+    p2s_skip_if_partial();
+}
 --INI--
 memory_limit=128M
 --FILE--
