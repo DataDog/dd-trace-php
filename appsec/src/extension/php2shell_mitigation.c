@@ -119,6 +119,15 @@
 //     after ours), as are output handlers flushed after our RSHUTDOWN.
 //   - After a deferred fatal: the request is disarmed, so shutdown functions
 //     run unarmed.
+//   - Swallowed deferred fatal: code that catches the bailout and carries on
+//     (ext/soap turns it into a SoapFault when raised inside a SoapClient call
+//     that runs user code; parallel runs the next task of the same runtime,
+//     which does not get the error but runs unarmed; an agent's sandbox) leaves
+//     the rest of the request disarmed, under the finite limit the raise set,
+//     max(memory_limit, usage at the raise + 8 MiB) (see _set_finite_limit): a
+//     later crossing is the engine's own error, the vulnerable path. ddtrace's
+//     sandbox is not affected: no raise happens inside it (see _interrupt in
+//     p2s_runtime.c).
 //   - Monitor mode: nothing is armed, as under the decision none, so the CVEs
 //     stay reachable; native memory errors are only reported (on a full
 //     runtime, see Coverage: Monitor on a partial runtime). One raised before
