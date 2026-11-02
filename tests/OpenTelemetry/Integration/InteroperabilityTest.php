@@ -100,10 +100,8 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame($ddSpan->hexId(), $currentSpan->getContext()->getSpanId());
             $this->assertSame(\DDTrace\root_span()->traceId, $currentSpan->getContext()->getTraceId());
 
-            // Get current scope
-            $currentScope = Context::storage()->scope();
-            $this->assertNotNull($currentScope);
-            $currentScope->detach();
+            // The current context is derived from the active dd span, nothing is attached to the storage
+            $this->assertNull(Context::storage()->scope());
             $currentSpan = Span::getCurrent();
 
             // Shouldn't have changed
@@ -1529,6 +1527,31 @@ final class InteroperabilityTest extends BaseTestCase
 
             $this->assertSame($extractedBaggage->getValue('user_id'), '12345');
             $this->assertSame($extractedBaggage->getValue('session'), 'xyz');
+        });
+    }
+
+    public function testDatadogSpansDoNotLeakContextScopes()
+    {
+        $key = Context::createKey('user.key');
+        $this->isolateTracer(function () use ($key) {
+            $userContext = Context::getCurrent()->with($key, 'value');
+            $userScope = $userContext->activate();
+
+            for ($i = 0; $i < 3; ++$i) {
+                $root = start_trace_span();
+                $child = start_span();
+                $context = Context::getCurrent();
+                $this->assertSame($child, Span::fromContext($context)->getDDSpan());
+                $this->assertSame($root->hexId(), Span::fromContext($context)->getParentContext()->getSpanId());
+                $this->assertSame('value', $context->get($key));
+                close_span();
+                close_span();
+            }
+
+            // Only the scope activated by the user remains
+            $this->assertSame($userContext, Context::storage()->current());
+            $userScope->detach();
+            $this->assertNull(Context::storage()->scope());
         });
     }
 

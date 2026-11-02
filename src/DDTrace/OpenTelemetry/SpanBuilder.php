@@ -7,6 +7,7 @@ namespace OpenTelemetry\SDK\Trace;
 use DDTrace\OpenTelemetry\API\Trace as DDTraceAPI;
 
 use DDTrace\Tag;
+use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
@@ -181,6 +182,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $this->applySpanKind();
 
         $parentContext = Context::resolve($this->parentContext);
+        $currentContext = $this->parentContext === null ? $parentContext : Context::getCurrent();
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
 
@@ -194,9 +196,8 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
         $samplingContext = $restartOrIgnore ? Context::getRoot() : $parentContext;
 
-        $samplingResult = $this
-            ->tracerSharedState
-            ->getSampler()
+        $sampler = $this->tracerSharedState->getSampler();
+        $samplingResult = $sampler
             ->shouldSample(
                 $samplingContext,
                 $traceId,
@@ -208,8 +209,12 @@ final class SpanBuilder implements API\SpanBuilderInterface
             );
 
         $span = $span ?? \DDTrace\start_trace_span($this->startEpochNanos);
-        $samplingDecision = $samplingResult->getDecision();
-        $sampled = SamplingResult::RECORD_AND_SAMPLE === $samplingDecision;
+        // Starting a span does not change the current context, until the span is activated
+        ObjectKVStore::put($span, 'otel_current_context', $currentContext);
+        // DROP is upgraded to RECORD_ONLY (an implicit AlwaysRecord sampler): like with the native tracer API, unsampled
+        // spans are still recorded, so that trace metrics get accurate durations, and the started ddtrace span is closed
+        // by Span::end() instead of being leaked as part of a NonRecordingSpan
+        $sampled = SamplingResult::RECORD_AND_SAMPLE === $samplingResult->getDecision();
         $samplingResultTraceState = $samplingResult->getTraceState();
 
         if ($parentSpanContext->isValid() && !$restartOrIgnore) {
@@ -236,12 +241,14 @@ final class SpanBuilder implements API\SpanBuilderInterface
             \DDTrace\root_span()->tracestate = (string) $samplingResultTraceState;
         }
 
+        // A custom sampler decides the sampling of a new trace; the default sampler always samples, so leave it to DD
+        if ((!$parentSpanContext->isValid() || $restartOrIgnore)
+            && !in_array($sampler->getDescription(), ['ParentBased+AlwaysOnSampler', 'AlwaysOnSampler'], true)) {
+            \DDTrace\set_priority_sampling($sampled ? \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP : \DD_TRACE_PRIORITY_SAMPLING_USER_REJECT);
+        }
+
         $hexSpanId = $span->hexId();
         $spanContext = DDTraceAPI\SpanContext::createFromLocalSpan($span, $sampled, $traceId, $hexSpanId);
-
-        if (!in_array($samplingDecision, [SamplingResult::RECORD_AND_SAMPLE, SamplingResult::RECORD_ONLY], true)) {
-            return Span::wrap($spanContext);
-        }
 
         $span->resource = $this->spanName; // OTel.name => DD.resource
 

@@ -87,10 +87,10 @@ final class Context implements ContextInterface
             self::deactivateEndedParents($ddSpanFromContext);
         }
 
-        self::activateParent(active_span());
+        $currentContext = self::activateParent(active_span());
 
         return $context
-            ?? ($contextStorage ?? self::storage())->current()
+            ?? ($contextStorage ? $contextStorage->current() : $currentContext)
             ?: self::getRoot();
     }
 
@@ -174,7 +174,8 @@ final class Context implements ContextInterface
             if (ObjectKVStore::get($currentSpan, 'ddtrace_scope_activated')) {
                 return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
             } else {
-                return self::storage()->current();
+                // Not activated: the current context is still the one the span was started in
+                return ObjectKVStore::get($currentSpan, 'otel_current_context') ?? self::activateParent($currentSpan->parent);
             }
         }
 
@@ -223,11 +224,11 @@ final class Context implements ContextInterface
             false // The span was created using the DD Api
         );
         ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);
-        $currentContext = $parentContext->with(self::$spanContextKey, $OTelCurrentSpan); // Sets the current span in the context
         ObjectKVStore::put($currentSpan, 'ddtrace_scope_activated', true);
-        self::storage()->attach($currentContext); // TODO: Handle Detach
 
-        return $currentContext;
+        // Not attached to the storage: there would be nothing detaching it once the dd span is closed. The context is
+        // derived from the active dd span instead, on each getCurrent()
+        return $parentContext->with(self::$spanContextKey, $OTelCurrentSpan); // Sets the current span in the context
     }
 
     public function activate(): ScopeInterface
