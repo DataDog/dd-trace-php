@@ -88,8 +88,9 @@
 //      bounds it. On PHP 7.1+, the same holds for insertions at runtime
 //      (parse_str(), add_assoc_*_ex() builders), deferred to the next VM
 //      interrupt.
-//   B. The CVE-2026-109619 stale request state is reset in post_deactivate,
-//      and session upload progress is off during the startup POST parse.
+//   B. The CVE-2026-109619 stale request state is reset in post_deactivate
+//      (the object store and the last error after every module's), and
+//      session upload progress is off during the startup POST parse.
 //   C. Gated on the unpatched runtime, the mode toggle, the appsec flag and
 //      the SAPI; under the mode auto, armed only as the WAF decides.
 //   D. Two metrics (soft-deferred and hard-exit), flushed synchronously, and

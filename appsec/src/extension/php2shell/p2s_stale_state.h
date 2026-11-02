@@ -5,9 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2026 Datadog, Inc.
 
 // CVE-2026-109619 sub-mitigations: (B) resetting the request-owned engine
-// globals at post_deactivate and clearing the last-error state from the
-// sapi_module.deactivate wrapper; (C) turning session upload progress off for
-// an armed startup POST parse.
+// globals at post_deactivate, and the object store and the last-error state
+// from the sapi_module.deactivate wrapper; (C) turning session upload progress
+// off for an armed startup POST parse.
 
 #ifndef DD_P2S_STALE_STATE_H
 #define DD_P2S_STALE_STATE_H
@@ -26,7 +26,8 @@ void dd_p2s_stale_state_uninstall(void);
 void dd_p2s_stale_state_check_deactivate(void);
 // The sapi_module.deactivate MINFO hook row.
 void dd_p2s_stale_state_minfo_deactivate(void);
-// Sub-mitigation B's resets, unless the runtime is patched.
+// Sub-mitigation B's resets, unless the runtime is patched; the object store's
+// is left to the sapi_module.deactivate wrapper when it is in the slot.
 void dd_p2s_stale_state_post_deactivate(void);
 // Turn session upload progress off; returns whether the caller must restore
 // it with dd_p2s_stale_state_upload_progress_restore().

@@ -7,9 +7,10 @@
 // CVE-2026-109619 ("state corruption via bailout"), two sub-mitigations:
 //   (B) After a fast request shutdown, request-owned engine globals point into
 //       the freed request heap. They are reset in post_deactivate (see
-//       _reset_request_owned_globals); the last-error strings are released
-//       from the sapi_module.deactivate wrapper, which runs after every
-//       post_deactivate (see _clear_last_error).
+//       _reset_request_owned_globals); the object store is reset, and the
+//       last-error strings are released, from the sapi_module.deactivate
+//       wrapper, which runs after every post_deactivate (see
+//       _reset_objects_store and _clear_last_error).
 //   (C) Session upload progress is turned off for the startup POST parse, so
 //       the session rfc1867 callback does not decode session data (a full
 //       unserialize) before RINIT. It is also off inside request_parse_body(),
@@ -51,6 +52,9 @@ static dd_sapi_deactivate_fn _sapi_deactivate_inner;
 static bool _deactivate_captured;
 // Whether the displacement of the deactivate slot was logged; process-wide.
 static atomic_bool _displaced_logged_deactivate;
+// Whether this thread's post_deactivate left the object store reset to the
+// sapi_module.deactivate wrapper (see _reset_objects_store_if_pending).
+ZEND_TLS bool _objects_store_reset_pending;
 
 #ifdef TESTING
 // Sub-mitigation B diagnostics, read by the status() testing function: how
@@ -62,9 +66,12 @@ static atomic_uint _post_deactivate_resets_total;
 #endif
 
 static void _reset_request_owned_globals(void);
+static void _reset_objects_store(void);
+static void _reset_objects_store_if_pending(void);
 static void _clear_last_error(void);
 static bool _sapi_deactivate_hook_active(void);
 static int _sapi_deactivate(void);
+static void _sapi_deactivate_reset(void);
 static bool _sapi_deactivate_clears_last_error(void);
 static zend_ini_entry *nullable _upload_progress_entry(void);
 #ifdef TESTING
@@ -77,7 +84,7 @@ void dd_p2s_stale_state_install(void)
 {
     _deactivate_captured = true;
     // Unlike the sapi_module slots, a NULL deactivate is captured too: the
-    // wrapper then only clears the last error (see _sapi_deactivate).
+    // wrapper then only runs its resets (see _sapi_deactivate).
     if (sapi_module.deactivate != _sapi_deactivate) {
         _sapi_deactivate_inner = sapi_module.deactivate;
         sapi_module.deactivate = _sapi_deactivate;
@@ -128,8 +135,10 @@ void dd_p2s_stale_state_minfo_deactivate(void)
 // manager is still live. Only the fields are written (no free, no destructor),
 // so the writes are idempotent after a slow shutdown, which leaves them clean.
 // The fields the upstream fix added (delayed_oom, interned_strings_fallible)
-// and PG(modules_activated) are left alone. The last-error state is cleared
-// later, from the sapi_module.deactivate wrapper (_sapi_deactivate).
+// and PG(modules_activated) are left alone. The object store and the
+// last-error state are reset later, from the sapi_module.deactivate wrapper
+// (_sapi_deactivate), after every module's post_deactivate; the object store
+// here only if the wrapper is not in the slot.
 //
 // B is off on a patched runtime, whatever the mode: the engine does it itself.
 void dd_p2s_stale_state_post_deactivate(void)
@@ -138,6 +147,11 @@ void dd_p2s_stale_state_post_deactivate(void)
         return;
     }
     _reset_request_owned_globals();
+    if (_sapi_deactivate_hook_active()) {
+        _objects_store_reset_pending = true;
+    } else {
+        _reset_objects_store();
+    }
 #ifdef TESTING
     // Only the module hook counts, so post_deactivate_resets reflects real
     // request shutdowns only.
@@ -244,18 +258,53 @@ static void _reset_request_owned_globals(void)
     for (int i = 0; i < NUM_TRACK_VARS; i++) {
         ZVAL_UNDEF(&PG(http_globals)[i]);
     }
+}
 
-    // Object store: mirrors upstream's fast-shutdown branch in
-    // shutdown_executor(). Fast shutdown skips zend_objects_store_destroy(), so
-    // object_buckets keeps pointing into the freed request heap; a fatal error
-    // before the next init_executor() would have php_error_cb() run
-    // zend_objects_store_mark_destructed() over those stale buckets. Only
-    // overwrite the fields -- fast shutdown already freed the bucket array in
-    // bulk, so no efree/zend_objects_store_destroy here. On a slow shutdown the
-    // store is already destroyed and these writes are idempotent;
-    // init_executor() -> zend_objects_store_init() re-inits both fields.
+// Object store (sub-mitigation B): mirrors upstream's fast-shutdown branch in
+// shutdown_executor(). Fast shutdown skips zend_objects_store_destroy(), so
+// object_buckets keeps pointing into the request heap, freed after the
+// request; a fatal error before the next init_executor() would have
+// php_error_cb() run zend_objects_store_mark_destructed() over those stale
+// buckets. Only overwrite the fields -- the heap reset frees the bucket array
+// in bulk, so no efree/zend_objects_store_destroy here. On a slow shutdown the
+// store is already destroyed and these writes are idempotent;
+// init_executor() -> zend_objects_store_init() re-inits both fields.
+//
+// Upstream resets it before every post_deactivate; this runs after them (see
+// _reset_objects_store_if_pending), while the heap, so the bucket array, is
+// still live. Fast shutdown takes no reference on objects with the default
+// free_obj, so a post_deactivate that releases the last reference to one
+// reaches zend_objects_store_del(), which writes to the bucket array (from PHP
+// 7.3 without checking it for NULL). Run from our own post_deactivate, the
+// reset would crash every module whose post_deactivate runs after ours
+// (registered before ddtrace.so) and releases such objects there, as Elastic
+// APM 1.11.0-1.17.0 does with the exception and the error backtrace it
+// recorded.
+// On a patched runtime those crash in any order (Elastic 1.17.1 releases them
+// in RSHUTDOWN instead).
+static void _reset_objects_store(void)
+{
     EG(objects_store).object_buckets = NULL;
     EG(objects_store).top = 1;
+}
+
+// The object store reset that dd_p2s_stale_state_post_deactivate() left to
+// the sapi_module.deactivate wrapper, which sapi_deactivate_module() calls
+// after every post_deactivate, and before shutdown_memory_manager(). Only
+// when the executor is shut down (EG(active) is false from shutdown_executor()
+// to the next init_executor()): FrankenPHP worker mode calls sapi_deactivate()
+// at every HTTP-request boundary while the worker script runs, so a flag left
+// by a request shutdown that did not reach the wrapper must not reset that
+// script's live store.
+static void _reset_objects_store_if_pending(void)
+{
+    if (!_objects_store_reset_pending) {
+        return;
+    }
+    _objects_store_reset_pending = false;
+    if (!EG(active)) {
+        _reset_objects_store();
+    }
 }
 
 // Last-error state (sub-mitigation B). From PHP 8.0 the message (and from 8.1
@@ -304,9 +353,10 @@ static bool _sapi_deactivate_hook_active(void)
            _sapi_deactivate;
 }
 
-// The sapi_module.deactivate wrapper: releases the last-error strings
-// (PG(last_error_*)) before the request heap is freed, so the next request
-// cannot read them (sub-mitigation B).
+// The sapi_module.deactivate wrapper: resets the object store left to it by
+// post_deactivate and releases the last-error strings (PG(last_error_*))
+// before the request heap is freed, so the next request cannot read them
+// (sub-mitigation B).
 //
 // Request shutdown order: RSHUTDOWN, zend_deactivate() (which runs the
 // zend_extension deactivate hooks), post_deactivate, then
@@ -320,7 +370,7 @@ static bool _sapi_deactivate_hook_active(void)
 //
 // The inner handler can bail out (php-cgi and php-fpm abort when the final
 // flush fails, unless ignore_user_abort is set): hence the zend_try, so the
-// error is cleared on that path too.
+// resets run on that path too.
 static int _sapi_deactivate(void)
 {
     // volatile: assigned inside zend_try (setjmp) and read after it.
@@ -333,17 +383,22 @@ static int _sapi_deactivate(void)
     }
     zend_catch
     {
-        if (_sapi_deactivate_clears_last_error()) {
-            _clear_last_error();
-        }
+        _sapi_deactivate_reset();
         zend_bailout();
     }
     zend_end_try();
 
+    _sapi_deactivate_reset();
+    return ret;
+}
+
+// The wrapper's resets, after the inner handler.
+static void _sapi_deactivate_reset(void)
+{
+    _reset_objects_store_if_pending();
     if (_sapi_deactivate_clears_last_error()) {
         _clear_last_error();
     }
-    return ret;
 }
 
 // The B gate, as in dd_php2shell_post_deactivate, restricted to request
@@ -380,16 +435,18 @@ void dd_p2s_stale_state_register_testing(void)
     dd_phpobj_reg_funcs(_php2shell_stale_state_testing_functions);
 }
 
-// White-box exercise of sub-mitigation B's post_deactivate reset
-// (_reset_request_owned_globals). We cannot reproduce a real post-bailout stale
-// state from userland (a debug build always slow-shuts-down, and init_executor
-// re-inits every field before any reachable read), so this snapshots the
-// request-owned globals, writes recognisable sentinels into them, runs the
-// reset, records whether each field came back clean, and RESTORES the
-// snapshot so the live request is left untouched. It proves the reset clears
-// exactly the fields it must. The last-error clear (_clear_last_error) is not
-// covered here: a real request reaches it, see
-// php2shell_mitigation_sapi_deactivate_clear_last_error.phpt. No diagnostics
+// White-box exercise of sub-mitigation B's resets of the request-owned globals
+// (_reset_request_owned_globals and _reset_objects_store). We cannot reproduce
+// a real post-bailout stale state from userland (a debug build always
+// slow-shuts-down, and init_executor re-inits every field before any reachable
+// read), so this snapshots the request-owned globals, writes recognisable
+// sentinels into them, runs the reset, records whether each field came back
+// clean, and RESTORES the snapshot so the live request is left untouched. It
+// proves the reset clears exactly the fields it must. The last-error clear
+// (_clear_last_error) is not covered here: a real request reaches it, see
+// php2shell_mitigation_sapi_deactivate_clear_last_error.phpt; nor is the
+// order of the object store reset, see
+// php2shell_mitigation_post_deactivate_order.phpt. No diagnostics
 // are emitted between dirtying and restoring, and EG(errors) is pointed at a
 // real heap block (never a bogus pointer), so nothing here can fault.
 static PHP_FUNCTION(datadog_appsec_testing_php2shell_post_deactivate_reset)
@@ -466,6 +523,7 @@ static PHP_FUNCTION(datadog_appsec_testing_php2shell_post_deactivate_reset)
 
     // --- run the reset under test ---
     _reset_request_owned_globals();
+    _reset_objects_store();
 
     // --- capture cleanliness ---
     bool ok_err_h = Z_TYPE(EG(user_error_handler)) == IS_UNDEF;

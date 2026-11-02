@@ -59,6 +59,16 @@
 //                       zend_deactivate(), before every post_deactivate) only
 //                       if they are on top, else give up, as the profiler's
 //                       fallback does;
+//   p2s_stub_retain($object)
+//                       a PHP function that keeps a reference to $object
+//                       until this stub's post_deactivate releases it, as
+//                       some agents do with an exception they recorded
+//                       (Elastic APM 1.11.0-1.17.0). Loaded before
+//                       ddtrace.so, that post_deactivate runs after AppSec's.
+//                       Before the release, it prints
+//                       "P2S_STUB release store_reset=0|1" to stderr: 1 if
+//                       the object store was already reset (its top is
+//                       back to 1, though the object has a handle);
 //   p2s_stub_mm_install()
 //                       a PHP function that installs forwarding Zend MM
 //                       handlers over the current ones at runtime (false if
@@ -132,6 +142,7 @@ static PHP_RINIT_FUNCTION(p2s_stub);
 static PHP_RSHUTDOWN_FUNCTION(p2s_stub);
 static ZEND_MODULE_POST_ZEND_DEACTIVATE_D(p2s_stub);
 static PHP_FUNCTION(p2s_stub_mm_install);
+static PHP_FUNCTION(p2s_stub_retain);
 static int _startup(zend_extension *extension);
 static void _activate(void);
 static void _deactivate(void);
@@ -165,6 +176,9 @@ static bool _activate_mm;
 static bool _mm_keep;
 static bool _mm_drop;
 static unsigned long _requests;
+// The object p2s_stub_retain() keeps until post_deactivate (php-cgi, one
+// thread).
+static zval _retained;
 static bool _installed;
 static unsigned long _filter_calls;
 static unsigned long _init_calls;
@@ -209,8 +223,13 @@ PHP_INI_END()
 ZEND_BEGIN_ARG_INFO_EX(_mm_install_arginfo, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(_retain_arginfo, 0, 0, 1)
+    ZEND_ARG_INFO(0, object)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry _functions[] = {
     PHP_FE(p2s_stub_mm_install, _mm_install_arginfo)
+    PHP_FE(p2s_stub_retain, _retain_arginfo)
     PHP_FE_END
 };
 
@@ -345,7 +364,40 @@ static ZEND_MODULE_POST_ZEND_DEACTIVATE_D(p2s_stub)
     if (_post_deactivate_error) {
         zend_error(E_WARNING, "P2S_STUB late error");
     }
+    if (Z_TYPE(_retained) != IS_UNDEF) {
+        // A fast shutdown (release builds) takes no reference on an object
+        // with the default free_obj, so this release reaches
+        // zend_objects_store_del(), which writes to the object store. From
+        // PHP 7.4, a slow one (debug builds, always) keeps a reference on
+        // every object, so the release does not reach it: only this line
+        // shows whether the store had been reset already.
+        fprintf(stderr, "P2S_STUB release store_reset=%d\n",
+            EG(objects_store).top == 1 ? 1 : 0);
+        fflush(stderr);
+#if PHP_VERSION_ID < 70400
+        // Up to 7.3, a slow shutdown destroys the store and keeps no
+        // reference either: the release would crash without AppSec too.
+        // Leak the object instead.
+        if (EG(objects_store).object_buckets == NULL &&
+            (ZEND_DEBUG || EG(full_tables_cleanup) || !is_zend_mm())) {
+            ZVAL_UNDEF(&_retained);
+        }
+#endif
+        zval_ptr_dtor(&_retained);
+        ZVAL_UNDEF(&_retained);
+    }
     return SUCCESS;
+}
+
+static PHP_FUNCTION(p2s_stub_retain)
+{
+    zval *object;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "o", &object) == FAILURE) {
+        RETURN_FALSE;
+    }
+    zval_ptr_dtor(&_retained);
+    ZVAL_COPY(&_retained, object);
+    RETURN_TRUE;
 }
 
 static PHP_FUNCTION(p2s_stub_mm_install)
