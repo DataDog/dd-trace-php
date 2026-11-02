@@ -33,7 +33,13 @@
 //                       its script can inspect what the error left on the span
 //                       (an observation device: a real module's RINIT would
 //                       fail the request startup). Prints
-//                       "P2S_STUB RINIT alloc bailed=0|1" to stderr.
+//                       "P2S_STUB RINIT alloc bailed=0|1" to stderr;
+//   p2s_stub.error_cb_swallow=1
+//                       from MINIT, wrap zend_error_cb so that an E_ERROR
+//                       is not chained, but printed to stderr as
+//                       "P2S_STUB swallowed E_ERROR: <message>" and returned
+//                       from, as Pinpoint's callback does for a type that
+//                       error_reporting masks.
 //
 // Switches for the lifecycle of AppSec's request-level Zend MM handlers
 // (php2shell_mitigation_lifecycle_fallbacks.phpt):
@@ -132,6 +138,23 @@ typedef void (*p2s_mm_shutdown_fn)(bool, bool);
 #    define P2S_MM_DC
 #    define P2S_MM_CC
 #endif
+#if PHP_VERSION_ID < 80000
+#    define P2S_ERROR_CB_PARAMS                                                \
+        int type, const char *error_filename, const uint32_t error_lineno,     \
+            const char *format, va_list args
+#    define P2S_ERROR_CB_PASSTHRU type, error_filename, error_lineno, format, args
+#elif PHP_VERSION_ID < 80100
+#    define P2S_ERROR_CB_PARAMS                                                \
+        int type, const char *error_filename, const uint32_t error_lineno,     \
+            zend_string *message
+#    define P2S_ERROR_CB_PASSTHRU type, error_filename, error_lineno, message
+#else
+#    define P2S_ERROR_CB_PARAMS                                                \
+        int type, zend_string *error_filename, const uint32_t error_lineno,    \
+            zend_string *message
+#    define P2S_ERROR_CB_PASSTHRU type, error_filename, error_lineno, message
+#endif
+
 typedef void *(*p2s_mm_malloc_fn)(size_t P2S_MM_DC);
 typedef void (*p2s_mm_free_fn)(void *P2S_MM_DC);
 typedef void *(*p2s_mm_realloc_fn)(void *, size_t P2S_MM_DC);
@@ -146,6 +169,7 @@ static PHP_FUNCTION(p2s_stub_retain);
 static int _startup(zend_extension *extension);
 static void _activate(void);
 static void _deactivate(void);
+static void _error_cb(P2S_ERROR_CB_PARAMS);
 static void _mm_install(void);
 static bool _mm_on_top(void);
 static void _mm_restore(void);
@@ -169,6 +193,8 @@ static p2s_rfc1867_ret _rfc1867_callback(
 static bool _minit_mode;
 static bool _startup_mode;
 static bool _post_deactivate_error;
+static bool _error_cb_swallow;
+static void (*_prev_error_cb)(P2S_ERROR_CB_PARAMS);
 static size_t _rinit_alloc;
 static bool _rinit_bailout;
 static bool _rshutdown_bailout;
@@ -212,6 +238,7 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("p2s_stub.minit", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.startup", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.post_deactivate_error", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.error_cb_swallow", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_bailout", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_bailout", "0", PHP_INI_SYSTEM, NULL)
@@ -278,6 +305,8 @@ static PHP_MINIT_FUNCTION(p2s_stub)
     _startup_mode = zend_ini_long(ZEND_STRL("p2s_stub.startup"), 0) != 0;
     _post_deactivate_error =
         zend_ini_long(ZEND_STRL("p2s_stub.post_deactivate_error"), 0) != 0;
+    _error_cb_swallow =
+        zend_ini_long(ZEND_STRL("p2s_stub.error_cb_swallow"), 0) != 0;
     zend_long rinit_alloc = zend_ini_long(ZEND_STRL("p2s_stub.rinit_alloc"), 0);
     _rinit_alloc = rinit_alloc > 0 ? (size_t)rinit_alloc : 0;
     _rinit_bailout = zend_ini_long(ZEND_STRL("p2s_stub.rinit_bailout"), 0) != 0;
@@ -289,6 +318,10 @@ static PHP_MINIT_FUNCTION(p2s_stub)
 
     if (_minit_mode) {
         _install();
+    }
+    if (_error_cb_swallow) {
+        _prev_error_cb = zend_error_cb;
+        zend_error_cb = _error_cb;
     }
     if (_startup_mode || _activate_mm || _mm_drop) {
         // As ddtrace does: hand the DSO handle to the zend_extension, so the
@@ -316,6 +349,9 @@ static PHP_MSHUTDOWN_FUNCTION(p2s_stub)
         fflush(stderr);
     }
     _restore();
+    if (_prev_error_cb && zend_error_cb == _error_cb) {
+        zend_error_cb = _prev_error_cb;
+    }
     if (_mm.installed && _mm_on_top()) {
         _mm_reset();
     }
@@ -419,6 +455,25 @@ static int _startup(zend_extension *extension)
         _install();
     }
     return SUCCESS;
+}
+
+static void _error_cb(P2S_ERROR_CB_PARAMS)
+{
+    if (type != E_ERROR) {
+        _prev_error_cb(P2S_ERROR_CB_PASSTHRU);
+        return;
+    }
+#if PHP_VERSION_ID < 80000
+    char message[256];
+    va_list copy;
+    va_copy(copy, args);
+    vsnprintf(message, sizeof(message), format, copy);
+    va_end(copy);
+    fprintf(stderr, "P2S_STUB swallowed E_ERROR: %s\n", message);
+#else
+    fprintf(stderr, "P2S_STUB swallowed E_ERROR: %s\n", ZSTR_VAL(message));
+#endif
+    fflush(stderr);
 }
 
 static void _activate(void)
