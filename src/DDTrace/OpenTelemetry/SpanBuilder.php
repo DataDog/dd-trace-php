@@ -182,7 +182,8 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $this->applySpanKind();
 
         $parentContext = Context::resolve($this->parentContext);
-        $currentContext = $this->parentContext === null ? $parentContext : Context::getCurrent();
+        $activeSpan = \DDTrace\active_span();
+        $storageContext = Context::storage()->current();
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
 
@@ -210,7 +211,8 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
         $span = $span ?? \DDTrace\start_trace_span($this->startEpochNanos);
         // Starting a span does not change the current context, until the span is activated
-        ObjectKVStore::put($span, 'otel_current_context', $currentContext);
+        ObjectKVStore::put($span, 'otel_parent_span', $activeSpan);
+        ObjectKVStore::put($span, 'otel_storage_context', $storageContext);
         // DROP is upgraded to RECORD_ONLY (an implicit AlwaysRecord sampler): like with the native tracer API, unsampled
         // spans are still recorded, so that trace metrics get accurate durations, and the started ddtrace span is closed
         // by Span::end() instead of being leaked as part of a NonRecordingSpan

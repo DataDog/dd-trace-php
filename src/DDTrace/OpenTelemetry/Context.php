@@ -174,8 +174,13 @@ final class Context implements ContextInterface
             if (ObjectKVStore::get($currentSpan, 'ddtrace_scope_activated')) {
                 return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
             } else {
-                // Not activated: the current context is still the one the span was started in
-                return ObjectKVStore::get($currentSpan, 'otel_current_context') ?? self::activateParent($currentSpan->parent);
+                // Not activated: the current context is still the one the span was started in, derived from the dd span active back then, unless a context with a span has been activated since
+                $storageContext = self::storage()->current();
+                if ($storageContext !== ObjectKVStore::get($currentSpan, 'otel_storage_context')
+                    && API\Span::fromContext($storageContext)->getContext()->isValid()) {
+                    return $storageContext;
+                }
+                return self::activateParent(ObjectKVStore::get($currentSpan, 'otel_parent_span', $currentSpan->parent));
             }
         }
 

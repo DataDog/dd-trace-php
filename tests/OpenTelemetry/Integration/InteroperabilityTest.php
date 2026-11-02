@@ -1530,6 +1530,47 @@ final class InteroperabilityTest extends BaseTestCase
         });
     }
 
+    public function testActivateSpanStartedBeforeAnotherNonActivatedSpan()
+    {
+        $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $first = $tracer->spanBuilder("first")->startSpan();
+            $second = $tracer->spanBuilder("second")->startSpan(); // Remains the active dd span, but is not activated
+            $this->assertFalse($second->getParentContext()->isValid()); // first was not activated either
+
+            $scope = $first->activate();
+            $this->assertSame($first, Span::getCurrent());
+
+            $child = $tracer->spanBuilder("child")->startSpan();
+            $this->assertSame($first->getContext()->getSpanId(), $child->getParentContext()->getSpanId());
+
+            $child->end();
+            $scope->detach();
+            $second->end();
+            $first->end();
+        });
+    }
+
+    public function testContextActivatedAfterStartingNonActivatedSpan()
+    {
+        $key = Context::createKey('user.key');
+        $this->isolateTracer(function () use ($key) {
+            $ddSpan = start_span();
+            $span = self::getTracer()->spanBuilder("otel.span")->startSpan();
+
+            $scope = Context::getCurrent()->with($key, 'value')->activate();
+            $this->assertSame('value', Context::getCurrent()->get($key));
+            $this->assertSame($ddSpan, Span::getCurrent()->getDDSpan());
+
+            $scope->detach();
+            $this->assertNull(Context::getCurrent()->get($key));
+            $this->assertSame($ddSpan, Span::getCurrent()->getDDSpan());
+
+            $span->end();
+            close_span();
+        });
+    }
+
     public function testDatadogSpansDoNotLeakContextScopes()
     {
         $key = Context::createKey('user.key');
