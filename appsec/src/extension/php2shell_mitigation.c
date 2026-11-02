@@ -284,8 +284,10 @@
 //     memory-safe; recent FrankenPHP versions clear the last error at that
 //     point themselves.
 //   - Request level delivery: the error is raised at the next VM interrupt,
-//     after the inner interrupt handlers (pcntl signal handlers, ddtrace and
-//     its profiler); code in between runs over memory_limit. Not inside the
+//     after the inner interrupt handlers (pcntl signal handlers, Excimer,
+//     ddtrace and its profiler); code in between runs over memory_limit, up to
+//     the hard limit. An interrupt while that code runs (a timer, a second
+//     signal) raises at once instead of running them again. Not inside the
 //     tracer's sandbox (EH_THROW: its hook closures), which would swallow it:
 //     the rest of the closure runs on, and each allocation asks for the
 //     interrupt again (see _interrupt in p2s_runtime.c). So the error can come
@@ -509,6 +511,7 @@ void dd_php2shell_post_deactivate(void)
     // have closed during the request, and before shutdown_memory_manager(),
     // which below PHP 8.4 does not reset a heap with custom handlers.
     dd_p2s_guard_settle();
+    dd_p2s_runtime_post_deactivate();
     if (!dd_p2s_policy_active()) {
         return;
     }
