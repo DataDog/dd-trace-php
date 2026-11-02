@@ -25,6 +25,8 @@ void dd_p2s_runtime_rinit(void);
 void dd_p2s_runtime_user_req_begin(void);
 // End the request level (appsec's RSHUTDOWN). On every version.
 void dd_p2s_runtime_rshutdown(void);
+// Reset per-request state (post_deactivate, before the gate).
+void dd_p2s_runtime_post_deactivate(void);
 // Log once per process if the slot was displaced.
 void dd_p2s_runtime_check_interrupt(void);
 void dd_p2s_runtime_check_gc_mem_caches(void);

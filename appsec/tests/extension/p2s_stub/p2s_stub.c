@@ -90,6 +90,17 @@
 //                       reset the heap to plain zend_mm without putting back
 //                       what they chained to, as an extension that removes
 //                       itself and drops the handlers under it.
+//
+// Switch for AppSec's zend_interrupt_function (PHP 7.1+,
+// php2shell_mitigation_interrupt_reentry.phpt):
+//   p2s_stub.interrupt=1
+//                       in MINIT, chain a zend_interrupt_function under
+//                       AppSec's (installed after every MINIT) that calls
+//                       the previous one, then the callback set with
+//                       p2s_stub_interrupt_callback($callable) in this
+//                       request, as Excimer and pcntl run PHP code from
+//                       theirs; p2s_stub_vm_interrupt() sets
+//                       EG(vm_interrupt), as their timers and signals do.
 // MSHUTDOWN resets the heap to plain zend_mm if the stub's handlers are still
 // on top, so that no handler outlives the DSO.
 //
@@ -166,6 +177,11 @@ static PHP_RSHUTDOWN_FUNCTION(p2s_stub);
 static ZEND_MODULE_POST_ZEND_DEACTIVATE_D(p2s_stub);
 static PHP_FUNCTION(p2s_stub_mm_install);
 static PHP_FUNCTION(p2s_stub_retain);
+#if PHP_VERSION_ID >= 70100
+static PHP_FUNCTION(p2s_stub_interrupt_callback);
+static PHP_FUNCTION(p2s_stub_vm_interrupt);
+static void _interrupt(zend_execute_data *execute_data);
+#endif
 static int _startup(zend_extension *extension);
 static void _activate(void);
 static void _deactivate(void);
@@ -202,6 +218,11 @@ static bool _activate_mm;
 static bool _mm_keep;
 static bool _mm_drop;
 static unsigned long _requests;
+#if PHP_VERSION_ID >= 70100
+static void (*_prev_interrupt)(zend_execute_data *execute_data);
+// The callback of p2s_stub_interrupt_callback(), until RSHUTDOWN.
+static zval _interrupt_cb;
+#endif
 // The object p2s_stub_retain() keeps until post_deactivate (php-cgi, one
 // thread).
 static zval _retained;
@@ -245,6 +266,7 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("p2s_stub.activate_mm", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.mm_keep", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.mm_drop", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.interrupt", "0", PHP_INI_SYSTEM, NULL)
 PHP_INI_END()
 
 ZEND_BEGIN_ARG_INFO_EX(_mm_install_arginfo, 0, 0, 0)
@@ -254,9 +276,19 @@ ZEND_BEGIN_ARG_INFO_EX(_retain_arginfo, 0, 0, 1)
     ZEND_ARG_INFO(0, object)
 ZEND_END_ARG_INFO()
 
+#if PHP_VERSION_ID >= 70100
+ZEND_BEGIN_ARG_INFO_EX(_interrupt_callback_arginfo, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+#endif
+
 static const zend_function_entry _functions[] = {
     PHP_FE(p2s_stub_mm_install, _mm_install_arginfo)
     PHP_FE(p2s_stub_retain, _retain_arginfo)
+#if PHP_VERSION_ID >= 70100
+    PHP_FE(p2s_stub_interrupt_callback, _interrupt_callback_arginfo)
+    PHP_FE(p2s_stub_vm_interrupt, _mm_install_arginfo)
+#endif
     PHP_FE_END
 };
 
@@ -319,6 +351,12 @@ static PHP_MINIT_FUNCTION(p2s_stub)
     if (_minit_mode) {
         _install();
     }
+#if PHP_VERSION_ID >= 70100
+    if (zend_ini_long(ZEND_STRL("p2s_stub.interrupt"), 0) != 0) {
+        _prev_interrupt = zend_interrupt_function;
+        zend_interrupt_function = _interrupt;
+    }
+#endif
     if (_error_cb_swallow) {
         _prev_error_cb = zend_error_cb;
         zend_error_cb = _error_cb;
@@ -352,6 +390,11 @@ static PHP_MSHUTDOWN_FUNCTION(p2s_stub)
     if (_prev_error_cb && zend_error_cb == _error_cb) {
         zend_error_cb = _prev_error_cb;
     }
+#if PHP_VERSION_ID >= 70100
+    if (zend_interrupt_function == _interrupt) {
+        zend_interrupt_function = _prev_interrupt;
+    }
+#endif
     if (_mm.installed && _mm_on_top()) {
         _mm_reset();
     }
@@ -387,6 +430,10 @@ static PHP_RSHUTDOWN_FUNCTION(p2s_stub)
     if (_mm.installed && !_activate_mm && !_mm_keep && _mm_on_top()) {
         _mm_restore();
     }
+#if PHP_VERSION_ID >= 70100
+    zval_ptr_dtor(&_interrupt_cb);
+    ZVAL_UNDEF(&_interrupt_cb);
+#endif
     if (_rshutdown_bailout) {
         fprintf(stderr, "P2S_STUB bailout in RSHUTDOWN\n");
         fflush(stderr);
@@ -447,6 +494,46 @@ static PHP_FUNCTION(p2s_stub_mm_install)
     _mm_install();
     RETURN_TRUE;
 }
+
+#if PHP_VERSION_ID >= 70100
+static PHP_FUNCTION(p2s_stub_interrupt_callback)
+{
+    zval *cb;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &cb) == FAILURE) {
+        RETURN_FALSE;
+    }
+    zval_ptr_dtor(&_interrupt_cb);
+    ZVAL_COPY(&_interrupt_cb, cb);
+    RETURN_TRUE;
+}
+
+static PHP_FUNCTION(p2s_stub_vm_interrupt)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+#    if PHP_VERSION_ID >= 80200
+    zend_atomic_bool_store_ex(&EG(vm_interrupt), true);
+#    else
+    EG(vm_interrupt) = 1;
+#    endif
+    RETURN_TRUE;
+}
+
+static void _interrupt(zend_execute_data *execute_data)
+{
+    if (_prev_interrupt) {
+        _prev_interrupt(execute_data);
+    }
+    if (Z_TYPE(_interrupt_cb) == IS_UNDEF) {
+        return;
+    }
+    zval retval;
+    ZVAL_UNDEF(&retval);
+    call_user_function(NULL, NULL, &_interrupt_cb, &retval, 0, NULL);
+    zval_ptr_dtor(&retval);
+}
+#endif
 
 static int _startup(zend_extension *extension)
 {

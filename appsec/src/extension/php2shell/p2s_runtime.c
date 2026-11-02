@@ -81,6 +81,9 @@ static void (*_interrupt_inner)(zend_execute_data *execute_data);
 static bool _interrupt_captured;
 // Whether the displacement of each slot of this unit was logged; process-wide.
 static atomic_bool _displaced_logged_interrupt;
+// Whether this thread is inside _interrupt_inner, called from _interrupt (see
+// _call_inner).
+ZEND_TLS bool _in_inner;
 #endif
 #ifdef DD_PHP2SHELL_WRAP_GC_MEM_CACHES
 static atomic_bool _displaced_logged_gc_mem_caches;
@@ -88,6 +91,7 @@ static atomic_bool _displaced_logged_gc_mem_caches;
 
 #ifdef DD_PHP2SHELL_HAVE_INTERRUPT
 static void _interrupt(zend_execute_data *execute_data);
+static void _call_inner(zend_execute_data *execute_data);
 #endif
 #ifdef DD_PHP2SHELL_WRAP_GC_MEM_CACHES
 static ZEND_NAMED_FUNCTION(_gc_mem_caches);
@@ -154,6 +158,7 @@ void dd_p2s_runtime_uninstall(void)
 void dd_p2s_runtime_rinit(void)
 {
 #ifdef DD_PHP2SHELL_HAVE_INTERRUPT
+    _in_inner = false;
     // The gate is read here, after remote config and this request's WAF
     // decision (request_init) had their say in this RINIT.
     // Startup windows removed their handlers when they ended, so the slot
@@ -175,6 +180,7 @@ void dd_p2s_runtime_rinit(void)
 void dd_p2s_runtime_user_req_begin(void)
 {
 #ifdef DD_PHP2SHELL_HAVE_INTERRUPT
+    _in_inner = false;
     if (!dd_p2s_guard_available()) {
         return;
     }
@@ -191,6 +197,15 @@ void dd_p2s_runtime_rshutdown(void)
     // memory_limit. An error still pending is dropped (see Coverage: Request
     // level delivery).
     dd_p2s_guard_close();
+}
+
+// Called from post_deactivate (dd_php2shell_post_deactivate()), before the
+// gate. _call_inner always clears the re-entry flag; this is a fallback.
+void dd_p2s_runtime_post_deactivate(void)
+{
+#ifdef DD_PHP2SHELL_HAVE_INTERRUPT
+    _in_inner = false;
+#endif
 }
 
 void dd_p2s_runtime_check_interrupt(void)
@@ -243,8 +258,15 @@ void dd_p2s_runtime_minfo_gc_mem_caches(void)
 // interrupt helper, a safe point between opcodes.
 static void _interrupt(zend_execute_data *execute_data)
 {
+    // Re-entered from PHP code the inner handler runs (an Excimer timer, a
+    // pcntl signal): raise now. Chaining again could re-enter it each time and
+    // starve the raise until the hard limit.
+    if (UNEXPECTED(_in_inner) && dd_p2s_guard_error_pending() &&
+        !dd_p2s_guard_in_window() && EG(error_handling) != EH_THROW) {
+        dd_p2s_guard_raise_deferred_oom(DD_PHASE_RUNTIME, 0);
+    }
     if (_interrupt_inner != NULL) {
-        _interrupt_inner(execute_data);
+        _call_inner(execute_data);
     }
     if (UNEXPECTED(dd_p2s_guard_error_pending() && !dd_p2s_guard_in_window())) {
         // Not inside the tracer's sandbox (EH_THROW), around its hook
@@ -257,6 +279,22 @@ static void _interrupt(zend_execute_data *execute_data)
         }
         dd_p2s_guard_raise_deferred_oom(DD_PHASE_RUNTIME, 0);
     }
+}
+
+// Call the inner handler with _in_inner set, and put back the previous value
+// however it returns: the flag must never outlive the call.
+static void _call_inner(zend_execute_data *execute_data)
+{
+    const bool prev = _in_inner;
+    _in_inner = true;
+    zend_try { _interrupt_inner(execute_data); }
+    zend_catch
+    {
+        _in_inner = prev;
+        zend_bailout();
+    }
+    zend_end_try();
+    _in_inner = prev;
 }
 #endif
 

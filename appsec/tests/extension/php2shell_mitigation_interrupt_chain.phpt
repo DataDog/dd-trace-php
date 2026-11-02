@@ -21,7 +21,8 @@ p2s_skip_unless_cgi_ext('posix');
 //    limit) and the queued signal and the pending error meet at the same
 //    interrupt. The inner handler runs first, so the signal handler runs
 //    (over the soft limit, before any error) and only then is the deferred
-//    fatal raised.
+//    fatal raised (an interrupt from inside the handler: see
+//    php2shell_mitigation_interrupt_reentry.phpt).
 require __DIR__ . '/inc/php2shell_cgi.php';
 const CHILD = __DIR__ . '/inc/php2shell_child_interrupt_chain.php';
 $soft = 16 * P2S_MIB;
