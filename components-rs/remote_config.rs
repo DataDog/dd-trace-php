@@ -133,6 +133,14 @@ pub struct RemoteConfigFlags {
     pub ffe_enabled: bool,
 }
 
+fn ffe_capabilities(evaluator_capabilities: &[&str]) -> Vec<RemoteConfigCapabilities> {
+    let mut capabilities = vec![RemoteConfigCapabilities::FfeFlagConfigurationRules];
+    if evaluator_capabilities.contains(&crate::ffe::DEPENDENT_FLAG_VARIANT_KEY_V1) {
+        capabilities.push(RemoteConfigCapabilities::FfeFlagDependentFlagVariantKeyV1);
+    }
+    capabilities
+}
+
 #[no_mangle]
 #[allow(static_mut_refs)]
 pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
@@ -164,8 +172,9 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
 
     if ffe_enabled {
         DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::FfeFlags);
-        DATADOG_REMOTE_CONFIG_CAPABILITIES
-            .push(RemoteConfigCapabilities::FfeFlagConfigurationRules);
+        for capability in ffe_capabilities(crate::ffe::evaluator_capabilities()) {
+            DATADOG_REMOTE_CONFIG_CAPABILITIES.push(capability);
+        }
     }
 
     if live_debugging_enabled {
@@ -937,4 +946,36 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
     );
 
     ddog_sidecar_send_debugger_diagnostics(transport, payload)
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use super::*;
+
+    #[test]
+    fn dependent_flags_require_explicit_evaluator_support() {
+        for (reported, expected) in [
+            (vec![], vec![46]),
+            (vec!["unknown-v1"], vec![46]),
+            (vec!["dependent-flag-variant-key-v1"], vec![46, 50]),
+            (
+                vec!["unknown-v1", "dependent-flag-variant-key-v1"],
+                vec![46, 50],
+            ),
+        ] {
+            let actual: Vec<_> = ffe_capabilities(&reported)
+                .into_iter()
+                .map(|capability| capability as u32)
+                .collect();
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn linked_evaluator_does_not_advertise_dependent_flags() {
+        assert!(crate::ffe::evaluator_capabilities().is_empty());
+        let capabilities = ffe_capabilities(crate::ffe::evaluator_capabilities());
+        assert_eq!(capabilities.len(), 1);
+        assert_eq!(capabilities[0] as u32, 46);
+    }
 }

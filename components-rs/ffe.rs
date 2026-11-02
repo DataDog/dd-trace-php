@@ -9,6 +9,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::debug;
 
+pub(crate) const DEPENDENT_FLAG_VARIANT_KEY_V1: &str = "dependent-flag-variant-key-v1";
+
+// Opt-in requires support in both the linked evaluator and the PHP binding's
+// error propagation and exposure reporting. Declaring an RC enum is insufficient.
+pub(crate) fn evaluator_capabilities() -> &'static [&'static str] {
+    &[]
+}
+
 struct FfeState {
     config: Option<Configuration>,
     version: u64,
