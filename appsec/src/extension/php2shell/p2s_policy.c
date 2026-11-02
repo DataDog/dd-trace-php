@@ -15,9 +15,10 @@
 // Armed (parse windows and request level) when active and, under mode auto,
 // the WAF's sticky decision is pending or block; mode on arms whatever the WAF
 // says, and asks nothing. Under mode auto, an unpatched runtime is "full", or
-// "partial" when it carries only the minimal fix of the EOL branches (the
-// zend_mm_safe_error_ex symbol resolves, _femalloc does not); either is sent to
-// the WAF as php.php2shell.vulnerable in every request_init
+// "partial" when it carries only the minimal fix of the EOL branches, as
+// distributions ship it for 7.0-8.1 (the zend_mm_safe_error_ex symbol
+// resolves, _femalloc does not); either is sent to the WAF as
+// php.php2shell.vulnerable in every request_init
 // (dd_p2s_policy_vulnerable_value). Each explicit answer in the response
 // (none, monitor or block) replaces the decision for the thread's later
 // reads; no answer (no WAF call, an error, an older helper) leaves it

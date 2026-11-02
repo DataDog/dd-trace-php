@@ -88,6 +88,8 @@ static atomic_bool _displaced_logged_rfc1867;
 static atomic_bool _displaced_logged_read_post;
 // Whether the expanding filter.default warning was logged; once per process.
 static atomic_bool _filter_default_warned;
+// The same for mbstring.encoding_translation.
+static atomic_bool _mb_translation_warned;
 
 // The arguments of one treat_data call, passed through
 // dd_p2s_startup_parse_run_window().
@@ -117,6 +119,8 @@ static bool _read_post_ends_body(void);
 static size_t _hard_limit(size_t soft, size_t bound, bool multipart);
 static void _warn_filter_default_once(void);
 static bool _filter_default_expands(void);
+static void _warn_mb_translation_once(void);
+static bool _mb_translation_on(void);
 static size_t _post_max_size_bound(zend_long post_max_size);
 static size_t _treat_data_bound(int arg);
 // armed windows
@@ -303,7 +307,8 @@ void dd_p2s_startup_parse_minfo_read_post(void)
 // to 11 more copies of the name (13 in all on PHP 8.1+, 12 on 7.x and 8.0);
 // the name is at most B bytes. Later file parts are skipped (see
 // _rfc1867_callback). A displaced input_filter wrapper and an expanding
-// filter.default are not accounted for (see _warn_filter_default_once).
+// filter.default are not accounted for (see _warn_filter_default_once), nor
+// is mbstring.encoding_translation (see _warn_mb_translation_once).
 // L is upstream's limit (dd_p2s_guard_hard_limit_floor). C = max(1 GiB, 2S) is
 // a constant cap; max(1 GiB, 4S) for a multipart parse, where the name of that
 // file part can be up to about S/3 bytes. Every term saturates, so an unbounded
@@ -382,6 +387,44 @@ static bool _filter_default_expands(void)
         return false;
     }
     return !zend_string_equals_literal_ci(entry->value, "unsafe_raw");
+}
+
+// Log, once per process, that the hard limit does not account for mbstring's
+// encoding translation: its parse allocates about 32 bytes per separator (24
+// on PHP 7.0) in one call, before max_input_vars applies, so a body of '&'
+// within post_max_size can reach the hard limit (exit 137). Called with
+// _warn_filter_default_once.
+static void _warn_mb_translation_once(void)
+{
+    if (EXPECTED(atomic_load_explicit(
+            &_mb_translation_warned, memory_order_relaxed))) {
+        return;
+    }
+    if (!_mb_translation_on() ||
+        atomic_exchange_explicit(
+            &_mb_translation_warned, true, memory_order_relaxed)) {
+        return;
+    }
+    mlog(dd_log_warning,
+        "PHP2Shell mitigation: mbstring.encoding_translation is on; the "
+        "PHP2Shell memory bound does not account for it, so a request body "
+        "within post_max_size can reach the hard memory limit");
+}
+
+// Whether mbstring.encoding_translation is on, parsed as OnUpdateBool does.
+// The entry is absent without mbstring.
+static bool _mb_translation_on(void)
+{
+    zend_ini_entry *entry = zend_hash_str_find_ptr(
+        EG(ini_directives), ZEND_STRL("mbstring.encoding_translation"));
+    if (entry == NULL || entry->value == NULL) {
+        return false;
+    }
+    zend_string *value = entry->value;
+    return zend_string_equals_literal_ci(value, "on") ||
+           zend_string_equals_literal_ci(value, "yes") ||
+           zend_string_equals_literal_ci(value, "true") ||
+           ZEND_STRTOL(ZSTR_VAL(value), NULL, 10) != 0;
 }
 
 // The input bound for a post_max_size value: "no limit" for <= 0.
@@ -496,6 +539,7 @@ void dd_p2s_startup_parse_run_window(dd_parse_fn parse, void *ctx,
     bool armed = false;
     if (dd_p2s_guard_available() && PG(memory_limit) >= 0) {
         _warn_filter_default_once();
+        _warn_mb_translation_once();
         size_t soft = dd_p2s_guard_soft_limit();
         _input_filter_req.dropped = 0;
         armed = dd_p2s_guard_window_begin(

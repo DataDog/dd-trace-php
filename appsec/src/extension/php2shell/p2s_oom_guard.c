@@ -155,16 +155,16 @@ static void _emit_and_flush(
 // Our Zend MM handlers are installed by a startup window (a single synchronous
 // treat_data() before RINIT, see dd_p2s_startup_parse_run_window), which
 // removes them when it ends, or, on PHP 7.1+, for the request at the end of
-// appsec's RINIT (or at the start of a worker HTTP request, see
-// dd_p2s_guard_reconcile), removed at the start of appsec's RSHUTDOWN (see
-// dd_php2shell_rinit). Between install and removal the slot is never written:
-// only the bools change. A request_parse_body() window nests inside the request
-// level (see dd_p2s_guard_window_begin). The allocator-facing fields
-// (heap/prev_*) are only used between _install_handlers() and
-// _remove_handlers(); `soft` and `hard` are deliberately read AFTER _disarm()
-// too (the deferred-fatal message and the hard-abort message use them). It is
-// thread-local for ZTS; the allocator handlers (plain C function pointers that
-// cannot carry context) read it.
+// appsec's RINIT (or at the start of an HTTP request in a worker script using
+// ddtrace's user-request API, see dd_p2s_guard_reconcile), removed at the start
+// of appsec's RSHUTDOWN (see dd_php2shell_rinit). Between install and removal
+// the slot is never written: only the bools change. A request_parse_body()
+// window nests inside the request level (see dd_p2s_guard_window_begin). The
+// allocator-facing fields (heap/prev_*) are only used between
+// _install_handlers() and _remove_handlers(); `soft` and `hard` are
+// deliberately read AFTER _disarm() too (the deferred-fatal message and the
+// hard-abort message use them). It is thread-local for ZTS; the allocator
+// handlers (plain C function pointers that cannot carry context) read it.
 
 #if PHP_VERSION_ID >= 80400
 typedef void *(*dd_mm_alloc_fn)(
