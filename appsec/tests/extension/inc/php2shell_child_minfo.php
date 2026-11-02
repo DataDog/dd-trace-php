@@ -1,5 +1,6 @@
 <?php
-// Child script for php2shell_mitigation_sapi_off.phpt: prints the SAPI and the
+// Child script for php2shell_mitigation_sapi_off.phpt and
+// php2shell_mitigation_gc_mem_caches_replaced.phpt: prints the SAPI and the
 // PHP2Shell MINFO rows of this process on one line:
 //   MINFO sapi=S state=V hooks=N treat_data=V interrupt=V gc_mem_caches=V
 // hooks counts the hook rows; a missing row is reported as none.

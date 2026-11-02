@@ -1,5 +1,5 @@
 --TEST--
-PHP2Shell mitigation: hooks overwritten after AppSec's startup capture are reported as displaced, logged once per slot, and fail open
+PHP2Shell mitigation: hooks overwritten after AppSec's startup capture are reported as replaced, logged once per slot, and fail open
 --SKIPIF--
 <?php
 require __DIR__ . '/inc/php2shell_cgi.php';
@@ -16,7 +16,7 @@ p2s_skip_if_no_zend_mm();
 // there). That hook runs after AppSec's, which captured the slots, so they
 // are displaced, and the mitigation is off for treat_data and input_filter
 // (out of scope: hooks displaced after startup are detected, not repaired):
-//  - MINFO reports the four rows as Displaced, in both requests of -T 2;
+//  - MINFO reports the four rows as Replaced, in both requests of -T 2;
 //  - one warning per slot is logged, at the first request shutdown only;
 //  - a single large field crossing memory_limit gets the engine's own error.
 require __DIR__ . '/inc/php2shell_cgi.php';
@@ -51,7 +51,7 @@ if ($outcome !== 'native') {
     p2s_dump($r, "peak=$peak soft=$soft");
 }
 --EXPECTF--
-request 1: tag=Xbc hooks=treat_data:Displaced,input_filter:Displaced,rfc1867:Displaced,deactivate:Installed%Aread_post:Displaced
-request 2: tag=Xbc hooks=treat_data:Displaced,input_filter:Displaced,rfc1867:Displaced,deactivate:Installed%Aread_post:Displaced
+request 1: tag=Xbc hooks=treat_data:Replaced,input_filter:Replaced,rfc1867:Replaced,deactivate:Installed%Aread_post:Replaced
+request 2: tag=Xbc hooks=treat_data:Replaced,input_filter:Replaced,rfc1867:Replaced,deactivate:Installed%Aread_post:Replaced
 displacement_log: php_rfc1867_callback=1 sapi_module.input_filter=1 sapi_module.read_post=1 sapi_module.treat_data=1
 single_field: outcome=native

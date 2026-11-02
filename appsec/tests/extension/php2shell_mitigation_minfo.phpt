@@ -12,7 +12,7 @@ memory_limit=128M
 <?php
 // The headline is Active or Inactive only; the per-hook rows say whether each
 // slot holds our wrapper (Installed), was captured but now holds something
-// else (Displaced, see php2shell_mitigation_hook_displaced_after_startup.phpt)
+// else (Replaced, see php2shell_mitigation_hook_displaced_after_startup.phpt)
 // or was never captured (Not installed). phpinfo() prints the same rows.
 // Runs under php-cgi (--CGI--), where phpinfo() prints HTML: the mitigation
 // is off under the cli SAPI.

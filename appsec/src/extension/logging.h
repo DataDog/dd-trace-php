@@ -52,6 +52,8 @@ void dd_log_startup_after_cfg(void);
 // about to be destroyed.
 void dd_log_detach_cfg(void);
 void dd_log_shutdown(void);
+// Whether log lines go to PHP error reporting, and so maybe into the response.
+bool dd_log_to_php(void);
 const char *nonnull _strerror_r(int err, char *nonnull buf, size_t buflen);
 
 bool dd_parse_log_level(

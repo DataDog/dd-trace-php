@@ -101,6 +101,16 @@
 //                       request, as Excimer and pcntl run PHP code from
 //                       theirs; p2s_stub_vm_interrupt() sets
 //                       EG(vm_interrupt), as their timers and signals do.
+//
+// Switch for AppSec's gc_mem_caches() wrapper (PHP 7.1-8.3,
+// php2shell_mitigation_gc_mem_caches_replaced.phpt):
+//   p2s_stub.gc_mem_caches=1|2
+//                       replace the handler of gc_mem_caches() with one that
+//                       only forwards, as another extension's wrapper that
+//                       does not turn use_custom_heap off would: 1 from MINIT
+//                       (before AppSec's startup capture), 2 from a
+//                       zend_extension startup hook registered in MINIT
+//                       (after it).
 // MSHUTDOWN resets the heap to plain zend_mm if the stub's handlers are still
 // on top, so that no handler outlives the DSO.
 //
@@ -182,6 +192,9 @@ static PHP_FUNCTION(p2s_stub_interrupt_callback);
 static PHP_FUNCTION(p2s_stub_vm_interrupt);
 static void _interrupt(zend_execute_data *execute_data);
 #endif
+static ZEND_NAMED_FUNCTION(_gc_mem_caches);
+static void _gc_install(void);
+static void _gc_restore(void);
 static int _startup(zend_extension *extension);
 static void _activate(void);
 static void _deactivate(void);
@@ -218,6 +231,8 @@ static bool _activate_mm;
 static bool _mm_keep;
 static bool _mm_drop;
 static unsigned long _requests;
+static zend_long _gc_mode;
+static __typeof__(((zend_internal_function *)0)->handler) _prev_gc_mem_caches;
 #if PHP_VERSION_ID >= 70100
 static void (*_prev_interrupt)(zend_execute_data *execute_data);
 // The callback of p2s_stub_interrupt_callback(), until RSHUTDOWN.
@@ -267,6 +282,7 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("p2s_stub.mm_keep", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.mm_drop", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.interrupt", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.gc_mem_caches", "0", PHP_INI_SYSTEM, NULL)
 PHP_INI_END()
 
 ZEND_BEGIN_ARG_INFO_EX(_mm_install_arginfo, 0, 0, 0)
@@ -347,9 +363,13 @@ static PHP_MINIT_FUNCTION(p2s_stub)
     _activate_mm = zend_ini_long(ZEND_STRL("p2s_stub.activate_mm"), 0) != 0;
     _mm_keep = zend_ini_long(ZEND_STRL("p2s_stub.mm_keep"), 0) != 0;
     _mm_drop = zend_ini_long(ZEND_STRL("p2s_stub.mm_drop"), 0) != 0;
+    _gc_mode = zend_ini_long(ZEND_STRL("p2s_stub.gc_mem_caches"), 0);
 
     if (_minit_mode) {
         _install();
+    }
+    if (_gc_mode == 1) {
+        _gc_install();
     }
 #if PHP_VERSION_ID >= 70100
     if (zend_ini_long(ZEND_STRL("p2s_stub.interrupt"), 0) != 0) {
@@ -361,7 +381,7 @@ static PHP_MINIT_FUNCTION(p2s_stub)
         _prev_error_cb = zend_error_cb;
         zend_error_cb = _error_cb;
     }
-    if (_startup_mode || _activate_mm || _mm_drop) {
+    if (_startup_mode || _activate_mm || _mm_drop || _gc_mode == 2) {
         // As ddtrace does: hand the DSO handle to the zend_extension, so the
         // library stays mapped until the zend_extension list is destroyed,
         // after module shutdown.
@@ -387,6 +407,7 @@ static PHP_MSHUTDOWN_FUNCTION(p2s_stub)
         fflush(stderr);
     }
     _restore();
+    _gc_restore();
     if (_prev_error_cb && zend_error_cb == _error_cb) {
         zend_error_cb = _prev_error_cb;
     }
@@ -541,7 +562,35 @@ static int _startup(zend_extension *extension)
     if (_startup_mode) {
         _install();
     }
+    if (_gc_mode == 2) {
+        _gc_install();
+    }
     return SUCCESS;
+}
+
+static void _gc_install(void)
+{
+    zend_function *fn = zend_hash_str_find_ptr(
+        CG(function_table), ZEND_STRL("gc_mem_caches"));
+    if (fn != NULL && fn->type == ZEND_INTERNAL_FUNCTION) {
+        _prev_gc_mem_caches = fn->internal_function.handler;
+        fn->internal_function.handler = _gc_mem_caches;
+    }
+}
+
+static void _gc_restore(void)
+{
+    zend_function *fn = zend_hash_str_find_ptr(
+        CG(function_table), ZEND_STRL("gc_mem_caches"));
+    if (fn != NULL && fn->type == ZEND_INTERNAL_FUNCTION &&
+        fn->internal_function.handler == _gc_mem_caches) {
+        fn->internal_function.handler = _prev_gc_mem_caches;
+    }
+}
+
+static ZEND_NAMED_FUNCTION(_gc_mem_caches)
+{
+    _prev_gc_mem_caches(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
 static void _error_cb(P2S_ERROR_CB_PARAMS)

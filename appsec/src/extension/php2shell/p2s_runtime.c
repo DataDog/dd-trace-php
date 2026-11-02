@@ -45,6 +45,7 @@
 #include "p2s_runtime.h"
 
 #include <Zend/zend_API.h>
+#include <dlfcn.h>
 #include <ext/compatibility.h>
 #include <php.h>
 #include <stdatomic.h>
@@ -94,6 +95,7 @@ static void _interrupt(zend_execute_data *execute_data);
 static void _call_inner(zend_execute_data *execute_data);
 #endif
 #ifdef DD_PHP2SHELL_WRAP_GC_MEM_CACHES
+static bool _in_engine_or_ours(zif_handler handler);
 static ZEND_NAMED_FUNCTION(_gc_mem_caches);
 #endif
 #ifdef TESTING
@@ -117,13 +119,18 @@ void dd_p2s_runtime_install(void)
 #ifdef DD_PHP2SHELL_WRAP_GC_MEM_CACHES
     // gc_mem_caches() is a Zend core function, so it exists by now; as for
     // request_parse_body(), disable_functions runs after this and only the
-    // handler is saved. The profiler wraps it from its zend_extension startup,
-    // which runs before this capture (dd_appsec_zend_startup_last()), so ours
-    // chains over the profiler's wrapper, which calls the engine's.
+    // handler is saved. The profiler built into ddtrace.so wraps it from its
+    // zend_extension startup, which runs before this capture
+    // (dd_appsec_zend_startup_last()), so ours chains over the profiler's
+    // wrapper, which calls the engine's. A handler that another extension put
+    // there before us is left alone and ours is not installed (see Coverage:
+    // gc_mem_caches() replaced first): only one in the engine's binary or in
+    // our own DSO is wrapped.
     zend_internal_function *gc_fn =
         dd_p2s_live_function(ZEND_STRL("gc_mem_caches"));
     ZEND_ASSERT(gc_fn != NULL);
-    if (gc_fn != NULL && gc_fn->handler != _gc_mem_caches) {
+    if (gc_fn != NULL && gc_fn->handler != _gc_mem_caches &&
+        _in_engine_or_ours(gc_fn->handler)) {
         _gc_mem_caches_orig = gc_fn->handler;
         gc_fn->handler = _gc_mem_caches;
     }
@@ -215,8 +222,8 @@ void dd_p2s_runtime_check_interrupt(void)
         __atomic_load_n(&zend_interrupt_function, __ATOMIC_RELAXED) ==
             _interrupt,
         &_displaced_logged_interrupt, "zend_interrupt_function",
-        "if it does not chain to ours, runtime out-of-memory errors are "
-        "not delivered before the hard limit");
+        "runtime out-of-memory errors are not delivered before the hard "
+        "limit");
 #endif
 }
 
@@ -226,7 +233,7 @@ void dd_p2s_runtime_check_gc_mem_caches(void)
     zif_handler gmc = dd_p2s_live_handler(ZEND_STRL("gc_mem_caches"));
     dd_p2s_hook_check_displaced(_gc_mem_caches_orig != NULL && gmc != NULL,
         gmc == _gc_mem_caches, &_displaced_logged_gc_mem_caches,
-        "gc_mem_caches()", "if it does not chain to ours, it may free nothing");
+        "gc_mem_caches()", "it frees nothing while a request is armed");
 #endif
 }
 
@@ -299,6 +306,23 @@ static void _call_inner(zend_execute_data *execute_data)
 #endif
 
 #ifdef DD_PHP2SHELL_WRAP_GC_MEM_CACHES
+// Whether `handler` lives in the engine's binary (PHP's own) or in our own DSO
+// (ddtrace.so, whose profiler wrapper always calls the handler it saved),
+// rather than in another extension's DSO. If unknown, assume it does.
+static bool _in_engine_or_ours(zif_handler handler)
+{
+    Dl_info fn_info;
+    Dl_info engine_info;
+    Dl_info own_info;
+    if (dladdr((void *)(uintptr_t)handler, &fn_info) == 0 ||
+        dladdr((void *)(uintptr_t)zend_mm_gc, &engine_info) == 0 ||
+        dladdr((void *)(uintptr_t)_gc_mem_caches, &own_info) == 0) {
+        return true;
+    }
+    return fn_info.dli_fbase == engine_info.dli_fbase ||
+           fn_info.dli_fbase == own_info.dli_fbase;
+}
+
 // The gc_mem_caches() wrapper (PHP 7.1-8.3). The original calls zend_mm_gc(),
 // which frees nothing on a heap with custom handlers. While our handlers are in
 // the chain of the current heap (see dd_p2s_guard_in_chain), use_custom_heap is
