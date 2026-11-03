@@ -20,7 +20,7 @@ DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_TRACE_SIDECAR_TRACE_SENDER=0
 --INI--
 datadog.trace.agent_test_session_token=span_link_event_attributes_v04_wire_native_events
@@ -30,7 +30,7 @@ serialize_precision=-1
 include __DIR__ . '/../includes/request_replayer.inc';
 $rr = new RequestReplayer();
 $rr->clearDumpedData();
-dd_trace_internal_fn('await_agent_info');
+var_dump(dd_trace_internal_fn('await_agent_info'));
 
 class Pub { public $a = 1; protected $prot = 'p'; private $priv = 'x'; }
 
@@ -65,6 +65,7 @@ var_dump($attrs["obj.a"] == ["type" => 2, "int_value" => 1]);
 var_dump($attrs["nested.k"]["type"], $attrs["nested.k"]["array_value"]["values"][0]["type"], $attrs["nested.k"]["array_value"]["values"][0]["double_value"] == 1e-5);
 ?>
 --EXPECT--
+bool(true)
 bool(true)
 bool(false)
 string(3) "evt"
