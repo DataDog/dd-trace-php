@@ -879,7 +879,16 @@ static PHP_RINIT_FUNCTION(datadog) {
 
     // Single combined read: applies env, container-hash, and concentrator config.
     datadog_apply_agent_info();
+#endif
 
+#ifdef TRACER
+    pthread_once(&dd_tracer_first_rinit_control, ddtrace_first_rinit);
+    // Before datadog_sidecar_rinit(): its Remote Config processing installs
+    // live debugger probes into the request tables initialised here.
+    ddtrace_rinit_early();
+#endif
+
+#ifdef SIDECAR
     // Do after env check, so that RC data is not updated before RC init
     DATADOG_G(request_initialized) = true;
 
@@ -887,8 +896,6 @@ static PHP_RINIT_FUNCTION(datadog) {
 #endif
 
 #ifdef TRACER
-    pthread_once(&dd_tracer_first_rinit_control, ddtrace_first_rinit);
-    ddtrace_rinit_early();
     ddtrace_rinit();
 #endif
 #ifdef PROFILING
