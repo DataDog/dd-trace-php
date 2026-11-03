@@ -92,9 +92,12 @@ void dd_php2shell_rshutdown(void);
 // disabled).
 void dd_php2shell_post_deactivate(void);
 
-// The finite memory limit to use when `limit` is below the current usage, as
-// after a deferred fatal: the usage plus the hard margin.
-size_t dd_php2shell_finite_limit(size_t limit);
+// Raise a bailing E_ERROR with `message` (through `raise`, or zend_error() if
+// NULL). Use it for every fatal raised while the usage may be above
+// memory_limit: the engine gets a finite limit instead of one below the usage.
+ZEND_COLD ZEND_NORETURN void dd_php2shell_raise_fatal(
+    void (*nullable raise)(const char *nonnull message),
+    const char *nonnull message);
 // Set the engine's limit to `limit`, or to a finite one when the usage no
 // longer fits it; returns whether `limit` was set.
 bool dd_php2shell_restore_limit(zend_long limit);

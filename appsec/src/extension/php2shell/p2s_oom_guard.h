@@ -115,6 +115,11 @@ void dd_p2s_guard_window_abort(void);
 // number of request variables dropped (logged for a window phase).
 ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     dd_deferred_phase phase, size_t dropped);
+// Raise a bailing E_ERROR (with `raise`, or zend_error() if NULL) under a
+// finite engine limit when the usage is above memory_limit.
+ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_fatal(
+    void (*nullable raise)(const char *nonnull message),
+    const char *nonnull message);
 // Arm for the whole request (appsec's RINIT, or dd_p2s_guard_reconcile).
 void dd_p2s_guard_open(void);
 // Make the request level armed or not, mid-request (worker scripts using

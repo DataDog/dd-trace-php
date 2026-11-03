@@ -16,6 +16,11 @@
 //                       php2shell_mitigation_request_status()
 //   P2S_ALLOC           one allocation of that many bytes, kept to the end
 //   P2S_ALLOC_TEMP      then one allocation of that many bytes, freed at once
+//                       (on PHP 8.4+ only after the VM interrupt check that
+//                       follows each internal call)
+//   P2S_ALLOC_COPY      then a copy of the P2S_ALLOC string, made with the
+//                       concatenation operator and freed before any VM
+//                       interrupt check
 //   P2S_USER_ERROR      then trigger_error(E_USER_ERROR) after SCRIPT RAN
 //   P2S_SHUTDOWN_ALLOC  a shutdown function allocates that many bytes
 //   P2S_SHUTDOWN_PARSE_STR
@@ -67,6 +72,14 @@ if (p2s_env('P2S_REQUEST_STATUS') !== null) {
 $s = p2s_env('P2S_ALLOC') !== null ? str_repeat('x', (int)p2s_env('P2S_ALLOC')) : '';
 if (p2s_env('P2S_ALLOC_TEMP') !== null) {
     str_repeat('t', (int)p2s_env('P2S_ALLOC_TEMP'));
+}
+if (p2s_env('P2S_ALLOC_COPY') !== null) {
+    // No call between the copy and the unset(); $n is printed so that opcache
+    // cannot drop the copy.
+    $c = $s . 'c';
+    $n = strlen($c);
+    unset($c);
+    echo "COPY len=$n\n";
 }
 p2s_safe_point();
 for ($i = 0; $i < 2; $i++) {}

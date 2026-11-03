@@ -381,12 +381,47 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     }
     // Under the finite limit, so these allocations do not bail either.
     dd_p2s_report_deferred(phase);
-    // Bail out ourselves, as zend_mm_safe_error does: a zend_error_cb that
-    // swallows E_ERROR makes zend_error() return.
-    zend_error(E_ERROR,
-        "Allowed memory size of %zu bytes exhausted " DD_P2S_DEFERRED_MARKER
-        " this to avoid heap corruption)",
-        _arm_state.breached_soft);
+#define DEFERRED_FORMAT                                                        \
+    "Allowed memory size of %zu bytes exhausted " DD_P2S_DEFERRED_MARKER       \
+    " this to avoid heap corruption)"
+    char msg[sizeof(DEFERRED_FORMAT) + MAX_LENGTH_OF_LONG];
+    (void)snprintf(msg, sizeof(msg), DEFERRED_FORMAT, _arm_state.breached_soft);
+#undef DEFERRED_FORMAT
+    dd_p2s_guard_raise_fatal(NULL, msg);
+}
+
+// Raise a bailing E_ERROR with `message` (through `raise`, or zend_error() if
+// NULL) while the usage may be above memory_limit. php_error_cb() resets the
+// engine limit to PG(memory_limit) before bailing out; before 7.4.21, and on
+// 8.0, that succeeds below the usage, and the allocator's check then fails at
+// once (7.0, 7.1) or wraps (no limit at all). So have it write the finite
+// limit, also when the usage fits memory_limit now: displaying the error can
+// run an output callback that allocates past it. That includes a memory_limit
+// of 0, which those versions accept and enforce as one chunk; only a negative
+// one (no limit) is left alone. PG(memory_limit) can outlive the request, so
+// restore it afterwards.
+// Bail out ourselves too, as zend_mm_safe_error does: a zend_error_cb that
+// swallows E_ERROR makes the raise return.
+ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_fatal(
+    void (*nullable raise)(const char *nonnull message),
+    const char *nonnull message)
+{
+    zend_long limit = PG(memory_limit);
+    if (limit >= 0) {
+        PG(memory_limit) = (zend_long)MIN(
+            dd_p2s_finite_limit((size_t)limit, zend_memory_usage(true)),
+            (size_t)ZEND_LONG_MAX);
+    }
+    zend_try
+    {
+        if (raise) {
+            raise(message);
+        } else {
+            zend_error(E_ERROR, "%s", message);
+        }
+    }
+    zend_end_try();
+    PG(memory_limit) = limit;
     zend_bailout();
 #if PHP_VERSION_ID < 80000
     __builtin_unreachable(); // _zend_bailout() is not noreturn before 8.0
