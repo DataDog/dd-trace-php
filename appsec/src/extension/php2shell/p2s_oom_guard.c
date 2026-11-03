@@ -43,7 +43,7 @@
 
 #include <ext/compatibility.h>
 #include <ext/sidecar.h>   // datadog_sidecar_ensure_telemetry_application
-#include <ext/telemetry.h> // datadog_telemetry_commit_user_request_metrics
+#include <ext/telemetry.h> // datadog_metric_*, datadog_telemetry_commit_*
 #include <php.h>
 #include <stdatomic.h>
 #include <stddef.h> // size_t
@@ -139,7 +139,7 @@ static zend_always_inline void _check_limit(size_t add_size);
 static zend_always_inline size_t _usage(void);
 static ZEND_COLD ZEND_NORETURN void _hard_abort(size_t add_size);
 static void _emit_and_flush(
-    zend_string *nullable name, const char *nullable phase);
+    zend_string *nullable name, const char *nullable phase, bool log);
 
 // ---- per-request / per-thread arming state ---------------------------------
 //
@@ -346,7 +346,7 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     // flush never runs. Flush synchronously now so the point reaches the
     // sidecar regardless (from request_parse_body() the flush is merely early).
     const char *phase_name = dd_p2s_phase_name(phase);
-    _emit_and_flush(_metric_deferred_name, phase_name);
+    _emit_and_flush(_metric_deferred_name, phase_name, true);
     if (phase != DD_PHASE_RUNTIME) {
         mlog(dd_log_warning,
             "PHP2Shell mitigation: request data parse exceeded memory_limit "
@@ -855,8 +855,10 @@ static ZEND_COLD ZEND_NORETURN void _hard_abort(size_t add_size)
     // (which bypasses request shutdown and its telemetry flush). The flush is a
     // bounded blocking IPC write to the sidecar, which survives our exit; the
     // engine still holds the sentinel limit so the small allocations it needs
-    // cannot bail. This must run before the _exit below.
-    _emit_and_flush(_metric_hard_exit_name, NULL);
+    // cannot bail. This must run before the _exit below. No log line: at debug
+    // level it can be displayed and run a user output callback, which could
+    // bail out of the allocation that got us here.
+    _emit_and_flush(_metric_hard_exit_name, NULL, false);
 
     UNUSED(fprintf(stderr,
         "[ddappsec] PHP2Shell mitigation: hard memory limit of %zu bytes "
@@ -868,12 +870,13 @@ static ZEND_COLD ZEND_NORETURN void _hard_abort(size_t add_size)
 }
 
 // Append the metric point, tagged with the mode and, if not NULL, the `phase`
-// (see dd_deferred_phase), and flush it synchronously to the sidecar. Only
-// reached on the two failure paths: the hard exit runs under the sentinel
-// limit, the deferred error under the current usage plus
-// DD_PHP2SHELL_HARD_MARGIN, so the small allocations here cannot bail.
+// (see dd_deferred_phase), and flush it synchronously to the sidecar. With
+// `log`, also log the point (dd_telemetry_add_metric). Only reached on the two
+// failure paths: the hard exit runs under the sentinel limit, the deferred
+// error under the current usage plus DD_PHP2SHELL_HARD_MARGIN, so the small
+// allocations here cannot bail.
 static void _emit_and_flush(
-    zend_string *nullable name, const char *nullable phase)
+    zend_string *nullable name, const char *nullable phase, bool log)
 {
     if (name == NULL) {
         return;
@@ -890,7 +893,13 @@ static void _emit_and_flush(
             tag_buf, sizeof(tag_buf), "mode:%s", dd_p2s_policy_mode_name());
     }
     zend_string *tags = zend_string_init(tag_buf, (size_t)n, 0);
-    dd_telemetry_add_metric(name, 1, tags, DDOG_METRIC_TYPE_COUNT);
+    if (log) {
+        dd_telemetry_add_metric(name, 1, tags, DDOG_METRIC_TYPE_COUNT);
+    } else {
+        datadog_metric_register_buffer(
+            name, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_APPSEC);
+        datadog_metric_add_point(name, 1, tags);
+    }
     zend_string_release(tags);
 
     // We may emit during request startup, before the datadog RINIT's
