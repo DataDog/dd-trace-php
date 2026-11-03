@@ -857,7 +857,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         {
             return id;
         }
-        libdd_common::threading::get_current_thread_id()
+        libdd_process_utils::threading::get_current_thread_id()
     });
 
     if system_settings.profiling_enabled {

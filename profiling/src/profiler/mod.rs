@@ -1936,14 +1936,14 @@ impl Profiler {
                         thread_id = Some(
                             context
                                 .thread_id
-                                .unwrap_or_else(libdd_common::threading::get_current_thread_id),
+                                .unwrap_or_else(libdd_process_utils::threading::get_current_thread_id),
                         );
                         local_root_span_id = context.local_root_span_id;
                         span_id = context.span_id;
                         context.unified_service_tags
                     }
                     ThreadContextRead::Inactive(tags) => {
-                        thread_id = Some(libdd_common::threading::get_current_thread_id());
+                        thread_id = Some(libdd_process_utils::threading::get_current_thread_id());
                         tags
                     }
                 }
@@ -1954,7 +1954,7 @@ impl Profiler {
                 // tracer context. Startup installs a noop if the tracer is absent.
                 let context =
                     unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
-                thread_id = Some(libdd_common::threading::get_current_thread_id());
+                thread_id = Some(libdd_process_utils::threading::get_current_thread_id());
                 local_root_span_id = context.local_root_span_id;
                 span_id = context.span_id;
                 Arc::clone(&locals.unified_service_tags)
