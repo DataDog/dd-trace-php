@@ -21,12 +21,12 @@ RUN for DIR in /opt/php/*; do (echo "zend_extension=opcache.so"; echo "opcache.e
 
 # Igbinary
 RUN set -eux; \
-    pecl install "igbinary"; \
+    pecl install "igbinary-3.2.17RC1"; \
     for DIR in /opt/php/*; do echo "extension=igbinary.so" > $DIR/conf.d/igbinary.ini; done
 
 # Memached
 RUN set -eux; \
-    printf 'yes' | pecl install "memcached"; \
+    printf 'yes' | pecl install "memcached-3.4.0"; \
     for DIR in /opt/php/*; do echo "extension=memcached.so" > $DIR/conf.d/memcached.ini; done
 
 # Redis, pinned: 6.1+ needs PHP 7.4 and 6.3 no longer builds with CentOS 7's GCC 4.8
