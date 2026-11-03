@@ -6,6 +6,7 @@
 #include "body_parser.h"
 #include "ddappsec.h"
 #include "logging.h"
+#include "php2shell_mitigation.h"
 #include "php_objects.h"
 #include "tracer_bridge.h"
 #include <alloc.h>
@@ -16,6 +17,7 @@ struct _parser_alloc_context {
     bool limit_exceeded; // preflight failure; PHP has no deferred OOM queued
 };
 
+static ZEND_COLD ZEND_NORETURN void _raise_limit_exceeded(void);
 static void _log_result(const char *nonnull kind, ddog_AppsecBodyStatus status);
 static uint8_t *nullable _parser_allocate(void *nonnull context, size_t size);
 static void _parser_free(uint8_t *nonnull ptr);
@@ -50,8 +52,7 @@ ddog_AppsecBodyMessagePack dd_parse_json_truncated(
         zend_bailout();
     }
     if (context.limit_exceeded) {
-        zend_error_noreturn(
-            E_ERROR, "AppSec body parser exceeded the memory limit");
+        _raise_limit_exceeded();
     }
     _log_result("JSON", body.status);
     return body;
@@ -71,11 +72,18 @@ ddog_AppsecBodyMessagePack dd_parse_xml_truncated(
         zend_bailout();
     }
     if (context.limit_exceeded) {
-        zend_error_noreturn(
-            E_ERROR, "AppSec body parser exceeded the memory limit");
+        _raise_limit_exceeded();
     }
     _log_result("XML", body.status);
     return body;
+}
+
+// In appsec's armed RINIT, an earlier crossing (the body read) can leave the
+// usage above memory_limit, with the error pending.
+static void _raise_limit_exceeded(void)
+{
+    dd_php2shell_raise_fatal(
+        NULL, "AppSec body parser exceeded the memory limit");
 }
 
 #ifdef TESTING

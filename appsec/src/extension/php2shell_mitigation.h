@@ -66,18 +66,23 @@ void dd_php2shell_set_waf_decision(const char *nonnull value, size_t len);
 const char *nullable dd_php2shell_vulnerable_value(void);
 
 // On PHP 7.1+, if the mitigation is active, install the Zend MM handlers for
-// the request and arm it until dd_php2shell_rshutdown(). Called at the end of
-// PHP_RINIT, after appsec's enabled state is resolved and remote config
-// applied (and dd_php2shell_set_allowed() called for them).
+// the request and arm it until dd_php2shell_rshutdown(). Called in PHP_RINIT
+// once appsec is known not to be fully disabled, before the helper exchange,
+// so it follows the previous request's WAF decision.
 void dd_php2shell_rinit(void);
 
+// At the end of PHP_RINIT: arm or disarm the request level to follow this
+// request's WAF decision and the gate as remote config left it.
+void dd_php2shell_rinit_end(void);
+
 // In FrankenPHP worker mode, at the start of each HTTP request (after its
-// request_init): arm or disarm the request level to follow the WAF decision,
-// as dd_php2shell_rinit() does once per PHP request otherwise.
+// request_init): the same, for that HTTP request.
 void dd_php2shell_user_req_begin(void);
 
 // Disarm the request and remove the handlers dd_php2shell_rinit() installed,
-// if the slot still holds them. Called at the start of PHP_RSHUTDOWN.
+// if the slot still holds them. Called at the start of PHP_RSHUTDOWN, and in
+// PHP_RINIT before a block or a fatal error ends it (on php-fpm and FrankenPHP
+// a block returns into PHP_RINIT, and dd_php2shell_rinit_end() arms again).
 void dd_php2shell_rshutdown(void);
 
 // Settle the request-level Zend MM handlers from the slot (reset the heap to

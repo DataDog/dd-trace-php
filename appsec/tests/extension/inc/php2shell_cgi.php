@@ -381,8 +381,11 @@ function p2s_multipart_env($boundary) {
 // before them (so its RSHUTDOWN runs after AppSec's). $opts['stdout']: a file to
 // send the child's stdout to instead (e.g. /dev/full; 'out' is then empty).
 // $opts['binary']: run this executable instead of php-cgi (e.g.
-// TEST_PHP_EXECUTABLE, the CLI; the script then goes in $args). Returns
-// ['out' => stdout, 'err' => stderr, 'status' => exit status].
+// TEST_PHP_EXECUTABLE, the CLI; the script then goes in $args).
+// $opts['helper']: a mock helper from p2s_mock_helper_start(), whose socket
+// the child gets as fd 3 (MOCK_HELPER_FD): AppSec's own RINIT and RSHUTDOWN
+// then exchange with it. Returns ['out' => stdout, 'err' => stderr,
+// 'status' => exit status].
 function p2s_cgi_run(array $ini = [], array $args = [], array $env = [], $body = null, array $opts = []) {
     $binary = isset($opts['binary']) ? $opts['binary'] : getenv('TEST_PHP_CGI_EXECUTABLE');
     $cmd = escapeshellarg($binary) . ' ';
@@ -414,6 +417,11 @@ function p2s_cgi_run(array $ini = [], array $args = [], array $env = [], $body =
     foreach ($env as $k => $v) {
         $child_env[$k] = $v;
     }
+    $fds = [];
+    if (isset($opts['helper'])) {
+        $fds[3] = $opts['helper']['sock'];
+        $child_env['MOCK_HELPER_FD'] = '3';
+    }
 
     // stdout/stderr go to files, so a large stdin write can never dead-lock
     // against a child blocked on a full output pipe.
@@ -423,7 +431,7 @@ function p2s_cgi_run(array $ini = [], array $args = [], array $env = [], $body =
         0 => ['pipe', 'r'],
         1 => ['file', isset($opts['stdout']) ? $opts['stdout'] : $out_file, 'w'],
         2 => ['file', $err_file, 'w'],
-    ], $pipes, null, $child_env);
+    ] + $fds, $pipes, null, $child_env);
     if (!is_resource($proc)) {
         return ['out' => '', 'err' => "proc_open failed: $cmd", 'status' => -1];
     }
@@ -461,6 +469,57 @@ function p2s_base_env() {
         unset($env[$k]);
     }
     return $env;
+}
+
+// ---- mock helper for a child's own RINIT -------------------------------------
+
+// Start the mock helper (continuous mode) with a client_init answer followed
+// by $responses (response_list() items of mock_helper.php), for one child of
+// p2s_cgi_run() ($opts['helper']). Returns ['proc', 'sock', 'cmds'].
+function p2s_mock_helper_start(array $responses) {
+    require_once __DIR__ . '/mock_helper.php';
+    $empty = new ArrayObject();
+    array_unshift($responses, response_list(response_client_init(
+        ['ok', phpversion('ddtrace'), [], $empty, $empty, null])));
+    $cmd = escapeshellarg(getenv('MOCK_HELPER_BINARY'));
+    $lock = sys_get_temp_dir() . '/p2s_mock_' . getmypid() . '.lock';
+    $cmd .= ' --continuous --lock ' . escapeshellarg($lock);
+    foreach ($responses as $r) {
+        $cmd .= ' ' . escapeshellarg(json_encode($r));
+    }
+    $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+    $proc = proc_open($cmd, [
+        0 => ['pipe', 'r'],
+        1 => ['file', '/dev/null', 'w'],
+        2 => ['file', '/dev/null', 'w'],
+        3 => $pair[1],
+        4 => ['pipe', 'w'],
+    ], $pipes, null, ['GLOG_logtostderr' => '1']);
+    fclose($pair[1]);
+    // The helper holds the lock once it serves.
+    $h = fopen($lock, 'c');
+    for ($i = 0; $i < 50 && flock($h, LOCK_EX | LOCK_NB); $i++) {
+        flock($h, LOCK_UN);
+        usleep(100000);
+    }
+    fclose($h);
+    return ['proc' => $proc, 'sock' => $pair[0], 'cmds' => $pipes[4], 'stdin' => $pipes[0]];
+}
+
+// Stop the mock helper. Returns the names of the commands it received.
+function p2s_mock_helper_stop(array $h) {
+    fclose($h['sock']);
+    fclose($h['stdin']);
+    stream_set_blocking($h['cmds'], false);
+    $names = [];
+    foreach (array_filter(explode("\0", (string)stream_get_contents($h['cmds'])), 'strlen') as $c) {
+        $j = json_decode($c, true);
+        $names[] = is_array($j) && isset($j[0]) && is_string($j[0]) ? $j[0] : '?';
+    }
+    fclose($h['cmds']);
+    proc_terminate($h['proc']);
+    proc_close($h['proc']);
+    return $names;
 }
 
 // ---- built-in web server (php -S) -------------------------------------------

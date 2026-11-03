@@ -179,28 +179,45 @@ void dd_appsec_rinit(void)
     DDAPPSEC_G(skip_rshutdown) = false;
     dd_msgpack_helpers_rinit();
 
-    // Waf calls happen here. Not many rinits should go after this line.
-    dd_req_lifecycle_rinit(false);
+    // Arm the PHP2Shell mitigation for the request from here, with the
+    // previous request's WAF decision, so that a memory error in our own work
+    // below (the helper exchange, the tracer tags its reply adds) is deferred.
+    // Inside our RINIT: LIFO with the profiler, whose RINIT (installing its
+    // Zend MM handlers) ran earlier in this module RINIT and whose RSHUTDOWN
+    // (removing them) runs later.
+    dd_php2shell_rinit();
 
-    if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
-        if (get_global_DD_APPSEC_TESTING_ABORT_RINIT()) {
-            const char *pt = SG(request_info).path_translated;
-            if (pt && !strstr(pt, "skip.php")) {
-                dd_request_abort_static_page(&(struct block_params){0});
+    zend_try
+    {
+        // Waf calls happen here. Not many rinits should go after this line.
+        dd_req_lifecycle_rinit(false);
+
+        if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
+            if (get_global_DD_APPSEC_TESTING_ABORT_RINIT()) {
+                const char *pt = SG(request_info).path_translated;
+                if (pt && !strstr(pt, "skip.php")) {
+                    dd_request_abort_static_page(&(struct block_params){0});
+                }
             }
         }
     }
+    zend_catch
+    {
+        // A fatal error: take our handlers off before leaving RINIT, as
+        // RSHUTDOWN would (a block already did, see _emit_error).
+        dd_php2shell_rshutdown();
+        zend_bailout();
+    }
+    zend_end_try();
 
-    // Arm the PHP2Shell mitigation for the request. Last, so that it sees the
-    // gate as remote config left it, and LIFO with the profiler, whose RINIT
-    // (installing its Zend MM handlers) runs earlier in this module RINIT and
-    // whose RSHUTDOWN (removing them) runs later.
-    dd_php2shell_rinit();
+    // Follow this request's WAF decision and the gate as remote config left
+    // it.
+    dd_php2shell_rinit_end();
 }
 
 void dd_appsec_rshutdown_hook(void)
 {
-    // First, mirroring dd_php2shell_rinit() at the end of RINIT.
+    // First, mirroring dd_php2shell_rinit() in RINIT.
     dd_php2shell_rshutdown();
 
     // Here now we have to disconnect from the helper in all the cases but when

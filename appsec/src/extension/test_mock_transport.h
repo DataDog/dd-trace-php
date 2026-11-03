@@ -13,6 +13,11 @@
 // before touching the real sidecar.
 extern bool dd_testing_send_active;
 
+// True when the process was started with MOCK_HELPER_FD, the mock helper's
+// socket: the automatic request init and shutdown then talk to it, as they
+// would to the helper outside testing.
+extern bool dd_testing_mock_lifecycle;
+
 // Drop-in for ddog_sidecar_send_appsec_message used in phpt tests.
 // Connects directly to the mock_helper Unix socket and performs the same framed
 // request/response exchange the real sidecar would.

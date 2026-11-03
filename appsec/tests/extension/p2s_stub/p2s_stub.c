@@ -34,6 +34,11 @@
 //                       (an observation device: a real module's RINIT would
 //                       fail the request startup). Prints
 //                       "P2S_STUB RINIT alloc bailed=0|1" to stderr;
+//   p2s_stub.rinit_pad=N
+//                       in RINIT, allocate one block that brings real usage to
+//                       N bytes, kept until post_deactivate. Loaded before
+//                       ddtrace.so, this runs before AppSec's RINIT. Prints
+//                       "P2S_STUB RINIT usage=<real usage>";
 //   p2s_stub.rshutdown_alloc=N
 //                       the same in RSHUTDOWN. Loaded before ddtrace.so, this
 //                       runs after AppSec's RSHUTDOWN restored memory_limit.
@@ -87,6 +92,16 @@
 //                       zend_deactivate(), before every post_deactivate) only
 //                       if they are on top, else give up, as the profiler's
 //                       fallback does;
+//   p2s_stub.rinit_mm=1
+//                       stand in for the allocation profiler's handlers as its
+//                       RINIT installs them: forwarding Zend MM handlers
+//                       installed in RINIT, over whatever the slot holds, and
+//                       removed by the first of RSHUTDOWN, the zend_extension
+//                       deactivate hook and MSHUTDOWN to run, only if they
+//                       are on top, else given up, as the profiler's checks
+//                       do. Loaded before ddtrace.so, the stub's handlers sit
+//                       below AppSec's. Prints
+//                       "P2S_STUB <where> mm restored|gave_up";
 //   p2s_stub_retain($object)
 //                       a PHP function that keeps a reference to $object
 //                       until this stub's post_deactivate releases it, as
@@ -217,6 +232,7 @@ static void _interrupt(zend_execute_data *execute_data);
 #endif
 static ZEND_NAMED_FUNCTION(_gc_mem_caches);
 static void _alloc_report(const char *where, size_t size);
+static void _rinit_mm_remove(const char *where);
 static int _sapi_deactivate(void);
 static void _release_held(void);
 static void _gc_install(void);
@@ -251,6 +267,8 @@ static bool _post_deactivate_error;
 static bool _error_cb_swallow;
 static void (*_prev_error_cb)(P2S_ERROR_CB_PARAMS);
 static size_t _rinit_alloc;
+static size_t _rinit_pad;
+static bool _rinit_mm;
 static size_t _rshutdown_alloc;
 static size_t _rshutdown_pad;
 static size_t _post_deactivate_alloc;
@@ -312,6 +330,8 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("p2s_stub.post_deactivate_error", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.error_cb_swallow", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_alloc", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.rinit_pad", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.rinit_mm", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_pad", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.post_deactivate_alloc", "0", PHP_INI_SYSTEM, NULL)
@@ -402,6 +422,9 @@ static PHP_MINIT_FUNCTION(p2s_stub)
         zend_ini_long(ZEND_STRL("p2s_stub.error_cb_swallow"), 0) != 0;
     zend_long rinit_alloc = zend_ini_long(ZEND_STRL("p2s_stub.rinit_alloc"), 0);
     _rinit_alloc = rinit_alloc > 0 ? (size_t)rinit_alloc : 0;
+    zend_long rinit_pad = zend_ini_long(ZEND_STRL("p2s_stub.rinit_pad"), 0);
+    _rinit_pad = rinit_pad > 0 ? (size_t)rinit_pad : 0;
+    _rinit_mm = zend_ini_long(ZEND_STRL("p2s_stub.rinit_mm"), 0) != 0;
     zend_long rshutdown_alloc =
         zend_ini_long(ZEND_STRL("p2s_stub.rshutdown_alloc"), 0);
     _rshutdown_alloc = rshutdown_alloc > 0 ? (size_t)rshutdown_alloc : 0;
@@ -444,7 +467,8 @@ static PHP_MINIT_FUNCTION(p2s_stub)
         _prev_error_cb = zend_error_cb;
         zend_error_cb = _error_cb;
     }
-    if (_startup_mode || _activate_mm || _mm_drop || _gc_mode == 2) {
+    if (_startup_mode || _activate_mm || _mm_drop || _rinit_mm ||
+        _gc_mode == 2) {
         // As ddtrace does: hand the DSO handle to the zend_extension, so the
         // library stays mapped until the zend_extension list is destroyed,
         // after module shutdown.
@@ -482,6 +506,7 @@ static PHP_MSHUTDOWN_FUNCTION(p2s_stub)
         zend_interrupt_function = _prev_interrupt;
     }
 #endif
+    _rinit_mm_remove("MSHUTDOWN");
     if (_mm.installed && _mm_on_top()) {
         _mm_reset();
     }
@@ -498,6 +523,17 @@ static PHP_RINIT_FUNCTION(p2s_stub)
         fflush(stderr);
         zend_bailout();
     }
+    if (_rinit_mm) {
+        _mm_install();
+    }
+    if (_rinit_pad > 0) {
+        size_t usage = zend_memory_usage(true);
+        if (_rinit_pad > usage + 4096) {
+            _pad = emalloc(_rinit_pad - usage - 4096);
+        }
+        fprintf(stderr, "P2S_STUB RINIT usage=%zu\n", zend_memory_usage(true));
+        fflush(stderr);
+    }
     if (_rinit_alloc > 0) {
         _alloc_report("RINIT", _rinit_alloc);
     }
@@ -508,6 +544,7 @@ static PHP_RSHUTDOWN_FUNCTION(p2s_stub)
 {
     (void)type;
     (void)module_number;
+    _rinit_mm_remove("RSHUTDOWN");
     if (_mm.installed && !_activate_mm && !_mm_keep && _mm_on_top()) {
         _mm_restore();
     }
@@ -525,6 +562,23 @@ static PHP_RSHUTDOWN_FUNCTION(p2s_stub)
         zend_bailout();
     }
     return SUCCESS;
+}
+
+// p2s_stub.rinit_mm: remove the handlers RINIT installed if they are on top,
+// else give them up, and print which.
+static void _rinit_mm_remove(const char *where)
+{
+    if (!_rinit_mm || !_mm.installed) {
+        return;
+    }
+    bool on_top = _mm_on_top();
+    if (on_top) {
+        _mm_restore();
+    }
+    _mm.installed = false;
+    fprintf(stderr, "P2S_STUB %s mm %s\n", where,
+        on_top ? "restored" : "gave_up");
+    fflush(stderr);
 }
 
 // Allocate (and free) `size` bytes inside a zend_try and print whether a
@@ -757,6 +811,7 @@ static void _deactivate(void)
     if (_activate_mm && _mm.installed && _mm_on_top()) {
         _mm_restore();
     }
+    _rinit_mm_remove("deactivate");
 }
 
 static void _mm_install(void)
