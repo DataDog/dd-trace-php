@@ -35,13 +35,12 @@
 // turns use_custom_heap off around the original (see _gc_mem_caches). An error
 // still pending at RSHUTDOWN is dropped. This covers our RINIT to our
 // RSHUTDOWN, which includes all user code (shutdown functions and destructors
-// run before any RSHUTDOWN); see Coverage: Outside RINIT..RSHUTDOWN. In a
-// worker script using ddtrace's user-request API (FrankenPHP, RoadRunner,
-// Ratchet) one PHP request spans every HTTP request, so the request level also
-// follows each HTTP request's WAF decision when that request starts (see
-// dd_p2s_runtime_user_req_begin): it is opened, armed again or disarmed there,
-// and the handlers stay until the worker's RSHUTDOWN. PHP 7.0, without
-// EG(vm_interrupt), has only the windows.
+// run before any RSHUTDOWN); see Coverage: Outside RINIT..RSHUTDOWN. In
+// FrankenPHP worker mode one PHP request spans every HTTP request, so the
+// request level also follows each HTTP request's WAF decision when that
+// request starts (see dd_p2s_runtime_user_req_begin): it is opened, armed
+// again or disarmed there, and the handlers stay until the worker's RSHUTDOWN.
+// PHP 7.0, without EG(vm_interrupt), has only the windows.
 
 #include "p2s_runtime.h"
 
