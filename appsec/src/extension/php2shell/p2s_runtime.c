@@ -5,21 +5,23 @@
 // (https://www.datadoghq.com/). Copyright 2026 Datadog, Inc.
 
 // Request level. On PHP 7.1+, whenever the mitigation is active, the heap is
-// also armed for the request itself: our Zend MM handlers are installed at the
-// end of appsec's RINIT and removed at the start of appsec's RSHUTDOWN, only if
-// the slot still holds them (see dd_p2s_runtime_rinit). That is LIFO with the
-// profiler, which installs in its part of the ddtrace RINIT, before appsec's,
-// and removes in its part of the RSHUTDOWN, after appsec's. Between the two,
-// the slot is never written; only the
-// bools change. If another extension's handlers are on top at our RSHUTDOWN,
-// they chain to ours: the slot is left alone and the handlers stay in the
-// chain, so later windows and RINITs only arm them (see _remove_handlers).
-// How post_deactivate and MSHUTDOWN settle them, and how they are armed again,
-// is described at the top of p2s_oom_guard.c (_remove_handlers,
-// _request_hard_limit and _follow_limit are there too). A startup window,
-// before RINIT, installs and removes its own handlers and hands nothing over;
-// a request_parse_body() window nests inside the request level, with its own
-// limits, and installs nothing (see
+// also armed for the request itself: our Zend MM handlers are installed early
+// in appsec's RINIT, armed with the previous request's WAF decision and
+// reconciled with this request's at its end, and removed at the start of
+// appsec's RSHUTDOWN (or in its RINIT before a block or a fatal error ends it),
+// only if the slot still holds them (see dd_p2s_runtime_rinit,
+// dd_p2s_runtime_reconcile). That is LIFO with the profiler, which installs in
+// its part of the ddtrace RINIT, before appsec's, and removes in its part of
+// the RSHUTDOWN, after appsec's. Between the two, the slot is never written;
+// only the bools change. If another extension's handlers are on top at our
+// RSHUTDOWN, they chain to ours: the slot is left alone and the handlers stay
+// in the chain, so later windows and RINITs only arm them (see
+// _remove_handlers). How post_deactivate and MSHUTDOWN settle them, and how
+// they are armed again, is described at the top of p2s_oom_guard.c
+// (_remove_handlers, _request_hard_limit and _follow_limit are there too). A
+// startup window, before RINIT, installs and removes its own handlers and hands
+// nothing over; a request_parse_body() window nests inside the request level,
+// with its own limits, and installs nothing (see
 // dd_p2s_guard_window_begin). Outside a window, S is memory_limit and the hard
 // limit is max(L, S + 8 MiB), with L upstream's limit (see
 // _request_hard_limit). A soft-limit crossing outside a window makes the error
@@ -38,9 +40,11 @@
 // run before any RSHUTDOWN); see Coverage: Outside RINIT..RSHUTDOWN. In
 // FrankenPHP worker mode one PHP request spans every HTTP request, so the
 // request level also follows each HTTP request's WAF decision when that
-// request starts (see dd_p2s_runtime_user_req_begin): it is opened, armed
+// request starts (see dd_p2s_runtime_reconcile): it is opened, armed
 // again or disarmed there, and the handlers stay until the worker's RSHUTDOWN.
-// PHP 7.0, without EG(vm_interrupt), has only the windows.
+// On php-fpm and FrankenPHP a block in appsec's RINIT returns into it after
+// removing the handlers, and the end of that RINIT installs and arms them
+// again. PHP 7.0, without EG(vm_interrupt), has only the windows.
 
 #include "p2s_runtime.h"
 
@@ -160,18 +164,19 @@ void dd_p2s_runtime_uninstall(void)
 #endif
 }
 
-// Called at the end of appsec's RINIT (dd_php2shell_rinit()), after remote
-// config has been applied.
+// Called early in appsec's RINIT (dd_php2shell_rinit()), before its helper
+// exchange, so that a memory error there is deferred too.
 void dd_p2s_runtime_rinit(void)
 {
 #ifdef DD_PHP2SHELL_HAVE_INTERRUPT
     _in_inner = false;
-    // The gate is read here, after remote config and this request's WAF
-    // decision (request_init) had their say in this RINIT.
-    // Startup windows removed their handlers when they ended, so the slot
-    // holds what the profiler (or nobody) put there; or our handlers are
-    // still chained under another extension's since an earlier request, and
-    // are only armed (see _ensure_handlers in p2s_oom_guard.c).
+    // The gate and WAF decision are the previous request's (pending, which
+    // arms, on a new thread); dd_p2s_runtime_reconcile() applies this
+    // request's at the end of RINIT. Startup windows removed their handlers
+    // when they ended, so the slot holds what the profiler (or nobody) put
+    // there; or our handlers are still chained under another extension's since
+    // an earlier request, and are only armed (see _ensure_handlers in
+    // p2s_oom_guard.c).
     if (!dd_p2s_policy_armed() || !dd_p2s_guard_available()) {
         return;
     }
@@ -179,12 +184,13 @@ void dd_p2s_runtime_rinit(void)
 #endif
 }
 
-// Called at the start of each HTTP request in a worker script using ddtrace's
-// user-request API (dd_php2shell_user_req_begin()), after its request_init
-// applied the WAF decision. Opens the request level if RINIT did not;
-// otherwise only flags change (see dd_p2s_guard_reconcile). The handlers stay
-// until the worker's RSHUTDOWN.
-void dd_p2s_runtime_user_req_begin(void)
+// Called at the end of appsec's RINIT (dd_php2shell_rinit_end()), after remote
+// config and request_init, and at the start of each HTTP request in a worker
+// script using ddtrace's user-request API (dd_php2shell_user_req_begin()),
+// after its request_init applied the WAF decision. Opens the request level if
+// it is not open; otherwise only flags change (see dd_p2s_guard_reconcile).
+// The handlers stay until RSHUTDOWN.
+void dd_p2s_runtime_reconcile(void)
 {
 #ifdef DD_PHP2SHELL_HAVE_INTERRUPT
     _in_inner = false;

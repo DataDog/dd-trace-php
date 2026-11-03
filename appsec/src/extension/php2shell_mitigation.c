@@ -48,10 +48,11 @@
 // reported on the span, on a full runtime only: see Coverage: Monitor on a
 // partial runtime) or block (armed). The decision is per thread and sticky: it
 // starts pending, which arms as block does, and only an explicit answer changes
-// it. It applies from the request_init that brought it: to that request's
-// arming at RINIT, and in FrankenPHP worker mode, where one PHP request spans
-// every HTTP request, to the request level at the start of each HTTP request
-// (see dd_p2s_runtime_user_req_begin). The mode on arms whatever the WAF says
+// it. It applies from the request_init that brought it: at the end of that
+// request's RINIT, armed until then with the previous decision, and in
+// FrankenPHP worker mode, where one PHP request spans every HTTP request, to
+// the request level at the start of each HTTP request (see
+// dd_p2s_runtime_reconcile). The mode on arms whatever the WAF says
 // and sends nothing; off, and auto on a patched runtime, send nothing (see
 // php2shell/p2s_policy.c and Coverage: WAF decision). The helper evaluates the
 // address in a WAF run of its own, without a timeout, and keeps the rule's
@@ -116,12 +117,17 @@
 //     reads. No destructor runs after a fatal error. Builders with
 //     zend_string keys (unserialize, json_decode, array_*, VM writes) do not
 //     have the bug.
-//   - Outside RINIT..RSHUTDOWN: the request level spans our RINIT to our
-//     RSHUTDOWN. The tracer's and the profiler's parts of the ddtrace RINIT,
-//     which run before ours, the RINITs of extensions loaded before
-//     ddtrace.so, and RSHUTDOWNs that run after ours are unarmed, notably
-//     session write (the session module is built in, so its RSHUTDOWN runs
-//     after ours), as are output handlers flushed after our RSHUTDOWN.
+//   - Outside RINIT..RSHUTDOWN: the request level spans our RINIT (its helper
+//     exchange included) to our RSHUTDOWN. A block in our RINIT ends it first,
+//     as our RSHUTDOWN does, so appsec's request shutdown and the RSHUTDOWNs
+//     that the block runs there are unarmed. On php-fpm and FrankenPHP a block
+//     returns into our RINIT instead, whose end arms the request level again
+//     until our RSHUTDOWN, lifting the limit that appsec's request shutdown
+//     set. The tracer's and the profiler's parts of the ddtrace RINIT, which
+//     run before ours, the RINITs of extensions loaded before ddtrace.so, and
+//     RSHUTDOWNs that run after ours are unarmed, notably session write (the
+//     session module is built in, so its RSHUTDOWN runs after ours), as are
+//     output handlers flushed after our RSHUTDOWN.
 //   - After a deferred fatal: the request is disarmed, so shutdown functions
 //     run unarmed, under max(memory_limit, usage at the raise + 8 MiB) (see
 //     dd_p2s_guard_raise_fatal).
@@ -192,15 +198,15 @@
 //     not see the pool env[] values. appsec's own configuration behaves the
 //     same way.
 //   - WAF decision: it reaches the thread from a request's RINIT
-//     (request_init), so that request's startup parse follows the previous
-//     decision, and a new process or thread (each php-fpm worker, each ZTS
-//     thread, which converge separately) arms its first startup parse
-//     whatever the ruleset says. No answer (appsec not active, the
-//     helper unreachable, an error, an older helper) keeps the last decision.
-//     A remote-config ruleset without the rule answers none and disarms.
-//     In FrankenPHP worker mode, each HTTP request's request_init (when its
-//     handler is called) arms or disarms the request level for it: the
-//     superglobals FrankenPHP re-imports for it, before that call, and the
+//     (request_init), so that request's startup parse and its RINIT up to the
+//     reply follow the previous decision, and a new process or thread (each
+//     php-fpm worker, each ZTS thread, which converge separately) arms its
+//     first startup parse whatever the ruleset says. No answer (appsec not
+//     active, the helper unreachable, an error, an older helper) keeps the last
+//     decision. A remote-config ruleset without the rule answers none and
+//     disarms. In FrankenPHP worker mode, each HTTP request's request_init
+//     (when its handler is called) arms or disarms the request level for it:
+//     the superglobals FrankenPHP re-imports for it, before that call, and the
 //     worker script's code between HTTP requests follow the previous HTTP
 //     request's decision (see dd_p2s_guard_reconcile; a pending error is
 //     still raised, at the next VM interrupt outside the tracer's hook
@@ -330,23 +336,23 @@
 //     the hard limit. An interrupt while that code runs (a timer, a second
 //     signal) raises at once instead of running them again. Not inside the
 //     tracer's sandbox (EH_THROW: its hook closures), which would swallow it:
-//     the rest of the closure runs on, and each allocation, whatever the
-//     usage, asks for the interrupt again (see _interrupt in p2s_runtime.c;
-//     and Coverage: Tracer hook closure). So the error can come late (code
-//     after the closure that does not allocate runs on); raised after the HTTP
-//     request's span is finished (e.g. a FrankenPHP request the WAF blocks:
-//     its handler never runs and both hook closures are sandboxed), it is not
+//     the rest of the closure runs on, and each allocation, whatever the usage,
+//     asks for the interrupt again (see _interrupt in p2s_runtime.c; and
+//     Coverage: Tracer hook closure). So the error can come late (code after
+//     the closure that does not allocate runs on); raised after the HTTP
+//     request's span is finished (e.g. a FrankenPHP request the WAF blocks: its
+//     handler never runs and both hook closures are sandboxed), it is not
 //     tagged and the trace not kept. Internal functions that set EH_THROW
-//     around a callback into userland delay it the same way. A crossing in a
-//     module RINIT that runs after ours is raised at the script's first
-//     interrupt (EG(vm_interrupt) is reset only in init_executor(), before the
-//     RINITs), where stock PHP would fail the request startup instead. An
-//     error pending with no later interrupt (other modules' RSHUTDOWN, output
-//     handlers, session write, the end of the script, after EG(active) = 0) is
-//     dropped: the request succeeds within the hard limit. A timeout pending
-//     at the same time wins (see Coverage: Timeout at the same interrupt).
-//     Coroutine runtimes (Swow, Swoole) can delay the raise by one scheduling
-//     slice.
+//     around a callback into userland delay it the same way. A crossing in our
+//     RINIT or in a module RINIT that runs after ours is raised at the script's
+//     first interrupt (EG(vm_interrupt) is reset only in init_executor(),
+//     before the RINITs), where stock PHP would fail the request startup
+//     instead (or, on a partial runtime, end the process). An error pending
+//     with no later interrupt (other modules' RSHUTDOWN, output handlers,
+//     session write, the end of the script, after EG(active) = 0) is dropped:
+//     the request succeeds within the hard limit. A timeout pending at the same
+//     time wins (see Coverage: Timeout at the same interrupt). Coroutine
+//     runtimes (Swow, Swoole) can delay the raise by one scheduling slice.
 //   - Limit after a dropped error: memory_limit is restored when the request
 //     is disarmed (at our RSHUTDOWN, or in post_deactivate after a skipped
 //     one) and again by appsec's request shutdown. With usage above it
@@ -536,7 +542,9 @@ const char *nullable dd_php2shell_vulnerable_value(void)
 
 void dd_php2shell_rinit(void) { dd_p2s_runtime_rinit(); }
 
-void dd_php2shell_user_req_begin(void) { dd_p2s_runtime_user_req_begin(); }
+void dd_php2shell_rinit_end(void) { dd_p2s_runtime_reconcile(); }
+
+void dd_php2shell_user_req_begin(void) { dd_p2s_runtime_reconcile(); }
 
 void dd_php2shell_rshutdown(void) { dd_p2s_runtime_rshutdown(); }
 

@@ -19,10 +19,11 @@ void dd_p2s_runtime_install(void);
 // Restore the slots that still hold our wrappers, and forget the captured
 // handlers.
 void dd_p2s_runtime_uninstall(void);
-// Arm the request, if the mitigation is active (appsec's RINIT).
+// Arm the request, if the mitigation is active (early in appsec's RINIT).
 void dd_p2s_runtime_rinit(void);
-// Follow the WAF decision at each HTTP request of a worker (FrankenPHP).
-void dd_p2s_runtime_user_req_begin(void);
+// Follow the WAF decision at the end of appsec's RINIT and at each HTTP
+// request of a worker (FrankenPHP).
+void dd_p2s_runtime_reconcile(void);
 // End the request level (appsec's RSHUTDOWN). On every version.
 void dd_p2s_runtime_rshutdown(void);
 // Reset per-request state (post_deactivate, before the gate).

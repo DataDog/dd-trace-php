@@ -17,6 +17,7 @@
 #include "string_helpers.h"
 #include "tags.h"
 #include "telemetry.h"
+#include "test_mock_transport.h"
 #include "tracer_bridge.h"
 #include <ext/compatibility.h>
 
@@ -47,6 +48,7 @@ const zend_array *nonnull _get_server_equiv(
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     dd_api_sec_outcome *nonnull outcome);
 static void _register_testing_objects(void);
+static bool _testing_mock_lifecycle(void);
 
 static bool _enabled_user_req;
 static zend_string *_server_zstr;
@@ -112,7 +114,8 @@ void dd_req_lifecycle_rinit(bool force)
         return;
     }
 
-    if (get_global_DD_APPSEC_TESTING() && !force) {
+    if (get_global_DD_APPSEC_TESTING() && !force &&
+        !_testing_mock_lifecycle()) {
         mlog(dd_log_debug, "Skipping automatic request init in testing");
         if (!_enabled_user_req) {
             _set_cur_span(dd_trace_get_active_root_span());
@@ -352,7 +355,8 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
         return;
     }
 
-    if (get_global_DD_APPSEC_TESTING() && !force) {
+    if (get_global_DD_APPSEC_TESTING() && !force &&
+        !_testing_mock_lifecycle()) {
         mlog_g(dd_log_debug, "Skipping automatic request shutdown in testing");
         _reset_globals();
         return;
@@ -683,7 +687,8 @@ static zend_array *nullable _start_user_req(
     zend_array *spec = _do_request_begin_user_req(rbe_zv);
     // In worker mode one PHP request spans every HTTP request, so the
     // PHP2Shell request level follows this HTTP request's WAF decision
-    // (applied by request_init above) here, as RINIT does otherwise.
+    // (applied by request_init above) here, as the end of RINIT does
+    // otherwise.
     dd_php2shell_user_req_begin();
     return spec;
 }
@@ -1286,4 +1291,15 @@ static void _register_testing_objects(void)
         return;
     }
     dd_phpobj_reg_funcs(functions);
+}
+
+// Whether the automatic request init and shutdown run in testing: only with
+// the mock helper's socket handed to the process (see test_mock_transport.h).
+static bool _testing_mock_lifecycle(void)
+{
+#ifdef TESTING
+    return dd_testing_mock_lifecycle;
+#else
+    return false;
+#endif
 }
