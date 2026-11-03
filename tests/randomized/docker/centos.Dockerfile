@@ -1,6 +1,7 @@
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
 ARG PHP_MAJOR_MINOR
 
-FROM datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_centos-7-3
+FROM ${CI_REGISTRY_IMAGE}:php-${PHP_MAJOR_MINOR}_centos-7-3
 
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo

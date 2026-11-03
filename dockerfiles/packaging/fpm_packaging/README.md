@@ -1,8 +1,6 @@
 ## Build for x86_64
 
-Push a new `-N` tag for each rebuild and add it to ddoghq/images `mirror.yaml`:
-CI pulls `registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:<tag>`.
-
-```
-docker buildx build --platform=linux/amd64 -t datadog/dd-trace-ci:php_fpm_packaging-2 --push .
-```
+Built by the manual `Packaging build` and `Packaging publish` jobs of the
+`ci-images` child pipeline (see `dockerfiles/ci/README.md`). Tags carry a
+generation from `.env` (`FPM_PACKAGING_NEXT_VERSION`), so building the next
+generation never overwrites the tag master uses.
