@@ -49,11 +49,10 @@
 // partial runtime) or block (armed). The decision is per thread and sticky: it
 // starts pending, which arms as block does, and only an explicit answer changes
 // it. It applies from the request_init that brought it: to that request's
-// arming at RINIT, and in worker scripts using ddtrace's user-request API
-// (FrankenPHP, RoadRunner, Ratchet), where one PHP request spans every HTTP
-// request, to the request level at the start of each HTTP request (see
-// dd_p2s_runtime_user_req_begin). The mode on arms whatever the WAF says and
-// sends nothing; off, and auto on a patched runtime, send nothing (see
+// arming at RINIT, and in FrankenPHP worker mode, where one PHP request spans
+// every HTTP request, to the request level at the start of each HTTP request
+// (see dd_p2s_runtime_user_req_begin). The mode on arms whatever the WAF says
+// and sends nothing; off, and auto on a patched runtime, send nothing (see
 // php2shell/p2s_policy.c and Coverage: WAF decision). The helper evaluates the
 // address in a WAF run of its own, without a timeout, and keeps the rule's
 // match out of the request's appsec events.
@@ -198,15 +197,16 @@
 //     whatever the ruleset says. No answer (appsec not active, the
 //     helper unreachable, an error, an older helper) keeps the last decision.
 //     A remote-config ruleset without the rule answers none and disarms.
-//     In worker scripts using ddtrace's user-request API (FrankenPHP,
-//     RoadRunner, Ratchet; only FrankenPHP has integration tests), each HTTP
-//     request's request_init (when its handler is called) arms or disarms
-//     the request level for it: the superglobals FrankenPHP re-imports for
-//     it, before that call, and the worker script's code between HTTP
-//     requests follow the previous HTTP request's decision (see
-//     dd_p2s_guard_reconcile; a pending error is still raised, at the next VM
-//     interrupt outside the tracer's hook sandbox). Under remote config, a
-//     change of appsec's state reaches the thread the same way.
+//     In FrankenPHP worker mode, each HTTP request's request_init (when its
+//     handler is called) arms or disarms the request level for it: the
+//     superglobals FrankenPHP re-imports for it, before that call, and the
+//     worker script's code between HTTP requests follow the previous HTTP
+//     request's decision (see dd_p2s_guard_reconcile; a pending error is
+//     still raised, at the next VM interrupt outside the tracer's hook
+//     sandbox). Under remote config, a change of appsec's state reaches the
+//     thread the same way. RoadRunner and Ratchet run under the CLI SAPI,
+//     where the mitigation is off, and PHP does not parse their HTTP
+//     requests.
 //   - Per-directory datadog.appsec.enabled: follows appsec's own
 //     once-per-process resolution. It reaches the thread's flag only when set
 //     for the first request (from that request's RINIT, after its startup
