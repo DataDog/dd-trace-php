@@ -132,7 +132,7 @@ static void _settle_handlers(void);
 static bool _handlers_ours(zend_mm_heap *nonnull heap);
 static bool _handlers_ours_flag_off(zend_mm_heap *nonnull heap);
 static void _request_end(void);
-static void _forget_request(void);
+static void _clear_request_flags(void);
 static void _arm(size_t soft, size_t hard);
 static void _disarm(dd_disarm_mode mode);
 static void _set_handlers(zend_mm_heap *nonnull heap, bool ours);
@@ -487,7 +487,7 @@ void dd_p2s_guard_close(void) { _request_end(); }
 void dd_p2s_guard_settle(void)
 {
     _disarm(DD_DISARM_RESTORE_LIMIT);
-    _forget_request();
+    _clear_request_flags();
     _settle_handlers();
 }
 
@@ -503,7 +503,7 @@ void dd_p2s_guard_activate(void)
         return;
     }
     bool armed = _arm_state.armed;
-    _forget_request();
+    _clear_request_flags();
     if (armed) {
         (void)dd_p2s_guard_restore_limit((zend_long)PG(memory_limit));
     }
@@ -1107,7 +1107,7 @@ static void _remove_handlers(void)
     if (!_arm_state.installed) {
         return;
     }
-    _forget_request();
+    _clear_request_flags();
     zend_mm_heap *heap = _arm_state.heap;
     if (zend_mm_get_heap() == heap &&
         (_handlers_ours(heap) || _handlers_ours_flag_off(heap))) {
@@ -1159,25 +1159,20 @@ static void _settle_handlers(void)
 // shutdown_memory_manager() would free the heap through our handlers. If they
 // are in the slot (also with use_custom_heap left off), the heap goes back to
 // plain zend_mm, as in _settle_handlers, which also lets the profiler's own
-// MSHUTDOWN fallback, which runs after ours, find plain zend_mm. If armed, the
-// engine limit goes back to memory_limit, or to a finite one if the usage no
-// longer fits it (an error left pending). Handlers of another extension on top
-// are left alone.
+// MSHUTDOWN fallback, which runs after ours, find plain zend_mm. Handlers of
+// another extension on top are left alone. The engine limit is left as is: the
+// process is exiting.
 static void _reset_handlers_at_mshutdown(void)
 {
     if (!_arm_state.installed) {
         return;
     }
-    bool armed = _arm_state.armed;
-    _forget_request();
+    _clear_request_flags();
     zend_mm_heap *heap = _arm_state.heap;
     if (zend_mm_get_heap() == heap &&
         (_handlers_ours(heap) || _handlers_ours_flag_off(heap))) {
         _set_plain_handlers(heap);
         _arm_state.installed = false;
-    }
-    if (armed) {
-        (void)dd_p2s_guard_restore_limit((zend_long)PG(memory_limit));
     }
 }
 
@@ -1236,7 +1231,7 @@ static void _request_end(void)
 }
 
 // Clear the per-request bools; the handlers and `installed` are untouched.
-static void _forget_request(void)
+static void _clear_request_flags(void)
 {
     _arm_state.request = false;
     _arm_state.armed = false;
