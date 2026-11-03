@@ -36,7 +36,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "prof-correctness":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
   retry: 1
   needs:
     - job: "prof-correctness-analyzer"
@@ -331,11 +331,11 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: amd64
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7
+        IMAGE_SUFFIX: _centos-7-3
       - PHP_MAJOR_MINOR: *arm64_latest_targets
         ARCH: arm64
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7
+        IMAGE_SUFFIX: _centos-7-3
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
     - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"; fi
@@ -347,6 +347,8 @@ foreach ($profiler_minor_major_targets as $version) {
     - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
     - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
     - cp -v "${run_tests_php}" tests
+    - '# run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)'
+    - run_tests_jobs=$(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";')
     - unset DD_SERVICE; unset DD_ENV
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
 
@@ -361,7 +363,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
     - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
     - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-combined-results.xml" php profiling/tests/run-tests.php -P -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-combined-results.xml" php profiling/tests/run-tests.php -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
     # Re-running configure/make below switches from NTS to ZTS PHP headers
     # while reusing the same checkout and CARGO_TARGET_DIR. `make`'s
@@ -379,10 +381,10 @@ foreach ($profiler_minor_major_targets as $version) {
     - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
     - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined ZTS build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
     - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-combined-results.xml" php profiling/tests/run-tests.php -P -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-combined-results.xml" php profiling/tests/run-tests.php -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - |
-      if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
+      if [ "${IMAGE_SUFFIX}" != "_centos-7-3" ]; then
         .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
       else
         echo "Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)"
@@ -397,7 +399,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Clippy":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -445,7 +447,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Cargo test":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-14
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -477,7 +479,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "PHP language tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -520,6 +522,16 @@ foreach ($profiler_minor_major_targets as $version) {
     - php -r 'exit((int) !extension_loaded("datadog-profiling"));' || { echo 'ERROR datadog-profiling extension is not loaded'; exit 1; }
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
+    # Profiler interrupts expose upstream JIT bugs fixed in PHP 8.4.28 / 8.5.13:
+    # https://github.com/php/php-src/pull/24610
+    # https://github.com/php/php-src/pull/24793
+    - |
+      if php -r 'exit((version_compare(PHP_VERSION, "8.4.28", "<") || (PHP_VERSION_ID >= 80500 && version_compare(PHP_VERSION, "8.5.13", "<"))) ? 0 : 1);'; then
+        echo 'ext/opcache/tests/jit' >> /tmp/profiler-php-language-xfail.list
+        # Also exclude JIT-specific PHPTs outside the main JIT test directory.
+        (cd /usr/local/src/php && { grep -rlF --include='*.phpt' 'opcache.jit' . || [ "$?" -eq 1 ]; }) >> /tmp/profiler-php-language-xfail.list
+        echo 'Skipping all JIT tests in the profiler PHP language suite until PHP 8.4.28 / 8.5.13'
+      fi
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
     # Keep version-specific ARM64 failures running as XFAILs.
     - |

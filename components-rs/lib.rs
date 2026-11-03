@@ -57,7 +57,9 @@ pub use tracer_runtime::signal_flush;
 #[cfg(feature = "tracer-runtime")]
 pub use tracer_runtime::telemetry;
 #[cfg(feature = "tracer-runtime")]
-pub use tracer_runtime::{agent_info, bytes, ffe, remote_config, stats, trace_filter};
+pub use tracer_runtime::{
+    agent_info, bytes, data_streams, ffe, remote_config, stats, trace_filter,
+};
 
 #[cfg(all(feature = "appsec", unix))]
 pub mod appsec_body;

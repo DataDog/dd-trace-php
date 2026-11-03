@@ -30,7 +30,6 @@ static const dd_command_spec _spec = {
     .name = "request_shutdown",
     .name_len = sizeof("request_shutdown") - 1,
     .num_args = 3, // a map, api sec sampling key, input_truncated
-    .client_init = false,
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,
@@ -46,8 +45,8 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
 {
     struct req_shutdown_info *nonnull req_info = ctx;
 
-    zval resp_body;
-    ZVAL_NULL(&resp_body);
+    ddog_AppsecBodyMessagePack resp_body = {
+        .status = DDOG_APPSEC_BODY_STATUS_EMPTY};
     if (req_info->entity) {
         const char *ct;
         size_t ct_len;
@@ -66,8 +65,8 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
     bool send_raw_body = get_global_DD_APPSEC_RAW_RESPONSE_BODY_ENABLED() &&
                          req_info->entity != NULL && req_info->entity->len > 0;
 
-    uint32_t num_entries =
-        2 + (Z_TYPE(resp_body) != IS_NULL ? 1 : 0) + (send_raw_body ? 1 : 0);
+    uint32_t num_entries = 2 + (dd_body_msgpack_has_value(resp_body) ? 1 : 0) +
+                           (send_raw_body ? 1 : 0);
     mpack_start_map(w, num_entries);
 
     // 1.1.
@@ -88,17 +87,11 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
     }
 
     // 1.3.?
-    if (Z_TYPE(resp_body) != IS_NULL) {
-        dd_mpack_limits limits = dd_mpack_def_limits;
-
+    if (dd_body_msgpack_has_value(resp_body)) {
         dd_mpack_write_lstr(w, "server.response.body");
-        dd_mpack_write_zval_lim(w, &resp_body, &limits);
-        zval_ptr_dtor_nogc(&resp_body);
-
-        if (dd_mpack_limits_reached(&limits)) {
-            mlog(dd_log_info, "Limits reched when serializing response body");
-        }
+        dd_body_msgpack_write(w, &resp_body);
     }
+    dd_trace_drop_body_msgpack(resp_body);
 
     // 1.4.?
     if (send_raw_body) {

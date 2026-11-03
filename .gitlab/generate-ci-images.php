@@ -5,7 +5,7 @@
  *
  * Source of truth (NO duplication):
  *   - each $dirs compose file      : service name -> image:TAG
- *   - dockerfiles/ci/bookworm/.env : $BOOKWORM_NEXT_VERSION etc.
+ *   - each $dirs .env              : $BOOKWORM_NEXT_VERSION etc.
  *
  * The compose service name is the `docker buildx bake` target and the build
  * matrix value; the `image:` tag (with env vars resolved) is the published tag.
@@ -256,7 +256,9 @@ variables:
     Write-Host "Downloading docker-compose..."
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $dockerCompose = "$PWD\docker-compose.exe"
-    Start-BitsTransfer -Source "$env:GITHUB_RELEASES_MIRROR/docker/compose/releases/download/v2.36.0/docker-compose-windows-x86_64.exe" -Destination $dockerCompose
+    # Plain GET: BITS sends HEAD first, which the releases mirror rejects with 405.
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -UseBasicParsing -Uri "$env:GITHUB_RELEASES_MIRROR/docker/compose/releases/download/v2.36.0/docker-compose-windows-x86_64.exe" -OutFile $dockerCompose
 
     # Scope Docker auth to this job: CI Identities for registry.ddbuild.io only,
     # no ECR catch-all that would fail without AWS_DEFAULT_REGION. Docker calls

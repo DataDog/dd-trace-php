@@ -67,7 +67,15 @@ function assertMatchesFormat($output, $wanted_re) {
         '%0' => '\x00',
     ]);
 
-    if (!preg_match('/^' . $wanted_re . '$/s', $output)) {
+    // Outputs like `php -i`, which prints the whole environment (CI's commit message included),
+    // can take more backtracking than PCRE's default limit allows.
+    $backtrack_limit = ini_set('pcre.backtrack_limit', '100000000');
+    $matched = preg_match('/^' . $wanted_re . '$/s', $output);
+    ini_set('pcre.backtrack_limit', $backtrack_limit);
+    if ($matched === false) {
+        throw new \Exception("Could not match the output against the format (PCRE error ".preg_last_error().")\n".$output);
+    }
+    if (!$matched) {
         throw new \Exception("Output does not match the format\n".$output);
     }
 }

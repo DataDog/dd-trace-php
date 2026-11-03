@@ -25,7 +25,7 @@ $build_platforms = [
     ],
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7-3",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -36,7 +36,7 @@ $build_platforms = [
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7-3",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -76,16 +76,29 @@ function package_extension_jobs(array $platform, string $kind = "all"): array
     return $jobs;
 }
 
+/**
+ * Emits a job script step that runs each listed system-tests scenario in sequence.
+ * Every scenario runs even when an earlier one fails; the step then fails, listing the failed scenarios.
+ *
+ * @param string $scenarios Shell words expanding to the scenario names: a variable reference such as '$TESTSUITE', or literal names.
+ */
+function system_tests_run_scenarios(string $scenarios): void
+{
+?>
+    - FAILED=""; for S in <?= $scenarios ?>; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+<?php
+}
+
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-11",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-14",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-11",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-14",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -129,6 +142,11 @@ stages:
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
+  GITHUB_RELEASES_MIRROR: "https://depot-read-api-github-releases.us1.ddbuild.io/internal/mirror/github-releases"
+  RELIABILITY_ENV_BRANCH: "master"
+  SYSTEM_TESTS_LIBRARY: php
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
   # One pipeline injection package size ratchet.
@@ -170,6 +188,11 @@ configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
     ALLOW_MULTIPLE_CHILD_LEVELS: "false"
+<?php if ($_libdatadog_sha !== ''): ?>
+  # system-tests generates its own child pipeline, so generate-common.php can't tag it.
+  after_script:
+    - test -f system_tests_pipeline.yml && cat .gitlab/green-ci-exclude-job.yml >> system_tests_pipeline.yml
+<?php endif; ?>
 
 package-oci:
   # Linux only: prepare-oci-package.sh exits at once for other OSes, after downloading both loaders.
@@ -216,6 +239,12 @@ requirements_json_test:
     REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
 
+# One-pipeline bookkeeping job: its script is `exit 0`, so skip the clone and the packaging image.
+finished:
+  image: registry.ddbuild.io/images/mirror/alpine:3.20
+  variables:
+    GIT_STRATEGY: none
+
 
 # dd-trace-php release packaging
 "prepare code":
@@ -224,6 +253,7 @@ requirements_json_test:
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
+    - ./.gitlab/resolve-system-tests-ref.sh system-tests.env
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
@@ -236,54 +266,22 @@ requirements_json_test:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+    reports:
+      dotenv: system-tests.env
 
 <?php
-foreach ($build_platforms as $platform) {
-    $image = sprintf($platform['image_template'], "8.1");
-?>
-"cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: prepare
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  variables:
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    IMAGE: "<?= $image ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-  script: |
-    if [ -e "${CARGO_HOME}/.package-cache" ] ; then
-        echo "WARNING: .package-cache was part of the cache and shouldn't be!"
-        rm -vf "${CARGO_HOME}/.package-cache"
-    fi
-
-    mkdir -p "${CARGO_HOME}"
-    cargo fetch -v --target "${TRIPLET}"
-    chmod -R 777 "${CARGO_HOME}"
-
-    # ensure the .package-cache isn't there
-    rm -vf "${CARGO_HOME}/.package-cache"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-
-<?php
-}
-
 foreach ($build_platforms as $platform) {
     foreach ($profiler_minor_major_targets as $major_minor) {
-        $abi_no = $php_versions_to_abi[$major_minor]
+        $abi_no = $php_versions_to_abi[$major_minor];
+        // NTS and ZTS are independent builds, so they run as two parallel jobs.
+        foreach (["nts", "zts"] as $flavour) {
 ?>
-"compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]":
   stage: combined
   image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
   tags: [ "arch:$ARCH" ]
   needs:
     - job: "prepare code"
-      artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
   variables:
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -296,6 +294,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
+<?php if ($flavour === 'nts'): ?>
     # CentOS 7 release artifacts use Clang/Rust ThinLTO for NTS and ZTS.
     - switch-php "${PHP_VERSION}"
     - make -s xlang-lto
@@ -303,42 +302,36 @@ foreach ($build_platforms as $platform) {
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}.so"
     # The PHP debug ABI still uses the regular non-LTO build.
     - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "debug" "combined" "ddtrace-${ABI_NO}-debug.so"
+<?php else: ?>
     - switch-php "${PHP_VERSION}-zts"
     - make -s xlang-lto
+    - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-zts.so"
+<?php endif; ?>
 <?php else: ?>
     # Alpine exposes switch_php as a function; switch-php is only an alias,
     # which the non-interactive runner shell does not expand.
     - source "$BASH_ENV"
-    - switch_php "${PHP_VERSION}"
+    - switch_php "${PHP_VERSION}<?= $flavour === 'zts' ? '-zts' : '' ?>"
     - make -s xlang-lto
     - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine.so"
-    - switch_php "${PHP_VERSION}-zts"
-    - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine-zts.so"
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine<?= $flavour === 'zts' ? '-zts' : '' ?>.so"
 <?php endif; ?>
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull  # `Cache Cargo Deps` is used to update/push the cache
   artifacts:
     paths:
       - "extensions_*"
 
 <?php
+        }
     }
 }
 ?>
 
 
+
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -364,10 +357,6 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
-<?php if ($platform['host_os'] === 'linux-gnu'): ?>
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php endif; ?>
   variables:
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -409,7 +398,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -445,8 +434,6 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
   variables:
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -464,14 +451,6 @@ foreach ($build_platforms as $platform) {
   script:
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull  # `cache cargo deps` is used to update/push the cache
   artifacts:
     paths:
       - "libdatadog_php_*.*"
@@ -494,8 +473,6 @@ foreach ($build_platforms as $platform) {
   tags: [ "arch:$ARCH" ]
   needs:
     - job: "prepare code"
-      artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
@@ -526,14 +503,6 @@ foreach ($build_platforms as $platform) {
 <?php endif; ?>
     # The shared DSO is packaged from the single sidecar job, not each PHP job.
     - rm "ssi_<?= $arch_dir ?>/libdatadog_php.so"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull
   artifacts:
     paths:
       - "ssi_*"
@@ -545,7 +514,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate SSI combined extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
   tags: [ "arch:amd64" ]
   variables:
     GIT_STRATEGY: none
@@ -585,7 +554,9 @@ foreach ($build_platforms as $platform) {
 <?php
 foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
-    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
+      artifacts: true
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
       artifacts: true
 <?php
 }
@@ -594,7 +565,6 @@ foreach ($profiler_minor_major_targets as $major_minor) {
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
@@ -776,7 +746,9 @@ $package_extension_needs = function (array $platform, bool $bundle_inputs = true
     foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
     # Combined tracer+profiling+AppSec extension
-    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
+      artifacts: true
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
       artifacts: true
 <?php
     }
@@ -913,9 +885,11 @@ endforeach;
 "profiler product-loading":
   stage: verify
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
   needs:
-    - job: "compile combined extension: [8.5, amd64, x86_64-unknown-linux-gnu]"
+    - job: "compile combined extension: [8.5, amd64, x86_64-unknown-linux-gnu, nts]"
+      artifacts: true
+    - job: "compile combined extension: [8.5, amd64, x86_64-unknown-linux-gnu, zts]"
       artifacts: true
   interruptible: true
   rules:
@@ -1010,7 +984,8 @@ endforeach;
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
-    - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+    # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
+    - php run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
 <?php foreach ($build_platforms as $platform): ?>
 <?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
@@ -1018,7 +993,7 @@ endforeach;
 # pthread destructors that musl's no-op dlclose cannot catch (issue #4349).
 "frankenphp profiler shutdown: [<?= $platform['arch'] ?>]":
   stage: verify
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-14
   tags: [ "arch:<?= $platform['arch'] ?>" ]
   needs:
     - job: "package extension (per-api bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
@@ -1385,7 +1360,8 @@ endforeach;
           - alpine:3.16
           - alpine:3.21
           - alpine:3.24
-      - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      # Pre-GA versions only exist as -rc tags on Docker Hub.
+      - IMAGE: <?= json_encode(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "php:$v-rc-fpm-alpine" : "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1535,7 +1511,7 @@ endforeach;
   extends: .verify_job
   variables:
     INSTALL_MODE: sury
-    PHP_VERSION: "<?= end($all_minor_major_targets) ?>"
+    PHP_VERSION: "<?= $latest_ga_minor_major ?>"
     INSTALL_TYPE: native_package
     IMAGE: "debian:bookworm-slim"
   script:
@@ -1617,7 +1593,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-14"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1653,7 +1629,7 @@ endforeach;
 
 "min install tests":
   stage: verify
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-14
   tags: [ "arch:amd64" ]
   variables:
     MAX_TEST_PARALLELISM: 8
@@ -1685,19 +1661,18 @@ endforeach;
 
 .system_tests:
   stage: verify
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bookworm
+  image: $SYSTEM_TESTS_CI_IMAGE
   tags: [ "docker-in-docker:amd64" ]
   variables:
+    GIT_SUBMODULE_STRATEGY: none
     TEST_LIBRARY: php
     KUBERNETES_CPU_REQUEST: 8
     PYTEST_XDIST_AUTO_NUM_WORKERS: 8
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
-    BUILD_SH_ARGS: php
+    BUILD_SH_ARGS: "-i weblog php"
     USE_IMAGE_MIRROR: "1"
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    APT_CACHE: $CI_PROJECT_DIR/.cache/apt
     DOCKER_DEFAULT_PLATFORM: linux/amd64
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
@@ -1708,37 +1683,28 @@ endforeach;
     - job: "prepare code"
       artifacts: true
   before_script:
+    # SYSTEM_TESTS_SHA (prepare code's dotenv) is SYSTEM_TESTS_REF (default main) resolved once, so all jobs and shards run the same scenario list.
     - |
-      # Setup cache dirs
-      mkdir -p $PIP_CACHE_DIR
-      mkdir -p $APT_CACHE/lists
-      mkdir -p $APT_CACHE/archives
-      chown -R $(id -u):$(id -g) $CI_PROJECT_DIR/.cache
-
-      # Install system dependencies
-      apt-get update -o dir::state::lists="$APT_CACHE/lists"
-      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" ca-certificates curl git build-essential
-      mkdir -p /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
-      apt-get update -o dir::state::lists="$APT_CACHE/lists"
-      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-      # Install Python dependencies
-      pip install -U pip virtualenv
+      set -e
+      if ! printf '%s\n' "${SYSTEM_TESTS_SHA:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Missing or invalid SYSTEM_TESTS_SHA: ${SYSTEM_TESTS_SHA:-}"
+        exit 1
+      fi
+      git init -q system-tests
+      git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$SYSTEM_TESTS_SHA"
+      git -C system-tests checkout --quiet --detach "$SYSTEM_TESTS_SHA"
+      test "$(git -C system-tests rev-parse HEAD)" = "$SYSTEM_TESTS_SHA"
+      test "$(git -C system-tests rev-parse --is-shallow-repository)" = "true"
+    - CI_IMAGE="$CI_JOB_IMAGE" python3 system-tests/utils/ci/gitlab/build_ci_image.py --check-only
 <?php dockerhub_login() ?>
-    - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    # SYSTEM_TESTS_REF (a branch or tag; default main) lets a pipeline try a
-    # system-tests change before it is merged.
-    - git clone --branch "${SYSTEM_TESTS_REF:-main}" https://github.com/DataDog/system-tests.git
+    # dockerhub-login.sh installs /tmp/vault only when vault is not on PATH; the ci-runner image ships it.
+    - $(command -v vault || echo /tmp/vault) kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || echo "Could not fetch the Datadog API key from Vault" >&2
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
-    - ./build.sh $BUILD_SH_ARGS
-  cache:
-    - key: v0-$CI_JOB_NAME_SLUG-cache
-      when: always
-      paths:
-        - .cache/
+    - ln -sf /system-tests/venv venv
+    - source venv/bin/activate
+    - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
+    - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
@@ -1765,20 +1731,21 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
+        - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_EXPRESSION_LANGUAGE DEBUGGER_INPRODUCT_ENABLEMENT"
   script:
-    - ./run.sh $TESTSUITE
+<?php system_tests_run_scenarios('$TESTSUITE') ?>
 
 "System Tests: [php-fpm-8.5, default]":
   extends: .system_tests
   variables:
-    BUILD_SH_ARGS: -w php-fpm-8.5 php
+    BUILD_SH_ARGS: "-i weblog -w php-fpm-8.5 php"
   script:
     - ./run.sh
 
 "System Tests: [php-fpm-8.5]":
   extends: .system_tests
   variables:
-    BUILD_SH_ARGS: -w php-fpm-8.5 php
+    BUILD_SH_ARGS: "-i weblog -w php-fpm-8.5 php"
   parallel:
     matrix:
       - TESTSUITE:
@@ -1789,8 +1756,16 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
+        - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_TELEMETRY DEBUGGER_EXCEPTION_REPLAY"
   script:
-    - ./run.sh $TESTSUITE
+<?php system_tests_run_scenarios('$TESTSUITE') ?>
+
+"System Tests: [apache-mod-8.0-zts, debugger]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: "-i weblog -w apache-mod-8.0-zts php"
+  script:
+<?php system_tests_run_scenarios('DEBUGGER_PROBES_SNAPSHOT DEBUGGER_PII_REDACTION') ?>
 
 <?php
 $system_tests_weblogs = [
@@ -1805,16 +1780,35 @@ $system_tests_weblogs = [
     "php-fpm-7.0", "php-fpm-7.1", "php-fpm-7.2", "php-fpm-7.3", "php-fpm-7.4",
     "php-fpm-8.0", "php-fpm-8.1", "php-fpm-8.2", "php-fpm-8.5",
 ];
+
+// Pack the tracer-release scenarios longest-first into the least-loaded shard, from measured durations
+// (refresh them with .gitlab/refresh-system-tests-durations.py). Every weblog takes ~the same time per scenario.
+$system_tests_shard_count = 4;
+$system_tests_durations = json_decode(file_get_contents(__DIR__ . "/system-tests-durations.json"), true)["scenarios"];
+arsort($system_tests_durations);
+$system_tests_shards = array_fill(0, $system_tests_shard_count, []);
+$system_tests_shard_load = array_fill(0, $system_tests_shard_count, 0);
+foreach ($system_tests_durations as $scenario => $seconds) {
+    $shard = array_search(min($system_tests_shard_load), $system_tests_shard_load);
+    $system_tests_shards[$shard][] = $scenario;
+    $system_tests_shard_load[$shard] += $seconds;
+}
 ?>
+.system_tests_tracer_release_shards:
+  variables:
+<?php foreach ($system_tests_shards as $shard => $scenarios): ?>
+    # ~<?= round($system_tests_shard_load[$shard] / 60) ?> min of scenarios
+    SHARD_<?= $shard + 1 ?>_SCENARIOS: "<?= implode(" ", $scenarios) ?>"
+<?php endforeach; ?>
+
 <?php foreach ($system_tests_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, tracer-release]":
-  extends: .system_tests
-  # Start with two shards as an initial estimate of useful parallelism.
-  # Keep the job count modest across all weblogs to limit shared CI compute usage.
-  parallel: 2
-  timeout: 4h
+  extends: [ .system_tests, .system_tests_tracer_release_shards ]
+  parallel: <?= $system_tests_shard_count, "\n" ?>
+  # ~2x the expected worst shard (~52 min), so a hung DinD job is retried sooner.
+  timeout: 1h 45m
   variables:
-    BUILD_SH_ARGS: -w <?= $weblog ?> php
+    BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
     # Expand the DinD loopback volume to avoid running out of disk space.
     # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
     DOCKER_LOOPBACK_SIZE: 50G
@@ -1826,18 +1820,16 @@ $system_tests_weblogs = [
     - when: manual
       allow_failure: true
   script:
-    - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
+    - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) && [ -n "$DD_API_KEY" ] || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
-    # Alphabetical splitting clustered slow related scenarios in one shard.
-    # Hash sorting reduces that imbalance, while keeping the order reproducible.
-    # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    # PARAMETRIC is weblog-independent: it runs once, in "System Tests: [parametric]".
     # THREAD_CONTEXT_SHARING needs the CWS runners; it has its own jobs below.
-    - SCENARIOS=$(printf '%s\n' $SCENARIOS | grep -vx THREAD_CONTEXT_SHARING)
-    # Each job builds the full list, then keeps every `Nth` scenario for its shard.
-    # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
-    - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
-    - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC,THREAD_CONTEXT_SHARING -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    - test -n "$SCENARIOS" || { echo "system-tests returned no tracer-release scenarios"; exit 1; }
+    # Run this shard's packed scenarios that system-tests still lists, plus every CI_NODE_TOTAL-th (hash order) of those the durations file lacks.
+    - SCENARIOS=$(echo $SCENARIOS | python3 -c "import os,sys;n=int(os.environ['CI_NODE_TOTAL']);k=int(os.environ['CI_NODE_INDEX']);p=[os.environ.get(f'SHARD_{i}_SCENARIOS','').split() for i in range(1,n+1)];known={s for x in p for s in x};a=sys.stdin.read().split();print(' '.join([s for s in a if s in p[k-1]]+[s for s in a if s not in known][k-1::n]))")
+    - echo "Shard $CI_NODE_INDEX/$CI_NODE_TOTAL scenarios:" $SCENARIOS
+<?php system_tests_run_scenarios('$SCENARIOS') ?>
 
 <?php endforeach; ?>
 # THREAD_CONTEXT_SHARING needs CWS, which needs the kernel filesystems and the
@@ -1856,19 +1848,21 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   extends: .system_tests
   tags: [ "docker-in-docker:amd64-cws" ]
   variables:
-    BUILD_SH_ARGS: -w <?= $weblog ?> php
+    BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
   script:
     - ./run.sh THREAD_CONTEXT_SHARING
 
 <?php endforeach; ?>
 "System Tests: [parametric]":
   extends: .system_tests
+  # pytest-split (in system-tests' requirements) gives each job half of the tests, as system-tests' own CI does.
+  parallel: 2
   variables:
-    BUILD_SH_ARGS: "-i runner"
+    BUILD_SH_ARGS: ""
     # system-tests #8121's buildx --load stores the client image twice, overflowing the 20G default.
     DOCKER_LOOPBACK_SIZE: 50G
   script:
-    - ./run.sh PARAMETRIC
+    - ./run.sh PARAMETRIC --splits=$CI_NODE_TOTAL --group=$CI_NODE_INDEX
 
 <?php foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
@@ -1878,7 +1872,7 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-11
+    CONTAINER_SUFFIX: bookworm-14
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"
@@ -1995,7 +1989,7 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   tags: [ "arch:$ARCH" ]
   variables:
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-11
+    CONTAINER_SUFFIX: bookworm-14
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"

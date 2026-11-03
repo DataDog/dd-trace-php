@@ -1,5 +1,5 @@
 ARG DOCKER_REGISTRY=docker.io
-FROM ${DOCKER_REGISTRY}/library/php:8.5-zts-alpine
+FROM ${DOCKER_REGISTRY}/library/php:8.5.12-zts-alpine
 
 # The official image matrix has no Apache + ZTS or Apache + Alpine variant.
 # Rebuild the same PHP source and configuration with the Apache SAPI enabled so

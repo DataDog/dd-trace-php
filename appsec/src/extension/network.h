@@ -11,6 +11,7 @@
 #include <zend.h>
 
 #include <components-rs/common.h>
+#include <components-rs/sidecar.h>
 
 #include "attributes.h"
 #include "dddefs.h"
@@ -20,7 +21,7 @@
 typedef struct _dd_helper_response {
     char *unspecnull data;
     size_t data_len;
-    size_t _capacity; // private
+    ddog_AppsecCResponse _response; // owned, including on malformed replies
 } dd_helper_response;
 
 enum { DD_CONN_REQUEST_HEADER_SIZE = 8 };

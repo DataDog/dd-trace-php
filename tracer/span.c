@@ -366,7 +366,7 @@ static inline void dd_make_span_creation_observers_ref(zval *observers) {
     if (!Z_ISREF_P(observers)) {
         ZVAL_NEW_REF(observers, observers);
 #if PHP_VERSION_ID >= 80000
-        zend_property_info *prop = ddtrace_ce_span_stack->properties_info_table[(XtOffsetOf(ddtrace_span_stack, property_span_creation_observers) - (sizeof(zend_object) - sizeof(zval))) / sizeof(zval)];
+        zend_property_info *prop = ddtrace_ce_span_stack->properties_info_table[(offsetof(ddtrace_span_stack, property_span_creation_observers) - (sizeof(zend_object) - sizeof(zval))) / sizeof(zval)];
         ZEND_REF_ADD_TYPE_SOURCE(Z_REF_P(observers), prop);
 #endif
     }
@@ -741,6 +741,16 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_
 
 void dd_trace_stop_span_time(ddtrace_span_data *span) {
     span->duration = zend_hrtime() - span->duration_start;
+}
+
+void dd_trace_stop_span_time_with_exception(ddtrace_span_data *span) {
+    if (!span || !span->start || ddtrace_span_is_dropped(span) || span->type == DDTRACE_SPAN_CLOSED) {
+        return;
+    }
+    if (EG(exception) && Z_TYPE(span->property_exception) <= IS_FALSE) {
+        ZVAL_OBJ_COPY(&span->property_exception, EG(exception));
+    }
+    dd_trace_stop_span_time(span);
 }
 
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end) {

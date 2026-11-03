@@ -15,6 +15,9 @@
 #endif
 
 #include "configuration.h"
+#ifdef TRACER
+#include <tracer/configuration.h>
+#endif
 #include "excluded_modules.h"
 #include "agent_info.h"
 #include "logging.h"
@@ -123,6 +126,7 @@ static void datadog_sort_modules(void *base, size_t count, size_t siz, compare_f
 
 #ifndef _WIN32
 void datadog_signal_block_handlers_startup(void);
+void datadog_signal_block_post_deactivate(void);
 
 // The module needs this on Linux even when no sidecar signal handlers are built.
 void datadog_set_coredumpfilter(void) {
@@ -864,7 +868,11 @@ static PHP_RINIT_FUNCTION(datadog) {
     // OTel process context and profiler tags also need first-RINIT setup
     // when no sidecar is present.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
+#if PHP_VERSION_ID >= 80600
+    datadog_log_rinit(PG(error_log) ? ZSTR_VAL(PG(error_log)) : NULL);
+#else
     datadog_log_rinit(PG(error_log));
+#endif
 
 #ifdef SIDECAR
     datadog_agent_info_rinit();
@@ -972,6 +980,11 @@ static int datadog_rshutdown_products(int type, int module_number) {
     DATADOG_G(reread_remote_configuration) = 0;
     if (DATADOG_G(remote_config_state)) {
         datadog_rshutdown_remote_config();
+#ifdef TRACER
+        if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+            LOG(DEBUG, "Remote Configuration: request configuration updates stopped; shared sidecar polling may continue for other workers");
+        }
+#endif
     }
 
     datadog_telemetry_rshutdown();
@@ -979,15 +992,6 @@ static int datadog_rshutdown_products(int type, int module_number) {
 #endif
 
     datadog_git_rshutdown();
-
-    if (DATADOG_G(last_service_name)) {
-        zend_string_release(DATADOG_G(last_service_name));
-        DATADOG_G(last_service_name) = NULL;
-    }
-    if (DATADOG_G(last_env_name)) {
-        zend_string_release(DATADOG_G(last_env_name));
-        DATADOG_G(last_env_name) = NULL;
-    }
 
 #ifdef APPSEC
     DATADOG_G(rshutdown_products_done) = true;
@@ -1025,8 +1029,24 @@ zend_result datadog_post_deactivate(void) {
     ddtrace_post_deactivate();
 #endif
 
+    // These usually hold request-heap strings. Release them here rather than in RSHUTDOWN: PHP skips all RSHUTDOWNs
+    // when a later module's RINIT bails out, but always runs post_deactivate before resetting the request heap.
+    if (DATADOG_G(last_service_name)) {
+        zend_string_release(DATADOG_G(last_service_name));
+        DATADOG_G(last_service_name) = NULL;
+    }
+    if (DATADOG_G(last_env_name)) {
+        zend_string_release(DATADOG_G(last_env_name));
+        DATADOG_G(last_env_name) = NULL;
+    }
+
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
+
+#if defined(SIDECAR) && !defined(_WIN32)
+    // A bailout within a signal blocking function skips the unblocking
+    datadog_signal_block_post_deactivate();
+#endif
 
 #ifdef PROFILING
     return profiler_result;

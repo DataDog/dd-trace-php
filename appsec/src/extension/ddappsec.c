@@ -18,6 +18,7 @@
 #include <stdatomic.h>
 
 #include "backtrace.h"
+#include "body_parser.h"
 #include "commands/client_init.h"
 #include "commands/request_exec.h"
 #include "commands_ctx.h"
@@ -110,6 +111,7 @@ void dd_appsec_minit(int module_number)
     dd_tags_startup();
     dd_duration_startup();
     dd_ip_extraction_startup();
+    dd_body_parser_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
     dd_msgpack_helpers_startup();
@@ -158,7 +160,6 @@ void dd_appsec_rinit(void)
     }
     DDAPPSEC_G(skip_rshutdown) = false;
     dd_msgpack_helpers_rinit();
-    dd_trace_rinit();
 
     // Waf calls happen here. Not many rinits should go after this line.
     dd_req_lifecycle_rinit(false);
@@ -369,7 +370,6 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
         .name = "invalid_command",
         .name_len = sizeof("invalid_command") - 1,
         .num_args = 1,
-        .client_init = false,
         .outgoing_cb = _pack_invalid_command,
         .incoming_cb = _process_invalid_response,
         .config_features_cb = dd_command_process_config_features_unexpected,

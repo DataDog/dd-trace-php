@@ -21,6 +21,7 @@ typedef enum _enabled_configuration {
 
 struct _dd_conn {
     bool connected;
+    bool request_started;
 };
 typedef struct _dd_conn dd_conn;
 

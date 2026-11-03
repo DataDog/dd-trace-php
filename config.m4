@@ -285,6 +285,7 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/engine_api.c \
     tracer/engine_hooks.c \
     tracer/exception_serialize.c \
+    tracer/data_streams.c \
     tracer/ffe.c \
     tracer/functions.c \
     tracer/git_metadata.c \
@@ -317,6 +318,7 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/user_request.c \
     tracer/weak_resources.c \
     tracer/hook/uhook.c \
+    tracer/hook/uhook_line.c \
     tracer/hook/uhook_legacy.c \
   "
 
@@ -362,6 +364,9 @@ if test "$PHP_DDTRACE" != "no"; then
     zend_abstract_interface/exceptions/exceptions.c \
     zend_abstract_interface/headers/headers.c \
     zend_abstract_interface/hook/hook.c \
+    zend_abstract_interface/hook/line_hooks.c \
+    zend_abstract_interface/interceptor/line_hook.c \
+    zend_abstract_interface/jit_utils/opcache_symbols.c \
     zend_abstract_interface/json/json.c \
     zend_abstract_interface/sandbox/call.c \
     zend_abstract_interface/uri_normalization/uri_normalization.c \

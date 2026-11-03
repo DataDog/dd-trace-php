@@ -51,7 +51,7 @@ void dd_trace_startup(void)
     }
 }
 
-void dd_trace_rinit(void) { _asm_event_emitted = false; }
+void dd_trace_root_span_changed(void) { _asm_event_emitted = false; }
 
 void dd_trace_shutdown(void) {}
 
@@ -131,7 +131,12 @@ void dd_trace_close_all_spans_and_flush(void)
 static zval *_get_span_modifiable_array_property(
     zend_object *nonnull zobj, zend_string *nonnull propname)
 {
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80600
+    // 8.6 asserts type != BP_VAR_IS; BP_VAR_W matches the old IS path (no
+    // undefined-property warning, unlike BP_VAR_RW)
+    zval *res =
+        zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_W, NULL);
+#elif PHP_VERSION_ID >= 80000
     zval *res =
         zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_IS, NULL);
 #else
@@ -217,23 +222,23 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
         &DATADOG_G(sidecar), request_slice, false);
 }
 
-ddog_AppsecBodyTape dd_trace_parse_json_body(
-    const char *nonnull data, size_t len, int max_depth)
+ddog_AppsecBodyMessagePack dd_trace_parse_json_body(const char *nonnull data,
+    size_t len, int max_depth, ddog_AppsecBodyAllocator allocator)
 {
     return ddog_appsec_parse_json(
-        (ddog_CharSlice){.ptr = data, .len = len}, max_depth);
+        (ddog_CharSlice){.ptr = data, .len = len}, max_depth, allocator);
 }
 
-ddog_AppsecBodyTape dd_trace_parse_xml_body(
-    const char *nonnull data, size_t len, int max_depth)
+ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(const char *nonnull data,
+    size_t len, int max_depth, ddog_AppsecBodyAllocator allocator)
 {
     return ddog_appsec_parse_xml(
-        (ddog_CharSlice){.ptr = data, .len = len}, max_depth);
+        (ddog_CharSlice){.ptr = data, .len = len}, max_depth, allocator);
 }
 
-void dd_trace_drop_body_tape(ddog_AppsecBodyTape tape)
+void dd_trace_drop_body_msgpack(ddog_AppsecBodyMessagePack body)
 {
-    ddog_appsec_body_tape_drop(tape);
+    ddog_appsec_body_msgpack_drop(body);
 }
 
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)

@@ -20,6 +20,8 @@
 #include <interceptor/php8/interceptor.h>
 #endif
 #include <jit_utils/jit_blacklist.h>
+#include <interceptor/line_hook.h>
+#include <jit_utils/opcache_symbols.h>
 #include <php.h>
 #include <php_ini.h>
 #ifndef _WIN32
@@ -49,6 +51,7 @@
 #endif
 #include "distributed_tracing_headers.h"
 #include "engine_hooks.h"
+#include "data_streams.h"
 #include "ffe.h"
 #include "handlers_internal.h"
 #include "inferred_proxy_headers.h"
@@ -71,6 +74,7 @@
 #include <ext/standard/file.h>
 
 #include "hook/uhook.h"
+#include "hook/uhook_line.h"
 #include "handlers_fiber.h"
 #include "git_metadata.h"
 #include "tracer_telemetry.h"
@@ -157,21 +161,21 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 }
 
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_service), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_env), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_version), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }
@@ -179,6 +183,9 @@ bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new
 }
 
 void ddtrace_activate_once(void) {
+    // Install the outer compile wrapper after all extension startup hooks have run.
+    ddtrace_engine_hooks_first_rinit();
+
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!datadog_disable) {
 #ifndef _WIN32
@@ -217,6 +224,8 @@ void ddtrace_activate_early(void) {
     ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
+    // Borrowed from the previous request's configuration, which is gone by now.
+    DDTRACE_G(stats_additional_tags).computed = false;
 }
 
 void ddtrace_activate_late(void) {
@@ -243,10 +252,12 @@ void ddtrace_ginit(zend_datadog_globals *ddtrace_globals) {
     UNUSED(ddtrace_globals);
 #endif
     zai_hook_ginit();
+    zai_line_hook_ginit();
 }
 
 void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
     zai_hook_gshutdown();
+    zai_line_hook_gshutdown();
 
     if (datadog_globals->ddtrace.agent_config_reader) {
         ddog_agent_remote_config_reader_drop(datadog_globals->ddtrace.agent_config_reader);
@@ -337,9 +348,8 @@ void ddtrace_minit_early(int module_number) {
 #if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
 #endif
-#if ZAI_JIT_BLACKLIST_ACTIVE
+    /* Line hooks need OPcache segment bounds even when JIT blacklisting is disabled. */
     zai_jit_minit();
-#endif
 
     ddtrace_register_functions_and_classes(module_number);
 }
@@ -377,6 +387,7 @@ void ddtrace_minit_late() {
 void ddtrace_mshutdown() {
     zai_uhook_mshutdown();
     zai_hook_mshutdown();
+    zai_line_hook_mshutdown();
 
     ddtrace_unregister_functions_and_classes();
 
@@ -536,6 +547,9 @@ void ddtrace_rinit_early(void) {
 }
 
 void ddtrace_rinit(void) {
+    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: request initialization started");
+    }
     if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (datadog_endpoint) {
@@ -554,6 +568,12 @@ void ddtrace_rinit(void) {
 
     if (get_DD_TRACE_ENABLED()) {
         dd_initialize_request();
+    }
+    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: request initialization complete (readiness=%s, initial_source=%s, version=%" PRIu64 "); unavailable evaluations return defaults while Remote Configuration arrives",
+            ddog_ffe_has_config() ? "ready" : "unavailable",
+            ddog_ffe_has_config() ? "already loaded configuration" : "configuration not yet available",
+            ddog_ffe_config_version());
     }
 }
 
@@ -585,6 +605,7 @@ static void dd_clean_globals(void) {
     }
 
     ddtrace_internal_handlers_rshutdown();
+    ddtrace_dsm_rshutdown();
 #ifndef _WIN32
     ddtrace_dogstatsd_client_rshutdown();
 #endif
@@ -628,6 +649,9 @@ static void dd_shutdown_hooks(bool fast_shutdown) {
 }
 
 void ddtrace_rshutdown(bool fast_shutdown) {
+    // Release hook closures while the object store is still live; post_deactivate runs after its teardown.
+    ddtrace_uhook_line_rshutdown();
+
     zend_hash_destroy(&DDTRACE_G(traced_spans));
 
     // this needs to be done before dropping the spans
@@ -649,8 +673,14 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         DDTRACE_G(active_stack) = NULL;
     }
 
+    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: request shutdown started (pending_exposures=%zu); handing off pending work without waiting for network delivery", DDTRACE_G(ffe_exposure_buffer_len));
+    }
     ddtrace_ffe_flush_exposures();
     ddtrace_ffe_flush_evaluation_metrics();
+    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: request shutdown complete (pending_exposures=%zu); sidecar exposures are not drained by PHP shutdown, in-flight delivery may finish or be cancelled; see ffe_exposures_flusher for available delivery diagnostics", DDTRACE_G(ffe_exposure_buffer_len));
+    }
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
@@ -703,9 +733,26 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
     flags->ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
+    if (flags->ffe_enabled) {
+        LOG(DEBUG, "Feature Flags: effective settings (sdk_env=%s, poll_interval_seconds=%g, agent_timeout_ms=%" PRId64 "); source=Agent Remote Configuration, no direct flag endpoint or initialization timeout",
+            ZSTR_VAL(get_global_DD_ENV()), get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS(), (int64_t)get_global_DD_TRACE_AGENT_TIMEOUT());
+        if (get_global_DD_TRACE_AGENTLESS()) {
+            LOG(DEBUG, "Feature Flags: configuration subscription disabled; DD_TRACE_AGENTLESS=true at startup disables Agent Remote Configuration");
+        } else if (!get_global_DD_REMOTE_CONFIG_ENABLED()) {
+            LOG(DEBUG, "Feature Flags: configuration subscription disabled; set DD_REMOTE_CONFIG_ENABLED=true at startup");
+        } else {
+            LOG(DEBUG, "Feature Flags: enabled; starting remote_config configuration source (Agent Remote Configuration)");
+        }
+        // This runs once per process (first request, or after a fork), so the
+        // warning is not repeated per request or evaluation.
+        if (ddog_shall_log(DDOG_LOG_DEBUG)) {
+            LOG(WARN, "Feature Flags: debug logging is enabled, so feature flag logs include raw evaluation data (targeting keys, evaluation context attributes, flag values, and default values) that may contain personal or sensitive information. Unset DD_TRACE_DEBUG when you no longer need it.");
+        }
+    }
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
         || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
-        || get_global_DD_METRICS_OTEL_ENABLED();
+        || get_global_DD_METRICS_OTEL_ENABLED()
+        || get_global_DD_DATA_STREAMS_ENABLED();
 }
 
 #if defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
@@ -735,6 +782,9 @@ void ddtrace_internal_handle_fork() {
     ddtrace_otel_detach();
     ddtrace_otel_tid_fork_handler();
 #endif
+    // Acquire the child's shared line-hook references and re-establish inherited trampolines.
+    zai_line_hook_handle_fork();
+
     if (DATADOG_G(sidecar)) {
         // Unconditionally send, even if root span is NULL
         ddtrace_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->root_span ? &DDTRACE_G(active_stack)->root_span->span : NULL;

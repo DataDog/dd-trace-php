@@ -20,7 +20,7 @@ TEA_TEST_CASE("tea/sapi", "hardcoded ini", {
 TEA_TEST_CASE_WITH_PROLOGUE("tea/sapi", "overwrite hardcoded ini", {
     REQUIRE(tea_sapi_append_system_ini_entry("html_errors", "1"));
 }, {
-    char *result = TEA_INI_STR("html_errors");
+    const char *result = TEA_INI_STR("html_errors");
 
     REQUIRE(result);
     REQUIRE(strcmp(result, "1") == 0);
@@ -29,7 +29,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("tea/sapi", "overwrite hardcoded ini", {
 TEA_TEST_CASE_WITH_PROLOGUE("tea/sapi", "access modified ini", {
     REQUIRE(tea_sapi_append_system_ini_entry("error_prepend_string", "Foo prepend"));
 }, {
-    char *result = TEA_INI_STR("error_prepend_string");
+    const char *result = TEA_INI_STR("error_prepend_string");
 
     REQUIRE(result);
     REQUIRE(strcmp(result, "Foo prepend") == 0);

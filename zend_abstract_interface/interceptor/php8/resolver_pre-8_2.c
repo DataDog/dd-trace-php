@@ -93,6 +93,9 @@ static zend_op_array *zai_interceptor_compile_string(zend_string *source_string,
     zend_op_array *op_array = prev_compile_string(source_string, filename);
 
     zai_interceptor_add_new_entries(classpos, funcpos);
+    if (op_array) {
+        zai_hook_register_dynamic_functions(op_array);
+    }
 
     return op_array;
 }

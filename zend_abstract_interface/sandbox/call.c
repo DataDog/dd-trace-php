@@ -35,6 +35,27 @@ zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cac
 #if PHP_VERSION_ID >= 80200
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
+typedef struct zai_sandbox_observer {
+    zend_execute_data *boundary;
+    zend_execute_data *head;
+    struct zai_sandbox_observer *next;
+    struct zai_sandbox_observer **prev;
+} zai_sandbox_observer;
+
+/* Active calls can suspend in fibers and return out of order. Each call unlinks its own entry. */
+ZEND_TLS zai_sandbox_observer *zai_sandbox_observers;
+
+zend_execute_data **zai_sandbox_observed_frame(zend_execute_data *boundary) {
+    zend_execute_data **head = NULL;
+    for (zai_sandbox_observer *observer = zai_sandbox_observers; observer; observer = observer->next) {
+        if (observer->boundary == boundary) {
+            /* Nested callbacks can share a boundary; its frame belongs to the outermost saved chain. */
+            head = &observer->head;
+        }
+    }
+    return head;
+}
+
 zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
     // Although the tracer being present should always cause an observer to be
     // present, if zai is used from another extension, like say the profiler,
@@ -112,11 +133,32 @@ static inline int zai_sandbox_try_call(zend_fcall_info *fci, zend_fcall_info_cac
     return ret;
 }
 
-bool zai_sandbox_call(zai_sandbox *sandbox, zend_fcall_info *fci, zend_fcall_info_cache *fcc) {
-    bool zai_sandbox_call_bailed = false;
+/* Keep the saved chain registered while end callbacks run, but unlink it before any bailout escapes. */
+static bool zai_sandbox_unwind(zai_sandbox *sandbox) {
+    volatile bool propagate = false;
+    zend_try {
+        zai_sandbox_bailout(sandbox);
+#if PHP_VERSION_ID >= 80000
+        zai_reset_observed_frame_post_bailout();
+#endif
+    } zend_catch {
+        propagate = true;
+    } zend_end_try();
+    return propagate;
+}
 
+bool zai_sandbox_call(zai_sandbox *sandbox, zend_fcall_info *fci, zend_fcall_info_cache *fcc) {
 #if PHP_VERSION_ID >= 80200
-    zend_execute_data *prev_observed = zai_set_observed_frame(NULL);
+    zai_sandbox_observer observer = {
+        .boundary = EG(current_execute_data),
+        .head = zai_set_observed_frame(NULL),
+        .next = zai_sandbox_observers,
+        .prev = &zai_sandbox_observers,
+    };
+    if (observer.next) {
+        observer.next->prev = &observer.next;
+    }
+    zai_sandbox_observers = &observer;
 #elif PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
     // PHP 8.0's own dummy frame dies on bailout; keep one alive through observer cleanup.
     zend_execute_data dummy_execute_data = {.prev_execute_data = EG(current_execute_data)};
@@ -133,18 +175,21 @@ bool zai_sandbox_call(zai_sandbox *sandbox, zend_fcall_info *fci, zend_fcall_inf
         zend_rethrow_exception(EG(current_execute_data));
     }
 #endif
-    zai_sandbox_call_bailed = zai_sandbox_call_result == 2;
+    bool forward_bailout = zai_sandbox_call_result == 2 && zai_sandbox_unwind(sandbox);
 
-    if (zai_sandbox_call_bailed) {
-        zai_sandbox_bailout(sandbox);
-#if PHP_VERSION_ID >= 80000
-        zai_reset_observed_frame_post_bailout();
+#if PHP_VERSION_ID >= 80200
+    *observer.prev = observer.next;
+    if (observer.next) {
+        observer.next->prev = observer.prev;
+    }
 #endif
+
+    if (forward_bailout) {
+        zend_bailout();
     }
 
 #if PHP_VERSION_ID >= 80200
-    zai_set_observed_frame(prev_observed);
+    zai_set_observed_frame(observer.head);
 #endif
-
     return zai_sandbox_call_result == SUCCESS && EG(exception) == NULL;
 }

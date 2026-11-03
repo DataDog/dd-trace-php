@@ -7,6 +7,8 @@ pub mod agent_info;
 #[cfg(feature = "tracer-runtime")]
 pub mod bytes;
 #[cfg(feature = "tracer-runtime")]
+pub mod data_streams;
+#[cfg(feature = "tracer-runtime")]
 pub mod ffe;
 #[cfg(feature = "tracer-runtime")]
 pub mod remote_config;
