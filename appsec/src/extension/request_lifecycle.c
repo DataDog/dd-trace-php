@@ -39,7 +39,6 @@ static void _set_cur_span(zend_object *nullable span);
 static void _reset_globals(void);
 static zend_long _raise_shutdown_memory_limit(void);
 static bool _restore_shutdown_memory_limit(zend_long limit);
-static bool _set_memory_limit(zend_long limit);
 static zend_array *_request_finish_user_req(bool ignore_verdict,
     zend_array *nonnull superglob_equiv, int status_code,
     zend_array *nullable resp_headers, zend_string *nullable entity);
@@ -571,54 +570,12 @@ static zend_long _raise_shutdown_memory_limit(void)
 }
 
 // Returns whether the original limit was restored; if not, the engine gets a
-// finite fallback instead.
+// finite fallback instead. Only the engine gets it: PG(memory_limit) outlives
+// the request unless the INI entry was changed at runtime.
 static bool _restore_shutdown_memory_limit(zend_long limit)
 {
     PG(memory_limit) = limit;
-    if (_set_memory_limit(limit)) {
-        return true;
-    }
-    // The usage no longer fits the limit (after a deferred fatal): keep the
-    // rest of the request bounded, as the PHP2Shell guard does. Only the
-    // engine gets it: PG(memory_limit) outlives the request unless the INI
-    // entry was changed at runtime.
-    zend_long fallback = (zend_long)MIN(
-        dd_php2shell_finite_limit((size_t)limit), (size_t)ZEND_LONG_MAX);
-    mlog(dd_log_debug,
-        "Memory usage is above memory_limit " ZEND_LONG_FMT
-        "; restoring " ZEND_LONG_FMT " instead",
-        limit, fallback);
-    if (!_set_memory_limit(fallback)) {
-        mlog(dd_log_error, "Failed to set memory limit " ZEND_LONG_FMT,
-            fallback);
-    }
-    return false;
-}
-
-static bool _set_memory_limit(zend_long limit)
-{
-#if PHP_VERSION_ID < 80100
-    // Older setters may accept a limit below current usage, letting the
-    // allocator's remaining-space subtraction wrap. Reclaim cached memory
-    // before checking whether the limit fits.
-    if ((size_t)limit < zend_memory_usage(true)) {
-        zend_mm_gc(zend_mm_get_heap());
-        if ((size_t)limit < zend_memory_usage(true)) {
-            return false;
-        }
-    }
-#endif
-#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
-    zend_set_memory_limit(limit);
-    return true;
-#else
-    if (zend_set_memory_limit(limit) != SUCCESS) {
-        return false;
-    }
-    // 8.1.4+: a limit that fits only once cached chunks are freed frees them
-    // and returns SUCCESS without writing it; the second call writes it.
-    return zend_set_memory_limit(limit) == SUCCESS;
-#endif
+    return dd_php2shell_restore_limit(limit);
 }
 
 // Detach request-owned values before releasing them: user destructors can bail.

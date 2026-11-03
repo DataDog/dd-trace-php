@@ -95,6 +95,9 @@ void dd_php2shell_post_deactivate(void);
 // The finite memory limit to use when `limit` is below the current usage, as
 // after a deferred fatal: the usage plus the hard margin.
 size_t dd_php2shell_finite_limit(size_t limit);
+// Set the engine's limit to `limit`, or to a finite one when the usage no
+// longer fits it; returns whether `limit` was set.
+bool dd_php2shell_restore_limit(zend_long limit);
 // Emit the mitigation state into `php --ri ddtrace` (MINFO).
 void dd_php2shell_minfo(void);
 

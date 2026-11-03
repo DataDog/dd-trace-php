@@ -346,23 +346,15 @@
 //     at the same time wins (see Coverage: Timeout at the same interrupt).
 //     Coroutine runtimes (Swow, Swoole) can delay the raise by one scheduling
 //     slice.
-//   - No limit after a dropped error: at our RSHUTDOWN the configured
-//     memory_limit is restored with zend_set_memory_limit(), whose result is
-//     not checked. With usage above it (mainly after a pending error was
-//     dropped) it fails (PHP 7.4.21+, 8.1+) or, on 8.1.4+, may instead free
-//     cached chunks without writing the limit; the engine then keeps the
-//     sentinel until appsec's request shutdown, right after, restores
-//     memory_limit again (calling the setter twice after a chunk-freeing
-//     success) or, if it no longer fits, sets usage + 8 MiB (see
-//     _restore_shutdown_memory_limit in request_lifecycle.c). When appsec
-//     skips its request shutdown, nothing limits the rest of
-//     shutdown (later RSHUTDOWNs, session write, output teardown) until
-//     php_request_shutdown() resets the heap. On PHP 7.1-7.4.20 and 8.0 the
-//     restore succeeds below usage instead, as php_error_cb()'s does in stock
-//     PHP. (8.0.8+ checks only in zend_set_memory_limit_ex(), used by
-//     ini_set(), not in zend_set_memory_limit().) In a worker using ddtrace's
-//     user-request API, a failed restore when a user request ends sets usage +
-//     8 MiB and raises "Failed to restore memory limit after AppSec request
+//   - Limit after a dropped error: memory_limit is restored when the request
+//     is disarmed (at our RSHUTDOWN, or in post_deactivate after a skipped
+//     one) and again by appsec's request shutdown. With usage above it
+//     (mainly after a pending error was dropped) it no longer fits, and the
+//     engine gets usage + 8 MiB instead: the rest of shutdown (later
+//     RSHUTDOWNs, session write, output teardown) stays bounded, a little
+//     above memory_limit (see dd_p2s_guard_restore_limit). In a worker using
+//     ddtrace's user-request API, a failed restore when a user request ends
+//     also raises "Failed to restore memory limit after AppSec request
 //     shutdown", ending the worker, as a fixed PHP's delayed OOM does.
 //   - Sentinel memory_limit: a memory_limit of -2 (PHP 7.0-8.1) or
 //     18446744073709551614 (8.2+), or 9223372036854775806 where the engine
@@ -550,6 +542,11 @@ void dd_php2shell_rshutdown(void) { dd_p2s_runtime_rshutdown(); }
 size_t dd_php2shell_finite_limit(size_t limit)
 {
     return dd_p2s_finite_limit(limit, zend_memory_usage(true));
+}
+
+bool dd_php2shell_restore_limit(zend_long limit)
+{
+    return dd_p2s_guard_restore_limit(limit);
 }
 
 // One check and one MINFO row per hook (see dd_p2s_hook_check_displaced): the

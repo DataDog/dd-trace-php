@@ -50,6 +50,12 @@
 //                       as rinit_alloc, in post_deactivate, which runs after
 //                       AppSec's when loaded after ddtrace.so. Prints
 //                       "P2S_STUB post_deactivate alloc bailed=0|1";
+//   p2s_stub.sapi_deactivate_alloc=N
+//                       as rinit_alloc, from a sapi_module.deactivate wrapper
+//                       installed in MINIT, which runs after every
+//                       post_deactivate, only after an rshutdown_pad block
+//                       was allocated (kept until then). Prints
+//                       "P2S_STUB sapi_deactivate alloc bailed=0|1";
 //   p2s_stub.error_cb_swallow=1
 //                       from MINIT, wrap zend_error_cb so that an E_ERROR
 //                       is not chained, but printed to stderr as
@@ -211,6 +217,7 @@ static void _interrupt(zend_execute_data *execute_data);
 #endif
 static ZEND_NAMED_FUNCTION(_gc_mem_caches);
 static void _alloc_report(const char *where, size_t size);
+static int _sapi_deactivate(void);
 static void _release_held(void);
 static void _gc_install(void);
 static void _gc_restore(void);
@@ -247,6 +254,8 @@ static size_t _rinit_alloc;
 static size_t _rshutdown_alloc;
 static size_t _rshutdown_pad;
 static size_t _post_deactivate_alloc;
+static size_t _sapi_deactivate_alloc;
+static __typeof__(sapi_module.deactivate) _prev_sapi_deactivate;
 // p2s_stub_hold_chunks(): the held blocks, then the RSHUTDOWN pad.
 enum { P2S_HELD_MAX = 64 };
 static void *_held[P2S_HELD_MAX];
@@ -306,6 +315,7 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("p2s_stub.rshutdown_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_pad", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.post_deactivate_alloc", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.sapi_deactivate_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_bailout", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_bailout", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.activate_mm", "0", PHP_INI_SYSTEM, NULL)
@@ -402,6 +412,10 @@ static PHP_MINIT_FUNCTION(p2s_stub)
         zend_ini_long(ZEND_STRL("p2s_stub.post_deactivate_alloc"), 0);
     _post_deactivate_alloc =
         post_deactivate_alloc > 0 ? (size_t)post_deactivate_alloc : 0;
+    zend_long sapi_deactivate_alloc =
+        zend_ini_long(ZEND_STRL("p2s_stub.sapi_deactivate_alloc"), 0);
+    _sapi_deactivate_alloc =
+        sapi_deactivate_alloc > 0 ? (size_t)sapi_deactivate_alloc : 0;
     _rinit_bailout = zend_ini_long(ZEND_STRL("p2s_stub.rinit_bailout"), 0) != 0;
     _rshutdown_bailout =
         zend_ini_long(ZEND_STRL("p2s_stub.rshutdown_bailout"), 0) != 0;
@@ -415,6 +429,10 @@ static PHP_MINIT_FUNCTION(p2s_stub)
     }
     if (_gc_mode == 1) {
         _gc_install();
+    }
+    if (_sapi_deactivate_alloc > 0) {
+        _prev_sapi_deactivate = sapi_module.deactivate;
+        sapi_module.deactivate = _sapi_deactivate;
     }
 #if PHP_VERSION_ID >= 70100
     if (zend_ini_long(ZEND_STRL("p2s_stub.interrupt"), 0) != 0) {
@@ -455,6 +473,9 @@ static PHP_MSHUTDOWN_FUNCTION(p2s_stub)
     _gc_restore();
     if (_prev_error_cb && zend_error_cb == _error_cb) {
         zend_error_cb = _prev_error_cb;
+    }
+    if (sapi_module.deactivate == _sapi_deactivate) {
+        sapi_module.deactivate = _prev_sapi_deactivate;
     }
 #if PHP_VERSION_ID >= 70100
     if (zend_interrupt_function == _interrupt) {
@@ -519,6 +540,18 @@ static void _alloc_report(const char *where, size_t size)
     fflush(stderr);
 }
 
+// p2s_stub.sapi_deactivate_alloc: after every post_deactivate.
+static int _sapi_deactivate(void)
+{
+    // Not outside a request (php-cgi also deactivates at startup).
+    if (_pad) {
+        _alloc_report("sapi_deactivate", _sapi_deactivate_alloc);
+        efree(_pad);
+        _pad = NULL;
+    }
+    return _prev_sapi_deactivate ? _prev_sapi_deactivate() : SUCCESS;
+}
+
 // Free the blocks of p2s_stub_hold_chunks() and pad real usage up to
 // p2s_stub.rshutdown_pad.
 static void _release_held(void)
@@ -546,7 +579,7 @@ static ZEND_MODULE_POST_ZEND_DEACTIVATE_D(p2s_stub)
     if (_post_deactivate_alloc > 0) {
         _alloc_report("post_deactivate", _post_deactivate_alloc);
     }
-    if (_pad) {
+    if (_pad && _sapi_deactivate_alloc == 0) {
         efree(_pad);
         _pad = NULL;
     }

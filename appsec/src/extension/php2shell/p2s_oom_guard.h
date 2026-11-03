@@ -129,6 +129,9 @@ void dd_p2s_guard_reconcile(bool armed);
 void dd_p2s_guard_close(void);
 // post_deactivate: disarm, forget the request and settle the handlers.
 void dd_p2s_guard_settle(void);
+// Set the engine's limit to `limit` (memory_limit); if the usage no longer
+// fits it, set a finite one instead (dd_p2s_finite_limit) and return false.
+bool dd_p2s_guard_restore_limit(zend_long limit);
 // Whether our handlers are in the chain of `heap`.
 bool dd_p2s_guard_in_chain(zend_mm_heap *nonnull heap);
 #ifdef TESTING
