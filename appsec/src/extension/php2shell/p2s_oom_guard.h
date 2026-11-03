@@ -134,6 +134,9 @@ void dd_p2s_guard_reconcile(bool armed);
 void dd_p2s_guard_close(void);
 // post_deactivate: disarm, forget the request and settle the handlers.
 void dd_p2s_guard_settle(void);
+// zend_extension activate: clear what a request whose shutdown was skipped
+// left armed, under a finite engine limit. Arms nothing; the handlers stay.
+void dd_p2s_guard_activate(void);
 // Set the engine's limit to `limit` (memory_limit); if the usage no longer
 // fits it, set a finite one instead (dd_p2s_finite_limit) and return false.
 bool dd_p2s_guard_restore_limit(zend_long limit);

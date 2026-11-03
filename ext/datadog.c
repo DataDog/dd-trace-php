@@ -293,6 +293,15 @@ static void datadog_activate(void) {
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
+#ifdef APPSEC
+    // Before every request, ahead of its startup parse, and before the tracer's
+    // activation allocates: clears PHP2Shell arming left over by a request
+    // whose shutdown never ran.
+    if (datadog_appsec_initialized) {
+        dd_appsec_activate();
+    }
+#endif
+
 #ifdef SIDECAR
     if (!datadog_disable) {
         datadog_sidecar_ensure_active();
