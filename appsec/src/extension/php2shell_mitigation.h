@@ -82,7 +82,7 @@ void dd_php2shell_user_req_begin(void);
 // Disarm the request and remove the handlers dd_php2shell_rinit() installed,
 // if the slot still holds them. Called at the start of PHP_RSHUTDOWN, and in
 // PHP_RINIT before a block or a fatal error ends it (on php-fpm and FrankenPHP
-// a block returns into PHP_RINIT, and dd_php2shell_rinit_end() arms again).
+// a block returns into PHP_RINIT, which then skips dd_php2shell_rinit_end()).
 void dd_php2shell_rshutdown(void);
 
 // Clear the guard state a request whose shutdown was skipped left behind (php

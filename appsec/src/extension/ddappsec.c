@@ -214,8 +214,11 @@ void dd_appsec_rinit(void)
     zend_end_try();
 
     // Follow this request's WAF decision and the gate as remote config left
-    // it.
-    dd_php2shell_rinit_end();
+    // it. Not after a block that returned here (php-fpm, FrankenPHP): the
+    // script does not run, and the next request arms with the decision.
+    if (!DDAPPSEC_G(skip_rshutdown)) {
+        dd_php2shell_rinit_end();
+    }
 }
 
 void dd_appsec_rshutdown_hook(void)

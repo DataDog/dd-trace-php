@@ -43,8 +43,8 @@
 // request starts (see dd_p2s_runtime_reconcile): it is opened, armed
 // again or disarmed there, and the handlers stay until the worker's RSHUTDOWN.
 // On php-fpm and FrankenPHP a block in appsec's RINIT returns into it after
-// removing the handlers, and the end of that RINIT installs and arms them
-// again. PHP 7.0, without EG(vm_interrupt), has only the windows.
+// removing the handlers, and the end of that RINIT leaves them off. PHP 7.0,
+// without EG(vm_interrupt), has only the windows.
 
 #include "p2s_runtime.h"
 

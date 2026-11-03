@@ -113,9 +113,8 @@
 //     exchange included) to our RSHUTDOWN. A block or a fatal error in our
 //     RINIT ends it first, as our RSHUTDOWN does, so appsec's request shutdown
 //     and the RSHUTDOWNs that the block runs there are unarmed. On php-fpm and
-//     FrankenPHP a block returns into our RINIT instead, whose end arms the
-//     request level again until our RSHUTDOWN, lifting the limit that appsec's
-//     request shutdown set. The tracer's and the profiler's parts of the
+//     FrankenPHP a block returns into our RINIT instead, which then leaves the
+//     request level closed. The tracer's and the profiler's parts of the
 //     ddtrace RINIT, which run before ours, the RINITs of extensions loaded
 //     before ddtrace.so, and RSHUTDOWNs that run after ours are unarmed,
 //     notably session write (the session module is built in, so its RSHUTDOWN
