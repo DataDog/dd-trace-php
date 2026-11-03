@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\OpenTelemetry\Integration;
 
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanLink;
 use DDTrace\SpanEvent;
 use DDTrace\ExceptionSpanEvent;
@@ -13,6 +14,7 @@ use DDTrace\Tests\Common\TracerTestTrait;
 use Fiber;
 use OpenTelemetry\API\Baggage\Baggage;
 use OpenTelemetry\API\Baggage\Propagation\BaggagePropagator;
+use OpenTelemetry\API\Trace\NoopTracer;
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
@@ -24,6 +26,7 @@ use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
+use OpenTelemetry\SDK\Trace\Sampler\TraceIdRatioBasedSampler;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use function DDTrace\active_span;
 use function DDTrace\close_span;
@@ -263,8 +266,9 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
 
             $OTelScope->detach();
-            $currentSpan->end();
-            $OTelSpan->end();
+            $OTelSpan->end(); // The dd child is still open: it is closed along with it
+            $this->assertNotEquals(0, $ddSpan->getDuration());
+            $this->assertNull(active_span());
         });
 
         $spans = $traces[0];
@@ -1622,6 +1626,39 @@ final class InteroperabilityTest extends BaseTestCase
             $activated->end();
             close_span();
         });
+    }
+
+    public function testNoopTracerContinuesDatadogSpan()
+    {
+        $this->isolateTracer(function () {
+            $ddSpan = start_span();
+            $span = NoopTracer::getInstance()->spanBuilder("noop")->startSpan();
+            $this->assertFalse($span->isRecording());
+            $this->assertSame($ddSpan->hexId(), $span->getContext()->getSpanId());
+            close_span();
+        });
+    }
+
+    public function testCustomSamplerDoesNotDecideForLocalParents()
+    {
+        self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=restart']);
+        try {
+            $traces = $this->isolateTracer(function () {
+                $ddSpan = start_span();
+                $ddSpan->name = "dd.span";
+                $tracer = (new TracerProvider([], new TraceIdRatioBasedSampler(1.0)))->getTracer('OpenTelemetry.TracerTest');
+                $span = $tracer->spanBuilder("otel.child")->startSpan();
+                $this->assertSame($ddSpan->hexId(), $span->getParentContext()->getSpanId());
+                $span->end();
+                close_span();
+            });
+        } finally {
+            self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=continue']);
+        }
+
+        // The restart behavior targets remote parents: a local parent must not hand the decision to the custom sampler
+        $spans = array_column(array_merge(...$traces), null, 'resource');
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $spans['otel.child']['metrics']['_sampling_priority_v1']);
     }
 
     public function testDatadogSpansDoNotLeakContextScopes()

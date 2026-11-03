@@ -89,8 +89,9 @@ final class Context implements ContextInterface
 
         $currentContext = self::activateParent(active_span());
 
+        // The context of the global storage is derived from the active dd span (e.g. NoopSpanBuilder passes that storage)
         return $context
-            ?? ($contextStorage ? $contextStorage->current() : $currentContext)
+            ?? ($contextStorage && $contextStorage !== self::storage() ? $contextStorage->current() : $currentContext)
             ?: self::getRoot();
     }
 

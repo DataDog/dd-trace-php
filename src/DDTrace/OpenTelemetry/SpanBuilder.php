@@ -244,8 +244,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
             \DDTrace\root_span()->tracestate = (string) $samplingResultTraceState;
         }
 
-        // A custom sampler decides the sampling of a new trace
-        if ((!$parentSpanContext->isValid() || $restartOrIgnore) && self::isCustomSampler($sampler)) {
+        // A custom sampler decides the sampling of a new trace. Not of one restarted from a local parent though: the
+        // extraction behavior is only meant for contexts from other services, and applied to local parents by accident
+        if ((!$parentSpanContext->isValid() || ($restartOrIgnore && $parentSpanContext->isRemote())) && self::isCustomSampler($sampler)) {
             \DDTrace\set_priority_sampling($sampled ? \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP : \DD_TRACE_PRIORITY_SAMPLING_USER_REJECT);
         }
 
