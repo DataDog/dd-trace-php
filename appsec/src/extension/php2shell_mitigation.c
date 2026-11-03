@@ -123,7 +123,8 @@
 //     session write (the session module is built in, so its RSHUTDOWN runs
 //     after ours), as are output handlers flushed after our RSHUTDOWN.
 //   - After a deferred fatal: the request is disarmed, so shutdown functions
-//     run unarmed.
+//     run unarmed, under max(memory_limit, usage at the raise + 8 MiB) (see
+//     dd_p2s_guard_raise_fatal).
 //   - Swallowed deferred fatal: code that catches the bailout and carries on
 //     (ext/soap turns it into a SoapFault when raised inside a SoapClient call
 //     that runs user code; parallel runs the next task of the same runtime,
@@ -537,9 +538,11 @@ void dd_php2shell_user_req_begin(void) { dd_p2s_runtime_user_req_begin(); }
 
 void dd_php2shell_rshutdown(void) { dd_p2s_runtime_rshutdown(); }
 
-size_t dd_php2shell_finite_limit(size_t limit)
+void dd_php2shell_raise_fatal(
+    void (*nullable raise)(const char *nonnull message),
+    const char *nonnull message)
 {
-    return dd_p2s_finite_limit(limit, zend_memory_usage(true));
+    dd_p2s_guard_raise_fatal(raise, message);
 }
 
 bool dd_php2shell_restore_limit(zend_long limit)

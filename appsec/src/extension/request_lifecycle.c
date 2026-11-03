@@ -301,7 +301,7 @@ cleanup:
     dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
     if (res == dd_oom) {
         _reset_globals();
-        zend_error_noreturn(E_ERROR,
+        dd_php2shell_raise_fatal(NULL,
             "Failed to allocate memory while parsing the AppSec request body");
     }
 
@@ -484,21 +484,8 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
             zend_array_destroy(result);
         }
         _reset_globals();
-        // php_error_cb() resets the engine limit to PG(memory_limit). Before
-        // 7.4.21, and on 8.0, that succeeds below usage, and the allocator's
-        // limit - real_size check wraps: no limit at all. Have it write the
-        // fallback; PG(memory_limit) can outlive the request, so restore it.
-        PG(memory_limit) =
-            (zend_long)MIN(dd_php2shell_finite_limit((size_t)orig_mem_limit),
-                (size_t)ZEND_LONG_MAX);
-        zend_try
-        {
-            zend_error(E_ERROR,
-                "Failed to restore memory limit after AppSec request shutdown");
-        }
-        zend_end_try();
-        PG(memory_limit) = orig_mem_limit;
-        zend_bailout();
+        dd_php2shell_raise_fatal(NULL,
+            "Failed to restore memory limit after AppSec request shutdown");
     }
     return result;
 }
