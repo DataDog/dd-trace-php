@@ -87,6 +87,8 @@ $dirs = [
     "CentOS"   => "dockerfiles/ci/centos/7",
     "Alpine"   => "dockerfiles/ci/alpine_compile_extension",
     "Services" => "dockerfiles/services",
+    "Packaging" => "dockerfiles/packaging/fpm_packaging",
+    "Randomized" => "tests/randomized",
 ];
 
 $registryOverrides = [
