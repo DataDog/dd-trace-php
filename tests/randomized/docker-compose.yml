@@ -9,7 +9,7 @@ services:
           - linux/amd64
       args:
         PHP_MAJOR_MINOR: "7.0"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.0-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.0-3'
 
   centos-7.1:
     build:
@@ -18,7 +18,7 @@ services:
       x-bake: *bake
       args:
         PHP_MAJOR_MINOR: "7.1"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.1-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.1-3'
 
   centos-7.2:
     build:
@@ -27,7 +27,7 @@ services:
       x-bake: *bake
       args:
         PHP_MAJOR_MINOR: "7.2"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.2-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.2-3'
 
   centos-7.3:
     build:
@@ -36,7 +36,7 @@ services:
       x-bake: *bake
       args:
         PHP_MAJOR_MINOR: "7.3"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.3-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.3-3'
 
   centos-7.4:
     build:
@@ -45,7 +45,7 @@ services:
       x-bake: *bake
       args:
         PHP_MAJOR_MINOR: "7.4"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.4-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.4-3'
 
   buster-7.4:
     build:
@@ -63,7 +63,7 @@ services:
       x-bake: *bake
       args:
         PHP_MAJOR_MINOR: "8.0"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.0-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.0-3'
 
   buster-8.0:
     build:
@@ -81,7 +81,7 @@ services:
       x-bake: *bake
       args:
         PHP_MAJOR_MINOR: "8.1"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.1-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.1-3'
 
   buster-8.1:
     build:
@@ -99,7 +99,7 @@ services:
       x-bake: *bake
       args:
         PHP_MAJOR_MINOR: "8.2"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.2-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.2-3'
 
   buster-8.2:
     build:
@@ -117,7 +117,7 @@ services:
       x-bake: *bake
       args:
         PHP_MAJOR_MINOR: "8.3"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.3-2'
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.3-3'
 
   buster-8.3:
     build:

@@ -78,10 +78,11 @@ anything. It is up to you to ensure the image you publish actually exists in
 ### Adding or updating a PHP version
 
 * **Bump a patch / RC** (e.g. 8.5.7 → 8.5.8): in that OS's `docker-compose.yml`,
-  update the service's `phpTarGzUrl` and `phpSha256Hash`. The image tag is
-  major.minor, so the image just tracks the latest patch. (`tar xf` autodetects
-  compression, so a `.tar.gz`, `.tar.xz` or `.tar.bz2` URL all work — just use
-  the matching hash.)
+  update the service's `phpTarGzUrl` and `phpSha256Hash`. Bookworm and CentOS
+  tags carry the `.env` generation: bump `*_NEXT_VERSION` first so the rebuild
+  lands on unused tags. Alpine, Windows and Services tags are rebuilt in place.
+  (`tar xf` autodetects compression, so a `.tar.gz`, `.tar.xz` or `.tar.bz2` URL
+  all work — just use the matching hash.)
 * **Add a new minor**: add a service to the compose file; for bookworm also add
   a `php-<minor>/Dockerfile` (copy the previous minor's and adjust the
   `COPY php-<minor>/...` paths). The generator picks the new service up
