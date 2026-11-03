@@ -146,6 +146,10 @@ void dd_appsec_mshutdown(void)
 
 void dd_appsec_zend_startup(void) { dd_request_abort_zend_ext_startup(); }
 
+// Before every request, ahead of PHP's parsing of its POST, GET and cookie
+// data (where the PHP2Shell startup window arms).
+void dd_appsec_activate(void) { dd_php2shell_activate(); }
+
 void dd_appsec_zend_startup_last(void)
 {
     // Capture the PHP2Shell hook slots once, after every module MINIT and after

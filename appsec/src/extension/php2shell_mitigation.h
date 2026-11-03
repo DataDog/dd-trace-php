@@ -85,6 +85,11 @@ void dd_php2shell_user_req_begin(void);
 // a block returns into PHP_RINIT, and dd_php2shell_rinit_end() arms again).
 void dd_php2shell_rshutdown(void);
 
+// Clear the guard state a request whose shutdown was skipped left behind (php
+// -S before 8.1, NGINX Unit after a failed startup), leaving a finite engine
+// limit. Called early in the datadog zend_extension activate hook.
+void dd_php2shell_activate(void);
+
 // Settle the request-level Zend MM handlers from the slot (reset the heap to
 // plain zend_mm if a bailout skipped dd_php2shell_rshutdown()), reset the
 // request-owned engine globals that an OOM bailout can leave stale

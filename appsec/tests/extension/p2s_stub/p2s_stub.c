@@ -69,14 +69,23 @@
 //                       error_reporting masks.
 //
 // Switches for the lifecycle of AppSec's request-level Zend MM handlers
-// (php2shell_mitigation_lifecycle_fallbacks.phpt):
+// (php2shell_mitigation_lifecycle_fallbacks.phpt,
+// php2shell_mitigation_activate_reset.phpt):
 //   p2s_stub.rinit_bailout=1
 //                       bail out in the RINIT of the first request only.
 //                       Loaded after ddtrace.so, this runs after AppSec's
 //                       RINIT; on PHP 8.x no RSHUTDOWN then runs
 //                       (PG(modules_activated) stays 0). Only once: the
 //                       modules whose RINIT ran too keep request state that
-//                       only their RSHUTDOWN clears;
+//                       only their RSHUTDOWN clears. With rinit_alloc, only
+//                       that request allocates, before it bails out;
+//   p2s_stub.activate_alloc=N
+//                       with rinit_bailout, allocate (and free) N bytes inside
+//                       a zend_try from a zend_extension activate hook in the
+//                       requests after the one that bailed out. Loaded after
+//                       ddtrace.so, this runs after its activate hook, which
+//                       resets AppSec's guard state.
+//                       Prints "P2S_STUB activate alloc bailed=0|1";
 //   p2s_stub.rshutdown_bailout=1
 //                       bail out in every RSHUTDOWN. Loaded after ddtrace.so,
 //                       this RSHUTDOWN runs before AppSec's, which PHP 7.x
@@ -268,6 +277,7 @@ static bool _error_cb_swallow;
 static void (*_prev_error_cb)(P2S_ERROR_CB_PARAMS);
 static size_t _rinit_alloc;
 static size_t _rinit_pad;
+static size_t _activate_alloc;
 static bool _rinit_mm;
 static size_t _rshutdown_alloc;
 static size_t _rshutdown_pad;
@@ -331,6 +341,7 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("p2s_stub.error_cb_swallow", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_pad", "0", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("p2s_stub.activate_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rinit_mm", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_alloc", "0", PHP_INI_SYSTEM, NULL)
     PHP_INI_ENTRY("p2s_stub.rshutdown_pad", "0", PHP_INI_SYSTEM, NULL)
@@ -424,6 +435,9 @@ static PHP_MINIT_FUNCTION(p2s_stub)
     _rinit_alloc = rinit_alloc > 0 ? (size_t)rinit_alloc : 0;
     zend_long rinit_pad = zend_ini_long(ZEND_STRL("p2s_stub.rinit_pad"), 0);
     _rinit_pad = rinit_pad > 0 ? (size_t)rinit_pad : 0;
+    zend_long activate_alloc =
+        zend_ini_long(ZEND_STRL("p2s_stub.activate_alloc"), 0);
+    _activate_alloc = activate_alloc > 0 ? (size_t)activate_alloc : 0;
     _rinit_mm = zend_ini_long(ZEND_STRL("p2s_stub.rinit_mm"), 0) != 0;
     zend_long rshutdown_alloc =
         zend_ini_long(ZEND_STRL("p2s_stub.rshutdown_alloc"), 0);
@@ -468,7 +482,7 @@ static PHP_MINIT_FUNCTION(p2s_stub)
         zend_error_cb = _error_cb;
     }
     if (_startup_mode || _activate_mm || _mm_drop || _rinit_mm ||
-        _gc_mode == 2) {
+        _activate_alloc > 0 || _gc_mode == 2) {
         // As ddtrace does: hand the DSO handle to the zend_extension, so the
         // library stays mapped until the zend_extension list is destroyed,
         // after module shutdown.
@@ -519,6 +533,9 @@ static PHP_RINIT_FUNCTION(p2s_stub)
     (void)type;
     (void)module_number;
     if (_rinit_bailout && ++_requests == 1) {
+        if (_rinit_alloc > 0) {
+            _alloc_report("RINIT", _rinit_alloc);
+        }
         fprintf(stderr, "P2S_STUB bailout in RINIT\n");
         fflush(stderr);
         zend_bailout();
@@ -534,7 +551,7 @@ static PHP_RINIT_FUNCTION(p2s_stub)
         fprintf(stderr, "P2S_STUB RINIT usage=%zu\n", zend_memory_usage(true));
         fflush(stderr);
     }
-    if (_rinit_alloc > 0) {
+    if (_rinit_alloc > 0 && !_rinit_bailout) {
         _alloc_report("RINIT", _rinit_alloc);
     }
     return SUCCESS;
@@ -802,6 +819,9 @@ static void _activate(void)
     }
     if (_mm_drop && _mm.installed && _mm_on_top()) {
         _mm_reset();
+    }
+    if (_activate_alloc > 0 && _requests > 0) {
+        _alloc_report("activate", _activate_alloc);
     }
 }
 

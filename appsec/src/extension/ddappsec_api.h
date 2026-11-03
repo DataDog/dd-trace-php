@@ -22,6 +22,8 @@ void dd_appsec_mshutdown(void);
 void dd_appsec_zend_startup(void);
 // At the end of the zend_extension startup, after the profiler's.
 void dd_appsec_zend_startup_last(void);
+// Early in the datadog zend_extension activate hook, before the tracer's.
+void dd_appsec_activate(void);
 // After the tracer's RINIT, as it needs the root span.
 void dd_appsec_rinit(void);
 // Before the tracer's RSHUTDOWN, which closes the root span.

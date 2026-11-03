@@ -322,7 +322,9 @@
 //     change them.
 //   - NGINX Unit: after a failed request startup (e.g. a deferred fatal from
 //     the startup parse) Unit skips php_request_shutdown(), as with stock
-//     PHP; the window was already disarmed under a finite limit.
+//     PHP; the window was already disarmed under a finite limit. A request
+//     left armed (a later module's RINIT failed) is disarmed when the next one
+//     starts (see dd_p2s_guard_activate); php -S before 8.1 is the same.
 //   - FrankenPHP last error: worker mode calls sapi_deactivate() at every
 //     worker-request boundary with SG(sapi_started) set, so the
 //     sapi_module.deactivate wrapper also clears PG(last_error_*) there, while
@@ -539,6 +541,8 @@ const char *nullable dd_php2shell_vulnerable_value(void)
 {
     return dd_p2s_policy_vulnerable_value();
 }
+
+void dd_php2shell_activate(void) { dd_p2s_guard_activate(); }
 
 void dd_php2shell_rinit(void) { dd_p2s_runtime_rinit(); }
 

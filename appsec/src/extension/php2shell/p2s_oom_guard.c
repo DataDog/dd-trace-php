@@ -491,6 +491,24 @@ void dd_p2s_guard_settle(void)
     _settle_handlers();
 }
 
+// Runs before anything of the request, its startup parse included. php -S
+// before 8.1 and NGINX Unit run no shutdown at all after a failed request
+// startup (e.g. a later module's RINIT bailing out while we were armed), and
+// the next request would start armed on the old limits, a pending error
+// included. Only flags: the policy is not resolved yet (see
+// dd_p2s_runtime_rinit), and the handlers left in the slot only forward.
+void dd_p2s_guard_activate(void)
+{
+    if (EXPECTED(!_arm_state.armed && !_arm_state.request)) {
+        return;
+    }
+    bool armed = _arm_state.armed;
+    _forget_request();
+    if (armed) {
+        (void)dd_p2s_guard_restore_limit((zend_long)PG(memory_limit));
+    }
+}
+
 // The usage may no longer fit `limit` (after a deferred fatal or a dropped
 // pending error): then keep the rest of the request bounded with a finite limit
 // instead of leaving the sentinel or a lifted limit.
