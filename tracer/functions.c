@@ -1906,6 +1906,40 @@ static void ddtrace_ffe_update_empty_array_property(zval *object, const char *na
     zval_ptr_dtor(&property_value);
 }
 
+typedef struct {
+    zval observations;
+    zend_string *targeting_key;
+    zval *attributes;
+} ddtrace_ffe_dependency_context;
+
+static void ddtrace_ffe_record_dependency(void *opaque, ddog_CharSlice key, struct ddog_FfeResult result, bool eligible) {
+    ddtrace_ffe_dependency_context *context = opaque;
+    zend_string *flag_key = zend_string_init(key.ptr, key.len, 0);
+    ddtrace_ffe_record_evaluation_metric_result(flag_key, result.variant, result.allocation_key, result.reason, result.error_code);
+    if (eligible && result.do_log && result.variant && result.allocation_key) {
+        zend_string *attributes = ddtrace_ffe_attributes_json(context->attributes);
+        ddtrace_ffe_record_exposure(flag_key, context->targeting_key, attributes, result.allocation_key,
+            result.variant, result.serial_id, result.has_serial_id);
+        zend_string_release(attributes);
+    }
+    zval observation;
+    array_init(&observation);
+    add_assoc_str(&observation, "flagKey", flag_key);
+    ddtrace_ffe_add_nullable_str(&observation, "variant", result.variant);
+    ddtrace_ffe_add_nullable_str(&observation, "allocationKey", result.allocation_key);
+    const char *error = ddtrace_ffe_error_name(result.error_code);
+    if (error) {
+        add_assoc_string(&observation, "errorCode", (char *)error);
+    } else {
+        add_assoc_null(&observation, "errorCode");
+    }
+    add_assoc_bool(&observation, "observeFullEvaluationData", result.observe_full_evaluation_data);
+    add_next_index_zval(&context->observations, &observation);
+    if (result.value_json) zend_string_release(result.value_json);
+    if (result.variant) zend_string_release(result.variant);
+    if (result.allocation_key) zend_string_release(result.allocation_key);
+}
+
 PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zend_string *flag_key;
     zend_long type_id_zl;
@@ -1993,12 +2027,16 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         attrs_count = idx;
     }
 
-    result = ddog_ffe_evaluate(
+    ddtrace_ffe_dependency_context dependencies = { .targeting_key = targeting_key, .attributes = attrs_zv };
+    array_init(&dependencies.observations);
+    result = ddog_ffe_evaluate_with_dependencies(
         dd_zend_string_to_CharSlice(flag_key),
         type_id,
         dd_zend_string_to_CharSlice(targeting_key),
         c_attrs,
-        attrs_count
+        attrs_count,
+        ddtrace_ffe_record_dependency,
+        &dependencies
     );
     if (c_attrs) {
         efree(c_attrs);
@@ -2013,6 +2051,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     if (!result.valid) {
+        zval_ptr_dtor(&dependencies.observations);
         LOG(DEBUG, "Feature Flags: evaluation rejected; flag key is not valid UTF-8 or the value type is unknown (valueType=%s)", ddtrace_ffe_type_name(type_id));
         if (record_metric) {
             ddtrace_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
@@ -2053,6 +2092,8 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_log_evaluation(flag_key, type_id, targeting_key, attrs_zv, &result);
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
+    ddtrace_ffe_update_property(return_value, ZEND_STRL("dependencyEvaluations"), &dependencies.observations);
+    zval_ptr_dtor(&dependencies.observations);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), variant);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), allocation_key);

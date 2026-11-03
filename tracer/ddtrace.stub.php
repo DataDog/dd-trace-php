@@ -69,6 +69,7 @@ namespace DDTrace {
         public bool $observeFullEvaluationData = false;
         public ?int $serialId = null;
         public array $providerState = [];
+        public array $dependencyEvaluations = [];
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;
         public ?int $configVersion = null;

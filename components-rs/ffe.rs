@@ -243,6 +243,54 @@ pub extern "C" fn ddog_ffe_evaluate(
     attributes: *const FfeAttribute<'_>,
     attributes_count: usize,
 ) -> FfeResult {
+    evaluate_with_dependencies(
+        flag_key,
+        expected_type,
+        targeting_key,
+        attributes,
+        attributes_count,
+        None,
+        std::ptr::null_mut(),
+    )
+}
+
+pub fn supports_dependent_flags() -> bool {
+    true
+}
+
+pub type FfeDependencyCallback =
+    extern "C" fn(*mut std::ffi::c_void, CharSlice<'_>, FfeResult, bool);
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_evaluate_with_dependencies(
+    flag_key: CharSlice<'_>,
+    expected_type: i32,
+    targeting_key: CharSlice<'_>,
+    attributes: *const FfeAttribute<'_>,
+    attributes_count: usize,
+    callback: FfeDependencyCallback,
+    callback_context: *mut std::ffi::c_void,
+) -> FfeResult {
+    evaluate_with_dependencies(
+        flag_key,
+        expected_type,
+        targeting_key,
+        attributes,
+        attributes_count,
+        Some(callback),
+        callback_context,
+    )
+}
+
+fn evaluate_with_dependencies(
+    flag_key: CharSlice<'_>,
+    expected_type: i32,
+    targeting_key: CharSlice<'_>,
+    attributes: *const FfeAttribute<'_>,
+    attributes_count: usize,
+    callback: Option<FfeDependencyCallback>,
+    callback_context: *mut std::ffi::c_void,
+) -> FfeResult {
     if flag_key.as_raw_parts().0.is_null() {
         return invalid_result();
     }
@@ -274,15 +322,13 @@ pub extern "C" fn ddog_ffe_evaluate(
     let context = EvaluationContext::new(targeting_key, Arc::new(attributes));
     let expects_object = matches!(expected_type, ExpectedFlagType::Object);
 
-    FFE_STATE.with(|state| {
+    let (result, evaluations) = FFE_STATE.with(|state| {
         let state = state.borrow();
-        let assignment = ffe::get_assignment(
-            state.config.as_ref(),
-            flag_key,
-            &context,
-            expected_type,
-            ffe::now(),
-        );
+        let evaluation = match state.config.as_ref() {
+            Some(config) => config.eval_flag_with_trace(flag_key, &context, expected_type, ffe::now(), ffe::EvaluationOptions::default()),
+            None => ffe::EvaluationResult { result: Err(EvaluationError::ConfigurationMissing), evaluations: Vec::new() },
+        };
+        let assignment = evaluation.result;
         if let Err(error) = &assignment {
             debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): {error}", state.version);
         }
@@ -306,8 +352,25 @@ pub extern "C" fn ddog_ffe_evaluate(
             .config
             .as_ref()
             .is_some_and(Configuration::observe_full_evaluation_data);
-        result
-    })
+        (result, evaluation.evaluations)
+    });
+    // Release the configuration borrow before calling into Zend; callbacks may reenter.
+    if let Some(callback) = callback {
+        for record in evaluations {
+            let mut dependency = result_from_assignment(record.result);
+            dependency.observe_full_evaluation_data = result.observe_full_evaluation_data;
+            let eligible = record.exposure_eligible
+                && result.error_code == ERROR_NONE
+                && result.variant.is_some();
+            callback(
+                callback_context,
+                CharSlice::from(record.flag_key.as_str()),
+                dependency,
+                eligible,
+            );
+        }
+    }
+    result
 }
 
 fn is_json_container(value: &AssignmentValue) -> bool {
@@ -557,6 +620,80 @@ mod tests {
             }
         }
     }"#;
+
+    extern "C" fn collect_dependency(
+        context: *mut std::ffi::c_void,
+        key: CharSlice<'_>,
+        result: FfeResult,
+        eligible: bool,
+    ) {
+        // SAFETY: tests pass an exclusive pointer to this vector for the synchronous call.
+        let results = unsafe { &mut *context.cast::<Vec<(String, FfeResult, bool)>>() };
+        results.push((key.try_to_utf8().unwrap().to_owned(), result, eligible));
+    }
+
+    #[test]
+    fn prerequisite_callbacks_keep_failed_and_rejected_evaluations() {
+        setup_zend_string_functions();
+        let wire = include_str!("../tests/ext/ffe/dependent_flags.json");
+        let json = CString::new(wire).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&json)));
+        for (key, expected_error, prerequisite, eligible) in [
+            ("root", ERROR_NONE, "parent", true),
+            ("rejected", ERROR_NONE, "parent", false),
+            ("missing", ERROR_GENERAL, "absent", false),
+            ("requires-disabled", ERROR_GENERAL, "disabled", false),
+        ] {
+            let mut records: Vec<(String, FfeResult, bool)> = Vec::new();
+            let result = ddog_ffe_evaluate_with_dependencies(
+                CharSlice::from(key),
+                TYPE_BOOLEAN,
+                CharSlice::from("subject"),
+                std::ptr::null(),
+                0,
+                collect_dependency,
+                std::ptr::from_mut(&mut records).cast(),
+            );
+            assert_eq!(result.error_code, expected_error, "{key}");
+            assert_eq!(
+                records.len(),
+                1,
+                "{key}: memoization must not duplicate records"
+            );
+            assert_eq!(records[0].0, prerequisite);
+            assert_eq!(records[0].2, eligible);
+            assert!(!records[0].1.observe_full_evaluation_data);
+        }
+        clear_config();
+    }
+
+    #[test]
+    fn scalar_json_root_suppresses_prerequisite_exposures() {
+        setup_zend_string_functions();
+        let mut wire: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/ext/ffe/dependent_flags.json")).unwrap();
+        wire["observeFullEvaluationData"] = true.into();
+        wire["flags"]["root"]["variationType"] = "JSON".into();
+        wire["flags"]["root"]["variations"] = serde_json::json!({"on":{"key":"on","value":42}});
+        let json = CString::new(wire.to_string()).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&json)));
+        let mut records: Vec<(String, FfeResult, bool)> = Vec::new();
+        let result = ddog_ffe_evaluate_with_dependencies(
+            CharSlice::from("root"),
+            TYPE_OBJECT,
+            CharSlice::from("subject"),
+            std::ptr::null(),
+            0,
+            collect_dependency,
+            std::ptr::from_mut(&mut records).cast(),
+        );
+        assert_eq!(result.error_code, ERROR_TYPE_MISMATCH);
+        assert_eq!(records.len(), 1);
+        assert!(!records[0].2);
+        assert!(records[0].1.observe_full_evaluation_data);
+        assert!(supports_dependent_flags());
+        clear_config();
+    }
 
     #[test]
     fn empty_targeting_key_is_not_dropped() {
