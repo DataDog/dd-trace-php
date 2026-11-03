@@ -263,8 +263,8 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
 
             $OTelScope->detach();
+            $currentSpan->end();
             $OTelSpan->end();
-            Span::getCurrent()->end();
         });
 
         $spans = $traces[0];
@@ -1567,6 +1567,59 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame($ddSpan, Span::getCurrent()->getDDSpan());
 
             $span->end();
+            close_span();
+        });
+    }
+
+    public function testDetachedSpanIsNotCurrentAnymore()
+    {
+        $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $parent = $tracer->spanBuilder("parent")->startSpan();
+            $scope = $parent->activate();
+            $span = $tracer->spanBuilder("span")->startSpan(); // Remains the active dd span, but is not activated
+            $this->assertSame($parent->getContext()->getSpanId(), $span->getParentContext()->getSpanId());
+
+            $scope->detach();
+            $this->assertFalse(Span::getCurrent()->getContext()->isValid());
+            $child = $tracer->spanBuilder("child")->startSpan();
+            $this->assertFalse($child->getParentContext()->isValid());
+            $child->end();
+
+            $span->end();
+            $this->assertSame($parent->getDDSpan(), active_span());
+            $this->assertFalse(Span::getCurrent()->getContext()->isValid());
+            $parent->end();
+        });
+    }
+
+    public function testActivatedSpanBelowNonActivatedSpans()
+    {
+        $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $ddSpan = start_span();
+            $activated = $tracer->spanBuilder("activated")->startSpan();
+            $scope = $activated->activate();
+            $nonActivated = $tracer->spanBuilder("non-activated")->startSpan();
+            $other = $tracer->spanBuilder("other")->startSpan();
+            $this->assertSame($activated, Span::getCurrent());
+
+            $ddChild = start_span(); // Datadog spans are always current
+            $this->assertSame($ddChild, Span::getCurrent()->getDDSpan());
+            $this->assertSame($activated->getContext()->getSpanId(), Span::getCurrent()->getParentContext()->getSpanId());
+            $otelChild = $tracer->spanBuilder("otel.child")->startSpan();
+            $this->assertSame($ddChild->hexId(), $otelChild->getParentContext()->getSpanId());
+            $this->assertSame($ddChild, Span::getCurrent()->getDDSpan());
+            $otelChild->end();
+            close_span();
+
+            $this->assertSame($activated, Span::getCurrent());
+            $scope->detach();
+            $this->assertSame($ddSpan, Span::getCurrent()->getDDSpan());
+
+            $other->end();
+            $nonActivated->end();
+            $activated->end();
             close_span();
         });
     }

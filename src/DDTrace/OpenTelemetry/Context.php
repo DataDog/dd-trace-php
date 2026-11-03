@@ -170,17 +170,29 @@ final class Context implements ContextInterface
         /** @var SDK\Span $OTelCurrentSpan */
         $OTelCurrentSpan = ObjectKVStore::get($currentSpan, 'otel_span'); // Note: SDK\Span::startSpan() associates the DDTrace span with the OTel span when it is created
         if ($OTelCurrentSpan !== null) { // If the current span has been activated, nothing to do, trigger backtalk
+            // Set by SpanBuilder::startSpan(): the closest dd span below which was not started via the OTel API, or false
+            $ddParentSpan = ObjectKVStore::get($currentSpan, 'otel_parent_span');
+            if ($ddParentSpan !== null) {
+                // Started via the OTel API: the span is current only as long as its context is the current one
+                $storageContext = self::storage()->current();
+                $storageSpan = API\Span::fromContext($storageContext);
+                if ($storageSpan === $OTelCurrentSpan) {
+                    return $storageContext;
+                }
+                // Otherwise the dd span below is current. Unless the activated span from the storage sits in between: it is
+                // then another span started via the OTel API on top of that same dd span
+                if ($storageSpan instanceof SDK\Span && ObjectKVStore::get($storageSpan->getDDSpan(), 'otel_parent_span') === $ddParentSpan) {
+                    return $storageContext;
+                }
+                return self::activateParent($ddParentSpan ?: null);
+            }
+
             // Return the context associated with the current span
             if (ObjectKVStore::get($currentSpan, 'ddtrace_scope_activated')) {
                 return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
             } else {
-                // Not activated: the current context is still the one the span was started in, derived from the dd span active back then, unless a context with a span has been activated since
-                $storageContext = self::storage()->current();
-                if ($storageContext !== ObjectKVStore::get($currentSpan, 'otel_storage_context')
-                    && API\Span::fromContext($storageContext)->getContext()->isValid()) {
-                    return $storageContext;
-                }
-                return self::activateParent(ObjectKVStore::get($currentSpan, 'otel_parent_span', $currentSpan->parent));
+                // A span from the legacy API, which is not activated
+                return self::activateParent($currentSpan->parent);
             }
         }
 

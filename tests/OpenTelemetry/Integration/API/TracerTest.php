@@ -22,6 +22,7 @@ use OpenTelemetry\SDK\Trace\Sampler\AlwaysOffSampler;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
 use OpenTelemetry\SDK\Trace\Sampler\TraceIdRatioBasedSampler;
+use OpenTelemetry\SDK\Trace\SamplerFactory;
 use OpenTelemetry\SDK\Trace\SamplerInterface;
 use OpenTelemetry\SDK\Trace\SamplingResult;
 use OpenTelemetry\SDK\Trace\Span;
@@ -33,16 +34,20 @@ final class TracerTest extends BaseTestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
+    private $previousStorage;
+
     public function ddSetUp(): void
     {
         \dd_trace_serialize_closed_spans();
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+        $this->previousStorage = Context::storage();
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         parent::ddSetUp();
     }
 
     public function ddTearDown()
     {
-        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
+        Context::setStorage($this->previousStorage); // Keep the storage which follows fibers for the next tests
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         parent::ddTearDown();
         \dd_trace_serialize_closed_spans();
@@ -961,5 +966,27 @@ final class TracerTest extends BaseTestCase
             $this->assertNotEquals(0, $span['duration']);
             $this->assertEquals($priority, $span['metrics']['_sampling_priority_v1']);
         }
+    }
+
+    public function testSamplerFromEnvironmentIsLeftToDatadog()
+    {
+        // The tracer maps OTEL_TRACES_SAMPLER to DD_TRACE_SAMPLE_RATE: the sampler the SDK builds from it (e.g. when
+        // autoloading) must not decide a second time, as a manual sampling priority
+        putenv('OTEL_TRACES_SAMPLER=traceidratio');
+        putenv('OTEL_TRACES_SAMPLER_ARG=0');
+        try {
+            $traces = $this->isolateTracer(function () {
+                $sampler = (new SamplerFactory())->create();
+                $span = (new TracerProvider([], $sampler))->getTracer('OpenTelemetry.TracerTest')->spanBuilder('otel.root')->startSpan();
+                $span->end();
+            });
+        } finally {
+            putenv('OTEL_TRACES_SAMPLER');
+            putenv('OTEL_TRACES_SAMPLER_ARG');
+        }
+
+        $span = $traces[0][0];
+        $this->assertSame('otel.root', $span['resource']);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']['_sampling_priority_v1']);
     }
 }
