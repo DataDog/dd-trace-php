@@ -12,8 +12,8 @@
 // full fix to lower versions (Ubuntu's 8.3.6 and 8.5.4) or only the minimal
 // fix of the EOL branches, down to 7.0 ("partial").
 //
-// CVE-2026-109618. _zend_hash_str_add_or_update_i() bumps the hash table's
-// entry counters before it allocates the key string. If that allocation
+// CVE-2026-109618. _zend_hash_str_add_or_update_i() (PHP 7.3+) bumps the hash
+// table's entry counters before it allocates the key string. If that allocation
 // crosses memory_limit, zend_mm_safe_error() bails out (a longjmp) in the
 // middle of the insertion, and request shutdown later walks the counted but
 // uninitialised bucket as a zval. Request data is parsed before any userland
@@ -73,9 +73,10 @@
 // synchronously to the sidecar, tagged with the mode; the deferred one also
 // with the phase where the error was raised (phase:startup,
 // phase:request_parse_body or phase:runtime, see dd_deferred_phase), which its
-// log line names too; span tags on the request's root span, whenever one
-// exists (none before ddtrace's RINIT, see p2s_report.c), each of which also
-// keeps the trace (user keep, as an appsec event):
+// log line names too (the hard-exit one has no log line, see _hard_abort); span
+// tags on the request's root span, whenever one exists (none before ddtrace's
+// RINIT, see p2s_report.c), each of which also keeps the trace (user keep, as
+// an appsec event):
 // _dd.appsec.php2shell.deferred = <phase> for a deferred error (block state,
 // and the mode on), and, in the monitor state,
 // _dd.appsec.php2shell.memory_error = memory_limit or out_of_memory with
@@ -108,26 +109,21 @@
 // the php2shell/ unit that implements the mechanism.
 //
 // 1. Not protected: the CVEs stay reachable.
-//   - PHP 7.0, after RINIT: without EG(vm_interrupt) there is no request
-//     level, so parse_str() and internal functions that build arrays with
-//     add_assoc_*_ex() still use the vulnerable zend_hash_str_* insertion
-//     unarmed. A crossing there matters only if the array stays reachable
-//     after the bailout and is walked: the global symbol table's top-level
-//     entries (read by shutdown_destructors()) or what a shutdown function
-//     reads. No destructor runs after a fatal error. Builders with
-//     zend_string keys (unserialize, json_decode, array_*, VM writes) do not
-//     have the bug.
 //   - Outside RINIT..RSHUTDOWN: the request level spans our RINIT (its helper
-//     exchange included) to our RSHUTDOWN. A block in our RINIT ends it first,
-//     as our RSHUTDOWN does, so appsec's request shutdown and the RSHUTDOWNs
-//     that the block runs there are unarmed. On php-fpm and FrankenPHP a block
-//     returns into our RINIT instead, whose end arms the request level again
-//     until our RSHUTDOWN, lifting the limit that appsec's request shutdown
-//     set. The tracer's and the profiler's parts of the ddtrace RINIT, which
-//     run before ours, the RINITs of extensions loaded before ddtrace.so, and
-//     RSHUTDOWNs that run after ours are unarmed, notably session write (the
-//     session module is built in, so its RSHUTDOWN runs after ours), as are
-//     output handlers flushed after our RSHUTDOWN.
+//     exchange included) to our RSHUTDOWN. A block or a fatal error in our
+//     RINIT ends it first, as our RSHUTDOWN does, so appsec's request shutdown
+//     and the RSHUTDOWNs that the block runs there are unarmed. On php-fpm and
+//     FrankenPHP a block returns into our RINIT instead, whose end arms the
+//     request level again until our RSHUTDOWN, lifting the limit that appsec's
+//     request shutdown set. The tracer's and the profiler's parts of the
+//     ddtrace RINIT, which run before ours, the RINITs of extensions loaded
+//     before ddtrace.so, and RSHUTDOWNs that run after ours are unarmed,
+//     notably session write (the session module is built in, so its RSHUTDOWN
+//     runs after ours), as are output handlers flushed after our RSHUTDOWN.
+//     On PHP 7.3 with opcache loaded, datadog_sort_modules() (ext/datadog.c)
+//     moves the ddtrace module after opcache's, to the end of the module
+//     registry, so there every extension's RINIT runs before ours and every
+//     RSHUTDOWN after ours.
 //   - After a deferred fatal: the request is disarmed, so shutdown functions
 //     run unarmed, under max(memory_limit, usage at the raise + 8 MiB) (see
 //     dd_p2s_guard_raise_fatal).
@@ -396,6 +392,11 @@
 //     is unaffected.
 //
 // 5. Not addressed.
+//   - PHP 7.0, after RINIT: without EG(vm_interrupt) there is no request
+//     level: only the startup parse is armed (the windows), and a later
+//     crossing is the engine's own error. The CVE-2026-109618 insertion bug
+//     is absent there: on 7.0-7.2 zend_hash_str_* allocates the key before it
+//     counts the bucket, so a bailout leaves the table unchanged.
 //   - Unrelated stock-PHP bugs: those not about memory (e.g. the parse_str
 //     user-handler use-after-free).
 //   - Exotic extensions: compatibility beyond chaining what is captured at
