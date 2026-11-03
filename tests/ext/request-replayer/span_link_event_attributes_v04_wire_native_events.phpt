@@ -5,6 +5,10 @@ v0.4 native span_events carry typed values, nested ones under dotted keys, when 
 if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the in-process sender is not available on Windows');
 if (PHP_VERSION_ID < 70100) die('skip: serialize_precision=-1 requires PHP 7.1');
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
+if (PHP_VERSION_ID >= 80100) {
+    echo "nocache\n";
+}
 // Pre-seed a non-v1 /info with span_events so the in-process sender downgrades to v0.4 with native events.
 $ctx = stream_context_create(['http' => [
     'method' => 'PUT',
