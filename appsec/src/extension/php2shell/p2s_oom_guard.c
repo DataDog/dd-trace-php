@@ -115,6 +115,7 @@ static zend_string *nullable _metric_hard_exit_name;
 static size_t _request_hard_limit(size_t soft);
 static bool _zend_alloc_disabled(void);
 static void _set_finite_limit(void);
+static bool _set_engine_limit(zend_long limit);
 static bool _ensure_handlers(void);
 static bool _install_handlers(void);
 static void _remove_handlers(void);
@@ -435,6 +436,28 @@ void dd_p2s_guard_settle(void)
     _settle_handlers();
 }
 
+// The usage may no longer fit `limit` (after a deferred fatal or a dropped
+// pending error): then keep the rest of the request bounded with a finite limit
+// instead of leaving the sentinel or a lifted limit.
+bool dd_p2s_guard_restore_limit(zend_long limit)
+{
+    if (_set_engine_limit(limit)) {
+        return true;
+    }
+    zend_long fallback = (zend_long)MIN(
+        dd_p2s_finite_limit((size_t)limit, zend_memory_usage(true)),
+        (size_t)ZEND_LONG_MAX);
+    mlog(dd_log_debug,
+        "Memory usage is above memory_limit " ZEND_LONG_FMT
+        "; restoring " ZEND_LONG_FMT " instead",
+        limit, fallback);
+    if (!_set_engine_limit(fallback)) {
+        mlog(dd_log_error, "Failed to set memory limit " ZEND_LONG_FMT,
+            fallback);
+    }
+    return false;
+}
+
 bool dd_p2s_guard_in_chain(zend_mm_heap *nonnull heap)
 {
     return _arm_state.installed && heap == _arm_state.heap;
@@ -500,6 +523,33 @@ static bool _zend_alloc_disabled(void)
 static void _set_finite_limit(void)
 {
     zend_set_memory_limit(dd_p2s_finite_limit(_arm_state.soft, _usage()));
+}
+
+// Set the engine's limit; false if the usage does not fit it.
+static bool _set_engine_limit(zend_long limit)
+{
+#if PHP_VERSION_ID < 80100
+    // Older setters may accept a limit below current usage, letting the
+    // allocator's remaining-space subtraction wrap. Reclaim cached memory
+    // before checking whether the limit fits.
+    if ((size_t)limit < zend_memory_usage(true)) {
+        zend_mm_gc(zend_mm_get_heap());
+        if ((size_t)limit < zend_memory_usage(true)) {
+            return false;
+        }
+    }
+#endif
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+    zend_set_memory_limit(limit);
+    return true;
+#else
+    if (zend_set_memory_limit(limit) != SUCCESS) {
+        return false;
+    }
+    // 8.1.4+: a limit that fits only once cached chunks are freed frees them
+    // and returns SUCCESS without writing it; the second call writes it.
+    return zend_set_memory_limit(limit) == SUCCESS;
+#endif
 }
 
 // ---- custom Zend MM allocator handlers -------------------------------------
@@ -963,9 +1013,10 @@ static void _settle_handlers(void)
 // shutdown_memory_manager() would free the heap through our handlers. If they
 // are in the slot (also with use_custom_heap left off), the heap goes back to
 // plain zend_mm, as in _settle_handlers, which also lets the profiler's own
-// MSHUTDOWN fallback, which runs after ours, find plain zend_mm. The engine
-// limit goes back to memory_limit if armed. Handlers of another extension on
-// top are left alone.
+// MSHUTDOWN fallback, which runs after ours, find plain zend_mm. If armed, the
+// engine limit goes back to memory_limit, or to a finite one if the usage no
+// longer fits it (an error left pending). Handlers of another extension on top
+// are left alone.
 static void _reset_handlers_at_mshutdown(void)
 {
     if (!_arm_state.installed) {
@@ -980,7 +1031,7 @@ static void _reset_handlers_at_mshutdown(void)
         _arm_state.installed = false;
     }
     if (armed) {
-        zend_set_memory_limit((size_t)(zend_long)PG(memory_limit));
+        (void)dd_p2s_guard_restore_limit((zend_long)PG(memory_limit));
     }
 }
 
@@ -1085,8 +1136,8 @@ static void _disarm(dd_disarm_mode mode)
     }
     if (mode == DD_DISARM_RESTORE_LIMIT) {
         // The configured memory_limit, which may have changed since the arm
-        // (ini_set, see _follow_limit).
-        zend_set_memory_limit((size_t)(zend_long)PG(memory_limit));
+        // (ini_set, see _follow_limit), or a finite one.
+        (void)dd_p2s_guard_restore_limit((zend_long)PG(memory_limit));
     }
 }
 
