@@ -57,6 +57,23 @@ final class NativeEvaluator implements Evaluator
             $rawResult = $this->withProviderState($rawResult);
         }
 
+        if (is_object($rawResult) && isset($rawResult->dependencyEvaluations)) {
+            foreach ($rawResult->dependencyEvaluations as $dependency) {
+                self::submitFlagEvaluation(array(
+                    $dependency['flagKey'],
+                    $dependency['variant'],
+                    $dependency['allocationKey'],
+                    $targetingKeyInvalid ? null : $targetingKey,
+                    $dependency['observeFullEvaluationData'] ? $normalizedAttributes : array(),
+                    $dependency['errorCode'],
+                    $dependency['variant'] === null,
+                    $dependency['observeFullEvaluationData'],
+                    $evaluationTimestampMs,
+                    $targetingKeyInvalid
+                ));
+            }
+        }
+
         $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
 
         // Native clients submit now. OpenFeature can retain this snapshot until

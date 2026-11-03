@@ -228,6 +228,16 @@ bool ddog_ffe_has_config(void);
 
 uint64_t ddog_ffe_config_version(void);
 
+typedef void (*ddog_FfeDependencyCallback)(void*, ddog_CharSlice, struct ddog_FfeResult, bool);
+
+struct ddog_FfeResult ddog_ffe_evaluate_with_dependencies(ddog_CharSlice flag_key,
+                                                          int32_t expected_type,
+                                                          ddog_CharSlice targeting_key,
+                                                          const struct ddog_FfeAttribute *attributes,
+                                                          uintptr_t attributes_count,
+                                                          ddog_FfeDependencyCallback callback,
+                                                          void *callback_context);
+
 struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
                                         ddog_CharSlice targeting_key,

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2e0f658dfa4016a2ee2adcc8bc8466ed3bd97a14 */
+ * Stub hash: b30bfa986f7592664cb6cb217e51700bd4fb3bb7 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -727,6 +727,12 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 	zend_string *property_serialId_name = zend_string_init("serialId", sizeof("serialId") - 1, 1);
 	zend_declare_typed_property(class_entry, property_serialId_name, &property_serialId_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG|MAY_BE_NULL));
 	zend_string_release(property_serialId_name);
+
+	zval property_dependencyEvaluations_default_value;
+	ZVAL_EMPTY_ARRAY(&property_dependencyEvaluations_default_value);
+	zend_string *property_dependencyEvaluations_name = zend_string_init("dependencyEvaluations", sizeof("dependencyEvaluations") - 1, 1);
+	zend_declare_typed_property(class_entry, property_dependencyEvaluations_name, &property_dependencyEvaluations_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_dependencyEvaluations_name);
 
 	zval property_providerState_default_value;
 	ZVAL_EMPTY_ARRAY(&property_providerState_default_value);

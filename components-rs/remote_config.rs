@@ -166,6 +166,10 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
         DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::FfeFlags);
         DATADOG_REMOTE_CONFIG_CAPABILITIES
             .push(RemoteConfigCapabilities::FfeFlagConfigurationRules);
+        if crate::ffe::supports_dependent_flags() {
+            DATADOG_REMOTE_CONFIG_CAPABILITIES
+                .push(RemoteConfigCapabilities::FfeFlagDependentFlagVariantKeyV1);
+        }
     }
 
     if live_debugging_enabled {
