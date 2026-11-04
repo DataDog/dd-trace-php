@@ -297,13 +297,12 @@ final class ResultMapper
             $metadata[$key] = $value;
         }
 
-        if ($this->hasAny($rawResult, array('do_log', 'doLog'))) {
-            $metadata[SplitFeatures::DO_LOG_KEY] = (bool) $this->read($rawResult, array('do_log', 'doLog'), false);
-        }
-
-        $serialId = $this->read($rawResult, array('serial_id', 'serialId'), null);
-        if ($serialId !== null) {
-            $metadata[SplitFeatures::SERIAL_ID_KEY] = (int) $serialId;
+        if ((bool) $this->read($rawResult, array('do_log', 'doLog'), false)) {
+            $metadata[SplitFeatures::DO_LOG_KEY] = true;
+            $serialId = $this->read($rawResult, array('serial_id', 'serialId'), null);
+            if ($serialId !== null) {
+                $metadata[SplitFeatures::SERIAL_ID_KEY] = (int) $serialId;
+            }
         }
 
         $cacheHit = $this->read($rawResult, array('exposure_cache_hit', 'exposureCacheHit'), null);
