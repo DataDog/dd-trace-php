@@ -114,11 +114,15 @@ class EndpointCatalog
             return $plan['path'];
         }
 
-        if (!$plan['ambiguous']) {
-            $normalization = (string) RouteNormalizer::normalizeFromSymfony($plan['path'], $plan['matchedParams']);
-        } else {
+        // With optional variables, matchedParams holds the mandatory ones only,
+        // so this is the exact route when there are none and the fallback
+        // otherwise.
+        $normalization = (string) RouteNormalizer::normalizeFromSymfony($plan['path'], $plan['matchedParams']);
+        if ($plan['ambiguous']) {
             $regex = self::replayRegexFromGeneratorData($routeData);
-            $normalization = $regex === null ? '' : self::REPLAY_MARKER . $regex;
+            if ($regex !== null) {
+                $normalization = self::REPLAY_MARKER . $normalization . "\0" . $regex;
+            }
         }
 
         return $plan['path'] . "\0" . $normalization;
@@ -127,13 +131,16 @@ class EndpointCatalog
     /**
      * Resolves the normalization part of a routeCacheEntry() entry for the
      * current request. It is either the normalized route, empty when there is
-     * none, or, for routes with optional path variables, the route's matcher
-     * regex to replay on the request path.
+     * none, or, for routes with optional path variables, the fallback route
+     * (mandatory variables only) and the route's matcher regex to replay on the
+     * request path.
      *
      * Symfony merges the defaults of optional variables into _route_params, so
      * their URL participation is not observable after routing. The replay runs
      * the regex Symfony's compiled matcher uses for the route on the same path
-     * and follows its participation rule.
+     * and follows its participation rule. When the replay cannot tell which
+     * optional variables took part, the fallback route is returned: a route
+     * without the optional variables is better than no route.
      *
      * @return string|null
      */
@@ -150,11 +157,18 @@ class EndpointCatalog
             return $normalization;
         }
 
+        $regexSeparator = strpos($normalization, "\0");
+        if ($regexSeparator === false) {
+            return null;
+        }
+        $fallback = substr($normalization, 1, $regexSeparator - 1);
+        $regex = substr($normalization, $regexSeparator + 1);
+
         // Optional variables are a tail of the path, so the last one ends it.
         $lastVariable = substr($path, strrpos($path, '{') + 1, -1);
-        $matchedParams = self::matchedParamsFromReplay(substr($normalization, 1), $lastVariable, $pathInfo);
+        $matchedParams = self::matchedParamsFromReplay($regex, $lastVariable, $pathInfo);
         if ($matchedParams === null) {
-            return null;
+            return $fallback === '' ? null : $fallback;
         }
 
         return RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
@@ -210,6 +224,10 @@ class EndpointCatalog
     }
 
     /**
+     * When the route has optional variables, ambiguous is true and
+     * matchedParams holds the mandatory variables only, which gives the
+     * fallback route.
+     *
      * @param mixed $routeData Symfony compiled generator data
      * @return array{path: string, matchedParams: array<string, bool>, ambiguous: bool}|null
      */
@@ -225,8 +243,10 @@ class EndpointCatalog
             return null;
         }
 
+        // Tokens run from the end of the path, so the optional variables come first.
         $matchedParams = [];
         $optionalTail = true;
+        $ambiguous = false;
         foreach ($tokens as $token) {
             if (!is_array($token) || !isset($token[0])) {
                 continue;
@@ -240,11 +260,8 @@ class EndpointCatalog
             $name = isset($token[3]) ? (string) $token[3] : '';
             $important = !empty($token[5]);
             if ($optionalTail && !$important && array_key_exists($name, $defaults)) {
-                return [
-                    'path' => self::tokensToPathTemplate($tokens),
-                    'matchedParams' => [],
-                    'ambiguous' => true,
-                ];
+                $ambiguous = true;
+                continue;
             }
 
             $optionalTail = false;
@@ -254,7 +271,7 @@ class EndpointCatalog
         return [
             'path' => self::tokensToPathTemplate($tokens),
             'matchedParams' => $matchedParams,
-            'ambiguous' => false,
+            'ambiguous' => $ambiguous,
         ];
     }
 

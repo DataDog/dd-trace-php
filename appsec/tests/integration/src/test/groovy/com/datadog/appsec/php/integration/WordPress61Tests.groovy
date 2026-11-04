@@ -146,7 +146,7 @@ class WordPress61Tests extends AbstractWordPressAppsecTests {
         // but only this request includes capture 1. A highest-index cache key
         // serves the absent shape cached by the preceding request.
         assert presentSpan.meta.'_dd.appsec.normalized_route' ==
-                '/normalized-capture-hole/{param1+param2}'
+                '/normalized-capture-hole/{param1}-{param2}'
     }
 
     @Test
@@ -162,14 +162,14 @@ class WordPress61Tests extends AbstractWordPressAppsecTests {
         assert span.meta.'http.route' ==
                 '^normalized-named-captures/(?P<first>[^/]+)-' +
                 '(?P<second>[^/]+)/?$'
-        // Both named captures share one URL segment and must be present in its
-        // combined element. RFC-1103 does not define whether a route accepting
+        // Both named captures share one URL segment and stay separate, with
+        // the static '-' between them. RFC-1103 does not define whether a route accepting
         // both terminal-slash forms should retain '/', so accept either form.
         String normalizedRoute = span.meta.'_dd.appsec.normalized_route'
         assert normalizedRoute ==
-                '/normalized-named-captures/{first+second}' ||
+                '/normalized-named-captures/{first}-{second}' ||
                 normalizedRoute ==
-                '/normalized-named-captures/{first+second}/'
+                '/normalized-named-captures/{first}-{second}/'
     }
 
     @Test

@@ -10,6 +10,9 @@ namespace DDTrace\Util;
  */
 class RouteNormalizer
 {
+    /** Separator characters Symfony's RouteCompiler moves into an optional. */
+    const OPTIONAL_SEPARATORS = ',;.:-_~+*=@|';
+
     /** Cache key prefix for the per-rule WordPress safety scan. */
     const WORDPRESS_RULE_CACHE_PREFIX = "wordpress-rule\0";
 
@@ -62,28 +65,35 @@ class RouteNormalizer
      *  - ['tail']: a catch-all that may span several URL segments.
      *
      * Elements are grouped into URL segments by the slashes in static text,
-     * so static text is never read as route syntax. A segment with parameters
-     * becomes one dynamic element joining their names with '+' (rule 5); a
-     * catch-all becomes one dynamic element named paramN (rule 4); otherwise
-     * the segment is a static constant.
+     * so static text is never read as route syntax. Within a segment, static
+     * text is kept and each parameter becomes its own template expression, so
+     * the result is an OpenAPI path template (e.g. "user-{id}", "{id}.{format}").
+     * A catch-all becomes one dynamic element named paramN covering its whole
+     * segment.
      */
     public static function normalizeElements(array $elements): string
     {
-        $segments = [self::newElementSegment('')];
+        $segments = [self::newElementSegment()];
         $names = [];
         foreach ($elements as $element) {
             $current = count($segments) - 1;
             switch ($element[0]) {
                 case 'static':
                     $pieces = explode('/', $element[1]);
-                    $segments[$current]['static'] .= array_shift($pieces);
+                    $first = array_shift($pieces);
+                    if ($first !== '') {
+                        $segments[$current]['parts'][] = ['static', $first];
+                    }
                     foreach ($pieces as $piece) {
-                        $segments[] = self::newElementSegment($piece);
+                        $segments[] = self::newElementSegment();
+                        if ($piece !== '') {
+                            $segments[count($segments) - 1]['parts'][] = ['static', $piece];
+                        }
                     }
                     break;
                 case 'param':
-                    $segments[$current]['params'][] = $element[1];
-                    $names[$element[1]] = true;
+                    $segments[$current]['parts'][] = ['param', $element[1]];
+                    $names[self::encodeParamName($element[1])] = true;
                     break;
                 case 'tail':
                     $segments[$current]['tail'] = true;
@@ -92,8 +102,7 @@ class RouteNormalizer
         }
 
         $last = end($segments);
-        $trailingSlash = count($segments) > 1 && $last['static'] === '' && !$last['params']
-            && !$last['tail'];
+        $trailingSlash = count($segments) > 1 && !$last['parts'] && !$last['tail'];
 
         $normalized = [];
         foreach ($segments as $segment) {
@@ -104,11 +113,8 @@ class RouteNormalizer
                 }
                 $names['param' . $i] = true;
                 $normalized[] = '{param' . $i . '}';
-            } elseif ($segment['params']) {
-                $params = array_map([self::class, 'encodeParamName'], $segment['params']);
-                $normalized[] = '{' . implode('+', $params) . '}';
-            } elseif ($segment['static'] !== '') {
-                $normalized[] = self::encodeStaticSegment($segment['static']);
+            } elseif ($segment['parts']) {
+                $normalized[] = self::renderSegmentParts($segment['parts']);
             }
         }
 
@@ -119,9 +125,26 @@ class RouteNormalizer
         return '/' . implode('/', $normalized) . ($trailingSlash ? '/' : '');
     }
 
-    private static function newElementSegment(string $static): array
+    /**
+     * Render the parts of one URL segment as an OpenAPI path segment: static
+     * text is percent-encoded, each parameter becomes "{name}".
+     *
+     * @param array<array{0: string, 1: string}> $parts
+     */
+    private static function renderSegmentParts(array $parts): string
     {
-        return ['static' => $static, 'params' => [], 'tail' => false];
+        $out = '';
+        foreach ($parts as $part) {
+            $out .= $part[0] === 'param'
+                ? '{' . self::encodeParamName($part[1]) . '}'
+                : self::encodeStaticSegment($part[1]);
+        }
+        return $out;
+    }
+
+    private static function newElementSegment(): array
+    {
+        return ['parts' => [], 'tail' => false];
     }
 
     /**
@@ -363,83 +386,54 @@ class RouteNormalizer
         return $pendingName === null;
     }
 
-    /** @return string|null */
+    /**
+     * Build the route from the subject WordPress matched: text outside the
+     * captures that took part is kept as static text, and each such capture
+     * becomes one parameter. Nested captures are covered by the outermost one.
+     * A capture whose value contains '/' becomes a single element spanning
+     * those segments.
+     *
+     * @return string|null
+     */
     private static function normalizeWordPressMatch(string $subject, array $captures)
     {
         if ($subject === '') {
             return '/';
         }
 
-        $values = explode('/', $subject);
-        $segments = [];
-        $offset = 0;
-        foreach ($values as $index => $value) {
-            $segments[$index] = [
-                'value' => $value,
-                'start' => $offset,
-                'end' => $offset + strlen($value),
-                'captures' => [],
-            ];
-            $offset = $segments[$index]['end'] + 1;
-        }
-
-        foreach ($captures as $index => &$capture) {
+        $present = [];
+        foreach ($captures as $index => $capture) {
             if (!$capture['present']) {
                 continue;
             }
-            $captureEnd = $capture['offset'] + strlen($capture['value']);
-            $capture['first_segment'] = null;
-            $capture['last_segment'] = null;
-            foreach ($segments as $segmentIndex => &$segment) {
-                if ($capture['offset'] < $segment['end'] && $captureEnd > $segment['start']) {
-                    $segment['captures'][$index] = true;
-                    if ($capture['first_segment'] === null) {
-                        $capture['first_segment'] = $segmentIndex;
-                    }
-                    $capture['last_segment'] = $segmentIndex;
-                }
-            }
-            unset($segment);
-            if ($capture['first_segment'] === null) {
-                return null;
-            }
+            $present[] = [
+                'start' => $capture['offset'],
+                'end' => $capture['offset'] + strlen($capture['value']),
+                'name' => $capture['name'] !== null ? $capture['name'] : 'param' . $index,
+            ];
         }
-        unset($capture);
+        usort($present, static function ($a, $b) {
+            return $a['start'] === $b['start'] ? $b['end'] - $a['end'] : $a['start'] - $b['start'];
+        });
 
-        $normalized = [];
-        for ($segmentIndex = 0; $segmentIndex < count($segments); $segmentIndex++) {
-            if (empty($segments[$segmentIndex]['captures'])) {
-                $normalized[] = self::encodeStaticSegment($segments[$segmentIndex]['value']);
+        $elements = [];
+        $position = 0;
+        foreach ($present as $capture) {
+            if ($capture['start'] < $position) {
+                // Nested in (or overlapping) a capture already emitted.
                 continue;
             }
-
-            $lastSegment = $segmentIndex;
-            do {
-                $previousLast = $lastSegment;
-                foreach ($captures as $capture) {
-                    if (!$capture['present'] || $capture['first_segment'] > $lastSegment
-                        || $capture['last_segment'] < $segmentIndex) {
-                        continue;
-                    }
-                    $lastSegment = max($lastSegment, $capture['last_segment']);
-                }
-            } while ($lastSegment !== $previousLast);
-
-            $params = [];
-            foreach ($captures as $index => $capture) {
-                if (!$capture['present'] || $capture['first_segment'] > $lastSegment
-                    || $capture['last_segment'] < $segmentIndex) {
-                    continue;
-                }
-                $params[] = $capture['name'] !== null
-                    ? self::encodeParamName($capture['name'])
-                    : 'param' . $index;
+            if ($capture['start'] > $position) {
+                $elements[] = ['static', substr($subject, $position, $capture['start'] - $position)];
             }
-            $normalized[] = '{' . implode('+', $params) . '}';
-            $segmentIndex = $lastSegment;
+            $elements[] = ['param', $capture['name']];
+            $position = $capture['end'];
+        }
+        if ($position < strlen($subject)) {
+            $elements[] = ['static', substr($subject, $position)];
         }
 
-        return '/' . implode('/', $normalized);
+        return self::normalizeElements($elements);
     }
 
     /**
@@ -486,59 +480,58 @@ class RouteNormalizer
 
     /**
      * Normalize a single URL segment that may contain {param} placeholders.
+     * Static text is kept and each present parameter becomes "{name}"
+     * ("user-{id}" stays "user-{id}", "{id}.{format}" stays "{id}.{format}").
+     * An optional parameter that is absent is dropped together with the one
+     * separator character before it, as Symfony's RouteCompiler (which
+     * Laravel also uses) puts that character inside the optional
+     * ("search.{_format?}" -> "search", "list-.{page?}" -> "list-").
      *
-     * @return string|null The normalized element, or null if the segment is optional and absent
-     *                     with no remaining static text
+     * @return string|null The normalized element, or null if nothing is left
      */
     private static function normalizeBraceSegment(string $segment, array $matchedParams)
     {
-        preg_match_all('/\{([^}]+)\}/', $segment, $matches, PREG_SET_ORDER);
+        $pieces = preg_split('/(\{[^}]+\})/', $segment, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $parts = [];
+        foreach ($pieces as $i => $piece) {
+            if ($i % 2 === 0) {
+                if ($piece !== '') {
+                    $parts[] = ['static', $piece];
+                }
+                continue;
+            }
 
-        if (empty($matches)) {
-            return self::encodeStaticSegment($segment);
-        }
-
-        $paramNames = [];
-        foreach ($matches as $match) {
-            $raw = $match[1];
-
+            $raw = substr($piece, 1, -1);
             $isOptional = (substr($raw, -1) === '?');
             if ($isOptional) {
                 $raw = substr($raw, 0, -1);
             }
-
             $colon = strpos($raw, ':');
             if ($colon !== false) {
                 $raw = substr($raw, 0, $colon);
             }
-
             $name = trim($raw);
 
             if ($isOptional && !array_key_exists($name, $matchedParams)) {
+                $lastIndex = count($parts) - 1;
+                if ($lastIndex >= 0 && $parts[$lastIndex][0] === 'static'
+                    && strpos(self::OPTIONAL_SEPARATORS, substr($parts[$lastIndex][1], -1)) !== false) {
+                    $parts[$lastIndex][1] = substr($parts[$lastIndex][1], 0, -1);
+                    if ($parts[$lastIndex][1] === '') {
+                        array_pop($parts);
+                    }
+                }
                 continue;
             }
 
-            $paramNames[] = self::encodeParamName($name);
+            $parts[] = ['param', $name];
         }
 
-        if (empty($paramNames)) {
-            // All params were optional and absent. Symfony's RouteCompiler,
-            // which Laravel also uses, puts the one separator character before
-            // a variable into its optional, so it goes with the variable and
-            // the rest of the static text stays ("search.{_format?}" → "search",
-            // "list-.{page?}" → "list-").
-            $staticOnly = preg_replace('/[\/,;.:\-_~+*=@|]?\{[^}]+\}/', '', $segment);
-            if ($staticOnly !== '') {
-                return self::encodeStaticSegment($staticOnly);
-            }
+        if (!$parts) {
             return null;
         }
 
-        if (count($paramNames) === 1) {
-            return '{' . $paramNames[0] . '}';
-        }
-
-        return '{' . implode('+', $paramNames) . '}';
+        return self::renderSegmentParts($parts);
     }
 
     /**
@@ -573,23 +566,12 @@ class RouteNormalizer
     }
 
     /**
-     * URL-encode reserved characters in a parameter name.
-     * Reserved: /?#+{} — these must not appear literally in a parameter name.
-     * The '+' combining marker must be encoded if it appears in a framework-supplied name.
+     * Make a parameter name usable as an OpenAPI parameter name: characters
+     * outside [A-Za-z0-9_] are replaced with '_'.
      */
     public static function encodeParamName(string $name): string
     {
-        $reserved = '/?#+{}';
-        $result = '';
-        $len = strlen($name);
-        for ($i = 0; $i < $len; $i++) {
-            $c = $name[$i];
-            if (strpos($reserved, $c) !== false) {
-                $result .= rawurlencode($c);
-            } else {
-                $result .= $c;
-            }
-        }
-        return $result;
+        $name = preg_replace('/[^A-Za-z0-9_]/', '_', $name);
+        return $name === '' ? '_' : $name;
     }
 }

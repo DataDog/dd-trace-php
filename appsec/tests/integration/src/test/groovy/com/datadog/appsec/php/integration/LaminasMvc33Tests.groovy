@@ -346,11 +346,10 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
                 '/normalized-dynamic-prefix[/:value]'
         // The framework-injected default equals earlier static route text. It
         // does not mean the optional URL segment participated in this request.
-        // Laminas merges defaults and captures in RouteMatch, so RFC-1103 also
-        // permits omitting the tag when accurate participation is unavailable.
-        String normalizedRoute = trace.first().meta.'_dd.appsec.normalized_route'
-        assert normalizedRoute == null ||
-                normalizedRoute == '/normalized-dynamic-prefix'
+        // Should participation be unavailable, the mandatory-only fallback is
+        // the same route.
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-dynamic-prefix'
     }
 
     @Test
@@ -408,7 +407,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
     @Test
     @Order(20)
-    void 'hyphenated segment parameter name remains intact'() {
+    void 'hyphenated segment parameter name is made OpenAPI compliant'() {
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-name/alice').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -416,7 +415,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
         }
 
         assert trace.first().meta.'http.route' == '/normalized-name/:user-id'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-name/{user-id}'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-name/{user_id}'
     }
 
     @Test
@@ -589,10 +588,11 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
     @Test
     @Order(30)
-    void 'route building its own RouteMatch omits the normalized route'() {
+    void 'route building its own RouteMatch falls back to the mandatory parts'() {
         // PreviewSegment strips /preview before matching, so id is absent, and
         // returns a RouteMatch of its own, so what it bound is not known.
-        // Segment's own pattern on the whole path would bind id=preview.
+        // Segment's own pattern on the whole path would bind id=preview, so
+        // the route falls back to its definition without the optional.
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-preview/preview').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -601,7 +601,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
         assert trace.first().meta.'laminas.route.name' == 'normalized_preview'
         assert trace.first().meta.'http.route' == '/normalized-preview[/:id]'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == null
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-preview'
     }
 
     @Test
@@ -632,14 +632,14 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
         assert trace.first().meta.'laminas.route.name' == 'normalized_rx_pair/c'
         assert trace.first().meta.'http.route' == '/normalized-rx-pair/%a%-%v%/%b%-%v%'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rx-pair/{a+v}/{b}'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rx-pair/{a}-{v}/{b}'
     }
 
     @Test
     @Order(33)
-    void 'Regex spec continuing a Segment parameter combines both parameters'() {
-        // v2users is one URL segment holding version and rest, so RFC-1103
-        // rule 5 combines them.
+    void 'Regex spec continuing a Segment parameter keeps both parameters'() {
+        // v2users is one URL segment holding the static v, version and rest:
+        // each stays separate.
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-joined/v2users').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -648,12 +648,12 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
         assert trace.first().meta.'laminas.route.name' == 'normalized_joined/rest'
         assert trace.first().meta.'http.route' == '/normalized-joined/v:version%rest%/%id%'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-joined/{version+rest}'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-joined/v{version}{rest}'
     }
 
     @Test
     @Order(34)
-    void 'Regex spec continuing a Segment parameter combines both parameters before a further one'() {
+    void 'Regex spec continuing a Segment parameter keeps both parameters before a further one'() {
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-joined/v2users/5').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -662,7 +662,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
         assert trace.first().meta.'laminas.route.name' == 'normalized_joined/rest'
         assert trace.first().meta.'http.route' == '/normalized-joined/v:version%rest%/%id%'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-joined/{version+rest}/{id}'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-joined/v{version}{rest}/{id}'
     }
 
     @Test
@@ -807,7 +807,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
     @Order(43)
     void 'Wildcard continuing a URL segment does not start a new one'() {
         // Wildcard accepts a remainder without a delimiter, so abc continues
-        // the segment of the Literal before it (RFC-1103 rule 5).
+        // the segment of the Literal before it, which the catch-all then covers.
         Trace trace = container.traceFromRequest(
                 container.buildReq('/wildcard-keysabc').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -821,9 +821,11 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
     @Test
     @Order(44)
-    void 'route without optionals building its own RouteMatch omits the normalized route'() {
+    void 'route without optionals building its own RouteMatch falls back to its definition'() {
         // PreviewSegment's RouteMatch is not recorded, so what it bound is
-        // not known; http.route alone would read :me as a parameter.
+        // not known. The fallback is built from the route definitions, so the
+        // Literal's :me stays static text, which http.route alone would read
+        // as a parameter.
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-colon:me/5/preview').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -832,7 +834,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
         assert trace.first().meta.'laminas.route.name' == 'normalized_colon_preview/item'
         assert trace.first().meta.'http.route' == '/normalized-colon:me/:id'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == null
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-colon%3Ame/{id}'
     }
 
     @Test
@@ -874,7 +876,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
             assert trace.first().meta.'http.route' == '/normalized-swap:me'
             assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-swap%3Ame'
 
-            // As a Segment, :me is a parameter continuing the first segment.
+            // As a Segment, :me is a parameter in the first segment.
             trace = container.traceFromRequest(
                     container.buildReq('/normalized-swap:me?as=segment').GET().build(),
                     ofString()) { HttpResponse<String> resp ->
@@ -882,7 +884,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
             }
             assert trace.first().meta.'laminas.route.name' == 'normalized_swap'
             assert trace.first().meta.'http.route' == '/normalized-swap:me'
-            assert trace.first().meta.'_dd.appsec.normalized_route' == '/{me}'
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-swap{me}'
         } finally {
             def res = CONTAINER.execInContainer(
                     'bash', '-c',

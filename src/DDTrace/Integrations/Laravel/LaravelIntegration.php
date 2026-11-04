@@ -147,7 +147,10 @@ class LaravelIntegration extends Integration
                             // For routes with optional params, filter out default-injected values
                             // (e.g. ->defaults('format', 'html')) that weren't present in the URL.
                             if ($urlMatchedParams === null) {
-                                $cacheKey = null;
+                                // Presence of the optionals is unknown: fall back to
+                                // the route with only its mandatory parameters.
+                                $matchedParams = [];
+                                $cacheKey = "laravel\0" . $httpRoute . '#';
                             } else {
                                 $matchedParams = array_intersect_key($allParams, $urlMatchedParams);
                                 // The cache key encodes which params are present. Laravel
@@ -158,17 +161,14 @@ class LaravelIntegration extends Integration
                             $matchedParams = $allParams;
                             $cacheKey = "laravel\0" . $httpRoute;
                         }
-                        $normalizedRoute = null;
-                        if ($cacheKey !== null) {
-                            $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
-                            if ($normalizedRoute === false) {
-                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel(
-                                    $httpRoute,
-                                    $matchedParams
-                                );
-                                if ($normalizedRoute !== null) {
-                                    \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
-                                }
+                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                        if ($normalizedRoute === false) {
+                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel(
+                                $httpRoute,
+                                $matchedParams
+                            );
+                            if ($normalizedRoute !== null) {
+                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
                             }
                         }
                         if ($normalizedRoute !== null && $normalizedRoute !== false) {

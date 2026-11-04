@@ -187,7 +187,7 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
 
     @Test
     @Order(12)
-    void 'mixed dynamic values in one segment are combined'() {
+    void 'parameters in one segment stay separate'() {
         Trace trace = container.traceFromRequest('/normalized/mixed/article.json') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
@@ -195,7 +195,7 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
 
         Span span = trace.first()
         assert span.meta.'http.route' == '/normalized/mixed/{id}.{_format}'
-        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/mixed/{id+_format}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/mixed/{id}.{_format}'
     }
 
     @Test
@@ -260,7 +260,7 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
 
     @Test
     @Order(17)
-    void 'mixed segment route normalizes both params into one brace group'() {
+    void 'mixed segment route keeps both params and the separator'() {
         HttpRequest req = container.buildReq('/article/my-post.html').GET().build()
         Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 200
@@ -269,7 +269,7 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
 
         Span span = trace.first()
         assert span.meta.'http.route' == '/article/{slug}.{_format}'
-        assert span.meta.'_dd.appsec.normalized_route' == '/article/{slug+_format}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/article/{slug}.{_format}'
     }
 
     @Test
@@ -309,9 +309,10 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
 
     @Test
     @Order(20)
-    void 'optional route redirected for its trailing slash is not normalized'() {
+    void 'optional route redirected for its trailing slash falls back to mandatory params'() {
         // Symfony matches /posts after redirecting, not the requested /posts/.
-        // Participation of page in that redirected match is not replayed.
+        // Participation of page in that redirected match is not replayed, so
+        // the route falls back to its mandatory variables (none here).
         HttpRequest req = container.buildReq('/posts/').GET().build()
         Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 301
@@ -319,7 +320,7 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
 
         Span span = trace.first()
         assert span.meta.'http.route' == '/posts/{page}'
-        assert span.meta.'_dd.appsec.normalized_route' == null
+        assert span.meta.'_dd.appsec.normalized_route' == '/posts'
     }
 
     @Test

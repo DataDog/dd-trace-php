@@ -36,14 +36,13 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('user_id', RouteNormalizer::encodeParamName('user_id'));
     }
 
-    public function testEncodeParamNameEncodesPlusSign()
+    public function testEncodeParamNameReplacesCharactersOutsideTheOpenApiSet()
     {
-        $this->assertSame('foo%2Bbar', RouteNormalizer::encodeParamName('foo+bar'));
-    }
-
-    public function testEncodeParamNameEncodesReserved()
-    {
-        $this->assertSame('foo%23bar', RouteNormalizer::encodeParamName('foo#bar'));
+        $this->assertSame('foo_bar', RouteNormalizer::encodeParamName('foo+bar'));
+        $this->assertSame('foo_bar', RouteNormalizer::encodeParamName('foo#bar'));
+        $this->assertSame('f__o', RouteNormalizer::encodeParamName("f\xC3\xB6o"));
+        $this->assertSame('Id_2', RouteNormalizer::encodeParamName('Id-2'));
+        $this->assertSame('_', RouteNormalizer::encodeParamName(''));
     }
 
     // normalizeFromLaravel
@@ -68,9 +67,9 @@ class RouteNormalizerTest extends BaseTestCase
 
     public function testLaravelMixedSegmentTwoParams()
     {
-        // /photos/{id}.{format} → both in same URL segment → combined
+        // /photos/{id}.{format} → both in the same URL segment, kept separate
         $result = RouteNormalizer::normalizeFromLaravel('/photos/{id}.{format}', ['id' => '1', 'format' => 'jpg']);
-        $this->assertSame('/photos/{id+format}', $result);
+        $this->assertSame('/photos/{id}.{format}', $result);
     }
 
     public function testLaravelMixedSegmentOptionalFormat()
@@ -94,7 +93,7 @@ class RouteNormalizerTest extends BaseTestCase
     public function testLaravelRequiredParamBesideAbsentOptionalBothPresent()
     {
         $result = RouteNormalizer::normalizeFromLaravel('/files/{name}.{ext?}', ['name' => 'foo', 'ext' => 'txt']);
-        $this->assertSame('/files/{name+ext}', $result);
+        $this->assertSame('/files/{name}.{ext}', $result);
     }
 
     public function testLaravelDeeperRoute()
@@ -132,7 +131,7 @@ class RouteNormalizerTest extends BaseTestCase
             '/posts/{id}.{_format}',
             ['id' => '1', '_format' => 'json']
         );
-        $this->assertSame('/posts/{id+_format}', $result);
+        $this->assertSame('/posts/{id}.{_format}', $result);
     }
 
     public function testSymfonyStaticOnlyRoute()
@@ -195,12 +194,12 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/a%7Bb%7D', RouteNormalizer::normalizeElements([['static', '/a{b}']]));
     }
 
-    public function testNormalizeElementsCombinesParametersOfOneSegment()
+    public function testNormalizeElementsKeepsStaticTextAndParametersOfOneSegment()
     {
-        $this->assertSame('/v/{version+rest}/{id}', RouteNormalizer::normalizeElements([
+        $this->assertSame('/v/v{version}{rest}/{id}', RouteNormalizer::normalizeElements([
             ['static', '/v/v'], ['param', 'version'], ['param', 'rest'], ['static', '/'], ['param', 'id'],
         ]));
-        $this->assertSame('/users/{id}', RouteNormalizer::normalizeElements([
+        $this->assertSame('/users/user-{id}', RouteNormalizer::normalizeElements([
             ['static', '/users/user-'], ['param', 'id'],
         ]));
     }
@@ -218,7 +217,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/', RouteNormalizer::normalizeElements([['static', '/']]));
         $this->assertSame('/a/', RouteNormalizer::normalizeElements([['static', '/a/']]));
         $this->assertSame('/a/b', RouteNormalizer::normalizeElements([['static', '/a//b']]));
-        $this->assertSame('/a%2Bb/{x%2By}', RouteNormalizer::normalizeElements([
+        $this->assertSame('/a%2Bb/{x_y}', RouteNormalizer::normalizeElements([
             ['static', '/a+b/'], ['param', 'x+y'],
         ]));
     }
@@ -265,18 +264,17 @@ class RouteNormalizerTest extends BaseTestCase
 
     public function testWordPressMultipleCaptureGroupsInOneSegment()
     {
-        // Two capture groups in the same slash-separated segment → combined with +
-        // The static prefix "post-" is dropped as the whole mixed segment is treated as dynamic
+        // Two capture groups in the same URL segment stay separate, and the
+        // static text around them is kept.
         $result = RouteNormalizer::normalizeFromWordPress('^post-([^/]+)-([0-9]+)/?$', 'post-hello-42');
-        $this->assertSame('/{param1+param2}', $result);
+        $this->assertSame('/post-{param1}-{param2}', $result);
     }
 
-    public function testWordPressStaticPrefixNotSeparateElement()
+    public function testWordPressStaticPrefixKeptInItsSegment()
     {
-        // F-07: static prefix before a capture must NOT become a separate segment element.
-        // "post-([^/]+)" is a single URL segment → one RFC element.
+        // "post-([^/]+)" is a single URL segment: the static prefix stays in it.
         $result = RouteNormalizer::normalizeFromWordPress('^post-([^/]+)$', 'post-hello');
-        $this->assertSame('/{param1}', $result);
+        $this->assertSame('/post-{param1}', $result);
     }
 
     public function testWordPressAbsentOptionalCaptureSkipped()
@@ -290,7 +288,7 @@ class RouteNormalizerTest extends BaseTestCase
     public function testWordPressBothCapturesPresentInOptionalGroup()
     {
         $result = RouteNormalizer::normalizeFromWordPress('^(?:([^/]+)-)?([^/]+)$', 'foo-x');
-        $this->assertSame('/{param1+param2}', $result);
+        $this->assertSame('/{param1}-{param2}', $result);
     }
 
     // Rule-plan memo: the per-rule safety scan of
@@ -382,7 +380,7 @@ class RouteNormalizerTest extends BaseTestCase
         // Named captures must be emitted with their declared names, not paramN,
         // when the URL is provided.
         $this->assertSame(
-            '/normalized-named-captures/{first+second}',
+            '/normalized-named-captures/{first}-{second}',
             RouteNormalizer::normalizeFromWordPress(
                 '^normalized-named-captures/(?P<first>[^/]+)-(?P<second>[^/]+)/?$',
                 'normalized-named-captures/first-second/'
@@ -423,22 +421,44 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/users/{id}', $result);
     }
 
+    public function testAbsentOptionalKeepsStaticTextOfItsSegment()
+    {
+        $this->assertSame('/users/user-{id}', RouteNormalizer::normalizeFromLaravel(
+            '/users/user-{id}.{format?}',
+            ['id' => '1']
+        ));
+        $this->assertSame('/users/user-{id}.{format}', RouteNormalizer::normalizeFromLaravel(
+            '/users/user-{id}.{format?}',
+            ['id' => '1', 'format' => 'json']
+        ));
+    }
+
+    public function testUnknownOptionalPresenceFallsBackToMandatoryParameters()
+    {
+        // With no matched parameters, only the optionals are left out.
+        $this->assertSame('/users/{id}', RouteNormalizer::normalizeFromLaravel('/users/{id}/{format?}', []));
+        $this->assertSame('/articles/{slug}', RouteNormalizer::normalizeFromSymfony(
+            '/articles/{slug}.{format}',
+            ['slug' => true]
+        ));
+    }
+
     public function testRfcExampleRailsMandatoryFormat()
     {
-        // http.route: /photos/:id.:format → /photos/{id+format}
+        // http.route: /photos/:id.:format → /photos/{id}.{format}
         $result = RouteNormalizer::normalizeElements([
             ['static', '/photos/'], ['param', 'id'], ['static', '.'], ['param', 'format'],
         ]);
-        $this->assertSame('/photos/{id+format}', $result);
+        $this->assertSame('/photos/{id}.{format}', $result);
     }
 
     public function testRfcExampleRailsOptionalFormatPresent()
     {
-        // /posts/:id(.:format) with format present → /posts/{id+format}
+        // /posts/:id(.:format) with format present → /posts/{id}.{format}
         $result = RouteNormalizer::normalizeElements([
             ['static', '/posts/'], ['param', 'id'], ['static', '.'], ['param', 'format'],
         ]);
-        $this->assertSame('/posts/{id+format}', $result);
+        $this->assertSame('/posts/{id}.{format}', $result);
     }
 
     public function testRfcExampleRailsOptionalFormatAbsent()

@@ -39,7 +39,8 @@ class EndpointCatalogTest extends BaseTestCase
         ]);
 
         $this->assertSame('/articles/{slug}.{format}', $plan['path']);
-        $this->assertSame([], $plan['matchedParams']);
+        // Only the mandatory variables, which give the fallback route.
+        $this->assertSame(['slug' => true], $plan['matchedParams']);
         $this->assertTrue($plan['ambiguous']);
     }
 
@@ -185,6 +186,17 @@ class EndpointCatalogTest extends BaseTestCase
         $this->assertSame([], EndpointCatalog::matchedParamsFromReplay($regex, 'page', '/posts'));
         $this->assertSame(['page' => true], EndpointCatalog::matchedParamsFromReplay($regex, 'page', '/posts/2'));
         $this->assertNull(EndpointCatalog::matchedParamsFromReplay($regex, 'page', '/other'));
+    }
+
+    public function testCacheEntryResolvesOptionalsByReplayAndFallsBackToMandatoryRoute()
+    {
+        $entry = "/posts/{page}\0" . EndpointCatalog::REPLAY_MARKER . "/posts\0"
+            . '{^/posts(?:/(?P<page>[^/]++))?/?$}sD';
+        $this->assertSame('/posts', EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/posts'));
+        $this->assertSame('/posts/{page}', EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/posts/2'));
+        // The replay cannot tell which optionals took part: fall back to the
+        // route with the mandatory variables only, rather than no route.
+        $this->assertSame('/posts', EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/other'));
     }
 
     public function testReplayFollowsRouteRequirements()
