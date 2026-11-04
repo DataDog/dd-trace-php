@@ -289,6 +289,7 @@ final class ExposureHookTest extends TestCase
         self::assertNotSame($context, $evaluation->getEvaluationContext());
         self::assertSame('user-1', $evaluation->getEvaluationContext()->getTargetingKey());
         self::assertSame(['plan' => 'pro'], $evaluation->getEvaluationContext()->getAttributes()->toArray());
+        self::assertSame([['holdout.assignment_group' => 'status_quo']], $this->cache->features);
     }
 
     public function testSplitWithoutFeaturesHasNoFeatures(): void
@@ -429,13 +430,15 @@ final class ExposureTestEvaluator implements Evaluator
 final class ExposureTestCache
 {
     public array $calls = [];
+    public array $features = [];
     /** @var array<string, array> */
     private array $entries = [];
     public bool|null|string $verdict = 'cache';
 
-    public function record(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId): ?bool
+    public function record(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId, array $features = []): ?bool
     {
         $this->calls[] = [$flagKey, $targetingKey, $attributes, $allocationKey, $variant, $serialId];
+        $this->features[] = $features;
         if ($this->verdict !== 'cache') {
             return $this->verdict;
         }

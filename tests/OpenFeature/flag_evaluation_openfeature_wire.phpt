@@ -26,7 +26,10 @@ require __DIR__ . '/../Common/FeatureFlags/flag_evaluation_wire.inc';
 service=php-ffe-wire
 identity=bool(true)
 evaluation_row_service=bool(true)
-exposures=int(2)
+exposures=int(3)
+featured_exposure_features={"holdout.key":"h1","included":false}
+featured_evaluation_features={"included":false,"weight":2.0}
+unfeatured_rows_have_no_features=bool(true)
 consented_count=int(2)
 consented_subject=string(7) "subject"
 consented_context=array(1) {

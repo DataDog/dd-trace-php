@@ -295,6 +295,7 @@ final class DataDogProvider extends AbstractProvider
             'variant' => $variant,
             'serialId' => isset($exposure['serialId']) && is_int($exposure['serialId']) ? $exposure['serialId'] : null,
             'features' => SplitFeatures::withPrefix($details->getFlagMetadata(), SplitFeatures::HOOK_PREFIX),
+            'exposureFeatures' => SplitFeatures::withPrefix($details->getFlagMetadata(), SplitFeatures::EXPOSURE_PREFIX),
             'isExposure' => $details->getErrorCode() === null
                 && ($exposure['doLog'] ?? false) === true
                 && $allocationKey !== null
