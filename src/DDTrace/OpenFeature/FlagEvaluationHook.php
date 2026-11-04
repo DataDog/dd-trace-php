@@ -98,6 +98,7 @@ final class FlagEvaluationHook implements Hook
         $this->observation[5] = $error instanceof ThrowableWithResolutionError
             ? $error->getResolutionError()->getResolutionErrorCode()->getValue() : 'GENERAL';
         $this->observation[6] = true;
+        $this->observation[10] = [];
         $this->details = null;
     }
 
@@ -129,7 +130,8 @@ final class FlagEvaluationHook implements Hook
                         $exposure['attributes'],
                         $exposure['allocationKey'],
                         $exposure['variant'],
-                        $exposure['serialId']
+                        $exposure['serialId'],
+                        $exposure['exposureFeatures']
                     );
                     $cacheHit = is_bool($recorded) ? !$recorded : null;
                 } catch (\Throwable $ignored) {

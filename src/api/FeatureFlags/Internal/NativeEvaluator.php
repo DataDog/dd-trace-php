@@ -100,7 +100,8 @@ final class NativeEvaluator implements Evaluator
                 $details->getVariant() === null && !isset($exposure['serialId']),
                 $consent,
                 $evaluationTimestampMs,
-                $targetingKeyInvalid
+                $targetingKeyInvalid,
+                SplitFeatures::withPrefix($details->getFlagMetadata(), SplitFeatures::EVALUATION_PREFIX)
             );
             if ($this->flagEvaluationRecorder !== null) {
                 // Keep only the native inspection budget plus one overflow
