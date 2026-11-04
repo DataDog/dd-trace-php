@@ -336,6 +336,7 @@ pub extern "C" fn ddog_ffe_exposure_cache_record(key: &FfeExposureKey<'_>) -> bo
         allocation_key: key.allocation_key.to_utf8_lossy().into_owned(),
         variant: key.variant.to_utf8_lossy().into_owned(),
         serial_id: key.has_serial_id.then_some(key.serial_id),
+        features_json: String::new(),
     };
     EXPOSURE_CACHE.should_send_in_scope(&key.scope.to_utf8_lossy(), &context, &exposure)
 }

@@ -1481,6 +1481,13 @@ typedef struct ddog_FfeExposure {
   ddog_CharSlice variant;
   int32_t serial_id;
   bool has_serial_id;
+  /**
+   * UTF-8 JSON object of the split features routed to exposures, mapping a
+   * key to a string, number or boolean. Empty, invalid or non-object input
+   * means no features and never rejects the exposure. Input larger than one
+   * IPC packet is ignored. Not part of deduplication.
+   */
+  ddog_CharSlice features_json;
 } ddog_FfeExposure;
 
 typedef struct ddog_Slice_FfeExposure {
@@ -1522,6 +1529,14 @@ typedef struct ddog_FfeFlagEvaluation {
    * Consent captured from the configuration used for this evaluation.
    */
   bool observe_full_evaluation_data;
+  /**
+   * UTF-8 JSON object of the split features routed to evaluation counts,
+   * mapping a key to a string, number or boolean. Rows with different
+   * features are counted separately. Kept regardless of consent. Empty,
+   * invalid or non-object input means no features and never rejects the
+   * evaluation. Input larger than one IPC packet is ignored.
+   */
+  ddog_CharSlice features_json;
 } ddog_FfeFlagEvaluation;
 
 typedef struct ddog_Slice_FfeFlagEvaluation {

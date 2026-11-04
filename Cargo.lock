@@ -1334,6 +1334,7 @@ dependencies = [
  "cc",
  "datadog-sidecar",
  "http 1.4.2",
+ "httpmock",
  "libc",
  "libdd-common",
  "libdd-common-ffi",
