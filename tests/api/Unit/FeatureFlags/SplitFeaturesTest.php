@@ -5,23 +5,24 @@ namespace DDTrace\Tests\Api\Unit\FeatureFlags;
 use DDTrace\FeatureFlags\Internal\SplitFeatures;
 use DDTrace\Log\Logger;
 use DDTrace\Log\LoggerInterface;
-use PHPUnit\Framework\TestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
-final class SplitFeaturesTest extends TestCase
+final class SplitFeaturesTest extends BaseTestCase
 {
     private $logger;
 
-    protected function setUp(): void
+    protected function ddSetUp()
     {
+        parent::ddSetUp();
         SplitFeatures::resetWarnedDestinations();
         $this->logger = new SplitFeaturesRecordingLogger();
         Logger::set($this->logger);
     }
 
-    protected function tearDown(): void
+    protected function ddTearDown()
     {
-        Logger::reset();
         SplitFeatures::resetWarnedDestinations();
+        parent::ddTearDown();
     }
 
     public function testRoutesEachFeatureToTheMetadataPrefixOfEachDestination()
