@@ -266,6 +266,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_expo
 	ZEND_ARG_TYPE_INFO(0, allocationKey, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, variant, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, serialId, IS_LONG, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, features, IS_ARRAY, 0, "[]")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, 9, _IS_BOOL, 0)
@@ -279,6 +280,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_flag
 	ZEND_ARG_TYPE_INFO(0, observeFullEvaluationData, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, evaluationTimestampMs, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, targetingKeyInvalid, _IS_BOOL, 0, "false")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, features, IS_ARRAY, 0, "[]")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_dsm_set_checkpoint, 0, 1, IS_STRING, 1)
