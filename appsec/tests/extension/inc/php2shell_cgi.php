@@ -289,6 +289,19 @@ function p2s_outcome(array $r, $soft = null) {
     return 'other';
 }
 
+// The number of deferred raises a child logged, with
+// datadog.appsec.log_file=stderr.
+function p2s_raises(array $r) {
+    return preg_match_all('/raising deferred out-of-memory error/', $r['err']);
+}
+
+// Whether a child got the engine's own out-of-memory error (debug builds
+// insert "at file:line" before "(tried").
+function p2s_native_oom(array $r) {
+    return (bool)preg_match('/Allowed memory size of \d+ bytes exhausted (?:at \S+ )?\(tried to allocate/',
+        $r['out'] . $r['err']);
+}
+
 // The dropped-variable count of the deferred-fatal log line, or null.
 function p2s_dropped(array $r) {
     return preg_match('/dropped (\d+) request variables/', $r['out'] . $r['err'], $m)

@@ -25,9 +25,10 @@
 //     OS.
 // When the parse returns (a safe point: the arrays are complete), a pending
 // error is raised as E_ERROR, under a finite engine limit (the larger of S and
-// usage + 8 MiB, see _set_finite_limit). Another fatal inside the window (e.g.
-// an allocation the OS refuses) leaves under the same finite limit before its
-// bailout continues.
+// usage + 8 MiB, see _set_finite_limit), or, in a window nested in the armed
+// request level, armed (see dd_p2s_guard_raise_deferred_oom). Another fatal
+// inside the window (e.g. an allocation the OS refuses) leaves under the same
+// finite limit before its bailout continues.
 //
 // Request level (see p2s_runtime.c): our handlers, kept in the chain under
 // another extension's at our RSHUTDOWN, are settled from the slot in
@@ -113,6 +114,10 @@ static zend_string *nullable _metric_hard_exit_name;
 // ---- forward declarations (implementation details) ------------------------
 
 static size_t _request_hard_limit(size_t soft);
+static void _set_request_limits(void);
+static size_t _cap(size_t soft);
+static void _raise_floor(void);
+static zend_always_inline bool _request_raised(void);
 static bool _zend_alloc_disabled(void);
 static void _set_finite_limit(void);
 static bool _set_engine_limit(zend_long limit);
@@ -197,10 +202,14 @@ ZEND_TLS struct {
     // dd_mm_heap_head right. Otherwise it calls zend_memory_usage().
     bool usage_direct;
     size_t soft;
-    // `soft` when `pending` was set: memory_limit can change before the raise
-    // (e.g. appsec's shutdown raise to ZEND_LONG_MAX). Survives _disarm(), as
+    // The soft limit from memory_limit (not F) when `pending` was set:
+    // memory_limit can change before the raise (e.g. appsec's shutdown raise
+    // to ZEND_LONG_MAX). Survives _disarm(), as
     // dd_p2s_guard_raise_deferred_oom reads it after.
     size_t breached_soft;
+    // F, the floor of the soft limit after a request-level raise (see
+    // _raise_floor); 0 before the first one.
+    size_t floor;
     size_t hard;
     // PG(memory_limit) when `soft` was last computed from it; a different
     // value means memory_limit changed since (see _follow_limit).
@@ -273,9 +282,10 @@ bool dd_p2s_guard_error_pending(void)
 // extension's since an earlier request (see _remove_handlers): it only arms
 // them, unless the slot shows they are out of the chain (see
 // _ensure_handlers). If the
-// request level is armed only the limits change, and a pending error carried
-// in is kept, so the window drops everything and raises at its end; if a
-// deferred raise disarmed it, the window arms again for its duration.
+// request level is armed only the limits change, not below F and the cap
+// after a raise (see _raise_floor), and a pending error carried in is kept, so
+// the window drops everything and raises at its end; if it is not armed, the
+// window arms for its duration.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 bool dd_p2s_guard_window_begin(size_t soft, size_t hard, bool *nonnull nested)
 {
@@ -286,8 +296,8 @@ bool dd_p2s_guard_window_begin(size_t soft, size_t hard, bool *nonnull nested)
         }
         _arm(soft, hard);
     } else {
-        _arm_state.soft = soft;
-        _arm_state.hard = hard;
+        _arm_state.soft = MAX(soft, _arm_state.floor);
+        _arm_state.hard = MAX(hard, _cap(dd_p2s_guard_soft_limit()));
         _arm_state.memory_limit = (zend_long)PG(memory_limit);
     }
     _arm_state.window = true;
@@ -303,45 +313,78 @@ void dd_p2s_guard_window_end(bool nested)
     _arm_state.window = false;
     if (nested) {
         _arm_state.memory_limit = (zend_long)PG(memory_limit);
-        _arm_state.soft = dd_p2s_guard_soft_limit();
-        _arm_state.hard = _request_hard_limit(_arm_state.soft);
+        _set_request_limits();
         return;
     }
     _disarm(DD_DISARM_RESTORE_LIMIT);
 }
 
-// Stop enforcing the window's limits before raising its deferred error: the
-// engine stays on the sentinel (see dd_p2s_guard_raise_deferred_oom).
-void dd_p2s_guard_window_stop(void) { _disarm(DD_DISARM_KEEP_LIMIT); }
-
-// Stop enforcing the window's limits on a bailout from its parse, and leave
-// the sentinel for a finite limit (see _set_finite_limit).
-void dd_p2s_guard_window_abort(void)
+// Stop enforcing the window's limits before raising its deferred error. With
+// `nested`, back to the armed request level, which the raise keeps armed;
+// otherwise disarm. The engine stays on the sentinel (see
+// dd_p2s_guard_raise_deferred_oom).
+void dd_p2s_guard_window_stop(bool nested)
 {
+    if (nested) {
+        _arm_state.window = false;
+        return;
+    }
     _disarm(DD_DISARM_KEEP_LIMIT);
+}
+
+// Stop enforcing the window's limits on a bailout from its parse. With
+// `nested`, back to the armed request level, dropping a pending error (the
+// bailout's fatal ends the request instead); otherwise disarm. Either way
+// leave the sentinel for a finite limit (see _set_finite_limit): a native
+// bailout inside a forwarder leaves use_custom_heap off, and our handlers,
+// which would put the sentinel back, are then not called.
+void dd_p2s_guard_window_abort(bool nested)
+{
+    if (nested) {
+        _arm_state.window = false;
+        _arm_state.pending = false;
+        _arm_state.raise_refused = false;
+        _arm_state.memory_limit = (zend_long)PG(memory_limit);
+        _set_request_limits();
+    } else {
+        _disarm(DD_DISARM_KEEP_LIMIT);
+    }
     _set_finite_limit();
 }
 
 // Raise the deferred out-of-memory error. Called only at a safe point: after
 // the parse of a window returned (see dd_p2s_startup_parse_run_window), with
 // the window's phase; otherwise at a VM interrupt (see _interrupt), with
-// DD_PHASE_RUNTIME. Either way the request runs unarmed afterwards:
-// request-level handlers stay installed and only forward until RSHUTDOWN.
+// DD_PHASE_RUNTIME. At the request level (DD_PHASE_RUNTIME, or a
+// request_parse_body() window nested in it, see dd_p2s_guard_window_stop) the
+// request stays armed until our RSHUTDOWN, with the limits of _raise_floor:
+// shutdown functions, destructors, output callbacks and code after a catcher
+// that swallows the bailout stay protected. Otherwise the handlers stop
+// enforcing (a startup window removes its own) under a finite limit.
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     dd_deferred_phase phase, size_t dropped)
 // NOLINTEND(bugprone-easily-swappable-parameters)
 {
-    // Stop the checks; a startup window also removes its handlers. The engine
-    // is still on the sentinel limit.
-    _disarm(DD_DISARM_KEEP_LIMIT);
+    bool armed = _arm_state.request && _arm_state.armed;
+    if (armed) {
+        // Before anything allocates: the log line below can be displayed, and
+        // output can run user code (an output buffer callback).
+        _raise_floor();
+    } else {
+        // Stop the checks; a startup window also removes its handlers. The
+        // engine is still on the sentinel limit.
+        _disarm(DD_DISARM_KEEP_LIMIT);
+    }
     _arm_state.pending = false;
     _arm_state.raise_refused = false;
-    // Leave the sentinel before anything else: the log line below can be
-    // displayed, and output can run user code (an output buffer callback);
-    // after a deferral in a runtime request_parse_body(), user shutdown
-    // functions also run before request shutdown restores memory_limit.
-    _set_finite_limit();
+    if (!armed) {
+        // Leave the sentinel before anything else, for the same reason; after
+        // a deferral in a request_parse_body() the request level did not arm,
+        // user shutdown functions also run before request shutdown restores
+        // memory_limit.
+        _set_finite_limit();
+    }
     // From treat_data, the request is about to die in startup via the E_ERROR
     // below without reaching module RSHUTDOWN, so the tracer's request-finish
     // flush never runs. Flush synchronously now so the point reaches the
@@ -361,7 +404,8 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
             "at a VM interrupt (phase:%s)",
             _arm_state.breached_soft, phase_name);
     }
-    // Under the finite limit, so these allocations do not bail either.
+    // Armed or under the finite limit, so these allocations do not bail
+    // either.
     dd_p2s_report_deferred(phase);
 #define DEFERRED_FORMAT                                                        \
     "Allowed memory size of %zu bytes exhausted " DD_P2S_DEFERRED_MARKER       \
@@ -369,7 +413,18 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     char msg[sizeof(DEFERRED_FORMAT) + MAX_LENGTH_OF_LONG];
     (void)snprintf(msg, sizeof(msg), DEFERRED_FORMAT, _arm_state.breached_soft);
 #undef DEFERRED_FORMAT
-    dd_p2s_guard_raise_fatal(NULL, msg);
+    if (!armed) {
+        dd_p2s_guard_raise_fatal(NULL, msg);
+    }
+    // Armed, whatever php_error_cb() writes to the engine limit, our handlers
+    // put the sentinel back (see _keep_sentinel). Bail out ourselves too (see
+    // dd_p2s_guard_raise_fatal).
+    zend_try { zend_error(E_ERROR, "%s", msg); }
+    zend_end_try();
+    zend_bailout();
+#if PHP_VERSION_ID < 80000
+    __builtin_unreachable(); // _zend_bailout() is not noreturn before 8.0
+#endif
 }
 
 // Raise a bailing E_ERROR with `message` (through `raise`, or zend_error() if
@@ -446,6 +501,12 @@ void dd_p2s_guard_reconcile(bool armed)
         } else if (!_arm_state.armed) {
             size_t soft = dd_p2s_guard_soft_limit();
             _arm(soft, _request_hard_limit(soft));
+        } else {
+            // Already armed (a worker HTTP request): drop the previous
+            // request's F, as _arm does; a pending error stays.
+            _arm_state.floor = 0;
+            _arm_state.memory_limit = (zend_long)PG(memory_limit);
+            _set_request_limits();
         }
     } else if (_arm_state.request && _arm_state.armed && !_arm_state.window) {
         // A pending error is not dropped: usage is above memory_limit, so
@@ -545,6 +606,51 @@ static size_t _request_hard_limit(size_t soft)
         dd_p2s_sat_add(soft, DD_PHP2SHELL_HARD_MARGIN));
 }
 
+// The request-level limits for memory_limit: soft max(S, F), hard the cap (see
+// _raise_floor); S and its hard limit before the first raise (F = 0).
+static void _set_request_limits(void)
+{
+    size_t soft = dd_p2s_guard_soft_limit();
+    _arm_state.soft = MAX(soft, _arm_state.floor);
+    _arm_state.hard = _cap(soft);
+}
+
+// The cap C for soft limit `soft` (from memory_limit): max(its hard limit,
+// F + 8 MiB). A function of both, so it moves only when memory_limit does: a
+// later raise keeps F + 8 MiB within it (see _raise_floor). Always at least
+// the soft limit plus DD_PHP2SHELL_HARD_MARGIN.
+static size_t _cap(size_t soft)
+{
+    return MAX(_request_hard_limit(soft),
+        dd_p2s_sat_add(_arm_state.floor, DD_PHP2SHELL_HARD_MARGIN));
+}
+
+// A deferred raise at the request level keeps the request armed with the floor
+// F = min(max(F, breached soft, U + 8 MiB), C - 8 MiB), U the usage now and C
+// the cap (no min at the first raise, where C follows from F), so that 8 MiB
+// of growth is left before the next deferred fatal, which comes before the
+// hard limit; repeated raises cannot ratchet C.
+static void _raise_floor(void)
+{
+    size_t floor = MAX(_arm_state.floor,
+        dd_p2s_finite_limit(_arm_state.breached_soft, _usage()));
+    if (_request_raised()) {
+        size_t cap = _cap(dd_p2s_guard_soft_limit());
+        floor = MIN(floor, cap - DD_PHP2SHELL_HARD_MARGIN);
+    }
+    _arm_state.floor = floor;
+    _arm_state.window = false;
+    _arm_state.memory_limit = (zend_long)PG(memory_limit);
+    _set_request_limits();
+}
+
+// Whether a deferred raise happened at the request level in this request; a
+// startup-window raise does not count.
+static zend_always_inline bool _request_raised(void)
+{
+    return _arm_state.floor != 0;
+}
+
 // The engine's own test, from alloc_globals_ctor(): USE_ZEND_ALLOC set to a
 // value that parses as 0 makes every thread's heap a malloc()-backed stub. The
 // engine reads it once at startup; we read it in MINIT, before any request.
@@ -563,10 +669,12 @@ static bool _zend_alloc_disabled(void)
 }
 
 // Replace the sentinel engine limit with a finite one on the two exits of an
-// armed window that do not restore memory_limit: the deferred fatal and a
-// bailout from the parse (see dd_p2s_startup_parse_run_window). Code that runs
-// afterwards (the metric flush, the log line, formatting the fatal, output
-// buffer callbacks, user shutdown functions) must not run with no limit at all.
+// armed window that do not restore memory_limit: the deferred fatal outside
+// the request level and a bailout from the parse (see
+// dd_p2s_startup_parse_run_window). Code that runs afterwards (the metric
+// flush, the log line, formatting the fatal, output buffer callbacks, and the
+// rest of the request after a window the request level did not arm) must not
+// run with no limit at all.
 // The limit is the soft limit, or the current usage plus
 // DD_PHP2SHELL_HARD_MARGIN when that is higher: zend_set_memory_limit() refuses
 // a limit below the current usage (7.4.21+, 8.1+; on 8.0 only
@@ -751,18 +859,17 @@ static zend_always_inline void _keep_sentinel(void)
 
 // The engine left the sentinel while armed. If memory_limit (PG) changed
 // since the soft limit was computed (a successful ini_set(), or any other
-// path), it becomes the new soft limit and the hard limit is recomputed;
-// otherwise (php_error_cb()'s restore) the limits stay. A window keeps its own
-// limits either way; dd_p2s_guard_window_end() picks up a new value. A refused
-// ini_set() changes neither the engine nor PG. Either way the engine goes back
-// to the sentinel. Allocates nothing.
+// path), the request-level limits are recomputed from it (see
+// _set_request_limits); otherwise (php_error_cb()'s restore) the limits stay.
+// A window keeps its own limits either way; dd_p2s_guard_window_end() picks
+// up a new value. A refused ini_set() changes neither the engine nor PG.
+// Either way the engine goes back to the sentinel. Allocates nothing.
 static ZEND_COLD void _follow_limit(void)
 {
     if (!_arm_state.window &&
         (zend_long)PG(memory_limit) != _arm_state.memory_limit) {
         _arm_state.memory_limit = (zend_long)PG(memory_limit);
-        _arm_state.soft = dd_p2s_guard_soft_limit();
-        _arm_state.hard = _request_hard_limit(_arm_state.soft);
+        _set_request_limits();
     }
     zend_set_memory_limit(DD_PHP2SHELL_SENTINEL_LIMIT);
 }
@@ -819,7 +926,7 @@ static zend_always_inline void _check_limit(size_t add_size)
 
             if (_usage() > _arm_state.soft) {
                 _arm_state.pending = true;
-                _arm_state.breached_soft = _arm_state.soft;
+                _arm_state.breached_soft = dd_p2s_guard_soft_limit();
                 if (!_arm_state.window) {
                     dd_p2s_guard_request_interrupt();
                 }
@@ -892,8 +999,8 @@ static ZEND_COLD ZEND_NORETURN void _hard_abort(size_t add_size)
 // (see dd_deferred_phase), and flush it synchronously to the sidecar. With
 // `log`, also log the point (dd_telemetry_add_metric). Only reached on the two
 // failure paths: the hard exit runs under the sentinel limit, the deferred
-// error under the current usage plus DD_PHP2SHELL_HARD_MARGIN, so the small
-// allocations here cannot bail.
+// error with DD_PHP2SHELL_HARD_MARGIN above the current usage (armed, or as the
+// finite limit), so the small allocations here cannot bail.
 static void _emit_and_flush(
     zend_string *nullable name, const char *nullable phase, bool log)
 {
@@ -1142,7 +1249,8 @@ static void _request_end(void)
     _remove_handlers();
 }
 
-// Clear the per-request bools; the handlers and `installed` are untouched.
+// Clear the per-request bools and F; the handlers and `installed` are
+// untouched.
 static void _clear_request_flags(void)
 {
     _arm_state.request = false;
@@ -1150,6 +1258,7 @@ static void _clear_request_flags(void)
     _arm_state.window = false;
     _arm_state.pending = false;
     _arm_state.raise_refused = false;
+    _arm_state.floor = 0;
 }
 
 // Arm installed handlers: raise the engine's limit to the sentinel, so that
@@ -1162,6 +1271,7 @@ static void _arm(size_t soft, size_t hard)
     _arm_state.pending = false;
     _arm_state.raise_refused = false;
     _arm_state.breached_soft = 0;
+    _arm_state.floor = 0;
     _arm_state.soft = soft;
     _arm_state.hard = hard;
     _arm_state.memory_limit = (zend_long)PG(memory_limit);
