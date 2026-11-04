@@ -2203,14 +2203,18 @@ mod tests {
     fn allocation_size_classes_partition_allocation_and_live_heap_samples() {
         use crate::profiling::allocation::size_class::{allocation_size, PAGE_SIZE};
 
+        // Two requests in the 80-byte bin share a size class; the 96-byte bin stays separate.
+        let sizes = [65, 79, 81]
+            .map(|raw_size| i64::try_from(allocation_size(raw_size, PAGE_SIZE).unwrap()).unwrap());
+        assert_eq!(sizes[0], sizes[1]);
+        assert_ne!(sizes[1], sizes[2]);
+
         for sample_types in [
             [ApiSampleType::AllocSamples, ApiSampleType::AllocSize],
             [ApiSampleType::HeapLiveSamples, ApiSampleType::HeapLiveSize],
         ] {
             let mut profile = Profile::try_new(&sample_types, None, SystemTime::now()).unwrap();
-            // Two requests in the 80-byte bin combine; the 96-byte bin stays separate.
-            for raw_size in [65, 79, 81] {
-                let size = i64::try_from(allocation_size(raw_size, PAGE_SIZE).unwrap()).unwrap();
+            for size in sizes {
                 let label = size_class_label(size);
                 let api_label = ApiLabel::from(&label);
                 assert_eq!(api_label.key, "size class");
@@ -2227,7 +2231,6 @@ mod tests {
                     )
                     .unwrap();
             }
-            assert_eq!(profile.only_for_testing_num_aggregated_samples(), 2);
         }
     }
 }

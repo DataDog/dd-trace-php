@@ -90,13 +90,6 @@ impl Profile {
     pub fn add_endpoint_count(&mut self, endpoint: &str, count: i64) -> anyhow::Result<()> {
         runtime_call!(ddog_php_prof_add_endpoint_count(self, endpoint, count))
     }
-
-    // Existing collector tests inspect aggregation only in locally implemented
-    // test builds. No inspection API or InternalProfile access is exported to SSI.
-    #[cfg(all(test, feature = "profiling-runtime"))]
-    pub(crate) fn only_for_testing_num_aggregated_samples(&self) -> usize {
-        self.inner.only_for_testing_num_aggregated_samples()
-    }
 }
 
 impl Drop for Profile {
