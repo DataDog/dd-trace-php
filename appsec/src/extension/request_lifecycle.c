@@ -341,9 +341,10 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
     }
     zend_end_try();
 
-    // No fatal when memory_limit no longer fits: no user code runs after
-    // RSHUTDOWN, and before PHP 8.1 a bailout here would skip the RSHUTDOWN
-    // of later modules (one zend_try covers them all).
+    // No fatal when memory_limit no longer fits: before PHP 8.1 a bailout
+    // here would skip the RSHUTDOWN of later modules (one zend_try covers
+    // them all). User code can still run after it (session save handlers, in
+    // the session module's RSHUTDOWN), under the finite limit set instead.
     (void)_restore_shutdown_memory_limit(orig_mem_limit);
 }
 

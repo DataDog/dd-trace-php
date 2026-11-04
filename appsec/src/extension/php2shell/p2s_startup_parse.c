@@ -556,7 +556,7 @@ void dd_p2s_startup_parse_run_window(dd_parse_fn parse, void *ctx,
         // (user shutdown functions after a runtime request_parse_body()) must
         // not run on the sentinel.
         if (armed) {
-            dd_p2s_guard_window_abort();
+            dd_p2s_guard_window_abort(nested);
         }
         _leave(progress, &error_handler, display_errors);
         zend_bailout();
@@ -565,7 +565,7 @@ void dd_p2s_startup_parse_run_window(dd_parse_fn parse, void *ctx,
 
     if (armed && dd_p2s_guard_error_pending()) {
         // $_POST (and friends) are fully built and internally consistent here.
-        dd_p2s_guard_window_stop();
+        dd_p2s_guard_window_stop(nested);
         _leave(progress, &error_handler, display_errors);
         dd_p2s_guard_raise_deferred_oom(phase, _input_filter_req.dropped);
     }

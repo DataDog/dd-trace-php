@@ -27,10 +27,11 @@
 // _request_hard_limit). A soft-limit crossing outside a window makes the error
 // pending and sets EG(vm_interrupt); the error is raised at the next VM
 // interrupt, after the inner interrupt handlers ran (see _interrupt), as
-// max_execution_time is delivered; the handlers then stay installed and only
-// forward. While armed, our handlers put the engine back at the sentinel
-// whenever they find it elsewhere: php_error_cb() restores memory_limit before
-// every bailing fatal, and ini_set() writes the engine limit. A changed
+// max_execution_time is delivered; the request then stays armed, with limits
+// based on the usage at the raise (see _raise_floor). While armed, our
+// handlers put the engine back at the sentinel whenever they find it
+// elsewhere: php_error_cb() restores memory_limit before every bailing fatal,
+// and ini_set() writes the engine limit. A changed
 // memory_limit then becomes the new S, however it was changed (see
 // _follow_limit). Below PHP 8.4, zend_mm_gc() frees nothing on a heap with
 // custom handlers, so while ours are in the chain the gc_mem_caches() wrapper

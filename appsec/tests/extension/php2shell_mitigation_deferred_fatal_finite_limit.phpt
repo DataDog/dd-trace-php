@@ -1,5 +1,5 @@
 --TEST--
-PHP2Shell mitigation (CVE-2026-109618): after the deferred fatal, shutdown functions run under a finite memory_limit, max(memory_limit, usage + 8 MiB), also when the usage fits memory_limit; not the configured one below the usage, which some runtimes accept and then do not enforce at all
+PHP2Shell mitigation (CVE-2026-109618): after the deferred fatal the request stays armed, so shutdown functions have 8 MiB above the usage at the raise before the next deferred fatal, and an allocation past the hard limit, max(request hard limit, that floor + 8 MiB), ends in _exit(137), as upstream's hard limit does
 --SKIPIF--
 <?php
 require __DIR__ . '/inc/php2shell_cgi.php';
@@ -10,43 +10,42 @@ p2s_skip_if_no_zend_mm();
 --FILE--
 <?php
 // 1. memory_limit=16M and an allocation of 24M (below the 32M hard limit): the
-// deferred fatal leaves usage above 16M. php_error_cb() then sets the engine
-// limit to PG(memory_limit). On PHP 7.2-7.4.20 and 8.0 the setter accepts a
-// limit below the usage and the allocator's check wraps: a shutdown function
-// allocating 200M would succeed. On 7.1 the limit would stay at 16M, below
-// the usage. Either way the shutdown function must get a memory error at the
-// finite limit, above 16M (on a partial runtime it ends the process).
+// deferred fatal leaves usage U above 16M. The soft limit becomes F = U +
+// 8 MiB and the hard limit F + 8 MiB, above 32M: a shutdown function
+// allocating 4M runs; one allocating 200M ends the process at that hard
+// limit, before the allocation reaches the OS. Unarmed, php_error_cb() would
+// set the engine limit to PG(memory_limit), which some runtimes accept below
+// the usage and then do not enforce at all.
 // 2. memory_limit=32M, 26M kept and a temporary copy of it (freed before the
 // safe point; a str_repeat() result would not be on PHP 8.4+, which checks for
-// a VM interrupt right after the call): the usage fits 32M again at the raise,
-// but not with 8 MiB more. The limit is still max(32M, usage + 8 MiB), as when
-// the usage does not fit: displaying the error can run an output callback that
-// allocates past 32M.
+// a VM interrupt right after the call): F = U + 8 MiB is below the request
+// hard limit of 32M (64M), which stays the hard limit.
 require __DIR__ . '/inc/php2shell_cgi.php';
 const CHILD = __DIR__ . '/inc/php2shell_child_runtime_alloc.php';
 
 $cases = [
-    '1 above' => [16, ['P2S_ALLOC' => (string)(24 * P2S_MIB)], 24, 48],
-    '2 fits' => [32, ['P2S_ALLOC' => (string)(26 * P2S_MIB), 'P2S_ALLOC_COPY' => '1'], 32, 40],
+    '1 above, 4M' => [16, ['P2S_ALLOC' => (string)(24 * P2S_MIB)], 4],
+    '1 above, 200M' => [16, ['P2S_ALLOC' => (string)(24 * P2S_MIB)], 200],
+    '2 fits, 200M' => [32, ['P2S_ALLOC' => (string)(26 * P2S_MIB), 'P2S_ALLOC_COPY' => '1'], 200],
 ];
-foreach ($cases as $label => list($ml, $env, $lo, $hi)) {
+foreach ($cases as $label => list($ml, $env, $shutdown)) {
     $r = p2s_cgi_run(['memory_limit' => "{$ml}M"], [], p2s_cgi_env(CHILD, 'GET', $env + [
-        'P2S_SHUTDOWN_ALLOC' => (string)(200 * P2S_MIB),
+        'P2S_SHUTDOWN_ALLOC' => (string)($shutdown * P2S_MIB),
     ]));
     $all = $r['out'] . $r['err'];
-    $outcome = p2s_outcome($r, $ml * P2S_MIB);
+    $deferred = strpos($all, p2s_deferred_msg($ml * P2S_MIB)) !== false;
     $ran = strpos($all, 'SHUTDOWN RAN') !== false;
-    // Debug builds insert "at file:line" before "(tried".
-    preg_match('/Allowed memory size of (\d+) bytes exhausted (?:at \S+ )?\(tried/', $all, $m);
-    $native = isset($m[1]) ? (int)$m[1] : 0;
-    $finite = $native > $lo * P2S_MIB && $native < $hi * P2S_MIB;
-    echo "$label: outcome=$outcome shutdown_ran=", var_export($ran, true),
-        " native_at_finite_limit=", var_export($finite, true), "\n";
-    if ($outcome !== 'deferred' || $ran || !$finite) {
-        echo "native=$native\n";
+    $hard = preg_match('/hard memory limit of (\d+) bytes exhausted/', $all, $m) ? (int)$m[1] : 0;
+    $request_hard = p2s_request_hard_limit($ml * P2S_MIB);
+    $cap = $hard === 0 ? 'none' : ($hard === $request_hard ? 'request' : ($hard > $request_hard ? 'F+8M' : 'below'));
+    echo "$label: deferred=", var_export($deferred, true), " shutdown_ran=", var_export($ran, true),
+        " status={$r['status']} hard_limit=$cap native=", var_export(p2s_native_oom($r), true), "\n";
+    if (!$deferred || ($shutdown === 4) !== $ran || ($ran ? $hard !== 0 : $r['status'] !== 137)) {
+        echo "hard=$hard\n";
         p2s_dump($r);
     }
 }
 --EXPECT--
-1 above: outcome=deferred shutdown_ran=false native_at_finite_limit=true
-2 fits: outcome=deferred shutdown_ran=false native_at_finite_limit=true
+1 above, 4M: deferred=true shutdown_ran=true status=255 hard_limit=none native=false
+1 above, 200M: deferred=true shutdown_ran=false status=137 hard_limit=F+8M native=false
+2 fits, 200M: deferred=true shutdown_ran=false status=137 hard_limit=request native=false

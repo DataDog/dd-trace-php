@@ -107,12 +107,14 @@ bool dd_p2s_guard_window_begin(size_t soft, size_t hard, bool *nonnull nested);
 // End an armed window that did not raise; `nested` as from
 // dd_p2s_guard_window_begin().
 void dd_p2s_guard_window_end(bool nested);
-// Stop an armed window before raising its deferred error.
-void dd_p2s_guard_window_stop(void);
-// Stop an armed window on a bailout from its parse.
-void dd_p2s_guard_window_abort(void);
-// Raise the deferred out-of-memory error at a safe point. `dropped` is the
-// number of request variables dropped (logged for a window phase).
+// Stop an armed window before raising its deferred error; with `nested` (as
+// from dd_p2s_guard_window_begin()), back to the armed request level.
+void dd_p2s_guard_window_stop(bool nested);
+// Stop an armed window on a bailout from its parse; `nested` as above.
+void dd_p2s_guard_window_abort(bool nested);
+// Raise the deferred out-of-memory error at a safe point; at the request level
+// the request stays armed. `dropped` is the number of request variables
+// dropped (logged for a window phase).
 ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     dd_deferred_phase phase, size_t dropped);
 // Raise a bailing E_ERROR (with `raise`, or zend_error() if NULL) under a
@@ -124,9 +126,9 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_fatal(
 void dd_p2s_guard_open(void);
 // Make the request level armed or not, mid-request (worker scripts using
 // ddtrace's user-request API, between HTTP requests): opens it if needed;
-// otherwise only flags and the engine limit change, the handlers stay until
-// dd_p2s_guard_close(). A disarm with an error pending is left to the interrupt
-// that raises it.
+// otherwise only flags, the limits (an arm drops F) and the engine limit
+// change, the handlers stay until dd_p2s_guard_close(). A disarm with an error
+// pending is left to the interrupt that raises it.
 void dd_p2s_guard_reconcile(bool armed);
 // Marker in the deferred fatal's message, so that monitor detection skips it.
 #define DD_P2S_DEFERRED_MARKER "(Datadog AppSec PHP2Shell mitigation deferred"

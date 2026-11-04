@@ -123,18 +123,10 @@
 //     moves the ddtrace module after opcache's, to the end of the module
 //     registry, so there every extension's RINIT runs before ours and every
 //     RSHUTDOWN after ours.
-//   - After a deferred fatal: the request is disarmed, so shutdown functions
-//     run unarmed, under max(memory_limit, usage at the raise + 8 MiB) (see
-//     dd_p2s_guard_raise_fatal).
-//   - Swallowed deferred fatal: code that catches the bailout and carries on
-//     (ext/soap turns it into a SoapFault when raised inside a SoapClient call
-//     that runs user code; parallel runs the next task of the same runtime,
-//     which does not get the error but runs unarmed; an agent's sandbox) leaves
-//     the rest of the request disarmed, under the finite limit the raise set,
-//     max(memory_limit, usage at the raise + 8 MiB) (see _set_finite_limit): a
-//     later crossing is the engine's own error, the vulnerable path. ddtrace's
-//     sandbox is not affected: no raise happens inside it (see _interrupt in
-//     p2s_runtime.c).
+//   - Raise outside the request level: after a deferred fatal from a
+//     request_parse_body() window the request level did not arm, the rest of
+//     the request runs unarmed, under max(memory_limit, usage at the raise +
+//     8 MiB) (see _set_finite_limit). No user code follows a startup window's.
 //   - Monitor mode: nothing is armed, as under the decision none, so the CVEs
 //     stay reachable; native memory errors are only reported (on a full
 //     runtime, see Coverage: Monitor on a partial runtime). One raised before
@@ -327,6 +319,19 @@
 //     does not see an error raised by the handled request. This is
 //     memory-safe; recent FrankenPHP versions clear the last error at that
 //     point themselves.
+//   - After a deferred fatal: a raise at the request level (phase runtime, or
+//     a request_parse_body() window nested in it) leaves the request armed
+//     until our RSHUTDOWN, so a crossing in shutdown functions, destructors or
+//     output callbacks is deferred again, or ends in _exit(137). The soft
+//     limit is then max(memory_limit, F) and the hard limit C, with F =
+//     max(the breached limit, usage at the raise + 8 MiB), raised by later
+//     raises up to C - 8 MiB, and C = max(the request hard limit, F + 8 MiB),
+//     which moves only with memory_limit (see _raise_floor).
+//   - Swallowed deferred fatal: code that catches the bailout and carries on
+//     (ext/soap turns it into a SoapFault inside a SoapClient call that runs
+//     user code; parallel runs the next task of the same runtime; an agent's
+//     sandbox) stays armed, and its next crossing is deferred again. No raise
+//     happens inside ddtrace's sandbox (see _interrupt in p2s_runtime.c).
 //   - Request level delivery: the error is raised at the next VM interrupt,
 //     after the inner interrupt handlers (pcntl signal handlers, Excimer,
 //     ddtrace and its profiler); code in between runs over memory_limit, up to
@@ -347,9 +352,11 @@
 //     instead (or, on a partial runtime, end the process). An error pending
 //     with no later interrupt (other modules' RSHUTDOWN, output handlers,
 //     session write, the end of the script, after EG(active) = 0) is dropped:
-//     the request succeeds within the hard limit. A timeout pending at the same
-//     time wins (see Coverage: Timeout at the same interrupt). Coroutine
-//     runtimes (Swow, Swoole) can delay the raise by one scheduling slice.
+//     the request succeeds within the hard limit. Raised in a shutdown
+//     function, it skips the later ones, as any fatal does (see Coverage: After
+//     a deferred fatal). A timeout pending at the same time wins (see Coverage:
+//     Timeout at the same interrupt). Coroutine runtimes (Swow, Swoole) can
+//     delay the raise by one scheduling slice.
 //   - Limit after a dropped error: memory_limit is restored when the request
 //     is disarmed (at our RSHUTDOWN, or in post_deactivate after a skipped
 //     one) and again by appsec's request shutdown. With usage above it
