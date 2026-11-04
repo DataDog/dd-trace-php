@@ -14,6 +14,8 @@ DD_PROFILING_ALLOCATION_ENABLED=no
 DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=yes
 DD_PROFILING_EXCEPTION_ENABLED=no
 DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=yes
+DD_PROFILING_IO_ENABLED=no
+DD_PROFILING_EXPERIMENTAL_IO_ENABLED=yes
 --INI--
 assert.exception=1
 opcache.jit=off
@@ -43,6 +45,7 @@ $sections = [
     ["Profiling Enabled", "true"],
     ["Allocation Profiling Enabled", "false"],
     ["Exception Profiling Enabled", "false"],
+    ["I/O Profiling Enabled", "false"],
 ];
 
 foreach ($sections as [$key, $expected]) {
