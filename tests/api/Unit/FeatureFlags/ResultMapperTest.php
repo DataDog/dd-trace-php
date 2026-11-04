@@ -307,11 +307,12 @@ final class ResultMapperTest extends TestCase
             'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
             'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
             'do_log' => false,
+            'serial_id' => 5,
             'features' => array(),
             'exposureCacheHit' => null,
         ), EvaluationType::STRING, 'red');
 
-        $this->assertSame(array('__dd_do_log' => false), $details->getFlagMetadata());
+        $this->assertSame(array(), $details->getFlagMetadata());
     }
 
     public function testFailedEvaluationCarriesNoFeatureOrExposureMetadata()
