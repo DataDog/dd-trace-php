@@ -351,11 +351,11 @@ class ExecIntegration extends Integration
     private static function each_shell_word($cmd, $f)
     {
         preg_match_all('/(?:
-            \\\\.             |
-            [^\s"\';|&]       |
-            "(?:\\\\.|[^"])*" |
-            \'(?:\\\\.|[^\'])*\'
-            )+/x', $cmd, $result, PREG_PATTERN_ORDER | PREG_OFFSET_CAPTURE);
+            \\\\.               |
+            [^\s"\';|&\\\\]++   |
+            "(?:\\\\.|[^"]+)*+" |
+            \'(?:\\\\.|[^\']+)*+\'
+            )++(?:\\\\$)?/x', $cmd, $result, PREG_PATTERN_ORDER | PREG_OFFSET_CAPTURE);
         for ($i = 0; $i < count($result[0]); $i++) {
             list($text, $offset) = $result[0][$i];
             if (!$f($text, $offset, $offset + strlen($text))) {

@@ -81,7 +81,8 @@ appsec = ["dep:libdd-common-ffi", "dep:cc"]
 profiling = [
   "dep:bindgen", "dep:cc",
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
-  "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",
+  "dep:libdd-alloc", "dep:libdd-profiling", "dep:libdd-process-utils",
+  "dep:mach2", "dep:rand", "dep:rand_distr",
   "dep:rustc-hash", "dep:thiserror", "dep:chrono", "dep:env_logger",
   "io_profiling"
 ]
@@ -102,7 +103,7 @@ libdd-telemetry-ffi = { path = "libdatadog/libdd-telemetry-ffi", default-feature
 libdd-live-debugger = { path = "libdatadog/libdd-live-debugger", optional = true }
 libdd-live-debugger-ffi = { path = "libdatadog/libdd-live-debugger-ffi", default-features = false, optional = true }
 libdd-ipc = { path = "libdatadog/libdd-ipc", optional = true }
-base64 = { workspace = true, features = ["alloc"], optional = true }
+libdd-process-utils = { path = "libdatadog/libdd-process-utils", optional = true }
 datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe", optional = true }
 libdd-remote-config = { path = "libdatadog/libdd-remote-config", optional = true }
 datadog-sidecar = { path = "libdatadog/datadog-sidecar", optional = true }
@@ -118,6 +119,7 @@ libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", defau
 spawn_worker = { path = "libdatadog/spawn_worker", optional = true }
 anyhow = "1.0"
 arc-swap = { workspace = true, optional = true }
+base64 = { workspace = true, features = ["alloc"], optional = true }
 const-str = { version = "0.5.6", optional = true }
 itertools = { version = "0.11.0", optional = true }
 serde = { version = "1.0.196", optional = true }

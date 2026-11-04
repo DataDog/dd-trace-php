@@ -704,7 +704,7 @@ foreach ($build_platforms as $platform) {
 
 .package_extension_base:
   stage: packaging
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-2
   tags: [ "arch:amd64" ]
   after_script:
     - |
@@ -867,7 +867,7 @@ endforeach;
 
 "datadog-setup.php":
   stage: packaging
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-2
   tags: [ "arch:amd64" ]
   script:
     - mkdir -p "build/packages"
@@ -2239,6 +2239,9 @@ deploy_to_reliability_env:
       when: on_success
     - when: manual
       allow_failure: true
+  # Global variables (GIT_SUBMODULE_*) are forwarded downstream and override the reliability-env checkout.
+  inherit:
+    variables: [ RELIABILITY_ENV_BRANCH ]
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $RELIABILITY_ENV_BRANCH

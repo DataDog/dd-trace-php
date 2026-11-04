@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\OpenTelemetry\Integration;
 
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanLink;
 use DDTrace\SpanEvent;
 use DDTrace\ExceptionSpanEvent;
@@ -13,6 +14,7 @@ use DDTrace\Tests\Common\TracerTestTrait;
 use Fiber;
 use OpenTelemetry\API\Baggage\Baggage;
 use OpenTelemetry\API\Baggage\Propagation\BaggagePropagator;
+use OpenTelemetry\API\Trace\NoopTracer;
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
@@ -24,6 +26,7 @@ use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
+use OpenTelemetry\SDK\Trace\Sampler\TraceIdRatioBasedSampler;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use function DDTrace\active_span;
 use function DDTrace\close_span;
@@ -100,10 +103,8 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame($ddSpan->hexId(), $currentSpan->getContext()->getSpanId());
             $this->assertSame(\DDTrace\root_span()->traceId, $currentSpan->getContext()->getTraceId());
 
-            // Get current scope
-            $currentScope = Context::storage()->scope();
-            $this->assertNotNull($currentScope);
-            $currentScope->detach();
+            // The current context is derived from the active dd span, nothing is attached to the storage
+            $this->assertNull(Context::storage()->scope());
             $currentSpan = Span::getCurrent();
 
             // Shouldn't have changed
@@ -265,8 +266,9 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
 
             $OTelScope->detach();
-            $OTelSpan->end();
-            Span::getCurrent()->end();
+            $OTelSpan->end(); // The dd child is still open: it is closed along with it
+            $this->assertNotEquals(0, $ddSpan->getDuration());
+            $this->assertNull(active_span());
         });
 
         $spans = $traces[0];
@@ -1529,6 +1531,158 @@ final class InteroperabilityTest extends BaseTestCase
 
             $this->assertSame($extractedBaggage->getValue('user_id'), '12345');
             $this->assertSame($extractedBaggage->getValue('session'), 'xyz');
+        });
+    }
+
+    public function testActivateSpanStartedBeforeAnotherNonActivatedSpan()
+    {
+        $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $first = $tracer->spanBuilder("first")->startSpan();
+            $second = $tracer->spanBuilder("second")->startSpan(); // Remains the active dd span, but is not activated
+            $this->assertFalse($second->getParentContext()->isValid()); // first was not activated either
+
+            $scope = $first->activate();
+            $this->assertSame($first, Span::getCurrent());
+
+            $child = $tracer->spanBuilder("child")->startSpan();
+            $this->assertSame($first->getContext()->getSpanId(), $child->getParentContext()->getSpanId());
+
+            $child->end();
+            $scope->detach();
+            $second->end();
+            $first->end();
+        });
+    }
+
+    public function testContextActivatedAfterStartingNonActivatedSpan()
+    {
+        $key = Context::createKey('user.key');
+        $this->isolateTracer(function () use ($key) {
+            $ddSpan = start_span();
+            $span = self::getTracer()->spanBuilder("otel.span")->startSpan();
+
+            $scope = Context::getCurrent()->with($key, 'value')->activate();
+            $this->assertSame('value', Context::getCurrent()->get($key));
+            $this->assertSame($ddSpan, Span::getCurrent()->getDDSpan());
+
+            $scope->detach();
+            $this->assertNull(Context::getCurrent()->get($key));
+            $this->assertSame($ddSpan, Span::getCurrent()->getDDSpan());
+
+            $span->end();
+            close_span();
+        });
+    }
+
+    public function testDetachedSpanIsNotCurrentAnymore()
+    {
+        $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $parent = $tracer->spanBuilder("parent")->startSpan();
+            $scope = $parent->activate();
+            $span = $tracer->spanBuilder("span")->startSpan(); // Remains the active dd span, but is not activated
+            $this->assertSame($parent->getContext()->getSpanId(), $span->getParentContext()->getSpanId());
+
+            $scope->detach();
+            $this->assertFalse(Span::getCurrent()->getContext()->isValid());
+            $child = $tracer->spanBuilder("child")->startSpan();
+            $this->assertFalse($child->getParentContext()->isValid());
+            $child->end();
+
+            $span->end();
+            $this->assertSame($parent->getDDSpan(), active_span());
+            $this->assertFalse(Span::getCurrent()->getContext()->isValid());
+            $parent->end();
+        });
+    }
+
+    public function testActivatedSpanBelowNonActivatedSpans()
+    {
+        $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $ddSpan = start_span();
+            $activated = $tracer->spanBuilder("activated")->startSpan();
+            $scope = $activated->activate();
+            $nonActivated = $tracer->spanBuilder("non-activated")->startSpan();
+            $other = $tracer->spanBuilder("other")->startSpan();
+            $this->assertSame($activated, Span::getCurrent());
+
+            $ddChild = start_span(); // Datadog spans are always current
+            $this->assertSame($ddChild, Span::getCurrent()->getDDSpan());
+            $this->assertSame($activated->getContext()->getSpanId(), Span::getCurrent()->getParentContext()->getSpanId());
+            $otelChild = $tracer->spanBuilder("otel.child")->startSpan();
+            $this->assertSame($ddChild->hexId(), $otelChild->getParentContext()->getSpanId());
+            $this->assertSame($ddChild, Span::getCurrent()->getDDSpan());
+            $otelChild->end();
+            close_span();
+
+            $this->assertSame($activated, Span::getCurrent());
+            $scope->detach();
+            $this->assertSame($ddSpan, Span::getCurrent()->getDDSpan());
+
+            $other->end();
+            $nonActivated->end();
+            $activated->end();
+            close_span();
+        });
+    }
+
+    public function testNoopTracerContinuesDatadogSpan()
+    {
+        $this->isolateTracer(function () {
+            $ddSpan = start_span();
+            $span = NoopTracer::getInstance()->spanBuilder("noop")->startSpan();
+            $this->assertFalse($span->isRecording());
+            $this->assertSame($ddSpan->hexId(), $span->getContext()->getSpanId());
+            close_span();
+        });
+    }
+
+    public function testCustomSamplerDoesNotDecideForLocalParents()
+    {
+        self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=restart']);
+        try {
+            $traces = $this->isolateTracer(function () {
+                $ddSpan = start_span();
+                $ddSpan->name = "dd.span";
+                $tracer = (new TracerProvider([], new TraceIdRatioBasedSampler(1.0)))->getTracer('OpenTelemetry.TracerTest');
+                $span = $tracer->spanBuilder("otel.child")->startSpan();
+                $this->assertSame($ddSpan->hexId(), $span->getParentContext()->getSpanId());
+                $span->end();
+                close_span();
+            });
+        } finally {
+            self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=continue']);
+        }
+
+        // The restart behavior targets remote parents: a local parent must not hand the decision to the custom sampler
+        $spans = array_column(array_merge(...$traces), null, 'resource');
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $spans['otel.child']['metrics']['_sampling_priority_v1']);
+    }
+
+    public function testDatadogSpansDoNotLeakContextScopes()
+    {
+        $key = Context::createKey('user.key');
+        $this->isolateTracer(function () use ($key) {
+            $userContext = Context::getCurrent()->with($key, 'value');
+            $userScope = $userContext->activate();
+
+            for ($i = 0; $i < 3; ++$i) {
+                $root = start_trace_span();
+                $child = start_span();
+                $context = Context::getCurrent();
+                $this->assertSame($child, Span::fromContext($context)->getDDSpan());
+                $this->assertSame($root->hexId(), Span::fromContext($context)->getParentContext()->getSpanId());
+                $this->assertSame('value', $context->get($key));
+                close_span();
+                close_span();
+            }
+
+            // Only the scope activated by the user remains
+            $this->assertSame($userContext, Context::storage()->current());
+            $userScope->detach();
+            $this->assertNull(Context::storage()->scope());
         });
     }
 
