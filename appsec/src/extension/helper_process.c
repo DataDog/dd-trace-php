@@ -150,7 +150,6 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
     zend_catch
     {
         dd_conn_destroy(conn);
-        dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
         _release_shared_state_lock(&_mgr.hss);
         zend_bailout();
     }
