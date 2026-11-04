@@ -40,6 +40,20 @@ foreach (array('rejected' => 'parent', 'missing' => 'absent', 'requires-disabled
     echo $key, ': ';
     var_dump(count($submitted) === 1 && $submitted[0][0] === $parent);
 }
+foreach (array('disabled', 'unassigned') as $failure) {
+    $config['flags']['parent']['enabled'] = $failure !== 'disabled';
+    if ($failure === 'unassigned') {
+        $config['flags']['parent']['allocations'] = array();
+    }
+    \DDTrace\Testing\ffe_load_config(json_encode($config));
+    $submitted = array();
+    $details = $evaluator->evaluate('root', 'boolean', true, 'subject');
+    echo $failure . ' prerequisite error: ';
+    var_dump($details->getValue() === true && $details->getErrorCode() === 'GENERAL'
+        && count($submitted) === 1 && $submitted[0][0] === 'parent'
+        && $submitted[0][1] === null && $submitted[0][5] === 'GENERAL'
+        && $submitted[0][6] === true && $rootObservation[5] === 'GENERAL');
+}
 ?>
 --EXPECT--
 protected: bool(true)
@@ -47,3 +61,5 @@ consent: bool(true)
 rejected: bool(true)
 missing: bool(true)
 requires-disabled: bool(true)
+disabled prerequisite error: bool(true)
+unassigned prerequisite error: bool(true)

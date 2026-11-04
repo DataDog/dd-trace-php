@@ -357,7 +357,12 @@ fn evaluate_with_dependencies(
     // Release the configuration borrow before calling into Zend; callbacks may reenter.
     if let Some(callback) = callback {
         for record in evaluations {
-            let mut dependency = result_from_assignment(record.result);
+            let mut dependency = match record.result {
+                Err(EvaluationError::FlagDisabled | EvaluationError::DefaultAllocationNull) => {
+                    error_result(ERROR_GENERAL, REASON_ERROR)
+                }
+                assignment => result_from_assignment(assignment),
+            };
             dependency.observe_full_evaluation_data = result.observe_full_evaluation_data;
             let eligible = record.exposure_eligible
                 && result.error_code == ERROR_NONE
@@ -663,6 +668,51 @@ mod tests {
             assert_eq!(records[0].0, prerequisite);
             assert_eq!(records[0].2, eligible);
             assert!(!records[0].1.observe_full_evaluation_data);
+        }
+        clear_config();
+    }
+
+    #[test]
+    fn disabled_and_unassigned_prerequisites_are_errors_but_direct_results_are_not() {
+        setup_zend_string_functions();
+        let wire: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/ext/ffe/dependent_flags.json")).unwrap();
+        for (enabled, direct_reason) in [(false, REASON_DISABLED), (true, REASON_DEFAULT)] {
+            let mut config = wire.clone();
+            config["flags"]["parent"]["enabled"] = enabled.into();
+            if enabled {
+                config["flags"]["parent"]["allocations"] = serde_json::json!([]);
+            }
+            let json = CString::new(config.to_string()).unwrap();
+            assert!(ddog_ffe_load_config(char_slice(&json)));
+            let mut records: Vec<(String, FfeResult, bool)> = Vec::new();
+            let result = ddog_ffe_evaluate_with_dependencies(
+                CharSlice::from("root"),
+                TYPE_BOOLEAN,
+                CharSlice::from("subject"),
+                std::ptr::null(),
+                0,
+                collect_dependency,
+                std::ptr::from_mut(&mut records).cast(),
+            );
+            assert_eq!(result.error_code, ERROR_GENERAL);
+            assert_eq!(records.len(), 1);
+            assert_eq!(records[0].0, "parent");
+            assert_eq!(records[0].1.error_code, ERROR_GENERAL);
+            assert_eq!(records[0].1.reason, REASON_ERROR);
+            assert!(records[0].1.variant.is_none());
+            assert!(!records[0].2);
+
+            let direct = ddog_ffe_evaluate(
+                CharSlice::from("parent"),
+                TYPE_BOOLEAN,
+                CharSlice::from("subject"),
+                std::ptr::null(),
+                0,
+            );
+            assert_eq!(direct.error_code, ERROR_NONE);
+            assert_eq!(direct.reason, direct_reason);
+            assert!(direct.variant.is_none());
         }
         clear_config();
     }
