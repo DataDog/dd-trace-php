@@ -314,6 +314,29 @@ struct ddog_FfeCdnConfig *ddog_ffe_cdn_config_new(ddog_CharSlice base_url,
 
 void ddog_ffe_cdn_config_drop(struct ddog_FfeCdnConfig*);
 
+uintptr_t ddog_ffe_features_count(const struct ddog_FfeFeatures *features);
+
+/**
+ * An out-of-range index returns a feature with an empty key and no destinations.
+ */
+struct ddog_FfeFeature ddog_ffe_features_get(const struct ddog_FfeFeatures *features,
+                                             uintptr_t index);
+
+/**
+ * An out-of-range index returns an empty destination.
+ */
+ddog_CharSlice ddog_ffe_features_destination(const struct ddog_FfeFeatures *features,
+                                             uintptr_t index,
+                                             uintptr_t destination);
+
+void ddog_ffe_features_drop(struct ddog_FfeFeatures *features);
+
+/**
+ * Records the exposure in the process exposure cache. Returns false when the
+ * subject was already exposed to the same allocation, variant and serial id.
+ */
+bool ddog_ffe_exposure_cache_record(const struct ddog_FfeExposureKey *key);
+
 struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
                                         ddog_CharSlice targeting_key,

@@ -2,12 +2,14 @@ use crate::bytes::MaybeOwnedZendString;
 use datadog_ffe::cdn::{CdnConfig, CdnEndpoint, EndpointError};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
-    EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
+    EvaluationError, ExpectedFlagType, Feature, FeatureValue, Str, UniversalFlagConfig,
 };
+use datadog_ffe::telemetry::exposures::{ExposureDeduplicator, FfeExposure};
+use datadog_ffe::telemetry::FfeTelemetryContext;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use tracing::debug;
 
@@ -280,6 +282,119 @@ pub struct FfeResult {
     // Consent belongs to the configuration snapshot used for this evaluation.
     pub observe_full_evaluation_data: bool,
     pub valid: bool,
+    /// NULL when the selected split has no features. Release with ddog_ffe_features_drop.
+    pub features: Option<Box<FfeFeatures>>,
+}
+
+pub struct FfeFeatures(Arc<[Feature]>);
+
+#[repr(C)]
+pub struct FfeFeature<'a> {
+    pub key: CharSlice<'a>,
+    /// One of the ATTR_TYPE_* values: 0 string, 1 number, 2 boolean.
+    pub value_type: i32,
+    pub string_value: CharSlice<'a>,
+    pub number_value: f64,
+    pub bool_value: bool,
+    pub destinations_count: usize,
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_count(features: &FfeFeatures) -> usize {
+    features.0.len()
+}
+
+/// An out-of-range index returns a feature with an empty key and no destinations.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_get(features: &FfeFeatures, index: usize) -> FfeFeature<'_> {
+    let mut view = FfeFeature {
+        key: CharSlice::from(""),
+        value_type: ATTR_TYPE_STRING,
+        string_value: CharSlice::from(""),
+        number_value: 0.0,
+        bool_value: false,
+        destinations_count: 0,
+    };
+    let Some(feature) = features.0.get(index) else {
+        return view;
+    };
+    view.key = CharSlice::from(feature.key.as_str());
+    view.destinations_count = feature.destinations.len();
+    match &feature.value {
+        FeatureValue::String(value) => view.string_value = CharSlice::from(value.as_str()),
+        FeatureValue::Number(value) => {
+            view.value_type = ATTR_TYPE_NUMBER;
+            view.number_value = *value;
+        }
+        FeatureValue::Boolean(value) => {
+            view.value_type = ATTR_TYPE_BOOL;
+            view.bool_value = *value;
+        }
+    }
+    view
+}
+
+/// An out-of-range index returns an empty destination.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_destination(
+    features: &FfeFeatures,
+    index: usize,
+    destination: usize,
+) -> CharSlice<'_> {
+    features
+        .0
+        .get(index)
+        .and_then(|feature| feature.destinations.get(destination))
+        .map_or(CharSlice::from(""), |destination| {
+            CharSlice::from(destination.as_str())
+        })
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_drop(features: Option<Box<FfeFeatures>>) {
+    drop(features);
+}
+
+// Shared by every thread of the process. The sidecar deduplicates again
+// across processes before sending.
+static EXPOSURE_CACHE: LazyLock<ExposureDeduplicator> =
+    LazyLock::new(ExposureDeduplicator::default);
+
+#[repr(C)]
+pub struct FfeExposureKey<'a> {
+    /// Destinations, such as test agent sessions, that must not suppress each other's exposures.
+    pub scope: CharSlice<'a>,
+    pub service: CharSlice<'a>,
+    pub env: CharSlice<'a>,
+    pub version: CharSlice<'a>,
+    pub flag_key: CharSlice<'a>,
+    pub subject_id: CharSlice<'a>,
+    pub allocation_key: CharSlice<'a>,
+    pub variant: CharSlice<'a>,
+    pub serial_id: i32,
+    pub has_serial_id: bool,
+}
+
+/// Records the exposure in the process exposure cache. Returns false when the
+/// subject was already exposed to the same allocation, variant and serial id.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_exposure_cache_record(key: &FfeExposureKey<'_>) -> bool {
+    let context = FfeTelemetryContext {
+        service: key.service.to_utf8_lossy().into_owned(),
+        env: key.env.to_utf8_lossy().into_owned(),
+        version: key.version.to_utf8_lossy().into_owned(),
+    };
+    let exposure = FfeExposure {
+        timestamp_ms: 0,
+        flag_key: key.flag_key.to_utf8_lossy().into_owned(),
+        subject_id: key.subject_id.to_utf8_lossy().into_owned(),
+        subject_attributes_json: String::new(),
+        allocation_key: key.allocation_key.to_utf8_lossy().into_owned(),
+        variant: key.variant.to_utf8_lossy().into_owned(),
+        serial_id: key.has_serial_id.then_some(key.serial_id),
+        features_json: String::new(),
+    };
+    EXPOSURE_CACHE.should_send_in_scope(&key.scope.to_utf8_lossy(), &context, &exposure)
 }
 
 #[repr(C)]
@@ -436,6 +551,9 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 do_log: assignment.do_log,
                 observe_full_evaluation_data: false,
                 valid: true,
+                features: assignment
+                    .features
+                    .map(|features| Box::new(FfeFeatures(features))),
             }
         }
         Err(error) => {
@@ -469,6 +587,7 @@ fn error_result(error_code: i32, reason: i32) -> FfeResult {
         do_log: false,
         observe_full_evaluation_data: false,
         valid: true,
+        features: None,
     }
 }
 
@@ -484,6 +603,7 @@ fn invalid_result() -> FfeResult {
         do_log: false,
         observe_full_evaluation_data: false,
         valid: false,
+        features: None,
     }
 }
 
@@ -699,6 +819,149 @@ mod tests {
             assert!(result.do_log, "{value}");
         }
         clear_config();
+    }
+
+    const FEATURES_CONFIG: &str = r#"{
+        "createdAt": "2026-05-22T00:00:00.000Z",
+        "environment": {"name": "Test"},
+        "flags": {
+            "with.features": {
+                "key": "with.features",
+                "enabled": true,
+                "variationType": "STRING",
+                "variations": {"on": {"key": "on", "value": "on"}},
+                "allocations": [{
+                    "key": "alloc",
+                    "rules": [],
+                    "splits": [{
+                        "variationKey": "on",
+                        "shards": [],
+                        "features": [
+                            {"key": "holdout.key", "value": "abc", "destinations": ["HOOK", "EXPOSURE"]},
+                            {"key": "holdout.fraction", "value": 0.5, "destinations": ["EVALUATION"]},
+                            {"key": "holdout.enabled", "value": false, "destinations": ["HOOK"]}
+                        ]
+                    }],
+                    "doLog": true
+                }]
+            },
+            "without.features": {
+                "key": "without.features",
+                "enabled": true,
+                "variationType": "STRING",
+                "variations": {"on": {"key": "on", "value": "on"}},
+                "allocations": [{
+                    "key": "alloc",
+                    "rules": [],
+                    "splits": [{"variationKey": "on", "shards": []}],
+                    "doLog": true
+                }]
+            }
+        }
+    }"#;
+
+    fn evaluate_string_flag(flag_key: &str, expected_type: i32) -> FfeResult {
+        let flag_key = CString::new(flag_key).unwrap();
+        ddog_ffe_evaluate(
+            char_slice(&flag_key),
+            expected_type,
+            CharSlice::from("user"),
+            std::ptr::null(),
+            0,
+        )
+    }
+
+    fn destinations(features: &FfeFeatures, index: usize) -> Vec<String> {
+        let count = ddog_ffe_features_get(features, index).destinations_count;
+        (0..count)
+            .map(|destination| {
+                let slice = ddog_ffe_features_destination(features, index, destination);
+                String::from_utf8(slice.as_bytes().to_vec()).unwrap()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn evaluation_exposes_the_selected_split_features() {
+        setup_zend_string_functions();
+        clear_config();
+        let config = CString::new(FEATURES_CONFIG).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&config)));
+
+        let result = evaluate_string_flag("with.features", TYPE_STRING);
+        let features = result.features.as_deref().expect("split has features");
+        assert_eq!(ddog_ffe_features_count(features), 3);
+
+        let string = ddog_ffe_features_get(features, 0);
+        assert_eq!(string.key.as_bytes(), b"holdout.key");
+        assert_eq!(string.value_type, ATTR_TYPE_STRING);
+        assert_eq!(string.string_value.as_bytes(), b"abc");
+        assert_eq!(destinations(features, 0), ["HOOK", "EXPOSURE"]);
+
+        let number = ddog_ffe_features_get(features, 1);
+        assert_eq!(number.key.as_bytes(), b"holdout.fraction");
+        assert_eq!(number.value_type, ATTR_TYPE_NUMBER);
+        assert_eq!(number.number_value, 0.5);
+        assert_eq!(destinations(features, 1), ["EVALUATION"]);
+
+        let boolean = ddog_ffe_features_get(features, 2);
+        assert_eq!(boolean.value_type, ATTR_TYPE_BOOL);
+        assert!(!boolean.bool_value);
+
+        let missing = ddog_ffe_features_get(features, 3);
+        assert_eq!(missing.key.as_bytes(), b"");
+        assert_eq!(missing.destinations_count, 0);
+        assert_eq!(
+            ddog_ffe_features_destination(features, 0, 2).as_bytes(),
+            b""
+        );
+        assert_eq!(
+            ddog_ffe_features_destination(features, 3, 0).as_bytes(),
+            b""
+        );
+        ddog_ffe_features_drop(result.features);
+
+        assert!(evaluate_string_flag("without.features", TYPE_STRING)
+            .features
+            .is_none());
+        assert!(evaluate_string_flag("with.features", TYPE_BOOLEAN)
+            .features
+            .is_none());
+        assert!(evaluate_string_flag("with.features", TYPE_OBJECT)
+            .features
+            .is_none());
+        clear_config();
+    }
+
+    #[test]
+    fn exposure_cache_reports_new_and_changed_exposures() {
+        let record_in = |scope: &str, subject: &str, variant: &str, serial_id: Option<i32>| {
+            ddog_ffe_exposure_cache_record(&FfeExposureKey {
+                scope: CharSlice::from(scope),
+                service: CharSlice::from("service"),
+                env: CharSlice::from("env"),
+                version: CharSlice::from("1.0"),
+                flag_key: CharSlice::from("exposure.cache.flag"),
+                subject_id: CharSlice::from(subject),
+                allocation_key: CharSlice::from("alloc"),
+                variant: CharSlice::from(variant),
+                serial_id: serial_id.unwrap_or(0),
+                has_serial_id: serial_id.is_some(),
+            })
+        };
+        let record = |subject: &str, variant: &str, serial_id: Option<i32>| {
+            record_in("", subject, variant, serial_id)
+        };
+        assert!(record("user", "on", Some(1)));
+        assert!(!record("user", "on", Some(1)));
+        assert!(record_in("session", "user", "on", Some(1)));
+        assert!(!record_in("session", "user", "on", Some(1)));
+        assert!(record("other", "on", Some(1)));
+        assert!(record("user", "off", Some(1)));
+        assert!(record("user", "off", Some(2)));
+        assert!(record("user", "off", None));
+        assert!(record("user", "off", Some(0)));
+        assert!(!record("user", "off", Some(0)));
     }
 
     #[test]

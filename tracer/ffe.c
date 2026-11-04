@@ -502,7 +502,7 @@ static void dd_ffe_clear_exposures(void) {
     DDTRACE_G(ffe_exposures_dropped) = 0;
 }
 
-void ddtrace_ffe_record_exposure(
+int ddtrace_ffe_record_exposure(
     zend_string *flag_key,
     zend_string *targeting_key,
     zend_string *subject_attributes_json,
@@ -513,13 +513,35 @@ void ddtrace_ffe_record_exposure(
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
         LOG(DEBUG, "Feature Flags: exposure suppressed; missing flag key or variant");
-        return;
+        return -1;
+    }
+
+    ddog_FfeExposureKey key = {
+        .scope = dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()),
+        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
+        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
+        .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
+        .flag_key = dd_zend_string_to_CharSlice(flag_key),
+        .subject_id = dd_zend_string_to_CharSlice(targeting_key),
+        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
+        .variant = dd_zend_string_to_CharSlice(variant),
+        .serial_id = serial_id,
+        .has_serial_id = has_serial_id,
+    };
+    if (!ddog_ffe_exposure_cache_record(&key)) {
+        LOG(DEBUG, "Feature Flags: exposure not queued; subject already exposed to this allocation, variant and serial id");
+        return 0;
+    }
+
+    if (!get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: exposure not queued; DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false");
+        return 1;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
         // Reported once per flush rather than per dropped exposure.
         DDTRACE_G(ffe_exposures_dropped)++;
-        return;
+        return 1;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) == DDTRACE_G(ffe_exposure_buffer_cap)) {
@@ -547,6 +569,7 @@ void ddtrace_ffe_record_exposure(
     exposure->serial_id = serial_id;
     exposure->has_serial_id = has_serial_id;
     LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu); delivery awaits sidecar handoff", DDTRACE_G(ffe_exposure_buffer_len));
+    return 1;
 }
 
 bool ddtrace_ffe_flush_exposures(void) {

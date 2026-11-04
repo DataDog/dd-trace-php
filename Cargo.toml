@@ -101,7 +101,7 @@ libdd-live-debugger = { path = "libdatadog/libdd-live-debugger", optional = true
 libdd-live-debugger-ffi = { path = "libdatadog/libdd-live-debugger-ffi", default-features = false, optional = true }
 libdd-ipc = { path = "libdatadog/libdd-ipc", optional = true }
 libdd-process-utils = { path = "libdatadog/libdd-process-utils", optional = true }
-datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe", features = ["cdn"], optional = true }
+datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe", features = ["cdn", "exposure-events"], optional = true }
 libdd-remote-config = { path = "libdatadog/libdd-remote-config", optional = true }
 datadog-sidecar = { path = "libdatadog/datadog-sidecar", optional = true }
 datadog-sidecar-ffi = { path = "libdatadog/datadog-sidecar-ffi", optional = true }
