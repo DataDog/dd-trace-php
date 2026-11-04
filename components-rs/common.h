@@ -522,6 +522,8 @@ typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
 
+typedef struct ddog_FfeFeatures ddog_FfeFeatures;
+
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
@@ -585,6 +587,34 @@ typedef struct ddog_DsmIdentity {
   ddog_CharSlice base_hash;
 } ddog_DsmIdentity;
 
+typedef struct ddog_FfeFeature {
+  ddog_CharSlice key;
+  /**
+   * One of the ATTR_TYPE_* values: 0 string, 1 number, 2 boolean.
+   */
+  int32_t value_type;
+  ddog_CharSlice string_value;
+  double number_value;
+  bool bool_value;
+  uintptr_t destinations_count;
+} ddog_FfeFeature;
+
+typedef struct ddog_FfeExposureKey {
+  /**
+   * Destinations, such as test agent sessions, that must not suppress each other's exposures.
+   */
+  ddog_CharSlice scope;
+  ddog_CharSlice service;
+  ddog_CharSlice env;
+  ddog_CharSlice version;
+  ddog_CharSlice flag_key;
+  ddog_CharSlice subject_id;
+  ddog_CharSlice allocation_key;
+  ddog_CharSlice variant;
+  int32_t serial_id;
+  bool has_serial_id;
+} ddog_FfeExposureKey;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
@@ -596,6 +626,10 @@ typedef struct ddog_FfeResult {
   bool do_log;
   bool observe_full_evaluation_data;
   bool valid;
+  /**
+   * NULL when the selected split has no features. Release with ddog_ffe_features_drop.
+   */
+  struct ddog_FfeFeatures *features;
 } ddog_FfeResult;
 
 typedef struct ddog_FfeAttribute {

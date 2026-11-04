@@ -93,7 +93,7 @@ final class ResultMapper
             $this->read($rawResult, array('variant'), null),
             null,
             null,
-            $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata')),
+            $this->flagMetadata($rawResult),
             $this->exposureData($rawResult),
             $this->providerState($rawResult)
         );
@@ -288,6 +288,30 @@ final class ResultMapper
         }
 
         return $exposureData;
+    }
+
+    private function flagMetadata($rawResult)
+    {
+        $metadata = $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata'));
+        foreach (SplitFeatures::toMetadata($this->read($rawResult, array('features'), null)) as $key => $value) {
+            $metadata[$key] = $value;
+        }
+
+        if ($this->hasAny($rawResult, array('do_log', 'doLog'))) {
+            $metadata[SplitFeatures::DO_LOG_KEY] = (bool) $this->read($rawResult, array('do_log', 'doLog'), false);
+        }
+
+        $serialId = $this->read($rawResult, array('serial_id', 'serialId'), null);
+        if ($serialId !== null) {
+            $metadata[SplitFeatures::SERIAL_ID_KEY] = (int) $serialId;
+        }
+
+        $cacheHit = $this->read($rawResult, array('exposure_cache_hit', 'exposureCacheHit'), null);
+        if (is_bool($cacheHit)) {
+            $metadata[SplitFeatures::EXPOSURE_CACHE_HIT_KEY] = $cacheHit;
+        }
+
+        return $metadata;
     }
 
     private function providerState($rawResult)
