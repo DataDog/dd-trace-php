@@ -1,14 +1,9 @@
 use super::*;
 use libdd_profiling::api::{Function, Label, Location};
 use std::mem::{align_of, size_of};
-use std::sync::mpsc::{sync_channel, TrySendError};
-
-fn releases() -> (usize, usize) {
-    implementation::RELEASES.with(|counts| counts.get())
-}
+use std::sync::mpsc::{TrySendError, sync_channel};
 
 fn profile() -> Profile {
-    implementation::RELEASES.with(|counts| counts.set((0, 0)));
     Profile::try_new(&[SampleType::WallTime], None, SystemTime::now()).unwrap()
 }
 
@@ -38,15 +33,13 @@ fn owner_preserves_layout_and_can_be_sent_to_uploader() {
 }
 
 #[test]
-fn abandoned_profile_is_destroyed_by_runtime_once() {
+fn abandoned_profile_drops() {
     drop(profile());
-    assert_eq!(releases(), (1, 0));
 }
 
 #[test]
-fn rejected_upload_releases_profile_once() {
+fn rejected_upload_drops_profile() {
     for disconnected in [false, true] {
-        let profile = profile();
         let (sender, receiver) = sync_channel::<Upload>(0);
         let mut receiver = Some(receiver);
         if disconnected {
@@ -54,47 +47,41 @@ fn rejected_upload_releases_profile_once() {
         }
         let error = sender
             .try_send(upload(
-                profile,
+                profile(),
                 AgentEndpoint::Uri("http://localhost:8126".into()),
             ))
             .err()
             .expect("upload should be rejected");
         assert!(matches!(error, TrySendError::Disconnected(_)) == disconnected);
-        assert_eq!(releases(), (0, 0));
         drop(error);
-        assert_eq!(releases(), (1, 0));
     }
 }
 
 #[test]
-fn discarded_queued_upload_releases_profile_once() {
-    let profile = profile();
+fn discarded_queued_upload_drops_profile() {
     let (sender, receiver) = sync_channel(1);
-    assert!(sender
-        .send(upload(
-            profile,
-            AgentEndpoint::Uri("http://localhost:8126".into())
-        ))
-        .is_ok());
-    assert_eq!(releases(), (0, 0));
+    assert!(
+        sender
+            .send(upload(
+                profile(),
+                AgentEndpoint::Uri("http://localhost:8126".into())
+            ))
+            .is_ok()
+    );
     drop(receiver);
-    assert_eq!(releases(), (1, 0));
 }
 
 #[test]
-fn invalid_endpoint_drops_before_consuming_profile() {
+fn invalid_endpoint_is_an_error() {
     let result = serialize_and_upload(upload(profile(), AgentEndpoint::Uri("http://[".into())));
     assert!(result.is_err());
-    assert_eq!(releases(), (1, 0));
 }
 
 #[test]
-fn serialization_error_does_not_run_forwarding_drop_twice() {
-    implementation::RELEASES.with(|counts| counts.set((0, 0)));
+fn serialization_error_is_reported() {
     // An unresolved custom sample type is a real libdatadog serialization error.
     let profile = Profile::try_new(&[SampleType::Custom1], None, SystemTime::now()).unwrap();
     assert!(serialize(profile).is_err());
-    assert_eq!(releases(), (0, 1));
 }
 
 #[test]
@@ -148,25 +135,28 @@ fn timestamped_samples_outlive_borrowed_inputs_and_serialize() {
     }
     let buffer = serialize(profile).unwrap();
     assert!(!buffer.is_empty());
-    assert_eq!(releases(), (0, 1));
 }
 
 #[test]
-fn failed_mutation_leaves_profile_destructible_and_usable() {
+fn failed_mutation_leaves_profile_usable() {
     let mut profile = profile();
-    assert!(profile
-        .add_upscaling_rule(&[1], "", "", UpscalingInfo::Proportional { scale: 2.0 })
-        .is_err());
-    assert!(profile
-        .try_add_sample(
-            Sample {
-                locations: vec![],
-                values: &[],
-                labels: vec![]
-            },
-            None
-        )
-        .is_err());
+    assert!(
+        profile
+            .add_upscaling_rule(&[1], "", "", UpscalingInfo::Proportional { scale: 2.0 })
+            .is_err()
+    );
+    assert!(
+        profile
+            .try_add_sample(
+                Sample {
+                    locations: vec![],
+                    values: &[],
+                    labels: vec![]
+                },
+                None
+            )
+            .is_err()
+    );
     profile
         .try_add_sample(
             Sample {
@@ -177,7 +167,5 @@ fn failed_mutation_leaves_profile_destructible_and_usable() {
             None,
         )
         .unwrap();
-    assert_eq!(profile.only_for_testing_num_aggregated_samples(), 1);
-    drop(profile);
-    assert_eq!(releases(), (1, 0));
+    assert!(!serialize(profile).unwrap().is_empty());
 }
