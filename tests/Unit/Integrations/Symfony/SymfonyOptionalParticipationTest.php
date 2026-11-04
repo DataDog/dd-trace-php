@@ -64,7 +64,7 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 ],
                 [],
             ],
-            // Rule 5: an optional sharing the segment of a mandatory variable.
+            // An optional sharing the segment of a mandatory variable.
             'optional dot suffix' => [
                 '/opt/dot/{id}.{format}',
                 ['format' => 'html'],
@@ -72,7 +72,7 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 '',
                 [
                     '/opt/dot/5' => '/opt/dot/{id}',
-                    '/opt/dot/5.json' => '/opt/dot/{id+format}',
+                    '/opt/dot/5.json' => '/opt/dot/{id}.{format}',
                 ],
                 [],
             ],
@@ -84,8 +84,8 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 '',
                 [
                     '/opt/three/1' => '/opt/three/{a}',
-                    '/opt/three/1.2' => '/opt/three/{a+b}',
-                    '/opt/three/1.2.3' => '/opt/three/{a+b+c}',
+                    '/opt/three/1.2' => '/opt/three/{a}.{b}',
+                    '/opt/three/1.2.3' => '/opt/three/{a}.{b}.{c}',
                 ],
                 [],
             ],
@@ -137,7 +137,7 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 [],
             ],
             // A non-slash separator is taken into the optional just the same,
-            // and the segment it shares collapses to one element (rule 5).
+            // and the static text of the segment it shares is kept.
             'optional behind a comma separator' => [
                 '/opt/sep,{page}',
                 ['page' => 1],
@@ -145,7 +145,7 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 '',
                 [
                     '/opt/sep' => '/opt/sep',
-                    '/opt/sep,2' => '/opt/{page}',
+                    '/opt/sep,2' => '/opt/sep%2C{page}',
                 ],
                 [],
             ],
@@ -188,16 +188,16 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 ['/opt/req/all'],
             ],
             // Host variables take part in the subject Symfony matched, which is
-            // not the route, so the route cannot be replayed and the tag is
-            // omitted for every request (see docs/appsec_normalized_route.md).
+            // not the route, so the route cannot be replayed and every request
+            // gets the mandatory-only fallback (see docs/appsec_normalized_route.md).
             'optional on a route with host variables' => [
                 '/opt/host/{page}',
                 ['page' => 1],
                 ['sub' => '.+'],
                 '{sub}',
                 [
-                    '/opt/host' => null,
-                    '/opt/host/2' => null,
+                    '/opt/host' => '/opt/host',
+                    '/opt/host/2' => '/opt/host',
                 ],
                 [],
             ],
@@ -282,9 +282,10 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 "$path is not supposed to serve $url"
             );
             if ($plan['ambiguous']) {
-                // Replayed routes resolve against the path, so a path the route
-                // does not serve has no normalized route either.
-                $this->assertNull(
+                // A path the replay cannot resolve gets the fallback route,
+                // with the mandatory variables only.
+                $this->assertSame(
+                    RouteNormalizer::normalizeFromSymfony($plan['path'], $plan['matchedParams']),
                     EndpointCatalog::normalizedRouteFromCacheEntry($entry, $url),
                     "normalized route for $path with unserved $url"
                 );
@@ -327,10 +328,9 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
      */
     private function cacheEntry(array $plan, $regex)
     {
-        if (!$plan['ambiguous']) {
-            $normalization = (string) RouteNormalizer::normalizeFromSymfony($plan['path'], $plan['matchedParams']);
-        } else {
-            $normalization = $regex === null ? '' : EndpointCatalog::REPLAY_MARKER . $regex;
+        $normalization = (string) RouteNormalizer::normalizeFromSymfony($plan['path'], $plan['matchedParams']);
+        if ($plan['ambiguous'] && $regex !== null) {
+            $normalization = EndpointCatalog::REPLAY_MARKER . $normalization . "\0" . $regex;
         }
 
         return $plan['path'] . "\0" . $normalization;

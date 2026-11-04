@@ -3,14 +3,25 @@
 The root span tag `_dd.appsec.normalized_route` (RFC-1103) is set by the
 Laravel, Symfony, Laminas and WordPress integrations. It is built by
 `DDTrace\Util\RouteNormalizer` from the route the framework matched and from
-which of that route's parameters took part in the match. Optional parts are
-resolved with the framework's own matching data, or by running the
-framework's own pattern again on the same subject. Where that is not possible
-the tag is omitted, never guessed (RFC-1103 R-5). `http.route` is not affected
-by any of the cases below.
+which of that route's parameters took part in the match. `http.route` is not
+affected by any of the cases below.
 
-This page lists, per integration, when the tag is omitted and which parts of
-the request path it deliberately leaves out.
+The route is an OpenAPI path template:
+
+- static text within a URL segment is kept (`/users/user-{id}`);
+- parameters in the same segment stay separate, with the text between them
+  (`/photos/{id}.{format}`);
+- parameter names keep only `[A-Za-z0-9_]`; any other character becomes `_`;
+- a catch-all is `{paramN}` (the representation is still an open question in
+  the RFC).
+
+An optional parameter is in the route when the request has it and left out
+when it does not. Presence is resolved with the framework's own matching data,
+or by running the framework's own pattern again on the same subject. Where
+presence cannot be determined, the route falls back to its mandatory
+parameters only: a route without the optional parameters is better than no
+route. This page lists, per integration, where that fallback is used, and the
+remaining cases where no route can be built at all.
 
 ## All integrations
 
@@ -51,10 +62,10 @@ integrations do; a template-only normalization would violate RFC-1103 R-2/R-3.
 
 ## Laravel
 
-Set by the `Router::findRoute` hook. Omitted when the route has an optional
-parameter (`{name?}`) and Laravel's path capture map was not recorded for the
-request. The map is taken from `RouteParameterBinder::bindPathParameters()`
-(5.4+) or `Route::bindPathParameters()` (<= 5.3), before route defaults are
+Set by the `Router::findRoute` hook. Falls back to the mandatory parameters
+when the route has an optional parameter (`{name?}`) and Laravel's path
+capture map was not recorded for the request. The map is taken from
+`RouteParameterBinder::bindPathParameters()` (5.4+) or `Route::bindPathParameters()` (<= 5.3), before route defaults are
 merged. A route bound without going through these methods has no map.
 
 An optional parameter that matched an empty string counts as absent, as it
@@ -69,17 +80,19 @@ requests go through the same code. Omitted when:
 - `DD_TRACE_SYMFONY_HTTP_ROUTE` is false;
 - the request has no `_route`, the container has no `kernel.cache_dir`, the
   generator cache file is missing, or the route is not in it under its name
-  or its `name.locale` (i18n) name;
-- for a route whose trailing variables have defaults (e.g.
-  `/posts/{page}` with a default `page`), Symfony's own matcher regex for the
-  route is run again on the decoded path info, and the tag is omitted when:
-  - the route has host variables;
-  - Symfony's `RouteCompiler` does not reproduce the generator's tokens, or
-    throws;
-  - the regex does not match the path;
-  - the path has a trailing slash that the last variable did not take, and
-    the path without it also matches (Symfony redirects there, or another
-    route may have matched).
+  or its `name.locale` (i18n) name.
+
+For a route whose trailing variables have defaults (e.g. `/posts/{page}` with
+a default `page`), Symfony's own matcher regex for the route is run again on
+the decoded path info. It falls back to the mandatory variables when:
+
+- the route has host variables;
+- Symfony's `RouteCompiler` does not reproduce the generator's tokens, or
+  throws;
+- the regex does not match the path;
+- the path has a trailing slash that the last variable did not take, and the
+  path without it also matches (Symfony redirects there, or another route may
+  have matched).
 
 The route is the route path of the matched route. The request's base URL
 (the directory of the front controller) is not part of it.
@@ -90,7 +103,9 @@ Set by the `RouteInterface::match` hook for the top-level `TreeRouteStack`
 match of a named route. The routes Laminas matched are recorded while
 `Laminas\Mvc\RouteListener::onRoute` runs, and their patterns are run again
 on the same path, at the same offset, to tell which optional parts took part.
-Omitted when:
+It falls back to the mandatory parts of the named route (Literal text, Segment
+literals and the Segment parameters outside optionals; a Wildcard adds
+nothing) when:
 
 - routing happens outside `RouteListener::onRoute` (e.g. non-MVC
   applications using `TreeRouteStack` directly): nothing is recorded. A later
@@ -111,6 +126,10 @@ Omitted when:
 - a `Wildcard` matched more than one piece without starting with `/`;
 - replaying a route throws.
 
+The fallback cannot be built, and the tag is omitted, when the named route has
+a `Regex` route (its spec does not tell optional captures apart), a `Segment`
+with translated literals, or a route type laminas-router does not ship.
+
 Deliberate simplifications:
 
 - The router's base URL (`TreeRouteStack::getBaseUrl()`, the application's
@@ -125,7 +144,9 @@ Deliberate simplifications:
 
 Set by the `WP::main` hook when WordPress matched a rewrite rule
 (`did_permalink`) and the request is not a 404. The matched rule is run again
-on `WP::$request`. Omitted when:
+on `WP::$request`. WordPress rewrite rules are regular expressions with no
+declared optional parameters, so there is no mandatory-only route to fall back
+to. The tag is omitted when:
 
 - the rule can consume text that is not inside a capture group: outside
   captures it uses `.`, a character class, `*`, `+`, `{`, an escape such as
@@ -142,12 +163,13 @@ on `WP::$request`. Omitted when:
   swap can happen there and the tag is kept. A subdirectory installation whose
   request URI is exactly the home path is omitted, though WordPress would not
   have swapped;
-- a capture cannot be placed in a URL segment, or the capture names do not
-  line up with their groups.
+- the capture names do not line up with their groups.
 
 Deliberate simplifications:
 
 - WordPress strips the path of a subdirectory installation (`home_url()`)
   from `WP::$request`, so it is not part of the route.
 - A capture that matched an empty string counts as absent. Unnamed captures
-  are named `paramN` after their group number.
+  are named `paramN` after their group number. Text of the subject outside
+  the captures is kept as static text; a capture nested in another is covered
+  by the outer one.

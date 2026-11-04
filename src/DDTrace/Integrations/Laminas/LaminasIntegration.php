@@ -309,9 +309,10 @@ class LaminasIntegration extends Integration
                             // $routeMatchRecords). The normalized route is built from them
                             // as elements, so static text is never read as route syntax.
                             // Without them (routing outside RouteListener::onRoute, or a
-                            // route that consumed path without being recorded) it is
-                            // omitted: http.route alone cannot tell a Literal's ':' from a
-                            // parameter, nor which optionals took part.
+                            // route that consumed path without being recorded), or when
+                            // the replay fails, which optionals took part is unknown: the
+                            // route falls back to its mandatory parts, built from the
+                            // route definitions (see fallbackElementsFromNamedRouteStack()).
                             $_records = LaminasIntegration::takeRouteMatchRecords($routeMatch);
                             $_signature = null;
                             if ($_records !== null) {
@@ -345,9 +346,28 @@ class LaminasIntegration extends Integration
                                         \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
                                     }
                                 }
-                                if ($normalizedRoute !== null) {
-                                    $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                            } else {
+                                $normalizedRoute = null;
+                            }
+                            if ($normalizedRoute === null) {
+                                // Not cached: a route name and http.route do not
+                                // identify the route definitions it is built from.
+                                try {
+                                    $_elements = LaminasIntegration::fallbackElementsFromNamedRouteStack(
+                                        $this,
+                                        (string) $routeName
+                                    );
+                                } catch (\Throwable $_ex) {
+                                    unset($_ex);
+                                    $_elements = null;
                                 }
+                                $normalizedRoute = $_elements === null
+                                    ? null
+                                    : \DDTrace\Util\RouteNormalizer::normalizeElements($_elements);
+                                unset($_elements);
+                            }
+                            if ($normalizedRoute !== null) {
+                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                             }
                             unset($_records, $_signature);
                         }
@@ -1870,6 +1890,107 @@ class LaminasIntegration extends Integration
         }
 
         return self::httpRouteTemplateFromMatchedRoute($route, null);
+    }
+
+    /**
+     * The fallback for when the matched routes cannot be replayed: the named
+     * route as RouteNormalizer::normalizeElements() elements with only its
+     * mandatory parts. Literal text and Segment literals are static text,
+     * Segment parameters outside optionals are parameters, optionals are left
+     * out, and a Wildcard, which only takes optional key/value pairs, adds
+     * nothing. Null for a Regex, whose spec does not tell its optional
+     * captures apart, for a translated literal, and for a route type
+     * laminas-router does not ship.
+     *
+     * @return array|null
+     */
+    public static function fallbackElementsFromNamedRouteStack($stack, string $matchedName)
+    {
+        $segments = \explode('/', $matchedName, 2);
+        $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
+        if ($route === null) {
+            return null;
+        }
+
+        $hasChild = isset($segments[1]);
+        if ($route instanceof \Laminas\Router\Http\Part) {
+            self::laminasMaterializePartChildRoutes($route);
+            $base = self::fallbackElementsFromRoute(
+                self::laminasReadProperty($route, \Laminas\Router\Http\Part::class, 'route')
+            );
+            if ($base === null || !$hasChild) {
+                return $base;
+            }
+            $child = self::fallbackElementsFromNamedRouteStack($route, $segments[1]);
+            return $child === null ? null : array_merge($base, $child);
+        }
+
+        if ($route instanceof \Laminas\Router\Http\TreeRouteStack && $hasChild) {
+            return self::fallbackElementsFromNamedRouteStack($route, $segments[1]);
+        }
+
+        return $hasChild ? null : self::fallbackElementsFromRoute($route);
+    }
+
+    /** @return array|null */
+    private static function fallbackElementsFromRoute($route)
+    {
+        if ($route instanceof \Laminas\Router\Http\Literal) {
+            return [[
+                'static',
+                (string) self::laminasReadProperty($route, \Laminas\Router\Http\Literal::class, 'route'),
+            ]];
+        }
+
+        if ($route instanceof \Laminas\Router\Http\Segment) {
+            $parts = self::laminasReadProperty($route, \Laminas\Router\Http\Segment::class, 'parts');
+            if (!\is_array($parts)) {
+                return null;
+            }
+            $elements = [];
+            foreach ($parts as $part) {
+                if (!\is_array($part) || !isset($part[0])) {
+                    return null;
+                }
+                switch ($part[0]) {
+                    case 'literal':
+                        $elements[] = ['static', (string) $part[1]];
+                        break;
+                    case 'parameter':
+                        $elements[] = ['param', (string) $part[1]];
+                        break;
+                    case 'optional':
+                        break;
+                    default:
+                        return null;
+                }
+            }
+            return $elements;
+        }
+
+        if ($route instanceof \Laminas\Router\Http\Chain) {
+            $elements = [];
+            foreach (self::laminasGetChainRoutes($route) as $chainedRoute) {
+                $chained = self::fallbackElementsFromRoute($chainedRoute);
+                if ($chained === null) {
+                    return null;
+                }
+                $elements = array_merge($elements, $chained);
+            }
+            return $elements;
+        }
+
+        if (
+            $route instanceof \Laminas\Router\Http\Wildcard
+            || $route instanceof \Laminas\Router\Http\Method
+            || $route instanceof \Laminas\Router\Http\Scheme
+            || $route instanceof \Laminas\Router\Http\Hostname
+            || $route instanceof \Laminas\Router\Http\Placeholder
+        ) {
+            return [];
+        }
+
+        return null;
     }
 
     public static function partRouteBaseTemplate(\Laminas\Router\Http\Part $part): ?string
