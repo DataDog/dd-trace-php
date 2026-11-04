@@ -14,6 +14,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 - Support `DD_TRACE_STATS_ADDITIONAL_TAGS` to add tag dimensions to client-side stats #4404
 - Report feature flag evaluation counts, configurable with `DD_FLAGGING_EVALUATION_COUNTS_ENABLED` #4288
 - Log Feature Flags diagnostics with `DD_TRACE_DEBUG=1` #4327
+- Opt-in full propagation for prepared statements via `DD_DBM_TRACE_PREPARED_STATEMENT=1` #4211 (thank you @bray-lula for the pull request!)
 
 ### Fixed
 - Always unblock SIGVTALRM, including at request start on Apache ZTS, so remote config notifications are delivered #4388
