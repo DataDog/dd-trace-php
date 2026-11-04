@@ -2170,9 +2170,12 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     if (exposure >= 0) {
         ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("exposureCacheHit"), exposure == 0);
     }
+    // PHP 7 drops array defaults of internal class properties, so set it here.
     if (result.features) {
         ddtrace_ffe_update_features_property(return_value, result.features);
         ddog_ffe_features_drop(result.features);
+    } else {
+        ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("features"));
     }
 }
 
