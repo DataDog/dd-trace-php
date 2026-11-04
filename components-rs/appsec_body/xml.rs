@@ -12,7 +12,8 @@ use std::rc::Rc;
 
 /// Bound both bytes and work, including repeated expansion of empty entities.
 const MIN_EXPANSION_BUDGET: usize = 64 * 1024;
-pub(super) const MAX_ENTITY_DEPTH: usize = 32;
+/// libxml's limit on nested entities (inputs), so the same DTDs are read.
+pub(super) const MAX_ENTITY_DEPTH: usize = 40;
 
 pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyMessagePack {
     // The body API supports UTF-8 only. Keep the valid prefix on malformed or
@@ -838,6 +839,22 @@ mod tests {
         }
         input.push_str(&format!(r#"<!ATTLIST r a CDATA "&e{levels};">]><r/>"#));
         input
+    }
+
+    #[test]
+    fn parameter_entities_nest_as_deeply_as_in_libxml() {
+        // libxml accepts 40 nested parameter entities and rejects 41.
+        let chain = |levels: usize| {
+            let mut input = String::from(r#"<!DOCTYPE r [<!ENTITY % p0 "<!ENTITY e 'deep'>">"#);
+            for i in 1..levels {
+                input.push_str(&format!("<!ENTITY % p{i} '&#37;p{};'>", i - 1));
+            }
+            input.push_str(&format!("%p{};]><r>&e;</r>", levels - 1));
+            input
+        };
+        assert_eq!(complete(&chain(40)), r#"{"r":["deep"]}"#);
+        // Past the limit the entity is unread, so later declarations are ignored.
+        assert_eq!(complete(&chain(41)), r#"{"r":["&e;"]}"#);
     }
 
     #[test]
