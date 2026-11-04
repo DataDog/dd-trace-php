@@ -2061,6 +2061,9 @@ deploy_to_reliability_env:
       when: on_success
     - when: manual
       allow_failure: true
+  # Global variables (GIT_SUBMODULE_*) are forwarded downstream and override the reliability-env checkout.
+  inherit:
+    variables: [ RELIABILITY_ENV_BRANCH ]
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $RELIABILITY_ENV_BRANCH
