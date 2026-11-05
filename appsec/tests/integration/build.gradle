@@ -1336,7 +1336,11 @@ buildRunInDockerTask(
         needsBoostCache: false,
         inputs: [
                 dirs: ['../../../components-rs/appsec_body'],
-                files: ['../../../rust-toolchain.toml'],
+                files: [
+                        '../../../Cargo.lock',
+                        '../../../Cargo.toml',
+                        '../../../rust-toolchain.toml',
+                ],
         ],
         outputs: [
                 volume: 'php-appsec-body-coverage',
