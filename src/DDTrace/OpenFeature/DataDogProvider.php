@@ -245,7 +245,7 @@ final class DataDogProvider extends AbstractProvider
         $this->recordEvaluationMetric($flagKey, $details);
         // APM span enrichment is recorded inside NativeEvaluator::evaluate()
         // (the shared choke point), so there is nothing to do here.
-        $this->captureExposure($flagKey, $normalizedContext, $details);
+        $this->captureExposure($flagKey, $context, $normalizedContext, $details);
 
         $builder = (new ResolutionDetailsBuilder())
             ->withValue($details->getValue())
@@ -278,8 +278,12 @@ final class DataDogProvider extends AbstractProvider
      *
      * @param array{targetingKey?: ?string, attributes?: array<string, bool|int|float|string>} $context
      */
-    private function captureExposure(string $flagKey, array $context, EvaluationDetails $details): void
-    {
+    private function captureExposure(
+        string $flagKey,
+        ?EvaluationContext $evaluationContext,
+        array $context,
+        EvaluationDetails $details
+    ): void {
         $recorder = $this->observationScope()->recorder;
         if ($recorder === null) {
             return;
@@ -289,6 +293,8 @@ final class DataDogProvider extends AbstractProvider
         $variant = $details->getVariant();
         $recorder->captureExposure([
             'flagKey' => $flagKey,
+            // Later hooks can still change the targeting key of the shared context.
+            'context' => $evaluationContext !== null ? ExposureEvaluation::copyContext($evaluationContext) : null,
             'targetingKey' => $context['targetingKey'] ?? null,
             'attributes' => $context['attributes'] ?? [],
             'allocationKey' => $allocationKey,
