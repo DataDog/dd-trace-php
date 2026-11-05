@@ -110,6 +110,48 @@ On PHP 8.0 and PHP 8.1 we override zend_execute_internal, which causes DO_FCALL 
 
 # Specific tests
 
+## `ext/sockets/tests/socket_export_stream-4.phpt`
+
+Disabled on PHP 7.0–7.3. The test binds fixed UDP ports, including 58484, which
+can already be in use. Occupying that port reproduces the warning without any
+Datadog extension. The [upstream fix][socket-port-fix] lets the OS choose free
+ports and is present in PHP 7.4+, where we keep running the test.
+
+[Failing PHP 7.3 CI job][socket-flake-ci].
+
+[socket-port-fix]: https://github.com/php/php-src/commit/a57905dbacfc4e5d94267fecf0e0f4a2798e7022
+[socket-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2205741810
+
+## `ext/standard/tests/streams/proc_open_bug64438.phpt`
+
+Disabled on PHP 7.0–7.3. The test assumes both pipes return data before either
+returns EOF. Reading stdout data, stdout EOF, stderr data, then stderr EOF is
+also valid and reproduces the CI diff without any Datadog extension. The
+[upstream fix][proc-pipe-fix] collects events per pipe and is present in PHP
+7.4+, where we keep running the test.
+
+[Failing PHP 7.3 CI job][proc-flake-ci].
+
+[proc-pipe-fix]: https://github.com/php/php-src/commit/d20fc5a1927c98db7d4e96c17b9988569822592a
+[proc-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2195978918
+
+## `ext/pcntl/tests/002.phpt`
+
+Disabled on PHP 7.0–7.4. The test blocks SIGCHLD, then installs a handler.
+PHP's `zend_sigaction()` unblocks SIGCHLD during handler registration. If the
+child exits before `pcntl_sigwaitinfo()`, the handler receives the signal and
+the wait hangs. Delaying the parent after killing the child reproduces the
+exact timeout without any Datadog extension.
+
+[Failing PHP 7.4 CI job][pcntl-flake-ci]. We keep running this test on PHP 8.0+;
+the cutoff limits the exclusion to legacy versions, not a known upstream fix.
+
+[pcntl-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2210035628
+
+These exclusions use the shared version-specific lists for tracer and profiler
+CI. Despite the name, `.gitlab/run_php_language_tests.sh` deletes listed PHPTs
+before running the suite; they do not run as expected failures.
+
 ## `ext/standard/tests/file/file_get_contents_file_put_contents_5gb.phpt`
 
 Disabled on versions: `8.2`, `8.3`.

@@ -182,6 +182,7 @@ ext/openssl/tests/streams_crypto_method.phpt
 ext/openssl/tests/tlsv1.0_wrapper.phpt
 ext/openssl/tests/tlsv1.1_wrapper.phpt
 ext/openssl/tests/tlsv1.2_wrapper.phpt
+ext/pcntl/tests/002.phpt
 ext/pdo/tests/pdo_023.phpt
 ext/pdo/tests/pdo_030.phpt
 ext/pdo_sqlite/tests/bug43831.phpt
@@ -234,6 +235,7 @@ ext/soap/tests/bugs/bug28751.phpt
 ext/sockets/tests/socket_connect_params.phpt
 ext/sockets/tests/socket_create_listen-nobind.phpt
 ext/sockets/tests/socket_create_pair.phpt
+ext/sockets/tests/socket_export_stream-4.phpt
 ext/sockets/tests/socket_shutdown.phpt
 ext/spl/tests/ArrayObject_clone_other_std_props.phpt
 ext/spl/tests/ArrayObject_dump_during_sort.phpt
@@ -366,6 +368,7 @@ ext/standard/tests/serialize/bug69425.phpt
 ext/standard/tests/serialize/bug70213.phpt
 ext/standard/tests/serialize/bug70219_1.phpt
 ext/standard/tests/serialize/serialization_objects_007.phpt
+ext/standard/tests/streams/proc_open_bug64438.phpt
 ext/standard/tests/streams/proc_open_bug69900.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/xsl/tests/bug33853.phpt
