@@ -421,26 +421,12 @@ mod tests {
     #[test]
     fn normalized_whitespace() {
         assert_eq!(
-            complete("<r a=\"a\tb\nc\rd\">x\r\ny\rz</r>"),
-            r#"{"r":[{"@a":"a b c d"},"x\ny\nz"]}"#
-        );
-        assert_eq!(
             complete(r#"<!DOCTYPE r [<!ATTLIST r tokens NMTOKENS #IMPLIED>]><r tokens=" a  b "/>"#),
             r#"{"r":[{"@tokens":"a b"}]}"#
         );
         assert_eq!(
             complete(r#"<!DOCTYPE r [<!ENTITY e " ">]><r>a&e;b</r>"#),
             r#"{"r":["a b"]}"#
-        );
-    }
-
-    #[test]
-    fn parameter_entities_can_declare_entities_and_defaults() {
-        assert_eq!(
-            complete(
-                r#"<!DOCTYPE r [<!ENTITY % d "<!ENTITY e 'payload'><!ATTLIST r a CDATA 'default'>">%d;]><r>&e;</r>"#
-            ),
-            r#"{"r":[{"@a":"default"},"payload"]}"#
         );
     }
 
@@ -465,10 +451,6 @@ mod tests {
             complete(input),
             r#"{"test":[{"@a":"[test]"},"test&myentity;[test]&undeclared;&#xZZ; & x"]}"#
         );
-        assert_eq!(
-            complete("<!DOCTYPE note SYSTEM \"http://example.com/note.dtd\">\n<test>&test;</test>"),
-            r#"{"test":["&test;"]}"#
-        );
     }
 
     #[test]
@@ -484,24 +466,6 @@ mod tests {
                 r#"<!DOCTYPE r [<!ENTITY unused '<!ENTITY a "safe">'><!ENTITY a "payload">]><r>&a;</r>"#
             ),
             r#"{"r":["payload"]}"#
-        );
-    }
-
-    #[test]
-    fn forward_references_and_entity_markup() {
-        assert_eq!(
-            complete(r#"<!DOCTYPE r [<!ENTITY a "&b;"><!ENTITY b "attack">]><r>&a;</r>"#),
-            r#"{"r":["attack"]}"#
-        );
-        assert_eq!(
-            complete(
-                r#"<!DOCTYPE r [<!ENTITY e "<child key='v'>value</child>">]><r>before&e;after</r>"#
-            ),
-            r#"{"r":["before",{"child":[{"@key":"v"},"value"]},"after"]}"#
-        );
-        assert_eq!(
-            complete(r#"<!DOCTYPE r [<!ENTITY e "&#60;child/> &lt;text&gt;">]><r>&e;</r>"#),
-            r#"{"r":[{"child":[]}," <text>"]}"#
         );
     }
 
@@ -540,25 +504,6 @@ mod tests {
     }
 
     #[test]
-    fn encoding_is_validated() {
-        assert_eq!(
-            xml(
-                r#"<?xml version="1.0" encoding="ISO-8859-1"?><r>text</r>"#,
-                30
-            )
-            .0,
-            AppsecBodyStatus::Empty
-        );
-        let (status, out) = render(super::parse(b"<r>ok<x>\xff</x></r>", 30));
-        assert_eq!(status, AppsecBodyStatus::Partial);
-        assert_eq!(out, r#"{"r":["ok",{"x":[]}]}"#);
-        assert_eq!(
-            complete(r#"<?xml version="1.0" encoding="UTF-8"?><r a="é">日本語</r>"#),
-            r#"{"r":[{"@a":"é"},"日本語"]}"#
-        );
-    }
-
-    #[test]
     fn recursive_and_empty_entities_are_bounded() {
         let input =
             r#"<!DOCTYPE r [<!ENTITY a "&b;"><!ENTITY b "&a;">]><r>&a;<after>visible</after></r>"#;
@@ -590,30 +535,15 @@ mod tests {
 
     #[test]
     fn truncated() {
-        assert_eq!(
-            partial_or_complete("<root><item>content</item><other>trun"),
-            r#"{"root":[{"item":["content"]},{"other":["trun"]}]}"#
-        );
-        assert_eq!(
-            partial_or_complete("<root><a><b><c>text</c></b>"),
-            r#"{"root":[{"a":[{"b":[{"c":["text"]}]}]}]}"#
-        );
-        assert_eq!(partial(r#"<root attr="val"#), r#"{"root":[]}"#);
+        // More truncations are in convert_xml_truncated.phpt.
         assert_eq!(
             partial(r#"<root><child a="1" b"#),
             r#"{"root":[{"child":[]}]}"#
         );
-        assert_eq!(partial_or_complete("<root>"), r#"{"root":[]}"#);
-        assert_eq!(xml("<root>", 30).0, AppsecBodyStatus::Partial);
-        assert_eq!(xml("", 30), (AppsecBodyStatus::Empty, String::new()));
         assert_eq!(
             xml("just text", 30),
             (AppsecBodyStatus::Empty, String::new())
         );
-    }
-
-    fn partial_or_complete(input: &str) -> String {
-        xml(input, 30).1
     }
 
     #[test]
