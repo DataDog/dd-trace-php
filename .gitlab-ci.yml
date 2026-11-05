@@ -20,7 +20,7 @@ variables:
 
 generate-templates:
   stage: build
-  # The generators only need php-cli: no git history, no submodules.
+  # The generators only need php-cli: no submodules, and git history only for a PR branch's changed-file list.
   image: registry.ddbuild.io/images/mirror/php:8.2-cli-alpine
   tags: [ "arch:amd64" ]
   needs: []
@@ -49,6 +49,25 @@ generate-templates:
         LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
         printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
       fi
+    - |
+      # PR branch pushes: list the files changed since the merge-base with master for generate-package.php's
+      # path triggers. Without the list (any failure included) every job runs.
+      case "$CI_PIPELINE_SOURCE:${CI_COMMIT_BRANCH:-}" in
+        push:|"push:$CI_DEFAULT_BRANCH"|push:ddtrace-*|push:release-*) ;;
+        push:*)
+          command -v git >/dev/null || apk add --no-cache git >/dev/null || true
+          for depth in 200 2000; do
+            git fetch -q --no-tags --depth=$depth origin "+refs/heads/$CI_DEFAULT_BRANCH:refs/remotes/origin/$CI_DEFAULT_BRANCH" \
+              "+refs/pipelines/$CI_PIPELINE_ID:refs/pipelines/$CI_PIPELINE_ID" && base=$(git merge-base "origin/$CI_DEFAULT_BRANCH" HEAD) && break
+          done
+          if [ -n "${base:-}" ] && git diff --no-renames --name-only "$base" HEAD > .gitlab/changed-files.txt; then
+            echo "$(wc -l < .gitlab/changed-files.txt) file(s) changed since merge-base $base"
+          else
+            rm -f .gitlab/changed-files.txt
+            echo "Could not list the files changed since $CI_DEFAULT_BRANCH: running every job"
+          fi
+          ;;
+      esac
     - php ./.gitlab/generate-package.php  | tee .gitlab/package-gen.yml
     - php ./.gitlab/generate-tracer.php   | tee .gitlab/tracer-gen.yml
     - php ./.gitlab/generate-appsec.php   | tee .gitlab/appsec-gen.yml
