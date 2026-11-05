@@ -7,6 +7,12 @@ memory_limit=8M
 display_errors=0
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--SKIPIF--
+<?php
+if (datadog\appsec\testing\memory_limit_exits_process()) {
+    die('skip on this PHP build an allocation over memory_limit ends the process, so recovery cannot be tested');
+}
+?>
 --FILE--
 <?php
 use function DDTrace\UserRequest\{notify_start, notify_commit};
