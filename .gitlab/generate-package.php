@@ -1275,6 +1275,10 @@ endforeach;
       tests/ext/sandbox/fatal_errors_are_tracked_002.phpt
       tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt
     - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
+    # Ubuntu's PHP is GCC-built (HYBRID VM): the only place the JIT declare-handler register bugs can show up.
+    - phpenmod -v 8.1 -s cli opcache
+    - php -d opcache.enable_cli=1 -d opcache.jit_buffer_size=64M -r 'exit((int) !opcache_get_status()["jit"]["on"]);' || { echo "JIT is not enabled, the JIT tests would be meaningless"; exit 1; }
+    - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1 -d opcache.protect_memory=1" tests/opcache/resolver_jit.phpt tests/opcache/resolver_jit_function.phpt tests/opcache/override_argument_jit.phpt
 
 "framework test":
   stage: verify
