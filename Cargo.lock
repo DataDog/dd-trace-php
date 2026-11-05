@@ -1366,6 +1366,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ddtrace-appsec-body"
+version = "0.0.1"
+dependencies = [
+ "quick-xml",
+ "rmpv",
+ "serde",
+ "serde_json",
+ "serial_test",
+]
+
+[[package]]
 name = "ddtrace-sidecar"
 version = "0.0.1"
 dependencies = [
@@ -1758,6 +1769,16 @@ name = "fs_extra"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
+
+[[package]]
+name = "fslock"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04412b8935272e3a9bae6f48c7bfff74c2911f60525404edfdd28e49884c3bfb"
+dependencies = [
+ "libc",
+ "winapi",
+]
 
 [[package]]
 name = "function_name"
@@ -5423,6 +5444,7 @@ version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "911bd979bf1070a3f3aa7b691a3b3e9968f339ceeec89e08c280a8a22207a32f"
 dependencies = [
+ "fslock",
  "futures-executor",
  "futures-util",
  "log",

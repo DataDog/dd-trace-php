@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "components-rs/appsec_body",
   "components-rs/php_sidecar_mockgen",
   "sidecar",
   "appsec/helper-rust",
@@ -7,11 +8,6 @@ members = [
 exclude = [
   # Workspace membership would break the vendored libddwaf crates.
   "appsec/third_party/libddwaf-rust",
-  # Build the parsers separately with panic=unwind and their own allocator.
-  # Localize their staticlib symbols before linking so the allocator and panic
-  # runtime stay isolated from the rest of the tracer.
-  # See components-rs/appsec_body/tools/isolate.rs.
-  "components-rs/appsec_body",
 ]
 resolver = "2"
 

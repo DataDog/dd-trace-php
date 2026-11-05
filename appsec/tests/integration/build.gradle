@@ -1350,8 +1350,7 @@ buildRunInDockerTask(
                 """
                 ${appsecBodyRustEnvSetup}
                 export RUSTC_BOOTSTRAP=ddtrace_appsec_body
-                cargo llvm-cov test --release --locked \\
-                    --manifest-path components-rs/appsec_body/Cargo.toml --lcov \\
+                cargo llvm-cov test --package ddtrace-appsec-body --release --locked --lcov \\
                     --ignore-filename-regex='components-rs/appsec_body/(tests/|tools/|render[.]rs)' \\
                     --output-path /helper-rust-build/coverage-unit.lcov
                 """
