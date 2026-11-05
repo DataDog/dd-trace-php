@@ -17,8 +17,9 @@ use OpenFeature\interfaces\provider\ResolutionDetails;
  * decision, so an application can record exposures in its own data store.
  *
  * Register it on the OpenFeature API or a client. The callback runs for every
- * evaluation, including errors and repeats; ExposureEvaluation::shouldSend()
- * selects the new or changed exposures. It runs on the evaluating thread, so it
+ * evaluation by the Datadog provider, including errors and repeats;
+ * ExposureEvaluation::shouldSend() selects the new or changed exposures. It is
+ * skipped, with one warning, for any other provider, including a MultiProvider. It runs on the evaluating thread, so it
  * must not do I/O. An exception from the callback does not affect the
  * evaluation: the first one is logged as a warning, later ones at debug level.
  */
@@ -27,6 +28,7 @@ final class ExposureHook implements Hook
     /** @var callable(ExposureEvaluation): void */
     private $callback;
     private bool $warned = false;
+    private bool $warnedAboutProvider = false;
 
     /** @param callable(ExposureEvaluation): void $callback */
     public function __construct(callable $callback)
@@ -55,6 +57,10 @@ final class ExposureHook implements Hook
     public function finally(HookContext $context, HookHints $hints): void
     {
         try {
+            if ($context->getProviderMetadata()->getName() !== DataDogProvider::NAME) {
+                $this->warnAboutProvider($context->getProviderMetadata()->getName());
+                return;
+            }
             $evaluation = FlagEvaluationHook::exposureEvaluation($context)
                 ?? new ExposureEvaluation(
                     $context->getFlagKey(),
@@ -64,6 +70,18 @@ final class ExposureHook implements Hook
         } catch (\Throwable $error) {
             $this->logFailure($error);
         }
+    }
+
+    private function warnAboutProvider(string $name): void
+    {
+        if ($this->warnedAboutProvider) {
+            return;
+        }
+        $this->warnedAboutProvider = true;
+        (new NonThrowingLogger(Logger::get()))->warning(
+            'Feature Flags: ExposureHook only reports evaluations by the Datadog provider set directly on OpenFeature; skipping provider {provider}',
+            ['provider' => $name]
+        );
     }
 
     private function logFailure(\Throwable $error): void
