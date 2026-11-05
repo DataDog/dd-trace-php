@@ -145,7 +145,7 @@ final class FlagEvaluationHook implements Hook
             self::$exposureEvaluations ??= new \WeakMap();
             self::$exposureEvaluations[$context] = new ExposureEvaluation(
                 $context->getFlagKey(),
-                ExposureEvaluation::copyContext($context->getEvaluationContext()),
+                $this->exposure['context'] ?? ExposureEvaluation::copyContext($context->getEvaluationContext()),
                 $exposure !== null && $exposure['isExposure'],
                 $cacheHit,
                 $exposure['variant'] ?? null,

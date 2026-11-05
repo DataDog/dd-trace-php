@@ -153,6 +153,7 @@ final class ExposureHookTest extends TestCase
 
             public function after(HookContext $context, ResolutionDetails $details, HookHints $hints): void
             {
+                $context->getEvaluationContext()->setTargetingKey('changed-user');
             }
 
             public function error(HookContext $context, \Throwable $error, HookHints $hints): void
@@ -167,6 +168,8 @@ final class ExposureHookTest extends TestCase
 
         $client->getStringValue('flag', 'default', new EvaluationContext('user-1', new Attributes(['plan' => 'pro'])));
 
+        self::assertSame('user-1', $this->evaluations[0]->getTargetingKey());
+        self::assertSame('user-1', $this->cache->calls[0][1]);
         self::assertSame(['plan' => 'pro'], $this->evaluations[0]->getEvaluationContext()->getAttributes()->toArray());
     }
 
