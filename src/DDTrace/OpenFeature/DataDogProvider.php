@@ -34,11 +34,14 @@ final class DataDogProvider extends AbstractProvider
 {
     private const ALLOCATION_KEY_METADATA_KEY = 'allocationKey';
 
-    protected static string $NAME = 'Datadog';
+    public const NAME = 'Datadog';
+
+    protected static string $NAME = self::NAME;
 
     private Evaluator $evaluator;
     private LoggerInterface $datadogLogger;
     private bool $warnedAboutRuntimeNotReady = false;
+    private bool $warnedAboutUnhookedResolution = false;
     private EvaluationMetricRecorder $metricRecorder;
     private object $mainObservationScope;
     private \WeakMap $fiberObservationScopes;
@@ -273,8 +276,9 @@ final class DataDogProvider extends AbstractProvider
 
     /**
      * Hands the evaluation to this invocation's FlagEvaluationHook, which
-     * records the exposure once every after hook has succeeded. A provider
-     * called without OpenFeature hooks records no exposure.
+     * records the exposure once every after hook has succeeded. Without that
+     * hook (a direct call, or a child of a MultiProvider, which does not run
+     * child hooks) no exposure is recorded, as in the other Datadog SDKs.
      *
      * @param array{targetingKey?: ?string, attributes?: array<string, bool|int|float|string>} $context
      */
@@ -286,6 +290,10 @@ final class DataDogProvider extends AbstractProvider
     ): void {
         $recorder = $this->observationScope()->recorder;
         if ($recorder === null) {
+            if (!$this->warnedAboutUnhookedResolution) {
+                $this->warnedAboutUnhookedResolution = true;
+                $this->datadogLogger->warning('Feature Flags: exposures require the Datadog provider set directly on OpenFeature and evaluated through an OpenFeature client; no exposures are recorded for this provider when it is called directly or used inside a MultiProvider');
+            }
             return;
         }
         $exposure = $details->getExposureData();

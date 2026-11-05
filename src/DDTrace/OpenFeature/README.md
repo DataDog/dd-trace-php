@@ -38,9 +38,13 @@ OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
   logs exposures, including repeats. `isCacheHit()` tells repeats apart.
 - An evaluation that fails, including one that a later `after` hook fails, is
   not an exposure and records nothing.
-- Exposures are decided in the provider's own hook, so evaluate through an
-  OpenFeature client. Calling the provider's `resolve*` methods directly records
-  no exposure.
+- Exposures are decided in the provider's own hook, so set the Datadog provider
+  directly on OpenFeature and evaluate through an OpenFeature client. Calling
+  the provider's `resolve*` methods directly, or using it inside an OpenFeature
+  `MultiProvider` (which does not run the hooks of its providers), records no
+  exposure and sends none to Datadog; the provider logs one warning.
+  `ExposureHook` skips evaluations by any other provider, including a
+  `MultiProvider`, and logs one warning.
 - An exception from the callback does not affect the evaluation. The first one
   is logged as a warning, later ones at debug level.
 
