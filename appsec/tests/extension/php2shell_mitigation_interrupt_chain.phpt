@@ -23,6 +23,11 @@ p2s_skip_unless_cgi_ext('posix');
 //    (over the soft limit, before any error) and only then is the deferred
 //    fatal raised (an interrupt from inside the handler: see
 //    php2shell_mitigation_interrupt_reentry.phpt).
+//    This assumes nothing else raises a VM interrupt between the queueing of
+//    the signal and the crossing, because pcntl dispatches queued signals at
+//    every interrupt whatever pcntl_async_signals() says, so an extension that
+//    raises its own (the profiler's sampling, Excimer, Swow's watchdog) can
+//    run the handler early, below the soft limit (handler_over_soft=false).
 require __DIR__ . '/inc/php2shell_cgi.php';
 const CHILD = __DIR__ . '/inc/php2shell_child_interrupt_chain.php';
 $soft = 16 * P2S_MIB;
