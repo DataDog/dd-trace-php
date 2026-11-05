@@ -290,7 +290,7 @@ array(4) {
           ["locals"]=>
           array(2) {
             ["localArray"]=>
-            array(3) {
+            array(4) {
               ["elements"]=>
               array(100) {
                 [0]=>
@@ -996,6 +996,8 @@ array(4) {
               }
               ["notCapturedReason"]=>
               string(14) "collectionSize"
+              ["size"]=>
+              int(101)
               ["type"]=>
               string(5) "array"
             }

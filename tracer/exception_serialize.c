@@ -173,6 +173,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                     }
                     if (remaining_fields-- == 0) {
                         value->not_captured_reason = DDOG_CHARSLICE_C("collectionSize");
+                        value->size = zend_hash_num_elements(Z_ARR_P(zv));
                         break;
                     }
 
@@ -191,6 +192,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                     }
                     if (remaining_fields-- == 0) {
                         value->not_captured_reason = DDOG_CHARSLICE_C("collectionSize");
+                        value->size = zend_hash_num_elements(Z_ARR_P(zv));
                         break;
                     }
 
