@@ -1,4 +1,5 @@
 use crate::bytes::MaybeOwnedZendString;
+use arc_swap::ArcSwap;
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Feature, FeatureValue, Str, UniversalFlagConfig,
@@ -300,9 +301,16 @@ pub extern "C" fn ddog_ffe_features_drop(features: Option<Box<FfeFeatures>>) {
 }
 
 // Shared by every thread of the process. The sidecar deduplicates again
-// across processes before sending.
-static EXPOSURE_CACHE: LazyLock<ExposureDeduplicator> =
-    LazyLock::new(ExposureDeduplicator::default);
+// across processes before sending. Swappable so that a forked child can start
+// empty without locking a mutex another thread held at fork time.
+static EXPOSURE_CACHE: LazyLock<ArcSwap<ExposureDeduplicator>> =
+    LazyLock::new(|| ArcSwap::from_pointee(ExposureDeduplicator::default()));
+
+/// Gives the calling process an empty exposure cache. Call it in a forked child.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_exposure_cache_reset() {
+    EXPOSURE_CACHE.store(Arc::new(ExposureDeduplicator::default()));
+}
 
 #[repr(C)]
 pub struct FfeExposureKey<'a> {
@@ -338,7 +346,9 @@ pub extern "C" fn ddog_ffe_exposure_cache_record(key: &FfeExposureKey<'_>) -> bo
         serial_id: key.has_serial_id.then_some(key.serial_id),
         features_json: String::new(),
     };
-    EXPOSURE_CACHE.should_send_in_scope(&key.scope.to_utf8_lossy(), &context, &exposure)
+    EXPOSURE_CACHE
+        .load()
+        .should_send_in_scope(&key.scope.to_utf8_lossy(), &context, &exposure)
 }
 
 #[repr(C)]
@@ -906,6 +916,8 @@ mod tests {
         assert!(record("user", "off", None));
         assert!(record("user", "off", Some(0)));
         assert!(!record("user", "off", Some(0)));
+        ddog_ffe_exposure_cache_reset();
+        assert!(record("user", "off", Some(0)));
     }
 
     #[test]

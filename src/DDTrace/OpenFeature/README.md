@@ -44,8 +44,9 @@ OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
 - An exception from the callback does not affect the evaluation. The first one
   is logged as a warning, later ones at debug level.
 
-The exposure cache holds 65,536 entries per PHP process. The Datadog sidecar
-deduplicates again across processes before it sends exposures to Datadog.
+The exposure cache holds 65,536 entries per PHP process. A child created with
+`pcntl_fork()` starts with an empty cache. The Datadog sidecar deduplicates
+again across processes before it sends exposures to Datadog.
 
 ## Features
 
