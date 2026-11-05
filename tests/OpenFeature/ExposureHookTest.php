@@ -356,16 +356,39 @@ final class ExposureHookTest extends TestCase
         );
     }
 
-    public function testOtherProvidersGiveNonExposures(): void
+    public function testOtherProvidersSkipTheCallbackWithOneWarning(): void
     {
+        $logger = new ExposureTestLogger();
+        Logger::set($logger);
         OpenFeatureAPI::getInstance()->setProvider(new NoOpProvider());
 
         $this->evaluate('flag');
+        $this->evaluate('flag');
 
-        self::assertCount(1, $this->evaluations);
-        self::assertFalse($this->evaluations[0]->isExposure());
-        self::assertSame('flag', $this->evaluations[0]->getFlagKey());
-        self::assertSame('user-1', $this->evaluations[0]->getTargetingKey());
+        self::assertSame([], $this->evaluations);
+        self::assertCount(1, $logger->warnings);
+        self::assertStringContainsString('only reports evaluations by the Datadog provider', $logger->warnings[0]);
+    }
+
+    public function testMultiProviderChildRecordsNoExposure(): void
+    {
+        if (!class_exists(\OpenFeature\implementation\multiprovider\MultiProvider::class)) {
+            self::markTestSkipped('open-feature/sdk before 2.2.0 has no MultiProvider');
+        }
+        $this->evaluator->exposure('flag', 'on', 1);
+        $providerLogger = new ExposureTestLogger();
+        $provider = DataDogProvider::createWithDependencies($this->evaluator, $providerLogger, null, [$this->cache, 'record']);
+        OpenFeatureAPI::getInstance()->setProvider(new \OpenFeature\implementation\multiprovider\MultiProvider([
+            ['name' => 'datadog', 'provider' => $provider],
+        ]));
+
+        self::assertSame('on', $this->evaluate('flag'));
+        self::assertSame('on', $this->evaluate('flag'));
+
+        self::assertSame([], $this->cache->calls);
+        self::assertSame([], $this->evaluations);
+        self::assertCount(1, $providerLogger->warnings);
+        self::assertStringContainsString('inside a MultiProvider', $providerLogger->warnings[0]);
     }
 
     public function testDirectProviderCallsRecordNoExposure(): void
