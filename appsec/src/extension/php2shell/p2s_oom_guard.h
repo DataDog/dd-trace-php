@@ -114,7 +114,7 @@ void dd_p2s_guard_window_stop(bool nested);
 void dd_p2s_guard_window_abort(bool nested);
 // Raise the deferred out-of-memory error at a safe point; at the request level
 // the request stays armed. `dropped` is the number of request variables
-// dropped (logged for a window phase).
+// dropped by the current parse (logged).
 ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     dd_deferred_phase phase, size_t dropped);
 // Raise a bailing E_ERROR (with `raise`, or zend_error() if NULL) under a

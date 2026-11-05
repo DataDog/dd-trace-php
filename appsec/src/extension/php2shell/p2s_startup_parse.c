@@ -102,7 +102,8 @@ typedef struct {
 // Per-request state of the input_filter wrapper, reset by _input_filter_init
 // and when a window arms.
 typedef struct {
-    // Variables dropped in this request.
+    // Variables dropped in the current parse, which began when a window armed
+    // or, at the request level, when the request was activated.
     size_t dropped;
 } dd_input_filter_req;
 ZEND_TLS dd_input_filter_req _input_filter_req;
@@ -184,8 +185,8 @@ void dd_p2s_startup_parse_install(void)
         php_rfc1867_callback = _rfc1867_callback;
     }
 
-    // Only the excluded SAPIs (cli, embed, phpdbg, see _sapi_excluded in
-    // p2s_policy.c) have no read_post. Should another, the slot stays NULL
+    // Only the excluded SAPIs (cli, embed, phpdbg, micro, see _sapi_excluded
+    // in p2s_policy.c) have no read_post. Should another, the slot stays NULL
     // (sapi_read_post_block() treats it as a SAPI without a body) and has no
     // MINFO row.
     // php_module_startup() copied the SAPI's final slots (e.g. php-cgi's
@@ -347,6 +348,8 @@ bool dd_p2s_startup_parse_multipart_body(void)
     return zend_binary_strcasecmp(
                content_type, len, ZEND_STRL("multipart/form-data")) == 0;
 }
+
+size_t dd_p2s_startup_parse_dropped(void) { return _input_filter_req.dropped; }
 
 // Log, once per process, that the hard limit does not account for an
 // expanding filter.default: ext/filter's copies of each value are not bounded
@@ -609,11 +612,11 @@ static bool _read_post_hook_active(void)
 // about 300 bytes on 7.4 and 8.3), and calls neither input_filter nor
 // the rfc1867 callback before the headers are complete. After a soft-limit
 // crossing, such a header section would grow to the hard limit. Once the
-// deferred error is pending in an armed multipart parse, the wrapper reports
-// the end of the body (0) without forwarding: the parser consumes only the
-// data already in its buffer (FILLUNIT, 5 KiB, for a usual boundary), the
-// parse ends, and the deferred error is raised. Patched PHP also stops the
-// header loop at the crossing.
+// guard is armed with the deferred error pending during a multipart parse,
+// inside a window or at the request level, the wrapper reports the end of the
+// body (0) without forwarding: the parser consumes only the data already in
+// its buffer (FILLUNIT, 5 KiB, for a usual boundary) and the parse ends.
+// Patched PHP also stops the header loop at the crossing.
 //
 // On PHP 7.0 to 8.5, rfc1867's fill_buffer() is the only reader of the body
 // during a multipart parse, and it calls sapi_module.read_post directly. A 0
@@ -633,8 +636,9 @@ static size_t _read_post(char *buffer, size_t count_bytes)
     return _read_post_inner(buffer, count_bytes);
 }
 
-// Whether the wrapper reports the end of the body: an armed window with a
-// pending deferred error, while the multipart parser reads the body.
+// Whether the wrapper reports the end of the body: the guard is armed with a
+// deferred error pending, inside a window or at the request level, while the
+// multipart parser reads the body.
 // sapi_read_post_data() set the request's post entry before the handler ran.
 // Every other read forwards, among them a urlencoded body that
 // request_parse_body() reads inside its window (sapi_read_standard_form_data()
@@ -655,14 +659,17 @@ static bool _read_post_ends_body(void)
 // ends or the hard limit terminates the process. sapi_module.input_filter is
 // called once per variable before it is registered (php_variables.c for
 // GET/COOKIE/parse_str() and urlencoded POST, rfc1867.c for multipart form
-// fields, mbstring's encoding handler). Once the deferred error is pending,
-// the wrapper drops every later variable of the armed parse: it returns 0, so
-// the caller frees the value and registers nothing, and the growth past
-// memory_limit is bounded by the variable in flight when the limit was
-// crossed. The deferred error is raised at the end of the parse as before, so
-// no PHP code other than a shutdown function sees the partial arrays; patched
-// PHP also leaves them partial. Dropped variables are not forwarded to the
-// filter we displaced (ext/filter keeps its own copies of what it sees).
+// fields, mbstring's encoding handler). Once the guard is armed with the
+// deferred error pending, the wrapper drops every later variable of the parse:
+// it returns 0, so the caller frees the value and registers nothing, and the
+// growth past memory_limit is bounded by the variable in flight when the limit
+// was crossed. Inside a window the deferred error is raised at the end of the
+// parse, so no PHP code other than a shutdown function sees the partial
+// arrays, which patched PHP also leaves partial. At the request level (the
+// superglobals FrankenPHP re-imports in worker mode) it is raised at the next
+// VM interrupt, so the handler can briefly run with them. Dropped variables are
+// not forwarded to the filter we displaced (ext/filter keeps its own copies of
+// what it sees).
 //
 // The wrapper chains both slots: input_filter and input_filter_init are saved
 // as one pair, so ext/filter's per-request init keeps running. It is installed
@@ -689,10 +696,11 @@ static SAPI_INPUT_FILTER_FUNC(_input_filter)
     return _input_filter_inner(arg, var, val, val_len, new_val_len);
 }
 
-// Whether the wrapper drops this variable. Only while an armed parse has a
-// pending deferred error, and only request data (PARSE_POST, GET, COOKIE);
-// parse_str(), SERVER, ENV and SESSION always pass through. A NULL
-// new_val_len is sapi_getenv(), which ignores the result.
+// Whether the wrapper drops this variable. Only while the guard is armed with
+// a deferred error pending, whether inside a window or at the request level,
+// and only for request data (PARSE_POST, GET, COOKIE), so parse_str(), SERVER,
+// ENV and SESSION always pass through. A NULL new_val_len is sapi_getenv(),
+// which ignores the result.
 static bool _input_filter_should_drop(
     int arg, const size_t *nullable new_val_len)
 {
@@ -700,7 +708,7 @@ static bool _input_filter_should_drop(
            new_val_len != NULL;
 }
 
-// Count one dropped variable in this request (reported by
+// Count one dropped variable of the current parse (reported by
 // dd_p2s_guard_raise_deferred_oom).
 // Does not allocate or log.
 static void _input_filter_count_drop(void) { _input_filter_req.dropped++; }
@@ -743,14 +751,16 @@ static bool _input_filter_init_hook_active(void)
 // parsing its headers and before it creates the temp file or registers
 // anything for the part. On FAILURE it frees the part's name and filename and
 // moves to the next part: the part's body is scanned and discarded, and the
-// part gets no other event. Once the deferred error is pending in an armed
-// window, the wrapper returns FAILURE at FILE_START without forwarding, so the
-// growth past memory_limit is bounded by the file part in flight when the
-// limit was crossed. A skipped part still counts against
-// max_multipart_body_parts, and nothing is logged for it.
+// part gets no other event. Once the guard is armed with the deferred error
+// pending, inside a window or at the request level, the wrapper returns
+// FAILURE at FILE_START without forwarding, so the growth past memory_limit is
+// bounded by the file part in flight when the limit was crossed. A skipped part
+// still counts against max_multipart_body_parts, and nothing is logged for it.
 //
 // Every other event, and FILE_START otherwise, is forwarded to the callback
-// captured at startup, or answered with SUCCESS if there was none. A callback
+// captured at startup, or answered with SUCCESS if there was none. That
+// includes the MULTIPART_EVENT_FORMDATA events of form fields the input_filter
+// wrapper drops after the crossing, which still carry their value. A callback
 // thus sees each file part whole (FILE_START, FILE_DATA..., FILE_END) or not
 // at all, even when the error becomes pending in the middle of a part. On an
 // unpatched runtime, sub-mitigation C keeps session upload progress off in an

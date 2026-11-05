@@ -46,6 +46,9 @@ void dd_p2s_startup_parse_run_window(dd_parse_fn parse, void *ctx,
 size_t dd_p2s_startup_parse_post_body_bound(zend_long post_max_size);
 // Whether the request body is multipart/form-data.
 bool dd_p2s_startup_parse_multipart_body(void);
+// The number of request variables the input_filter wrapper dropped in the
+// current parse.
+size_t dd_p2s_startup_parse_dropped(void);
 #ifdef TESTING
 void dd_p2s_startup_parse_register_testing(void);
 #endif

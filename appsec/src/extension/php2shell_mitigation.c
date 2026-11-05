@@ -232,13 +232,11 @@
 //     The hard limit computed from that soft limit can then be at or below the
 //     usage.
 //   - Request level, no safe point: growth inside one long internal call (one
-//     parse_str() or array builder, or the superglobals FrankenPHP re-imports
-//     per HTTP request in worker mode, armed with these semantics: no variable
-//     is dropped), or with no VM interrupt before the end of the request, can
-//     reach max(L, S + 8 MiB) and end in _exit(137), as can a single
-//     allocation that would cross it (upstream's hard limit does the same).
-//     That is equal to upstream's L from 8 MiB, higher below 8 MiB (the 8 MiB
-//     term).
+//     parse_str() or array builder), or with no VM interrupt before the end of
+//     the request, can reach max(L, S + 8 MiB) and end in _exit(137), as can a
+//     single allocation that would cross it (upstream's hard limit does the
+//     same). That is equal to upstream's L from 8 MiB, higher below 8 MiB (the
+//     8 MiB term).
 //   - Timeout at the same interrupt: when max_execution_time expires at the
 //     interrupt that would deliver a pending error, the VM handles the
 //     timeout (zend_timeout()) instead of calling zend_interrupt_function.
@@ -292,9 +290,12 @@
 //     of its name (the multipart k).
 //   - Skipped file parts: later file parts are skipped at
 //     MULTIPART_EVENT_FILE_START, so no rfc1867 callback (session upload
-//     progress, third-party ones) sees them. Session upload progress is also
-//     off for the whole startup POST parse and inside request_parse_body():
-//     on an unpatched runtime it does not work while the mitigation is armed.
+//     progress, third-party ones) sees them. Later form fields, although
+//     dropped from the arrays, still reach the rfc1867 callbacks as
+//     MULTIPART_EVENT_FORMDATA events with their value. Session upload progress
+//     is also off for the whole startup POST parse and inside
+//     request_parse_body(): on an unpatched runtime it does not work while the
+//     mitigation is armed.
 //   - Unread body: after a crossing in a multipart parse, the read_post
 //     wrapper reports the end of the body: the parser finishes only the data
 //     already buffered (about 5 KiB) and the rest of the body is left unread.
@@ -312,6 +313,12 @@
 //     PHP; the window was already disarmed under a finite limit. A request
 //     left armed (a later module's RINIT failed) is disarmed when the next one
 //     starts (see dd_p2s_guard_activate); php -S before 8.1 is the same.
+//   - FrankenPHP re-import: in worker mode, the superglobals FrankenPHP
+//     re-imports for each HTTP request are parsed under the request level,
+//     without a window. After a crossing, the later variables are dropped and
+//     a multipart body is ended as in a startup parse, but the deferred fatal
+//     comes only at the next VM interrupt, so the handler can briefly run with
+//     the truncated superglobals.
 //   - FrankenPHP last error: worker mode calls sapi_deactivate() at every
 //     worker-request boundary with SG(sapi_started) set, so the
 //     sapi_module.deactivate wrapper also clears PG(last_error_*) there, while

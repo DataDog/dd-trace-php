@@ -1036,7 +1036,8 @@ fn run_php2shell_rule(
         Some("block") => Ok(Php2ShellDecision::Block),
         Some("monitor") => Ok(Php2ShellDecision::Monitor),
         // an unrecognised mode (future value, typo, missing) is a decision
-        // like any other, cached by eval_php2shell: logged once per generation
+        // like any other, cached by eval_php2shell, so it is logged once per
+        // connection and ruleset generation
         mode => {
             warn!("Unknown {PHP2SHELL_ACTION} action mode {mode:?}; treating it as none");
             Ok(Php2ShellDecision::None)

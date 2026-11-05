@@ -62,6 +62,7 @@
 #include "p2s_hook.h"
 #include "p2s_oom_guard.h"
 #include "p2s_policy.h"
+#include "p2s_startup_parse.h"
 
 // Below PHP 8.4, zend_mm_gc() frees nothing on a heap with custom handlers, so
 // gc_mem_caches() would free nothing while the request level keeps ours
@@ -277,7 +278,8 @@ static void _interrupt(zend_execute_data *execute_data)
     // starve the raise until the hard limit.
     if (UNEXPECTED(_in_inner) && dd_p2s_guard_error_pending() &&
         !dd_p2s_guard_in_window() && EG(error_handling) != EH_THROW) {
-        dd_p2s_guard_raise_deferred_oom(DD_PHASE_RUNTIME, 0);
+        dd_p2s_guard_raise_deferred_oom(
+            DD_PHASE_RUNTIME, dd_p2s_startup_parse_dropped());
     }
     if (_interrupt_inner != NULL) {
         _call_inner(execute_data);
@@ -291,7 +293,8 @@ static void _interrupt(zend_execute_data *execute_data)
             dd_p2s_guard_raise_refused();
             return;
         }
-        dd_p2s_guard_raise_deferred_oom(DD_PHASE_RUNTIME, 0);
+        dd_p2s_guard_raise_deferred_oom(
+            DD_PHASE_RUNTIME, dd_p2s_startup_parse_dropped());
     }
 }
 

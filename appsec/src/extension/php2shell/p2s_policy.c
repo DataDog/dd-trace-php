@@ -275,11 +275,11 @@ bool dd_p2s_policy_monitoring(void)
 // appsec's state); appsec is explicitly disabled; ddtrace is hard-disabled
 // with ddtrace.disable, in which case appsec always resolves to fully
 // disabled; or, as appsec's own _check_enabled() decides outside testing, the
-// tracer is explicitly disabled; or the SAPI is cli, phpdbg or embed, whatever
-// the mode (see Coverage: CLI SAPIs). Otherwise appsec may still be enabled
-// later (remote config), so the hooks are installed and the runtime gate
-// decides. The mode is parsed here without _resolve_config_once(), which must
-// stay unresolved until the workers' config refresh.
+// tracer is explicitly disabled; or the SAPI is cli, phpdbg, embed or micro,
+// whatever the mode (see Coverage: CLI SAPIs). Otherwise appsec may still be
+// enabled later (remote config), so the hooks are installed and the runtime
+// gate decides. The mode is parsed here without _resolve_config_once(), which
+// must stay unresolved until the workers' config refresh.
 bool dd_p2s_policy_startup_may_hook(void)
 {
     if (_sapi_excluded()) {
@@ -326,7 +326,7 @@ static const char *nullable _incompatible_module(void)
 }
 
 // Whether the SAPI is one the mitigation never covers: cli (cron jobs, queue
-// workers), phpdbg and embed run no untrusted request data through the
+// workers), phpdbg, embed and micro run no untrusted request data through the
 // startup parse, and whole-request arming would only turn their ordinary
 // out-of-memory errors into deferred ones. cli-server (php -S) and frankenphp
 // stay covered.
