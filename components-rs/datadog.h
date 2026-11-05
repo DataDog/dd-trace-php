@@ -332,6 +332,11 @@ ddog_CharSlice ddog_ffe_features_destination(const struct ddog_FfeFeatures *feat
 void ddog_ffe_features_drop(struct ddog_FfeFeatures *features);
 
 /**
+ * Gives the calling process an empty exposure cache. Call it in a forked child.
+ */
+void ddog_ffe_exposure_cache_reset(void);
+
+/**
  * Records the exposure in the process exposure cache. Returns false when the
  * subject was already exposed to the same allocation, variant and serial id.
  */
