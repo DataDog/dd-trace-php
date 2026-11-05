@@ -4,12 +4,14 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2026 Datadog, Inc.
 
-// The emulation is armed only on a real zend_mm heap with a finite
-// memory_limit. While armed, our Zend MM handlers serve every allocation and
-// the engine's own limit is raised to a sentinel, so no insertion is
-// abandoned. They chain over any custom handlers already present: the
-// profiler installs its own in RINIT, so the request level may find them, but
-// a startup window never does.
+// The emulation is armed only on a real zend_mm heap. A parse window also
+// needs a finite memory_limit, while the request level always arms, with no
+// limit if memory_limit has none, so that a later ini_set() of memory_limit is
+// followed (see _follow_limit). While armed, our Zend MM handlers serve every
+// allocation and the engine's own limit is raised to a sentinel, so no
+// insertion is abandoned. They chain over any custom handlers already present:
+// the profiler installs its own in RINIT, so the request level may find them,
+// but a startup window never does.
 // Usage is read from zend_mm (real_size), so a chained allocator is accounted
 // for as long as it allocates from the zend_mm heap, as the profiler does.
 // After each allocation:
@@ -400,9 +402,9 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     } else {
         mlog(dd_log_warning,
             "PHP2Shell mitigation: allocation after request startup exceeded "
-            "memory_limit (%zu bytes); raising deferred out-of-memory error "
-            "at a VM interrupt (phase:%s)",
-            _arm_state.breached_soft, phase_name);
+            "memory_limit (%zu bytes); dropped %zu request variables; raising "
+            "deferred out-of-memory error at a VM interrupt (phase:%s)",
+            _arm_state.breached_soft, dropped, phase_name);
     }
     // Armed or under the finite limit, so these allocations do not bail
     // either.
