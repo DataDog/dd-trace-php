@@ -164,7 +164,9 @@ static void dd_observe_fiber_destroy(zend_fiber_context *context) {
 }
 
 void ddtrace_setup_fiber_observers(void) {
-    /* Fiber contexts and op_arrays have independent reserved[] arrays. */
+    /* Fiber observers and zai_hook can share a Zend resource handle because
+     * fiber observers use it only with zend_fiber_context, while zai_hook
+     * uses it only with zend_op_array. */
     dd_resource_handle = zai_hook_resource_handle;
 
     zend_observer_fiber_init_register(dd_observe_fiber_init);
