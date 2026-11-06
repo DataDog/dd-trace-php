@@ -23,7 +23,7 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
     zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,
     zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data,
     int64_t evaluation_timestamp_ms, bool targeting_key_invalid) {
-    if (!get_DD_FLAGGING_EVALUATION_COUNTS_ENABLED()) {
+    if (!get_DD_FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED()) {
         return false;
     }
     if (!flag_key || !ZSTR_LEN(flag_key)) {
