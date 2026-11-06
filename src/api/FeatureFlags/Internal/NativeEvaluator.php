@@ -57,7 +57,12 @@ final class NativeEvaluator implements Evaluator
             $rawResult = $this->withProviderState($rawResult);
         }
 
-        $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
+        $details = $this->mapper->map(
+            $rawResult,
+            $expectedType,
+            $defaultValue,
+            SpanEnrichmentRegistry::gateEnabled()
+        );
 
         // Native clients submit now. OpenFeature can retain this snapshot until
         // its hooks finish, independently of native/OTLP metric recording.
