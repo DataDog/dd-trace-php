@@ -8,6 +8,7 @@ use App\Http\Controllers\QueueTestController;
 use App\Http\Controllers\RouteCachingController;
 use App\Http\Controllers\LoginTestController;
 use App\Http\Controllers\RaspTestController;
+use App\Testing\CompiledRouteCallProbe;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -56,3 +57,30 @@ Route::get('/telemetry', function () {
 
 // This route has to remain unnamed so we test both route cached and not cached.
 Route::get('/unnamed-route', [RouteCachingController::class, 'unnamed']);
+
+Route::get('/normalized-optional/{value?}', function ($value = null) {
+    return response($value ?? 'absent');
+});
+
+Route::get('/normalized-default/{format?}', function ($format = null) {
+    return response($format);
+})->defaults('format', 'html');
+
+Route::get('/normalized-ambiguous/{name}.{ext?}', function ($name, $ext = null) {
+    return response($name . '/' . ($ext ?? 'absent'));
+})->where('name', '.+')
+    ->where('ext', 'pdf|json')
+    ->defaults('ext', 'html');
+
+$compiledRouteCallProbe = new CompiledRouteCallProbe(
+    'GET',
+    'normalized-no-replay/{format?}',
+    function ($format = null) {
+        return response((string) CompiledRouteCallProbe::$calls);
+    }
+);
+$compiledRouteCallProbe
+    ->setRouter(Route::getFacadeRoot())
+    ->setContainer(app())
+    ->defaults('format', 'html');
+Route::getRoutes()->add($compiledRouteCallProbe);
