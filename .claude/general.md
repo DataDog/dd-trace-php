@@ -62,3 +62,9 @@ My conclusion is:
 
 > (fill in your conclusion here)
 ```
+
+¶10 Before pushing code or creating a pull request, you must run the
+[sdk-review](skills/sdk-review/SKILL.md) skill on the committed changes unless
+the user specifically says not to. You must also do a standard self review
+(using the /review skill if available). All other required publication checks
+still apply.
