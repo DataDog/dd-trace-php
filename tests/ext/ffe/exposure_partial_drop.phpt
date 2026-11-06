@@ -20,9 +20,19 @@ foreach (array('first', 'second') as $round) {
     echo $round, '_flush=', json_encode(DDTrace\Testing\flush_ffe_exposures()), "\n";
 }
 
+// PCRE's JIT reports uninitialised reads under Valgrind, so match with strpos.
+function count_lines($logs, $level, $text) {
+    $count = 0;
+    foreach (explode("\n", $logs) as $line) {
+        if (strpos($line, "[$level]") !== false && strpos($line, $text) !== false) {
+            ++$count;
+        }
+    }
+    return $count;
+}
 $logs = read_log_snapshot(__DIR__ . '/exposure_partial_drop.log');
-echo 'warnings=', preg_match_all('/\[warning\].*Feature Flags: dropped 1 exposure\(s\) larger than one IPC message; the others were sent/', $logs), "\n";
-echo 'errors=', preg_match_all('/\[error\].*(Feature Flags|FFE)/', $logs), "\n";
+echo 'warnings=', count_lines($logs, 'warning', 'Feature Flags: dropped 1 exposure(s) larger than one IPC message; the others were sent'), "\n";
+echo 'errors=', count_lines($logs, 'error', 'Feature Flags') + count_lines($logs, 'error', 'FFE'), "\n";
 ?>
 --EXPECT--
 first_flush=true
