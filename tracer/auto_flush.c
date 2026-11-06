@@ -116,6 +116,19 @@ zend_result ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, boo
 
 void ddtrace_close_all_spans_and_flush()
 {
-    ddtrace_close_all_open_spans(true);
+    // Closing the root span normally triggers an auto-flush when it is
+    // enabled. That flush is not forced, so during request startup (e.g. when
+    // AppSec blocks the request in RINIT) it would serialize the closed spans
+    // and then drop them, leaving nothing for the forced flush below. Only
+    // the forced flush must send them.
+    zend_bool suppress_auto_flush = DDTRACE_G(suppress_auto_flush);
+    DDTRACE_G(suppress_auto_flush) = true;
+    zend_try {
+        ddtrace_close_all_open_spans(true);
+    } zend_catch {
+        DDTRACE_G(suppress_auto_flush) = suppress_auto_flush;
+        zend_bailout();
+    } zend_end_try();
+    DDTRACE_G(suppress_auto_flush) = suppress_auto_flush;
     ddtrace_flush_tracer(true, true, false);
 }

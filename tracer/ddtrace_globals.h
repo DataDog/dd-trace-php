@@ -61,6 +61,9 @@ typedef struct {
     dogstatsd_client dogstatsd_client;
 #endif
     zend_bool in_shutdown;
+    // Set while ddtrace_close_all_spans_and_flush() closes the open spans, so
+    // that closing the root span does not trigger an auto-flush of its own.
+    zend_bool suppress_auto_flush;
 
     zend_long default_priority_sampling;
     zend_long propagated_priority_sampling;

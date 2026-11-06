@@ -898,7 +898,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
     }
 #endif
 
-    if (closed_root_stack && get_DD_TRACE_AUTO_FLUSH_ENABLED()
+    if (closed_root_stack && get_DD_TRACE_AUTO_FLUSH_ENABLED() && !DDTRACE_G(suppress_auto_flush)
         && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES(), false) == FAILURE) {
         // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
         LOG(WARN, "Unable to auto flush the tracer");
