@@ -405,7 +405,6 @@ static inline void zend_string_release_ex(zend_string *str, int persistent) {
 
 #define ZEND_ACC_HEAP_RT_CACHE ZEND_ACC_NO_RT_ARENA
 
-zend_bool try_convert_to_string(zval *op);
 #define tsrm_env_lock()
 #define tsrm_env_unlock()
 
