@@ -19,9 +19,9 @@ stages:
   parallel:
     matrix:
       - IMAGE:
-        - "centos-7"
+        - "centos-7-3"
         - "php-compile-extension-alpine"
-        - "bookworm-11"
+        - "bookworm-14"
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
     - if [ -d "/opt/catch2" ]; then export CMAKE_PREFIX_PATH=/opt/catch2; fi
@@ -45,7 +45,7 @@ stages:
 "C components UBSAN":
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-14"
   needs: []
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
@@ -69,7 +69,7 @@ stages:
 "Build & Test Tea":
   tags: [ "arch:amd64" ]
   stage: build
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *no_asan_minor_major_targets
@@ -98,12 +98,25 @@ stages:
 .tea_test:
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14"
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       interruptible: false
     - when: on_success
+  variables:
+    # lld can crash if the available CPUs change while linking (see llvm/llvm-project#208959).
+    # Keep requests equal to limits so k8n pins the CPUs.
+    # Remove this workaround once both ld and rust-lld use LLVM 23 or newer.
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   after_script:
     - mkdir -p tmp/artifacts
     - cp tmp/build*/Testing/Temporary/LastTest.log tmp/artifacts/LastTest.log
@@ -121,8 +134,8 @@ stages:
   stage: test
   needs: []
   variables:
-    PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
+    PHP_MAJOR_MINOR: "<?= $latest_ga_minor_major ?>"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14"
   script:
     - |
       if ! command -v cc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1; then
@@ -149,9 +162,9 @@ stages:
   stage: test
   needs: []
   variables:
-    PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
+    PHP_MAJOR_MINOR: "<?= $latest_ga_minor_major ?>"
     GIT_SUBMODULE_STRATEGY: none
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14"
   script:
     - switch-php nts
     - bash tooling/php-lint/run.sh
@@ -197,7 +210,7 @@ foreach (["7.4", "8.0"] as $major_minor):
 ?>
 "ZAI Shared Tests: [<?= $major_minor ?>]":
   extends: .tea_test
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-<?= $major_minor ?>-shared-ext-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-<?= $major_minor ?>-shared-ext-14"
   needs:
     - job: "Build & Test Tea"
       parallel:

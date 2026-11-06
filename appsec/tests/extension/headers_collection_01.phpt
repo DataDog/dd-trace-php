@@ -1,7 +1,6 @@
 --TEST--
 Only basic headers are collected if no attacks or user events
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 HTTP_X_FORWARDED_FOR=7.7.7.7

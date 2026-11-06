@@ -61,6 +61,8 @@ del_rc_file($path);
 --CLEAN--
 <?php
 require __DIR__ . "/remote_config.inc";
+// Copy of the --INI-- token, keep in sync (--CLEAN-- gets no --INI--; an --ENV-- token would tag SKIPIF's RC requests).
+ini_set("datadog.trace.agent_test_session_token", "remote-config/check_payload");
 reset_request_replayer();
 ?>
 --EXPECTF--

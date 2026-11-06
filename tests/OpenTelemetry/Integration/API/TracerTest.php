@@ -18,8 +18,11 @@ use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\SDK\Common\Attribute\AttributesInterface;
+use OpenTelemetry\SDK\Trace\Sampler\AlwaysOffSampler;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
+use OpenTelemetry\SDK\Trace\Sampler\TraceIdRatioBasedSampler;
+use OpenTelemetry\SDK\Trace\SamplerFactory;
 use OpenTelemetry\SDK\Trace\SamplerInterface;
 use OpenTelemetry\SDK\Trace\SamplingResult;
 use OpenTelemetry\SDK\Trace\Span;
@@ -31,16 +34,20 @@ final class TracerTest extends BaseTestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
+    private $previousStorage;
+
     public function ddSetUp(): void
     {
         \dd_trace_serialize_closed_spans();
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+        $this->previousStorage = Context::storage();
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         parent::ddSetUp();
     }
 
     public function ddTearDown()
     {
-        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
+        Context::setStorage($this->previousStorage); // Keep the storage which follows fibers for the next tests
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         parent::ddTearDown();
         \dd_trace_serialize_closed_spans();
@@ -659,11 +666,11 @@ final class TracerTest extends BaseTestCase
             )))->getTracer('OpenTelemetry.TracerTest');
             $parent = $tracer->spanBuilder("parent")->startSpan(); // root sampler will be used
             $scope = $parent->activate();
-            $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};t.dm:-0,ot=rv:[0-9a-f]{14};th:0,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};s:2;t.dm:-4,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
             $parent->setAttributes([
                 '_dd.p.some_val' => 'tehehe'
             ]);
-            $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};t.dm:-0;t.some_val:tehehe,ot=rv:[0-9a-f]{14};th:0,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};s:2;t.dm:-4;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
             try {
                 $child = $tracer->spanBuilder("child")->startSpan(); // local parent sampler will be used
 
@@ -673,7 +680,7 @@ final class TracerTest extends BaseTestCase
                 $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
                 $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
                 $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$childContext->getTraceState());
-                $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};t.dm:-0;t.some_val:tehehe,ot=rv:[0-9a-f]{14};th:0,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+                $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};s:2;t.dm:-4;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
 
                 $grandChild = $tracer->spanBuilder("grandChild")
                     ->setParent(Context::getCurrent()->withContextValue($child))
@@ -692,7 +699,7 @@ final class TracerTest extends BaseTestCase
 
                 $child->end();
             } finally {
-                $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};t.dm:-0;t.some_val:tehehe,ot=rv:[0-9a-f]{14};th:0,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+                $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};s:2;t.dm:-4;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
                 $scope->detach();
                 $parent->end();
             }
@@ -913,5 +920,73 @@ final class TracerTest extends BaseTestCase
         $span = $traces[0][0];
         $this->assertSame('kafka.receive', $span['name']);
         $this->assertSame('operation', $span['resource']);
+    }
+
+    public function testDroppedSpanInRejectedTraceIsRecorded()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TracerTest'); // ParentBased(AlwaysOn)
+            $root = \DDTrace\start_span();
+            $root->name = 'dd.root';
+            \DDTrace\set_priority_sampling(PrioritySampling::USER_REJECT);
+
+            $child = $tracer->spanBuilder('otel.child')->startSpan(); // DROP, because the parent is not sampled
+            $this->assertTrue($child->isRecording());
+            $this->assertFalse($child->getContext()->isSampled());
+            $child->end();
+
+            $this->assertSame($root, active_span());
+            \DDTrace\close_span();
+            $this->assertNull(active_span());
+        });
+
+        $spans = array_merge(...$traces);
+        $this->assertCount(2, $spans);
+        $spans = array_column($spans, null, 'resource');
+        $this->assertSame('dd.root', $spans['dd.root']['name']);
+        $this->assertSame('internal', $spans['otel.child']['name']);
+        $this->assertSame($spans['dd.root']['span_id'], $spans['otel.child']['parent_id']);
+        $this->assertNotEquals(0, $spans['otel.child']['duration']);
+        $this->assertEquals(PrioritySampling::USER_REJECT, $spans['dd.root']['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(PrioritySampling::USER_REJECT, $spans['otel.child']['metrics']['_sampling_priority_v1']);
+    }
+
+    public function testCustomSamplerDecidesTraceSampling()
+    {
+        foreach ([[new AlwaysOffSampler(), PrioritySampling::USER_REJECT], [new TraceIdRatioBasedSampler(1.0), PrioritySampling::USER_KEEP]] as [$sampler, $priority]) {
+            $traces = $this->isolateTracer(function () use ($sampler) {
+                $span = (new TracerProvider([], $sampler))->getTracer('OpenTelemetry.TracerTest')->spanBuilder('otel.root')->startSpan();
+                $this->assertTrue($span->isRecording());
+                $span->end();
+                $this->assertNull(active_span());
+            });
+
+            $span = $traces[0][0];
+            $this->assertSame('otel.root', $span['resource']);
+            $this->assertNotEquals(0, $span['duration']);
+            $this->assertEquals($priority, $span['metrics']['_sampling_priority_v1']);
+        }
+    }
+
+    public function testSamplerFromEnvironmentIsLeftToDatadog()
+    {
+        // The tracer maps OTEL_TRACES_SAMPLER to DD_TRACE_SAMPLE_RATE: the sampler the SDK builds from it (e.g. when
+        // autoloading) must not decide a second time, as a manual sampling priority
+        putenv('OTEL_TRACES_SAMPLER=traceidratio');
+        putenv('OTEL_TRACES_SAMPLER_ARG=0');
+        try {
+            $traces = $this->isolateTracer(function () {
+                $sampler = (new SamplerFactory())->create();
+                $span = (new TracerProvider([], $sampler))->getTracer('OpenTelemetry.TracerTest')->spanBuilder('otel.root')->startSpan();
+                $span->end();
+            });
+        } finally {
+            putenv('OTEL_TRACES_SAMPLER');
+            putenv('OTEL_TRACES_SAMPLER_ARG');
+        }
+
+        $span = $traces[0][0];
+        $this->assertSame('otel.root', $span['resource']);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']['_sampling_priority_v1']);
     }
 }

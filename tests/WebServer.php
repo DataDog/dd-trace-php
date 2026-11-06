@@ -79,6 +79,7 @@ final class WebServer
     private $roadrunnerVersion = null;
     private $isOctane = false;
     private $isFrankenphp = false;
+    private $frankenphpWorkerMode = true;
     private $isSwoole = false;
     private $phpFpmMaxChildren = 1;
     private $phpFpmUser = null;
@@ -134,9 +135,10 @@ final class WebServer
         $this->isSwoole = true;
     }
 
-    public function setFrankenphp()
+    public function setFrankenphp($workerMode = true)
     {
         $this->isFrankenphp = true;
+        $this->frankenphpWorkerMode = $workerMode;
     }
 
     public function setPhpFpmMaxChildren($maxChildren)
@@ -217,7 +219,8 @@ final class WebServer
                 $this->host,
                 $this->port,
                 $this->envs,
-                $this->inis
+                $this->inis,
+                $this->frankenphpWorkerMode
             );
         } else {
             switch ($this->forceSapi ?? \getenv('DD_TRACE_TEST_SAPI')) {
@@ -306,7 +309,7 @@ final class WebServer
      * Ask the SAPI to shut down on SIGTERM alone, without an immediate SIGKILL behind it.
      *
      * @param int $timeout seconds to wait for a graceful exit
-     * @return bool whether the SAPI exited on its own within $timeout
+     * @return bool whether the SAPI exited with code 0 within $timeout
      */
     public function stopGracefully($timeout = 15)
     {

@@ -98,7 +98,8 @@ final class TraceTest extends TestCase
 
     public function test_exception_does_not_leak_closure_reference(): void
     {
-        $c = static function (): void {
+        // Not static: PHP 8.6 caches static closures without bound variables until the end of the request
+        $c = function (): void {
             throw new RuntimeException();
         };
         $r = WeakReference::create($c);

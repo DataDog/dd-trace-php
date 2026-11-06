@@ -141,13 +141,36 @@ function call_function(ReflectionFunction $function)
     global $minFunctionArgs;
     print date('Y-m-d H:i:s') . " Executing: {$function->name}\n";
 
+    if ($function->name === 'DDTrace\\Internal\\record_ffe_flag_evaluation') {
+        // Ten parameters make the exhaustive garbage product too large on
+        // older PHP. Exercise a valid call and each argument's garbage values
+        // independently, keeping the other arguments valid so parsing reaches it.
+        $arguments = ['flag', 'variant', 'allocation', 'subject', [], null, false, false, 1700000000123, false];
+        $function->invokeArgs($arguments);
+        foreach ($arguments as $position => $unused) {
+            foreach (generate_garbage() as $garbage) {
+                $invocation = $arguments;
+                $invocation[$position] = $garbage;
+                try {
+                    $function->invokeArgs($invocation);
+                } catch (TypeError $e) {
+                }
+            }
+        }
+        return;
+    }
+
     $i = PHP_VERSION_ID >= 80100 ? $function->getNumberOfRequiredParameters() : ($minFunctionArgs[$function->name] ?? 0);
     $invocations = $i == 0 ? [[]] : [];
     $invocationTypeMap = [];
     $invNum = 0;
     $existingGarbage = [generate_garbage()];
     for (; $i < $function->getNumberOfParameters(); ++$i) {
-        foreach ($invocations as $invocation) {
+        // Bound the argument product while retaining cases for every parameter.
+        $prefixes = count($invocations) > 100
+            ? array_intersect_key($invocations, array_flip(array_rand($invocations, 100)))
+            : $invocations;
+        foreach ($prefixes as $invocation) {
             if (rand(1, max(1, ceil(2 ** $i))) == 1) {
                 $useGarbage = $existingGarbage[] = generate_garbage();
             } else {
@@ -188,6 +211,10 @@ function call_function(ReflectionFunction $function)
                 foreach ($found as $k) {
                     unset($invocations[$k]);
                 }
+            }
+        } catch (Error $e) {
+            if ($function->name != 'DDTrace\install_line_hook' || strpos($e->getMessage(), 'Line hook ') !== 0) {
+                throw $e;
             }
         }
     }

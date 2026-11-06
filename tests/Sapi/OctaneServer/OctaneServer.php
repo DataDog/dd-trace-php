@@ -71,8 +71,10 @@ final class OctaneServer implements Sapi
             $this->envs["DD_TRACE_AGENT_TEST_SESSION_TOKEN"] = $token;
         }
 
+        // Pin the pool like the Swoole and RoadRunner harnesses: Octane's "auto" boots 2 x node vCPUs
+        // Laravel workers (256 on a 128-vCPU CI node), which OOMs the job.
         $cmd = sprintf(
-            PHP_BINARY . ' %s %s octane:start --server=swoole --host=%s --port=%d',
+            PHP_BINARY . ' %s %s octane:start --server=swoole --host=%s --port=%d --workers=2 --task-workers=1',
             new IniSerializer($this->inis),
             $this->artisanFile,
             $this->host,

@@ -45,8 +45,9 @@ final class FrankenphpServer implements Sapi
      * @param int $port
      * @param array $envs
      * @param array $inis
+     * @param bool $workerMode
      */
-    public function __construct($indexFile, $host, $port, array $envs = [], array $inis = [])
+    public function __construct($indexFile, $host, $port, array $envs = [], array $inis = [], $workerMode = true)
     {
         $this->indexFile = $indexFile;
         $this->envs = $envs;
@@ -59,6 +60,7 @@ final class FrankenphpServer implements Sapi
         }
 
         $replacements = [
+            '{{frankenphp_worker}}' => $workerMode ? "worker {\n            file {{frankenphp_php}}\n        }" : '',
             '{{frankenphp_host}}' => $host,
             '{{frankenphp_port}}' => $port,
             '{{frankenphp_php}}' => $this->indexFile,
@@ -195,12 +197,12 @@ final class FrankenphpServer implements Sapi
      * the signal and only dies once something SIGKILLs it.
      *
      * @param int $timeout seconds to wait for a graceful exit
-     * @return bool whether the server exited on its own within $timeout
+     * @return bool whether the server exited with code 0 within $timeout
      */
     public function stopGracefully($timeout = 15)
     {
         if (!$this->process || !$this->process->isRunning()) {
-            return true;
+            return $this->process && $this->process->getExitCode() === 0;
         }
 
         error_log("[frankenphp] Sending SIGTERM, waiting up to {$timeout}s for a graceful exit...");
@@ -213,7 +215,7 @@ final class FrankenphpServer implements Sapi
         while (microtime(true) < $deadline) {
             if (!$this->process->isRunning()) {
                 error_log("[frankenphp] Exited with code " . var_export($this->process->getExitCode(), true));
-                return true;
+                return $this->process->getExitCode() === 0;
             }
             usleep(50 * 1000);
         }

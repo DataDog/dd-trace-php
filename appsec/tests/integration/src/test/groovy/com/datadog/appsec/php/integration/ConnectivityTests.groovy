@@ -266,7 +266,7 @@ class ConnectivityTests {
         } finally {
             CONTAINER.execInContainer('sh', '-c',
                     'cp /etc/apache2/mods-enabled/mpm_event.conf.bak4' +
-                    ' /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl ')
+                    ' /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl restart')
         }
     }
 }

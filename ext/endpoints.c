@@ -111,6 +111,9 @@ char *datadog_dogstatsd_url(void) {
     return formatted_url;
 }
 
+// Only the sidecar sends OTLP metrics; standalone profiling still uses the
+// plain C agent URL helper above for startup diagnostics.
+#ifdef SIDECAR
 ddog_Endpoint *datadog_otel_metrics_endpoint(void) {
     zend_string *endpoint_url = get_global_OTEL_EXPORTER_OTLP_METRICS_ENDPOINT();
     if (ZSTR_LEN(endpoint_url) > 0) {
@@ -122,3 +125,4 @@ ddog_Endpoint *datadog_otel_metrics_endpoint(void) {
     free(agent_url);
     return metrics_endpoint;
 }
+#endif

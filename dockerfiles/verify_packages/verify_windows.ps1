@@ -13,6 +13,8 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 choco install -y 7zip
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 refreshenv
+# choco exits 0 after a feed error with "installed 0/0 packages"; treat a missing php as infra (75 is retried).
+if (-not (Get-Command php -ErrorAction SilentlyContinue)) { Write-Host "php is not installed after choco install (feed failure?); exiting 75 so GitLab auto-retries"; exit 75 }
 
 php build/packages/datadog-setup.php --php-bin=all --file=$(ls build/packages/dd-library-php-*-x86_64-windows.tar.gz)
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

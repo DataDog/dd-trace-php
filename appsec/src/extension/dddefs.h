@@ -18,6 +18,7 @@ typedef enum {
     dd_should_record,
     dd_error,           // misc error
     dd_try_later,       // non-fatal error, try again
+    dd_oom,             // release owned state and return without allocating
 } dd_result;
 
 const char *nonnull dd_result_to_string(dd_result result);

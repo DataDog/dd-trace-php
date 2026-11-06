@@ -1,7 +1,6 @@
 --TEST--
 Force keep on rshutdown, overrides rinit
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

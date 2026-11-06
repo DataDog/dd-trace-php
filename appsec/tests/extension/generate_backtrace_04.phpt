@@ -1,7 +1,5 @@
 --TEST--
 When DD_APPSEC_MAX_STACK_TRACE_DEPTH is lower than the number of frames. 0.25% are picked from top and 75% from  bottom
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_MAX_STACK_TRACE_DEPTH=40
 --FILE--

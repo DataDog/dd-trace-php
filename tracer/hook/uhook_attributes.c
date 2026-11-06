@@ -6,6 +6,7 @@
 #include "../span.h"
 #include "uhook_attributes_arginfo.h"
 #include "uhook.h"
+#include "uhook_line.h"
 
 #include <hook/hook.h>
 
@@ -236,6 +237,7 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
         return;
     }
 
+    ddtrace_uhook_line_suspend_frame(execute_data);
     bool new_span;
     dyn->span = ddtrace_alloc_execute_data_span_ex(invocation, execute_data, &new_span);
     dd_fill_span_data(def, dyn->span);
@@ -247,6 +249,7 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
     if (new_span) {
         ddtrace_observe_opened_span(dyn->span);
     }
+    ddtrace_uhook_line_resume_frame(execute_data);
 }
 
 static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *execute_data, zval *key, zval *value, void *auxiliary, void *dynamic) {
@@ -259,6 +262,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
         return;
     }
 
+    ddtrace_uhook_line_suspend_frame(execute_data);
     if (dyn->span->duration == DDTRACE_DROPPED_SPAN) {
         dyn->span = NULL;
         ddtrace_clear_execute_data_span(invocation, false);
@@ -285,6 +289,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
 
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+    ddtrace_uhook_line_close_frame(execute_data);
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
@@ -416,22 +421,55 @@ void dd_uhook_on_function_resolve(zend_function *func) {
             } else if (zend_string_equals_literal(name, "tags") && Z_TYPE(value) == IS_ARRAY) {
                 if (!def->tags) {
                     def->tags = Z_ARR(value);
-                    GC_ADDREF(def->tags);
+                    // tags may be an immutable array in opcache's shared memory, e.g. a preloaded class constant
+                    GC_TRY_ADDREF(def->tags);
                 }
             }
 
             zval_ptr_dtor(&value);
         }
 
-        zai_hook_install_resolved_generator(func,
+        zai_hook_install_resolved_generator(func, func->common.scope,
                                             dd_uhook_begin, dd_uhook_generator_resumption, dd_uhook_generator_yield, dd_uhook_end,
                                             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
 
     }
 }
 
+// Preloaded functions carrying the attribute; they are linked before the first request, so they are hooked on each activation
+static zend_function **dd_uhook_preloaded_functions;
+static uint32_t dd_uhook_preloaded_count;
+
+static void dd_uhook_on_preloaded_function(zend_function *func) {
+    if (zend_get_attribute(func->common.attributes, dd_hook_attribute_lcname)) {
+        dd_uhook_preloaded_functions = perealloc(dd_uhook_preloaded_functions, sizeof(zend_function *) * (dd_uhook_preloaded_count + 1), 1);
+        dd_uhook_preloaded_functions[dd_uhook_preloaded_count++] = func;
+    }
+}
+
+void zai_uhook_attributes_activate(void) {
+    if (!dd_uhook_preloaded_count) {
+        return;
+    }
+
+    // Without any frame, exceptions thrown while evaluating arguments are promoted to fatal errors; a frame without func keeps them pending
+    zend_execute_data dummy_frame = { .prev_execute_data = EG(current_execute_data) };
+    EG(current_execute_data) = &dummy_frame;
+
+    for (uint32_t i = 0; i < dd_uhook_preloaded_count; ++i) {
+        dd_uhook_on_function_resolve(dd_uhook_preloaded_functions[i]);
+        // No autoloader is registered yet: arguments referencing unknown classes fail to evaluate and are skipped
+        if (UNEXPECTED(EG(exception))) {
+            zend_clear_exception();
+        }
+    }
+
+    EG(current_execute_data) = dummy_frame.prev_execute_data;
+}
+
 void zai_uhook_attributes_minit(void) {
     zai_hook_on_function_resolve = dd_uhook_on_function_resolve;
+    zai_hook_on_preloaded_function = dd_uhook_on_preloaded_function;
 
     ddtrace_hook_attribute_ce = register_class_DDTrace_Trace();
 #if PHP_VERSION_ID >= 80200
@@ -442,6 +480,11 @@ void zai_uhook_attributes_minit(void) {
 
 void zai_uhook_attributes_mshutdown(void) {
     zend_string_release(dd_hook_attribute_lcname);
+    if (dd_uhook_preloaded_functions) {
+        pefree(dd_uhook_preloaded_functions, 1);
+        dd_uhook_preloaded_functions = NULL;
+        dd_uhook_preloaded_count = 0;
+    }
 }
 
 ZEND_METHOD(DDTrace_Trace, __construct) {

@@ -8,3 +8,6 @@ docker buildx bake base --push
 # up using an old base (or even pulling one if you don't have one locally).
 docker buildx bake --push
 ```
+
+Tags carry a generation from `.env` (`CENTOS_NEXT_VERSION`), like bookworm, so
+building the next generation never overwrites the tags master uses.

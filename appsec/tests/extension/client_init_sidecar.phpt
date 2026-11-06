@@ -1,7 +1,6 @@
 --TEST--
 Client init with sidecar activated sends service/env
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.waf_timeout=42
 datadog.appsec.log_level=debug

@@ -22,15 +22,11 @@ typedef enum _helper_runtime {
 helper_runtime dd_helper_get_runtime(void);
 void dd_helper_set_runtime(helper_runtime rt);
 
-typedef typeof(&ddog_sidecar_enable_appsec) sidecar_enable_appsec_t;
-
-__attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
-    sidecar_enable_appsec_t nonnull enable_appsec,
-    bool *nonnull appsec_activation, bool *nonnull appsec_conf);
 
 void dd_helper_startup(void);
 void dd_helper_shutdown(void);
-void dd_helper_gshutdown(zend_ddappsec_globals *nonnull globals);
+void dd_helper_mshutdown(void);
+void dd_helper_gshutdown(ddappsec_globals *nonnull globals);
 void dd_helper_rshutdown(void);
 
 typedef dd_result (*client_init_func)(dd_conn *nonnull, void *unspecnull ctx);

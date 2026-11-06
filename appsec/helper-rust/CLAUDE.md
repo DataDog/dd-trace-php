@@ -136,9 +136,9 @@ Before running system tests, copy the required extension binaries:
 ```bash
 # If there were modifications in ddtrace or the extension relative to the latest origin/master:
 cd tests/integration
-./gradlew buildAppsec-8.0-release buildTracer-8.0-release --info
+./gradlew buildTracer-8.0-release --info
 
-docker run -i --rm  -v php-appsec-8.0-release:/appsec alpine cat /appsec/ddappsec.so > ../system-tests/binaries/ddappsec.so
+# ddtrace.so includes the AppSec extension
 docker run -i --rm  -v php-tracer-8.0-release:/tracer alpine cat /tracer/build_extension/.libs/ddtrace.so > ../system-tests/binaries/ddtrace.so
 ```
 

@@ -17,6 +17,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
  * The failure is completely silent -- no error, no log line -- so the only thing that catches it is
  * asserting that the server actually terminates on SIGTERM alone. This matters most on musl, where
  * clone() rejects CLONE_THREAD outright, which is why the arm64/Alpine CI job runs this suite.
+ * Also require exit code 0: the shutdown can finish and still crash while destroying PHP threads
+ * or unloading extensions (issue #4349).
  */
 class GracefulShutdownTest extends WebFrameworkTestCase
 {
@@ -45,23 +47,26 @@ class GracefulShutdownTest extends WebFrameworkTestCase
         ]);
     }
 
+    /**
+     * The server is stopped by this test, so retrying would hide the shutdown failure.
+     * @retryAttempts 0
+     */
     public function testShutsDownGracefullyOnSigtermWithSidecar()
     {
         // The sidecar connection is only established while serving, and the branch under test is
         // only reached once it exists -- so a request has to come first.
         $this->call(GetSpec::create('Warm up the sidecar connection', '/simple'));
 
-        $exitedOnItsOwn = self::$appServer->stopGracefully(self::SHUTDOWN_TIMEOUT_SECONDS);
+        $exitedCleanly = self::$appServer->stopGracefully(self::SHUTDOWN_TIMEOUT_SECONDS);
 
         // The server is gone either way now, so stop ddTearDown() from reporting it as a crash.
         $this->checkWebserverErrors = false;
 
         $this->assertTrue(
-            $exitedOnItsOwn,
+            $exitedCleanly,
             sprintf(
-                'FrankenPHP was still running %d seconds after SIGTERM. The tracer most likely '
-                    . 'swallowed the signal instead of passing it to the Go runtime -- see '
-                    . 'dd_sigint_sigterm_handler() in ext/signals.c.',
+                'FrankenPHP did not exit with code 0 within %d seconds of SIGTERM. '
+                    . 'Check frankenphp_error.log and phpunit_error.log for shutdown errors and the exit code.',
                 self::SHUTDOWN_TIMEOUT_SECONDS
             )
         );

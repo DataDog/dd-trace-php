@@ -15,13 +15,14 @@ DD_DOGSTATSD_URL=unix:///tmp/ddtrace-test-metric_probe.socket
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 DD_VERSION=1.2.3
---INI--
-datadog.trace.agent_test_session_token=live-debugger/metric_probe
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=live-debugger/metric_probe
 --FILE--
 <?php
 
 require __DIR__ . "/live_debugger.inc";
 require __DIR__ . "/../dogstatsd/metrics_uds.inc";
+
+reset_request_replayer();
 
 $server = new UDSServer('/tmp/ddtrace-test-metric_probe.socket');
 
@@ -42,6 +43,8 @@ $server->close();
 ?>
 --CLEAN--
 <?php
+require __DIR__ . "/live_debugger.inc";
+reset_request_replayer();
 @unlink("/tmp/ddtrace-test-metric_probe.socket");
 ?>
 --EXPECT--

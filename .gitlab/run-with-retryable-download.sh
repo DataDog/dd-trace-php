@@ -25,6 +25,19 @@ if grep -Eq "$github_server_error|$transport_error" "$build_log"; then
     exit 75
 fi
 
+# CMake reports libcurl's partial-file and receive errors as status_code 18
+# and 56. Only match inside HTTP(S) download failure blocks; unrelated errors
+# retain their code.
+if awk '
+    /^[[:space:]]*error: downloading / { http_download = /https?:\/\//; next }
+    /--- LOG END ---/ { http_download = 0 }
+    http_download && /^[[:space:]]*status_code:[[:space:]]*(18|56)[[:space:]]*$/ { retry = 1 }
+    END { exit !retry }
+' "$build_log"; then
+    echo "Transient CMake download transfer failure; exiting 75 for GitLab retry." >&2
+    exit 75
+fi
+
 # CMake FetchContent reports depot HTTP failures inside a download log. Match
 # the 503 in the same depot download block, not an unrelated HTTP response in
 # the build output. Other failures (including 404s) keep their original code.

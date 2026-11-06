@@ -2,6 +2,7 @@
 
 namespace DDTrace\FeatureFlags;
 
+use DDTrace\FeatureFlags\Internal\EvaluationLog;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\Log\Logger as GlobalLogger;
 use DDTrace\Log\LoggerInterface;
@@ -107,6 +108,7 @@ final class Client
     private function evaluate($flagKey, $expectedType, $defaultValue, array $context)
     {
         $flagKey = $this->expectFlagKey($flagKey);
+        $targetingKeyInvalid = isset($context['targetingKey']) && !is_string($context['targetingKey']);
         list($targetingKey, $attributes) = $this->normalizeContext($context);
 
         $details = $this->evaluator->evaluate(
@@ -114,9 +116,11 @@ final class Client
             $expectedType,
             $defaultValue,
             $targetingKey,
-            $attributes
+            $attributes,
+            $targetingKeyInvalid
         );
 
+        EvaluationLog::debug($this->logger, 'evaluated', $flagKey, $defaultValue, $targetingKey, $attributes, $details);
         $this->warnIfRuntimeNotReady($details);
 
         return $details;

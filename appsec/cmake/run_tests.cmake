@@ -3,7 +3,8 @@ if(DD_APPSEC_DDTRACE_ALT)
 elseif(DD_APPSEC_TEST_TRACER)
     set(DD_APPSEC_TRACER_EXT_FILE "${DD_APPSEC_TEST_TRACER}")
 else()
-    get_filename_component(DD_APPSEC_TRACER_EXT_FILE "${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so" REALPATH)
+    # The tracer with AppSec, built by the root Makefile
+    get_filename_component(DD_APPSEC_TRACER_EXT_FILE "${CMAKE_SOURCE_DIR}/../tmp/build_appsec/modules/ddtrace.so" REALPATH)
     get_target_property(_DD_APPSEC_PCRE2_INCLUDE_DIRS
         PCRE2::pcre2 INTERFACE_INCLUDE_DIRECTORIES)
     if(_DD_APPSEC_PCRE2_INCLUDE_DIRS)
@@ -15,15 +16,9 @@ else()
     endif()
     add_custom_target(ddtrace
         COMMAND ${CMAKE_COMMAND} -E env "PATH=${PhpConfig_ROOT_DIR}/bin:$ENV{PATH}" PHPRC=
-                make ${_DD_APPSEC_DDTRACE_MAKE_OPTIONS} "${DD_APPSEC_TRACER_EXT_FILE}"
+                make ${_DD_APPSEC_DDTRACE_MAKE_OPTIONS} compile_appsec
         BYPRODUCTS ${DD_APPSEC_TRACER_EXT_FILE}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../)
-endif()
-
-if(DD_APPSEC_TEST_EXTENSION)
-    set(DD_APPSEC_TEST_EXTENSION_FILE "${DD_APPSEC_TEST_EXTENSION}")
-else()
-    set(DD_APPSEC_TEST_EXTENSION_FILE "$<TARGET_FILE:extension>")
 endif()
 
 add_custom_target(xtest-prepare
@@ -37,7 +32,6 @@ add_custom_target(xtest
         run-tests-internal.php
         -n -c ${CMAKE_SOURCE_DIR}/tests/extension/test-php.ini
         -d "extension_dir=${CMAKE_BINARY_DIR}/extensions"
-        -d "extension=${DD_APPSEC_TEST_EXTENSION_FILE}"
         --show-diff
         ${CMAKE_SOURCE_DIR}/tests/extension/
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

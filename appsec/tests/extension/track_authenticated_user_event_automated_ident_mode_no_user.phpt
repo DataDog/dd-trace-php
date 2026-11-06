@@ -1,7 +1,6 @@
 --TEST--
 Track authenticated user event with identification mode and empty user ID.
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --ENV--

@@ -55,7 +55,7 @@ putenv("DD_INSTRUMENT_SERVICE_WITH_APM=false");
 /**
  * The number of items to shift off `get_ini_settings` for config commands.
  */
-const CMD_CONFIG_NUM_SHIFT = 3;
+const CMD_CONFIG_NUM_SHIFT = 1;
 
 function main()
 {
@@ -113,8 +113,8 @@ Options:
     --file <path to .tar.gz>    Path to a dd-library-php-*.tar.gz file. Can be used for offline installation.
     --extension-dir <path>      Specify the extension directory. Default: PHP's extension directory.
     --ini <path>                Specify the INI file to use. Default: <ini-dir>/98-ddtrace.ini
-    --enable-appsec             Enable the application security monitoring module.
-    --enable-profiling          Enable the profiling module.
+    --enable-appsec             Enable application security monitoring in the ddtrace module.
+    --enable-profiling          Enable profiling in the ddtrace module.
     -d setting[=value]          Used in conjunction with `config <set|get>`
                                 command to specify the INI setting to get or set.
 
@@ -156,7 +156,7 @@ function config_list(array $options)
 {
     $iniSettings = get_ini_settings('', '');
 
-    // The first 3 are 'extension' type of settings.
+    // The first ones are 'extension' type of settings.
     $iniSettings = array_slice($iniSettings, CMD_CONFIG_NUM_SHIFT);
 
     // Build an index by unique names for filtering.
@@ -196,7 +196,7 @@ function config_list(array $options)
  *
  * $ php datadog-setup.php config list --php-bin all
  * Searching for available php binaries, this operation might take a while.
- * datadog.profiling.enabled = On; default: 1, binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.enabled = On; default: Off, binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  * datadog.profiling.experimental_allocation_enabled = On; default: 1, binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  *
  * @see get_ini_settings
@@ -535,9 +535,9 @@ function install($options)
     } while (file_exists($tmpDir));
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
+    $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
-    $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
 
     execute_or_exit("Cannot create directory '$tmpDir'. Try setting a different temporary directory by setting the sys_temp_dir INI variable. This directory must exist. E.g. php -d sys_temp_dir=" . (IS_WINDOWS ? 'C:\path\to\temp\dir' : "/path/to/temp/dir") . (isset($_SERVER["argv"][0]) ? " {$_SERVER["argv"][0]}" : ""), "mkdir " . (IS_WINDOWS ? "" : "-m 700 ") . escapeshellarg($tmpDir));
@@ -657,24 +657,42 @@ function install($options)
         $extensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX;
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
-        // Profiling
+        // Current packages compile profiling into ddtrace and identify those
+        // artifacts with a marker. Released packages may contain the legacy
+        // standalone profiler instead, which remains supported for upgrades.
+        $profilingMarker = "$tmpArchiveTraceRoot/ext/$extensionVersion/.ddtrace$extensionSuffix.profiling";
+        $hasCombinedProfiling = file_exists($profilingMarker);
         $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/"
             . EXTENSION_PREFIX . "datadog-profiling$extensionSuffix." . EXTENSION_SUFFIX;
-        $shouldInstallProfiling = file_exists($profilingExtensionRealPath);
+        $hasStandaloneProfiling = file_exists($profilingExtensionRealPath);
+        $shouldInstallProfiling = $hasCombinedProfiling || $hasStandaloneProfiling;
 
-        if ($shouldInstallProfiling) {
+        if ($hasStandaloneProfiling) {
             $profilingExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'datadog-profiling.' . EXTENSION_SUFFIX;
             safe_copy_extension($profilingExtensionRealPath, $profilingExtensionDestination);
         }
 
-        // Appsec
+        // Current packages compile AppSec into ddtrace as well, again identified
+        // by a marker. Released packages may contain the legacy ddappsec
+        // extension instead, which remains supported.
+        $appsecMarker = "$tmpArchiveTraceRoot/ext/$extensionVersion/.ddtrace$extensionSuffix.appsec";
+        $hasCombinedAppsec = file_exists($appsecMarker);
         $appsecExtensionRealPath = "{$tmpArchiveAppsecRoot}/ext/{$extensionVersion}/"
             . EXTENSION_PREFIX . "ddappsec{$extensionSuffix}." . EXTENSION_SUFFIX;
-        $shouldInstallAppsec = file_exists($appsecExtensionRealPath);
+        $hasLegacyAppsec = !$hasCombinedAppsec && file_exists($appsecExtensionRealPath);
+        $shouldInstallAppsec = $hasCombinedAppsec || $hasLegacyAppsec;
 
-        if ($shouldInstallAppsec) {
-            $appsecExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX;
+        $appsecExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX;
+        if ($hasLegacyAppsec) {
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
+        } elseif ($hasCombinedAppsec && file_exists($appsecExtensionDestination)) {
+            // Loading ddappsec next to a ddtrace which includes AppSec is a fatal
+            // startup error, also from INI files the installer does not manage.
+            if (unlink($appsecExtensionDestination)) {
+                echo "Removed '$appsecExtensionDestination', AppSec is now part of ddtrace\n";
+            } else {
+                print_warning("Error while removing $appsecExtensionDestination. It must be removed manually.");
+            }
         }
         $iniPathsFromUser = isset($options[OPT_PHP_INI]);
         if ($iniPathsFromUser) {
@@ -720,6 +738,19 @@ function install($options)
                 ];
             }
 
+            $migrateLegacyProfiling = $hasCombinedProfiling
+                && legacy_profiler_needs_enabling(file_get_contents($iniFilePath));
+            $profilingExtensionPattern = '(^\s*;?\s*(zend_)?extension\s*=\s*.*datadog-profiling.*)m';
+            if ($hasCombinedProfiling) {
+                // The standalone profiler cannot coexist with combined ddtrace.
+                $replacements[$profilingExtensionPattern] = '; $0';
+            } elseif ($hasStandaloneProfiling && is_truthy($options[OPT_ENABLE_PROFILING])) {
+                $iniProfilingExtension = isset($options[OPT_EXTENSION_DIR])
+                    ? $profilingExtensionDestination
+                    : 'datadog-profiling' . (IS_WINDOWS ? '' : '.' . EXTENSION_SUFFIX);
+                $replacements[$profilingExtensionPattern] = "extension = $iniProfilingExtension";
+            }
+
             if (isset($options[OPT_EXTENSION_DIR])) {
                 $replacements += [
                     '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = $extensionDestination",
@@ -731,61 +762,52 @@ function install($options)
                      * `;`, hence not automatically re-activating the extension if the user had commented it out.
                      */
                     '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
-                    // Support upgrading from the C based zend_extension.
-                    '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
                 ];
             }
 
-            // Enabling profiling
-            if (is_truthy($options[OPT_ENABLE_PROFILING])) {
-                // phpcs:disable Generic.Files.LineLength.TooLong
-                if ($shouldInstallProfiling) {
-                    if (isset($options[OPT_EXTENSION_DIR])) {
-                        $replacements['(zend_extension\s*=\s*.*datadog-profiling.*)'] = "extension = $profilingExtensionDestination";
-                        $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = $profilingExtensionDestination";
-                    } else {
-                        $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
-                    }
-                } else {
+            // New installations are opt-in; preserve profiling enabled by a
+            // legacy extension line before commenting that line for combined builds.
+            if (is_truthy($options[OPT_ENABLE_PROFILING]) || $migrateLegacyProfiling) {
+                if (!$shouldInstallProfiling) {
                     $enableProfiling = OPT_ENABLE_PROFILING;
                     print_error_and_exit(
                         "Option --{$enableProfiling} was provided, but it is not supported on this PHP build or version.\n"
                     );
                 }
-                // phpcs:enable Generic.Files.LineLength.TooLong
+                $replacements['(^[\s;]*datadog\.profiling\.enabled\s*=.*)m'] = 'datadog.profiling.enabled = On';
             }
 
             // Load AppSec and enable/disable as required
 
             // phpcs:disable Generic.Files.LineLength.TooLong
-            if ($shouldInstallAppsec) {
-                $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
+            if ($hasLegacyAppsec) {
                 $iniAppsecExtension = isset($options[OPT_EXTENSION_DIR])
                     ? $appsecExtensionDestination
                     : ("ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX));
-                $replacements += [
-                    '(^\s*;?\s*extension\s*=\s*.*ddappsec.*)m' => "extension = $iniAppsecExtension",
-                    // Update and comment rules path
-                    '(^[\s;]*datadog.appsec.rules\s*=\s*' . $rulesPathRegex . ')m' => "; datadog.appsec.rules = " . $appSecRulesPath,
-                ];
-                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                    $replacements += ['(^[\s;]*datadog.appsec.enabled\s*=.*)m' => 'datadog.appsec.enabled = On'];
-                }
+                $replacements['(^\s*;?\s*extension\s*=\s*.*ddappsec.*)m'] = "extension = $iniAppsecExtension";
             } else {
-                // Ensure AppSec isn't loaded if not compatible
+                // Ensure the legacy extension isn't loaded: it is either not
+                // compatible, or AppSec is already part of ddtrace.
                 $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
+            }
 
+            if ($shouldInstallAppsec) {
+                $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
+                // Update and comment rules path
+                $replacements['(^[\s;]*datadog.appsec.rules\s*=\s*' . $rulesPathRegex . ')m'] = "; datadog.appsec.rules = " . $appSecRulesPath;
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                    $enableAppsec = OPT_ENABLE_APPSEC;
-                    print_error_and_exit(
-                        "Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n"
-                    );
+                    $replacements['(^[\s;]*datadog.appsec.enabled\s*=.*)m'] = 'datadog.appsec.enabled = On';
                 }
+            } elseif (is_truthy($options[OPT_ENABLE_APPSEC])) {
+                $enableAppsec = OPT_ENABLE_APPSEC;
+                print_error_and_exit(
+                    "Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n"
+                );
             }
 
             add_missing_ini_settings(
                 $iniFilePath,
-                get_ini_settings($installDirSrcDir, $appSecRulesPath),
+                get_ini_settings($installDirSrcDir, $appSecRulesPath, $hasStandaloneProfiling, $hasLegacyAppsec),
                 $replacements
             );
 
@@ -931,6 +953,27 @@ function find_main_ini_files(array $phpProperties)
     }
 
     return filter_ssi_ini_paths($iniFilePaths);
+}
+
+/**
+ * Legacy standalone profiling defaults to enabled when its extension is loaded.
+ * Preserve that implicit state, but leave any active enabled/disabled setting alone.
+ *
+ * @param string $contents
+ * @return bool
+ */
+function legacy_profiler_needs_enabling($contents)
+{
+    if (preg_match('(^[ \t]*datadog\.profiling\.enabled[ \t]*=)m', $contents)) {
+        return false;
+    }
+
+    // Horizontal whitespace prevents a commented line being matched via a newline;
+    // exclude trailing comments so mentioning the profiler there cannot enable it.
+    return 1 === preg_match(
+        '(^[ \t]*(zend_)?extension[ \t]*=[ \t]*[^;#\r\n]*datadog-profiling)m',
+        $contents
+    );
 }
 
 /**
@@ -2219,41 +2262,36 @@ function map_env_to_ini($env)
  *
  * @param string $sourcesDir
  * @param string $appsecRulesPath
+ * @param bool $includeStandaloneProfiling
+ * @param bool $includeLegacyAppsec
  * @return array
  */
-function get_ini_settings($sourcesDir, $appsecRulesPath)
-{
+function get_ini_settings(
+    $sourcesDir,
+    $appsecRulesPath,
+    $includeStandaloneProfiling = false,
+    $includeLegacyAppsec = false
+) {
     // phpcs:disable Generic.Files.LineLength.TooLong
-    return [
+    $settings = [
         [
             'name' => 'extension',
             'default' => 'ddtrace' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
             'commented' => false,
-            'description' => 'Enables or disables tracing (set by the installer, do not change it)',
-        ],
-        [
-            'name' => 'extension',
-            'default' => 'datadog-profiling' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
-            'commented' => true,
-            'description' => 'Enables the profiling module',
-        ],
-        [
-            'name' => 'extension',
-            'default' => 'ddappsec' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
-            'commented' => false,
-            'description' => 'Enables the appsec module',
+            'description' => 'Loads the Datadog PHP SDK (set by the installer, do not change it)',
         ],
 
         /* IMPORTANT! These extension ones are shifted off for config commands.
          * If the number of extension= things changes, change the constant
-         * CMD_CONFIG_NUM_SHIFT accordingly.
+         * CMD_CONFIG_NUM_SHIFT accordingly. The ones for legacy packages
+         * inserted below are not part of the config commands.
          */
 
         [
             'name' => 'datadog.profiling.enabled',
-            'default' => '1',
-            'commented' => true,
-            'description' => 'Enable the Datadog profiling module.',
+            'default' => 'Off',
+            'commented' => false,
+            'description' => 'Enable profiling in the Datadog ddtrace module.',
         ],
         [
             'name' => 'datadog.trace.endpoint_collection_enabled',
@@ -2563,8 +2601,8 @@ function get_ini_settings($sourcesDir, $appsecRulesPath)
             'default' => 'Off',
             'commented' => true,
             'description' => [
-                'Enables or disables the loaded dd-appsec extension.',
-                'If disabled, the extension will do no work during the requests.',
+                'Enables or disables application security monitoring.',
+                'If disabled, AppSec will do no work during the requests.',
                 'If not present/commented out, appsec will be enabled/disabled by remote config',
             ],
         ],
@@ -2573,7 +2611,7 @@ function get_ini_settings($sourcesDir, $appsecRulesPath)
             'default' => 'warn',
             'commented' => true,
             'description' => [
-                'Sets the verbosity of the logs of the dd-appsec extension.',
+                'Sets the verbosity of the AppSec logs.',
                 'The valid values are \'off\', \'error\', \'fatal\', \'warn\' (or \'warning\'), \'info\',',
                 '\'debug\' and \'trace\', in increasing order of verbosity',
             ],
@@ -2640,7 +2678,24 @@ function get_ini_settings($sourcesDir, $appsecRulesPath)
             'description' => 'Customises the JSON output provided on a blocked request',
         ],
     ];
+    if ($includeLegacyAppsec) {
+        array_splice($settings, 1, 0, [[
+            'name' => 'extension',
+            'default' => 'ddappsec' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+            'commented' => false,
+            'description' => 'Enables the appsec module from legacy packages',
+        ]]);
+    }
+    if ($includeStandaloneProfiling) {
+        array_splice($settings, 1, 0, [[
+            'name' => 'extension',
+            'default' => 'datadog-profiling' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+            'commented' => true,
+            'description' => 'Enables the standalone profiling module from legacy packages',
+        ]]);
+    }
     // phpcs:enable Generic.Files.LineLength.TooLong
+    return $settings;
 }
 
 /**
@@ -2648,7 +2703,7 @@ function get_ini_settings($sourcesDir, $appsecRulesPath)
  */
 function get_supported_php_versions()
 {
-    return ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
+    return ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5', '8.6'];
 }
 
 main();

@@ -12,6 +12,8 @@ void ddtrace_telemetry_notify_integration(const char *name, size_t name_len);
 void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_len, const char *version, size_t version_len);
 
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span);
+// Fixed request-local counters only; no logging, allocation, or sidecar calls.
+void ddtrace_telemetry_count_ffe_rejection(ddog_FfeSubmissionStatus status);
 // Called by the background sender thread (coms.c) to accumulate metrics atomically.
 // Never touches the sidecar; the request thread flushes via ddtrace_telemetry_flush_bgs_metrics_if_due().
 void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics);

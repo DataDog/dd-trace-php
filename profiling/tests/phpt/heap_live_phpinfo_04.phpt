@@ -5,17 +5,22 @@ Verify that heap live profiling is disabled if allocation profiling is disabled 
 and works normally otherwise.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
-    echo "skip: test requires Datadog Continuous Profiler\n";
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
+    die("skip: test requires Datadog Continuous Profiler\n");
 if (PHP_VERSION_ID < 80000)
-    echo "skip: JIT requires PHP >= 8.0\n";
+    die("skip: JIT requires PHP >= 8.0\n");
 
 $affected = (PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80121)
     || (PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80208)
     || (PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80407);
 
 if (!$affected) {
-    echo "skip: JIT workaround is inactive on this PHP version\n";
+    die("skip: JIT workaround is inactive on this PHP version\n");
+}
+
+if (PHP_ZTS && PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
+    && php_uname('m') === 'x86_64' && file_exists('/lib/ld-musl-x86_64.so.1')) {
+    echo "xfail PHP 8.0/8.1 lack the musl JIT TLS fix https://github.com/php/php-src/pull/13329", PHP_EOL;
 }
 ?>
 --ENV--
@@ -33,7 +38,7 @@ opcache.jit_buffer_size=4M
 <?php
 
 ob_start();
-$extension = new ReflectionExtension('datadog-profiling');
+$extension = new ReflectionExtension(extension_loaded('datadog-profiling') ? 'datadog-profiling' : 'ddtrace');
 $extension->info();
 $output = ob_get_clean();
 

@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
 if [[ $# -eq 0 ]]; then
   echo "Usage: $0 <coverage-report> [<coverage-report> ...]" >&2
   exit 2
@@ -37,12 +39,9 @@ else
         ;;
     esac
 
-    if ! curl -L --fail \
+    "${script_dir}/download-file.sh" \
       "https://releases.hashicorp.com/vault/${vault_version}/vault_${vault_version}_linux_${vault_arch}.zip" \
-      --output "${vault_zip}"; then
-      echo "ERROR: failed to download Vault; exiting 75 so GitLab auto-retries" >&2
-      exit 75
-    fi
+      "${vault_zip}"
     unzip -o -q "${vault_zip}" -d /tmp
     chmod +x "${vault_path}"
     rm -f "${vault_zip}"
@@ -81,12 +80,9 @@ if [[ -z "${datadog_ci_arch:-}" ]]; then
 fi
 
 if [[ ! -x "${datadog_ci_path}" ]]; then
-  if ! curl -L --fail \
+  "${script_dir}/download-file.sh" \
     "${GITHUB_RELEASES_MIRROR}/DataDog/datadog-ci/releases/download/${datadog_ci_version}/datadog-ci_linux-${datadog_ci_arch}" \
-    --output "${datadog_ci_path}"; then
-    echo "ERROR: failed to download datadog-ci; exiting 75 so GitLab auto-retries" >&2
-    exit 75
-  fi
+    "${datadog_ci_path}"
   chmod +x "${datadog_ci_path}"
 fi
 

@@ -7,7 +7,7 @@
 # Target format: {libc}-{arch}-{php_version}-{thread_safety}
 #   libc:          musl | gnu/glibc
 #   arch:          arm | arm64 | aarch | aarch64 | x86 | x64 | x86_64
-#   php_version:   7.0 through 8.5
+#   php_version:   7.0 through 8.6
 #   thread_safety: nts | zts
 #
 # Examples:
@@ -34,12 +34,12 @@ Usage: build-debug-artifact <target> [output-dir] [--profiler] [--appsec]
 Target format: {libc}-{arch}-{php_version}-{thread_safety}
   libc:          musl (alpine) | gnu or glibc (bookworm)
   arch:          arm | arm64 | aarch | aarch64 | x86 | x64 | x86_64
-  php_version:   7.0 | 7.1 | 7.2 | 7.3 | 7.4 | 8.0 | 8.1 | 8.2 | 8.3 | 8.4 | 8.5
+  php_version:   7.0 | 7.1 | 7.2 | 7.3 | 7.4 | 8.0 | 8.1 | 8.2 | 8.3 | 8.4 | 8.5 | 8.6
   thread_safety: nts | zts
 
 Options:
-  --profiler    Also build the profiling extension
-  --appsec      Also build the AppSec extension
+  --profiler    Build profiling into the combined ddtrace extension
+  --appsec      Build AppSec into the combined ddtrace extension
 
 If the current directory contains a Dockerfile, it will be patched to COPY the
 artifact and add --file to any datadog-setup.php invocations.
@@ -111,18 +111,19 @@ case "$php_version" in
     8.3) php_api="20230831" ;;
     8.4) php_api="20240924" ;;
     8.5) php_api="20250925" ;;
-    *)   echo "Error: unknown PHP version '$php_version'. Supported: 7.0–8.5." >&2; exit 1 ;;
+    8.6) php_api="20260924" ;;
+    *)   echo "Error: unknown PHP version '$php_version'. Supported: 7.0–8.6." >&2; exit 1 ;;
 esac
 
 # ─── Docker image selection ───────────────────────────────────────────────────
-BOOKWORM_VERSION=10
+BOOKWORM_VERSION=14
 if [[ "$libc" == "musl" ]]; then
     DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
 else
     # centos-7 targets GLIBC 2.17 — compatible with all weblog base images.
     # bookworm (GLIBC 2.36) produces .so files that fail to load on Bullseye
     # weblogs with "GLIBC_2.32 not found".
-    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_centos-7"
+    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_centos-7-3"
 fi
 
 if [[ "$arch" == "aarch64" ]]; then
@@ -136,7 +137,8 @@ CACHE_VOLUME="ddtrace-build-cache"
 # The persistent build cache contains copied source files under tmp/build_extension.
 # Keep sibling worktrees from reusing stale copied headers for the same PHP target.
 CACHE_SOURCE_KEY="$(printf '%s' "$REPO_ROOT" | cksum | awk '{print $1}')"
-CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}-${CACHE_SOURCE_KEY}"
+# The cached build directory is not reconfigured when --profiler/--appsec change.
+CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}-p${BUILD_PROFILER}a${BUILD_APPSEC}-${CACHE_SOURCE_KEY}"
 CACHE_TAG_LABEL="ddtrace.build.target"
 
 if docker volume inspect "$CACHE_VOLUME" &>/dev/null; then
@@ -242,23 +244,19 @@ _preamble() {  # $1 = shell commands to run as the host user
     fi
 }
 
-TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 CFLAGS='-std=gnu11 -O0 -g' make
-cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
-
+TRACE_PRODUCTS=""
 if [[ "$BUILD_PROFILER" == "1" ]]; then
-    PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
-    ln -sf ../lib/llvm21/bin/clang /usr/bin/clang
+    TRACE_PRODUCTS="${TRACE_PRODUCTS} --enable-ddtrace-profiling"
 fi
-make BUILD_SUFFIX=profiler PROFILING=1 RUST_DEBUG_BUILD=1 EXTRA_CONFIGURE_OPTIONS='--disable-ddtrace-tracer --enable-ddtrace-profiling'
-cp ${HOME_DIR}/tmp/build_profiler/modules/datadog-profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"
-fi
-
 if [[ "$BUILD_APPSEC" == "1" ]]; then
-    # Use a per-variant cmake build dir in the cache volume (nts and zts need separate builds).
-    APPSEC_SCRIPT="$(_preamble "git config --global --add safe.directory '*' 2>/dev/null || true
-mkdir -p tmp/build_appsec${EXT_SUFFIX}
-(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
+    TRACE_PRODUCTS="${TRACE_PRODUCTS} --enable-ddtrace-appsec"
 fi
+TRACE_MAKE_ARGS=""
+if [[ -n "$TRACE_PRODUCTS" ]]; then
+    TRACE_MAKE_ARGS="EXTRA_CONFIGURE_OPTIONS='${TRACE_PRODUCTS# }'"
+fi
+TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 CFLAGS='-std=gnu11 -O0 -g' make ${TRACE_MAKE_ARGS}
+cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 # ─── Launch all builds in parallel ────────────────────────────────────────────
 _PIDS=()
@@ -291,13 +289,6 @@ fi
 
 _launch "trace"   docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$TRACE_SCRIPT"
 
-[[ "$BUILD_PROFILER" == "1" ]] && \
-    _launch "profiler" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$PROFILER_SCRIPT"
-
-if [[ "$BUILD_APPSEC" == "1" ]]; then
-    _launch "appsec" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
-fi
-
 # ─── Wait for all builds ──────────────────────────────────────────────────────
 _FAILED=0
 for _i in "${!_PIDS[@]}"; do
@@ -321,17 +312,16 @@ cp -r "${REPO_ROOT}/src" "${TRACE_BASE}/src"
 echo "$VERSION" > "${TMP_PKG}/dd-library-php/VERSION"
 
 if [[ "$BUILD_PROFILER" == "1" ]]; then
-    PROFILING_BASE="${TMP_PKG}/dd-library-php/profiling"
-    mkdir -p "${PROFILING_BASE}/ext/${php_api}"
-    cp "${TMP_OUT}/datadog-profiling${EXT_SUFFIX}.so" "${PROFILING_BASE}/ext/${php_api}/datadog-profiling${EXT_SUFFIX}.so"
-    cp "${REPO_ROOT}/profiling/LICENSE"* "${PROFILING_BASE}/" 2>/dev/null || true
-    cp "${REPO_ROOT}/profiling/NOTICE" "${PROFILING_BASE}/" 2>/dev/null || true
+    touch "${TRACE_BASE}/ext/${php_api}/.ddtrace${EXT_SUFFIX}.profiling"
+    mkdir -p "${TRACE_BASE}/profiling-licenses"
+    cp "${REPO_ROOT}/profiling/LICENSE"* "${TRACE_BASE}/profiling-licenses/" 2>/dev/null || true
+    cp "${REPO_ROOT}/profiling/NOTICE" "${TRACE_BASE}/profiling-licenses/" 2>/dev/null || true
 fi
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
+    touch "${TRACE_BASE}/ext/${php_api}/.ddtrace${EXT_SUFFIX}.appsec"
     APPSEC_BASE="${TMP_PKG}/dd-library-php/appsec"
-    mkdir -p "${APPSEC_BASE}/ext/${php_api}" "${APPSEC_BASE}/etc"
-    cp "${TMP_OUT}/ddappsec${EXT_SUFFIX}.so" "${APPSEC_BASE}/ext/${php_api}/ddappsec${EXT_SUFFIX}.so"
+    mkdir -p "${APPSEC_BASE}/etc"
     if [[ -f "${REPO_ROOT}/appsec/recommended.json" ]]; then
         cp "${REPO_ROOT}/appsec/recommended.json" "${APPSEC_BASE}/etc/recommended.json"
     fi

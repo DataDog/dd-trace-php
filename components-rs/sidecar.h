@@ -25,6 +25,7 @@
 
 
 
+
 #if defined(_WIN32)
 bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_Metadata metadata);
 #endif
@@ -531,6 +532,36 @@ struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnec
  * Frees an `AppsecCResponse` returned by an AppSec message function.
  */
 void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
+
+/**
+ * Submit one evaluation through the shared sender without reconnecting or
+ * waiting for capacity/delivery. The transport is exclusively owned by its caller;
+ * platform synchronization may briefly wait. Bounded input conversion happens
+ * before shared load shedding;
+ * rejected observations are not retained. `Accepted` is not a delivery guarantee.
+ * Oversized observations are retried once without targeting key or event context;
+ * a successfully accepted reduced observation also returns `Accepted`. Required
+ * metadata and optional flag dimensions must still fit the IPC packet limit.
+ * The sidecar owns hashing, aggregation, final EVP encoding and HTTP delivery.
+ *
+ * Context comes exclusively from `attributes`; `evaluation_context_json` is
+ * ignored. The row must have count one and equal first/last/evaluation timestamps.
+ * Protected mode does not inspect context. Invalid optional fields are omitted;
+ * a snapshot failure retains the evaluation without context. Use matching headers
+ * and library. No diagnostic is recursively submitted through this EVP path.
+ *
+ * # Safety
+ * All references must be valid for the call, with exclusive access to the transport.
+ * Non-null slices that are read must
+ * point to live, aligned backing storage of their stated lengths. String bytes
+ * need not be UTF-8: malformed optional text is omitted. All C booleans must be
+ * valid boolean values. No pointers survive this call.
+ */
+enum ddog_FfeSubmissionStatus ddog_sidecar_try_submit_ffe_flag_evaluation(struct ddog_SidecarTransport *transport,
+                                                                          const struct ddog_FfeTelemetryContext *context,
+                                                                          const struct ddog_FfeFlagEvaluation *event,
+                                                                          struct ddog_Slice_FfeScalarAttribute attributes,
+                                                                          const struct ddog_FfeSnapshotState *snapshot);
 
 #if defined(_WIN32)
 /**

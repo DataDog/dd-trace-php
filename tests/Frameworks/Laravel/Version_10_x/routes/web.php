@@ -28,3 +28,11 @@ Route::get('/telemetry', function () {
     dd_trace_internal_fn("finalize_telemetry");
     return response('Done');
 });
+
+Route::get('/', function () {
+    return 'Hi';
+});
+
+Route::get('/dynamic-path/{param01}', function (string $param01) {
+    return response("Hi $param01", 200);
+});

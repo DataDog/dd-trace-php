@@ -14,6 +14,7 @@ $php_versions_to_abi = [
     "8.3" => "20230831",
     "8.4" => "20240924",
     "8.5" => "20250925",
+    "8.6" => "20260924",
 ];
 
 $all_minor_major_targets = array_keys($php_versions_to_abi);
@@ -21,6 +22,10 @@ $all_minor_major_targets = array_keys($php_versions_to_abi);
 $asan_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">="); }));
 $windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); }));
 $profiler_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.1", ">="); }));
+
+// Newest GA PHP release. Jobs that need a released PHP (lint, Configuration Consistency,
+// sidecar uid verify) run on it. Bump to "8.6" at PHP 8.6 GA.
+$latest_ga_minor_major = "8.5";
 
 // In GitLab CI we use k8s and have to bind to `127.0.0.1`
 $service_bind_address = "0.0.0.0";
@@ -36,6 +41,7 @@ function unset_dd_runner_env_vars() {
     - unset DD_ENV
     - unset DD_TAGS
     - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+    - unset DD_ENTITY_ID
 <?php
 }
 
@@ -61,19 +67,24 @@ function windows_git_setup() {
     }
     Pop-Location
     $remaining = Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue
-    if ($remaining) { Write-Host "WARNING: could not remove: $($remaining.Name -join ', ')" }
+    # git init would reuse leftovers (a clone used to refuse them): retry instead.
+    if ($remaining) { Write-Host "ERROR: could not remove: $($remaining.Name -join ', '); exiting 75 so GitLab auto-retries."; exit 75 }
     Write-Host "Cleanup complete."
 
     # PS 5.1 ignores $PSNativeCommandUseErrorActionPreference — use $LASTEXITCODE checks instead.
     $ErrorActionPreference = 'Stop'
 
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
+    # Fetch the pipeline commit by SHA: once the branch moves on, a --branch clone no longer contains it.
+    Write-Host "Fetching $env:CI_COMMIT_SHA..."
     git config --global core.longpaths true
     git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
+    git init -q .
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    git remote add origin $env:CI_REPOSITORY_URL
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    git fetch --depth 50 origin $env:CI_COMMIT_SHA
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: git clone failed (likely transient network); exiting 75 so GitLab auto-retries. Remaining workspace contents:"
+        Write-Host "ERROR: git fetch failed (likely transient network); exiting 75 so GitLab auto-retries. Remaining workspace contents:"
         Get-ChildItem -Force | Select-Object Name
         exit 75
     }
@@ -113,10 +124,11 @@ register_shutdown_function(function () use ($_libdatadog_sha) {
         return;
     }
 
+    // `|| exit $?` keeps git's 128 (retried) on the centos-7 images, where bash 4.2 turns an errexit status into 1.
     $step  = <<<STEP
     - git config --global --add safe.directory "\${CI_PROJECT_DIR}/libdatadog"
-    - (cd libdatadog; git fetch --depth=1 origin "$_libdatadog_sha" 2>/dev/null || git fetch origin "$_libdatadog_sha" 2>&1)
-    - (cd libdatadog; git checkout FETCH_HEAD)
+    - (cd libdatadog && { git fetch --depth=1 origin "$_libdatadog_sha" 2>/dev/null || git fetch origin "$_libdatadog_sha" 2>&1; }) || exit \$?
+    - (cd libdatadog && git checkout FETCH_HEAD) || exit \$?
 STEP;
 
     // Scripts whose presence in a job block means the job compiles Rust from libdatadog.
@@ -153,6 +165,9 @@ STEP;
 
         $result .= $block;
     }
+
+    // Green CI counts each child pipeline separately: tag every one, not just the root.
+    $result .= file_get_contents(__DIR__ . '/green-ci-exclude-job.yml');
 
     echo $result;
 });

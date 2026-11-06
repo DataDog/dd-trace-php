@@ -2,7 +2,6 @@
 request_shutdown — user_request variant with stream (error conditions)
 --INI--
 expose_php=0
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.log_level=info
 datadog.appsec.cli_start_on_rinit=false

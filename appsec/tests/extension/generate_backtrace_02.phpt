@@ -1,7 +1,5 @@
 --TEST--
 Number of frames can be configured with DD_APPSEC_MAX_STACK_TRACE_DEPTH
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_MAX_STACK_TRACE_DEPTH=1
 --FILE--

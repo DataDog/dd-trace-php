@@ -29,8 +29,8 @@ require __DIR__ . '/stubs/agentless_lifecycle.inc';
 --EXPECT--
 first=blue
 changed=green
-stale_preserved=true
-recovered_on_304=true
+last_good_preserved=true
+unchanged_on_304=true
 version_advanced_once=true
 source=native_agentless
 ready=true

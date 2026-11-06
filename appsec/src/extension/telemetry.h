@@ -5,11 +5,12 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "ddtrace.h"
+#include "ddappsec_globals.h"
+#include "tracer_bridge.h"
 #include <stddef.h>
 
 void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
-    zend_string *nonnull tags_zstr, ddtrace_metric_type type);
+    zend_string *nonnull tags_zstr, ddog_MetricType type);
 
 void dd_telemetry_add_sdk_event(
     char *nonnull event_type, size_t event_type_len);
@@ -18,7 +19,7 @@ void dd_telemetry_add_missing_user_login(const char *nonnull event_type,
 void dd_telemetry_add_missing_user_id(const char *nonnull event_type,
     size_t event_type_len, const char *nonnull framework, size_t framework_len);
 void dd_telemetry_startup(void);
-void dd_telemetry_tshutdown(void);
+void dd_telemetry_gshutdown(ddappsec_globals *nonnull globals);
 
 void dd_telemetry_rinit(void);
 void dd_telemetry_note_helper_string_meta(const char *nonnull key,

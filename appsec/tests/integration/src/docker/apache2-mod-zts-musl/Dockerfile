@@ -1,5 +1,5 @@
 ARG DOCKER_REGISTRY=docker.io
-FROM ${DOCKER_REGISTRY}/library/php:8.5-zts-alpine
+FROM ${DOCKER_REGISTRY}/library/php:8.5.12-zts-alpine
 
 # The official image matrix has no Apache + ZTS or Apache + Alpine variant.
 # Rebuild the same PHP source and configuration with the Apache SAPI enabled so
@@ -78,8 +78,37 @@ RUN sed -i \
         -e 's@CustomLog logs/access.log@CustomLog /tmp/logs/apache2/access.log@' \
         /etc/apache2/httpd.conf
 
-COPY php.conf /etc/apache2/conf.d/php.conf
-COPY start.sh /start.sh
+# Rebuild the event MPM with event-sigterm-startup.patch, so children SIGTERMed
+# during startup (ungraceful restarts) no longer exit() from a signal handler
+# that may have interrupted malloc() (see apache2-mod/Dockerfile). Alpine's
+# apache2 patches don't touch event.c, so the upstream source of the installed
+# version is used. Its signature must be by one of the httpd release managers
+# below (Eric Covener, Stefan Eissing, Jim Jagielski), who signed every release
+# since 2.4.54; the fingerprints match Debian's debian/upstream/signing-key.asc.
+COPY apache2-mod/event-sigterm-startup.patch /tmp/
+RUN apk add --no-cache --virtual .event-build-deps apache2-dev build-base gnupg patch && \
+    version="$(httpd -v | sed -n 's@^Server version: Apache/\([0-9.]*\).*@\1@p')" && \
+    mkdir /tmp/httpd-src && cd /tmp/httpd-src && \
+    curl -fsSLO "https://archive.apache.org/dist/httpd/httpd-$version.tar.bz2" && \
+    curl -fsSLO "https://archive.apache.org/dist/httpd/httpd-$version.tar.bz2.asc" && \
+    curl -fsSL -o KEYS https://downloads.apache.org/httpd/KEYS && \
+    export GNUPGHOME="$(mktemp -d)" && \
+    gpg --batch --quiet --import KEYS && \
+    gpg --batch --status-fd 1 --verify "httpd-$version.tar.bz2.asc" "httpd-$version.tar.bz2" > gpg-status && \
+    signer="$(awk '$2 == "VALIDSIG" { print $NF }' gpg-status)" && \
+    case "$signer" in \
+        65B2D44FE74BD5E3DE3AC3F082781DE46D5954FA|26F51EF9A82F4ACB43F1903ED377C9E7D1944C66|A93D62ECC3C8EA12DB220EC934EA76E6791485A8) ;; \
+        *) echo "httpd-$version.tar.bz2 not signed by a known release manager (signer: '$signer')" >&2; exit 1 ;; \
+    esac && \
+    tar xjf "httpd-$version.tar.bz2" && cd "httpd-$version" && \
+    patch -p1 < /tmp/event-sigterm-startup.patch && \
+    apxs -c -I server -I server/mpm/event -o mod_mpm_event.la server/mpm/event/event.c && \
+    install -m 755 .libs/mod_mpm_event.so /usr/lib/apache2/mod_mpm_event.so && \
+    cd / && rm -rf /tmp/httpd-src /tmp/event-sigterm-startup.patch "$GNUPGHOME" && \
+    apk del --no-network .event-build-deps
+
+COPY apache2-mod-zts-musl/php.conf /etc/apache2/conf.d/php.conf
+COPY apache2-mod-zts-musl/start.sh /start.sh
 RUN chmod +x /start.sh
 
 WORKDIR /project

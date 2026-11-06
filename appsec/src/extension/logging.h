@@ -28,6 +28,7 @@ typedef enum {
 // these are only in the header to support the macros/inline functions
 extern const int _dd_size_source_prefix;
 extern bool _dd_log_config_ready;
+extern dd_log_level_t _dd_log_level_unconfigured;
 #ifdef ZTS
 #    define STRERROR_R_BUF_SIZE 1024
 extern __thread char _dd_strerror_buf[STRERROR_R_BUF_SIZE];
@@ -36,15 +37,20 @@ extern __thread char _dd_strerror_buf[STRERROR_R_BUF_SIZE];
 static inline dd_log_level_t dd_log_level(void)
 {
     if (!_dd_log_config_ready) {
-        return dd_log_warning;
+        return _dd_log_level_unconfigured;
     }
-    return (dd_log_level_t)(runtime_config_first_init
+    // Runtime configuration belongs to a request on this thread. GSHUTDOWN can
+    // run after it was freed, or on a thread that never handled a request.
+    return (dd_log_level_t)(zai_config_is_initialized()
                                 ? get_DD_APPSEC_LOG_LEVEL()
                                 : get_global_DD_APPSEC_LOG_LEVEL());
 }
 
 void dd_log_startup_before_cfg(void);
 void dd_log_startup_after_cfg(void);
+// Keeps the current log level, but stops reading the configuration, which is
+// about to be destroyed.
+void dd_log_detach_cfg(void);
 void dd_log_shutdown(void);
 const char *nonnull _strerror_r(int err, char *nonnull buf, size_t buflen);
 

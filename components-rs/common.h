@@ -293,6 +293,13 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1
 
+#define ddog_LOG_ONCE (1 << 3)
+
+/**
+ * Longest base64 pathway context: 8 hash bytes and two 9-byte varints.
+ */
+#define ddog_DSM_CONTEXT_MAX_LEN 36
+
 #define ddog_DEFAULT_POLL_INTERVAL_SECONDS 30
 
 #define ddog_MAX_POLL_INTERVAL_SECONDS 3600
@@ -305,15 +312,39 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_MAX_INITIALIZATION_TIMEOUT_MS (int64_t)INT32_MAX
 
-#define ddog_LOG_ONCE (1 << 3)
-
 /**
  * Number of gRPC status-code keys checked by the stats aggregation (must match
  * `GRPC_STATUS_CODE_FIELD` in libdd-trace-stats/src/span_concentrator/aggregation.rs).
  */
 #define ddog_PHP_GRPC_KEY_COUNT 4
 
+/**
+ * Maximum number of additional metric tag keys, excess keys are dropped (must match
+ * `MAX_ADDITIONAL_TAGS` in libdd-ipc/src/shm_stats.rs).
+ */
+#define ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS 4
+
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
+
+typedef enum ddog_AppsecBodyStatus {
+  /**
+   * Nothing usable was parsed; the MessagePack buffer is empty.
+   */
+  DDOG_APPSEC_BODY_STATUS_EMPTY,
+  /**
+   * Malformed or truncated input; all emitted containers are closed.
+   */
+  DDOG_APPSEC_BODY_STATUS_PARTIAL,
+  DDOG_APPSEC_BODY_STATUS_COMPLETE,
+  /**
+   * Allocation failed; all partial state has been released.
+   */
+  DDOG_APPSEC_BODY_STATUS_OUT_OF_MEMORY,
+  /**
+   * An unexpected panic.
+   */
+  DDOG_APPSEC_BODY_STATUS_INTERNAL_ERROR,
+} ddog_AppsecBodyStatus;
 
 typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
@@ -395,6 +426,9 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_RUM,
   DDOG_METRIC_NAMESPACE_APPSEC,
   DDOG_METRIC_NAMESPACE_IDE_PLUGINS,
+  /**
+   * Superseded by [`MetricNamespace::Debugger`]. Kept so existing FFI discriminants stay stable.
+   */
   DDOG_METRIC_NAMESPACE_LIVE_DEBUGGER,
   DDOG_METRIC_NAMESPACE_IAST,
   DDOG_METRIC_NAMESPACE_GENERAL,
@@ -405,6 +439,7 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_MLOBS,
   DDOG_METRIC_NAMESPACE_DDTRACEAPI,
   DDOG_METRIC_NAMESPACE_AI_GUARD,
+  DDOG_METRIC_NAMESPACE_DEBUGGER,
 } ddog_MetricNamespace;
 
 typedef enum ddog_MetricType {
@@ -472,6 +507,11 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
   DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
   DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
+  /**
+   * The consumer evaluates prerequisite conditions against a flag's selected variant key.
+   * Register only when the evaluator implements the dependent-flag variant-key contract.
+   */
+  DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1 = 50,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -531,9 +571,10 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  * `SidecarTransport` wraps a [`SidecarSender`] with transparent reconnection support.
  *
  * This transport is used for communication between different parts of the sidecar service.
- * It is a blocking transport (all operations block the current thread). It is owned by a
- * single client thread: the sidecar binds the connection state to the connection, so it must
- * not be shared between threads which process requests concurrently.
+ * It is owned by a single client thread: the sidecar binds state to the connection,
+ * so it must not be shared between threads which process requests concurrently.
+ * Ordinary operations may block and reconnect. FFE submission bypasses reconnection
+ * and never waits for transport capacity or delivery; platform synchronization may wait.
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
@@ -550,6 +591,20 @@ typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 typedef struct _zend_string *ddog_OwnedZendString;
 
+/**
+ * The service a process's checkpoints are reported under, and what goes into their hashes.
+ */
+typedef struct ddog_DsmIdentity {
+  ddog_CharSlice env;
+  ddog_CharSlice version;
+  ddog_CharSlice service;
+  /**
+   * The base hash DBM injects (`datadog_process_tags_get_base_hash`), covering the process
+   * tags and the container tags hash; empty when process tags are disabled.
+   */
+  ddog_CharSlice base_hash;
+} ddog_DsmIdentity;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
@@ -559,6 +614,7 @@ typedef struct ddog_FfeResult {
   int32_t serial_id;
   bool has_serial_id;
   bool do_log;
+  bool observe_full_evaluation_data;
   bool valid;
 } ddog_FfeResult;
 
@@ -697,12 +753,20 @@ typedef struct ddog_Option_CharSlice {
   };
 } ddog_Option_CharSlice;
 
+/**
+ * One `where.lines` entry: a single line `"N"` (`from == till`) or an inclusive range `"A-B"`.
+ */
+typedef struct ddog_SourceLine {
+  uint32_t from;
+  uint32_t till;
+} ddog_SourceLine;
+
 typedef struct ddog_ProbeTarget {
   ddog_CharSlice type_name;
   ddog_CharSlice method_name;
   ddog_CharSlice source_file;
   struct ddog_Option_CharSlice signature;
-  const uint32_t *lines;
+  const struct ddog_SourceLine *lines;
   uint32_t lines_count;
   enum ddog_InBodyLocation in_body_location;
 } ddog_ProbeTarget;
@@ -806,11 +870,12 @@ typedef struct ddog_Vec_DebuggerPayload {
 } ddog_Vec_DebuggerPayload;
 
 /**
- * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
+ * A (key, value) tag pair, borrowed from PHP/concentrator memory.
  */
 typedef struct ddog_PhpPeerTag {
   /**
-   * Key string — borrows from the concentrator's `peer_tag_keys` Vec<String>.
+   * Key string — borrows from the concentrator's `peer_tag_keys` Vec<String> for peer tags,
+   * and from the PHP configuration for additional metric tags.
    */
   ddog_CharSlice key;
   /**
@@ -868,6 +933,20 @@ typedef struct ddog_PhpSpanStats {
    * May be null when `peer_tags_count == 0`.
    */
   const struct ddog_PhpPeerTag *peer_tags;
+  /**
+   * Number of (key,value) pairs in `additional_tags`, at most
+   * `PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS`.
+   */
+  uintptr_t additional_tags_count;
+  /**
+   * Pointer to an array of `additional_tags_count` `PhpPeerTag` pairs, sorted by key.
+   * May be null when `additional_tags_count == 0`.
+   */
+  const struct ddog_PhpPeerTag *additional_tags;
+  /**
+   * Maximum number of entries with unmasked additional metric tags per stats bucket.
+   */
+  uint32_t additional_tags_cardinality_limit;
 } ddog_PhpSpanStats;
 
 /**
@@ -877,6 +956,34 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             const char *key,
                                             uintptr_t key_len,
                                             uintptr_t *out_len);
+
+/**
+ * Owned by the parser library; release with ddog_appsec_body_msgpack_drop.
+ */
+typedef struct ddog_AppsecBodyMessagePack {
+  uint8_t *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+  /**
+   * The allocator's free callback, set once the buffer leaves the parser.
+   */
+  void (*free)(uint8_t*);
+  enum ddog_AppsecBodyStatus status;
+} ddog_AppsecBodyMessagePack;
+
+/**
+ * All request allocations, except those made while a panic is in progress,
+ * go through these callbacks. Neither callback may reenter the parser,
+ * unwind or longjmp.
+ */
+typedef struct ddog_AppsecBodyAllocator {
+  void *context;
+  uint8_t *(*allocate)(void*, uintptr_t);
+  /**
+   * Must remain callable until the returned MessagePack buffer is dropped.
+   */
+  void (*free)(uint8_t*);
+} ddog_AppsecBodyAllocator;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -1151,7 +1258,7 @@ typedef struct ddog_CaptureValue {
   bool is_null;
   bool truncated;
   ddog_CharSlice not_captured_reason;
-  ddog_CharSlice size;
+  uint64_t size;
 } ddog_CaptureValue;
 
 typedef struct ddog_OwnedCharSlice {
@@ -1264,6 +1371,33 @@ typedef enum ddog_EvpTransportMode {
   DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
   DDOG_EVP_TRANSPORT_MODE_PREFER_LOCAL_THEN_DIRECT,
 } ddog_EvpTransportMode;
+
+/**
+ * Local submission outcomes, not metric names or delivery guarantees.
+ * Do not report a rejected observation recursively through the EVP path.
+ */
+typedef enum ddog_FfeSubmissionStatus {
+  /**
+   * Accepted by the local transport, not necessarily delivered to the sidecar or intake.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_ACCEPTED,
+  /**
+   * Absent, closed, or failed transport. Recovery belongs to lifecycle code.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_UNAVAILABLE,
+  /**
+   * Rejected by shared load shedding, pending configuration, or socket backpressure.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_WOULD_BLOCK,
+  /**
+   * Invalid required input for the single-observation interface.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_INVALID_INPUT,
+  /**
+   * The observation still exceeds a packet limit after any reduced-event retry.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_PAYLOAD_TOO_LARGE,
+} ddog_FfeSubmissionStatus;
 
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
@@ -1488,6 +1622,47 @@ typedef struct ddog_AppsecCResponse {
    */
   bool disconnect;
 } ddog_AppsecCResponse;
+
+/**
+ * One borrowed scalar from the context used for evaluation. Only the first 256
+ * entries are inspected, in input order, including entries subsequently omitted.
+ * Only the value field selected by `kind` is read. Nothing is retained by reference.
+ */
+typedef struct ddog_FfeScalarAttribute {
+  ddog_CharSlice key;
+  /**
+   * 0 = string, 1 = boolean, 2 = signed integer, 3 = double.
+   * Other values are omitted and recorded as snapshot errors.
+   */
+  uint32_t kind;
+  ddog_CharSlice string_value;
+  bool bool_value;
+  int64_t integer_value;
+  double double_value;
+} ddog_FfeScalarAttribute;
+
+typedef struct ddog_Slice_FfeScalarAttribute {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeScalarAttribute *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeScalarAttribute;
+/**
+ * Information lost before this native boundary. Context flags are ignored in
+ * protected mode; invalid original identity is never legitimized by coercion.
+ */
+typedef struct ddog_FfeSnapshotState {
+  bool context_truncated;
+  bool snapshot_error;
+  bool targeting_key_invalid;
+} ddog_FfeSnapshotState;
 
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,

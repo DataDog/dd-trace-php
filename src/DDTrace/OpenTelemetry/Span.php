@@ -23,6 +23,7 @@ use OpenTelemetry\SDK\Common\Time\ClockFactory;
 use OpenTelemetry\SDK\Resource\ResourceInfo;
 use Throwable;
 use function DDTrace\close_span;
+use function DDTrace\close_spans_until;
 use function DDTrace\switch_stack;
 use function DDTrace\Internal\add_span_flag;
 
@@ -469,7 +470,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->endOTelSpan($endEpochNanos);
 
         switch_stack($this->span);
-        close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
+        // Like when closing a dd span, the spans still open on top of it are closed along with it. This fails if one
+        // of them belongs to a function which is still executing, which will close its span on return, not this one
+        if (close_spans_until($this->span) !== false) {
+            close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
+        }
         $this->spanProcessor->onEnd($this);
     }
 

@@ -12,7 +12,7 @@ $address = stream_socket_get_name($server, false);
 putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL=http://' . $address . '/configuration?fixture=1');
 $process = ffeTestProcess(__DIR__ . '/agentless_lifecycle_app.php', $pipes);
 if (!is_resource($process)) throw new RuntimeException('cannot launch agentless PHP');
-fclose($pipes[0]);
+// Keep stdin for fixture phase acknowledgements.
 $stdout = $stderr = '';
 $requests = array();
 $exitCode = null;
@@ -44,8 +44,9 @@ try {
         $requests[] = array($route, $headers, $expectedEtag);
         // Keep stale/304 states observable even when sanitizers preempt the
         // child for an entire poll interval. The child must acknowledge each.
-        if ($phase === 3 && strpos($stdout, "fixture_stale_observed\n") !== false) $phase = 4;
+        if ($phase === 3 && strpos($stdout, "fixture_invalid_retained\n") !== false) $phase = 4;
         if ($phase === 4 && strpos($stdout, "fixture_304_observed\n") !== false) $phase = 5;
+        $sentPhase = $phase;
         $notModified = in_array($phase, array(1, 4, 6), true);
         $code = $notModified ? '304 Not Modified' : '200 OK';
         $etag = $phase === 3 ? '"bad"' : ($phase < 5 ? '"blue"' : '"green"');
@@ -69,6 +70,7 @@ try {
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nETag: $etag\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
+        if ($sentPhase === 3 || $sentPhase === 4) fwrite($pipes[0], $sentPhase . "\n");
         if ($phase === 0) { $expectedEtag = '"blue"'; $phase = 1; }
         elseif ($phase === 1) $phase = 3;
         elseif ($phase === 5) { $expectedEtag = '"green"'; $phase = 6; }
@@ -76,7 +78,7 @@ try {
     $stdout .= ffeTestProcessRead($pipes[1]);
     $stderr .= ffeTestProcessRead($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);
-    echo str_replace(array("fixture_child_ready\n", "fixture_stale_observed\n", "fixture_304_observed\n"), '', $stdout);
+    echo str_replace(array("fixture_child_ready\n", "fixture_invalid_retained\n", "fixture_304_observed\n"), '', $stdout);
     if (count($requests) < 5) throw new RuntimeException('polling did not recover');
     $protocol = true;
     foreach ($requests as $i => $request) {
@@ -92,6 +94,7 @@ try {
     echo 'request_protocol=', json_encode($protocol), "\n";
 } finally {
     if ($running) proc_terminate($process);
+    fclose($pipes[0]);
     fclose($pipes[1]);
     fclose($pipes[2]);
     proc_close($process);

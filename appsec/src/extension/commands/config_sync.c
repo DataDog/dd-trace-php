@@ -8,9 +8,9 @@
 #include <php.h>
 
 #include "../commands_helpers.h"
-#include "../ddtrace.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
+#include "../tracer_bridge.h"
 #include "config_sync.h"
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
@@ -21,7 +21,6 @@ static const dd_command_spec _spec = {
     .name = "config_sync",
     .name_len = sizeof("config_sync") - 1,
     .num_args = 2,
-    .client_init = false,
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_process_config_sync,
     .config_features_cb = dd_command_process_config_features,

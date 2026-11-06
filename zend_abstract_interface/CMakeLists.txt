@@ -9,6 +9,8 @@ project(
 # Get our FindPhpConfig helper.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/Modules")
 
+find_package(PhpConfig REQUIRED)
+
 option(BUILD_ZAI_TESTING "Enable tests" OFF)
 if(${BUILD_ZAI_TESTING})
   # Tests uses the C++ testing framework Catch2
@@ -40,8 +42,6 @@ include(GNUInstallDirs)
 
 add_library(zai_zend_abstract_interface INTERFACE)
 
-find_package(PhpConfig REQUIRED)
-
 if(PhpConfig_VERNUM LESS "70000")
   set(PHP_VERSION_DIRECTORY "php5")
   message(STATUS "Detected PHP 5 from version id: ${PhpConfig_VERNUM}")
@@ -68,9 +68,7 @@ add_subdirectory(env)
 add_subdirectory(exceptions)
 add_subdirectory(config)
 add_subdirectory(json)
-if(PhpConfig_VERNUM GREATER_EQUAL "80000")
-  add_subdirectory(jit_utils)
-endif()
+add_subdirectory(jit_utils)
 add_subdirectory(hook)
 add_subdirectory(interceptor)
 add_subdirectory(headers)

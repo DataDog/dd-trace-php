@@ -1,7 +1,5 @@
 --TEST--
 When values are set with automated event and with sdk, SDK takes priority
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

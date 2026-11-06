@@ -18,7 +18,7 @@ typedef uint16_t zai_config_id;
 #include "config_ini.h"
 #include "config_stable_file.h"
 
-#define ZAI_CONFIG_ENTRIES_COUNT_MAX 320
+#define ZAI_CONFIG_ENTRIES_COUNT_MAX 360
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
 // Accommodate the longest supported environment name after its `DD_` prefix is
 // expanded to the `datadog.` INI prefix.

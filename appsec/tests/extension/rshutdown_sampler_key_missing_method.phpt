@@ -1,7 +1,6 @@
 --TEST--
 request_shutdown — missing method
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --GET--
 key=val

@@ -1,7 +1,5 @@
 --TEST--
 Don't block or redirect from DDTrace\set_user
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--
