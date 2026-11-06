@@ -49,5 +49,6 @@ final class CompileTimeDisabledTest extends WebFrameworkTestCase
         self::assertFalse(isset($traces[0][0]['metrics']['php.compilation.total_time_ms']));
         self::assertFalse(isset($traces[0][0]['metrics']['php.memory.peak_usage_bytes']));
         self::assertFalse(isset($traces[0][0]['metrics']['php.memory.peak_real_usage_bytes']));
+        self::assertSame(PHP_VERSION, $traces[0][0]['meta']['php.version']);
     }
 }
