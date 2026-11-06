@@ -12,6 +12,11 @@
 #include <ext/sidecar.h>
 #include <php.h>
 #include <string.h>
+#ifndef _WIN32
+#include <stdatomic.h>
+#else
+#include <components/atomic_win32_polyfill.h>
+#endif
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
@@ -22,7 +27,7 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
     zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,
     zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data,
-    int64_t evaluation_timestamp_ms, bool targeting_key_invalid) {
+    int64_t evaluation_timestamp_ms, bool targeting_key_invalid, zend_string *features_json) {
     if (!get_DD_FLAGGING_EVALUATION_COUNTS_ENABLED()) {
         return false;
     }
@@ -94,6 +99,7 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
         .error_message = dd_zend_string_to_CharSlice(error_type),
         .runtime_default_used = runtime_default_used,
         .observe_full_evaluation_data = observe_full_evaluation_data,
+        .features_json = dd_zend_string_to_CharSlice(features_json),
     };
     // Sidecar application attribution is deferred to FFL-3438/FFL-3439.
     // The current FFI still requires a context argument.
@@ -130,6 +136,7 @@ typedef struct {
     zend_string *variant;
     int32_t serial_id;
     bool has_serial_id;
+    zend_string *features_json;
 } dd_ffe_exposure;
 
 static void dd_ffe_release_metric(dd_ffe_metric *metric) {
@@ -252,6 +259,9 @@ static void dd_ffe_release_exposure(dd_ffe_exposure *exposure) {
     zend_string_release(exposure->subject_attributes_json);
     zend_string_release(exposure->allocation_key);
     zend_string_release(exposure->variant);
+    if (exposure->features_json) {
+        zend_string_release(exposure->features_json);
+    }
 }
 
 static void dd_ffe_clear_exposures(void) {
@@ -268,24 +278,47 @@ static void dd_ffe_clear_exposures(void) {
     DDTRACE_G(ffe_exposures_dropped) = 0;
 }
 
-void ddtrace_ffe_record_exposure(
+int ddtrace_ffe_record_exposure(
     zend_string *flag_key,
     zend_string *targeting_key,
     zend_string *subject_attributes_json,
     zend_string *allocation_key,
     zend_string *variant,
     int32_t serial_id,
-    bool has_serial_id
+    bool has_serial_id,
+    zend_string *features_json
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
         LOG(DEBUG, "Feature Flags: exposure suppressed; missing flag key or variant");
-        return;
+        return -1;
+    }
+
+    ddog_FfeExposureKey key = {
+        .scope = dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()),
+        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
+        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
+        .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
+        .flag_key = dd_zend_string_to_CharSlice(flag_key),
+        .subject_id = dd_zend_string_to_CharSlice(targeting_key),
+        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
+        .variant = dd_zend_string_to_CharSlice(variant),
+        .serial_id = serial_id,
+        .has_serial_id = has_serial_id,
+    };
+    if (!ddog_ffe_exposure_cache_record(&key)) {
+        LOG(DEBUG, "Feature Flags: exposure not queued; subject already exposed to this allocation, variant and serial id");
+        return 0;
+    }
+
+    if (!get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED()) {
+        LOG(DEBUG, "Feature Flags: exposure not queued; DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false");
+        return 1;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
         // Reported once per flush rather than per dropped exposure.
         DDTRACE_G(ffe_exposures_dropped)++;
-        return;
+        return 1;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) == DDTRACE_G(ffe_exposure_buffer_cap)) {
@@ -312,7 +345,9 @@ void ddtrace_ffe_record_exposure(
     exposure->variant = zend_string_copy(variant);
     exposure->serial_id = serial_id;
     exposure->has_serial_id = has_serial_id;
+    exposure->features_json = features_json ? zend_string_copy(features_json) : NULL;
     LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu); delivery awaits sidecar handoff", DDTRACE_G(ffe_exposure_buffer_len));
+    return 1;
 }
 
 bool ddtrace_ffe_flush_exposures(void) {
@@ -350,6 +385,7 @@ bool ddtrace_ffe_flush_exposures(void) {
             .variant = dd_zend_string_to_CharSlice(buffer[i].variant),
             .serial_id = buffer[i].serial_id,
             .has_serial_id = buffer[i].has_serial_id,
+            .features_json = dd_zend_string_to_CharSlice(buffer[i].features_json),
         };
     }
 
@@ -363,22 +399,28 @@ bool ddtrace_ffe_flush_exposures(void) {
         .len = exposure_count,
     };
 
-    bool flushed = datadog_ffi_try(
-        "Failed sending FFE exposure batch to sidecar",
-        ddog_sidecar_send_ffe_exposure_batch(
-            &DATADOG_G(sidecar),
-            &context,
-            exposure_slice));
+    ddog_MaybeError sent = ddog_sidecar_send_ffe_exposure_batch(
+        &DATADOG_G(sidecar),
+        &context,
+        exposure_slice);
 
-    // A successful IPC handoff is not confirmation of delivery to intake.
-    // datadog_ffi_try already logs the failure reason.
-    if (flushed) {
-        LOG(DEBUG, "Feature Flags: handed off %zu exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher", exposure_count);
+    // A successful IPC handoff is not confirmation of delivery to intake. The
+    // batch send reports only exposures it dropped for not fitting one IPC
+    // message; it still sent the others.
+    if (sent.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+        static _Atomic(int64_t) warned = 0;
+        ddog_CharSlice error = ddog_Error_message(&sent.some);
+        if (!atomic_exchange(&warned, 1)) {
+            LOG(WARN, "Feature Flags: %.*s; later occurrences are logged at debug level", (int) error.len, error.ptr);
+        } else {
+            LOG(DEBUG, "Feature Flags: %.*s", (int) error.len, error.ptr);
+        }
+        ddog_MaybeError_drop(sent);
     } else {
-        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); sidecar handoff failed and is not retried", exposure_count);
+        LOG(DEBUG, "Feature Flags: handed off %zu exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher", exposure_count);
     }
 
     efree(ffi_exposures);
     dd_ffe_clear_exposures();
-    return flushed;
+    return true;
 }

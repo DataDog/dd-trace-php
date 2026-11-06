@@ -68,6 +68,10 @@ namespace DDTrace {
         public bool $doLog = false;
         public bool $observeFullEvaluationData = false;
         public ?int $serialId = null;
+        /** @var array<int, array{key: string, value: string|float|bool, destinations: string[]}> */
+        public array $features = [];
+        /** Null when the evaluation did not record an exposure. */
+        public ?bool $exposureCacheHit = null;
         public array $providerState = [];
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;
@@ -904,11 +908,12 @@ namespace DDTrace {
      * @param int $expectedType One of the DDTrace\FFE_* constants.
      * @param string|null $targetingKey The targeting key for evaluation context.
      * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
+     * @param bool $recordExposure Whether to record the exposure now, rather than through record_ffe_exposure().
      * @return FfeResult|null Object with the native evaluation result fields. Null only if evaluation engine is unavailable.
      *
      * @internal Used by the Datadog feature flag client.
      */
-    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true): ?FfeResult {}
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true, bool $recordExposure = true): ?FfeResult {}
 
     /**
      * Check if FFE (Feature Flag Evaluation) configuration is loaded.
@@ -1094,8 +1099,17 @@ namespace DDTrace\Internal {
      */
     function flush_ffe_evaluation_metrics(): bool {}
 
+    /**
+     * Record an exposure in the process exposure cache and, when it is new or
+     * changed, queue it for Datadog with its EXPOSURE features.
+     *
+     * @internal
+     * @return bool|null False for a repeated exposure, null when nothing was recorded.
+     */
+    function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId = null, array $features = []): ?bool {}
+
     /** @internal Submit one final evaluation without waiting or reconnecting. */
-    function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData, int $evaluationTimestampMs, bool $targetingKeyInvalid = false): bool {}
+    function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData, int $evaluationTimestampMs, bool $targetingKeyInvalid = false, array $features = []): bool {}
 
     /**
      * Set a Data Streams Monitoring checkpoint, for an integration to call where a message

@@ -1906,6 +1906,96 @@ static void ddtrace_ffe_update_empty_array_property(zval *object, const char *na
     zval_ptr_dtor(&property_value);
 }
 
+static zend_string *ddtrace_ffe_char_slice_to_string(ddog_CharSlice slice) {
+    return zend_string_init(slice.ptr ? slice.ptr : "", slice.len, 0);
+}
+
+// A flat JSON object of key => scalar, or NULL when the map is empty.
+static zend_string *ddtrace_ffe_features_json(HashTable *features) {
+    if (!features || zend_hash_num_elements(features) == 0) {
+        return NULL;
+    }
+    zval object;
+    ZVAL_ARR(&object, features);
+    smart_str buf = {0};
+    zai_json_encode(&buf, &object, PHP_JSON_UNESCAPED_SLASHES | PHP_JSON_FORCE_OBJECT | PHP_JSON_PRESERVE_ZERO_FRACTION);
+    if (!buf.s) {
+        return NULL;
+    }
+    smart_str_0(&buf);
+    return smart_str_extract(&buf);
+}
+
+static zend_string *ddtrace_ffe_exposure_features_json(struct ddog_FfeFeatures *features) {
+    if (!features) {
+        return NULL;
+    }
+    zval map;
+    size_t count = ddog_ffe_features_count(features);
+    array_init(&map);
+    for (size_t i = 0; i < count; i++) {
+        struct ddog_FfeFeature feature = ddog_ffe_features_get(features, i);
+        for (size_t d = 0; d < feature.destinations_count; d++) {
+            ddog_CharSlice destination = ddog_ffe_features_destination(features, i, d);
+            if (destination.len != sizeof("EXPOSURE") - 1 || memcmp(destination.ptr, "EXPOSURE", destination.len) != 0) {
+                continue;
+            }
+            zval value;
+            switch (feature.value_type) {
+                case 1:
+                    ZVAL_DOUBLE(&value, feature.number_value);
+                    break;
+                case 2:
+                    ZVAL_BOOL(&value, feature.bool_value);
+                    break;
+                default:
+                    ZVAL_STR(&value, ddtrace_ffe_char_slice_to_string(feature.string_value));
+                    break;
+            }
+            zend_symtable_str_update(Z_ARRVAL(map), feature.key.ptr ? feature.key.ptr : "", feature.key.len, &value);
+            break;
+        }
+    }
+    zend_string *json = ddtrace_ffe_features_json(Z_ARRVAL(map));
+    zval_ptr_dtor(&map);
+    return json;
+}
+
+// One entry per feature: key, typed value and destinations, in UFC order.
+static void ddtrace_ffe_update_features_property(zval *object, struct ddog_FfeFeatures *features) {
+    zval list;
+    size_t count = ddog_ffe_features_count(features);
+
+    array_init_size(&list, count);
+    for (size_t i = 0; i < count; i++) {
+        struct ddog_FfeFeature feature = ddog_ffe_features_get(features, i);
+        zval entry, value, destinations;
+
+        switch (feature.value_type) {
+            case 1:
+                ZVAL_DOUBLE(&value, feature.number_value);
+                break;
+            case 2:
+                ZVAL_BOOL(&value, feature.bool_value);
+                break;
+            default:
+                ZVAL_STR(&value, ddtrace_ffe_char_slice_to_string(feature.string_value));
+                break;
+        }
+        array_init_size(&destinations, feature.destinations_count);
+        for (size_t d = 0; d < feature.destinations_count; d++) {
+            add_next_index_str(&destinations, ddtrace_ffe_char_slice_to_string(ddog_ffe_features_destination(features, i, d)));
+        }
+        array_init_size(&entry, 3);
+        add_assoc_str(&entry, "key", ddtrace_ffe_char_slice_to_string(feature.key));
+        add_assoc_zval(&entry, "value", &value);
+        add_assoc_zval(&entry, "destinations", &destinations);
+        add_next_index_zval(&list, &entry);
+    }
+    ddtrace_ffe_update_property(object, ZEND_STRL("features"), &list);
+    zval_ptr_dtor(&list);
+}
+
 PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zend_string *flag_key;
     zend_long type_id_zl;
@@ -1922,17 +2012,20 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zval *value;
     struct ddog_FfeResult result;
     zend_bool record_metric = true;
+    zend_bool record_exposure = true;
+    int exposure = -1;
     zend_string *value_json;
     zend_string *variant;
     zend_string *allocation_key;
 
-    ZEND_PARSE_PARAMETERS_START(4, 5)
+    ZEND_PARSE_PARAMETERS_START(4, 6)
         Z_PARAM_STR(flag_key)
         Z_PARAM_LONG(type_id_zl)
         Z_PARAM_STR_OR_NULL(targeting_key)
         Z_PARAM_ARRAY(attrs_zv)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(record_metric)
+        Z_PARAM_BOOL(record_exposure)
     ZEND_PARSE_PARAMETERS_END();
 
     if (!get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
@@ -2033,19 +2126,25 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             result.error_code);
     }
 
-    if (result.do_log && allocation_key && variant) {
+    // The OpenFeature provider records the exposure once its hooks have run.
+    if (record_exposure && result.do_log && allocation_key && variant) {
         zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
-        ddtrace_ffe_record_exposure(
+        zend_string *features_json = ddtrace_ffe_exposure_features_json(result.features);
+        exposure = ddtrace_ffe_record_exposure(
             flag_key,
             targeting_key,
             subject_attributes_json,
             allocation_key,
             variant,
             result.serial_id,
-            result.has_serial_id
+            result.has_serial_id,
+            features_json
         );
         zend_string_release(subject_attributes_json);
-    } else {
+        if (features_json) {
+            zend_string_release(features_json);
+        }
+    } else if (record_exposure) {
         LOG(DEBUG, "Feature Flags: exposure suppressed; %s",
             !result.do_log ? "evaluation doLog=false (see native evaluation reason/error)" : "missing allocation key or variant");
     }
@@ -2068,6 +2167,16 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
     }
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
+    if (exposure >= 0) {
+        ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("exposureCacheHit"), exposure == 0);
+    }
+    // PHP 7 drops array defaults of internal class properties, so set it here.
+    if (result.features) {
+        ddtrace_ffe_update_features_property(return_value, result.features);
+        ddog_ffe_features_drop(result.features);
+    } else {
+        ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("features"));
+    }
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
@@ -3069,7 +3178,8 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
     zend_bool runtime_default_used, observe_full_evaluation_data;
     zend_long evaluation_timestamp_ms;
     zend_bool targeting_key_invalid = false;
-    ZEND_PARSE_PARAMETERS_START(9, 10)
+    HashTable *features = NULL;
+    ZEND_PARSE_PARAMETERS_START(9, 11)
         Z_PARAM_STR(flag_key)
         Z_PARAM_STR_OR_NULL(variant)
         Z_PARAM_STR_OR_NULL(allocation_key)
@@ -3081,10 +3191,47 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
         Z_PARAM_LONG(evaluation_timestamp_ms)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(targeting_key_invalid)
+        Z_PARAM_ARRAY_HT(features)
     ZEND_PARSE_PARAMETERS_END();
-    RETURN_BOOL(ddtrace_ffe_record_flag_evaluation(flag_key, variant, allocation_key,
+    zend_string *features_json = ddtrace_ffe_features_json(features);
+    bool recorded = ddtrace_ffe_record_flag_evaluation(flag_key, variant, allocation_key,
         targeting_key, attributes, error_type, runtime_default_used, observe_full_evaluation_data,
-        evaluation_timestamp_ms, targeting_key_invalid));
+        evaluation_timestamp_ms, targeting_key_invalid, features_json);
+    if (features_json) {
+        zend_string_release(features_json);
+    }
+    RETURN_BOOL(recorded);
+}
+
+PHP_FUNCTION(DDTrace_Internal_record_ffe_exposure) {
+    zend_string *flag_key, *targeting_key = NULL, *allocation_key, *variant;
+    zval *attributes;
+    zend_long serial_id = 0;
+    zend_bool serial_id_is_null = true;
+    HashTable *features = NULL;
+    ZEND_PARSE_PARAMETERS_START(5, 7)
+        Z_PARAM_STR(flag_key)
+        Z_PARAM_STR_OR_NULL(targeting_key)
+        Z_PARAM_ARRAY(attributes)
+        Z_PARAM_STR(allocation_key)
+        Z_PARAM_STR(variant)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG_EX(serial_id, serial_id_is_null, 1, 0)
+        Z_PARAM_ARRAY_HT(features)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attributes);
+    zend_string *features_json = ddtrace_ffe_features_json(features);
+    int exposure = ddtrace_ffe_record_exposure(flag_key, targeting_key, subject_attributes_json,
+        allocation_key, variant, (int32_t) serial_id, !serial_id_is_null, features_json);
+    zend_string_release(subject_attributes_json);
+    if (features_json) {
+        zend_string_release(features_json);
+    }
+    if (exposure < 0) {
+        RETURN_NULL();
+    }
+    RETURN_BOOL(exposure == 1);
 }
 
 PHP_FUNCTION(DDTrace_Internal_dsm_set_checkpoint) {

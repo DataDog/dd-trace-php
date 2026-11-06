@@ -169,6 +169,7 @@
     CONFIG(INT, DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT, "100", .ini_change = ddtrace_alter_stats_additional_tags) \
     CONFIG(BOOL, DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED, "false")                                           \
     CONFIG(BOOL, DD_FLAGGING_EVALUATION_COUNTS_ENABLED, "true")                                                \
+    CONFIG(BOOL, DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED, "true")                                   \
     DD_INTEGRATIONS
 
 #ifndef DDTRACE_CONFIGURATION

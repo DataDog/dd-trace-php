@@ -319,11 +319,16 @@ ddog_MaybeError ddog_sidecar_session_set_evp_transport(struct ddog_SidecarTransp
  * Send structured Feature Flags exposure events to the sidecar. The sidecar owns
  * route selection, deduplication, JSON serialization, and EVP delivery. This
  * function is caller-driven; shared libdatadog evaluator calls do not log unless
- * an SDK explicitly sends this action.
+ * an SDK explicitly sends this action. A batch larger than one IPC message is
+ * sent in several messages. An exposure that does not fit one message on its
+ * own is dropped, the others are sent, and the returned error says how many
+ * were dropped. Other send failures are not reported.
  *
  * # Safety
- * `context` and every element in `exposures` must contain valid UTF-8
- * `CharSlice` values. Empty `exposures` is a no-op.
+ * All slices must reference valid memory under the CharSlice contract. The
+ * context and the required exposure fields must be UTF-8. Invalid
+ * `features_json` is allowed and only omits the features. Empty `exposures`
+ * is a no-op.
  */
 ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTransport **transport,
                                                      const struct ddog_FfeTelemetryContext *context,
@@ -333,12 +338,14 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
  * Send structured Feature Flags evaluation events to the sidecar. The sidecar owns
  * route selection, JSON serialization, and EVP delivery. This function is
  * caller-driven; callers must aggregate and bound event cardinality before passing
- * a batch.
+ * a batch. Batches are split and oversized events reported as for
+ * `ddog_sidecar_send_ffe_exposure_batch`.
  *
  * # Safety
  * All slices must reference valid memory under the CharSlice contract. Context
  * metadata and flag keys must be UTF-8. Malformed optional variant, allocation,
- * rule, targeting, and context text is omitted; malformed error text becomes GENERAL.
+ * rule, targeting, context and `features_json` text is omitted; malformed error
+ * text becomes GENERAL.
  * A null/zero targeting slice means missing; a non-null empty slice means empty.
  * Empty `flag_evaluations` is a no-op. Use headers and library from the same build.
  */
@@ -541,7 +548,8 @@ void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
  * rejected observations are not retained. `Accepted` is not a delivery guarantee.
  * Oversized observations are retried once without targeting key or event context;
  * a successfully accepted reduced observation also returns `Accepted`. Required
- * metadata and optional flag dimensions must still fit the IPC packet limit.
+ * metadata, optional flag dimensions and features must still fit the IPC packet
+ * limit.
  * The sidecar owns hashing, aggregation, final EVP encoding and HTTP delivery.
  *
  * Context comes exclusively from `attributes`; `evaluation_context_json` is
