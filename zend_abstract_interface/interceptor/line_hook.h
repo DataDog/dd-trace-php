@@ -5,22 +5,15 @@
 #include <Zend/zend_types.h>
 #include <Zend/zend_vm.h>
 #include <stdbool.h>
+#include <hook/table.h>
 
 /* PHP < 7.2 exposes only the compile-time VM kind. */
 #if PHP_VERSION_ID < 70200
 # define zend_vm_kind() ZEND_VM_KIND
 #endif
 
-/* Bijective mixing spreads aligned opcode pointers across Zend numeric hash buckets on supported 64-bit builds.
-   Store the raw pointer in the record; the mixed key is not an address. */
 static zend_always_inline zend_ulong zai_line_hook_opline_key(const zend_op *opline) {
-    zend_ulong key = (zend_ulong)(uintptr_t)opline;
-    key ^= key >> 33;
-    key *= 0xff51afd7ed558ccdULL;
-    key ^= key >> 29;
-    key *= 0xc4ceb9fe1a85ec53ULL;
-    key ^= key >> 32;
-    return key;
+    return zai_hook_table_pointer_key(opline);
 }
 
 /* Runs before an armed instruction. Use the supplied opline; a VM with global registers may not have synchronized EX(opline).
