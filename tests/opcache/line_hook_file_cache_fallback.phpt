@@ -8,7 +8,7 @@ Page permissions are now decided by asking whether the page is already writable,
 --SKIPIF--
 <?php
 if (!extension_loaded('Zend OPcache')) die('skip: Zend OPcache is required');
-if (PHP_OS_FAMILY !== 'Linux') die('skip: needs /proc/self/maps to classify page permissions');
+if (PHP_OS !== 'Linux') die('skip: needs /proc/self/maps to classify page permissions');
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0

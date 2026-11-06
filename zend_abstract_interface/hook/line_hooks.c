@@ -1317,7 +1317,18 @@ static bool zai_line_resolve_preloaded(zai_line_def *def, HashTable *by_file, bo
 }
 #endif
 
-/* Resolve through the filename location map and live file scopes; extra is a newly compiled file scope.
+typedef struct {
+    zai_line_def *def;
+    HashTable *by_file;
+    bool arm;
+} zai_line_location_context;
+
+static bool zai_line_resolve_location(zend_op_array *op_array, void *context) {
+    zai_line_location_context *ctx = context;
+    return zai_line_resolve_op_array(ctx->def, op_array, ctx->by_file, ctx->arm);
+}
+
+/* Resolve through the declaration registry and live file scopes; extra is a newly compiled file scope.
    PHP 7's compile-time table delta includes runtime-key declarations.
    PHP 8 supplements top-level observers by traversing nested closures and classes.
    Preloaded declarations use a separate file index; PHP 8.0 also needs the symbol-table fallback. */
@@ -1334,18 +1345,9 @@ static bool zai_line_resolve_pass(zai_line_def *def, zend_op_array *extra, HashT
         }
     }
 
-    /* The resolver's compile hooks populate the location map before this outer hook re-resolves the file. */
-    zend_string *filename;
-    zai_function_location_entry *entry;
-    ZEND_HASH_FOREACH_STR_KEY_PTR(zai_hook_function_location_map(), filename, entry) {
-        if (!filename || !zai_hook_match_filepath_ci(filename, def->file)) {
-            continue;
-        }
-        for (uint32_t i = 0; i < entry->size; ++i) {
-            armed |= zai_line_resolve_op_array(def, &entry->functions[i]->op_array, by_file, arm);
-        }
-    }
-    ZEND_HASH_FOREACH_END();
+    /* Compile/link observers register declarations before this outer hook re-resolves the file. */
+    zai_line_location_context context = {def, by_file, arm};
+    armed |= zai_hook_visit_function_locations(def->file, zai_line_resolve_location, &context);
 
 #if PHP_VERSION_ID >= 70400
     /* Always include preloaded files.
