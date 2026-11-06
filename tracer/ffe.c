@@ -11,8 +11,12 @@
 #include <ext/ffi_utils.h>
 #include <ext/sidecar.h>
 #include <php.h>
-#include <stdatomic.h>
 #include <string.h>
+#ifndef _WIN32
+#include <stdatomic.h>
+#else
+#include <components/atomic_win32_polyfill.h>
+#endif
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
@@ -404,9 +408,9 @@ bool ddtrace_ffe_flush_exposures(void) {
     // batch send reports only exposures it dropped for not fitting one IPC
     // message; it still sent the others.
     if (sent.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        static atomic_bool warned = false;
+        static _Atomic(int64_t) warned = 0;
         ddog_CharSlice error = ddog_Error_message(&sent.some);
-        if (!atomic_exchange(&warned, true)) {
+        if (!atomic_exchange(&warned, 1)) {
             LOG(WARN, "Feature Flags: %.*s; later occurrences are logged at debug level", (int) error.len, error.ptr);
         } else {
             LOG(DEBUG, "Feature Flags: %.*s", (int) error.len, error.ptr);
