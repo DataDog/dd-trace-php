@@ -14,6 +14,7 @@
 #include <ext/zend_hrtime.h>
 #include <ext/standard/php_string.h>
 #include <php.h>
+#include <stdatomic.h>
 #include <string.h>
 
 #ifndef _WIN32
@@ -628,22 +629,28 @@ bool ddtrace_ffe_flush_exposures(void) {
         .len = exposure_count,
     };
 
-    bool flushed = datadog_ffi_try(
-        "Failed sending FFE exposure batch to sidecar",
-        ddog_sidecar_send_ffe_exposure_batch(
-            &DATADOG_G(sidecar),
-            &context,
-            exposure_slice));
+    ddog_MaybeError sent = ddog_sidecar_send_ffe_exposure_batch(
+        &DATADOG_G(sidecar),
+        &context,
+        exposure_slice);
 
-    // A successful IPC handoff is not confirmation of delivery to intake.
-    // datadog_ffi_try already logs the failure reason.
-    if (flushed) {
-        LOG(DEBUG, "Feature Flags: handed off %zu exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher", exposure_count);
+    // A successful IPC handoff is not confirmation of delivery to intake. The
+    // batch send reports only exposures it dropped for not fitting one IPC
+    // message; it still sent the others.
+    if (sent.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+        static atomic_bool warned = false;
+        ddog_CharSlice error = ddog_Error_message(&sent.some);
+        if (!atomic_exchange(&warned, true)) {
+            LOG(WARN, "Feature Flags: %.*s; later occurrences are logged at debug level", (int) error.len, error.ptr);
+        } else {
+            LOG(DEBUG, "Feature Flags: %.*s", (int) error.len, error.ptr);
+        }
+        ddog_MaybeError_drop(sent);
     } else {
-        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); sidecar handoff failed and is not retried", exposure_count);
+        LOG(DEBUG, "Feature Flags: handed off %zu exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher", exposure_count);
     }
 
     efree(ffi_exposures);
     dd_ffe_clear_exposures();
-    return flushed;
+    return true;
 }
