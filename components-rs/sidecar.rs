@@ -339,6 +339,10 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
 /// The fd of the transport's current connection; it changes on reconnect.
 #[cfg(unix)]
 #[no_mangle]
+#[allow(
+    clippy::borrowed_box,
+    reason = "C ABI takes a pointer to the transport handle"
+)]
 pub extern "C" fn ddog_sidecar_transport_raw_fd(transport: &Box<SidecarTransport>) -> i32 {
     transport.as_raw_fd()
 }
