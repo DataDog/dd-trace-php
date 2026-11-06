@@ -60,16 +60,21 @@ abstract class Integration implements \DDTrace\Integration
             if (PHP_VERSION_ID >= 70200) {
                 $object_id = spl_object_id($value);
             } else {
+                // Unreachable on PHP >= 7.2 (see guard above); spl_object_hash() is only
+                // called here as a PHP < 7.2 polyfill for spl_object_id(), which does not
+                // exist before 7.2. Generic.PHP.DeprecatedFunctions cannot see the
+                // PHP_VERSION_ID guard, so the two calls below are scoped-suppressed
+                // rather than dropped, since they are still required on PHP 7.0/7.1.
                 static $object_base_hash;
                 if ($object_base_hash === null) {
                     ob_start();
                     $class = new \stdClass();
-                    $hash = spl_object_hash($class);
+                    $hash = spl_object_hash($class); // phpcs:ignore Generic.PHP.DeprecatedFunctions -- PHP < 7.2 only, see comment above
                     var_dump($class);
                     preg_match('(#\K\d+)', ob_get_clean(), $m);
                     $object_base_hash = hexdec(substr($hash, 0, 16)) ^ $m[0];
                 }
-                $object_id = $object_base_hash ^ hexdec(substr(spl_object_hash($value), 0, 16));
+                $object_id = $object_base_hash ^ hexdec(substr(spl_object_hash($value), 0, 16)); // phpcs:ignore Generic.PHP.DeprecatedFunctions -- PHP < 7.2 only, see comment above
             }
             return "object(" . get_class($value) . ")#$object_id";
         }
