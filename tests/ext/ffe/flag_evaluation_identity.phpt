@@ -1,5 +1,5 @@
 --TEST--
-FFE evaluations remain deliverable without application identity pending sidecar attribution
+FFE evaluations inherit default and updated application identity from the sidecar
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
@@ -45,11 +45,15 @@ try {
             }
             if (strpos($request, '/flagevaluation ') !== false) {
                 $payload = json_decode($body, true);
-                // FFL-3438/FFL-3439 will replace these temporary expectations
-                // with identity supplied by the sidecar before aggregation.
+                $context = $payload['context'];
+                ksort($context);
                 foreach ($payload['flagEvaluations'] as $row) {
-                    $contexts[$row['flag']['key']] = $payload['context'] === array()
-                        && !isset($row['context']['dd']) && $row['evaluation_count'] === 1;
+                    $expectedContext = $row['flag']['key'] === 'configured'
+                        ? array('env' => 'changed-env', 'service' => 'changed-service', 'version' => 'changed-version')
+                        : array('env' => 'none', 'service' => 'flag_evaluation_identity_app.php');
+                    $contexts[$row['flag']['key']] = $context === $expectedContext
+                        && isset($row['context']['dd']) && $row['context']['dd'] === array('service' => $expectedContext['service'])
+                        && $row['evaluation_count'] === 1;
                 }
             }
             fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");

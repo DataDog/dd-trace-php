@@ -326,7 +326,7 @@ fn evaluate_with_dependencies(
         let state = state.borrow();
         let evaluation = match state.config.as_ref() {
             Some(config) => config.eval_flag_with_trace(flag_key, &context, expected_type, ffe::now(), ffe::EvaluationOptions::default()),
-            None => ffe::EvaluationResult { result: Err(EvaluationError::ConfigurationMissing), evaluations: Vec::new() },
+            None => ffe::EvaluationResult::from_error(EvaluationError::ConfigurationMissing),
         };
         let assignment = evaluation.result;
         if let Err(error) = &assignment {

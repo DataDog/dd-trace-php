@@ -97,9 +97,7 @@ static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureVa
     if (!value->not_captured_reason.len) {
         value->value = (ddog_CharSlice) {.ptr = ZSTR_VAL(str), .len = ZSTR_LEN(str)};
         if (value->value.len > config->max_length) {
-            char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 20);
-            int len = sprintf(integer, "%" PRIuPTR, value->value.len);
-            value->size = (ddog_CharSlice) {.ptr = integer, .len = len};
+            value->size = value->value.len;
             value->value.len = config->max_length;
             value->truncated = true;
         }

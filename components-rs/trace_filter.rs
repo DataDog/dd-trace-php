@@ -14,7 +14,8 @@
 //! case).  `ddog_check_stats_trace_filter` returns `true` immediately in that case.
 
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
-use libdd_trace_utils::trace_filter::{Span as TraceFilterSpan, TraceFilterer};
+use libdd_trace_model::{Attributes, Span as TraceFilterSpan, StringData};
+use libdd_trace_utils::trace_filter::TraceFilterer;
 use std::ffi::{c_char, c_void};
 use std::sync::{LazyLock, RwLock};
 
@@ -74,13 +75,16 @@ struct Span<'a> {
     lookup_fn: RootTagLookupFn,
 }
 
-impl<'a> TraceFilterSpan<'a> for Span<'a> {
-    fn resource_normalized(&'a self) -> &'a str {
-        // Resource has been normalized on the C side before calling ddog_check_stats_trace_filter
-        self.resource_str
+impl Attributes for Span<'_> {
+    type Text = String;
+    type Bytes = Vec<u8>;
+    type Values = StringData;
+
+    fn attribute_f64(&self, _key: &str) -> Option<f64> {
+        None
     }
 
-    fn get_meta(&'a self, key: &str) -> Option<&'a str> {
+    fn attribute_str(&self, key: &str) -> Option<&str> {
         unsafe {
             let mut vlen: usize = 0;
             let vptr = (self.lookup_fn)(
@@ -98,6 +102,66 @@ impl<'a> TraceFilterSpan<'a> for Span<'a> {
                 )))
             }
         }
+    }
+}
+
+// This view is used only by TraceFilterer. The C caller supplies a normalized
+// resource and string-tag lookup; unrelated span fields have no data in this view.
+impl TraceFilterSpan for Span<'_> {
+    type SpanEvent = libdd_trace_protobuf::pb::SpanEvent;
+    type SpanLink = libdd_trace_protobuf::pb::SpanLink;
+
+    fn resource(&self) -> &str {
+        self.resource_str
+    }
+
+    fn service(&self) -> &str {
+        ""
+    }
+    fn name(&self) -> &str {
+        ""
+    }
+    fn typ(&self) -> &str {
+        ""
+    }
+    fn span_id(&self) -> u64 {
+        0
+    }
+    fn parent_id(&self) -> u64 {
+        0
+    }
+    fn start(&self) -> i64 {
+        0
+    }
+    fn duration(&self) -> i64 {
+        0
+    }
+    fn is_error(&self) -> bool {
+        false
+    }
+
+    fn span_kind(&self) -> Option<&str> {
+        self.attribute_str(libdd_trace_model::SPAN_KIND_KEY)
+    }
+
+    fn env(&self) -> Option<&str> {
+        self.attribute_str(libdd_trace_model::ENV_KEY)
+    }
+
+    fn version(&self) -> Option<&str> {
+        self.attribute_str(libdd_trace_model::VERSION_KEY)
+    }
+
+    fn component(&self) -> Option<&str> {
+        self.attribute_str(libdd_trace_model::COMPONENT_KEY)
+    }
+
+    fn span_events(&self) -> impl Iterator<Item = &Self::SpanEvent> {
+        std::iter::empty()
+    }
+
+    fn span_links(&self) -> impl Iterator<Item = &Self::SpanLink> {
+        std::iter::empty()
     }
 }
 
@@ -128,4 +192,73 @@ pub unsafe extern "C" fn ddog_check_stats_trace_filter(
         root_span,
         lookup_fn,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    unsafe extern "C" fn lookup_tag(
+        context: *const c_void,
+        key: *const c_char,
+        key_len: usize,
+        value_len: *mut usize,
+    ) -> *const c_char {
+        // The synchronous test call keeps the immutable map and its strings alive.
+        let tags = unsafe { &*context.cast::<HashMap<&str, &str>>() };
+        let key = unsafe { std::slice::from_raw_parts(key.cast::<u8>(), key_len) };
+        let Some(value) = tags.get(std::str::from_utf8(key).unwrap()) else {
+            return std::ptr::null();
+        };
+        unsafe { *value_len = value.len() };
+        value.as_ptr().cast()
+    }
+
+    #[test]
+    fn callback_view_preserves_resource_tag_and_promoted_tag_filters() {
+        let filter = compile_trace_filter(
+            &[
+                "env:prod".into(),
+                "component:web".into(),
+                "version:1".into(),
+                "span.kind:server".into(),
+            ],
+            &["blocked:yes".into()],
+            &["http.method:^GET$".into()],
+            &["http.route:^/private".into()],
+            &["^GET /health$".into()],
+        )
+        .unwrap();
+        let base = HashMap::from([
+            ("env", "PROD"),
+            ("component", "web"),
+            ("version", "1"),
+            ("span.kind", "server"),
+            ("http.method", "GET"),
+        ]);
+        let dropped = |resource, tags: &HashMap<&str, &str>| {
+            filter.should_drop(&Span {
+                resource_str: resource,
+                root_span: std::ptr::from_ref(tags).cast(),
+                lookup_fn: lookup_tag,
+            })
+        };
+        assert!(!dropped("GET /api", &base));
+        assert!(!dropped("", &base));
+        assert!(dropped("GET /health", &base));
+        for (key, value) in [
+            ("blocked", "yes"),
+            ("http.method", "POST"),
+            ("http.route", "/private/data"),
+            ("env", "staging"),
+        ] {
+            let mut tags = base.clone();
+            tags.insert(key, value);
+            assert!(dropped("GET /api", &tags), "{key}={value}");
+        }
+        let mut tags = base;
+        tags.remove("component");
+        assert!(dropped("GET /api", &tags));
+    }
 }

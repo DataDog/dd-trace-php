@@ -606,6 +606,8 @@ typedef struct ddog_FfeAttribute {
   bool bool_value;
 } ddog_FfeAttribute;
 
+typedef void (*ddog_FfeDependencyCallback)(void*, ddog_CharSlice, struct ddog_FfeResult, bool);
+
 /**
  * Flags selecting which Remote Config products/capabilities to subscribe to.
  *
@@ -801,9 +803,6 @@ typedef struct ddog_Probe {
 } ddog_Probe;
 
 typedef struct ddog_LiveDebuggerCallbacks {
-  /**
-   * Returns 0 on failure. Method probes return positive ids, line probes negative ones.
-   */
   int64_t (*set_probe)(struct ddog_Probe probe, const struct ddog_MaybeShmLimiter *limiter);
   void (*remove_probe)(int64_t id);
 } ddog_LiveDebuggerCallbacks;
@@ -1212,7 +1211,7 @@ typedef struct ddog_CaptureValue {
   bool is_null;
   bool truncated;
   ddog_CharSlice not_captured_reason;
-  ddog_CharSlice size;
+  uint64_t size;
 } ddog_CaptureValue;
 
 typedef struct ddog_OwnedCharSlice {

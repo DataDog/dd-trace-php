@@ -1002,7 +1002,7 @@ array(4) {
             ["localStr"]=>
             array(4) {
               ["size"]=>
-              string(3) "293"
+              int(293)
               ["truncated"]=>
               bool(true)
               ["type"]=>
