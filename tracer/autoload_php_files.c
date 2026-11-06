@@ -79,7 +79,13 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
         zend_op_array *new_op_array = compile_filename(ZEND_INCLUDE, file_value);
 
         if (new_op_array) {
+#if PHP_VERSION_ID >= 80000
+            uint32_t orig_jit_trace_num = EG(jit_trace_num);
+#endif
             zend_execute(new_op_array, result);
+#if PHP_VERSION_ID >= 80000
+            EG(jit_trace_num) = orig_jit_trace_num;
+#endif
 
             destroy_op_array(new_op_array);
             efree(new_op_array);
