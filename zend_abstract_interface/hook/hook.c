@@ -696,7 +696,8 @@ static void zai_function_location_destroy(zval *zv) {
 
 static inline zend_ulong zai_function_location_key(const zend_function *func) {
     /* The last closure copy can destroy code registered through its compiler-owned definition. */
-    return (zend_ulong)((func->common.fn_flags & ZEND_ACC_CLOSURE) ? (uintptr_t)func->op_array.opcodes : (uintptr_t)func);
+    return zai_hook_table_pointer_key((func->common.fn_flags & ZEND_ACC_CLOSURE)
+        ? (const void *)func->op_array.opcodes : (const void *)func);
 }
 
 static inline void zai_store_func_location(zend_function *func, zend_op_array *containing) {
