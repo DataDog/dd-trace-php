@@ -898,7 +898,15 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
     }
 #endif
 
-    if (closed_root_stack && get_DD_TRACE_AUTO_FLUSH_ENABLED()
+    // Do not auto-flush while PHP is still in request startup. In that state an
+    // unforced ddtrace_flush_tracer() drops the trace, to avoid traces of
+    // requests that ran no PHP code (#1327), and it consumes the closed spans
+    // while doing so. A forced flush that comes later, such as the one AppSec
+    // does when it blocks a request in RINIT (#1901), would then find nothing
+    // to send. Auto-flush should only change when traces are sent, never
+    // whether they are. If nothing forces a flush, the flush at the end of the
+    // request still drops these spans.
+    if (closed_root_stack && get_DD_TRACE_AUTO_FLUSH_ENABLED() && !PG(during_request_startup)
         && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES(), false) == FAILURE) {
         // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
         LOG(WARN, "Unable to auto flush the tracer");
