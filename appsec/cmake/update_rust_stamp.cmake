@@ -11,6 +11,7 @@ file(GLOB_RECURSE _sources
     "${LIBDATADOG}/Cargo.toml"
     "${LIBDATADOG}/Cargo.lock"
 )
+list(APPEND _sources "${COMPONENTS_RS}/../Cargo.lock")
 list(FILTER _sources EXCLUDE REGEX ".*/target/.*")
 set(_newest "")
 foreach(_src ${_sources})
