@@ -8,6 +8,7 @@
 #include "entity_body.h"
 #include "body_parser.h"
 #include "ddappsec.h"
+#include "dddefs.h"
 #include <ext/compatibility.h> // NOLINT (must come before entity_body_arginfo.h)
 #ifdef TESTING
 #include "entity_body_arginfo.h"
@@ -16,6 +17,7 @@
 #include "php_objects.h"
 #include "string_helpers.h"
 #include <SAPI.h>
+#include <ctype.h>
 #include <dlfcn.h>
 #include <ext/json/php_json.h>
 #include <limits.h>
@@ -43,6 +45,9 @@ static ddog_AppsecBodyMessagePack _convert_json(
 static ddog_AppsecBodyMessagePack _convert_xml(const char *nonnull entity,
     size_t entity_len, const char *nonnull content_type,
     size_t content_type_len);
+static bool _charset_is_utf8_compatible(const char *value, const char *end);
+static bool _charset_equals(const char *value, const char *end,
+    const char *nonnull name, size_t name_len);
 
 #define DEFAULT_MAX_BUF_SIZE (1024 * 512UL)
 
@@ -209,29 +214,93 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
     if (!psemi) {
         return true;
     }
-    for (const char *end = ct + ct_len, *c = psemi + 1;
-        (size_t)(end - c) >= LSTRLEN("charset=utf-8"); c++) {
-        if (tolower(*c) == 'c' && tolower(*(c + 1)) == 'h' &&
-            tolower(*(c + 2)) == 'a' && tolower(*(c + 3)) == 'r' &&
-            tolower(*(c + 4)) == 's' && tolower(*(c + 5)) == 'e' && // NOLINT
-            tolower(*(c + 6)) == 't') {                             // NOLINT
-            c += LSTRLEN("charset");
-            for (; c < end && *c == ' '; c++) {}
-            if (c < end && *c == '=') {
-                for (c++; (size_t)(end - c) > LSTRLEN("utf-8") && *c == ' ';
-                    c++) {}
-                if ((size_t)(end - c) >= LSTRLEN("utf-8") &&
-                    tolower(*c) == 'u' && tolower(*(c + 1)) == 't' &&
-                    tolower(*(c + 2)) == 'f' && *(c + 3) == '-' &&
-                    *(c + 4) == '8') {
-                    return true;
-                }
-                return false;
+    for (const char *end = ct + ct_len, *c = psemi + 1; c < end;) {
+        const char *name = c;
+        bool quoted = false;
+        // Only semicolons outside quoted strings separate parameters.
+        // Respect quoted-pairs so escaped quotes do not end the string.
+        while (c < end) {
+            if (quoted && *c == '\\' && c + 1 < end) {
+                c += 2;
+                continue;
             }
-            return true;
+            if (*c == '"') {
+                quoted = !quoted;
+            } else if (*c == ';' && !quoted) {
+                break;
+            }
+            c++;
+        }
+        const char *param_end = c;
+        if (c < end) {
+            c++;
+        }
+        const char *equal = memchr(name, '=', (size_t)(param_end - name));
+        if (!equal) {
+            continue;
+        }
+        const char *name_end = equal;
+        while (name < name_end && (*name == ' ' || *name == '\t')) { name++; }
+        while (
+            name_end > name && (name_end[-1] == ' ' || name_end[-1] == '\t')) {
+            name_end--;
+        }
+        if ((size_t)(name_end - name) == LSTRLEN("charset") &&
+            strncasecmp(name, LSTRARG("charset")) == 0) {
+            return _charset_is_utf8_compatible(equal + 1, param_end);
         }
     }
     return true;
+}
+
+static bool _charset_is_utf8_compatible(const char *value, const char *end)
+{
+    static const struct {
+        const char *name;
+        size_t len;
+    } charsets[] = {
+        {LSTRARG("utf-8")},
+        // US-ASCII text is also valid UTF-8 with the same meaning. The XML
+        // declaration, not this header, then decides how it is decoded.
+        {LSTRARG("us-ascii")},
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(charsets); i++) {
+        if (_charset_equals(value, end, charsets[i].name, charsets[i].len)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool _charset_equals(const char *value, const char *end,
+    const char *nonnull name, size_t name_len)
+{
+    while (value < end && (*value == ' ' || *value == '\t')) { value++; }
+    while (end > value && (end[-1] == ' ' || end[-1] == '\t')) { end--; }
+    bool quoted = value < end && *value == '"';
+    if (quoted) {
+        if (end - value < 2 || end[-1] != '"') {
+            return false;
+        }
+        value++;
+        end--;
+    }
+    for (size_t i = 0; i < name_len; i++) {
+        if (value == end) {
+            return false;
+        }
+        unsigned char ch = (unsigned char)*value++;
+        if (quoted && ch == '\\') {
+            if (value == end) {
+                return false;
+            }
+            ch = (unsigned char)*value++;
+        }
+        if (tolower(ch) != name[i]) {
+            return false;
+        }
+    }
+    return value == end;
 }
 
 enum { MAX_XML_DEPTH = 30 };
@@ -241,7 +310,8 @@ static ddog_AppsecBodyMessagePack _convert_xml(const char *nonnull entity,
 {
     bool is_utf8 = _assume_utf8(content_type, content_type_len);
     if (!is_utf8) {
-        mlog(dd_log_info, "Only UTF-8 is supported for XML parsing");
+        mlog(dd_log_info,
+            "Only UTF-8 and US-ASCII are supported for XML parsing");
         return (ddog_AppsecBodyMessagePack){
             .status = DDOG_APPSEC_BODY_STATUS_EMPTY};
     }
