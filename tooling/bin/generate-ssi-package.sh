@@ -32,6 +32,12 @@ function stripto() {
         arch_cmd_prefix="aarch64-linux-gnu-"
     fi
 
+    if [[ $source == ./ssi_* ]] && "${arch_cmd_prefix}objdump" -p "$source" | \
+        awk '$1 == "NEEDED" && $2 == "libdatadog_php.so" { found = 1 } END { exit !found }'; then
+        echo "SSI ddtrace.so must use the loader preload, not DT_NEEDED: $source" >&2
+        exit 1
+    fi
+
     "${arch_cmd_prefix}objcopy" --only-keep-debug --compress-debug-sections=zlib "$source" "${target}.debug"
     "${arch_cmd_prefix}strip" -o "$target" "$source"
     (
@@ -68,56 +74,51 @@ for architecture in "${architectures[@]}"; do
     # Products
     ########################
 
-    php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925)
+    php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925 20260924)
     for php_api in "${php_apis[@]}"; do
         ########################
         # Trace
         ########################
 
         mkdir -p ${gnu}/trace/ext/${php_api} ${musl}/trace/ext/${php_api}
-        # gnu
-        stripto ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
-        stripto ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
-        # musl
-        stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine.so ${musl}/trace/ext/${php_api}/ddtrace.so
-        stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
-
-        ########################
-        # Profiling
-        ########################
-
         if [[ ${php_api} -ge 20160303 ]]; then
-            mkdir -p ${gnu}/profiling/ext/${php_api} ${musl}/profiling/ext/${php_api}
-            # gnu
-            stripto ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling.so \
-                ${gnu}/profiling/ext/${php_api}/datadog-profiling.so
-            stripto ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling-zts.so \
-                ${gnu}/profiling/ext/${php_api}/datadog-profiling-zts.so
-            # musl
-            stripto ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling.so \
-                ${musl}/profiling/ext/${php_api}/datadog-profiling.so
-            stripto ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling-zts.so \
-                ${musl}/profiling/ext/${php_api}/datadog-profiling-zts.so
+            # SSI combined extensions import symbols from the common DSO via
+            # the loader preload; non-SSI extensions_* are self-contained.
+            stripto ./ssi_${architecture}/ddtrace-${php_api}.so \
+                ${gnu}/trace/ext/${php_api}/ddtrace.so
+            stripto ./ssi_${architecture}/ddtrace-${php_api}-zts.so \
+                ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
+            touch ${gnu}/trace/ext/${php_api}/.ddtrace.profiling
+            touch ${gnu}/trace/ext/${php_api}/.ddtrace-zts.profiling
+
+            stripto ./ssi_${architecture}/ddtrace-${php_api}-alpine.so \
+                ${musl}/trace/ext/${php_api}/ddtrace.so
+            stripto ./ssi_${architecture}/ddtrace-${php_api}-alpine-zts.so \
+                ${musl}/trace/ext/${php_api}/ddtrace-zts.so
+            touch ${musl}/trace/ext/${php_api}/.ddtrace.profiling
+            touch ${musl}/trace/ext/${php_api}/.ddtrace-zts.profiling
+        else
+            # PHP 7.0 has no profiler.
+            stripto ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
+            stripto ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
+            stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine.so ${musl}/trace/ext/${php_api}/ddtrace.so
+            stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
         fi
 
-        ########################
-        # AppSec
-        ########################
-
-        mkdir -p ${gnu}/appsec/ext/${php_api} ${musl}/appsec/ext/${php_api}
-        # gnu
-        stripto ./appsec_${architecture}/ddappsec-${php_api}.so ${gnu}/appsec/ext/${php_api}/ddappsec.so
-        stripto ./appsec_${architecture}/ddappsec-${php_api}-zts.so ${gnu}/appsec/ext/${php_api}/ddappsec-zts.so
-        # musl
-        stripto ./appsec_${architecture}/ddappsec-${php_api}-alpine.so ${musl}/appsec/ext/${php_api}/ddappsec.so
-        stripto ./appsec_${architecture}/ddappsec-${php_api}-alpine-zts.so ${musl}/appsec/ext/${php_api}/ddappsec-zts.so
+        # AppSec is compiled into every ddtrace.so, including PHP 7.0. The
+        # loader then does not inject a separate ddappsec.so.
+        for libc_root in "${gnu}" "${musl}"; do
+            touch "${libc_root}/trace/ext/${php_api}/.ddtrace.appsec"
+            touch "${libc_root}/trace/ext/${php_api}/.ddtrace-zts.appsec"
+        done
     done
 
-    # Trace
-    mkdir -p "${root}/trace"
+    # Trace and profiling licenses
+    mkdir -p "${root}/trace/profiling-licenses"
     cp -r ./src "${root}/trace/"
+    cp ./profiling/LICENSE* ./profiling/NOTICE "${root}/trace/profiling-licenses/"
 
-    # AppSec
+    # AppSec rules
     mkdir -p "${root}/appsec/etc"
     cp "./appsec/recommended.json" "${root}/appsec/etc/recommended.json"
 

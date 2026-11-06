@@ -1,7 +1,5 @@
 --TEST--
 convert_json function - special values
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 

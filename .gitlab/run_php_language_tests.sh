@@ -42,6 +42,20 @@ if (PHP_VERSION_ID >= 80300 && is_file($hard_timeout_test)) {
     }
 }
 
+// The tracing JIT (PHP 8.4+) can lose a register-allocated loop variable when
+// EG(vm_interrupt) is set mid-iteration, which the profiler does from its
+// sampling thread: https://github.com/php/php-src/pull/24610
+// Expected to be fixed in 8.4.28 and 8.5.13.
+$jit_interrupt_test = 'ext/opcache/tests/jit/gh20838.phpt';
+$jit_interrupt_affected = (PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80428)
+    || (PHP_VERSION_ID >= 80500 && PHP_VERSION_ID < 80513);
+if ($jit_interrupt_affected && is_file($jit_interrupt_test)) {
+    $contents = file_get_contents($jit_interrupt_test);
+    if (!preg_match('/^--FLAKY--\r?$/m', $contents)) {
+        file_put_contents($jit_interrupt_test, str_replace('--INI--', "--FLAKY--\nhttps://github.com/php/php-src/pull/24610\n--INI--", $contents));
+    }
+}
+
 $phar_gzip_test = 'ext/phar/tests/phar_gzip.phpt';
 if (PHP_VERSION_ID < 70400 && is_file($phar_gzip_test)) {
     // Backport the flaky mtime check removal: https://github.com/php/php-src/commit/228388447509107d61cb253acb614d8d3e5efabf

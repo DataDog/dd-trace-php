@@ -238,6 +238,20 @@ struct SchemaSamplerInner {
     _start_time: Instant,
 }
 
+impl Drop for SchemaSamplerInner {
+    fn drop(&mut self) {
+        // All readers and rebuild tasks hold a sampler owner, so the final
+        // table cannot still be in use when the inner Arc is destroyed.
+        unsafe {
+            drop(
+                self.table
+                    .load(Ordering::Relaxed, crossbeam_epoch::unprotected())
+                    .into_owned(),
+            );
+        }
+    }
+}
+
 struct Table {
     entries: [Entry; CAPACITY + 1],
     size: AtomicUsize,
@@ -343,9 +357,63 @@ struct EntryData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::AtomicU64;
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::sync::atomic::{AtomicPtr, AtomicU64};
     use std::thread;
     use std::time::Duration;
+
+    static WATCHED_TABLE: AtomicPtr<Table> = AtomicPtr::new(std::ptr::null_mut());
+
+    struct TableDeallocationTracker;
+
+    #[global_allocator]
+    static ALLOCATOR: TableDeallocationTracker = TableDeallocationTracker;
+
+    unsafe impl GlobalAlloc for TableDeallocationTracker {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            System.alloc(layout)
+        }
+
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            // Watch one allocation so parallel tests and deferred reclamation
+            // of other tables cannot affect the result.
+            let _ = WATCHED_TABLE.compare_exchange(
+                ptr.cast(),
+                std::ptr::null_mut(),
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            );
+            System.dealloc(ptr, layout);
+        }
+    }
+
+    #[test]
+    fn test_last_owner_frees_current_table() {
+        for rebuild in [false, true] {
+            let sampler = SchemaSampler::new(30);
+            if rebuild {
+                sampler.rebuild_table(0);
+            }
+            let clone = sampler.clone();
+            let table = sampler
+                .inner
+                .table
+                .load(Ordering::Relaxed, unsafe { crossbeam_epoch::unprotected() })
+                .as_raw()
+                .cast_mut();
+            WATCHED_TABLE.store(table, Ordering::Relaxed);
+
+            drop(sampler);
+            assert_eq!(WATCHED_TABLE.load(Ordering::Relaxed), table);
+            assert!(clone.should_sample(123));
+
+            drop(clone);
+            assert!(
+                WATCHED_TABLE.load(Ordering::Relaxed).is_null(),
+                "dropping the last sampler owner must free its current table"
+            );
+        }
+    }
 
     #[test]
     fn test_basic_hit_functionality() {

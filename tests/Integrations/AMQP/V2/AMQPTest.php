@@ -2,12 +2,16 @@
 
 namespace DDTrace\Tests\Integrations\AMQP\V2;
 
+use DDTrace\Integrations\AMQP\AMQPIntegration;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPDecimal;
+use PhpAmqpLib\Wire\AMQPTable;
+use PhpAmqpLib\Wire\AMQPWriter;
 
 class AMQPTest extends IntegrationTestCase
 {
@@ -1123,5 +1127,396 @@ class AMQPTest extends IntegrationTestCase
                 Tag::MQ_OPERATION               => 'send',
             ])
         ]);
+    }
+
+    protected function ddTearDown()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED', 'DD_DISTRIBUTED_TRACING']);
+        parent::ddTearDown();
+    }
+
+    private static function dsmContext(AMQPMessage $message)
+    {
+        if (!$message->has('application_headers')) {
+            return null;
+        }
+        return $message->get('application_headers')->getNativeData()['dd-pathway-ctx-base64'] ?? null;
+    }
+
+    private static function dsmHash($context)
+    {
+        $bytes = base64_decode($context, true);
+        return sprintf('%u', unpack('P', substr($bytes, 0, 8))[1]);
+    }
+
+    /**
+     * The hash the last of $checkpoints ([edge tags, context the message arrived with]) gets on
+     * a fresh pathway. The hashes themselves are checked against system-tests' in
+     * components-rs/data_streams.rs; these tests check the tags, the contexts and the parents.
+     */
+    private static function dsmHashOnFreshPathway(array $checkpoints)
+    {
+        \DDTrace\Internal\dsm_push_pathway();
+        try {
+            foreach ($checkpoints as list($edgeTags, $context)) {
+                $last = \DDTrace\Internal\dsm_set_checkpoint($edgeTags, $context);
+            }
+        } finally {
+            \DDTrace\Internal\dsm_pop_pathway();
+        }
+        return self::dsmHash($last);
+    }
+
+    protected static function dsmHeadersSize(array $headers, $skip = null)
+    {
+        $method = new \ReflectionMethod(AMQPIntegration::class, 'headersSize');
+        $method->setAccessible(true);
+        return $method->invoke(null, $headers, $skip);
+    }
+
+    /**
+     * A message published inside a basic_consume callback links to the message being consumed,
+     * and one published after the callback does not.
+     */
+    public function testDataStreamsConsumeCallbackLinksProducesToTheMessage()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $contexts = [];
+        $this->isolateTracer(function () use (&$contexts) {
+            // Start from a fresh pathway, whatever the tests before left on the process's.
+            \DDTrace\Internal\dsm_push_pathway();
+            try {
+                $connection = $this->connectionToServer();
+                $channel = $connection->channel();
+                $channel->queue_declare('dsm_orders', false, false, true, false);
+                $channel->queue_declare('dsm_billing', false, false, true, false);
+
+                $order = new AMQPMessage('order');
+                $channel->basic_publish($order, '', 'dsm_orders');
+                $contexts['sent'] = self::dsmContext($order);
+
+                $callback = function (AMQPMessage $message) use ($channel, &$contexts) {
+                    $contexts['received'] = self::dsmContext($message);
+                    $invoice = new AMQPMessage('invoice');
+                    $channel->basic_publish($invoice, '', 'dsm_billing');
+                    $contexts['in callback'] = self::dsmContext($invoice);
+                };
+                $channel->basic_consume('dsm_orders', '', false, true, false, false, $callback);
+                $channel->wait(null, false, 5);
+
+                $report = new AMQPMessage('report');
+                $channel->basic_publish($report, '', 'dsm_billing');
+                $contexts['after callback'] = self::dsmContext($report);
+
+                $channel->close();
+                $connection->close();
+            } finally {
+                \DDTrace\Internal\dsm_pop_pathway();
+            }
+        });
+
+        $publishOrders = [['direction:out', 'topic:dsm_orders', 'type:rabbitmq'], null];
+        $publishBilling = [['direction:out', 'topic:dsm_billing', 'type:rabbitmq'], null];
+        $consumeOrders = [['direction:in', 'topic:dsm_orders', 'type:rabbitmq'], $contexts['sent']];
+
+        $this->assertSame(self::dsmHashOnFreshPathway([$publishOrders]), self::dsmHash($contexts['sent']));
+        $this->assertSame($contexts['sent'], $contexts['received']);
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([$consumeOrders, $publishBilling]),
+            self::dsmHash($contexts['in callback'])
+        );
+        // After the callback, the publish continues the pathway from before it: the run of
+        // publishes that the first one started.
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([$publishBilling]),
+            self::dsmHash($contexts['after callback'])
+        );
+    }
+
+    /**
+     * A message got with basic_get becomes the request's pathway, so what is published after it
+     * links to it. A publish to a named exchange is on the edge of the exchange.
+     */
+    public function testDataStreamsBasicGet()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $contexts = [];
+        $this->isolateTracer(function () use (&$contexts) {
+            \DDTrace\Internal\dsm_push_pathway();
+            try {
+                $connection = $this->connectionToServer();
+                $channel = $connection->channel();
+                $channel->exchange_declare('dsm_get_exchange', 'direct', false, false, true);
+                $channel->queue_declare('dsm_get_queue', false, false, true, false);
+                $channel->queue_bind('dsm_get_queue', 'dsm_get_exchange', 'dsm_key');
+                $channel->queue_declare('dsm_get_billing', false, false, true, false);
+
+                $order = new AMQPMessage('order');
+                $channel->basic_publish($order, 'dsm_get_exchange', 'dsm_key');
+                $contexts['sent'] = self::dsmContext($order);
+
+                $message = $channel->basic_get('dsm_get_queue', true);
+                $contexts['received'] = self::dsmContext($message);
+
+                $invoice = new AMQPMessage('invoice');
+                $channel->basic_publish($invoice, '', 'dsm_get_billing');
+                $contexts['after get'] = self::dsmContext($invoice);
+
+                $channel->close();
+                $connection->close();
+            } finally {
+                \DDTrace\Internal\dsm_pop_pathway();
+            }
+        });
+
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([[
+                ['direction:out', 'exchange:dsm_get_exchange', 'has_routing_key:true', 'type:rabbitmq'],
+                null,
+            ]]),
+            self::dsmHash($contexts['sent'])
+        );
+        $this->assertSame($contexts['sent'], $contexts['received']);
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([
+                [['direction:in', 'topic:dsm_get_queue', 'type:rabbitmq'], $contexts['sent']],
+                [['direction:out', 'topic:dsm_get_billing', 'type:rabbitmq'], null],
+            ]),
+            self::dsmHash($contexts['after get'])
+        );
+    }
+
+    /**
+     * A message cut short by the channel's body size limit is counted at the size it was sent with,
+     * as its span counts it, not at what is left of its body.
+     */
+    public function testDataStreamsConsumeCheckpointCountsATruncatedBodyInFull()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $sizes = [];
+        $received = null;
+        $hook = \DDTrace\install_hook('DDTrace\Internal\dsm_set_checkpoint', function ($hook) use (&$sizes) {
+            if (in_array('direction:in', $hook->args[0], true)) {
+                $sizes[] = $hook->args[2];
+            }
+        });
+        try {
+            $this->isolateTracer(function () use (&$received) {
+                \DDTrace\Internal\dsm_push_pathway();
+                try {
+                    $connection = $this->connectionToServer();
+                    $channel = $connection->channel();
+                    $channel->queue_declare('dsm_truncated', false, false, true, false);
+                    $channel->basic_publish(new AMQPMessage(str_repeat('x', 100)), '', 'dsm_truncated');
+                    $channel->setBodySizeLimit(10);
+                    $received = $channel->basic_get('dsm_truncated', true);
+                    $channel->close();
+                    $connection->close();
+                } finally {
+                    \DDTrace\Internal\dsm_pop_pathway();
+                }
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertTrue($received->isTruncated());
+        $this->assertLessThan(100, strlen($received->getBody()));
+        $headers = $received->get('application_headers')->getNativeData();
+        $this->assertSame([100 + self::dsmHeadersSize($headers)], $sizes);
+    }
+
+    /**
+     * Past the span limit, where no spans are made, basic_publish still sets its checkpoint and
+     * sends the context, and basic_get still continues it.
+     */
+    public function testDataStreamsPastTheSpanLimit()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $contexts = [];
+        $traces = $this->isolateLimitedTracer(function () use (&$contexts) {
+            \DDTrace\Internal\dsm_push_pathway();
+            try {
+                $connection = $this->connectionToServer();
+                $channel = $connection->channel();
+                $channel->queue_declare('dsm_limited_queue', false, false, true, false);
+                $channel->queue_declare('dsm_limited_billing', false, false, true, false);
+
+                $order = new AMQPMessage('order');
+                $channel->basic_publish($order, '', 'dsm_limited_queue');
+                $contexts['sent'] = self::dsmContext($order);
+
+                $message = $channel->basic_get('dsm_limited_queue', true);
+                $contexts['received'] = self::dsmContext($message);
+
+                $invoice = new AMQPMessage('invoice');
+                $channel->basic_publish($invoice, '', 'dsm_limited_billing');
+                $contexts['after get'] = self::dsmContext($invoice);
+
+                $channel->close();
+                $connection->close();
+            } finally {
+                \DDTrace\Internal\dsm_pop_pathway();
+            }
+        });
+
+        $this->assertEmpty($traces);
+        $this->assertNotNull($contexts['sent']);
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([[['direction:out', 'topic:dsm_limited_queue', 'type:rabbitmq'], null]]),
+            self::dsmHash($contexts['sent'])
+        );
+        $this->assertSame($contexts['sent'], $contexts['received']);
+        $this->assertNotNull($contexts['after get']);
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([
+                [['direction:in', 'topic:dsm_limited_queue', 'type:rabbitmq'], $contexts['sent']],
+                [['direction:out', 'topic:dsm_limited_billing', 'type:rabbitmq'], null],
+            ]),
+            self::dsmHash($contexts['after get'])
+        );
+    }
+
+    /**
+     * The pathway context is sent even with distributed tracing off, and adding it neither
+     * changes the AMQP types of the application's headers nor the table the application passed.
+     */
+    public function testDataStreamsContextKeepsApplicationHeaders()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true', 'DD_DISTRIBUTED_TRACING=false']);
+        $userHeaders = new AMQPTable();
+        $userHeaders->set('x-short', 3, AMQPTable::T_INT_SHORT);
+        $userHeaders->set('x-longlong', 5, AMQPTable::T_INT_LONGLONG);
+        $receivedTypes = [];
+        $this->isolateTracer(function () use ($userHeaders, &$receivedTypes) {
+            $connection = $this->connectionToServer();
+            $channel = $connection->channel();
+            $channel->queue_declare('dsm_headers', false, false, true, false);
+
+            $message = new AMQPMessage('order', ['application_headers' => $userHeaders]);
+            $channel->basic_publish($message, '', 'dsm_headers');
+
+            $received = $channel->basic_get('dsm_headers', true);
+            foreach ($received->get('application_headers') as $key => list($type, $value)) {
+                $receivedTypes[$key] = $type;
+            }
+
+            $channel->close();
+            $connection->close();
+        });
+
+        $this->assertSame(AMQPTable::T_INT_SHORT, $receivedTypes['x-short']);
+        $this->assertSame(AMQPTable::T_INT_LONGLONG, $receivedTypes['x-longlong']);
+        $this->assertSame(AMQPTable::T_STRING_LONG, $receivedTypes['dd-pathway-ctx-base64']);
+        $this->assertArrayNotHasKey('x-datadog-trace-id', $receivedTypes);
+        $this->assertSame(['x-short' => 3, 'x-longlong' => 5], $userHeaders->getNativeData());
+    }
+
+    /**
+     * With Data Streams Monitoring off, no context is sent and callbacks are not wrapped.
+     */
+    public function testDataStreamsDisabledByDefault()
+    {
+        $result = [];
+        $this->isolateTracer(function () use (&$result) {
+            $connection = $this->connectionToServer();
+            $channel = $connection->channel();
+            $channel->queue_declare('dsm_disabled', false, false, true, false);
+
+            $message = new AMQPMessage('order');
+            $channel->basic_publish($message, '', 'dsm_disabled');
+            $result['sent'] = self::dsmContext($message);
+
+            $callback = function (AMQPMessage $message) {
+            };
+            $consumerTag = $channel->basic_consume('dsm_disabled', '', false, true, false, false, $callback);
+            $result['callback kept'] = $channel->callbacks[$consumerTag] === $callback;
+
+            $channel->close();
+            $connection->close();
+        });
+
+        $this->assertNull($result['sent']);
+        $this->assertTrue($result['callback kept']);
+    }
+
+    /**
+     * Headers are sized from their native values, without encoding them, and come to what
+     * php-amqplib encodes for every type it infers.
+     */
+    public function testDataStreamsHeadersSizeMatchesTheEncoding()
+    {
+        $headers = new AMQPTable([
+            'x-datadog-trace-id' => '1311263442542712053',
+            'traceparent' => '00-66f1a2b30000000011f71fb04cb4dad5-0dbc0f84a3c9d0b1-01',
+            'empty' => '',
+            'int' => 42,
+            'negative' => -7,
+            'long' => 1 << 40,
+            'bool' => false,
+            'float' => 1.5,
+            'null' => null,
+            'timestamp' => new \DateTime('@1700000000'),
+            'decimal' => new AMQPDecimal(12345, 2),
+            'table' => ['a' => 'b', 'n' => 7, 'deep' => ['x' => 'y']],
+            'array' => ['x', 3, ['k' => 'v'], []],
+        ]);
+        $headers->set('bytes', "\x00\x01\x02", AMQPTable::T_BYTES);
+        $headers->set('dd-pathway-ctx-base64', 'Cx3KpnXHzu6m4f3vmQ1Zlv7xs8znDA==');
+        $writer = new AMQPWriter();
+        $writer->write_table($headers);
+        $encoded = strlen($writer->getvalue()) - 4; // without the table's length
+        $contextEntry = 2 + strlen('dd-pathway-ctx-base64') + 4 + strlen('Cx3KpnXHzu6m4f3vmQ1Zlv7xs8znDA==');
+
+        $native = $headers->getNativeData();
+        $this->assertSame($encoded, self::dsmHeadersSize($native));
+        $this->assertSame($encoded - $contextEntry, self::dsmHeadersSize($native, 'dd-pathway-ctx-base64'));
+        $this->assertSame(0, self::dsmHeadersSize([]));
+    }
+
+    /**
+     * A consume checkpoint that fails neither reaches the application nor keeps the message from
+     * the callback, and the callback's own exceptions still reach the application.
+     */
+    public function testDataStreamsConsumeCheckpointFailureStillDeliversTheMessage()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $result = [];
+        $this->isolateTracer(function () use (&$result) {
+            $connection = $this->connectionToServer();
+            // Closed even when the callback throws, so a retry can declare the exclusive queue.
+            try {
+                $channel = $connection->channel();
+                $channel->queue_declare('dsm_failure', false, false, true, false);
+
+                // A message the checkpoint fails on, as it can't read its body.
+                $result['sent'] = new class('order') extends AMQPMessage {
+                    public function getBody()
+                    {
+                        throw new \RuntimeException('unreadable body');
+                    }
+                };
+                $callback = function (AMQPMessage $message) use (&$result) {
+                    $result['delivered'] = $message;
+                };
+                $consumerTag = $channel->basic_consume('dsm_failure', '', false, true, false, false, $callback);
+                $channel->callbacks[$consumerTag]($result['sent']);
+
+                $callback = function (AMQPMessage $message) {
+                    throw new \DomainException('application error');
+                };
+                $consumerTag = $channel->basic_consume('dsm_failure', '', false, true, false, false, $callback);
+                try {
+                    $channel->callbacks[$consumerTag](new AMQPMessage('order'));
+                } catch (\DomainException $e) {
+                    $result['application error'] = $e->getMessage();
+                }
+            } finally {
+                $connection->close();
+            }
+        });
+
+        $this->assertSame($result['sent'], $result['delivered']);
+        $this->assertSame('application error', $result['application error']);
     }
 }

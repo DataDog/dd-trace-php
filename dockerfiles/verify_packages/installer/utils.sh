@@ -34,12 +34,11 @@ assert_no_ddtrace() {
 }
 
 assert_no_profiler() {
-    output="$(php -v)"
-    if [ -z "${output##*datadog-profiling*}" ]; then
-        echo "---\nError: profiler should not be installed\n---\n${1}\n---\n"
+    if php -r 'exit(filter_var(ini_get("datadog.profiling.enabled"), FILTER_VALIDATE_BOOLEAN) ? 0 : 1);'; then
+        echo "---\nError: profiler should not be enabled\n---\n${1}\n---\n"
         exit 1
     fi
-    echo "Ok: profiler is not installed"
+    echo "Ok: profiler is not enabled"
 }
 
 assert_ddtrace_version() (
@@ -54,32 +53,63 @@ assert_ddtrace_version() (
     fi
 )
 
-assert_appsec_version() {
-    output="$(php --ri ddappsec)"
-    if [ -z "${output##*Version => ${1}*}" ]; then
-        echo "---\nOk: ddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
+# Current packages build AppSec into ddtrace; released packages may still load
+# the legacy ddappsec extension.
+is_legacy_appsec_loaded() {
+    php_bin=${1:-php}
+    "$php_bin" -r 'exit(extension_loaded("ddappsec") ? 0 : 1);'
+}
+
+appsec_info() {
+    php_bin=${1:-php}
+    if is_legacy_appsec_loaded "$php_bin"; then
+        "$php_bin" --ri ddappsec
     else
-        echo "---\nError: Wrong ddappsec version. Expected: ${1}\n---\n${output}\n---\n"
-        exit 1
+        "$php_bin" --ri ddtrace
+    fi
+}
+
+assert_appsec_version() {
+    expected_version=${1}
+    if is_legacy_appsec_loaded; then
+        output="$(php --ri ddappsec)"
+        if [ -z "${output##*Version => ${expected_version}*}" ]; then
+            echo "---\nOk: ddappsec version '${expected_version}' is correctly installed\n---\n${output}\n---\n"
+        else
+            echo "---\nError: Wrong ddappsec version. Expected: ${expected_version}\n---\n${output}\n---\n"
+            exit 1
+        fi
+    else
+        assert_ddtrace_version "${expected_version}"
+        assert_appsec_installed
     fi
 }
 
 assert_no_appsec() {
-    output="$(php -m)"
-    if [ -z "${output##*ddappsec*}" ]; then
+    if is_legacy_appsec_loaded; then
         echo "---\nError: ddappsec should not be installed\n---\n${1}\n---\n"
         exit 1
     fi
-    echo "Ok: ddappsec is not installed"
+    if php -r 'exit(function_exists("datadog\\appsec\\is_enabled") ? 0 : 1);'; then
+        echo "---\nError: AppSec should not be installed\n---\n${1}\n---\n"
+        exit 1
+    fi
+    echo "Ok: AppSec is not installed"
 }
 
 assert_profiler_version() {
+    expected_version=${1}
     output="$(php -v)"
-    if [ -z "${output##*datadog-profiling v${1}*}" ]; then
-        echo "---\nOk: datadog-profiling version '${1}' is correctly installed\n---\n${output}\n---\n"
+    if [ -z "${output##*with datadog-profiling*}" ]; then
+        if [ -z "${output##*datadog-profiling v${expected_version}*}" ]; then
+            echo "---\nOk: datadog-profiling version '${expected_version}' is correctly installed\n---\n${output}\n---\n"
+        else
+            echo "---\nError: Wrong datadog-profiling version. Expected: ${expected_version}\n---\n${output}\n---\n"
+            exit 1
+        fi
     else
-        echo "---\nError: Wrong datadog-profiling version. Expected: ${1}\n---\n${output}\n---\n"
-        exit 1
+        assert_ddtrace_version "${expected_version}"
+        assert_profiler_installed
     fi
 }
 
@@ -96,42 +126,44 @@ assert_tracer_installed() {
 
 assert_profiler_installed() {
     php_bin=${1:-php}
-    output="$($php_bin -v)"
-    if [ -z "${output##*with datadog-profiling*}" ]; then
-        echo "---\nOk: Profiler is installed\n---\n${output}\n---\n"
+    if "$php_bin" -r '$value = ini_get("datadog.profiling.enabled"); exit($value !== false && filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 0 : 1);'; then
+        echo "Ok: Profiling is available and enabled"
     else
-        echo "---\nError: Profiler should be installed\n---\n${output}\n---\n"
+        echo "Error: Profiling should be available and enabled"
         exit 1
     fi
 }
 
 assert_appsec_installed() {
     php_bin=${1:-php}
-    output="$($php_bin -m)"
-    if [ -z "${output##*ddappsec*}" ]; then
-        echo "---\nOk: AppSec is installed\n---\n${output}\n---\n"
+    if "$php_bin" -r 'exit(function_exists("datadog\\appsec\\is_enabled") ? 0 : 1);'; then
+        echo "Ok: AppSec is installed"
     else
-        echo "---\nError: AppSec should be installed\n---\n${output}\n---\n"
+        echo "---\nError: AppSec should be installed\n---\n$("$php_bin" -m)\n---\n"
         exit 1
     fi
 }
 
 assert_appsec_enabled() {
-    output="$(php --ri ddappsec)"
+    output="$(appsec_info)"
     if [ -z "${output##*Current state => Enabled*}" ]; then
-        echo "---\nOk: ddappsec is enabled\n---\n${output}\n---\n"
+        echo "---\nOk: AppSec is enabled\n---\n${output}\n---\n"
     else
-        echo "---\nError: Wrong ddappsec should be enabled\n---\n${output}\n---\n"
+        echo "---\nError: AppSec should be enabled\n---\n${output}\n---\n"
         exit 1
     fi
 }
 
 assert_appsec_disabled() {
-    output="$(php --ri ddappsec)"
+    output="$(appsec_info)"
+    if [ -n "${output##*Current state => *}" ]; then
+        echo "---\nError: AppSec state is missing\n---\n${output}\n---\n"
+        exit 1
+    fi
     if [ -n "${output##*Current state => Enabled*}" ]; then
-        echo "---\nOk: ddappsec is not enabled\n---\n${output}\n---\n"
+        echo "---\nOk: AppSec is not enabled\n---\n${output}\n---\n"
     else
-        echo "---\nError: Wrong ddappsec should not be enabled\n---\n${output}\n---\n"
+        echo "---\nError: AppSec should not be enabled\n---\n${output}\n---\n"
         exit 1
     fi
 }
@@ -245,10 +277,6 @@ run_released_installer() (
     DD_TEST_INSTALLER_REPO="${github_releases_base_url}/DataDog/dd-trace-php" php "$@"
 )
 
-parse_appsec_version() {
-    grep -oP 'VERSION \K\d+\.\d+\.\d+' appsec/CMakeLists.txt
-}
-
 dashed_print() {
     echo "---"
     for line in "$@" ; do
@@ -256,7 +284,9 @@ dashed_print() {
     done
 }
 
-is_appsec_installable() {
+# Whether released packages with the legacy ddappsec extension support this
+# architecture. Current packages include AppSec in every Linux ddtrace.so.
+is_legacy_appsec_installable() {
   uname=$(uname -a)
   [ -n "${uname##*arm*}" ] && [ -n "${uname##*aarch*}" ]
 }

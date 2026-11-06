@@ -19,16 +19,17 @@
 #include "telemetry_reaper.h"
 
 #define MIN_API_VERSION 320151012
-#define MAX_API_VERSION 420250925
+#define MAX_API_VERSION 420260924
 #define MAX_INI_API_VERSION MAX_API_VERSION + 1
 
 #define PHP_70_VERSION 20151012
 #define PHP_71_VERSION 20160303
 #define PHP_72_VERSION 20170718
 #define PHP_80_VERSION 20200930
+#define PHP_86_VERSION 20260924
 
 #define MIN_PHP_VERSION "7.0"
-#define MAX_PHP_VERSION "8.5"
+#define MAX_PHP_VERSION "8.6"
 
 extern zend_module_entry dd_library_loader_mod;
 
@@ -39,9 +40,13 @@ static char *package_path = NULL;
 static void *libdatadog_php_handle = NULL;
 
 static unsigned int php_api_no = 0;
+// Module API number of the running PHP, set before the first log line (php_api_no is only set once the runtime is supported)
+static unsigned int runtime_api_no = 0;
 static const char *runtime_version = "unknown";
 static bool injection_forced = false;
 static bool ddtrace_disabled_by_incompatible_runtime = false;
+static bool ddtrace_has_profiling = false;
+static bool ddtrace_has_appsec = false;
 static char ddtrace_disabled_result_reason[384] = {0};
 
 static bool already_done = false;
@@ -94,23 +99,9 @@ static void ddloader_set_ddtrace_disabled_by_incompatible_runtime(const char *fo
 }
 
 static char *ddtrace_pre_load_hook(injected_ext *config) {
-    // Load libdatadog_php.so, on which ddtrace.so implicitly depends. Implicit
-    // because there's no DT_NEEDED(libdatadog_php.so) entry in ddtrace.so.
-    // This has unfortunate side effects. Resolution of libdatadog_php.so
-    // symbols against the handle of ddtrace.so (usually stored in
-    // module_ext->handle) will fail. Some code e.g. in zai or the profiler
-    // tries to resolve libdatadog_php.so symbols using module_ext->handle
-    // (these symbols are in ddtrace.so in the monolithic build). As a
-    // consequence, this can only work if actually module_ext->handle is NULL (=
-    // RTLD_DEFAULT) and the global namespace is searched. And, because of this,
-    // ddloader_load_extension() can't set module_entry->handle, which prevents
-    // PHP from calling dlclose() on module shutdown, which we have to work
-    // around in ddloader_zend_extension_shutdown().
-    //
-    // Adding DT_NEEDED(libdatadog_php.so) would be possible on glibc because it
-    // checks already loaded libraries first (with even a fallback to DT_SONAME
-    // as key). Musl only checks already loaded libraries if these were loaded
-    // without a path (only that sets dso->shortname).
+    // Both tracer-only and combined SSI builds import symbols from the common
+    // library without DT_NEEDED. Preload it from the package into the global
+    // namespace before opening ddtrace.so.
     char *libdatadog_php;
     int res = asprintf(&libdatadog_php, "%s/%sloader/libdatadog_php.so", package_path, ddloader_os_path());
     if (res == -1) {
@@ -128,7 +119,7 @@ static char *ddtrace_pre_load_hook(injected_ext *config) {
         if (access(libdatadog_php, F_OK)) {
             free(libdatadog_php);
             LOG(config, INFO, "libdatadog_php.so not found during 'ddtrace' pre-load hook.")
-            return NULL;
+            return "required libdatadog_php.so not found";
         }
     }
 
@@ -275,6 +266,10 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
         ddloader_ini_set_configuration(config, ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
     }
 
+    if (ddtrace_has_profiling && !ddloader_ini_get_configuration(ZEND_STRL("datadog.profiling.enabled"))) {
+        ddloader_ini_set_configuration(config, ZEND_STRL("datadog.profiling.enabled"), ZEND_STRL("0"));
+    }
+
     // Let ddtrace knows that it was loaded by the loader
     bool *datadog_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(config->so_handle, "datadog_loaded_by_ssi");
     if (datadog_loaded_by_ssi) {
@@ -359,7 +354,16 @@ void ddloader_logv(injected_ext *config, log_level level, const char *format, va
 
     char full[512];
     snprintf(full, sizeof(full), "[dd_library_loader][%s] %s", level_str, msg);
-    _php_error_log(0, full, NULL, NULL);
+
+    // The loader is built against one PHP version; _php_error_log() takes zend_string* since PHP 8.6.
+    void (*php_error_log_fn)(void) = (void (*)(void))_php_error_log;
+    if (runtime_api_no >= PHP_86_VERSION) {
+        zend_string *message = ddloader_zend_string_init(runtime_api_no, full, strlen(full), 1);
+        ((int (*)(int, const zend_string *, const zend_string *, const zend_string *))php_error_log_fn)(0, message, NULL, NULL);
+        ddloader_zend_string_release(runtime_api_no, message);
+    } else {
+        ((int (*)(int, const char *, const char *, const char *))php_error_log_fn)(0, full, NULL, NULL);
+    }
 }
 
 void ddloader_logf(injected_ext *config, log_level level, const char *format, ...) {
@@ -643,6 +647,11 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
     return true;
 }
 
+// Whether the injected extension is compiled into the combined ddtrace.so.
+static bool ddloader_is_provided_by_ddtrace(unsigned int ext) {
+    return (ext == EXT_DATADOG_PROFILING && ddtrace_has_profiling) || (ext == EXT_DDAPPSEC && ddtrace_has_appsec);
+}
+
 static void ddloader_unregister_module(const char *name) {
     zend_module_entry *injected = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, name, strlen(name));
     if (!injected) {
@@ -671,6 +680,16 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     zend_module_entry *module = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, config->ext_name, strlen(config->ext_name));
     if (module) {
         TELEMETRY(REASON_ALREADY_LOADED, config, NULL, "Extension '%s' is already loaded, unregister the injected extension", config->ext_name);
+        ddloader_unregister_module(config->tmp_name);
+
+        return SUCCESS;
+    }
+
+    // ddtrace with AppSec aborts PHP startup next to ddappsec. The loader does
+    // not inject ddappsec then, but a legacy one can be loaded without ddtrace.
+    if (strcmp(config->ext_name, "ddtrace") == 0 && ddtrace_has_appsec
+        && ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, ZEND_STRL("ddappsec"))) {
+        TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, config, NULL, "Legacy extension 'ddappsec' is loaded, which conflicts with '%s', unregister the injected extension", config->ext_name);
         ddloader_unregister_module(config->tmp_name);
 
         return SUCCESS;
@@ -740,6 +759,17 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         TELEMETRY(REASON_COMPLETE, config, NULL, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
     }
 
+    if (strcmp(config->ext_name, "ddtrace") == 0) {
+        for (unsigned int i = 0; i < EXT_COUNT; ++i) {
+            if (ddloader_is_provided_by_ddtrace(i)) {
+                injected_ext *product = &ddloader_injected_ext_config[i];
+                product->injection_success = config->injection_success;
+                product->injection_error = config->injection_error;
+                product->version = config->version;
+            }
+        }
+    }
+
     return ret;
 }
 
@@ -760,6 +790,34 @@ static void ddloader_restore_so_module_entry(injected_ext *config) {
     config->orig_module_startup_func = NULL;
     config->orig_module_deps = NULL;
     config->orig_module_functions = NULL;
+}
+
+// Packages mark products compiled into ddtrace.so with an empty
+// trace/ext/<api>/.ddtrace[-zts].<product> file next to it.
+static bool ddloader_combined_product_available(const char *product, unsigned int api_no, bool is_zts, bool is_debug) {
+    if (is_debug) {
+        return false;
+    }
+
+    char *marker = NULL;
+    const char *zts_suffix = is_zts ? "-zts" : "";
+    if (asprintf(&marker, "%s/%strace/ext/%u/.ddtrace%s.%s", package_path, ddloader_os_path(), api_no,
+                 zts_suffix, product) == -1) {
+        return false;
+    }
+    bool available = access(marker, F_OK) == 0;
+    free(marker);
+    if (available) {
+        return true;
+    }
+
+    if (asprintf(&marker, "%s/trace/ext/%u/.ddtrace%s.%s", package_path, api_no,
+                 zts_suffix, product) == -1) {
+        return false;
+    }
+    available = access(marker, F_OK) == 0;
+    free(marker);
+    return available;
 }
 
 static int ddloader_load_extension(unsigned int php_api_no, char *module_build_id, bool is_zts, bool is_debug, injected_ext *config) {
@@ -897,6 +955,7 @@ static int ddloader_api_no_check(int api_no) {
     // api_no is the Zend extension API number, similar to "420220829"
     // It is an int, but represented as a string, we must remove the first char to get the PHP module API number
     unsigned int module_api_no = api_no % 100000000;
+    runtime_api_no = module_api_no;
     ddloader_configure();
 
     TELEMETRY(REASON_START, NULL, NULL, "Starting injection");
@@ -983,8 +1042,21 @@ static int ddloader_build_id_check(const char *build_id) {
         return SUCCESS;
     }
 
-    // Load the extensions declared in ddloader_injected_ext_config
+    ddtrace_has_profiling = ddloader_combined_product_available("profiling", php_api_no, is_zts, is_debug);
+    ddtrace_has_appsec = ddloader_combined_product_available("appsec", php_api_no, is_zts, is_debug);
+
+    // Load the extensions declared in ddloader_injected_ext_config. Combined
+    // ddtrace owns profiling and AppSec, so it must not load the standalone
+    // profiler or ddappsec too.
     for (unsigned int i = 0; i < sizeof(ddloader_injected_ext_config) / sizeof(ddloader_injected_ext_config[0]); ++i) {
+        if (ddloader_is_provided_by_ddtrace(i)) {
+            injected_ext *product = &ddloader_injected_ext_config[i];
+            injected_ext *ddtrace = &ddloader_injected_ext_config[EXT_DDTRACE];
+            product->version = ddtrace->version;
+            safe_str_append(product->extra_config, sizeof(product->extra_config),
+                            "provided by combined ddtrace");
+            continue;
+        }
         ddloader_load_extension(php_api_no, module_build_id, is_zts, is_debug, &ddloader_injected_ext_config[i]);
     }
 
@@ -1029,6 +1101,8 @@ static void ddloader_zend_extension_shutdown(zend_extension *ext) {
         DL_UNLOAD(libdatadog_php_handle);
         libdatadog_php_handle = NULL;
     }
+    ddtrace_has_profiling = false;
+    ddtrace_has_appsec = false;
 
     injection_forced = false;
     ddtrace_disabled_by_incompatible_runtime = false;

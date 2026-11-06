@@ -10,6 +10,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 void datadog_report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char *dd_cfg, bool pre_rinit) {
+#ifdef SIDECAR
     if (!pre_rinit && DATADOG_G(sidecar) && get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddog_sidecar_telemetry_register_metric(&DATADOG_G(sidecar), DDOG_CHARSLICE_C("otel.env.invalid"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
         ddog_SidecarActionsBuffer *buffer = datadog_telemetry_buffer();
@@ -18,6 +19,9 @@ void datadog_report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char 
         ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("otel.env.invalid"), 1, tags);
         free((char *)tags.ptr);
     }
+#else
+    UNUSED(otel_cfg, dd_cfg, pre_rinit);
+#endif
 }
 
 bool ddtrace_conf_otel_traces_exporter(zai_env_buffer *buf, bool pre_rinit) {

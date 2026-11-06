@@ -1,7 +1,5 @@
 --TEST--
 Track automated user login failure with identification mode, configured through the deprecated variable
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=extended

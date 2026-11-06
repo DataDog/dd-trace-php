@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "ddtrace.h"
+#include <hook/line_hooks.h>
 #include <components/log/log.h>
 #include <ext/zend_hrtime.h>
 #include "span.h"
@@ -22,8 +23,10 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int type);
+static zend_op_array *(*_prev_compile_file_late)(zend_file_handle *file_handle, int type);
 
 static void _compile_minit(void);
+static void _compile_first_rinit(void);
 static void _compile_mshutdown(void);
 
 void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
@@ -34,6 +37,13 @@ typedef void (*profiling_notify_trace_finished_t)(uint64_t local_root_span_id,
 profiling_notify_trace_finished_t profiling_notify_trace_finished = NULL;
 
 void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
+
+#ifdef PROFILING
+extern void ddog_php_prof_interrupt_function(zend_execute_data *execute_data);
+extern void datadog_profiling_notify_trace_finished(uint64_t local_root_span_id,
+                                                     zai_str span_type,
+                                                     zai_str resource);
+#endif
 
 // Check if the profiler is loaded, and if, so it will locate certain symbols so cross-product features can be enabled.
 void dd_search_for_profiling_symbols(void *arg) {
@@ -55,8 +65,20 @@ void dd_search_for_profiling_symbols(void *arg) {
 }
 
 void ddtrace_fetch_profiling_symbols(void) {
+#ifdef PROFILING
+    profiling_interrupt_function = ddog_php_prof_interrupt_function;
+    // Notification follows the profiler's request-level enabled state.
+    profiling_notify_trace_finished = NULL;
+#else
     zend_llist_apply(&zend_extensions, dd_search_for_profiling_symbols);
+#endif
 }
+
+#ifdef PROFILING
+void ddtrace_set_profiling_notify_enabled(bool enabled) {
+    profiling_notify_trace_finished = enabled ? datadog_profiling_notify_trace_finished : NULL;
+}
+#endif
 
 void ddtrace_engine_hooks_minit(void) {
     _compile_minit();
@@ -64,6 +86,9 @@ void ddtrace_engine_hooks_minit(void) {
     ddtrace_prev_error_cb = zend_error_cb;
     zend_error_cb = ddtrace_error_cb;
 }
+
+// Once per process, after all startup-time compile wrappers are installed.
+void ddtrace_engine_hooks_first_rinit(void) { _compile_first_rinit(); }
 
 void ddtrace_engine_hooks_mshutdown(void) {
     if (ddtrace_prev_error_cb == ddtrace_error_cb) {
@@ -73,6 +98,7 @@ void ddtrace_engine_hooks_mshutdown(void) {
     _compile_mshutdown();
 }
 
+// The MINIT wrapper times compilation only; OPcache persistence and cache hits bypass it.
 static zend_op_array *dd_compile_file(zend_file_handle *file_handle, int type) {
     zend_op_array *res;
     uint64_t start = zend_hrtime();
@@ -81,12 +107,32 @@ static zend_op_array *dd_compile_file(zend_file_handle *file_handle, int type) {
     return res;
 }
 
+// The first-request wrapper runs outside OPcache and sees executable op_arrays on cache hits and misses.
+// The MINIT wrapper sees only the compile step, before OPcache persists the result.
+// Installing after startup avoids extension-order dependencies; startup preloading runs before this wrapper is installed.
+static zend_op_array *dd_compile_file_late(zend_file_handle *file_handle, int type) {
+    zend_op_array *res = _prev_compile_file_late(file_handle, type);
+    if (res) {
+        // Resolve hooks installed before this file was included.
+        zai_line_hooks_file_compiled(res);
+    }
+    return res;
+}
+
 static void _compile_minit(void) {
     _prev_compile_file = zend_compile_file;
     zend_compile_file = dd_compile_file;
 }
 
+static void _compile_first_rinit(void) {
+    _prev_compile_file_late = zend_compile_file;
+    zend_compile_file = dd_compile_file_late;
+}
+
 static void _compile_mshutdown(void) {
+    if (zend_compile_file == dd_compile_file_late) {
+        zend_compile_file = _prev_compile_file_late;
+    }
     if (zend_compile_file == dd_compile_file) {
         zend_compile_file = _prev_compile_file;
     }

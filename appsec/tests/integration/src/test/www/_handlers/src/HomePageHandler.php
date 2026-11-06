@@ -11,7 +11,7 @@ class HomePageHandler
     public function handle(ServerRequestInterface $req): ResponseInterface
     {
         $qp = $req->getQueryParams();
-        if (isset($qp['user']) && extension_loaded('ddappsec')) {
+        if (isset($qp['user']) && function_exists('datadog\appsec\track_user_login_success_event')) {
             \datadog\appsec\track_user_login_success_event(
                 $qp['user'],
                 [

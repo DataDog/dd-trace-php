@@ -104,7 +104,7 @@ struct ddtrace_span_data {
 };
 
 static inline ddtrace_span_data *OBJ_SPANDATA(zend_object *obj) {
-    return (ddtrace_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_span_data, std));
+    return (ddtrace_span_data *)((char *)(obj) - offsetof(ddtrace_span_data, std));
 }
 
 static inline ddtrace_span_data *SPANDATA(ddtrace_span_properties *obj) {
@@ -119,7 +119,7 @@ struct ddtrace_inferred_span_data {
 };
 
 static inline ddtrace_inferred_span_data *INFERRED_SPANDATA(zend_object *obj) {
-    return (ddtrace_inferred_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_inferred_span_data, std));
+    return (ddtrace_inferred_span_data *)((char *)(obj) - offsetof(ddtrace_inferred_span_data, std));
 }
 
 struct ddtrace_root_span_data {
@@ -160,7 +160,7 @@ struct ddtrace_root_span_data {
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
-    return (ddtrace_root_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_root_span_data, std));
+    return (ddtrace_root_span_data *)((char *)(obj) - offsetof(ddtrace_root_span_data, std));
 }
 
 struct ddtrace_span_stack {
@@ -262,10 +262,13 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_e
 void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 
 // Note that this function is used externally by the appsec extension.
-DATADOG_PUBLIC zend_object *ddtrace_get_root_span(void);
+zend_object *ddtrace_get_root_span(void);
 
 uint64_t ddtrace_nanoseconds_realtime(void);
 void dd_trace_stop_span_time(ddtrace_span_data *span);
+/* The code a span covers finished: record an exception propagating out of it, unless one is already set, and stop its clock.
+   NULL, dummy, dropped and closed spans are left alone. */
+void dd_trace_stop_span_time_with_exception(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);
 void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until);
 int ddtrace_close_userland_spans_until(ddtrace_span_data *until);

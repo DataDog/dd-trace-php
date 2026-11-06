@@ -1,3 +1,0 @@
-#pragma once
-
-#define PHP_DDAPPSEC_VERSION "${CMAKE_APPSEC_VERSION}"

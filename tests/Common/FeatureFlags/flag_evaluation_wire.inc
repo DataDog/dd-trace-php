@@ -1,8 +1,11 @@
 <?php
 require_once dirname(__DIR__, 2) . '/ext/ffe/stubs/ffe_process.inc';
 putenv('PHP_FFE_WIRE_OPENFEATURE=' . ($openFeature ? '1' : '0'));
-// The PHP connector forwards this setting to the sidecar subprocess.
-putenv('DD_TRACE_LOG_LEVEL=trace');
+// Exercise transport diagnostics, which must redact evaluation data. The SDK's
+// explicit raw-value debug logs are covered separately by sdk_debug_logging.phpt.
+// The PHP connector forwards this filter to the sidecar subprocess.
+putenv('DD_TRACE_DEBUG=0');
+putenv('DD_TRACE_LOG_LEVEL=trace,ddtrace=warn,datadog_php::ffe=warn');
 $diagnosticLog = tempnam(sys_get_temp_dir(), 'php-ffe-diagnostics-');
 if ($diagnosticLog === false) throw new RuntimeException('cannot create diagnostic log');
 putenv('DD_TRACE_LOG_FILE=' . $diagnosticLog);

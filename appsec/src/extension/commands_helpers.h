@@ -15,10 +15,6 @@ typedef struct _dd_command_spec {
     const char *nonnull name;
     size_t name_len;
     size_t num_args; // outgoing args
-    // Whether the command starts a new helper client. Only such a command may
-    // reconnect to the sidecar after a failed exchange: the helper client is
-    // bound to the connection, so a new connection has none.
-    bool client_init;
     dd_result (*nonnull outgoing_cb)(
         mpack_writer_t *nonnull writer, void *unspecnull ctx);
     dd_result (*nonnull incoming_cb)(mpack_node_t root, void *unspecnull ctx);

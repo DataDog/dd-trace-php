@@ -1,66 +1,38 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
 ## All products
-### Changed
-- Write sidecar logs when it runs in thread mode #4235
-- `datadog-setup.php` now reports that macOS is not supported #4284 (thank you @staabm for the report!)
+### Added
+- Support PHP 8.6 #4273
 
 ### Fixed
-- Stop spawning a new sidecar while a PHP worker shuts down, which left orphaned sidecar processes #4164
-- Correctly handle a thread-mode sidecar that takes over as the new master process #4270
-- Fix sidecar telemetry lock inversions, premature sidecar idle shutdown and a hang on Windows when the sidecar pipe is full #4219
-- Avoid a race between the SSI loader's background `dlclose()` and process exit #4229
-- Crash reports now respect proxy environment variables, and the agent host/port takes priority over a UDS socket for error tracking uploads DataDog/libdatadog#2462, DataDog/libdatadog#2633
-- Authenticate sidecar connections and shared memory (peer credential checks, trusted shared memory directory), fixing https://github.com/DataDog/dd-trace-php/security/advisories/GHSA-j3g8-6962-2xqq and https://github.com/DataDog/dd-trace-php/security/advisories/GHSA-fmrj-jm6v-j549 DataDog/libdatadog#2551
-
-### Internal
-- Update Rust dependencies to fix RustSec advisories; building from source now requires Rust 1.91.1 #4188
-- Publish the OTel process context during MINIT #4213
+- Make the sidecar more robust: gracefully handle shared memory errors such as ENOSPC instead of stopping, move messages larger than the socket buffer limit to shared memory, receive the last messages of clients exiting right away, and keep the watchdog working during core dumps DataDog/libdatadog#2408, DataDog/libdatadog#2720, DataDog/libdatadog#2717, DataDog/libdatadog#2740
 
 ## Tracer
 ### Added
-- Support OTel sampling (`ot.th`/`ot.rv` tracestate) in distributed tracing #4177
+- Support line probes in Dynamic Instrumentation, building on the new `DDTrace\install_line_hook()` API to hook source lines and line ranges #4275, #4411
+- Add Data Streams Monitoring for Kafka producers and consumers, enabled with `DD_DATA_STREAMS_ENABLED=true` #4380
+- Support `DD_TRACE_STATS_ADDITIONAL_TAGS` to add tag dimensions to client-side stats #4404
+- Report feature flag evaluation counts, configurable with `DD_FLAGGING_EVALUATION_COUNTS_ENABLED` #4288
+- Log Feature Flags diagnostics with `DD_TRACE_DEBUG=1` #4327
+- Opt-in full propagation for prepared statements via `DD_DBM_TRACE_PREPARED_STATEMENT=1` #4211 (thank you @bray-lula for the pull request!)
 
 ### Changed
-- Update the default query string obfuscation regex, fixing a security vulnerability, as described in https://github.com/DataDog/dd-trace-php/security/advisories/GHSA-49fg-59cp-2hqj #4282
-- Improve stability of the tracer on macOS #4187
-- Client-side stats obfuscation now follows the agent's full SQL obfuscation config DataDog/libdatadog#2535
+- Optimize each_shell_word matching in ExecIntegration #4429
 
 ### Fixed
-- Fix crashes at shutdown: on PHP 7.0/7.1 ZTS #4185, in `atexit` after ddtrace was unloaded #4197, in the zend extension shutdown #4218, and in remote config shutdown #4220
-- Fix rare use-after-frees in the in-process background sender, during request processing #4189 and at shutdown when the writer thread gets detached #4278 (thank you @alexandre-daubois!)
-- Make the flush on SIGTERM/SIGINT safe against crashes in the allocator #4222
-- Fix a crash when walking the stack after a generator was destroyed during an aborted call #4272
-- Fix JIT blacklisting on PHP 8.5+ and for generator memory #4226, #4236
-- Fix multi-hooking with dynamic payloads and a crash when subclassing `HookData` #4236
-- Do not start the background writer when the tracer is disabled during MINIT #4233
-- Avoid starvation of synchronous flushes with the in-process background sender #4224
-- Fix sidecar connection from threads impersonating another user under Windows #4280
-- Make Windows remote config notifications safe against unloading ddtrace #4219
-- Evaluate the sampling decision once per trace chunk during serialization #4219
-- Set `peer.service` sources in the Predis and PDO connect integrations #4285, #4286 (thank you @redpanda for the reports!)
-- Report `http.status_code` for Guzzle requests that throw on non-2xx responses, and fix `DD_TRACE_HTTP_CLIENT_ERROR_STATUSES` handling #4287 (thank you @fbaumann-ph for the report!)
-- Fix client-side stats: `http.endpoint` takes precedence over `http.route` again, and deeply nested SQL can no longer exhaust the stack during obfuscation DataDog/libdatadog#2582, DataDog/libdatadog#2441
-- Fix a possible divide-by-zero panic in the shared rate limiter #4259
-
-### Internal
-- Add the `_dd.sdk.otlp_export` marker to trace chunks #4240
-
-## Profiling
-### Changed
-- Speed up sample processing, reducing dropped samples under load #4194
-
-### Fixed
-- Fix several I/O profiling issues: `poll` readiness, `fread`/`fwrite` byte counts, RELRO protection after GOT patching, and loader bounds checks #4156
-- Fix a wall-time crash after ext-grpc runs PHP code on a native thread; I/O profiling is disabled when ext-grpc is loaded #4198
-- Report allocator-rounded allocation sizes and fix upscaling of samples with varying allocation sizes #4230
-- Block signals before spawning profiler helper threads #4224
+- Always unblock SIGVTALRM, including at request start on Apache ZTS, so remote config notifications are delivered #4388
+- Fix thread-mode sidecar reconnect issues and remote config notifications by binding sidecar state to its connection #4299
+- Fix heap corruption on the request after a failed request startup, caused by stale telemetry service/env names #4414
+- Retry socket connections and more stream operations interrupted by ddtrace's signals; before PHP 8.2.27, 8.3.15 and 8.4.2, `php_network_connect_socket()` failed on EINTR #4375
+- Stop the OpenTelemetry integration from overriding sampling unless a custom sampler is set, and stop attaching spans to the OTel context storage, which left orphaned spans and leaked memory in worker mode #4419 (thank you @Ardenexal for the report!)
+- Make the hook sandbox state thread-local, fixing ZTS races (e.g. FrankenPHP) where warnings inside hooks were thrown as exceptions and warnings elsewhere were swallowed #4372 (thank you @Ardenexal for the report!)
+- Exclude undefined variables from Exception Replay's `$locals`, which broke serialization of captured exceptions such as in the Symfony profiler #4389 (thank you @jaugustin for the report!)
+- Only use peer tags on client, producer and consumer spans and `_dd.base_service` on internal spans for client-side stats aggregation, matching the agent DataDog/libdatadog#2554
 
 ## AppSec
 ### Changed
-- Update libddwaf to 2.1.0 and build it from source for PECL packages, fixing offline builds #4203 (thank you @remicollet for the report!)
-- Update vendored libxml2 to 2.15.4 #4224
+- Isolate the request body parsers' allocations, count them against `memory_limit` and recover from out-of-memory conditions; parsed bodies are now sent to the helper as MessagePack directly #4361
 
 ### Fixed
-- Fix loading AppSec on musl ZTS builds (e.g. Alpine, FrankenPHP), and a crash on ZTS thread exit #4180
-- Fix protocol failures caused by empty AppSec data #4216
+- Keep every trace that has an AppSec event when one PHP request serves many HTTP requests (FrankenPHP worker mode, RoadRunner) #4405
+- Fix a memory leak in the AppSec helper when the active service changes #4390

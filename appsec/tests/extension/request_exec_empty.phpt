@@ -1,7 +1,6 @@
 --TEST--
 request_exec logs and rejects empty data without sending a command
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.log_file=php_error_reporting
 --FILE--

@@ -5,7 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "php_helpers.h"
 #include "ddappsec.h"
-#include "php_compat.h"
+#include <ext/compatibility.h>
 
 dd_php_array_type dd_php_determine_array_type(const zend_array *nonnull myht)
 {

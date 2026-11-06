@@ -15,7 +15,8 @@
 All compile, link, and aggregate jobs (`compile tracing extension`,
 `compile tracing sidecar`, `link tracing extension`, `aggregate tracing extension`,
 `compile appsec extension`,
-`compile profiler extension`, `compile loader`, `compile extension windows`) are
+`compile combined extension`, `compile SSI combined extension`,
+`aggregate SSI combined extension`, `compile loader`, `compile extension windows`) are
 documented in [compile-artifacts.md](compile-artifacts.md).
 
 | CI Job | Image | What it does |
@@ -55,22 +56,25 @@ Platform matrix for `package extension`:
 ## Data Flow
 
 ```
-compile tracing extension ─┐
-  + link tracing extension  │
-compile appsec extension  ─┤ → generate-final-artifact.sh → .tar.gz
-compile profiler extension─┤         v
-compile loader            ─┘  nfpm → .deb/.rpm/.apk
-                                     │
-                     prepare-oci-package.sh → OCI image
+Self-contained extensions_* + appsec_* + PHP sources/rules/licenses
+  +-- generate-final-artifact.sh --> release .tar.gz bundles
+  +-- Make packaging targets -----> nfpm .deb/.rpm/.apk
+
+SSI ssi_* (PHP 7.1+) + standalone_* (PHP 7.0 only)
+  + common runtime DSOs + loader DSOs + AppSec + sources/rules/licenses
+  +-- generate-ssi-package.sh --> SSI loader .tar.gz
+       +-- prepare-oci-package.sh --> OCI packaging/publishing
 ```
 
-Intermediate artifacts (`extensions_*/`, `appsec_*/`,
-`datadog-profiling/`) feed into `generate-final-artifact.sh`, which
-produces per-platform `.tar.gz` tarballs. Those are then packaged
-into `.deb`/`.rpm`/`.apk` by nfpm, and into OCI images by
-`prepare-oci-package.sh`. See
+Ordinary packages consume self-contained `extensions_*` binaries, with
+profiling embedded for Linux PHP 7.1+. SSI consumes different `ssi_*` binaries
+and installs the PHP-independent common DSO once per libc/platform. Neither
+path ships a standalone profiler DSO or a private PHP-ABI Rust archive.
+`prepare-oci-package.sh` consumes the **SSI** tarball, not an ordinary release
+bundle. See [compile-artifacts.md](compile-artifacts.md#what-it-builds) for the
+artifact map and
 [building-locally.md](building-locally.md#release-package-assembly)
-for prerequisites and argument details.
+for assembly commands and prerequisites.
 
 ## Local Reproduction
 
@@ -128,12 +132,13 @@ shown above.
   `bookworm`. See the "centos-7 vs bookworm" gotcha in
   [compile-artifacts.md](compile-artifacts.md) for details.
 
-- **`package loader` depends on many upstream compile jobs** — loader (glibc
-  and musl), tracing extension aggregates, sidecar, all
-  appsec and profiler extension versions. A single upstream failure blocks packaging.
+- **`package loader` depends on many upstream compile jobs** — GNU/musl
+  loaders, SSI combined aggregates, the common runtime (including the AppSec
+  helper), PHP 7.0 legacy SSI, and all AppSec versions. A single upstream
+  failure blocks packaging.
   See [building-locally.md § SSI Loader Package Assembly](building-locally.md#ssi-loader-package-assembly)
-  for local reproduction and important caveats (empty stubs do not work;
-  `standalone_*/` not `extensions_*/`; must run on amd64).
+  for local reproduction: real DSOs are required; PHP 7.1+ uses `ssi_*/`,
+  only PHP 7.0 uses `standalone_*/`, and CI packaging runs on amd64.
 
 - **`php: command not found` warnings in `php_fpm_packaging`.** The packaging
   image does not have `php` on PATH. Make evaluates all `$(shell ...)` variable

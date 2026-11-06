@@ -498,7 +498,9 @@ class SpanBuilderTest extends MockeryTestCase
             ->spanBuilder(self::SPAN_NAME)
             ->startSpan();
 
-        $this->assertFalse($span->isRecording());
+        // DROP is upgraded to RECORD_ONLY, like unsampled spans of the native tracer API
+        $this->assertTrue($span->isRecording());
+        $this->assertFalse($span->getContext()->isSampled());
         $span->end();
     }
 

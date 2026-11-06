@@ -316,8 +316,9 @@ Produces `.so` artifacts consumed by Groups B, C, H.
 → **[compile-artifacts.md](compile-artifacts.md)**
 Covers: `compile extension: debug/release/zts/...` (tracer pipeline),
 `compile tracing extension / sidecar / loader / asan` (package pipeline),
-`compile appsec extension`,
-`compile profiler extension`, `compile extension windows`, `link tracing extension`,
+`compile appsec extension` (the AppSec helper is embedded in the sidecar, so
+there is no separate helper compile job any more),
+`compile combined extension`, `compile extension windows`, `link tracing extension`,
 `aggregate tracing extension`, `pecl build`, `prepare code`, `cache cargo deps`
 
 ---

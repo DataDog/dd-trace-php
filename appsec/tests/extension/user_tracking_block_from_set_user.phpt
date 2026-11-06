@@ -1,7 +1,5 @@
 --TEST--
 Block from DDTrace\set_user
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

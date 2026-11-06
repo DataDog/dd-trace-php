@@ -2,7 +2,7 @@
 [profiling] allocation profiling not crashing with system allocator in `gc_mem_caches()` call
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 if (PHP_VERSION_ID < 70400)
     echo "skip: 'run-tests.php' in PHP older then 7.4.0 overwrites the `USE_ZEND_ALLOC` environment variable";

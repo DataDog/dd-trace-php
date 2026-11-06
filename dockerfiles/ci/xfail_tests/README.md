@@ -51,6 +51,7 @@ The following tests are marked as skipped due to the test relying on a hard-code
 - `Zend/tests/type_declarations/scalar_return_basic_64bit.phpt`
 - `Zend/tests/weakrefs/weakmap_basic_map_behaviour.phpt`
 - `ext/standard/tests/filters/bug54350.phpt`
+- `ext/spl/tests/spl_object_hash_deprecated.phpt` (8.6+; the object handle is shifted by objects ddtrace creates)
 
 ## Random port selection
 
@@ -109,6 +110,48 @@ On PHP 8.0 and PHP 8.1 we override zend_execute_internal, which causes DO_FCALL 
 
 # Specific tests
 
+## `ext/sockets/tests/socket_export_stream-4.phpt`
+
+Disabled on PHP 7.0–7.3. The test binds fixed UDP ports, including 58484, which
+can already be in use. Occupying that port reproduces the warning without any
+Datadog extension. The [upstream fix][socket-port-fix] lets the OS choose free
+ports and is present in PHP 7.4+, where we keep running the test.
+
+[Failing PHP 7.3 CI job][socket-flake-ci].
+
+[socket-port-fix]: https://github.com/php/php-src/commit/a57905dbacfc4e5d94267fecf0e0f4a2798e7022
+[socket-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2205741810
+
+## `ext/standard/tests/streams/proc_open_bug64438.phpt`
+
+Disabled on PHP 7.0–7.3. The test assumes both pipes return data before either
+returns EOF. Reading stdout data, stdout EOF, stderr data, then stderr EOF is
+also valid and reproduces the CI diff without any Datadog extension. The
+[upstream fix][proc-pipe-fix] collects events per pipe and is present in PHP
+7.4+, where we keep running the test.
+
+[Failing PHP 7.3 CI job][proc-flake-ci].
+
+[proc-pipe-fix]: https://github.com/php/php-src/commit/d20fc5a1927c98db7d4e96c17b9988569822592a
+[proc-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2195978918
+
+## `ext/pcntl/tests/002.phpt`
+
+Disabled on PHP 7.0–7.4. The test blocks SIGCHLD, then installs a handler.
+PHP's `zend_sigaction()` unblocks SIGCHLD during handler registration. If the
+child exits before `pcntl_sigwaitinfo()`, the handler receives the signal and
+the wait hangs. Delaying the parent after killing the child reproduces the
+exact timeout without any Datadog extension.
+
+[Failing PHP 7.4 CI job][pcntl-flake-ci]. We keep running this test on PHP 8.0+;
+the cutoff limits the exclusion to legacy versions, not a known upstream fix.
+
+[pcntl-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2210035628
+
+These exclusions use the shared version-specific lists for tracer and profiler
+CI. Despite the name, `.gitlab/run_php_language_tests.sh` deletes listed PHPTs
+before running the suite; they do not run as expected failures.
+
 ## `ext/standard/tests/file/file_get_contents_file_put_contents_5gb.phpt`
 
 Disabled on versions: `8.2`, `8.3`.
@@ -136,6 +179,18 @@ Test does http request to shut down server.
 ## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_DEBUGFUNCTION.phpt`
 
 Distributed tracing headers are injected
+
+## `ext/curl/tests/curl_getinfo_CURLINFO_HEADER_OUT.phpt`, `ext/standard/tests/http/ghsa-fpwc-w8rq-cr92-002.phpt`
+
+Disabled on versions: `8.6`.
+
+The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
+
+## `ext/standard/tests/filters/stream_filter_register_*.phpt` (the 5 listed in `8.6.list`)
+
+Disabled on versions: `8.6` (the tests are new in 8.6).
+
+They expect a shutdown-time `Invalid callback` fatal. ddtrace's uncaught-exception rethrow ends in `zend_bailout()`, which sets `CG(unclean_shutdown)`, so `userfilter_filter` returns early and the fatal is never emitted. Pre-existing ddtrace behaviour, not 8.6-specific.
 
 ## `ext/intl/tests/bug60192-sort.phpt`
 
@@ -276,6 +331,8 @@ PHP 8.5 completely removed the `disable_classes` INI directive (see [RFC](https:
 
 These tests use object ids, and %00; changing the EXPECT to EXPECTF will cause the %00 to be matched as literal NULL-Bytes, breaking the test.
 
+`ext/uri/tests/whatwg/builder/username_success_tab_newline.phpt` (8.6+) fails the same way: its object ids trigger the EXPECTF rewrite, and its `%0A`/`%0D`/`%09` then match as NUL bytes.
+
 ## `ext/soap/tests/soap_qname_crash.phpt`
 
 Disabled on versions: `8.1+`.
@@ -290,7 +347,7 @@ The bundled test certificates expired on 2026-04-02. The TLS handshake fails bec
 
 ## `ext/sockets/tests/gh21161.phpt`
 
-Disabled on versions: `8.4`, `8.5`.
+Disabled on versions: `8.4`, `8.5`, `8.6`.
 
 The test calls `socket_create(AF_INET6, ...)` without a SKIPIF guard for IPv6 availability (only skips on Windows). In CI (Kubernetes pods), IPv6 is not available, so `socket_create` returns `false`. The subsequent `socket_set_option(false, ...)` call throws a `TypeError` instead of producing the expected warnings. This is an upstream bug in the test's SKIPIF section.
 

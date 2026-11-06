@@ -5,7 +5,7 @@ Verify that heap live profiling tracks allocations that stay alive.
 Uses trace log level to verify allocations are being tracked.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
 --ENV--

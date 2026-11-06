@@ -8,18 +8,23 @@ use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
+use DDTrace\FeatureFlags\Internal\EvaluationLog;
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\Log\Logger as GlobalLogger;
 use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LogLevel;
 use DDTrace\Log\NonThrowingLogger;
+use OpenFeature\implementation\hooks\AbstractHook;
 use OpenFeature\implementation\provider\AbstractProvider;
 use OpenFeature\implementation\provider\ResolutionDetailsBuilder;
 use OpenFeature\implementation\provider\ResolutionError;
 use OpenFeature\interfaces\flags\EvaluationContext;
 use OpenFeature\interfaces\flags\FlagValueType;
+use OpenFeature\interfaces\hooks\HookContext;
+use OpenFeature\interfaces\hooks\HookHints;
 use OpenFeature\interfaces\provider\ErrorCode;
 use OpenFeature\interfaces\provider\Reason as OpenFeatureReason;
 use OpenFeature\interfaces\provider\ResolutionDetails as ResolutionDetailsInterface;
@@ -53,6 +58,56 @@ final class DataDogProvider extends AbstractProvider
         });
         $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
+        // Register only when enabled: debug-off evaluations run no diagnostic hooks.
+        if ($this->datadogLogger->isLevelActive(LogLevel::DEBUG)) {
+            $this->setHooks([new class ($this->datadogLogger) extends AbstractHook {
+                public function __construct(private LoggerInterface $logger)
+                {
+                }
+
+                public function supportsFlagValueType(string $flagValueType): bool
+                {
+                    return true;
+                }
+
+                public function before(HookContext $context, HookHints $hints): ?EvaluationContext
+                {
+                    return null;
+                }
+
+                public function after(HookContext $context, ResolutionDetailsInterface $details, HookHints $hints): void
+                {
+                }
+
+                public function finally(HookContext $context, HookHints $hints): void
+                {
+                }
+
+                public function error(HookContext $context, \Throwable $error, HookHints $hints): void
+                {
+                    if (!$this->logger->isLevelActive(LogLevel::DEBUG)) {
+                        return;
+                    }
+                    try {
+                        $details = json_encode([
+                            'flagKey' => $context->getFlagKey(),
+                            'valueType' => $context->getType(),
+                            'defaultValue' => $context->getDefaultValue(),
+                            'targetingKey' => $context->getEvaluationContext()->getTargetingKey(),
+                            'attributes' => (object) $context->getEvaluationContext()->getAttributes()->toArray(),
+                            'error' => (string) $error,
+                            'returnedValueObservable' => false,
+                        ], JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
+                        if ($details === false) {
+                            $details = 'detailsUnavailable: ' . json_last_error_msg();
+                        }
+                    } catch (\Throwable $formatError) {
+                        $details = 'detailsUnavailable: ' . $formatError->getMessage();
+                    }
+                    $this->logger->debug('Feature Flags: OpenFeature evaluation error {details}', ['details' => $details]);
+                }
+            }]);
+        }
     }
 
     public function getHooks(): array
@@ -162,6 +217,17 @@ final class DataDogProvider extends AbstractProvider
     ): ResolutionDetailsInterface {
         $normalizedContext = $this->normalizeContext($context);
         $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $normalizedContext);
+        // OpenFeature, not the provider, determines the value the application
+        // receives, so this logs the resolution handed to it.
+        EvaluationLog::debug(
+            $this->datadogLogger,
+            'provider resolved',
+            $flagKey,
+            $defaultValue,
+            $normalizedContext['targetingKey'] ?? null,
+            $normalizedContext['attributes'] ?? [],
+            $details
+        );
         $this->warnIfRuntimeNotReady($details);
         // The PHP OpenFeature SDK does not pass ResolutionDetails to finally
         // hooks, so PHP records metrics here after native evaluation has the

@@ -217,4 +217,4 @@ void ddtrace_add_propagated_tag(zend_string *key, zval *value) {
     zend_hash_add_empty_element(propagated, key);
 }
 
-DATADOG_PUBLIC void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value) { ddtrace_add_propagated_tag(key, value); }
+void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value) { ddtrace_add_propagated_tag(key, value); }

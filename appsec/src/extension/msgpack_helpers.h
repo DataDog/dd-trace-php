@@ -74,6 +74,10 @@ void dd_mpack_write_array_lim(mpack_writer_t *nonnull w,
 void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv);
 void dd_mpack_write_zval_lim(mpack_writer_t *nonnull w, zval *nullable zv,
     dd_mpack_limits *nonnull limits);
+#ifdef TESTING
+bool dd_mpack_to_zval(
+    const char *nonnull data, size_t length, zval *nonnull output);
+#endif
 void dd_mpack_writer_init_buffer(mpack_writer_t *nonnull writer,
     dd_mpack_buffer *nonnull buffer, size_t prefix_size);
 void dd_mpack_buffer_destroy(dd_mpack_buffer *nonnull buffer);

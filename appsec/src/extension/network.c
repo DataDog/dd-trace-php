@@ -13,10 +13,10 @@
 #define HELPER_PROCESS_C_INCLUDES
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "ddtrace.h"
 #include "logging.h"
 #include "network.h"
-#include "php_compat.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 struct PACKED _dd_header { // NOLINT
     char code[4];          // dds\0
@@ -30,7 +30,10 @@ _Static_assert(sizeof(dd_header) == DD_CONN_REQUEST_HEADER_SIZE,
 
 static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
 
-void dd_conn_init(dd_conn *nonnull conn) { conn->connected = true; }
+void dd_conn_init(dd_conn *nonnull conn)
+{
+    *conn = (dd_conn){.connected = true};
+}
 
 dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
     size_t request_len, bool client_init,
@@ -59,15 +62,10 @@ dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
     dd_header out_h = {"dds", (uint32_t)data_len_out};
     memcpy(request, &out_h, sizeof(out_h));
 
-#ifdef ZTS
-    ddog_AppsecCResponse response =
-        dd_trace_send_appsec_message(DDAPPSEC_G(ts_ls_cache),
-            (const uint8_t *)request, request_len, client_init);
-#else
     ddog_AppsecCResponse response = dd_trace_send_appsec_message(
         (const uint8_t *)request, request_len, client_init);
-#endif
 
+    response_out->_response = response;
     dd_result ret;
 
     if (response.disconnect) {
@@ -116,32 +114,21 @@ dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
         goto error;
     }
 
-    *response_out = (dd_helper_response){
-        .data = (char *)response.ptr + sizeof(dd_header),
-        .data_len = h.size,
-        ._capacity = response.capacity,
-    };
+    response_out->data = (char *)response.ptr + sizeof(dd_header);
+    response_out->data_len = h.size;
     return dd_success;
 
 error:
-    if (response.ptr != NULL) {
-        dd_trace_free_appsec_message_response(response);
-    }
+    dd_helper_response_destroy(response_out);
     return ret;
 }
 
 void dd_helper_response_destroy(dd_helper_response *nonnull response)
 {
-    if (response->data == NULL) {
-        return;
+    if (response->_response.ptr != NULL) {
+        dd_trace_free_appsec_message_response(response->_response);
     }
-
-    dd_trace_free_appsec_message_response((ddog_AppsecCResponse){
-        .ptr = (uint8_t *)response->data - sizeof(dd_header),
-        .len = response->data_len + sizeof(dd_header),
-        .capacity = response->_capacity,
-        .disconnect = false,
-    });
+    *response = (dd_helper_response){0};
 }
 
-void dd_conn_destroy(dd_conn *nonnull conn) { conn->connected = false; }
+void dd_conn_destroy(dd_conn *nonnull conn) { *conn = (dd_conn){0}; }

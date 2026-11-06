@@ -1,7 +1,6 @@
 --TEST--
 appsec.api_security.request.schema is reported when the helper returns schemas
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test_apisec_schema.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1

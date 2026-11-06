@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Private linker input for combined SSI ddtrace.so; never a shipped extension.
+set -euo pipefail
+
+[[ $# -eq 1 ]] || { echo 'usage: build-ddtrace-php-abi-archive /absolute/path/to/archive.a' >&2; exit 1; }
+: "${PHP_VERSION:?The release image must supply PHP_VERSION}"
+root=$(cd "$(dirname "$0")/../.." && pwd)
+cd "$root"
+[[ "$(php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')" == "$PHP_VERSION" &&
+   "$(php -n -r 'echo (int) PHP_DEBUG;')" == '0' ]] ||
+    { echo 'select a matching non-debug PHP release build before building the SSI archive' >&2; exit 1; }
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/tmp/ssi-abi/target}"
+export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
+export CARGO_FEATURES='--no-default-features --features profiling-embedded'
+export SHARED=1 PROFILE=tracer-release host_os="${HOST_OS:-linux-gnu}"
+if [[ -n ${DDTRACE_PROFILING_TARGET:-} ]]; then
+    ./compile_rust.sh --quiet ${DDTRACE_PROFILING_CARGO_BUILD_FLAGS:-} --target "$DDTRACE_PROFILING_TARGET"
+else
+    ./compile_rust.sh --quiet ${DDTRACE_PROFILING_CARGO_BUILD_FLAGS:-}
+fi
+
+output=$1
+mkdir -p "$(dirname "$output")"
+cp "$CARGO_TARGET_DIR${DDTRACE_PROFILING_TARGET:+/$DDTRACE_PROFILING_TARGET}/tracer-release/libdatadog_php.a" "$output"
+echo "SSI ddtrace Rust linker input: $output"

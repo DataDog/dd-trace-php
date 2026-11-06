@@ -183,7 +183,7 @@ static zend_string* guess_endpoint(const char* orig_url, size_t orig_url_len) {
     return smart_str_extract(&result);
 }
 
-DATADOG_PUBLIC zend_string* ddtrace_guess_endpoint_from_url(const char* url, size_t url_len)
+zend_string* ddtrace_guess_endpoint_from_url(const char* url, size_t url_len)
 {
     return guess_endpoint(url, url_len);
 }
