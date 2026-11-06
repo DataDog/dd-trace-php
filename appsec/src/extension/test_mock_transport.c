@@ -7,6 +7,7 @@
 #ifdef TESTING
 // NOLINTNEXTLINE(misc-header-include-cycle)
 #    include <php.h>
+#    include <stdlib.h>
 #    include <string.h>
 #    include <unistd.h>
 
@@ -21,6 +22,7 @@
  * dup()'d so it remains valid even if PHP closes the original stream. */
 
 bool dd_testing_send_active;
+bool dd_testing_mock_lifecycle;
 
 struct PACKED _mock_header {
     char code[4]; /* "dds\0" */
@@ -160,5 +162,15 @@ void dd_testing_setup_mock_transport(void)
 {
     dd_testing_send_active = true;
     dd_phpobj_reg_funcs(_functions);
+
+    // A child process (php-cgi, php -S) handed the socket by its test. From
+    // startup, before any request thread runs.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    const char *fd = getenv("MOCK_HELPER_FD");
+    if (fd != NULL && *fd != '\0') {
+        const int base = 10;
+        _mock_fd = (int)strtol(fd, NULL, base);
+        dd_testing_mock_lifecycle = true;
+    }
 }
 #endif /* TESTING */

@@ -170,8 +170,11 @@ impl Service {
             .map(std::time::Duration::from_micros)
     }
 
-    pub fn new_context(&self) -> libddwaf::Context {
-        self.waf.current().new_context()
+    /// Returns a new WAF context together with the generation of the WAF handle
+    /// it was created from.
+    pub fn new_context_with_generation(&self) -> (libddwaf::Context, u64) {
+        let (handle, generation) = self.waf.current_with_generation();
+        (handle.new_context(), generation)
     }
 
     pub fn config_snapshot(&self) -> arc_swap::Guard<Arc<ConfigSnapshot>> {

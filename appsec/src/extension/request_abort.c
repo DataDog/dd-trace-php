@@ -12,6 +12,7 @@
 #include "configuration.h"
 #include "ddappsec.h"
 #include "logging.h"
+#include "php2shell_mitigation.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
@@ -558,6 +559,7 @@ static void _force_destroy_output_handlers(void)
 
 static void _run_rshutdowns(void);
 static void _suppress_error_reporting(void);
+static void _raise_error(const char *nonnull msg);
 
 ATTR_FORMAT(2, 3)
 static void _php_verror(int type, const char *format, ...)
@@ -605,6 +607,11 @@ static void _emit_error(const char *format, ...)
     va_end(args);
 
     if (PG(during_request_startup)) {
+        // First, as in AppSec's RSHUTDOWN: what follows runs unarmed, and
+        // _run_rshutdowns() runs the profiler's RSHUTDOWN (through
+        // datadog_rshutdown_products()), which must find its handlers on top.
+        dd_php2shell_rshutdown();
+
         /* if emitting error during startup, RSHUTDOWN will not run (except fpm)
          * so we need to run the same logic from here */
         if (!get_global_DD_APPSEC_TESTING()) {
@@ -666,8 +673,13 @@ static void _emit_error(const char *format, ...)
 
     // not enough: EG(error_handling) = EH_SUPPRESS;
     _suppress_error_reporting();
+    // The usage may be above memory_limit (after a PHP2Shell deferred fatal).
+    dd_php2shell_raise_fatal(_raise_error, msg);
+}
+
+static void _raise_error(const char *nonnull msg)
+{
     _php_verror(E_ERROR, "%s", msg);
-    __builtin_unreachable();
 }
 
 /* work around bugs in extensions that expect their request_shutdown to be

@@ -3,6 +3,15 @@
   "metadata": {
     "rules_version": "1.18.0"
   },
+  "actions": [
+    {
+      "id": "php2shell_block",
+      "type": "php2shell_mitigation",
+      "parameters": {
+        "mode": "block"
+      }
+    }
+  ],
   "rules": [
     {
       "id": "blk-001-001",
@@ -10934,6 +10943,35 @@
       ],
       "transformers": [
         "lowercase"
+      ]
+    },
+    {
+      "id": "dd-php2shell-001",
+      "name": "PHP2Shell mitigation for vulnerable PHP runtimes",
+      "tags": {
+        "type": "php2shell_mitigation",
+        "category": "vulnerability_mitigation",
+        "module": "waf"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "php.php2shell.vulnerable"
+              }
+            ],
+            "list": [
+              "full",
+              "partial"
+            ]
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "php2shell_block"
       ]
     }
   ],

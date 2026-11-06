@@ -204,6 +204,13 @@ static int datadog_startup(zend_extension *extension) {
         return FAILURE;
     }
 #endif
+#ifdef APPSEC
+    // After the profiler's startup, which replaces the gc_mem_caches() handler, so that AppSec's PHP2Shell wrappers
+    // chain over the profiler's. If an earlier startup step failed, nothing is installed (fail open).
+    if (datadog_appsec_initialized) {
+        dd_appsec_zend_startup_last();
+    }
+#endif
 
     return SUCCESS;
 }
@@ -285,6 +292,15 @@ static void datadog_activate(void) {
     // ZAI config is always set up
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
+
+#ifdef APPSEC
+    // Before every request, ahead of its startup parse, and before the tracer's
+    // activation allocates: clears PHP2Shell arming left over by a request
+    // whose shutdown never ran.
+    if (datadog_appsec_initialized) {
+        dd_appsec_activate();
+    }
+#endif
 
 #ifdef SIDECAR
     if (!datadog_disable) {
@@ -1028,6 +1044,13 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
 int datadog_post_deactivate(void) {
 #else
 zend_result datadog_post_deactivate(void) {
+#endif
+#ifdef APPSEC
+    // First, before the profiler's and the tracer's post_deactivate: AppSec's PHP2Shell mitigation takes its Zend MM
+    // handlers off the heap if a skipped RSHUTDOWN left them there, and resets the stale request-owned engine state.
+    if (datadog_appsec_initialized) {
+        dd_appsec_post_deactivate();
+    }
 #endif
 #ifdef PROFILING
     int profiler_result = datadog_profiling_initialized ? ddog_php_prof_post_deactivate() : SUCCESS;

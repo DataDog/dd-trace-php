@@ -1,0 +1,630 @@
+// Unless explicitly stated otherwise all files in this repository are
+// dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
+//
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2026 Datadog, Inc.
+
+// Mitigation for the "PHP2Shell" CVEs (CVE-2026-109618 and CVE-2026-109619) on
+// UNPATCHED PHP runtimes. Upstream fixed both together in PHP 8.2.35 / 8.3.36 /
+// 8.4.27 / 8.5.12; PHP 8.6 is treated as patched (only its pre-releases
+// predate the fix). The patch state is read from the binary (see
+// php2shell/p2s_policy.c), never from PHP_VERSION: distributions backport the
+// full fix to lower versions (Ubuntu's 8.3.6 and 8.5.4) or only the minimal
+// fix of the EOL branches, down to 7.0 ("partial").
+//
+// CVE-2026-109618. _zend_hash_str_add_or_update_i() (PHP 7.3+) bumps the hash
+// table's entry counters before it allocates the key string. If that allocation
+// crosses memory_limit, zend_mm_safe_error() bails out (a longjmp) in the
+// middle of the insertion, and request shutdown later walks the counted but
+// uninitialised bucket as a zval. Request data is parsed before any userland
+// runs, so the request alone can trigger it. Upstream lets an allocation that
+// crosses the soft limit (memory_limit) succeed, raises the out-of-memory error
+// later at a safe point, and adds a hard limit that ends the process with
+// _exit(137).
+//
+// Hooks. Installed once, from the zend_extension startup hook (after every
+// module MINIT), and not written again until MSHUTDOWN: sapi_module.treat_data,
+// the sapi_module.input_filter / input_filter_init pair, php_rfc1867_callback,
+// sapi_module.deactivate, sapi_module.read_post, on PHP 8.4+ the handler of
+// request_parse_body(), for the request level (p2s_runtime.c), on PHP 7.1+
+// zend_interrupt_function and on PHP 7.1-8.3 the handler of gc_mem_caches(),
+// and, for the monitor state (p2s_monitor.c), zend_error_cb (on PHP 8.0 from
+// zend_post_startup_cb, over opcache's wrapper; see p2s_monitor.c). A
+// slot that another extension replaces later is not repaired (see
+// php2shell/p2s_hook.h); since another extension may also wrap ours and chain
+// to it, "replaced" means only that ours is no longer on top. The Zend MM
+// handlers are not among them: they are installed per request (see Request
+// level in p2s_runtime.c). No hook is installed, and the mitigation stays off
+// for the process, under the cli, phpdbg, embed and micro SAPIs, or when the
+// configuration seen at startup already rules it out (see
+// php2shell/p2s_policy.c): appsec or the tracer explicitly disabled, the mode
+// off, or the mode auto on a patched runtime.
+//
+// WAF decision. Under the mode auto, every request_init sends
+// php.php2shell.vulnerable = full (unpatched) or partial (only the minimal fix
+// of the EOL branches, as backported to 7.0-8.1) to the WAF, whose ruleset
+// decides through the response's php2shell_mitigation setting: none (disarmed),
+// monitor (disarmed; native memory errors are detected as they are raised and
+// reported on the span, on a full runtime only: see Coverage: Monitor on a
+// partial runtime) or block (armed). The decision is per thread and sticky: it
+// starts pending, which arms as block does, and only an explicit answer changes
+// it. It applies from the request_init that brought it: at the end of that
+// request's RINIT, armed until then with the previous decision, and in
+// FrankenPHP worker mode, where one PHP request spans every HTTP request, to
+// the request level at the start of each HTTP request (see
+// dd_p2s_runtime_reconcile). The mode on arms whatever the WAF says
+// and sends nothing; off, and auto on a patched runtime, send nothing (see
+// php2shell/p2s_policy.c and Coverage: WAF decision). The helper evaluates the
+// address in a WAF run of its own, without a timeout, and keeps the rule's
+// match out of the request's appsec events.
+//
+// The mechanisms are described at the top of the unit, under php2shell/, that
+// implements them:
+//   - Windows, and the hard limit of a window: p2s_startup_parse.c (the
+//     request_parse_body() wrapper, PHP 8.4+, is p2s_request_parse_body.c);
+//   - Arming, our Zend MM handlers and the deferred raise: p2s_oom_guard.c;
+//   - Request level (PHP 7.1+): p2s_runtime.c;
+//   - CVE-2026-109619 sub-mitigations B and C: p2s_stale_state.c;
+//   - Gate and WAF decision: p2s_policy.c;
+//   - Monitor state, the detection of native memory errors: p2s_monitor.c;
+//   - Span tags and trace keep: p2s_report.c.
+//
+// Observability: two metrics (DD_METRIC_* in p2s_oom_guard.c), flushed
+// synchronously to the sidecar, tagged with the mode; the deferred one also
+// with the phase where the error was raised (phase:startup,
+// phase:request_parse_body or phase:runtime, see dd_deferred_phase), which its
+// log line names too (the hard-exit one has no log line, see _hard_abort); span
+// tags on the request's root span, whenever one exists (none before ddtrace's
+// RINIT, see p2s_report.c), each of which also keeps the trace (user keep, as
+// an appsec event):
+// _dd.appsec.php2shell.deferred = <phase> for a deferred error (block state,
+// and the mode on), and, in the monitor state,
+// _dd.appsec.php2shell.memory_error = memory_limit or out_of_memory with
+// _dd.appsec.php2shell.phase = <phase> for a native one; one log line per
+// replaced hook (appsec log only), and one each for an expanding filter.default
+// and mbstring.encoding_translation on (see Coverage: filter.default,
+// mbstring.encoding_translation); MINFO rows for the state, the mode, the patch
+// state, the WAF decision and each hook (Installed / Replaced / Not installed).
+//
+// Goals:
+//   A. On an unpatched runtime, a memory-limit error during the startup
+//      request-variable parse or request_parse_body() never bails out in the
+//      middle of an insertion. It is deferred to a safe point (per variable
+//      via input_filter, or at the end of the parse), and the hard limit
+//      bounds it. On PHP 7.1+, the same holds for insertions at runtime
+//      (parse_str(), add_assoc_*_ex() builders), deferred to the next VM
+//      interrupt.
+//   B. The CVE-2026-109619 stale request state is reset in post_deactivate
+//      (the object store and the last error after every module's), and
+//      session upload progress is off during the startup POST parse.
+//   C. Gated on the unpatched runtime, the mode toggle, the appsec flag and
+//      the SAPI; under the mode auto, armed only as the WAF decides.
+//   D. Two metrics (soft-deferred and hard-exit), flushed synchronously, and
+//      span tags for deferred errors and, in the monitor state, for native
+//      memory errors, with the trace kept.
+//   E. No hard exit for bodies within post_max_size, up to the constant cap.
+//
+// Coverage limits, grouped by consequence. Each entry has a label, cited
+// elsewhere as "(see Coverage: <label>)". The functions an entry names are in
+// the php2shell/ unit that implements the mechanism.
+//
+// 1. Not protected: the CVEs stay reachable.
+//   - Outside RINIT..RSHUTDOWN: the request level spans our RINIT (its helper
+//     exchange included) to our RSHUTDOWN. A block or a fatal error in our
+//     RINIT ends it first, as our RSHUTDOWN does, so appsec's request shutdown
+//     and the RSHUTDOWNs that the block runs there are unarmed. On php-fpm and
+//     FrankenPHP a block returns into our RINIT instead, which then leaves the
+//     request level closed. The tracer's and the profiler's parts of the
+//     ddtrace RINIT, which run before ours, the RINITs of extensions loaded
+//     before ddtrace.so, and RSHUTDOWNs that run after ours are unarmed,
+//     notably session write (the session module is built in, so its RSHUTDOWN
+//     runs after ours), as are output handlers flushed after our RSHUTDOWN.
+//     On PHP 7.3 with opcache loaded, datadog_sort_modules() (ext/datadog.c)
+//     moves the ddtrace module after opcache's, to the end of the module
+//     registry, so there every extension's RINIT runs before ours and every
+//     RSHUTDOWN after ours.
+//   - Raise outside the request level: after a deferred fatal from a
+//     request_parse_body() window the request level did not arm, the rest of
+//     the request runs unarmed, under max(memory_limit, usage at the raise +
+//     8 MiB) (see _set_finite_limit). No user code follows a startup window's.
+//   - Monitor mode: nothing is armed, as under the decision none, so the CVEs
+//     stay reachable; native memory errors are only reported (on a full
+//     runtime, see Coverage: Monitor on a partial runtime). One raised before
+//     every module RINIT has run has the phase startup; raised before
+//     ddtrace's RINIT (the startup parse), there is no root span, so it is
+//     only logged, at info level, and no metric counts it. An "Out of memory"
+//     error is reported while zend_mm's overflow flag is set, so if the
+//     operating system refuses again one of the small allocations of the
+//     report (the tags), zend_mm ends the process (exit(1)) instead of the
+//     fatal error. The trace keep, here as for a deferred error, has no rate
+//     limit: an application that crosses memory_limit on every request keeps
+//     every trace.
+//   - Monitor on a partial runtime: with the minimal fix of the EOL branches,
+//     zend_mm_safe_error() calls zend_mm_safe_error_ex(), which writes the
+//     fatal error to stderr and ends the process with _exit(1) without calling
+//     zend_error_cb. Memory errors thus end the process before any hook runs:
+//     not tagged, logged or counted, and the trace is lost.
+//   - CLI SAPIs: under cli, phpdbg, embed and micro (phpmicro) the
+//     mitigation is off in every mode, as if appsec were fully disabled (see
+//     _sapi_excluded).
+//   - USE_ZEND_ALLOC=0: nothing is armed. The plain stub enforces no limit;
+//     with USE_TRACKED_ALLOC=1 (PHP 8.0+, test-only) a crossing bails as on
+//     an unprotected runtime.
+//   - OS allocation failures: under RLIMIT_AS or strict overcommit, including
+//     moving reallocs.
+//   - Late last errors: PG(last_error_*) set in sapi_deactivate_destroy() or
+//     php_shutdown_stream_hashes() is not released by B.
+//   - Handlers dropped from the chain: when another extension's handlers are
+//     on top of ours at request end, ours are assumed to stay chained under
+//     them and are only armed by later requests (see _settle_handlers,
+//     _ensure_handlers). If that extension removed itself without restoring
+//     ours while a third one's handlers are now in the slot, ours are not
+//     called, yet arming still lifts the engine limit to the sentinel: those
+//     requests run with no memory limit at all, until the slot shows ours or
+//     plain zend_mm again.
+//   - Displaced hooks: a hook replaced after our startup hook is detected,
+//     logged to the appsec log (not when that is PHP error reporting) and
+//     shown in MINFO as Replaced, but not repaired. A replacement that chains
+//     to ours is reported the same way. For the startup-window hooks, its
+//     window is not armed (for input_filter, see Hard exit: displaced
+//     input_filter). The request stays armed whatever happens to
+//     zend_interrupt_function (see Coverage: Displaced interrupt hook) or to
+//     gc_mem_caches(), whose replacement, if it does not chain to our wrapper,
+//     may free nothing again. Xdebug (develop or step_debug mode; 2.x with
+//     default_enable=1) replaces zend_error_cb at every RINIT without
+//     chaining: monitor mode then reports no native memory errors;
+//     enforcement is unaffected.
+//
+// 2. The gate does not follow the expected configuration.
+//   - Startup gating: no hook is installed when the configuration seen at
+//     startup rules the mitigation out (see
+//     dd_p2s_policy_startup_may_hook), so a php-fpm pool cannot re-enable
+//     what the master disabled.
+//   - opcache.preload: under php-fpm the preload request runs in the master,
+//     which resolves the mode and the appsec gate there, so the workers do
+//     not see the pool env[] values. appsec's own configuration behaves the
+//     same way.
+//   - WAF decision: it reaches the thread from a request's RINIT
+//     (request_init), so that request's startup parse and its RINIT up to the
+//     reply follow the previous decision, and a new process or thread (each
+//     php-fpm worker, each ZTS thread, which converge separately) arms its
+//     first startup parse whatever the ruleset says. No answer (appsec not
+//     active, the helper unreachable, an error, an older helper) keeps the last
+//     decision. A remote-config ruleset without the rule answers none and
+//     disarms. In FrankenPHP worker mode, each HTTP request's request_init
+//     (when its handler is called) arms or disarms the request level for it:
+//     the superglobals FrankenPHP re-imports for it, before that call, and the
+//     worker script's code between HTTP requests follow the previous HTTP
+//     request's decision (see dd_p2s_guard_reconcile; a pending error is
+//     still raised, at the next VM interrupt outside the tracer's hook
+//     sandbox). Under remote config, a change of appsec's state reaches the
+//     thread the same way. RoadRunner and Ratchet run under the CLI SAPI,
+//     where the mitigation is off, and PHP does not parse their HTTP
+//     requests.
+//   - Per-directory datadog.appsec.enabled: follows appsec's own
+//     once-per-process resolution. It reaches the thread's flag only when set
+//     for the first request (from that request's RINIT, after its startup
+//     parse), and an off in a later request does not close the gate for that
+//     request.
+//
+// 3. Protected, but ending in _exit(137) instead of the deferred fatal.
+//   - Displaced input_filter: a parse is still armed but has no per-variable
+//     safe point, so a body within post_max_size can reach the hard limit.
+//   - Constant cap: in extreme configurations the cap, not the body, sets the
+//     hard limit.
+//   - max_input_vars in the millions: hash-table growth can reach the hard
+//     limit within post_max_size.
+//   - filter.default: one that can expand values (anything but unset or
+//     unsafe_raw) has no allowance in the hard limit, so a body within
+//     post_max_size can reach it. One warning is logged per process (see
+//     _warn_filter_default_once).
+//   - mbstring.encoding_translation: with it on, mbstring's parse of a
+//     urlencoded body allocates about 32 bytes per '&' (24 on PHP 7.0) in one
+//     call, before max_input_vars applies, so a body of '&' within
+//     post_max_size can reach the hard limit. One warning is logged per
+//     process (see _warn_mb_translation_once). Where stock PHP fails the
+//     request, php-fpm already ends the worker (a 502 instead of the error
+//     page), Apache prefork loses a child, and threaded SAPIs (Apache event on
+//     ZTS, FrankenPHP) can lose a concurrent request.
+//   - Soft limit below usage (PHP 8.1.4+): user code can lower memory_limit
+//     below its own usage (zend_set_memory_limit() can report success without
+//     applying it while chunks are cached) and then call request_parse_body().
+//     The hard limit computed from that soft limit can then be at or below the
+//     usage.
+//   - Request level, no safe point: growth inside one long internal call (one
+//     parse_str() or array builder), or with no VM interrupt before the end of
+//     the request, can reach max(L, S + 8 MiB) and end in _exit(137), as can a
+//     single allocation that would cross it (upstream's hard limit does the
+//     same). That is equal to upstream's L from 8 MiB, higher below 8 MiB (the
+//     8 MiB term).
+//   - Timeout at the same interrupt: when max_execution_time expires at the
+//     interrupt that would deliver a pending error, the VM handles the
+//     timeout (zend_timeout()) instead of calling zend_interrupt_function.
+//     No new interrupt is requested while the error stays pending (unless
+//     the tracer's sandbox refused it earlier). A shutdown function that
+//     keeps allocating then runs under the hard limit and can end in
+//     _exit(137) instead of a fatal error. FrankenPHP's force-kill of a stuck
+//     thread is such a timeout.
+//   - Tracer hook closure: the raise is refused inside the tracer's sandbox
+//     (see Coverage: Request level delivery), so a hook closure that keeps
+//     allocating after a crossing can reach the hard limit, where stock PHP's
+//     fatal would be swallowed by the sandbox and the request go on. On ZTS
+//     the _exit(137) ends every thread of the process.
+//   - Displaced interrupt hook: if zend_interrupt_function is replaced after
+//     our startup hook without chaining to ours, the interrupts we ask for
+//     never reach us and a pending error is never raised, so a request that
+//     keeps allocating grows to the hard limit and ends in _exit(137), or the
+//     error is dropped at our RSHUTDOWN (see Coverage: Displaced hooks).
+//     Under the OPcache JIT, compiled code can keep calling our wrapper
+//     anyway (the IR JIT, 8.4+, calls it directly or exits to the VM helper).
+//   - memory_limit lowered below usage (PHP 7.1-7.3, 7.4.0-7.4.20 and
+//     8.0.0-8.0.7, whose ini_set() accepts such a value; later versions
+//     refuse it): the new value becomes the soft limit as is, and the hard
+//     limit computed from it can be at or below the usage, so the next
+//     allocation ends in _exit(137) instead of the deferred fatal.
+//   - Skipped RSHUTDOWN (PHP 7.x): a bailout in an RSHUTDOWN that runs before
+//     ours (none does on PHP 7.3 with opcache loaded, see Coverage: Outside
+//     RINIT..RSHUTDOWN) skips ours, so the request stays armed through
+//     zend_deactivate(). zend_ini_deactivate() then restores a memory_limit
+//     raised at runtime (7.1-7.3 and 7.4.0-7.4.20 write the engine limit
+//     unconditionally), and our handlers adopt it as the soft limit (see
+//     _follow_limit). If usage, held up by cached chunks, is above the
+//     resulting hard limit, the next allocation ends in _exit(137), where
+//     stock PHP would fail only when the heap grows. Accepted: it needs a
+//     bailout in another module's RSHUTDOWN, a memory_limit raised at runtime
+//     and usage above that hard limit.
+//   - Extensions that exit on the error: the deferred fatal starts as the
+//     engine's ("Allowed memory size of"), so extensions that end the process
+//     on it end it on ours too, as they would on the stock error; protection
+//     holds. colopl_bc (abort_on_memory_error, on by default) calls
+//     _exit(255). hp_uploadprogress_guard (3.2+) calls _exit(137) when no
+//     frame executes, as for a fatal from the startup parse; it also owns the
+//     multipart POST handler, so our end of body after a crossing (see
+//     Coverage: Unread body) and the skip of later file parts do not apply
+//     there.
+//
+// 4. Protected, with observable differences from stock PHP.
+//   - Part in progress: the variable or multipart file part being registered
+//     at the crossing completes, overshooting within the hard limit. A file
+//     part keeps its temp file and $_FILES entries, at up to about 11 copies
+//     of its name (the multipart k).
+//   - Skipped file parts: later file parts are skipped at
+//     MULTIPART_EVENT_FILE_START, so no rfc1867 callback (session upload
+//     progress, third-party ones) sees them. Later form fields, although
+//     dropped from the arrays, still reach the rfc1867 callbacks as
+//     MULTIPART_EVENT_FORMDATA events with their value. Session upload progress
+//     is also off for the whole startup POST parse and inside
+//     request_parse_body(): on an unpatched runtime it does not work while the
+//     mitigation is armed.
+//   - Unread body: after a crossing in a multipart parse, the read_post
+//     wrapper reports the end of the body: the parser finishes only the data
+//     already buffered (about 5 KiB) and the rest of the body is left unread.
+//     The SAPI discards it (apache2handler) or closes or ignores the
+//     connection (php-fpm, php-cgi). A keep-alive FastCGI connection to
+//     php-fpm is not left with unread input: a deferred fatal from the startup
+//     parse fails php_request_startup(), and fpm_main then force-closes the
+//     connection (fcgi_finish_request(request, 1)) and exits the worker; one
+//     from request_parse_body() leaves SG(post_read) at 0, so
+//     sapi_deactivate_module() drains the rest of the body (see _read_post).
+//   - Temp files and fds: handled as in stock PHP; the mitigation does not
+//     change them.
+//   - NGINX Unit: after a failed request startup (e.g. a deferred fatal from
+//     the startup parse) Unit skips php_request_shutdown(), as with stock
+//     PHP; the window was already disarmed under a finite limit. A request
+//     left armed (a later module's RINIT failed) is disarmed when the next one
+//     starts (see dd_p2s_guard_activate); php -S before 8.1 is the same.
+//   - FrankenPHP re-import: in worker mode, the superglobals FrankenPHP
+//     re-imports for each HTTP request are parsed under the request level,
+//     without a window. After a crossing, the later variables are dropped and
+//     a multipart body is ended as in a startup parse, but the deferred fatal
+//     comes only at the next VM interrupt, so the handler can briefly run with
+//     the truncated superglobals.
+//   - FrankenPHP last error: worker mode calls sapi_deactivate() at every
+//     worker-request boundary with SG(sapi_started) set, so the
+//     sapi_module.deactivate wrapper also clears PG(last_error_*) there, while
+//     the worker script keeps running: error_get_last() in the worker script
+//     does not see an error raised by the handled request. This is
+//     memory-safe; recent FrankenPHP versions clear the last error at that
+//     point themselves.
+//   - After a deferred fatal: a raise at the request level (phase runtime, or
+//     a request_parse_body() window nested in it) leaves the request armed
+//     until our RSHUTDOWN, so a crossing in shutdown functions, destructors or
+//     output callbacks is deferred again, or ends in _exit(137). The soft
+//     limit is then max(memory_limit, F) and the hard limit C, with F =
+//     max(the breached limit, usage at the raise + 8 MiB), raised by later
+//     raises up to C - 8 MiB, and C = max(the request hard limit, F + 8 MiB),
+//     which moves only with memory_limit (see _raise_floor).
+//   - Swallowed deferred fatal: code that catches the bailout and carries on
+//     (ext/soap turns it into a SoapFault inside a SoapClient call that runs
+//     user code; parallel runs the next task of the same runtime; an agent's
+//     sandbox) stays armed, and its next crossing is deferred again. No raise
+//     happens inside ddtrace's sandbox (see _interrupt in p2s_runtime.c).
+//   - Request level delivery: the error is raised at the next VM interrupt,
+//     after the inner interrupt handlers (pcntl signal handlers, Excimer,
+//     ddtrace and its profiler); code in between runs over memory_limit, up to
+//     the hard limit. An interrupt while that code runs (a timer, a second
+//     signal) raises at once instead of running them again. Not inside the
+//     tracer's sandbox (EH_THROW: its hook closures), which would swallow it:
+//     the rest of the closure runs on, and each allocation, whatever the usage,
+//     asks for the interrupt again (see _interrupt in p2s_runtime.c; and
+//     Coverage: Tracer hook closure). So the error can come late (code after
+//     the closure that does not allocate runs on); raised after the HTTP
+//     request's span is finished (e.g. a FrankenPHP request the WAF blocks: its
+//     handler never runs and both hook closures are sandboxed), it is not
+//     tagged and the trace not kept. Internal functions that set EH_THROW
+//     around a callback into userland delay it the same way. A crossing in our
+//     RINIT or in a module RINIT that runs after ours is raised at the script's
+//     first interrupt (EG(vm_interrupt) is reset only in init_executor(),
+//     before the RINITs), where stock PHP would fail the request startup
+//     instead (or, on a partial runtime, end the process). An error pending
+//     with no later interrupt (other modules' RSHUTDOWN, output handlers,
+//     session write, the end of the script, after EG(active) = 0) is dropped:
+//     the request succeeds within the hard limit. Raised in a shutdown
+//     function, it skips the later ones, as any fatal does (see Coverage: After
+//     a deferred fatal). A timeout pending at the same time wins (see Coverage:
+//     Timeout at the same interrupt). Coroutine runtimes (Swow, Swoole) can
+//     delay the raise by one scheduling slice.
+//   - Limit after a dropped error: memory_limit is restored when the request
+//     is disarmed (at our RSHUTDOWN, or in post_deactivate after a skipped
+//     one) and again by appsec's request shutdown. With usage above it
+//     (mainly after a pending error was dropped) it no longer fits, and the
+//     engine gets usage + 8 MiB instead: the rest of shutdown (later
+//     RSHUTDOWNs, session write, output teardown) stays bounded, a little
+//     above memory_limit (see dd_p2s_guard_restore_limit). In a worker using
+//     ddtrace's user-request API, a failed restore when a user request ends
+//     also raises "Failed to restore memory limit after AppSec request
+//     shutdown", ending the worker, as a fixed PHP's delayed OOM does.
+//   - Sentinel memory_limit: a memory_limit of -2 (PHP 7.0-8.1) or
+//     18446744073709551614 (8.2+) set at runtime writes exactly the sentinel
+//     engine limit, so our handlers do not see the change (see _keep_sentinel)
+//     and the previous soft and hard limits stay in force, where stock PHP
+//     would have no limit. Comparing PG(memory_limit) on every allocation
+//     would catch it, at a cost on every allocation for these exotic values.
+//   - Ordinary out-of-memory errors: whole-request arming applies to every
+//     request on an unpatched runtime, so an application's own crossing of
+//     memory_limit is deferred too, counted in the deferred metric
+//     (phase:runtime), tagged on the span and the trace kept.
+//   - gc_mem_caches() replaced first: when another extension replaced the
+//     handler of gc_mem_caches() before our startup hook (PHP 7.1-8.3), ours
+//     is not installed, and gc_mem_caches() frees nothing while a request is
+//     armed unless that handler turns use_custom_heap off itself. This is
+//     detected only for a handler in another DSO (see _in_engine_or_ours):
+//     ours is installed over one in the PHP binary, such as a statically
+//     built extension's, and over any if dladdr() fails, and then calls it
+//     with use_custom_heap off while our allocator handlers are in the chain.
+//     The Datadog profiler built into ddtrace.so is not such a replacement:
+//     its wrapper is installed before our capture, lives in our own DSO and
+//     always calls the engine's handler, so ours is installed over it and
+//     turns use_custom_heap off whatever the profiler's settings.
+//   - Old handler setter: profilers that put our handlers back with
+//     zend_mm_set_custom_handlers() instead of the _ex variant
+//     (tideways_xhprof, SPX; PHP 8.4+) clear our gc and shutdown handlers:
+//     gc_mem_caches() frees nothing for the rest of the request; protection
+//     is unaffected.
+//
+// 5. Not addressed.
+//   - PHP 7.0, after RINIT: without EG(vm_interrupt) there is no request
+//     level: only the startup parse is armed (the windows), and a later
+//     crossing is the engine's own error. The CVE-2026-109618 insertion bug
+//     is absent there: on 7.0-7.2 zend_hash_str_* allocates the key before it
+//     counts the bucket, so a bailout leaves the table unchanged.
+//   - Unrelated stock-PHP bugs: those not about memory (e.g. the parse_str
+//     user-handler use-after-free).
+//   - Exotic extensions: compatibility beyond chaining what is captured at
+//     startup.
+//   - Extensions that need plain zend_mm: with our handlers installed for the
+//     whole request, is_zend_mm() is false, so an extension that requires it
+//     stops working. memprof is ruled out instead: it swaps in its own heap
+//     in its RINIT, so armed on that one the guard would miss the real heap's
+//     limit, and a client can turn it on per request (MEMPROF_PROFILE).
+//     Snuffleupagus is ruled out too: its upload hook re-wraps ours and
+//     recurses, and its INI protection turns our upload-progress toggle into
+//     a bailout. With either loaded no hook is installed and MINFO names it
+//     (see _incompatible_module in p2s_policy.c).
+//   - Handlers reset after a bailout: when a bailout skipped our RSHUTDOWN,
+//     post_deactivate resets the heap to plain zend_mm instead of restoring
+//     the handlers found at install, so an extension below us that keeps its
+//     handlers across requests loses them (see _settle_handlers). The
+//     profiler installs its own again in its next RINIT.
+//   - Profiler recursion: the Datadog profiler stacked over our handlers,
+//     which happens only when they stayed chained under a third extension
+//     that keeps its MM handlers across requests, recurses without end.
+//     Synthetic (seen only with p2s_stub's mm_keep, see
+//     php2shell_mitigation_lifecycle_fallbacks.phpt); the loop is inside the
+//     profiler, AppSec is not part of it.
+//   - Request level performance: the profiler stacking and the cost of
+//     whole-request arming are not yet validated.
+//
+// Non-goal: worker recycling. A worker ends only where the engine would end
+// it: the hard-limit _exit(137), and a deferred E_ERROR from the startup parse
+// on SAPIs that exit after a failed request startup (php-fpm, php-cgi), as the
+// engine's own out-of-memory error there would. apache2handler keeps the
+// process, unless an extension ends it (see Coverage: Extensions that exit on
+// the error). A deferred error from request_parse_body() ends only the request.
+
+#include "php2shell_mitigation.h"
+
+#include <php.h>
+
+#include "configuration.h"
+#include "ddappsec.h" // DDAPPSEC_G, EG/PG
+#include "logging.h"
+
+#include "php2shell/p2s_monitor.h"
+#include "php2shell/p2s_oom_guard.h"
+#include "php2shell/p2s_policy.h"
+#include "php2shell/p2s_request_parse_body.h"
+#include "php2shell/p2s_runtime.h"
+#include "php2shell/p2s_stale_state.h"
+#include "php2shell/p2s_startup_parse.h"
+
+// Set at the end of dd_php2shell_minit(); dd_php2shell_startup() installs the
+// hooks only after it. Written during startup and in MSHUTDOWN only.
+static bool _minit_done;
+
+// ===========================================================================
+// Public API
+// ===========================================================================
+
+void dd_php2shell_minit(void)
+{
+    dd_p2s_policy_minit();
+    dd_p2s_guard_minit();
+    _minit_done = true;
+#ifdef TESTING
+    // Test-only functions, registered only with datadog.appsec.testing on.
+    if (get_global_DD_APPSEC_TESTING()) {
+        dd_p2s_startup_parse_register_testing(); // status
+        dd_p2s_stale_state_register_testing();   // post_deactivate_reset
+        dd_p2s_policy_register_testing();        // set_allowed
+        dd_p2s_runtime_register_testing();       // request_status
+    }
+#endif
+}
+
+// ---- hooks -----------------------------------------------------------------
+//
+// Each slot is captured once, from the zend_extension startup hook (after every
+// module MINIT and after the profiler's zend_extension startup), and never
+// written again until MSHUTDOWN. The saved pointers,
+// kept by the unit that owns each slot, are written only then
+// (single-threaded) and read unsynchronised at request time.
+//
+// Capture the hook slots and put our wrappers in them, unit by unit. Called
+// once, from the zend_extension startup hook: every module MINIT has run, so a
+// handler registered in any of them (mbstring's treat_data,
+// ext/filter's input_filter, even when loaded after ddtrace.so) is captured,
+// and nothing runs concurrently. Each slot that is not NULL and does not
+// already hold our wrapper is saved once and gets our wrapper; a second call,
+// or statics surviving a module restart, therefore never capture our own
+// wrapper. Nothing writes the slots again until MSHUTDOWN. The wrappers are
+// installed whatever the mode: the mode is resolved lazily (php-fpm applies
+// pool env[] after startup), and an inactive wrapper only forwards.
+void dd_php2shell_startup(void)
+{
+    // Runs from the zend_extension startup hook, i.e. in
+    // zend_startup_extensions(), after zend_startup_modules() ran every module
+    // MINIT, and before zend_post_startup() copies the function tables for ZTS.
+    if (_minit_done && dd_p2s_policy_startup_may_hook()) {
+        dd_p2s_startup_parse_install();
+        dd_p2s_stale_state_install();
+        dd_p2s_request_parse_body_install();
+        dd_p2s_runtime_install();
+        dd_p2s_monitor_install();
+        dd_p2s_policy_hooks_installed();
+    }
+}
+
+void dd_php2shell_mshutdown(void)
+{
+    // Leave no pointer to our wrappers in the process-global slots: the DSO
+    // may be unmapped after MSHUTDOWN. A slot that still holds our wrapper gets
+    // a handler that is valid whichever modules are still loaded; a slot
+    // overwritten by another module is left alone. The saved pointers are
+    // cleared so that statics surviving a restart capture again.
+    dd_p2s_guard_mshutdown();
+    dd_p2s_startup_parse_uninstall();
+    dd_p2s_stale_state_uninstall();
+    dd_p2s_request_parse_body_uninstall();
+    dd_p2s_runtime_uninstall();
+    dd_p2s_monitor_uninstall();
+    dd_p2s_policy_mshutdown();
+    _minit_done = false;
+}
+
+void dd_php2shell_set_allowed(bool allowed)
+{
+    dd_p2s_policy_set_allowed(allowed);
+}
+
+void dd_php2shell_set_waf_decision(const char *nonnull value, size_t len)
+{
+    dd_p2s_decision decision;
+    if (!dd_p2s_policy_parse_decision(value, len, &decision)) {
+        mlog(dd_log_warning,
+            "PHP2Shell mitigation: unknown WAF decision '%.*s', ignored",
+            (int)MIN(len, INT_MAX), value);
+        return;
+    }
+    dd_p2s_policy_set_decision(decision);
+}
+
+const char *nullable dd_php2shell_vulnerable_value(void)
+{
+    return dd_p2s_policy_vulnerable_value();
+}
+
+void dd_php2shell_activate(void) { dd_p2s_guard_activate(); }
+
+void dd_php2shell_rinit(void) { dd_p2s_runtime_rinit(); }
+
+void dd_php2shell_rinit_end(void) { dd_p2s_runtime_reconcile(); }
+
+void dd_php2shell_user_req_begin(void) { dd_p2s_runtime_reconcile(); }
+
+void dd_php2shell_rshutdown(void) { dd_p2s_runtime_rshutdown(); }
+
+void dd_php2shell_raise_fatal(
+    void (*nullable raise)(const char *nonnull message),
+    const char *nonnull message)
+{
+    dd_p2s_guard_raise_fatal(raise, message);
+}
+
+bool dd_php2shell_restore_limit(zend_long limit)
+{
+    return dd_p2s_guard_restore_limit(limit);
+}
+
+// One check and one MINFO row per hook (see dd_p2s_hook_check_displaced): the
+// displacement check runs in post_deactivate, in the order treat_data,
+// input_filter, deactivate, request_parse_body(), rfc1867, read_post,
+// zend_interrupt_function, gc_mem_caches(), zend_error_cb. The deactivate,
+// rfc1867, zend_interrupt_function and zend_error_cb slots are captured
+// whenever dd_php2shell_startup() installed the hooks, even if they held NULL;
+// request_parse_body() and gc_mem_caches() count as not captured once they are
+// gone (disable_functions). Relaxed loads only.
+void dd_php2shell_minfo(void)
+{
+    dd_p2s_policy_minfo();
+    // The hook rows only while the mitigation is active; when inactive,
+    // whether the hooks are installed is not reported.
+    if (!dd_p2s_policy_active()) {
+        return;
+    }
+    // Read-only: each hook row compares the live slot with our wrapper.
+    dd_p2s_startup_parse_minfo_treat_data();
+    dd_p2s_startup_parse_minfo_input_filter();
+    dd_p2s_startup_parse_minfo_rfc1867();
+    dd_p2s_stale_state_minfo_deactivate();
+    dd_p2s_startup_parse_minfo_read_post();
+    dd_p2s_request_parse_body_minfo();
+    dd_p2s_runtime_minfo_interrupt();
+    dd_p2s_runtime_minfo_gc_mem_caches();
+    dd_p2s_monitor_minfo_error_cb();
+}
+
+void dd_php2shell_post_deactivate(void)
+{
+    // Fallback for a skipped RSHUTDOWN: on 7.x, zend_deactivate_modules()
+    // wraps the whole RSHUTDOWN loop in one zend_try, so a bailout in a module
+    // whose RSHUTDOWN runs before ours skips ours; on 8.x, a bailout in the
+    // RINIT of a later module runs no RSHUTDOWN. Before the gate, which may
+    // have closed during the request, and before shutdown_memory_manager(),
+    // which below PHP 8.4 does not reset a heap with custom handlers.
+    dd_p2s_guard_settle();
+    dd_p2s_runtime_post_deactivate();
+    if (!dd_p2s_policy_active()) {
+        return;
+    }
+    dd_p2s_startup_parse_check_treat_data();
+    dd_p2s_startup_parse_check_input_filter();
+    dd_p2s_stale_state_check_deactivate();
+    dd_p2s_request_parse_body_check();
+    dd_p2s_startup_parse_check_rfc1867();
+    dd_p2s_startup_parse_check_read_post();
+    dd_p2s_runtime_check_interrupt();
+    dd_p2s_runtime_check_gc_mem_caches();
+    dd_p2s_monitor_check_error_cb();
+    dd_p2s_stale_state_post_deactivate();
+}
