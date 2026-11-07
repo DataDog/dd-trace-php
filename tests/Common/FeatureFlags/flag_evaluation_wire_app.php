@@ -11,7 +11,8 @@ $config = array(
     'observeFullEvaluationData' => true,
     'flags' => array(),
 );
-foreach (array('consented', 'protected', 'coerced', 'empty', 'missing', 'malformed', 'hook-after-error') as $key) {
+foreach (array('consented', 'protected', 'coerced', 'empty', 'missing', 'malformed', 'hook-after-error',
+    'oversized-identity', 'oversized-successor') as $key) {
     $config['flags'][$key] = array(
         'key' => $key, 'enabled' => true, 'variationType' => 'STRING',
         'variations' => array('blue' => array('key' => 'blue', 'value' => 'blue')),
@@ -37,6 +38,22 @@ for ($i = 0; $i < 2; ++$i) {
         throw new RuntimeException('assignment failed');
     }
 }
+// Exercise the public API and native bridge in one request, before any
+// explicit flush or reconnect can hide damage to the submitting connection.
+// This is deliberately above the native IPC budget, not an exact boundary test.
+foreach (array('oversized-identity' => 'ffe-oversized-identity-canary-' . str_repeat('x', 5 * 1024 * 1024),
+    'oversized-successor' => 'normal-successor') as $flag => $targetingKey) {
+    $attributes = array('email' => $flag . '-context-canary@example.test');
+    $evaluationContext = array('targetingKey' => $targetingKey, 'attributes' => $attributes);
+    if (getenv('PHP_FFE_WIRE_OPENFEATURE') === '1') {
+        $evaluationContext = new \OpenFeature\implementation\flags\EvaluationContext($targetingKey,
+            new \OpenFeature\implementation\flags\Attributes($attributes));
+    }
+    if ($client->getStringValue($flag, 'fallback', $evaluationContext) !== 'blue') {
+        throw new RuntimeException('oversized identity or its successor changed assignment');
+    }
+}
+unset($targetingKey, $evaluationContext);
 $config['observeFullEvaluationData'] = false;
 \DDTrace\Testing\ffe_load_config(json_encode($config));
 $protectedKey = 'ffe-protected-pii-canary@example.test';

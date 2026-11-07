@@ -95,8 +95,11 @@ try {
             $protectedBytesAbsent = $protectedBytesAbsent
                 && strpos($capture[3], 'ffe-protected-pii-canary@example.test') === false
                 && strpos($capture[3], 'ffe-context-pii-canary@example.test') === false;
-            if (strpos($capture[3], 'ffe-error-pii-canary@example.test') !== false) {
-                throw new RuntimeException('raw error text reached the payload');
+            foreach (array('ffe-error-pii-canary@example.test', 'ffe-oversized-identity-canary-',
+                'oversized-identity-context-canary@example.test') as $canary) {
+                if (strpos($capture[3], $canary) !== false) {
+                    throw new RuntimeException('omitted evaluation data reached the payload');
+                }
             }
             // Application attribution is deferred to FFL-3438/FFL-3439.
             $evaluationIdentityAbsent = $evaluationIdentityAbsent && $payload['context'] === array();
@@ -132,6 +135,23 @@ try {
     echo 'protected_subject='; var_dump($rows['protected']['targeting_key']);
     echo 'protected_context_absent='; var_dump(!isset($rows['protected']['context']['evaluation']));
     echo 'protected_raw_bytes_absent='; var_dump($protectedBytesAbsent);
+    foreach (array('oversized-identity', 'oversized-successor') as $flag) {
+        $row = $rows[$flag];
+        if ($row['evaluation_count'] !== 1 || $row['variant']['key'] !== 'blue'
+            || $row['allocation']['key'] !== 'allocation'
+            || array_key_exists('error', $row) || array_key_exists('runtime_default_used', $row)
+            || !is_int($row['timestamp']) || !is_int($row['first_evaluation'])
+            || !is_int($row['last_evaluation']) || $row['first_evaluation'] > $row['last_evaluation']) {
+            throw new RuntimeException('oversized identity or its successor lost evaluation dimensions');
+        }
+    }
+    echo 'oversized_identity_omits_identity_and_context=';
+    var_dump(!array_key_exists('targeting_key', $rows['oversized-identity'])
+        && !array_key_exists('context', $rows['oversized-identity']));
+    echo 'oversized_identity_successor_retains_context=';
+    var_dump($rows['oversized-successor']['targeting_key'] === 'normal-successor'
+        && $rows['oversized-successor']['context']['evaluation'] === array(
+            'email' => 'oversized-successor-context-canary@example.test'));
     echo 'evaluation_times_preserved=';
     var_dump($rows['timestamped']['evaluation_count'] === 2
         && $rows['timestamped']['timestamp'] === 1700000000456
@@ -189,7 +209,9 @@ try {
         $piiAbsent = true;
         foreach (array('ffe-protected-pii-canary@example.test', 'ffe-context-pii-canary@example.test',
             'ffe-consented-pii-canary@example.test', 'ffe-consented-context-canary@example.test',
-            'ffe-error-pii-canary@example.test') as $canary) {
+            'ffe-error-pii-canary@example.test', 'ffe-oversized-identity-canary-',
+            'oversized-identity-context-canary@example.test',
+            'oversized-successor-context-canary@example.test') as $canary) {
             $piiAbsent = $piiAbsent && !ffeTestStreamContains($diagnostics, $canary)
                 && strpos($stderr, $canary) === false;
         }
