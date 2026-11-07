@@ -1242,6 +1242,7 @@ dependencies = [
  "libdd-telemetry",
  "libdd-telemetry-ffi",
  "libdd-tinybytes",
+ "libdd-trace-model",
  "libdd-trace-protobuf",
  "libdd-trace-stats",
  "libdd-trace-utils",
