@@ -14,7 +14,8 @@
 //! case).  `ddog_check_stats_trace_filter` returns `true` immediately in that case.
 
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
-use libdd_trace_utils::trace_filter::{Span as TraceFilterSpan, TraceFilterer};
+use libdd_trace_model::{Attributes, Span, SpanEvent, SpanLink, StringData};
+use libdd_trace_utils::trace_filter::TraceFilterer;
 use std::ffi::{c_char, c_void};
 use std::sync::{LazyLock, RwLock};
 
@@ -68,19 +69,22 @@ pub type RootTagLookupFn = unsafe extern "C" fn(
     out_len: *mut usize,
 ) -> *const c_char;
 
-struct Span<'a> {
+/// Read-only view of a PHP root span, backed by `lookup_fn` (see `ddtrace_root_tag_value` in
+/// `tracer/trace_filter.c`).
+///
+/// Only the parts of [`Span`] that the trace filter reads are backed by real data: the
+/// resource, string attributes (`meta`, stringified `metrics`, well-known span properties) and the
+/// promoted tags (`span.kind`, `env`, `version`, `component`), which are looked up by their v0.4
+/// tag names. Numeric fields (ids, timestamps, error flag) are not exposed by the C side and read
+/// as zero/false; the span is always a trace root.
+struct RootSpan<'a> {
     resource_str: &'a str,
     root_span: *const c_void,
     lookup_fn: RootTagLookupFn,
 }
 
-impl<'a> TraceFilterSpan<'a> for Span<'a> {
-    fn resource_normalized(&'a self) -> &'a str {
-        // Resource has been normalized on the C side before calling ddog_check_stats_trace_filter
-        self.resource_str
-    }
-
-    fn get_meta(&'a self, key: &str) -> Option<&'a str> {
+impl<'a> RootSpan<'a> {
+    fn lookup(&self, key: &str) -> Option<&'a str> {
         unsafe {
             let mut vlen: usize = 0;
             let vptr = (self.lookup_fn)(
@@ -98,6 +102,154 @@ impl<'a> TraceFilterSpan<'a> for Span<'a> {
                 )))
             }
         }
+    }
+}
+
+impl Attributes for RootSpan<'_> {
+    type Text = String;
+    type Bytes = Vec<u8>;
+    type Values = StringData;
+
+    fn attribute_str(&self, key: &str) -> Option<&str> {
+        self.lookup(key)
+    }
+
+    /// The lookup callback only yields strings (metrics are stringified); typed numeric reads are
+    /// not needed by the trace filter.
+    fn attribute_f64(&self, _key: &str) -> Option<f64> {
+        None
+    }
+}
+
+/// Uninhabited: the root span view exposes no span events.
+enum NoSpanEvent {}
+
+impl Attributes for NoSpanEvent {
+    type Text = String;
+    type Bytes = Vec<u8>;
+    type Values = StringData;
+
+    fn attribute_str(&self, _key: &str) -> Option<&str> {
+        match *self {}
+    }
+
+    fn attribute_f64(&self, _key: &str) -> Option<f64> {
+        match *self {}
+    }
+}
+
+impl SpanEvent for NoSpanEvent {
+    fn name(&self) -> &str {
+        match *self {}
+    }
+
+    fn time_unix_nano(&self) -> u64 {
+        match *self {}
+    }
+}
+
+/// Uninhabited: the root span view exposes no span links.
+enum NoSpanLink {}
+
+impl Attributes for NoSpanLink {
+    type Text = String;
+    type Bytes = Vec<u8>;
+    type Values = StringData;
+
+    fn attribute_str(&self, _key: &str) -> Option<&str> {
+        match *self {}
+    }
+
+    fn attribute_f64(&self, _key: &str) -> Option<f64> {
+        match *self {}
+    }
+}
+
+impl SpanLink for NoSpanLink {
+    fn trace_id(&self) -> u128 {
+        match *self {}
+    }
+
+    fn span_id(&self) -> u64 {
+        match *self {}
+    }
+
+    fn tracestate(&self) -> &str {
+        match *self {}
+    }
+
+    fn flags(&self) -> u32 {
+        match *self {}
+    }
+}
+
+impl Span for RootSpan<'_> {
+    type SpanEvent = NoSpanEvent;
+    type SpanLink = NoSpanLink;
+
+    fn service(&self) -> &str {
+        self.lookup("service").unwrap_or("")
+    }
+
+    fn resource(&self) -> &str {
+        // Resource has been normalized on the C side (empty resource replaced by the operation
+        // name) before calling ddog_check_stats_trace_filter.
+        self.resource_str
+    }
+
+    fn name(&self) -> &str {
+        self.lookup("name").unwrap_or("")
+    }
+
+    fn typ(&self) -> &str {
+        self.lookup("type").unwrap_or("")
+    }
+
+    fn span_id(&self) -> u64 {
+        0
+    }
+
+    fn parent_id(&self) -> u64 {
+        // Always evaluated on the trace root.
+        0
+    }
+
+    fn start(&self) -> i64 {
+        0
+    }
+
+    fn duration(&self) -> i64 {
+        0
+    }
+
+    fn is_error(&self) -> bool {
+        false
+    }
+
+    // PHP spans have no dedicated fields for the promoted tags: look them up by tag name, as the
+    // previous `get_meta`-based filter did.
+    fn span_kind(&self) -> Option<&str> {
+        self.lookup("span.kind")
+    }
+
+    fn env(&self) -> Option<&str> {
+        self.lookup("env")
+    }
+
+    fn version(&self) -> Option<&str> {
+        self.lookup("version")
+    }
+
+    fn component(&self) -> Option<&str> {
+        self.lookup("component")
+    }
+
+    fn span_events(&self) -> impl Iterator<Item = &Self::SpanEvent> {
+        std::iter::empty()
+    }
+
+    fn span_links(&self) -> impl Iterator<Item = &Self::SpanLink> {
+        std::iter::empty()
     }
 }
 
@@ -123,7 +275,7 @@ pub unsafe extern "C" fn ddog_check_stats_trace_filter(
         return true;
     };
 
-    !f.should_drop(&Span {
+    !f.should_drop(&RootSpan {
         resource_str: resource.try_to_utf8().unwrap_or(""),
         root_span,
         lookup_fn,
