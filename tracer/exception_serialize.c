@@ -97,9 +97,7 @@ static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureVa
     if (!value->not_captured_reason.len) {
         value->value = (ddog_CharSlice) {.ptr = ZSTR_VAL(str), .len = ZSTR_LEN(str)};
         if (value->value.len > config->max_length) {
-            char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 20);
-            int len = sprintf(integer, "%" PRIuPTR, value->value.len);
-            value->size = (ddog_CharSlice) {.ptr = integer, .len = len};
+            value->size = value->value.len;
             value->value.len = config->max_length;
             value->truncated = true;
         }
@@ -175,6 +173,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                     }
                     if (remaining_fields-- == 0) {
                         value->not_captured_reason = DDOG_CHARSLICE_C("collectionSize");
+                        value->size = zend_hash_num_elements(Z_ARR_P(zv));
                         break;
                     }
 
@@ -193,6 +192,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                     }
                     if (remaining_fields-- == 0) {
                         value->not_captured_reason = DDOG_CHARSLICE_C("collectionSize");
+                        value->size = zend_hash_num_elements(Z_ARR_P(zv));
                         break;
                     }
 

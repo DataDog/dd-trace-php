@@ -1209,7 +1209,7 @@ typedef struct ddog_CaptureValue {
   bool is_null;
   bool truncated;
   ddog_CharSlice not_captured_reason;
-  ddog_CharSlice size;
+  uint64_t size;
 } ddog_CaptureValue;
 
 typedef struct ddog_OwnedCharSlice {

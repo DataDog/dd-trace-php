@@ -55,6 +55,7 @@ pub fn build(
             "-Zbuild-std=std,panic_unwind",
             "-Zbuild-std-features=panic-unwind",
         ])
+        .args(["--package", "ddtrace-appsec-body"])
         .arg("--manifest-path")
         .arg(source.join("Cargo.toml"))
         .arg("--target-dir")

@@ -69,8 +69,6 @@ ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(
 void dd_trace_drop_body_msgpack(ddog_AppsecBodyMessagePack body);
 
 // Set sampling priority on root span
-void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
-    zend_long priority, enum dd_sampling_mechanism mechanism);
 zend_long dd_trace_get_priority_sampling_on_span_zobj(
     zend_object *nonnull root_span);
 
