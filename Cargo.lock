@@ -1266,7 +1266,6 @@ dependencies = [
  "base64 0.22.1",
  "bincode",
  "bindgen",
- "cbindgen 0.27.0",
  "cc",
  "chrono",
  "const-str",
