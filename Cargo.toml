@@ -60,7 +60,7 @@ sidecar = [
 tracer-runtime = [
   "sidecar", "otel-context", "appsec", "dep:ddtrace-sidecar",
   "dep:libdd-telemetry", "dep:zwohash", "dep:hashbrown",
-  "dep:bincode", "dep:const-str", "dep:libdd-trace-utils",
+  "dep:bincode", "dep:const-str", "dep:libdd-trace-utils", "dep:libdd-trace-model",
   "dep:libdd-trace-stats", "dep:libdd-tinybytes", "dep:libdd-remote-config",
   "dep:libdd-live-debugger", "dep:libdd-live-debugger-ffi",
   "dep:libdd-data-pipeline", "dep:datadog-ffe", "dep:itertools",
@@ -107,6 +107,7 @@ datadog-sidecar-ffi = { path = "libdatadog/datadog-sidecar-ffi", optional = true
 libdd-data-pipeline = { path = "libdatadog/libdd-data-pipeline", optional = true }
 libdd-tinybytes = { path = "libdatadog/libdd-tinybytes", optional = true }
 libdd-trace-utils = { path = "libdatadog/libdd-trace-utils", optional = true }
+libdd-trace-model = { path = "libdatadog/libdd-trace-model", optional = true }
 libdd-trace-stats = { path = "libdatadog/libdd-trace-stats", optional = true }
 libdd-trace-protobuf = { path = "libdatadog/libdd-trace-protobuf", optional = true }
 libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector"], optional = true }
@@ -240,6 +241,8 @@ derive_more = { version = "2.0.0", default-features = false }
 duplicate = { version = "2.0.1", default-features = false }
 either = { version = "1.13.0", default-features = false }
 elf = { version = "0.7", default-features = false }
+embedded-io = { version = "0.6", default-features = false }
+embedded-io-async = { version = "0.6", default-features = false }
 env_logger = { version = "0.10", default-features = false }
 errno = { version = "0.3", default-features = false }
 fastrand = { version = "2", default-features = false }
@@ -316,7 +319,7 @@ proptest = { version = "1", default-features = false }
 prost = { version = "0.14.1", default-features = false }
 prost-build = { version = "0.14.1", default-features = false }
 protoc-bin-vendored = { version = "3.0.0", default-features = false }
-pyo3 = { version = "0.29", default-features = false }
+pyo3 = { version = "0.30", default-features = false }
 quick-xml = { version = "0.37", default-features = false }
 quote = { version = "1", default-features = false }
 rand = { version = "0.8", default-features = false }
@@ -328,6 +331,7 @@ rcgen = { version = "0.13", default-features = false, features = ["pem", "ring"]
 regex = { version = "1.5", default-features = false }
 regex-lite = { version = "0.1", default-features = false }
 reqwest = { version = "0.13", default-features = false }
+reqwless = { version = "0.13.0", default-features = false }
 ring = { version = "0.17", default-features = false }
 rlimit = { version = "0.9", default-features = false }
 rmp = { version = "0.8.14", default-features = false }
@@ -340,6 +344,7 @@ rustls-webpki = { version = "0.103.16", default-features = false }
 schemars = { version = "0.8.21", default-features = false }
 semver = { version = "1.0", default-features = false }
 serde = { version = "1.0", default-features = false }
+serde-json-core = { version = "0.6.0", default-features = false }
 serde-transcode = { version = "1.1", default-features = false }
 serde_bytes = { version = "0.11.9", default-features = false }
 serde_ignored = { version = "0.1.14", default-features = false }
