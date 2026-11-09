@@ -119,6 +119,7 @@ typedef struct {
     zend_object *git_object;
 
     bool inferred_span_created;
+    bool closing_detached_span; // set while ddtrace_add_detached_request_span() closes its span: no standalone limiter tick
     zval pending_upstream_span_link; // span link queued by PROPAGATION_BEHAVIOR_EXTRACT=restart; consumed on root span open
 
     // Computed on first use; reset on rinit and on configuration changes, as the keys borrow from the configuration.
