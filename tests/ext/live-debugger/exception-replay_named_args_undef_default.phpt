@@ -11,6 +11,8 @@ the integers assigned by pollute(). They must not be captured as locals.
 --ENV--
 DD_EXCEPTION_REPLAY_ENABLED=1
 DD_REMOTE_CONFIG_ENABLED=0
+--INI--
+zend.exception_ignore_args=0
 --FILE--
 <?php
 
