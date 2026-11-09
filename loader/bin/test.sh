@@ -30,7 +30,8 @@ DD_TRACE_DEBUG=1 php -n -d zend_extension=${PWD}/modules/dd_library_loader.so -v
 
 printf "\nRunning PHPT tests\n"
 # point extension_dir into nirvana to avoid issues with dl()
-php -n run-tests.php -q -p $(which php) -n -d extension_dir=/dev/shm/ -d zend_extension=${PWD}/modules/dd_library_loader.so --show-diff
+# run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
+php -n run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -q -p $(which php) -n -d extension_dir=/dev/shm/ -d zend_extension=${PWD}/modules/dd_library_loader.so --show-diff
 
 printf "\nRunning functional tests\n\n"
 failure=0

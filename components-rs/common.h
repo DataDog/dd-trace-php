@@ -296,40 +296,42 @@ typedef struct _zend_string _zend_string;
 #define ddog_LOG_ONCE (1 << 3)
 
 /**
+ * Longest base64 pathway context: 8 hash bytes and two 9-byte varints.
+ */
+#define ddog_DSM_CONTEXT_MAX_LEN 36
+
+/**
  * Number of gRPC status-code keys checked by the stats aggregation (must match
  * `GRPC_STATUS_CODE_FIELD` in libdd-trace-stats/src/span_concentrator/aggregation.rs).
  */
 #define ddog_PHP_GRPC_KEY_COUNT 4
 
-#define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
-
 /**
- * Written as a single byte.
+ * Maximum number of additional metric tag keys, excess keys are dropped (must match
+ * `MAX_ADDITIONAL_TAGS` in libdd-ipc/src/shm_stats.rs).
  */
-typedef enum ddog_AppsecBodyRecord {
-  DDOG_APPSEC_BODY_RECORD_MAP_START = 1,
-  DDOG_APPSEC_BODY_RECORD_LIST_START,
-  DDOG_APPSEC_BODY_RECORD_END,
-  DDOG_APPSEC_BODY_RECORD_KEY,
-  DDOG_APPSEC_BODY_RECORD_STR,
-  DDOG_APPSEC_BODY_RECORD_INT,
-  DDOG_APPSEC_BODY_RECORD_FLOAT,
-  DDOG_APPSEC_BODY_RECORD_TRUE,
-  DDOG_APPSEC_BODY_RECORD_FALSE,
-  DDOG_APPSEC_BODY_RECORD_NULL,
-} ddog_AppsecBodyRecord;
+#define ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS 4
+
+#define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
 typedef enum ddog_AppsecBodyStatus {
   /**
-   * Nothing usable was parsed; the tape is empty.
+   * Nothing usable was parsed; the MessagePack buffer is empty.
    */
   DDOG_APPSEC_BODY_STATUS_EMPTY,
   /**
-   * The input was truncated or malformed; the tape holds what preceded the
-   * error, with all containers closed.
+   * Malformed or truncated input; all emitted containers are closed.
    */
   DDOG_APPSEC_BODY_STATUS_PARTIAL,
   DDOG_APPSEC_BODY_STATUS_COMPLETE,
+  /**
+   * Allocation failed; all partial state has been released.
+   */
+  DDOG_APPSEC_BODY_STATUS_OUT_OF_MEMORY,
+  /**
+   * An unexpected panic.
+   */
+  DDOG_APPSEC_BODY_STATUS_INTERNAL_ERROR,
 } ddog_AppsecBodyStatus;
 
 typedef enum ddog_ConfigurationOrigin {
@@ -485,6 +487,11 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
   DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
   DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
+  /**
+   * The consumer evaluates prerequisite conditions against a flag's selected variant key.
+   * Register only when the evaluator implements the dependent-flag variant-key contract.
+   */
+  DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1 = 50,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -563,6 +570,20 @@ typedef struct ddog_SignalFlush ddog_SignalFlush;
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 typedef struct _zend_string *ddog_OwnedZendString;
+
+/**
+ * The service a process's checkpoints are reported under, and what goes into their hashes.
+ */
+typedef struct ddog_DsmIdentity {
+  ddog_CharSlice env;
+  ddog_CharSlice version;
+  ddog_CharSlice service;
+  /**
+   * The base hash DBM injects (`datadog_process_tags_get_base_hash`), covering the process
+   * tags and the container tags hash; empty when process tags are disabled.
+   */
+  ddog_CharSlice base_hash;
+} ddog_DsmIdentity;
 
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
@@ -683,12 +704,20 @@ typedef struct ddog_Option_CharSlice {
   };
 } ddog_Option_CharSlice;
 
+/**
+ * One `where.lines` entry: a single line `"N"` (`from == till`) or an inclusive range `"A-B"`.
+ */
+typedef struct ddog_SourceLine {
+  uint32_t from;
+  uint32_t till;
+} ddog_SourceLine;
+
 typedef struct ddog_ProbeTarget {
   ddog_CharSlice type_name;
   ddog_CharSlice method_name;
   ddog_CharSlice source_file;
   struct ddog_Option_CharSlice signature;
-  const uint32_t *lines;
+  const struct ddog_SourceLine *lines;
   uint32_t lines_count;
   enum ddog_InBodyLocation in_body_location;
 } ddog_ProbeTarget;
@@ -792,11 +821,12 @@ typedef struct ddog_Vec_DebuggerPayload {
 } ddog_Vec_DebuggerPayload;
 
 /**
- * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
+ * A (key, value) tag pair, borrowed from PHP/concentrator memory.
  */
 typedef struct ddog_PhpPeerTag {
   /**
-   * Key string — borrows from the concentrator's `peer_tag_keys` Vec<String>.
+   * Key string — borrows from the concentrator's `peer_tag_keys` Vec<String> for peer tags,
+   * and from the PHP configuration for additional metric tags.
    */
   ddog_CharSlice key;
   /**
@@ -854,6 +884,20 @@ typedef struct ddog_PhpSpanStats {
    * May be null when `peer_tags_count == 0`.
    */
   const struct ddog_PhpPeerTag *peer_tags;
+  /**
+   * Number of (key,value) pairs in `additional_tags`, at most
+   * `PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS`.
+   */
+  uintptr_t additional_tags_count;
+  /**
+   * Pointer to an array of `additional_tags_count` `PhpPeerTag` pairs, sorted by key.
+   * May be null when `additional_tags_count == 0`.
+   */
+  const struct ddog_PhpPeerTag *additional_tags;
+  /**
+   * Maximum number of entries with unmasked additional metric tags per stats bucket.
+   */
+  uint32_t additional_tags_cardinality_limit;
 } ddog_PhpSpanStats;
 
 /**
@@ -865,14 +909,32 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             uintptr_t *out_len);
 
 /**
- * Owned by Rust; release it with `ddog_appsec_body_tape_drop`.
+ * Owned by the parser library; release with ddog_appsec_body_msgpack_drop.
  */
-typedef struct ddog_AppsecBodyTape {
+typedef struct ddog_AppsecBodyMessagePack {
   uint8_t *ptr;
   uintptr_t len;
   uintptr_t capacity;
+  /**
+   * The allocator's free callback, set once the buffer leaves the parser.
+   */
+  void (*free)(uint8_t*);
   enum ddog_AppsecBodyStatus status;
-} ddog_AppsecBodyTape;
+} ddog_AppsecBodyMessagePack;
+
+/**
+ * All request allocations, except those made while a panic is in progress,
+ * go through these callbacks. Neither callback may reenter the parser,
+ * unwind or longjmp.
+ */
+typedef struct ddog_AppsecBodyAllocator {
+  void *context;
+  uint8_t *(*allocate)(void*, uintptr_t);
+  /**
+   * Must remain callable until the returned MessagePack buffer is dropped.
+   */
+  void (*free)(uint8_t*);
+} ddog_AppsecBodyAllocator;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -1147,7 +1209,7 @@ typedef struct ddog_CaptureValue {
   bool is_null;
   bool truncated;
   ddog_CharSlice not_captured_reason;
-  ddog_CharSlice size;
+  uint64_t size;
 } ddog_CaptureValue;
 
 typedef struct ddog_OwnedCharSlice {

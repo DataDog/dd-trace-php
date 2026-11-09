@@ -17,7 +17,6 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 // These globals are set by the SSI loader
-DATADOG_PUBLIC bool datadog_loaded_by_ssi = false;
 DATADOG_PUBLIC bool datadog_ssi_forced_injection_enabled = false;
 
 static void dd_commit_metrics(void);
@@ -46,7 +45,7 @@ void datadog_telemetry_rshutdown(void) {
 
 // Register in the sidecar services not bound to the request lifetime
 void datadog_telemetry_register_services(ddog_SidecarTransport **sidecar) {
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_telemetry_register_services(sidecar);
 #endif
 }
@@ -71,7 +70,7 @@ void datadog_telemetry_finalize() {
 
     ddog_SidecarActionsBuffer *buffer = datadog_telemetry_buffer();
 
-#ifdef DDTRACE
+#ifdef TRACER
     // Must be called before clearing telemetry_buffer so ddtrace_telemetry_finalize
     // uses the same buffer (via datadog_telemetry_buffer()) that we'll flush below.
     ddtrace_telemetry_finalize();
@@ -177,7 +176,7 @@ void datadog_telemetry_finalize() {
 }
 
 
-DATADOG_PUBLIC void datadog_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns) {
+void datadog_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns) {
     if (!DATADOG_G(sidecar)) {
         return;
     }
@@ -185,7 +184,7 @@ DATADOG_PUBLIC void datadog_metric_register_buffer(zend_string *name, ddog_Metri
     ddog_sidecar_telemetry_register_metric(&DATADOG_G(sidecar), metric_name, type, ns);
 }
 
-DATADOG_PUBLIC bool datadog_metric_add_point(zend_string *name, double value, zend_string *tags) {
+bool datadog_metric_add_point(zend_string *name, double value, zend_string *tags) {
     if (!DATADOG_G(metrics_buffer)) {
         DATADOG_G(metrics_buffer) = ddog_sidecar_telemetry_buffer_alloc();
     }

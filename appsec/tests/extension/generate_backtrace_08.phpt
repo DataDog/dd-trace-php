@@ -6,8 +6,6 @@ if (version_compare(PHP_VERSION, '8.1.0', '>=')) {
     die('skip: custom ZEND_HASH_FOREACH_FROM only compiled for PHP < 8.1');
 }
 ?>
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_MAX_STACK_TRACE_DEPTH=4
 --FILE--

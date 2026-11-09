@@ -4,10 +4,6 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
-if ! is_appsec_installable; then
-  exit 0
-fi
-
 # Initially no ddtrace
 assert_no_ddtrace
 
@@ -25,8 +21,9 @@ assert_no_appsec
 assert_no_profiler
 
 php ./build/packages/datadog-setup.php --enable-appsec --php-bin php
+assert_ddtrace_version $version
 assert_appsec_version $version
 assert_appsec_enabled
 
-# Appsec requires ddtrace to be enabled, otherwise it crashes with missing symbols.
-assert_ddtrace_version $version
+# AppSec is part of ddtrace.so
+assert_file_not_exists "${extension_dir}/ddappsec.so"

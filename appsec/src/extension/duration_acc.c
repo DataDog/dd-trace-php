@@ -2,12 +2,12 @@
 #include "duration_acc.h"
 
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_helpers.h"
 #include "string_helpers.h"
 #include "telemetry.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 #define DD_METRIC_RASP_DURATION_EXT "_dd.appsec.rasp.duration_ext"
 #define DD_METRIC_WAF_DURATION_EXT "_dd.appsec.waf.duration_ext"

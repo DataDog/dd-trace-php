@@ -1,7 +1,7 @@
 #pragma once
 
 #include "attributes.h"
-#include "php_compat.h"
+#include <ext/compatibility.h>
 #include <time.h>
 
 static inline struct timespec dd_monotime_start(void)

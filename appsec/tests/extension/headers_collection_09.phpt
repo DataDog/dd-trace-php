@@ -1,7 +1,6 @@
 --TEST--
 All headers are collected when track_user_signup_event is triggered by automation and anonymization mode is set
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anon

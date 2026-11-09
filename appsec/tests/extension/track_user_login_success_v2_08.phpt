@@ -1,7 +1,6 @@
 --TEST--
 Test \datadog\appsec\v2\track_user_login_success collects headers
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anon

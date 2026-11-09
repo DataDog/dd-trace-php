@@ -6,7 +6,6 @@ DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_SERVICE=appsec_tests
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --FILE--

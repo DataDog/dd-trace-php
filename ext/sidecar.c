@@ -18,6 +18,9 @@
 #include "target_metadata.h"
 #include "ffi_utils.h"
 #include <tracer/tracer_api.h>
+#ifdef APPSEC
+#include <appsec/src/extension/ddappsec_api.h>
+#endif
 #ifndef _WIN32
 #include <tracer/coms.h>
 #endif
@@ -79,7 +82,7 @@ static void dd_free_endpoints(void) {
     dogstatsd_endpoint = NULL;
 }
 
-DATADOG_PUBLIC struct telemetry_rc_info datadog_get_telemetry_rc_info(void) {
+struct telemetry_rc_info datadog_get_telemetry_rc_info(void) {
     struct telemetry_rc_info info = {
         .service_name = DATADOG_G(last_service_name),
         .env_name = DATADOG_G(last_env_name),
@@ -90,20 +93,6 @@ DATADOG_PUBLIC struct telemetry_rc_info datadog_get_telemetry_rc_info(void) {
 
     return info;
 }
-
-#ifdef ZTS
-DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void *tsrm_ls) {
-    if (tsrm_ls) {
-        void *TSRMLS_CACHE = tsrm_ls; // shadows global
-        return &DATADOG_G(sidecar);
-    }
-    return &DATADOG_G(sidecar);
-}
-#else
-DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
-    return &DATADOG_G(sidecar);
-}
-#endif
 
 // Publishes the connection of `owner` for the signal handlers. Unless refreshing (after `owner` reconnected to `connection`), only claims an unowned slot.
 static void dd_sidecar_arm_signal_transport(ddog_SidecarTransport *owner, ddog_SidecarTransport *connection, bool refresh) {
@@ -174,7 +163,7 @@ static void dd_sidecar_logpath(char *logpath) {
 // Side effects of a new connection, for the first one of a transport as well as reconnects.
 static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
     ddog_AgentRemoteConfigReader *agent_config_reader = NULL;
-#if DDTRACE
+#ifdef TRACER
     agent_config_reader = DATADOG_G(ddtrace.agent_config_reader);
 #endif
     ddog_sidecar_reconnect_readers(DATADOG_G(telemetry_cache), DATADOG_G(remote_config_state),
@@ -186,7 +175,7 @@ static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
     }
 }
 
-#ifdef DDTRACE
+#ifdef TRACER
 static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport) {
     // Both FFE writers share this target. Replace it when the test token changes
     // so new observations use the new session and queued ones keep the old one.
@@ -265,7 +254,7 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
         ddog_endpoint_drop(otlp_metrics_endpoint);
     }
 
-#ifdef DDTRACE
+#ifdef TRACER
     // Configure during ordinary connection setup, including fork recovery.
     // The transport replays its configuration after reconnects.
     // Remote Config keeps the fixed Agent EVP v2 route.
@@ -498,21 +487,9 @@ static bool datadog_sidecar_configure_appsec(bool *appsec_activation, bool *apps
     *appsec_activation = false;
     *appsec_config = false;
 
-    // this must be done in ddtrace rather than ddappsec because
-    // the sidecar is launched by ddtrace before ddappsec has a chance
-    // to run its first rinit
-
-#if defined(__linux__) || defined(__APPLE__)
-    zend_module_entry *appsec_module = zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1);
-    if (!appsec_module) {
-        return false;
-    }
-    void *handle = dlsym(appsec_module->handle, "dd_appsec_maybe_enable_helper");
-    if (!handle) {
-        return false;
-    }
-    bool (*dd_appsec_maybe_enable_helper)(typeof(&ddog_sidecar_enable_appsec), bool *, bool *) = handle;
-    return dd_appsec_maybe_enable_helper(ddog_sidecar_enable_appsec, appsec_activation, appsec_config);
+    // The sidecar is set up before AppSec's first RINIT.
+#ifdef APPSEC
+    return dd_appsec_maybe_enable_helper(appsec_activation, appsec_config);
 #else
     return false;
 #endif
@@ -525,7 +502,7 @@ bool datadog_sidecar_should_enable(ddog_RemoteConfigFlags *flags) {
     flags->appsec_config = appsec_config;
 
     enable_sidecar = enable_sidecar || get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
-#ifdef DDTRACE
+#ifdef TRACER
     enable_sidecar = ddtrace_update_remote_config_flags(flags) || enable_sidecar;
 #endif
 
@@ -606,7 +583,8 @@ static void dd_sidecar_close_thread_transport_fds(void *tsrm_ls) {
 // their GSHUTDOWN must not drop them.
 static void dd_sidecar_close_inherited_thread_transports(void) {
     // A thread which held the lock during the fork will never release it: rather leak than hang.
-    if (!datadog_threads_mutex || pthread_mutex_trylock(datadog_threads_mutex) != 0) {
+    datadog_threads_lock_state state;
+    if (!datadog_threads_mutex || !datadog_threads_trylock(&state)) {
         return;
     }
     void *tsrm_ls;
@@ -615,7 +593,7 @@ static void dd_sidecar_close_inherited_thread_transports(void) {
             dd_sidecar_close_thread_transport_fds(tsrm_ls);
         }
     } ZEND_HASH_FOREACH_END();
-    pthread_mutex_unlock(datadog_threads_mutex);
+    datadog_threads_unlock(&state);
 }
 #endif
 
@@ -832,7 +810,7 @@ void datadog_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSl
 void datadog_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags) {
     // Global tags (https://github.com/DataDog/php-datadogstatsd/blob/0efdd1c38f6d3dd407efbb899ad1fd2e5cd18085/src/DogStatsd.php#L113-L125)
     zend_string *service_string, *env_string, *version_string;
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_span_data *span = ddtrace_active_span();
 #else
     ddtrace_span_data *span = NULL;
@@ -1050,16 +1028,16 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
     if (DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed updating test session token",
                         ddog_sidecar_set_test_session_token(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
-#ifdef DDTRACE
+#ifdef TRACER
         if (token_changed) {
             dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar));
         }
 #endif
     }
-#if !defined(_WIN32) && defined(DDTRACE)
+#if !defined(_WIN32) && defined(TRACER)
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));
 #endif
-#ifdef DDTRACE
+#ifdef TRACER
     /* The test token is part of the named sampling-config shared-memory path. The reader keeps
      * its own endpoint copy, so changing the sender endpoint does not retarget an existing reader. */
     if (token_changed) {

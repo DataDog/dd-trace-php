@@ -1,5 +1,5 @@
-ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
-FROM ${CI_REGISTRY_IMAGE}:centos-7 AS base
+ARG BUILD_BASE
+FROM ${BUILD_BASE} AS base
 
 ENV PHP_SRC_DIR=/usr/local/src/php
 ENV PHP_INSTALL_DIR=/opt/php
@@ -47,7 +47,7 @@ RUN bash -c 'set -eux; \
     && make install \
     && cp .libs/libphp*.so ${PHP_INSTALL_DIR_ZTS}/lib/apache2handler-libphp.so \
     && mkdir -p ${PHP_INSTALL_DIR_ZTS}/conf.d' \
-    && ( [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || CFLAGS="${CFLAGS} -std=gnu99" ${PHP_INSTALL_DIR_ZTS}/bin/pecl install parallel ) \
+    && ( [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || CFLAGS="${CFLAGS} -std=gnu99" ${PHP_INSTALL_DIR_ZTS}/bin/pecl install parallel$([ "${PHP_VERSION}" = "8.6" ] && echo -1.2.15) ) \
     && ( [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || echo "extension=parallel" >> ${PHP_INSTALL_DIR_ZTS}/conf.d/parallel.ini )
 
 FROM base AS php-debug

@@ -1,7 +1,6 @@
 --TEST--
 RASP duration_ext metric accumulates across multiple calls in user requests
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=true
 datadog.appsec.cli_start_on_rinit=false
 --ENV--

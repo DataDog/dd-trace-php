@@ -1,7 +1,5 @@
 --TEST--
 Track automated user login success event without specifying a mode and verify the tags in the root span
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

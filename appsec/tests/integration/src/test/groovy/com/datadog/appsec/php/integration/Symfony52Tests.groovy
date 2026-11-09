@@ -45,5 +45,5 @@ class Symfony52Tests extends AbstractSymfonyAppsecTests {
     // The locale option on #[Route] is Symfony 5.3+. The 5.2 fixture only
     // defines the canonical /dynamic-path/{param01} route.
     @Override
-    boolean supportsLocaleRoute() { false }
+    boolean isLocaleRouteSupported() { false }
 }

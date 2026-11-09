@@ -1,7 +1,5 @@
 --TEST--
 XML parser accepts UTF-8 and retains only valid data on encoding errors
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 $cases = [

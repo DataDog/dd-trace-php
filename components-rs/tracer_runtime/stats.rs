@@ -1,0 +1,515 @@
+// Copyright 2024-Present Datadog, Inc. https://www.datadoghq.com/
+// SPDX-License-Identifier: Apache-2.0
+
+//! FFI wrapper for the local SpanConcentrator used to compute span stats on the PHP tracer side.
+//!
+//! The C extraction side fills a `PhpSpanStats` struct (one call per span), then passes it to
+//! `ddog_span_concentrator_add_php_span`. All string slices borrow from PHP memory and are only
+//! valid for the duration of that call.
+
+use crate::trace_filter;
+use datadog_sidecar::service::blocking::{add_span_to_concentrator, SidecarTransport};
+use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use libdd_ipc::shm_stats::{
+    OwnedShmSpanInput, ShmSpanConcentrator, ShmSpanInput, MAX_ADDITIONAL_TAGS, MAX_PEER_TAGS,
+};
+use libdd_trace_protobuf::pb::Trilean;
+use libdd_trace_stats::span_concentrator::FixedAggregationKey;
+use std::collections::HashMap;
+use std::ffi::{c_char, c_void};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, LazyLock, OnceLock, RwLock};
+use tracing::trace;
+
+/// Number of gRPC status-code keys checked by the stats aggregation (must match
+/// `GRPC_STATUS_CODE_FIELD` in libdd-trace-stats/src/span_concentrator/aggregation.rs).
+pub const PHP_GRPC_KEY_COUNT: usize = 4;
+
+/// Maximum number of additional metric tag keys, excess keys are dropped (must match
+/// `MAX_ADDITIONAL_TAGS` in libdd-ipc/src/shm_stats.rs).
+pub const PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS: usize = 4;
+
+/// A (key, value) tag pair, borrowed from PHP/concentrator memory.
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PhpPeerTag<'a> {
+    /// Key string — borrows from the concentrator's `peer_tag_keys` Vec<String> for peer tags,
+    /// and from the PHP configuration for additional metric tags.
+    pub key: CharSlice<'a>,
+    /// Value string — borrows from PHP span meta memory.
+    pub value: CharSlice<'a>,
+}
+
+/// Flat representation of a PHP span's stats-relevant fields, filled by C code in one call.
+///
+/// All `CharSlice` fields borrow from PHP memory (or from the concentrator for peer-tag keys) and
+/// must remain valid for the duration of `ddog_span_concentrator_add_php_span`.
+///
+/// For absent optional strings pass an empty slice (ptr may be non-null with len == 0).
+/// For absent optional `f64` values pass `f64::NAN`.
+#[repr(C)]
+pub struct PhpSpanStats<'a> {
+    pub service: CharSlice<'a>,
+    pub resource: CharSlice<'a>,
+    pub name: CharSlice<'a>,
+    pub r#type: CharSlice<'a>,
+
+    pub start: i64,
+    pub duration: i64,
+
+    pub is_error: bool,
+    pub is_trace_root: bool,
+    pub is_measured: bool,
+    pub has_top_level: bool,
+    pub is_partial_snapshot: bool,
+
+    pub span_kind: CharSlice<'a>,
+    pub http_status_code: CharSlice<'a>,
+    pub http_method: CharSlice<'a>,
+    pub http_endpoint: CharSlice<'a>,
+    pub http_route: CharSlice<'a>,
+    pub origin: CharSlice<'a>,
+    /// Value of the `_dd.svc_src` meta tag; empty slice when absent.
+    pub service_source: CharSlice<'a>,
+
+    /// gRPC meta values in order: rpc.grpc.status_code, grpc.code, rpc.grpc.status.code,
+    /// grpc.status.code.  Empty slice = absent.
+    pub grpc_meta: [CharSlice<'a>; PHP_GRPC_KEY_COUNT],
+    /// Same gRPC keys but from metrics (NaN = absent).
+    pub grpc_metrics: [f64; PHP_GRPC_KEY_COUNT],
+
+    /// Number of (key,value) pairs in `peer_tags`.
+    pub peer_tags_count: usize,
+    /// Pointer to an array of `peer_tags_count` `PhpPeerTag` pairs.
+    /// May be null when `peer_tags_count == 0`.
+    pub peer_tags: *const PhpPeerTag<'a>,
+
+    /// Number of (key,value) pairs in `additional_tags`, at most
+    /// `PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS`.
+    pub additional_tags_count: usize,
+    /// Pointer to an array of `additional_tags_count` `PhpPeerTag` pairs, sorted by key.
+    /// May be null when `additional_tags_count == 0`.
+    pub additional_tags: *const PhpPeerTag<'a>,
+    /// Maximum number of entries with unmasked additional metric tags per stats bucket.
+    pub additional_tags_cardinality_limit: u32,
+}
+
+#[inline]
+fn char_slice_str(s: CharSlice<'_>) -> &str {
+    s.try_to_utf8().unwrap_or("")
+}
+
+/// Prefer string meta, fall back to metrics f64, default 0.
+#[inline]
+fn extract_http_status_code(span: &PhpSpanStats<'_>) -> u32 {
+    let s = char_slice_str(span.http_status_code);
+    if !s.is_empty() {
+        s.parse::<u32>().unwrap_or(0)
+    } else {
+        0
+    }
+}
+
+/// First non-absent value across gRPC meta keys then gRPC metric keys.
+#[inline]
+fn extract_grpc_status_code(span: &PhpSpanStats<'_>) -> Option<u8> {
+    span.grpc_meta
+        .iter()
+        .find_map(|m| {
+            let s = char_slice_str(*m);
+            if s.is_empty() {
+                None
+            } else {
+                s.parse::<u8>().ok()
+            }
+        })
+        .or_else(|| {
+            span.grpc_metrics
+                .iter()
+                .find_map(|&v| if v.is_nan() { None } else { Some(v as u8) })
+        })
+}
+
+/// Prefer http.endpoint, fall back to http.route.
+#[inline]
+fn extract_http_endpoint<'a>(span: &'a PhpSpanStats<'a>) -> &'a str {
+    let ep = char_slice_str(span.http_endpoint);
+    if !ep.is_empty() {
+        ep
+    } else {
+        char_slice_str(span.http_route)
+    }
+}
+
+/// Decode a raw tags pointer into a slice.
+///
+/// # Safety
+/// `tags` must be valid for `count` elements when non-null.
+#[inline]
+unsafe fn tags_slice<'a>(tags: *const PhpPeerTag<'a>, count: usize) -> &'a [PhpPeerTag<'a>] {
+    if count > 0 && !tags.is_null() {
+        std::slice::from_raw_parts(tags, count)
+    } else {
+        &[]
+    }
+}
+
+#[inline]
+fn is_synthetics_request(span: &PhpSpanStats<'_>) -> bool {
+    char_slice_str(span.origin).starts_with("synthetics")
+}
+
+/// Build the `FixedAggregationKey` from borrowed `PhpSpanStats` fields.
+#[inline]
+fn build_fixed_key<'a>(span: &'a PhpSpanStats<'a>) -> FixedAggregationKey<&'a str> {
+    FixedAggregationKey {
+        service_name: char_slice_str(span.service),
+        resource_name: char_slice_str(span.resource),
+        operation_name: char_slice_str(span.name),
+        span_type: char_slice_str(span.r#type),
+        span_kind: char_slice_str(span.span_kind),
+        http_method: char_slice_str(span.http_method),
+        http_endpoint: extract_http_endpoint(span),
+        http_status_code: extract_http_status_code(span),
+        is_synthetics_request: is_synthetics_request(span),
+        is_trace_root: if span.is_trace_root {
+            Trilean::True
+        } else {
+            Trilean::False
+        },
+        grpc_status_code: extract_grpc_status_code(span),
+        service_source: char_slice_str(span.service_source),
+    }
+}
+
+/// Extract a `ShmSpanInput` from a `PhpSpanStats`.
+///
+/// `tag_buf` is filled in-place with the additional metric tags followed by as many peer tags
+/// as still fit, so that `ShmSpanInput::additional_tags` and `peer_tags` can borrow from it.
+#[inline]
+fn php_span_to_shm_input<'a>(
+    span: &'a PhpSpanStats<'a>,
+    tag_buf: &'a mut [(&'a str, &'a str); MAX_PEER_TAGS],
+) -> ShmSpanInput<'a> {
+    const { assert!(PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS == MAX_ADDITIONAL_TAGS) };
+    // Safety: caller guarantees PhpSpanStats validity (see ddog_span_concentrator_add_php_span).
+    let additional_tags = unsafe { tags_slice(span.additional_tags, span.additional_tags_count) };
+    let additional_tags = &additional_tags[..additional_tags.len().min(MAX_ADDITIONAL_TAGS)];
+    let peer_tags = unsafe { tags_slice(span.peer_tags, span.peer_tags_count) };
+    let mut tag_count = 0usize;
+    for (slot, tag) in tag_buf
+        .iter_mut()
+        .zip(additional_tags.iter().chain(peer_tags))
+    {
+        *slot = (char_slice_str(tag.key), char_slice_str(tag.value));
+        tag_count += 1;
+    }
+    let tag_buf: &'a [(&'a str, &'a str)] = &tag_buf[..tag_count];
+    let (additional_tags, peer_tags) = tag_buf.split_at(additional_tags.len());
+
+    ShmSpanInput {
+        fixed: build_fixed_key(span),
+        peer_tags,
+        additional_tags,
+        additional_tags_cardinality_limit: span.additional_tags_cardinality_limit,
+        duration_ns: span.duration,
+        is_error: span.is_error,
+        is_top_level: span.has_top_level,
+    }
+}
+
+/// Cached stats reader and metadata borrowed by C during `ddog_span_concentrator_with`.
+pub struct SpanConcentrator {
+    /// Opened after the first IPC span. In-flight fallbacks can outlive a cache clear.
+    inner: Arc<OnceLock<ShmSpanConcentrator>>,
+    peer_tag_keys: Vec<String>,
+    /// Views into `peer_tag_keys` for the C callback.
+    peer_tag_key_slices: Vec<CharSlice<'static>>,
+    span_kinds: Vec<String>,
+}
+
+// SAFETY: `peer_tag_key_slices` borrows from the owned `peer_tag_keys` Vec<String> that lives
+// alongside it in the same struct, which is always protected by the global RwLock.
+unsafe impl Send for SpanConcentrator {}
+unsafe impl Sync for SpanConcentrator {}
+
+impl SpanConcentrator {
+    fn rebuild_key_slices(&mut self) {
+        self.peer_tag_key_slices = self
+            .peer_tag_keys
+            .iter()
+            .map(|s| unsafe { CharSlice::from_raw_parts(s.as_ptr() as *const c_char, s.len()) })
+            .collect();
+    }
+}
+
+static SPAN_CONCENTRATORS: LazyLock<RwLock<HashMap<String, SpanConcentrator>>> =
+    LazyLock::new(|| RwLock::default());
+
+/// Drop cached concentrators so the next span for each key goes through IPC.
+#[no_mangle]
+pub extern "C" fn ddog_span_concentrators_clear() {
+    SPAN_CONCENTRATORS.write().unwrap().clear();
+}
+
+/// Set to true once `apply_concentrator_config` has been called at least once,
+/// i.e. the sidecar has received and applied the agent's /info response.
+static AGENT_INFO_RECEIVED: AtomicBool = AtomicBool::new(false);
+
+/// Set to true once agent info confirms `client_drop_p0s` is true and the
+/// reported agent version is >= 7.65.0.  Cached so the per-span hot-path is a
+/// single atomic load.
+static STATS_COMPUTATION_READY: AtomicBool = AtomicBool::new(false);
+
+fn agent_version_ge(version: Option<&str>, req_major: u32, req_minor: u32, req_patch: u32) -> bool {
+    let Some(v) = version else {
+        return false;
+    };
+    let v = v.split('-').next().unwrap_or(v); // strip agent version suffixes
+    let mut parts = v.split('.').filter_map(|p| p.parse::<u32>().ok());
+    let (Some(major), Some(minor), Some(patch)) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    (major, minor, patch) >= (req_major, req_minor, req_patch)
+}
+
+/// Returns true once the agent /info has been received and applied.
+/// Used by the PHP extension to skip stats computation until the concentrator
+/// has been properly initialised with peer-tag keys and span kinds.
+#[no_mangle]
+pub extern "C" fn ddog_is_agent_info_ready() -> bool {
+    AGENT_INFO_RECEIVED.load(Ordering::Acquire)
+}
+
+/// Returns true when the agent supports client-side stats computation:
+/// agent info has been received, `client_drop_p0s` is true, and the reported
+/// agent version is >= 7.65.0.
+#[no_mangle]
+pub extern "C" fn ddog_agent_has_stats_computation() -> bool {
+    STATS_COMPUTATION_READY.load(Ordering::Acquire)
+}
+
+/// Desired concentrator configuration sourced from the agent's /info endpoint.
+/// Populated via `ddog_apply_agent_info`; applied to every concentrator
+/// at creation time and when the config changes.
+#[derive(Default)]
+struct DesiredConfig {
+    peer_tag_keys: Vec<String>,
+    span_kinds: Vec<String>,
+}
+
+static DESIRED_CONFIG: LazyLock<RwLock<DesiredConfig>> = LazyLock::new(|| RwLock::default());
+
+/// Apply updated concentrator config (peer-tag keys, span kinds, trace filters) to
+/// `DESIRED_CONFIG` and propagate peer-tag / span-kind changes to all open concentrators.
+/// Also updates the `STATS_COMPUTATION_READY` flag based on `client_drop_p0s` and `version`.
+pub(crate) fn apply_concentrator_config(
+    peer_tag_keys: Vec<String>,
+    span_kinds: Vec<String>,
+    tags_require: Vec<String>,
+    tags_reject: Vec<String>,
+    regex_require: Vec<String>,
+    regex_reject: Vec<String>,
+    ignore_resources: Vec<String>,
+    client_drop_p0s: bool,
+    version: Option<&str>,
+) {
+    let compiled = trace_filter::compile_trace_filter(
+        &tags_require,
+        &tags_reject,
+        &regex_require,
+        &regex_reject,
+        &ignore_resources,
+    );
+    trace_filter::set_trace_filter(compiled);
+    AGENT_INFO_RECEIVED.store(true, Ordering::Release);
+    let ready = client_drop_p0s && agent_version_ge(version, 7, 65, 0);
+    STATS_COMPUTATION_READY.store(ready, Ordering::Release);
+    {
+        let mut dc = DESIRED_CONFIG.write().unwrap();
+        dc.peer_tag_keys = peer_tag_keys.clone();
+        dc.span_kinds = span_kinds.clone();
+    }
+    let mut wg = SPAN_CONCENTRATORS.write().unwrap();
+    for c in wg.values_mut() {
+        c.peer_tag_keys = peer_tag_keys.clone();
+        c.span_kinds = span_kinds.clone();
+        c.rebuild_key_slices();
+    }
+}
+
+/// Invoke `callback` with the cached reader and send any returned span through IPC.
+/// SHM is opened after sending, so the first span also creates the sidecar's concentrator.
+///
+/// # Safety
+/// `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+/// The slices and callback must be valid. The callback transfers ownership of its result.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_span_concentrator_with(
+    transport: *mut SidecarTransport,
+    env: CharSlice<'_>,
+    version: CharSlice<'_>,
+    service: CharSlice<'_>,
+    callback: unsafe extern "C" fn(
+        *const SpanConcentrator,
+        *mut c_void,
+    ) -> Option<Box<OwnedShmSpanInput>>,
+    userdata: *mut c_void,
+) -> bool {
+    let env = char_slice_str(env);
+    let version = char_slice_str(version);
+    let service = char_slice_str(service);
+    let map_key = format!("{env}\0{version}\0{service}");
+    let map = &SPAN_CONCENTRATORS;
+    let (span, reader) = loop {
+        let guard = map.read().unwrap();
+        if let Some(c) = guard.get(&map_key) {
+            let Some(span) = callback(c as *const SpanConcentrator, userdata) else {
+                return true;
+            };
+            break (span, c.inner.clone());
+        }
+        drop(guard);
+
+        let mut guard = map.write().unwrap();
+        guard.entry(map_key.clone()).or_insert_with(|| {
+            let dc = DESIRED_CONFIG.read().unwrap();
+            let mut c = SpanConcentrator {
+                inner: Default::default(),
+                peer_tag_keys: dc.peer_tag_keys.clone(),
+                peer_tag_key_slices: vec![],
+                span_kinds: dc.span_kinds.clone(),
+            };
+            c.rebuild_key_slices();
+            c
+        });
+    };
+
+    // Sending can reconnect and clear the cache; no cache lock or borrowed tags remain here.
+    if let Some(transport) = transport.as_mut() {
+        match add_span_to_concentrator(transport, env.to_owned(), version.to_owned(), *span) {
+            Ok(true) if reader.get().is_none() => {
+                let path = datadog_sidecar::service::stats_flusher::env_stats_shm_path(
+                    env, version, service,
+                );
+                if let Ok(shm) = ShmSpanConcentrator::open(&path) {
+                    let _ = reader.set(shm);
+                }
+            }
+            Ok(_) => {}
+            Err(e) => trace!("Failed to send span to concentrator via IPC: {e}"),
+        }
+    }
+    true
+}
+
+/// Return a pointer to the concentrator's peer-tag-key array and write the count to `*out_count`.
+///
+/// The returned pointer is valid for the lifetime of the guard passed to this call.
+/// May return null when there are no peer tag keys.
+#[no_mangle]
+pub extern "C" fn ddog_span_concentrator_peer_tag_keys<'a>(
+    c: &'a SpanConcentrator,
+    out_count: &mut usize,
+) -> *const CharSlice<'a> {
+    let slices = &c.peer_tag_key_slices;
+    *out_count = slices.len();
+    if slices.is_empty() {
+        std::ptr::null()
+    } else {
+        slices.as_ptr()
+    }
+}
+
+/// Add a PHP span to the concentrator for stats computation.
+///
+/// Fast eligibility pre-check: returns true if a span with these attributes would be accepted
+/// by `ddog_span_concentrator_add_php_span`.
+///
+/// Call this before constructing the full `PhpSpanStats`.  If it returns false, skip the span
+/// entirely.  If it returns true, fill the remaining fields and call `add_php_span`.
+#[no_mangle]
+pub extern "C" fn ddog_span_concentrator_is_eligible(
+    c: &SpanConcentrator,
+    has_top_level: bool,
+    is_measured: bool,
+    span_kind: CharSlice<'_>,
+    is_partial_snapshot: bool,
+) -> bool {
+    if is_partial_snapshot {
+        return false;
+    }
+    if has_top_level || is_measured {
+        return true;
+    }
+    let kind = span_kind.try_to_utf8().unwrap_or("");
+    if kind.is_empty() {
+        return false;
+    }
+    c.span_kinds.iter().any(|k| k == kind)
+}
+
+/// Write to SHM, or return an owned span for the callback to pass back for IPC.
+///
+/// # Safety
+/// All slices and peer-tag pointers in `span` must remain valid for this call.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_span_concentrator_add_php_span(
+    c: &SpanConcentrator,
+    span: &PhpSpanStats<'_>,
+) -> Option<Box<OwnedShmSpanInput>> {
+    if let Some(shm) = c.inner.get() {
+        let mut tag_buf = [("", ""); MAX_PEER_TAGS];
+        if shm.add_span(&php_span_to_shm_input(span, &mut tag_buf)) {
+            return None;
+        }
+    }
+    Some(Box::new(php_span_to_owned_input(span)))
+}
+
+/// Convert a `PhpSpanStats` to `OwnedShmSpanInput` for IPC transport.
+unsafe fn php_span_to_owned_input(span: &PhpSpanStats<'_>) -> OwnedShmSpanInput {
+    let to_owned = |tags: &[PhpPeerTag<'_>], max: usize| -> Vec<(String, String)> {
+        tags.iter()
+            .take(max)
+            .map(|t| {
+                (
+                    char_slice_str(t.key).to_owned(),
+                    char_slice_str(t.value).to_owned(),
+                )
+            })
+            .collect()
+    };
+    let additional_tags = to_owned(
+        tags_slice(span.additional_tags, span.additional_tags_count),
+        MAX_ADDITIONAL_TAGS,
+    );
+    let peer_tags = to_owned(
+        tags_slice(span.peer_tags, span.peer_tags_count),
+        MAX_PEER_TAGS - additional_tags.len(),
+    );
+    let fixed = build_fixed_key(span);
+
+    OwnedShmSpanInput {
+        fixed: FixedAggregationKey {
+            service_name: fixed.service_name.to_owned(),
+            resource_name: fixed.resource_name.to_owned(),
+            operation_name: fixed.operation_name.to_owned(),
+            span_type: fixed.span_type.to_owned(),
+            span_kind: fixed.span_kind.to_owned(),
+            http_method: fixed.http_method.to_owned(),
+            http_endpoint: fixed.http_endpoint.to_owned(),
+            http_status_code: fixed.http_status_code,
+            grpc_status_code: fixed.grpc_status_code,
+            is_synthetics_request: fixed.is_synthetics_request,
+            is_trace_root: fixed.is_trace_root,
+            service_source: fixed.service_source.to_owned(),
+        },
+        peer_tags,
+        additional_tags,
+        additional_tags_cardinality_limit: span.additional_tags_cardinality_limit,
+        duration_ns: span.duration,
+        is_error: span.is_error,
+        is_top_level: span.has_top_level,
+    }
+}

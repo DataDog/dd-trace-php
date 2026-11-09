@@ -2,6 +2,7 @@
 #include <zend_closures.h>
 #include <hook/hook.h>
 #include "uhook.h"
+#include "uhook_line.h"
 #include "../configuration.h"
 #include "../span.h"
 #include <sandbox/sandbox.h>
@@ -144,6 +145,7 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
         return;
     }
 
+    ddtrace_uhook_line_suspend_frame(execute_data);
     if (def->tracing) {
         dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
         dyn->dropped_span = false;
@@ -156,6 +158,7 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
             ddtrace_clear_execute_data_span(invocation, false);
         }
     }
+    ddtrace_uhook_line_resume_frame(execute_data);
 }
 
 static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *execute_data, zval *key, zval *value, void *auxiliary, void *dynamic) {
@@ -168,6 +171,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
         return;
     }
 
+    ddtrace_uhook_line_suspend_frame(execute_data);
     if (def->tracing && !dyn->dropped_span) {
         if (dyn->span->duration == DDTRACE_DROPPED_SPAN) {
             dyn->dropped_span = true;
@@ -197,6 +201,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
 }
 
 static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+    ddtrace_uhook_line_close_frame(execute_data);
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
     bool keep_span = true;

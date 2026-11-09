@@ -32,6 +32,8 @@ class W3CPropagatorTest extends BaseTestCase
     private $SPAN_ID;
     private $SAMPLED;
 
+    private $previousStorage;
+
     protected function ddSetUp()
     {
         dd_trace_close_all_spans_and_flush();
@@ -42,7 +44,7 @@ class W3CPropagatorTest extends BaseTestCase
 
     protected function ddTearDown()
     {
-        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
+        Context::setStorage($this->previousStorage); // Keep the storage which follows fibers for the next tests
         parent::ddTearDown();
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');
@@ -50,6 +52,8 @@ class W3CPropagatorTest extends BaseTestCase
 
     public function setUp(): void
     {
+        $this->previousStorage = Context::storage();
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         [$this->W3C] = TraceContextPropagator::getInstance()->fields();
     }
 

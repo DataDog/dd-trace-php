@@ -33,6 +33,14 @@ typedef struct {
     zend_string *message;
 } ddtrace_error_data;
 
+typedef struct {
+    bool computed;
+    // The alphabetically first DD_TRACE_STATS_ADDITIONAL_TAGS keys, borrowed from the configuration.
+    zend_string *keys[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS];
+    uint32_t count;
+    uint32_t cardinality_limit;
+} ddtrace_stats_additional_tags;
+
 // clang-format off
 typedef struct {
     zend_bool api_is_loaded;
@@ -93,6 +101,7 @@ typedef struct {
     volatile sig_atomic_t *capture_timeout_flags[2];
 #endif
     HashTable active_live_debugger_hooks;
+    HashTable active_live_debugger_line_probes; // first line hook id -> owned reference to the probe
     HashTable *agent_rate_by_service;
 
     ddog_AgentRemoteConfigReader *agent_config_reader;
@@ -112,12 +121,16 @@ typedef struct {
     bool inferred_span_created;
     zval pending_upstream_span_link; // span link queued by PROPAGATION_BEHAVIOR_EXTRACT=restart; consumed on root span open
 
+    // Computed on first use; reset on rinit and on configuration changes, as the keys borrow from the configuration.
+    ddtrace_stats_additional_tags stats_additional_tags;
+
     HashTable resource_weak_storage;
     dtor_func_t resource_dtor_func;
 
     void *ffe_exposure_buffer;
     size_t ffe_exposure_buffer_len;
     size_t ffe_exposure_buffer_cap;
+    size_t ffe_exposures_dropped;
     void *ffe_metric_buffer;
     size_t ffe_metric_buffer_len;
     size_t ffe_metric_buffer_cap;

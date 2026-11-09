@@ -5,7 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "ddtrace.h"
+#include "tracer_bridge.h"
 
 typedef enum {
     response_type_auto = 0,

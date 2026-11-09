@@ -1,7 +1,6 @@
 --TEST--
 Sampling priority is not set when helper set force to false
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

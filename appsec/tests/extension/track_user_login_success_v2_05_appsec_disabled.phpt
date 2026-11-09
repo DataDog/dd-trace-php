@@ -1,7 +1,6 @@
 --TEST--
 Test \datadog\appsec\v2\track_user_login_success id should be string with appsec disabled
 --INI--
-extension=ddtrace.so
 datadog.appsec.testing=0
 --ENV--
 DD_APPSEC_ENABLED=0

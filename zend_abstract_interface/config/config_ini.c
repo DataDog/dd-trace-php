@@ -260,8 +260,8 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     return SUCCESS;
 }
 
-static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_str name,
-                                     zai_config_name *ini_name, int module_number, zai_config_id id) {
+static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_str name, zai_config_name *ini_name,
+                                     zend_ini_entry_def *entry_defs, int module_number, zai_config_id id) {
     if (!zai_config_generate_ini_name(name, ini_name)) {
         assert(false && "Invalid INI name conversion");
         return;
@@ -294,8 +294,6 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
         return;
     }
 
-    /* ZEND_INI_END() adds a null terminating entry */
-    zend_ini_entry_def entry_defs[1 + /* terminator entry */ 1] = {{0}, {0}};
     zend_ini_entry_def *entry = &entry_defs[0];
 
     entry->name = ini_name->ptr;
@@ -319,6 +317,8 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
 
 // PHP 5 expects 'static storage duration for ini entry names
 zai_config_name ini_names[ZAI_CONFIG_ENTRIES_COUNT_MAX * ZAI_CONFIG_NAMES_COUNT_MAX];
+// PHP 8.6+ keeps zend_ini_entry->def, so the defs need static storage too; [1] is the null terminator
+static zend_ini_entry_def ini_defs[ZAI_CONFIG_ENTRIES_COUNT_MAX * ZAI_CONFIG_NAMES_COUNT_MAX][2];
 
 void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_number) {
     env_to_ini_name = env_to_ini;
@@ -331,8 +331,10 @@ void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_numb
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         for (uint8_t n = 0; n < memoized->names_count; ++n) {
             zai_config_name *ini_name = &ini_names[i * ZAI_CONFIG_NAMES_COUNT_MAX + n];
+            zend_ini_entry_def *entry_defs = ini_defs[i * ZAI_CONFIG_NAMES_COUNT_MAX + n];
+            memset(entry_defs, 0, sizeof(ini_defs[0]));
             zai_str name = ZAI_STR_NEW(memoized->names[n].ptr, memoized->names[n].len);
-            zai_config_add_ini_entry(memoized, name, ini_name, module_number, i);
+            zai_config_add_ini_entry(memoized, name, ini_name, entry_defs, module_number, i);
             // We need to cache ini directives here, at least for ZTS in order to access the global inis
             memoized->ini_entries[n] = zend_hash_str_find_ptr(EG(ini_directives), ini_name->ptr, ini_name->len);
             assert(memoized->ini_entries[n] != NULL);

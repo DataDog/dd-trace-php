@@ -38,6 +38,20 @@ RUN set -eux; \
     yum install -y --nogpgcheck devtoolset-7; \
     yum clean all;
 
+# EOL RHEL-family base, no fixed ca-certificates package: blacklist the distrusted
+# eMudhra "emSign ECC Root CA - G3" / "AAA Certificate Services" roots through
+# /etc/pki/ca-trust/source/blacklist, which survives a ca-certificates reinstall,
+# re-extract every derived store, and fail the build if either root is left.
+RUN set -eux; \
+    awk '/^# / { label = substr($0, 3) } \
+         /BEGIN CERTIFICATE/ { keep = (label ~ /^(AAA Certificate Services|Comodo AAA Services root|emSign ECC Root CA - G3)$/); n += keep } \
+         keep { f = "/etc/pki/ca-trust/source/blacklist/emudhra-" n ".pem"; print > f } \
+         /END CERTIFICATE/ { keep = 0 }' /etc/pki/tls/certs/ca-bundle.crt; \
+    test "$(ls /etc/pki/ca-trust/source/blacklist/emudhra-*.pem | wc -l)" -ge 2; \
+    update-ca-trust extract; \
+    ! grep -E '^# (AAA Certificate Services|Comodo AAA Services root|emSign ECC Root CA - G3)$' /etc/pki/tls/certs/ca-bundle.crt; \
+    test "$(readlink -f /usr/lib64/libnssckbi.so)" = /usr/lib64/pkcs11/p11-kit-trust.so
+
 ENV SRC_DIR=/usr/local/src
 
 COPY download-src.sh /root/

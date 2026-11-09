@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Libtool drops linker-only flags passed in LDFLAGS; keep Clang, LLD, and the
+# runtime selected for both native and Rust link steps. CentOS uses static
+# compiler-rt builtins; Alpine uses its existing libgcc builtins and unwinder.
+if [[ $(uname -s) == Darwin ]]; then
+    # rustc passes ELF-style -plugin-opt options when linking workspace cdylib
+    # dependencies with linker-plugin-lto. Apple's ld does not recognize them;
+    # have the matched Clang link Mach-O LLVM bitcode with ThinLTO instead.
+    args=()
+    for arg in "$@"; do
+        case "$arg" in
+            -Wl,-plugin-opt=*) ;;
+            *) args+=("$arg") ;;
+        esac
+    done
+    exec "${DDTRACE_XLANG_DARWIN_CLANG:?}" -flto="${DDTRACE_XLANG_DARWIN_LTO:-thin}" "${args[@]}"
+fi
+rtlib=compiler-rt
+[[ ! -f /etc/alpine-release ]] || rtlib=libgcc
+# Rust cdylib links do not inherit LDFLAGS. Consume the IR in cc-rs fat
+# objects there as well as in the final PHP-extension link, on both libcs.
+exec clang -fuse-ld=lld -rtlib="$rtlib" -unwindlib=libgcc -Wl,--fat-lto-objects -Wno-unused-command-line-argument "$@"

@@ -1,7 +1,6 @@
 --TEST--
 When user event is triggered by automation first and then the event is triggered by the user, all headers are sent
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1

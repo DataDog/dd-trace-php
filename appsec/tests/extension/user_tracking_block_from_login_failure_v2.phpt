@@ -1,7 +1,5 @@
 --TEST--
 Block from user v2 login failure event
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

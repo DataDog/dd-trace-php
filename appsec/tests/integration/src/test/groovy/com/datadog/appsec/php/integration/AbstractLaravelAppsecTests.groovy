@@ -1,7 +1,6 @@
 package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.TelemetryHelpers
-import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Order
@@ -15,24 +14,13 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 /**
  * Shared AppSec tests for Laravel 8.x and newer. Concrete subclasses supply
  * the {@code @Container} static field, declare {@code isExpectedVersion}, and
- * override the {@code expected*} / {@code is*} hooks when response codes or
- * endpoint telemetry diverge per Laravel major version. Laravel 4.x/5.x are
+ * override the {@code get*} / {@code is*} hooks when response codes or
+ * endpoint telemetry diverge per Laravel major version. Endpoint-collection
+ * tests come from {@link AbstractFrameworkAppsecTests}. Laravel 4.x/5.x are
  * covered by the tracer suite only; adding AppSec coverage for them would
  * require a Guard-based event hook that this suite does not model.
  */
-abstract class AbstractLaravelAppsecTests {
-
-    AppSecContainer getContainer() {
-        getClass().CONTAINER
-    }
-
-    /**
-     * When {@code true} (default), {@link #getExpectedEndpoints} may be a
-     * strict subset of the endpoints emitted by the fixture (extras are
-     * accepted). Set to {@code false} in subclasses that enumerate every
-     * expected route to also assert the exact total count.
-     */
-    boolean isAllowUnenumeratedRoutes() { true }
+abstract class AbstractLaravelAppsecTests extends AbstractFrameworkAppsecTests {
 
     /**
      * Status code the fixture's /login/signup endpoint returns. Laravel 8.x
@@ -40,63 +28,6 @@ abstract class AbstractLaravelAppsecTests {
      * ({@code return redirect('/simple')}) which produces 302.
      */
     int getExpectedSignupStatus() { 200 }
-
-    /**
-     * Routes that must appear in the endpoints telemetry. Entries are
-     * {@code [path, method, resourceName]} triples; operation name is always
-     * {@code http.request}. Must be exhaustive when
-     * {@link #isAllowUnenumeratedRoutes} is {@code false}.
-     */
-    List<List<String>> getExpectedEndpoints() { [] }
-
-    @Test
-    @Order(1)
-    void 'Endpoints are not collected before the first request to framework'() {
-        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
-        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-            assert re.statusCode() == 200
-            assert re.body().contains('are_endpoints_collected: false')
-        }
-    }
-
-    @Test
-    @Order(2)
-    void 'Endpoints are sent'() {
-        def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
-            assert resp.statusCode() == 200
-        }
-
-        assert trace.traceId != null
-
-        List<TelemetryHelpers.Endpoint> endpoints
-        TelemetryHelpers.waitForAppEndpoints(container, 30, { List<TelemetryHelpers.Endpoint> messages ->
-            endpoints = messages.collectMany { it.endpoints }
-            endpoints.size() > 0
-        })
-
-        if (!allowUnenumeratedRoutes) {
-            assert endpoints.size() == expectedEndpoints.size()
-        }
-        expectedEndpoints.each { List<String> entry ->
-            String path = entry[0]
-            String method = entry[1]
-            String resource = entry[2]
-            assert endpoints.find {
-                it.path == path && it.method == method &&
-                        it.operationName == 'http.request' && it.resourceName == resource
-            } != null, "Missing endpoint ${method} ${path}"
-        }
-    }
-
-    @Test
-    @Order(3)
-    void 'Endpoints are collected after the first request to framework'() {
-        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
-        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-            assert re.statusCode() == 200
-            assert re.body().contains('are_endpoints_collected: true')
-        }
-    }
 
     @Test
     @Order(4)
@@ -207,7 +138,7 @@ abstract class AbstractLaravelAppsecTests {
     @Test
     @Order(9)
     void 'test path params'() {
-        // Set ip which is blocked
+        // Blocked by the test ruleset, which matches on the path param `param01`
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403

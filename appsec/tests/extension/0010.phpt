@@ -1,20 +1,20 @@
 --TEST--
-Check for ddappsec presence
+Check for AppSec presence
 --INI--
 datadog.appsec.enabled=1
 --FILE--
 <?php
-if (extension_loaded('ddappsec')) {
-    echo "ddappsec extension is available\n";
+if (extension_loaded('ddtrace') && function_exists('datadog\appsec\is_enabled')) {
+    echo "AppSec is available\n";
 } else {
-    echo "ddappsec COULD NOT BE LOADED\n";
+    echo "AppSec IS NOT AVAILABLE\n";
 }
 if (\datadog\appsec\is_enabled()) {
-    echo "ddappsec extension is enabled\n";
+    echo "AppSec is enabled\n";
 } else {
-    echo "ddappsec extension is disabled\n";
+    echo "AppSec is disabled\n";
 }
 ?>
 --EXPECT--
-ddappsec extension is available
-ddappsec extension is enabled
+AppSec is available
+AppSec is enabled

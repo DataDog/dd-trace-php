@@ -44,19 +44,19 @@ class Symfony44Tests extends AbstractSymfonyAppsecTests {
     // Symfony 4 is explicitly excluded from endpoint collection in
     // SymfonyIntegration (`\strpos(self::$kernel::VERSION, '4.') !== 0`).
     @Override
-    boolean supportsEndpointsCollection() { false }
+    boolean isEndpointsCollectionSupported() { false }
 
     // The locale-aliased route (/caminho-dinamico) is only wired up in Symfony
     // 6+ fixtures where the #[Route(..., locale: ...)] attribute is available.
     @Override
-    boolean supportsLocaleRoute() { false }
+    boolean isLocaleRouteSupported() { false }
 
     // The bundled LoginFormAuthenticator returns `new Response('Logged in!')`
     // (200) when there is no stored target path, and `new Response(403)` on
     // failure instead of the stock 302-redirect behaviour.
     @Override
-    int expectedLoginSuccessStatus() { 200 }
+    int getExpectedLoginSuccessStatus() { 200 }
 
     @Override
-    int expectedLoginFailureStatus() { 403 }
+    int getExpectedLoginFailureStatus() { 403 }
 }

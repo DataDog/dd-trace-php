@@ -2,42 +2,58 @@
 #define ZAI_IS_MAPPED_H
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+/* Validate the full range in batches of up to 64 pages, using a bounded stack vector. */
+#define ZAI_MINCORE_BATCH_PAGES 64
 static inline bool zai_is_mapped(const void *addr, size_t size) {
+    if (size == 0) {
+        return true;
+    }
     uintptr_t page_size = sysconf(_SC_PAGESIZE);
-    assert(size <= page_size);
-    uintptr_t page_addr = ((uintptr_t)addr & ~(page_size - 1));
-    uintptr_t last_page_addr = ((uintptr_t)(addr + size - 1) & ~(page_size - 1));
+    uintptr_t first_page = ((uintptr_t)addr & ~(page_size - 1));
+    uintptr_t last_page = (((uintptr_t)addr + size - 1) & ~(page_size - 1));
 
-    unsigned char vec[2];
+    unsigned char vec[ZAI_MINCORE_BATCH_PAGES];
 #ifdef __x86_64__
 #define SYS_mincore 0x1B
 #else // aarch64
 #define SYS_mincore 0xE8
 #endif
 
-    int retries = 5;
-    again:
-        if (syscall(SYS_mincore, page_addr, (1 + (page_addr != last_page_addr)) * page_size, &vec) == 0) {
-            return true;
-        } else if (errno == EFAULT || errno == ENOMEM) {
-            return false;
-        } else if (errno == EAGAIN) {
-            if (retries-- > 0) {
-                goto again;
-            }
-            return true;
-        } else if (errno == ENOSYS) {
-            // The syscall is unavailable; proceed without validation, as on unsupported platforms.
-            return true;
-        } else {
-            // we don't know... assume true
-#ifdef ZEND_DEBUG
-            abort();
-#else
-            return true;
-#endif
+    for (uintptr_t page = first_page;; page += (uintptr_t)ZAI_MINCORE_BATCH_PAGES * page_size) {
+        size_t pages = ((last_page - page) / page_size) + 1;
+        if (pages > ZAI_MINCORE_BATCH_PAGES) {
+            pages = ZAI_MINCORE_BATCH_PAGES;
         }
+
+        int retries = 5;
+        for (;;) {
+            if (syscall(SYS_mincore, page, pages * page_size, &vec) == 0) {
+                break;
+            } else if (errno == EFAULT || errno == ENOMEM) {
+                return false;
+            } else if (errno == EAGAIN) {
+                if (retries-- > 0) {
+                    continue;
+                }
+                return true;
+            } else if (errno == ENOSYS) {
+                /* The syscall is unavailable; proceed without validation, as on unsupported platforms. */
+                return true;
+            } else {
+#ifdef ZEND_DEBUG
+                abort();
+#else
+                return true;
+#endif
+            }
+        }
+
+        if (page + (uintptr_t)pages * page_size > last_page) {
+            return true;
+        }
+    }
 }
+
 #elif defined(__APPLE__)
 #include <mach/mach.h>
 static inline bool zai_is_mapped(const void *addr, size_t size) {

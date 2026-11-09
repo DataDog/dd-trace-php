@@ -4,14 +4,13 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "backtrace.h"
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_objects.h"
 #include "string_helpers.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 static const int NO_LIMIT = 0;
 static const double STACK_DEFAULT_TOP_RATE = 0.25;
@@ -198,7 +197,7 @@ void dd_generate_backtrace(zend_string *nullable id, zval *nonnull dd_backtrace)
     php_backtrace_to_datadog_backtrace(&php_backtrace, &frames);
     zend_hash_add(Z_ARRVAL_P(dd_backtrace), _frames_key, &frames);
 
-    zval_dtor(&php_backtrace);
+    zval_ptr_dtor_nogc(&php_backtrace);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_generate_backtrace)

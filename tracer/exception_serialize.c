@@ -97,9 +97,7 @@ static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureVa
     if (!value->not_captured_reason.len) {
         value->value = (ddog_CharSlice) {.ptr = ZSTR_VAL(str), .len = ZSTR_LEN(str)};
         if (value->value.len > config->max_length) {
-            char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 20);
-            int len = sprintf(integer, "%" PRIuPTR, value->value.len);
-            value->size = (ddog_CharSlice) {.ptr = integer, .len = len};
+            value->size = value->value.len;
             value->value.len = config->max_length;
             value->truncated = true;
         }
@@ -175,6 +173,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                     }
                     if (remaining_fields-- == 0) {
                         value->not_captured_reason = DDOG_CHARSLICE_C("collectionSize");
+                        value->size = zend_hash_num_elements(Z_ARR_P(zv));
                         break;
                     }
 
@@ -193,6 +192,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                     }
                     if (remaining_fields-- == 0) {
                         value->not_captured_reason = DDOG_CHARSLICE_C("collectionSize");
+                        value->size = zend_hash_num_elements(Z_ARR_P(zv));
                         break;
                     }
 
@@ -415,7 +415,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
 
     char *exception_hash = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, hash_len);
     zend_ulong exception_long_hash = ddtrace_compute_exception_hash(exception);
-    php_hash_bin2hex(exception_hash, (unsigned char *)&exception_long_hash, sizeof(exception_long_hash));
+    zend_bin2hex(exception_hash, (unsigned char *)&exception_long_hash, sizeof(exception_long_hash));
 
     ddog_add_str_span_meta_str(span, "error.debug_info_captured", "true");
     ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_hash", (ddog_CharSlice){.ptr = exception_hash, .len = hash_len});
@@ -489,13 +489,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
                 if (key) {
                     arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(key), .len = ZSTR_LEN(key)};
                 } else if (func && idx < func->common.num_args) {
-                    if (ZEND_USER_CODE(func->type)) {
-                        zend_string *name = func->op_array.arg_info[idx].name;
-                        arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
-                    } else {
-                        const char *name = (const char*) func->internal_function.arg_info[idx].name;
-                        arg_name = (ddog_CharSlice) {.ptr = name, .len = strlen(name)};
-                    }
+                    arg_name = ddtrace_arg_name(func, (uint32_t) idx);
                 } else {
                     char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 23);
                     int len = sprintf(integer, "arg" ZEND_LONG_FMT, idx);

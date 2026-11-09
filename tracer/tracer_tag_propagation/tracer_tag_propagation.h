@@ -8,7 +8,7 @@
 void ddtrace_clean_tracer_tags(zend_array *root_meta, zend_array *propagated_tags);
 void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *root_meta, zend_array *propagated_tags);
 void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta, zend_array *propagated_tags);
-DATADOG_PUBLIC void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value);
+void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value);
 void ddtrace_add_propagated_tag(zend_string *key, zval *value);
 
 zval *ddtrace_propagated_tags_get_tag(const char *tag);
