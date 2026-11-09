@@ -1219,7 +1219,7 @@ dependencies = [
  "ddtrace-sidecar",
  "dynasmrt",
  "env_logger",
- "hashbrown 0.15.2",
+ "hashbrown 0.17.1",
  "http 1.4.2",
  "itertools 0.11.0",
  "lazy_static",
@@ -2025,8 +2025,6 @@ version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
 dependencies = [
- "allocator-api2",
- "equivalent",
  "foldhash 0.1.5",
 ]
 
