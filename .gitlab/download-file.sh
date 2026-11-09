@@ -31,6 +31,9 @@ for attempt in 1 2 3 4; do
     cat "$curl_log" >&2
 
     if [ "$status" -eq 0 ]; then
+        # mktemp creates 0600 files; give the file the mode `curl -o` would have (e.g. apt reads
+        # keyrings as the unprivileged _apt user, and fails with "not signed" on a 0600 key).
+        chmod "$(printf '%o' $((0666 & ~$(umask))))" -- "$partial" || exit 1
         mv -f -- "$partial" "$destination"
         exit $?
     fi
