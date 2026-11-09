@@ -1,0 +1,81 @@
+Fix the tar headers fpm writes in .apk files. apk-tools >= 2.14.13 (Alpine 3.21.10) and
+>= 3.0.9 (Alpine 3.24.4) reject the package otherwise, with "package file format error"
+or "v2 package format error":
+- recompute header checksums after rewriting ownership fields (control and data tars)
+- give PAX headers their real size, not the size padded to 512 bytes
+- SHA1 only the file content, not its 512-byte padding; leave null records untouched
+Applied on top of fpm_apk_pax_header.patch and fpm_apk_alpine323.patch.
+
+--- a/lib/fpm/package/apk.rb
++++ b/lib/fpm/package/apk.rb
+@@ -228,6 +228,8 @@
+           record_length = ascii_length.to_i(8)
+           record_length = determine_record_length(record_length)
+ 
++          # ownership fields were rewritten above: apk-tools >= 2.14.13 / 3.0.9 check the checksum.
++          header = checksum_header(header)
+           target_file.write(header)
+           target_file.write(file.read(record_length))
+         end
+@@ -257,20 +259,21 @@
+ 
+         header = file.read(TAR_CHUNK_SIZE)
+         typeflag = header[TAR_TYPEFLAG_OFFSET]
+-        record_length = header[TAR_LENGTH_OFFSET_START..TAR_LENGTH_OFFSET_END].to_i(8)
++        content_length = header[TAR_LENGTH_OFFSET_START..TAR_LENGTH_OFFSET_END].to_i(8)
+ 
+         data = ""
+-        record_length = determine_record_length(record_length)
++        record_length = determine_record_length(content_length)
+ 
+         until(data.length == record_length)
+           data << file.read(TAR_CHUNK_SIZE)
+         end
+-
+-        # Clear ownership fields
+-        header = replace_ownership_headers(header, false)
+ 
+         # If it's not a null record, do extension hash.
+         if(typeflag != "\0")
++          # Clear ownership fields (null end-of-archive records must stay all zero bytes)
++          header = replace_ownership_headers(header, false)
++          header = checksum_header(header)
++
+           extension_header = header.dup()
+ 
+           extension_header = replace_ownership_headers(extension_header, true)
+@@ -289,7 +292,7 @@
+               full_record_path = full_record_path.chop()
+             end
+           else
+-            extension_data = hash_record(data)
++            extension_data = hash_record(data[0, content_length])
+           end
+ 
+           full_record_path = pad_string_to(full_record_path, 100)
+@@ -299,9 +302,9 @@
+           extension_header[TAR_LENGTH_OFFSET_START..TAR_LENGTH_OFFSET_END] = extension_data.length.to_s(8).rjust(12, '0')
+           extension_header = checksum_header(extension_header)
+ 
+-          # write extension record
++          # write extension record, padded to a whole tar block
+           target_file.write(extension_header)
+-          target_file.write(extension_data)
++          target_file.write(pad_string_to(extension_data.dup, TAR_CHUNK_SIZE))
+         else
+           empty_records += 1
+         end
+@@ -414,11 +417,8 @@
+       candidate_ret = "#{length.to_s} #{ret}"
+     end
+ 
+-    ret = candidate_ret
+-
+-    # pad out the result
+-    ret = pad_string_to(ret, TAR_CHUNK_SIZE)
+-    return ret
++    # not padded: the PAX header size must be the real record length
++    return candidate_ret
+   end
+ 
+   # Tars the current contents of the given [path] to the given [target_path].
