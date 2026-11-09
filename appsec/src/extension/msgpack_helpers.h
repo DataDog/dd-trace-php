@@ -46,15 +46,11 @@ static inline bool dd_mpack_limits_reached(dd_mpack_limits *nonnull limits)
         memcmp(mpack_node_str(node), str, len) == 0)
 
 #define dd_mpack_write_lstr(w, str) mpack_write_str(w, str, LSTRLEN(str))
-#define dd_mpack_write_lstr_lim(w, str, plimits)                               \
-    mpack_write_str(w, str, MIN(LSTRLEN(str), (plimits)->max_string_length))
 
 void dd_mpack_write_nullable_cstr(
     mpack_writer_t *nonnull w, const char *nullable cstr);
 void dd_mpack_write_nullable_cstr_lim(
     mpack_writer_t *nonnull w, const char *nullable cstr, size_t max_len);
-void dd_mpack_write_nullable_str(
-    mpack_writer_t *nonnull w, const char *nullable str, size_t len);
 void dd_mpack_write_nullable_str_lim(mpack_writer_t *nonnull w,
     const char *nullable str, size_t len, size_t max_len);
 
@@ -71,7 +67,6 @@ void dd_mpack_write_array(
     mpack_writer_t *nonnull w, const zend_array *nullable arr);
 void dd_mpack_write_array_lim(mpack_writer_t *nonnull w,
     const zend_array *nullable arr, dd_mpack_limits *nonnull limits);
-void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv);
 void dd_mpack_write_zval_lim(mpack_writer_t *nonnull w, zval *nullable zv,
     dd_mpack_limits *nonnull limits);
 #ifdef TESTING

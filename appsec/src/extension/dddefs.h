@@ -23,4 +23,3 @@ typedef enum {
 
 const char *nonnull dd_result_to_string(dd_result result);
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))

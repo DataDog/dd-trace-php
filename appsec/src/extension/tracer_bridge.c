@@ -255,12 +255,6 @@ void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)
     ddog_sidecar_appsec_response_drop(response);
 }
 
-void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
-    zend_long priority, enum dd_sampling_mechanism mechanism)
-{
-    ddtrace_set_priority_sampling_on_span_zobj(root_span, priority, mechanism);
-}
-
 zend_long dd_trace_get_priority_sampling_on_span_zobj(
     zend_object *nonnull root_span)
 {

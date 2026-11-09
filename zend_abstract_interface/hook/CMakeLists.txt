@@ -21,6 +21,7 @@ endif()
 install(
   FILES ${CMAKE_CURRENT_SOURCE_DIR}/hook.h
         ${CMAKE_CURRENT_SOURCE_DIR}/line_hooks.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/table.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hook/)
 
 target_link_libraries(zai_zend_abstract_interface INTERFACE zai_hook)

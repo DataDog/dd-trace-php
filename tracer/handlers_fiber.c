@@ -5,7 +5,7 @@
 #include "otel_context.h"
 #endif
 #include "span.h"
-#include <Zend/zend_extensions.h>
+#include <hook/hook.h>
 #include <Zend/zend_observer.h>
 #if PHP_VERSION_ID < 80200
 #include <interceptor/php8/interceptor.h>
@@ -164,7 +164,10 @@ static void dd_observe_fiber_destroy(zend_fiber_context *context) {
 }
 
 void ddtrace_setup_fiber_observers(void) {
-    dd_resource_handle = zend_get_resource_handle(PHP_DDTRACE_EXTNAME);
+    /* Fiber observers and zai_hook can share a Zend resource handle because
+     * fiber observers use it only with zend_fiber_context, while zai_hook
+     * uses it only with zend_op_array. */
+    dd_resource_handle = zai_hook_resource_handle;
 
     zend_observer_fiber_init_register(dd_observe_fiber_init);
     zend_observer_fiber_switch_register(dd_observe_fiber_switch);
