@@ -341,6 +341,23 @@ foreach ($build_platforms as $platform) {
     paths:
       - pecl
 
+# Distro packagers (e.g. Remi's RPMs) vendor crates and build offline (#4432).
+"pecl offline vendored build":
+  stage: verify
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.4_bookworm-14"
+  tags: [ "arch:amd64" ]
+  needs:
+    - job: "pecl build"
+      artifacts: true
+  variables:
+    MAKE_JOBS: 4
+    KUBERNETES_CPU_REQUEST: 4
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+    - switch-php nts
+    - tooling/bin/pecl-offline-vendored-build ./pecl/datadog_trace-*.tgz
+
 <?php
 foreach ($build_platforms as $platform) {
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {

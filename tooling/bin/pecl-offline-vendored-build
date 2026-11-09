@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Build a PECL tarball like distro packagers do (#4432): vendor crates from the
+# root manifest only, then build offline with a toolchain that has no rust-src.
+set -euo pipefail
+
+if [[ $# -ne 1 || ! -f $1 ]]; then
+    echo "usage: $0 <datadog_trace-*.tgz>" >&2
+    exit 2
+fi
+tgz=$(realpath "$1")
+# Outside any checkout, so no repository .cargo/config.toml is picked up.
+work=$(mktemp -d)
+echo "=== work dir: $work"
+
+show_errors() {
+    echo "=== first errors in $1:"
+    grep -n -A12 -E '^\s*error(\[E[0-9]+\])?:' "$1" | head -n 80 || true
+}
+
+# Copy the active toolchain without lib/rustlib/src: distro rustc ships no rust-src.
+sysroot=$(rustc --print sysroot)
+mkdir "$work/toolchain"
+tar -C "$sysroot" --exclude=./lib/rustlib/src -cf - . | tar -C "$work/toolchain" -xf -
+export PATH="$work/toolchain/bin:$PATH" RUSTC="$work/toolchain/bin/rustc"
+sysroot=$(rustc --print sysroot)
+if [[ -e $sysroot/lib/rustlib/src ]]; then
+    echo "rust-src is still present in $sysroot" >&2
+    exit 1
+fi
+echo "=== rust-src probe: $(rustc -V), sysroot $sysroot, lib/rustlib/src absent"
+
+# Same as the packager's makedeps.sh: plain `cargo vendor` in a throwaway tree.
+export CARGO_HOME="$work/cargo-home-vendor"
+echo "=== cargo vendor (the only networked step), CARGO_HOME=$CARGO_HOME"
+mkdir -p "$CARGO_HOME" "$work/vendor-tree"
+tar -xzf "$tgz" -C "$work/vendor-tree"
+(cd "$work"/vendor-tree/datadog_trace-*/ && cargo vendor "$work/mycargo" >/dev/null)
+rm -rf "$work/vendor-tree" "$CARGO_HOME"
+
+mkdir "$work/.cargo"
+cat > "$work/.cargo/config.toml" <<EOF
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "$work/mycargo"
+EOF
+
+tar -xzf "$tgz" -C "$work"
+cd "$work"/datadog_trace-*/
+build=$PWD
+export CARGO_HOME="$work/cargo-home" CARGO_NET_OFFLINE=true
+mkdir "$CARGO_HOME"
+unset CARGO_TARGET_DIR
+
+echo "=== offline build in $build, CARGO_HOME=$CARGO_HOME, CARGO_NET_OFFLINE=$CARGO_NET_OFFLINE"
+phpize
+./configure --enable-ddtrace --enable-ddtrace-libddwaf-source
+if ! make -j"${MAKE_JOBS:-$(nproc)}" 2>&1 | tee "$work/make.log"; then
+    show_errors "$work/make.log"
+    exit 1
+fi
+if [[ -e $CARGO_HOME/registry || -e $CARGO_HOME/git ]]; then
+    echo "cargo downloaded crates during the offline build: $(ls -A "$CARGO_HOME")" >&2
+    exit 1
+fi
+echo "=== no crates fetched: $CARGO_HOME has no registry/ or git/"
+
+loaded=$(php -n -d extension="$build/modules/ddtrace.so" -r 'var_dump(extension_loaded("ddtrace"));')
+echo "=== load check: $loaded"
+[[ $loaded == "bool(true)" ]]
+
+# The nested appsec_body build (isolate.rs) must have run and be bundled into the
+# Rust staticlib; without --enable-ddtrace-appsec, ddtrace.so drops it as unused.
+mapfile -t objects < <(find "$build" -path '*/out/appsec_body/parser-private.o')
+mapfile -t staticlibs < <(find "$build" -name libdatadog_php.a -not -path '*/deps/*')
+if [[ ${#objects[@]} -ne 1 || ${#staticlibs[@]} -ne 1 ]]; then
+    echo "expected one parser-private.o and one libdatadog_php.a, found ${#objects[@]} and ${#staticlibs[@]}" >&2
+    exit 1
+fi
+members=$(ar t "${staticlibs[0]}")
+if ! grep -qx parser-private.o <<<"$members"; then
+    echo "${staticlibs[0]} does not bundle parser-private.o" >&2
+    exit 1
+fi
+echo "=== OK: ddtrace.so loads; ${staticlibs[0]} bundles parser-private.o"
