@@ -11,6 +11,9 @@
 
 #include "p2s_oom_guard.h"
 
+// The tag of a deferred fatal; its value is the phase (see dd_p2s_phase_name).
+#define DD_P2S_TAG_DEFERRED "_dd.appsec.php2shell.deferred"
+
 // The kind of a native memory error (see p2s_monitor.c).
 typedef enum {
     // "Allowed memory size of N bytes exhausted": memory_limit was crossed.

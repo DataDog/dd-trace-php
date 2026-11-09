@@ -175,6 +175,10 @@ void dd_appsec_rinit(void)
     dd_appsec_rinit_once();
     _check_enabled();
 
+    // A request that failed in the PHP2Shell startup window left its span for
+    // the next traced request; send it whatever AppSec's own state.
+    dd_php2shell_carry_startup_span();
+
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         // Turn the PHP2Shell mitigation off for later requests' startup parses.
         dd_php2shell_set_allowed(false);

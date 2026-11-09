@@ -132,6 +132,11 @@ void dd_p2s_guard_open(void);
 void dd_p2s_guard_reconcile(bool armed);
 // Marker in the deferred fatal's message, so that monitor detection skips it.
 #define DD_P2S_DEFERRED_MARKER "(Datadog AppSec PHP2Shell mitigation deferred"
+// The deferred fatal's message, with the breached memory_limit (one %zu). The
+// startup span rebuilds it for a request whose startup failed.
+#define DD_P2S_DEFERRED_FORMAT                                                 \
+    "Allowed memory size of %zu bytes exhausted " DD_P2S_DEFERRED_MARKER       \
+    " this to avoid heap corruption)"
 // End the request level (appsec's RSHUTDOWN).
 void dd_p2s_guard_close(void);
 // post_deactivate: disarm, forget the request and settle the handlers.

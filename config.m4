@@ -350,6 +350,7 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/php2shell/p2s_runtime.c \
     appsec/src/extension/php2shell/p2s_stale_state.c \
     appsec/src/extension/php2shell/p2s_startup_parse.c \
+    appsec/src/extension/php2shell/p2s_startup_span.c \
     appsec/src/extension/php2shell_mitigation.c \
     appsec/src/extension/php_helpers.c \
     appsec/src/extension/php_objects.c \

@@ -5,6 +5,7 @@ import com.datadog.appsec.php.mock_openai.MockOpenAIServer
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
+import com.datadog.appsec.php.model.Mapper
 import com.datadog.appsec.php.model.Trace
 import com.github.dockerjava.api.command.CreateContainerCmd
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
@@ -179,6 +180,27 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
     void clearTraces() {
         mockDatadogAgent.drainTraces()
+    }
+
+    // Pops traces until one per id in `ids` has arrived; the others are
+    // dropped. Fails if one does not arrive within the mock agent's timeout.
+    Map<BigInteger, Trace> nextCapturedTraces(Collection<BigInteger> ids) {
+        Map<BigInteger, Trace> got = [:]
+        while (!got.keySet().containsAll(ids)) {
+            Trace t = mockDatadogAgent.nextTrace(15000)
+            if (t.traceId in ids) {
+                assert !got.containsKey(t.traceId) : "two traces with id ${t.traceId}"
+                got[t.traceId] = t
+            } else {
+                log.info("ignoring trace with id ${t.traceId}")
+            }
+        }
+        got
+    }
+
+    /** Removes and returns the traces received and not fetched yet. */
+    List<Trace> drainCapturedTraces() {
+        mockDatadogAgent.drainTraces().collect { Mapper.INSTANCE.convertValue(it, Trace) }
     }
 
     List<Object> drainTelemetry(int timeoutInMs) {
@@ -378,6 +400,11 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         }
     }
 
+    void restartApache() {
+        ExecResult res = execInContainer('service', 'apache2', 'restart')
+        assert res.exitCode == 0 : "apache2 restart failed: ${res.stdout} ${res.stderr}"
+    }
+
     @Override
     void stop() {
         if (!isRunning()) {
@@ -420,6 +447,59 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 .header('x-datadog-trace-id', traceId.toString())
     }
 
+    // A urlencoded body of `head`, `count` copies of `fill`, then `tail`,
+    // streamed with a known length so that large bodies need no JVM heap.
+    HttpRequest buildStreamedReq(String path, Map<String, String> headers,
+                                 byte[] head, byte fill, long count, byte[] tail) {
+        long length = head.length + count + tail.length
+        def publisher = HttpRequest.BodyPublishers.ofInputStream {
+            new SequenceInputStream(Collections.enumeration([
+                    new ByteArrayInputStream(head),
+                    new RepeatedByteInputStream(fill, count),
+                    new ByteArrayInputStream(tail),
+            ] as List<InputStream>))
+        }
+        def br = buildReq(path)
+                .header('Content-Type', 'application/x-www-form-urlencoded')
+        headers.each { k, v -> br.header(k, v) }
+        br.POST(HttpRequest.BodyPublishers.fromPublisher(publisher, length)).build()
+    }
+
+    static class RepeatedByteInputStream extends InputStream {
+        private final byte value
+        private long remaining
+
+        RepeatedByteInputStream(byte value, long count) {
+            this.value = value
+            this.remaining = count
+        }
+
+        @Override
+        int read() {
+            if (remaining <= 0) {
+                return -1
+            }
+            remaining--
+            value & 0xff
+        }
+
+        @Override
+        int read(byte[] b, int off, int len) {
+            if (remaining <= 0) {
+                return -1
+            }
+            int n = (int) Math.min((long) len, remaining)
+            Arrays.fill(b, off, off + n, value)
+            remaining -= n
+            n
+        }
+    }
+
+    // The trace id of a request built with buildReq().
+    static BigInteger traceIdOf(HttpRequest req) {
+        new BigInteger(req.headers().firstValue('x-datadog-trace-id').get())
+    }
+
     Trace traceFromRequest(String path,
                            @ClosureParams(value = FromAbstractTypeMethods,
                                    options = ['java.net.http.HttpResponse'])
@@ -447,10 +527,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                                        Closure<Void> doWithResp = null,
                                boolean ignoreOtherRequests = false) {
 
-        String traceId = req.headers().map().get('x-datadog-trace-id').first()
-        if (!traceId) {
+        if (!req.headers().firstValue('x-datadog-trace-id').present) {
             throw new IllegalArgumentException("use createReq to create the request")
         }
+        BigInteger traceId = traceIdOf(req)
 
         log.info "New request to {} with trace id {}", req.uri(), traceId
 
@@ -484,15 +564,14 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
             assert trace.size() >= 1
             BigInteger gottenTraceId = trace.traceId
-            BigInteger expectedTraceId = new BigInteger(traceId, 10)
-            if (gottenTraceId == expectedTraceId) {
+            if (gottenTraceId == traceId) {
                 return trace
             }
 
             if (!ignoreOtherRequests) {
-                if (gottenTraceId != expectedTraceId) {
+                if (gottenTraceId != traceId) {
                     throw new AssertionError("Mismatched trace id gotten after request to ${req.uri()}: " +
-                            "expected ${expectedTraceId}, but got ${gottenTraceId}")
+                            "expected ${traceId}, but got ${gottenTraceId}")
                 }
             } else {
                 log.info "Ignoring trace with id {}", gottenTraceId

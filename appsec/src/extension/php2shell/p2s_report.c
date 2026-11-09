@@ -8,8 +8,10 @@
 // appsec's request lifecycle holds, else the tracer's active root span. There
 // is none during the startup parse (before ddtrace's RINIT), nor once the
 // tracer has serialized the trace (after its RSHUTDOWN); the error is then
-// reported only by the deferred metric (block) or not at all (monitor, see
-// Coverage: Monitor mode in php2shell_mitigation.c). A hard exit is never
+// reported only by the deferred metric (block; a deferred error of the startup
+// parse also by a startup span that a later request sends, see
+// p2s_startup_span.c) or not at all (monitor, see Coverage: Monitor mode in
+// php2shell_mitigation.c). A hard exit is never
 // tagged: the trace is not sent. Tags are added, never replaced, so the first
 // error of the request wins. Setting one also keeps the trace (user keep,
 // mechanism ASM), as an appsec event does. Called while the error is being
@@ -26,7 +28,6 @@
 #include "../request_lifecycle.h"
 #include "../tracer_bridge.h"
 
-#define DD_TAG_DEFERRED "_dd.appsec.php2shell.deferred"
 #define DD_TAG_MEMORY_ERROR "_dd.appsec.php2shell.memory_error"
 #define DD_TAG_PHASE "_dd.appsec.php2shell.phase"
 
@@ -43,7 +44,8 @@ void dd_p2s_report_deferred(dd_deferred_phase phase)
     if (span == NULL) {
         return;
     }
-    if (_add_tag(span, ZEND_STRL(DD_TAG_DEFERRED), dd_p2s_phase_name(phase))) {
+    if (_add_tag(
+            span, ZEND_STRL(DD_P2S_TAG_DEFERRED), dd_p2s_phase_name(phase))) {
         dd_trace_emit_asm_event();
     }
 }

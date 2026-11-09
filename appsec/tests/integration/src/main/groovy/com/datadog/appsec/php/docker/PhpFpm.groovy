@@ -22,6 +22,7 @@ import org.testcontainers.containers.Container.ExecResult
 class PhpFpm {
     static final String FPM_CONF = '/etc/php-fpm.conf'
     static final String DEFAULT_INI = '/etc/php/php.ini'
+    static final String POOL_DIR = '/etc/php-fpm.d'
     static final String POOL_CONF = '/etc/php-fpm.d/www.conf'
 
     private final AppSecContainer container
@@ -100,6 +101,41 @@ class PhpFpm {
         ExecResult res = container.execInContainer('bash', '-c',
                 "cat >> ${poolConf} <<'EOF'\n${lines.join('\n')}\nEOF".toString())
         assert res.exitCode == 0 : "appending to ${poolConf} failed: ${res.stderr}"
+    }
+
+    /** The file of the extra pool {@code name}, in the directory php-fpm includes. */
+    static String poolConfOf(String name) {
+        "${POOL_DIR}/${name}.conf".toString()
+    }
+
+    /**
+     * Write an extra pool {@code name} with the configuration {@code conf} (a whole
+     * file, starting with its {@code [name]} section). It takes effect at the next
+     * {@link #restart}.
+     */
+    void addPool(String name, String conf) {
+        ExecResult res = container.execInContainer('bash', '-c',
+                "cat > ${poolConfOf(name)} <<'EOF'\n${conf}EOF".toString())
+        assert res.exitCode == 0 : "writing pool ${name} failed: ${res.stderr}"
+    }
+
+    /** Remove the extra pool {@code name}; it goes away at the next {@link #restart}. */
+    void removePool(String name) {
+        container.execInContainer('rm', '-f', poolConfOf(name))
+    }
+
+    /** The pid of the php-fpm master. */
+    String masterPid() {
+        String pid = container.execInContainer('pgrep', '-f', 'php-fpm: master').stdout.trim()
+        assert pid ==~ /\d+/ : "expected one php-fpm master; got '${pid}'"
+        pid
+    }
+
+    /** The pid of the only worker of {@code pool}. */
+    String workerPid(String pool) {
+        String pid = container.execInContainer('pgrep', '-f', "php-fpm: pool ${pool}( |\$)".toString()).stdout.trim()
+        assert pid ==~ /\d+/ : "expected one worker of pool ${pool}; got '${pid}'"
+        pid
     }
 
     /** Back up the pool config so {@link #restorePoolConfig} can revert any edits. */

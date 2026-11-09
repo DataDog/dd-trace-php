@@ -90,6 +90,12 @@ void dd_php2shell_rshutdown(void);
 // limit. Called early in the datadog zend_extension activate hook.
 void dd_php2shell_activate(void);
 
+// If a request that failed in a startup window left its span in the startup
+// span slot and this request is traced, add that span as a trace of its own,
+// sent by this request's flush. Called in PHP_RINIT whatever AppSec's state,
+// after the tracer created the root span.
+void dd_php2shell_carry_startup_span(void);
+
 // Settle the request-level Zend MM handlers from the slot (reset the heap to
 // plain zend_mm if a bailout skipped dd_php2shell_rshutdown()), reset the
 // request-owned engine globals that an OOM bailout can leave stale

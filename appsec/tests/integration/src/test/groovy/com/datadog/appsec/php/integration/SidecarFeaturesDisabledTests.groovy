@@ -84,8 +84,7 @@ class SidecarFeaturesDisabledTests {
                     kill -9 $pid; fi''')
         assert res.exitCode == 0
 
-        res = CONTAINER.execInContainer('service', 'apache2', 'restart')
-        assert res.exitCode == 0
+        CONTAINER.restartApache()
 
         HttpRequest req = CONTAINER.buildReq('/hello.php')
                 .GET().build()

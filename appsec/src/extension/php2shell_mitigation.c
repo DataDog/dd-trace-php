@@ -67,7 +67,8 @@
 //   - CVE-2026-109619 sub-mitigations B and C: p2s_stale_state.c;
 //   - Gate and WAF decision: p2s_policy.c;
 //   - Monitor state, the detection of native memory errors: p2s_monitor.c;
-//   - Span tags and trace keep: p2s_report.c.
+//   - Span tags and trace keep: p2s_report.c;
+//   - The span of a request failed in a startup window: p2s_startup_span.c.
 //
 // Observability: two metrics (DD_METRIC_* in p2s_oom_guard.c), flushed
 // synchronously to the sidecar, tagged with the mode; the deferred one also
@@ -75,8 +76,10 @@
 // phase:request_parse_body or phase:runtime, see dd_deferred_phase), which its
 // log line names too (the hard-exit one has no log line, see _hard_abort); span
 // tags on the request's root span, whenever one exists (none before ddtrace's
-// RINIT, see p2s_report.c), each of which also keeps the trace (user keep, as
-// an appsec event):
+// RINIT, see p2s_report.c; a deferred error of a startup window is reported
+// instead by a startup span, which a later request sends, see
+// p2s_startup_span.c), each of which also keeps the trace (user keep, as an
+// appsec event):
 // _dd.appsec.php2shell.deferred = <phase> for a deferred error (block state,
 // and the mode on), and, in the monitor state,
 // _dd.appsec.php2shell.memory_error = memory_limit or out_of_memory with
@@ -459,6 +462,7 @@
 #include "php2shell/p2s_runtime.h"
 #include "php2shell/p2s_stale_state.h"
 #include "php2shell/p2s_startup_parse.h"
+#include "php2shell/p2s_startup_span.h"
 
 // Set at the end of dd_php2shell_minit(); dd_php2shell_startup() installs the
 // hooks only after it. Written during startup and in MSHUTDOWN only.
@@ -509,6 +513,9 @@ void dd_php2shell_startup(void)
     // MINIT, and before zend_post_startup() copies the function tables for ZTS.
     if (_minit_done && dd_p2s_policy_startup_may_hook()) {
         dd_p2s_startup_parse_install();
+        // The slots exist exactly when a startup window can raise. Here, in
+        // module startup, before any SAPI forks its workers.
+        dd_p2s_startup_span_create();
         dd_p2s_stale_state_install();
         dd_p2s_request_parse_body_install();
         dd_p2s_runtime_install();
@@ -531,6 +538,7 @@ void dd_php2shell_mshutdown(void)
     dd_p2s_runtime_uninstall();
     dd_p2s_monitor_uninstall();
     dd_p2s_policy_mshutdown();
+    dd_p2s_startup_span_destroy();
     _minit_done = false;
 }
 
@@ -556,7 +564,13 @@ const char *nullable dd_php2shell_vulnerable_value(void)
     return dd_p2s_policy_vulnerable_value();
 }
 
-void dd_php2shell_activate(void) { dd_p2s_guard_activate(); }
+void dd_php2shell_activate(void)
+{
+    dd_p2s_guard_activate();
+    dd_p2s_startup_span_activate();
+}
+
+void dd_php2shell_carry_startup_span(void) { dd_p2s_startup_span_carry(); }
 
 void dd_php2shell_rinit(void) { dd_p2s_runtime_rinit(); }
 

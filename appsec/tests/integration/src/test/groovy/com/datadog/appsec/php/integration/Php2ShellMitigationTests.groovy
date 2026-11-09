@@ -4,6 +4,9 @@ import com.datadog.appsec.php.TelemetryHelpers
 import com.datadog.appsec.php.TelemetryHelpers.Metric
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.PhpFpm
+import com.datadog.appsec.php.integration.Php2ShellHelpers.CarrierReq
+import com.datadog.appsec.php.integration.Php2ShellHelpers.StartupReq
+import com.datadog.appsec.php.integration.Php2ShellHelpers.TraceLog
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
@@ -18,6 +21,24 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.CARRIER_PATH
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.HEADER_TAGS
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.METRIC_DEFERRED
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.ROOT_SPAN_NAME
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.STARTUP_MEMORY_LIMIT
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.STARTUP_POST_MAX_SIZE
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.assertCarrier
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.assertStartupSpan
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.finalizeTelemetry
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.removeStartupConf
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.sendCarrier
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.sendProbe
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.sendStartupReq
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.startupHeaders
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.startupSpanReq
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.metricSumsAtClose
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.uniqueService
+import static com.datadog.appsec.php.integration.Php2ShellHelpers.writeStartupConf
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 import static java.net.http.HttpResponse.BodyHandlers.ofString
@@ -52,16 +73,31 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue
  * it checks the span tags and the trace keep. It needs a vulnerable runtime
  * and is skipped on an image whose PHP carries the upstream fix.
  *
+ * f to i cover the startup span: a request whose startup fails in the startup
+ * window has no root span, so the next traced request sends its span as a
+ * trace of its own (see Php2ShellHelpers). They come from
+ * Php2ShellStartupSpanCases, which Php2ShellStartupSpanModTests also runs on
+ * mod_php. Each runs with a single worker that is never recycled (see
+ * withStartupSpanPool); a failed worker exits, and its replacement runs the
+ * next request. j_startup_span_two_pools adds a second pool,
+ * under another user, and a third, under the first pool's user: a startup
+ * fatal in one pool is sent by that pool's next request and not by the
+ * others', whose workers do not even map the slot. k covers a carrier that
+ * runs no PHP code, and l standalone AppSec.
+ *
  * The methods run in name order. a_bounded is the first to emit a metric, and
  * b_hard waits for a metric only it emits, so no case needs to drain series
- * left by an earlier one; c, d and e emit nothing that a later case waits
- * for.
+ * left by an earlier one; d and e emit nothing that a later case waits for.
+ * c_pool_env_disabled and g_startup_span_burst check the absence or the exact
+ * count of a metric under a service of their own, whose telemetry they end
+ * (see Php2ShellHelpers.metricSumsAtClose), so no earlier case's late points
+ * can reach them and no heartbeat needs to pass.
  */
 @Testcontainers
 @Slf4j
 @DisabledIf('isDisabled')
 @TestMethodOrder(MethodOrderer.MethodName)
-class Php2ShellMitigationTests {
+class Php2ShellMitigationTests implements Php2ShellStartupSpanCases {
     static boolean disabled = !(phpVersion in ['7.0', '7.4', '8.3', '8.5'])
 
     // The 1 s remote config poll interval is set for the whole container, not
@@ -109,7 +145,6 @@ class Php2ShellMitigationTests {
     // 9V = 1656 MiB.
     private static final long HARD_LIMIT = 448L * MIB
     private static final long HARD_VALUE_LEN = 184L * MIB
-    private static final String METRIC_DEFERRED = 'appsec.php2shell.soft_limit_deferred'
     private static final String METRIC_HARD_EXIT = 'appsec.php2shell.hard_limit_exit'
     private static final String DEFERRED_SUFFIX = 'Datadog AppSec PHP2Shell mitigation deferred'
     private static final String NO_RULES_INI = '/etc/php/php-p2s-norules.ini'
@@ -118,6 +153,15 @@ class Php2ShellMitigationTests {
     // between the soft and the hard limit when armed.
     private static final long WAF_LIMIT = 32L * MIB
     private static final long WAF_ALLOC = 56L * MIB
+    // j_startup_span_two_pools: the second pool, and the layout of the
+    // startup span region (a directory of one page, then the slots).
+    private static final String POOL_A = 'www'
+    private static final String POOL_B = 'p2sb'
+    private static final int POOL_B_PORT = 9001
+    private static final String POOL_C = 'p2sc'
+    private static final int POOL_C_PORT = 9002
+    private static final long SLOT_COUNT = 64
+    private static final long SLOT_SIZE = 64L * 1024L
 
     @Test
     void 'a_bounded: a field beyond 2 x memory_limit within post_max_size is deferred and reported'() {
@@ -317,6 +361,200 @@ class Php2ShellMitigationTests {
         }
     }
 
+    @Test
+    void 'j_startup_span_two_pools: a startup fatal in one pool is sent by that pool only'() {
+        // A second pool, under another user, and a third, under the main
+        // pool's user, which only the pool name tells apart from it. Each is
+        // behind a path prefix of its own (its name).
+        PhpFpm fpm = new PhpFpm(CONTAINER)
+        writeExtraPool(fpm, POOL_B, 'nobody', 'nogroup', POOL_B_PORT)
+        writeExtraPool(fpm, POOL_C, 'www-data', 'www-data', POOL_C_PORT)
+        // The server-level ProxyPassMatch comes before the virtual host's,
+        // which would also match these paths.
+        List<String> apacheLines = [[POOL_B, POOL_B_PORT], [POOL_C, POOL_C_PORT]].collect { pool, port ->
+            "ProxyPassMatch \"^/${pool}/(.*\\.php(/.*)?)\$\" \"fcgi://127.0.0.1:${port}/var/www/public/\$1\"".toString()
+        }
+        try {
+            withStartupSpanPool(apacheLines) {
+                String carrierB = "/${POOL_B}${CARRIER_PATH}".toString()
+                String carrierC = "/${POOL_C}${CARRIER_PATH}".toString()
+                // Pools B and C answer, each from a process of its own.
+                Span processA = sendProbe(CONTAINER)
+                Set<Object> pids = [processA.metrics.process_id] as Set
+                [carrierB, carrierC].each { path ->
+                    CarrierReq probe = sendCarrier(CONTAINER, [:], path)
+                    Span process = CONTAINER.nextCapturedTraces([probe.traceId])[probe.traceId].rootSpan
+                    assert pids.add(process.metrics.process_id) : "${path} ran in the process of another pool"
+                }
+
+                TraceLog received = new TraceLog(CONTAINER)
+                long t0 = System.currentTimeMillis() * 1_000_000L
+                StartupReq failed = startupSpanReq(CONTAINER, startupHeaders())
+                assert sendStartupReq(CONTAINER, failed) == 200
+                // Neither pool B's nor pool C's next request takes the event
+                // of pool A. A span one of them took would travel in the same
+                // payload as its own trace, so it has arrived once that trace
+                // has.
+                [carrierB, carrierC].each { path ->
+                    CarrierReq other = sendCarrier(CONTAINER, [:], path)
+                    assertCarrier(received.next([other.traceId])[other.traceId], other, path: path)
+                }
+                received.assertNotSent([failed.traceId])
+                // Pool A's next request does.
+                CarrierReq carrier = sendCarrier(CONTAINER)
+                Map<BigInteger, Trace> traces = received.next([failed.traceId, carrier.traceId])
+                assertStartupSpan(traces[failed.traceId], failed,
+                        t0: t0, carrier: traces[carrier.traceId], process: processA, sameProcess: false)
+                assertCarrier(traces[carrier.traceId], carrier)
+
+                // Each worker maps only its own slot of the region the master
+                // mapped before forking them: the slots of other pools are not
+                // reachable from it.
+                long page = CONTAINER.execInContainer('getconf', 'PAGESIZE').stdout.trim() as long
+                List<long[]> master = sharedAnonMappings(fpm.masterPid()).findAll {
+                    it[1] - it[0] == page + SLOT_COUNT * SLOT_SIZE
+                }
+                assert master.size() == 1 : "expected one startup span region in the master; got ${master}"
+                long[] region = master.first()
+                List<Long> slots = [POOL_A, POOL_B, POOL_C].collect { workerSlot(fpm, it, region)[0] }
+                assert slots.toSet().size() == 3 : "two pools share a slot: ${slots}"
+            }
+        } finally {
+            fpm.removePool(POOL_B)
+            fpm.removePool(POOL_C)
+            fpm.restart()
+        }
+    }
+
+    @Test
+    void 'k_startup_span_no_php_carrier: a carrier that runs no PHP code still sends the span'() {
+        withStartupSpanPool {
+            TraceLog received = new TraceLog(CONTAINER)
+            long t0 = System.currentTimeMillis() * 1_000_000L
+            StartupReq failed = startupSpanReq(CONTAINER, startupHeaders())
+            assert sendStartupReq(CONTAINER, failed) == 200
+            // php-fpm answers a missing script with a 404 after the request
+            // startup, without running any PHP code: the tracer does not send
+            // this request's own trace, but must send the span it took.
+            CarrierReq missing = sendCarrier(CONTAINER, [:], '/p2s_missing.php', 404)
+            Map<BigInteger, Trace> traces = received.next([failed.traceId])
+            assertStartupSpan(traces[failed.traceId], failed, t0: t0)
+            // The slot is empty again: the next request sends only its own
+            // trace, and nothing else arrives behind it.
+            CarrierReq next = sendCarrier(CONTAINER)
+            assertCarrier(received.next([next.traceId])[next.traceId], next)
+            received.barrier()
+            received.assertNotSent([missing.traceId, failed.traceId])
+        }
+    }
+
+    @Test
+    void 'l_startup_span_standalone: the span does not use up the allowance of standalone AppSec'() {
+        // php-fpm is restarted with standalone AppSec, which gives the
+        // limiter a new window: the first trace closed in each minute is
+        // kept, and the others are rejected unless AppSec keeps them.
+        withStartupSpanPool([], [DD_APM_TRACING_ENABLED: 'false']) {
+            long t0 = System.currentTimeMillis() * 1_000_000L
+            StartupReq failed = startupSpanReq(CONTAINER, startupHeaders())
+            assert sendStartupReq(CONTAINER, failed) == 200
+            CarrierReq carrier = sendCarrier(CONTAINER)
+            Map<BigInteger, Trace> traces = CONTAINER.nextCapturedTraces([failed.traceId, carrier.traceId])
+            assertStartupSpan(traces[failed.traceId], failed, t0: t0, carrier: traces[carrier.traceId])
+            Span root = traces[carrier.traceId].rootSpan
+            assert root.name == ROOT_SPAN_NAME
+            assert root.metrics['_dd.apm.enabled'] == 0.0d
+            // The carrier's own trace is the first one of the window that the
+            // limiter saw, so it keeps its allowance: it is kept by the
+            // default sampling, not by AppSec (which also keeps it when the
+            // limiter rejects it, with another decision maker).
+            assert root.metrics._sampling_priority_v1 == 1.0d
+            assert root.meta['_dd.p.dm'] == '-0'
+        }
+    }
+
+    @Override
+    <T> T startupSpanCase(Closure<T> body) {
+        withStartupSpanPool(body)
+    }
+
+    // php-fpm ends a failed request with no output, as the worker exits;
+    // Apache answers 200 with an empty body.
+    @Override
+    void sendFailed(StartupReq sr) {
+        int status = sendStartupReq(CONTAINER, sr)
+        assert status == 200 : "expected the failed request startup (200); got ${status}"
+    }
+
+    // Writes an extra pool `name` under `user`, listening on `port`: like the
+    // main pool, a single worker under the startup span limits.
+    private static void writeExtraPool(PhpFpm fpm, String name, String user, String group, int port) {
+        String conf = """[${name}]
+user = ${user}
+group = ${group}
+listen = 127.0.0.1:${port}
+listen.allowed_clients = 127.0.0.1
+pm = static
+pm.max_children = 1
+pm.max_requests = 0
+clear_env = no
+security.limit_extensions = .php
+php_admin_value[memory_limit] = ${STARTUP_MEMORY_LIMIT}
+php_admin_value[post_max_size] = ${STARTUP_POST_MAX_SIZE}
+env[DD_APPSEC_PHP2SHELL_MITIGATION] = on
+""".toString()
+        fpm.addPool(name, conf)
+    }
+
+    // The single mapping a worker of `pool` has inside the master's startup
+    // span `region` ([start, end)), which must be one slot.
+    private static long[] workerSlot(PhpFpm fpm, String pool, long[] region) {
+        String pid = fpm.workerPid(pool)
+        List<long[]> inRegion = sharedAnonMappings(pid).findAll { it[0] < region[1] && it[1] > region[0] }
+        assert inRegion.size() == 1 : "pool ${pool} worker ${pid} maps ${inRegion.collect { it as List }} of ${region as List}"
+        long[] slot = inRegion.first()
+        log.info("pool ${pool} worker ${pid} maps ${Long.toHexString(slot[0])}-${Long.toHexString(slot[1])} " +
+                "of the region ${Long.toHexString(region[0])}-${Long.toHexString(region[1])}")
+        assert slot[0] >= region[0] && slot[1] <= region[1]
+        assert slot[1] - slot[0] == SLOT_SIZE
+        slot
+    }
+
+    // The shared anonymous mappings ([start, end)) of process `pid`, as
+    // listed in its /proc/<pid>/maps: the kernel shows them as /dev/zero.
+    private static List<long[]> sharedAnonMappings(String pid) {
+        def res = CONTAINER.execInContainer('cat', "/proc/${pid}/maps".toString())
+        assert res.exitCode == 0 : res.stderr
+        res.stdout.readLines().findAll { it.contains(' rw-s ') && it.contains('/dev/zero') }.collect {
+            String[] range = it.split(' ')[0].split('-')
+            [Long.parseUnsignedLong(range[0], 16), Long.parseUnsignedLong(range[1], 16)] as long[]
+        }
+    }
+
+    // Run `body` for a startup span case: one static worker, never recycled,
+    // under the startup span requests' memory_limit and post_max_size, with
+    // the header tag of assertStartupSpan (the client IP is left off for the
+    // tracer: the startup span carries it anyway), and Apache mapping the
+    // per-request configuration headers, plus `apacheLines`, with `env` for
+    // php-fpm. php-fpm is restarted, which also gives the case a new, empty
+    // slot.
+    private static <T> T withStartupSpanPool(List<String> apacheLines = [], Map<String, String> env = [:],
+                                            Closure<T> body) {
+        PhpFpm fpm = new PhpFpm(CONTAINER)
+        writeStartupConf(CONTAINER, apacheLines)
+        try {
+            CONTAINER.restartApache()
+            withPool(fpm, memoryLimit: STARTUP_MEMORY_LIMIT, postMaxSize: STARTUP_POST_MAX_SIZE,
+                    poolValues: ['pm.max_requests': '0'],
+                    env: [DD_TRACE_HEADER_TAGS: HEADER_TAGS] + env) {
+                CONTAINER.clearTraces()
+                body()
+            }
+        } finally {
+            removeStartupConf(CONTAINER)
+            CONTAINER.restartApache()
+        }
+    }
+
     // Run `body` with the pool pinned to one static worker, the given
     // memory_limit and post_max_size (php_admin_value, appended: the pool
     // file has no such lines to rewrite), the mitigation mode `mode`
@@ -459,51 +697,10 @@ class Php2ShellMitigationTests {
         streamedReq('f'.bytes, (byte) 0x5A /* 'Z' */, fieldLen, '[k]=1'.bytes)
     }
 
-    // A urlencoded body of `head`, `count` copies of `fill`, then `tail`,
-    // streamed with a known length so that large bodies need no JVM heap.
+    // A urlencoded body of `head`, `count` copies of `fill`, then `tail`, to
+    // the sink.
     private static HttpRequest streamedReq(byte[] head, byte fill, long count, byte[] tail) {
-        long length = head.length + count + tail.length
-        def publisher = HttpRequest.BodyPublishers.ofInputStream {
-            new SequenceInputStream(Collections.enumeration([
-                    new ByteArrayInputStream(head),
-                    new RepeatedByteInputStream(fill, count),
-                    new ByteArrayInputStream(tail),
-            ]))
-        }
-        CONTAINER.buildReq('/php2shell_sink.php')
-                .header('Content-Type', 'application/x-www-form-urlencoded')
-                .POST(HttpRequest.BodyPublishers.fromPublisher(publisher, length))
-                .build()
-    }
-
-    private static class RepeatedByteInputStream extends InputStream {
-        private final byte value
-        private long remaining
-
-        RepeatedByteInputStream(byte value, long count) {
-            this.value = value
-            this.remaining = count
-        }
-
-        @Override
-        int read() {
-            if (remaining <= 0) {
-                return -1
-            }
-            remaining--
-            value & 0xff
-        }
-
-        @Override
-        int read(byte[] b, int off, int len) {
-            if (remaining <= 0) {
-                return -1
-            }
-            int n = (int) Math.min((long) len, remaining)
-            Arrays.fill(b, off, off + n, value)
-            remaining -= n
-            n
-        }
+        CONTAINER.buildStreamedReq('/php2shell_sink.php', [:], head, fill, count, tail)
     }
 
     // Peak real memory the FIELD_LEN field needs when it does not overflow
@@ -614,23 +811,6 @@ class Php2ShellMitigationTests {
             series.addAll(TelemetryHelpers.drainMetricSeries(CONTAINER, 'appsec_int_tests'))
         }
         series
-    }
-
-    private static final Random RAND = new Random()
-
-    // A service name no other case uses. The metric points of a request are
-    // reported under the service resolved for it, so no other case's points
-    // can reach it.
-    private static String uniqueService(String prefix) {
-        "${prefix}-${Long.toHexString(RAND.nextLong() & Long.MAX_VALUE)}".toString()
-    }
-
-    // Ends the telemetry of the application of a plain request (the pool's
-    // service), which makes the sidecar send what it holds for that
-    // application at once, followed by app-closing (see flush_telemetry.php).
-    private static void finalizeTelemetry(AppSecContainer c) {
-        HttpResponse<String> resp = c.httpClient.send(c.buildReq('/flush_telemetry.php').GET().build(), ofString())
-        assert resp.statusCode() == 200
     }
 
     private static Metric findCountMetric(List<Metric> series, String name) {

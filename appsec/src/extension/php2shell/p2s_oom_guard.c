@@ -59,6 +59,7 @@
 #include "../telemetry.h" // dd_telemetry_add_metric
 #include "p2s_policy.h"
 #include "p2s_report.h"
+#include "p2s_startup_span.h"
 
 // The engine's real limit while the mitigation is armed. Effectively disables
 // the engine's own enforcement so that this file is the sole authority on
@@ -428,13 +429,21 @@ ZEND_COLD ZEND_NORETURN void dd_p2s_guard_raise_deferred_oom(
     }
     // Armed or under the finite limit, so these allocations do not bail
     // either.
+    if (phase == DD_PHASE_STARTUP) {
+        // The request startup fails here: no module RINIT runs, so the request
+        // never gets a root span. Under the finite limit, save what its span
+        // needs, for a later request to send.
+        ZEND_ASSERT(!armed);
+        dd_p2s_startup_span_save(_arm_state.breached_soft);
+        // Building $_SERVER can cross the finite limit natively; php_error_cb()
+        // then sets the engine limit to memory_limit on some versions, below
+        // the usage. Leave a finite limit above it again.
+        _set_finite_limit();
+    }
     dd_p2s_report_deferred(phase);
-#define DEFERRED_FORMAT                                                        \
-    "Allowed memory size of %zu bytes exhausted " DD_P2S_DEFERRED_MARKER       \
-    " this to avoid heap corruption)"
-    char msg[sizeof(DEFERRED_FORMAT) + MAX_LENGTH_OF_LONG];
-    (void)snprintf(msg, sizeof(msg), DEFERRED_FORMAT, _arm_state.breached_soft);
-#undef DEFERRED_FORMAT
+    char msg[sizeof(DD_P2S_DEFERRED_FORMAT) + MAX_LENGTH_OF_LONG];
+    (void)snprintf(
+        msg, sizeof(msg), DD_P2S_DEFERRED_FORMAT, _arm_state.breached_soft);
     if (!armed) {
         dd_p2s_guard_raise_fatal(NULL, msg);
     }
