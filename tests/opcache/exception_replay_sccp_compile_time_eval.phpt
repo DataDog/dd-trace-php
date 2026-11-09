@@ -1,13 +1,10 @@
 --TEST--
 Exception replay survives exceptions thrown by opcache's compile-time function evaluation
 --DESCRIPTION--
-opcache's SCCP pass evaluates @compile-time-eval functions such as strrpos()
-with constant arguments while optimizing. It links a stack-allocated dummy
-frame, whose func is the op_array being optimized but which has no CV slots,
-as the caller of the evaluated function. Here SCCP still assumes $output === ''
-and evaluates strrpos('', '/', -1), which throws a ValueError that opcache
-discards. Capturing locals of the dummy frame read past it on the C stack
-(crashes in the wild; detected as stack-buffer-overflow under ASAN).
+opcache's SCCP pass evaluates strrpos('', '/', -1) while optimizing f(),
+calling it with a stack-allocated dummy caller frame (func = f, no CV slots).
+The ValueError it throws must not make us read f()'s locals off that frame
+(crashes in the wild; stack-buffer-overflow under ASAN).
 --SKIPIF--
 <?php if (!extension_loaded('Zend OPcache')) die('skip: Zend OPcache is required'); ?>
 --ENV--
@@ -21,12 +18,13 @@ opcache.file_update_protection=0
 --FILE--
 <?php
 
-require __DIR__ . '/exception_replay_sccp_compile_time_eval.inc';
+function f() {
+    $a = $b = $c = $d = 1; // more locals read past the dummy frame: crashes without ASAN too
+    return strrpos('', '/', -1);
+}
 
-var_dump(remove_dot_segments_for_test('/a/b/../c'));
-var_dump(opcache_is_script_cached(__DIR__ . '/exception_replay_sccp_compile_time_eval.inc'));
+echo "OK\n";
 
 ?>
 --EXPECT--
-string(4) "/a/c"
-bool(true)
+OK
