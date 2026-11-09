@@ -471,6 +471,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - switch-php nts
     - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
     - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test -p datadog-php --lib ffe::
     - switch-php zts
     - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
     - touch profiling/build.rs # make sure the build helper runs after switch-php

@@ -46,3 +46,13 @@ The local native regression tests are in `tests/ext/ffe/agentless_*.phpt`. They
 cover first-use deadlines, source selection, conditional requests, failed polls,
 process isolation, shutdown, fork, and sidecar restart. The FFE Rust tests cover
 atomic replacement, thread ownership, concurrent initialization, and cleanup.
+
+If initial shared-memory publication fails temporarily, the sidecar retains the
+connection's registration and retries asynchronously, starting at 100 ms and
+capping the delay at five seconds. Invalid settings are rejected without retry.
+Replacing or clearing registration, disconnecting, or shutting down the sidecar
+cancels pending retries. Connections with the same configuration share a poller.
+
+The ordinary Agent RC reader cannot replace CDN-selected flags. Other Agent
+products continue to use their normal processing path. Expiring an Agent source
+that never accepted a snapshot does not clear previously accepted CDN flags.

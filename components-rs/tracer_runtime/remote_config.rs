@@ -537,12 +537,14 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
         }
         has_updates = true
     }
-    ffe_update.apply_for_environment(
-        remote_config
-            .manager
-            .get_target()
-            .map(|target| target.env()),
-    );
+    if !crate::ffe::agentless_config() {
+        ffe_update.apply_for_environment(
+            remote_config
+                .manager
+                .get_target()
+                .map(|target| target.env()),
+        );
+    }
     has_updates
 }
 

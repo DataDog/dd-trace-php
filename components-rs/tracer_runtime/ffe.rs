@@ -61,7 +61,7 @@ pub(super) fn use_agentless_config(enabled: bool) {
     AGENTLESS_CONFIG.store(enabled, Ordering::Release);
 }
 
-fn agentless_config() -> bool {
+pub(crate) fn agentless_config() -> bool {
     AGENTLESS_CONFIG.load(Ordering::Acquire)
 }
 
@@ -937,5 +937,84 @@ mod tests {
             )
         );
         clear_config();
+    }
+    #[test]
+    #[cfg(unix)]
+    fn crucible_c02_agent_directory_cannot_replace_cdn_selection() {
+        use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
+        use datadog_sidecar::shm_remote_config::RemoteConfigWriter;
+        use libdd_ipc::platform::{FileBackedHandle, NamedShmHandle};
+        use libdd_remote_config::{fetch::ConfigInvariants, Target};
+        let _guard = FFE_TEST_LOCK.lock().unwrap();
+        use_agentless_config(true);
+        clear_config();
+        assert!(load_empty_config());
+        let original = current_config().unwrap();
+        let endpoint = libdd_common::Endpoint::default();
+        let invariants = ConfigInvariants {
+            publication_scope: None,
+            language: "php".into(),
+            tracer_version: include_str!("../../VERSION").trim().into(),
+            endpoint: endpoint.clone(),
+            agentless: None,
+        };
+        let target = Arc::new(Target::new(
+            format!("crucible-c02-{}", std::process::id()),
+            "test".into(),
+            "".into(),
+            vec![],
+            vec![],
+        ));
+        let writer = RemoteConfigWriter::new(&invariants, &target).unwrap();
+        let mut state =
+            unsafe { crate::remote_config::ddog_init_remote_config_state(&endpoint, false) };
+        state.manager.track_target(&target);
+        let path = CString::new(format!("/c02-{}", std::process::id())).unwrap();
+        let mut file = NamedShmHandle::create(path.clone(), EMPTY_CONFIG.len())
+            .unwrap()
+            .map()
+            .unwrap();
+        file.as_slice_mut().copy_from_slice(EMPTY_CONFIG.as_bytes());
+        let directory = format!(
+            "runtime\n{}:0:{}\n",
+            path.to_str().unwrap(),
+            BASE64_URL_SAFE_NO_PAD.encode("datadog/0/FFE_FLAGS/agent/config")
+        );
+        assert!(writer.write(directory.as_bytes()));
+        assert!(crate::remote_config::ddog_process_remote_configs(
+            &mut state
+        ));
+        let survived_add = current_config().is_some_and(|c| Arc::ptr_eq(&original, &c));
+        assert!(writer.write(b"runtime\n"));
+        assert!(crate::remote_config::ddog_process_remote_configs(
+            &mut state
+        ));
+        let survived_remove = current_config().is_some_and(|c| Arc::ptr_eq(&original, &c));
+        clear_config();
+        use_agentless_config(false);
+        assert!(writer.write(directory.as_bytes()));
+        assert!(crate::remote_config::ddog_process_remote_configs(
+            &mut state
+        ));
+        let agent_add_works = ddog_ffe_has_config();
+        assert!(writer.write(b"runtime\n"));
+        assert!(crate::remote_config::ddog_process_remote_configs(
+            &mut state
+        ));
+        let agent_remove_works = !ddog_ffe_has_config();
+        clear_config();
+        eprintln!("survived_add={survived_add}, survived_remove={survived_remove}, agent_add={agent_add_works}, agent_remove={agent_remove_works}");
+        assert!(
+            survived_add,
+            "Agent RC overwrote process-wide CDN configuration"
+        );
+        assert!(
+            survived_remove,
+            "Agent RC removal cleared process-wide CDN configuration"
+        );
+        assert!(
+            agent_add_works && agent_remove_works,
+            "ordinary Agent source must remain functional"
+        );
     }
 }
