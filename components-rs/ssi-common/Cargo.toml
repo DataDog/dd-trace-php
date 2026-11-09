@@ -52,7 +52,8 @@ appsec = ["dep:libdd-common-ffi", "dep:cc"]
 profiling-dependencies = [
   "dep:bindgen", "dep:cc",
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
-  "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",
+  "dep:libdd-alloc", "dep:libdd-profiling", "dep:libdd-process-utils",
+  "dep:mach2", "dep:rand", "dep:rand_distr",
   "dep:rustc-hash", "dep:thiserror", "dep:chrono", "dep:env_logger",
 ]
 profiling-runtime = ["dep:libdd-profiling"]
@@ -65,6 +66,7 @@ libdd-telemetry-ffi = { path = "../../libdatadog/libdd-telemetry-ffi", default-f
 libdd-live-debugger = { path = "../../libdatadog/libdd-live-debugger", optional = true }
 libdd-live-debugger-ffi = { path = "../../libdatadog/libdd-live-debugger-ffi", default-features = false, optional = true }
 libdd-ipc = { path = "../../libdatadog/libdd-ipc", optional = true }
+libdd-process-utils = { path = "../../libdatadog/libdd-process-utils", optional = true }
 base64 = { workspace = true, features = ["alloc"], optional = true }
 datadog-ffe = { package = "libdd-ffe", path = "../../libdatadog/libdd-ffe", optional = true }
 libdd-remote-config = { path = "../../libdatadog/libdd-remote-config", optional = true }

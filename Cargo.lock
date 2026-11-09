@@ -1295,6 +1295,7 @@ dependencies = [
  "libdd-library-config-ffi",
  "libdd-live-debugger",
  "libdd-live-debugger-ffi",
+ "libdd-process-utils",
  "libdd-profiling",
  "libdd-remote-config",
  "libdd-telemetry",
