@@ -653,7 +653,7 @@ foreach ($build_platforms as $platform) {
 
 .package_extension_base:
   stage: packaging
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-2
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-3
   tags: [ "arch:amd64" ]
   artifacts:
     paths:
@@ -819,7 +819,7 @@ endforeach;
 
 "datadog-setup.php":
   stage: packaging
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-2
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-3
   tags: [ "arch:amd64" ]
   script:
     - mkdir -p "build/packages"
