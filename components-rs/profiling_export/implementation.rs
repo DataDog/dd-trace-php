@@ -85,7 +85,7 @@ fn into_inner(profile: Profile) -> InternalProfile {
 /// This is a Rust ABI, despite its unmangled name. It is only called by the
 /// matching extension build, never by C or a separately versioned library.
 #[no_mangle]
-pub extern "Rust" fn ddog_php_prof_serialize_and_upload(upload: Upload) -> anyhow::Result<u16> {
+pub extern "Rust" fn ddog_php_prof_serialize_and_upload(upload: Upload<'_>) -> anyhow::Result<u16> {
     let endpoint = match upload.endpoint {
         AgentEndpoint::Uri(uri) => config::agent(uri.parse()?),
         #[cfg(unix)]
@@ -106,12 +106,14 @@ pub extern "Rust" fn ddog_php_prof_serialize_and_upload(upload: Upload) -> anyho
     )?;
     let serialized = into_inner(upload.profile)
         .serialize_into_compressed_pprof(Some(upload.end_time), upload.duration)?;
+    // Encoding and compression belong to this profile's upload CPU time.
+    let internal_metadata = (upload.internal_metadata)();
     Ok(exporter
         .send_blocking(
             serialized,
             &[],
             &[],
-            upload.internal_metadata,
+            internal_metadata,
             upload.info,
             upload.process_tags.as_deref(),
             None,

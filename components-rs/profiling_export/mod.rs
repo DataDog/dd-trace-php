@@ -109,7 +109,7 @@ pub enum AgentEndpoint {
 }
 
 #[repr(C)]
-pub struct Upload {
+pub struct Upload<'a> {
     pub profile: Profile,
     pub end_time: SystemTime,
     pub duration: Option<Duration>,
@@ -117,7 +117,9 @@ pub struct Upload {
     pub library_name: &'static str,
     pub library_version: &'static str,
     pub tags: Vec<Tag>,
-    pub internal_metadata: Option<serde_json::Value>,
+    /// Runs once on the calling thread, after serialization and compression
+    /// succeed and before sending, so the metadata can include their CPU time.
+    pub internal_metadata: &'a mut dyn FnMut() -> Option<serde_json::Value>,
     pub info: Option<serde_json::Value>,
     pub process_tags: Option<String>,
 }
@@ -156,13 +158,13 @@ mod imports {
         ) -> anyhow::Result<()>;
         // Destructor-only; destroys the inner value, not the wrapper.
         pub fn ddog_php_prof_drop(profile: &mut Profile);
-        pub fn ddog_php_prof_serialize_and_upload(upload: Upload) -> anyhow::Result<u16>;
+        pub fn ddog_php_prof_serialize_and_upload(upload: Upload<'_>) -> anyhow::Result<u16>;
         pub fn ddog_php_prof_serialize(profile: Profile) -> anyhow::Result<Vec<u8>>;
     }
 }
 
 /// Consumes the profile on the uploader thread; no exporter survives the call.
-pub fn serialize_and_upload(upload: Upload) -> anyhow::Result<u16> {
+pub fn serialize_and_upload(upload: Upload<'_>) -> anyhow::Result<u16> {
     runtime_call!(ddog_php_prof_serialize_and_upload(upload))
 }
 

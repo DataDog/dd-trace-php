@@ -107,9 +107,12 @@ impl Uploader {
             }
         };
 
-        // Snapshot counters before entering the runtime. Encoding/compression,
-        // metadata construction and HTTP CPU time are reported by the next upload.
-        update_cpu_time_counter(last_cpu, &DDPROF_UPLOAD_CPU_TIME_NS);
+        // The runtime calls this after encoding/compression, before sending.
+        // Metadata generation and HTTP request time go to the next profile.
+        let mut internal_metadata = || {
+            update_cpu_time_counter(last_cpu, &DDPROF_UPLOAD_CPU_TIME_NS);
+            Self::create_internal_metadata()
+        };
 
         debug!("Sending profile to: {}", self.endpoint);
         profiling_export::serialize_and_upload(Upload {
@@ -120,7 +123,7 @@ impl Uploader {
             library_name: PROFILER_NAME_STR,
             library_version: PROFILER_VERSION_STR,
             tags,
-            internal_metadata: Self::create_internal_metadata(),
+            internal_metadata: &mut internal_metadata,
             info: self.create_profiler_info(),
             process_tags: self.process_tags.clone(),
         })
