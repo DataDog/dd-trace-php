@@ -53,7 +53,6 @@ foreach ($profiler_minor_major_targets as $version) {
     PROFILER_SO: "${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so"
     PROFILER_LOG: "${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log"
     PROF_ANALYZE: "${CI_PROJECT_DIR}/tmp/prof-analyze"
-    PARALLEL_VERSION: "1.2.15"
     CARGO_HOME: "${CI_PROJECT_DIR}/.cache/prof-correctness-cargo"
   cache:
     key:
@@ -76,13 +75,9 @@ foreach ($profiler_minor_major_targets as $version) {
     - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit 1; }
     - |
       if [ "${FLAVOUR}" = "zts" ]; then
-        sudo env PHP_INI_SCAN_DIR= MAKEFLAGS="-j$(nproc)" \
-          pecl install -f "parallel-${PARALLEL_VERSION}"
-        installed_version="$(php -r 'echo phpversion("parallel");')"
-        if [ "${installed_version}" != "${PARALLEL_VERSION}" ]; then
-          echo "Expected parallel ${PARALLEL_VERSION}, got ${installed_version}"
-          exit 1
-        fi
+        # The CI image ships parallel for ZTS builds (see
+        # dockerfiles/ci/bookworm/build-extensions.sh).
+        php -r 'exit(extension_loaded("parallel") ? 0 : 1);' || { echo "ERROR parallel not loaded"; exit 1; }
       fi
     - mkdir -p "$(dirname "${PROFILER_LOG}")"
     - ': > "${PROFILER_LOG}"'
