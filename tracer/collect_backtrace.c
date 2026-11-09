@@ -8,6 +8,8 @@
 #include <Zend/zend_interfaces.h>
 #include <ext/compatibility.h>
 
+static int dd_initialized_cv_count(zend_execute_data *call);
+
 // skip_args to not capture args if anyway captured via !DEBUG_BACKTRACE_IGNORE_ARGS
 void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool skip_args) {
     zend_op_array *op_array = &call->func->op_array;
@@ -36,7 +38,8 @@ void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool s
     }
 
     zend_array *locals = zend_new_array(op_array->last_var - op_array->num_args);
-    for (int i = skip_args ? (int)op_array->num_args : 0; i < op_array->last_var; ++i) {
+    int initialized_cvs = dd_initialized_cv_count(call);
+    for (int i = skip_args ? (int)op_array->num_args : 0; i < initialized_cvs; ++i) {
         zval *var = ZEND_CALL_VAR_NUM(call, i);
         if (Z_TYPE_P(var) != IS_UNDEF) {
             Z_TRY_ADDREF_P(var);
@@ -44,6 +47,37 @@ void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool s
         }
     }
     ZVAL_ARR(locals_array, locals);
+}
+
+/* Returns how many of the leading CV slots of a user code frame may be read.
+ *
+ * The engine links frames into the prev_execute_data chain whose CVs are not
+ * (all) initialized, and exceptions may be created while they are current:
+ * - opcache's SCCP pass (PHP >= 8.0.1) calls compile-time evaluable internal
+ *   functions with a stack-allocated dummy caller frame. Its func is the
+ *   op_array being optimized, but it has no CV slots at all; its opline points
+ *   to a dummy zend_op outside of op_array->opcodes.
+ * - zend_handle_undef_args() (PHP >= 8.0) evaluates the defaults of skipped
+ *   named parameters with the callee frame as the current frame, before
+ *   i_init_func_execute_data() has initialized the CVs following the passed
+ *   arguments. Its opline is the RECV_INIT of that parameter.
+ * While a frame is still receiving its arguments no body code has run, so the
+ * only CVs beyond the passed arguments that can hold values are defaults
+ * already assigned to earlier unpassed parameters; we forgo reporting those. */
+static int dd_initialized_cv_count(zend_execute_data *call) {
+    zend_op_array *op_array = &call->func->op_array;
+    const zend_op *opline = call->opline;
+
+    if (opline >= EG(exception_op) && opline < EG(exception_op) + sizeof(EG(exception_op)) / sizeof(EG(exception_op)[0])) {
+        return op_array->last_var; // a running frame, which is unwinding due to an exception
+    }
+    if (!opline || opline < op_array->opcodes || opline >= op_array->opcodes + op_array->last) {
+        return 0; // not a frame executing op_array, e.g. the SCCP dummy frame
+    }
+    if (opline->opcode == ZEND_RECV || opline->opcode == ZEND_RECV_INIT || opline->opcode == ZEND_RECV_VARIADIC) {
+        return (int)MIN(ZEND_CALL_NUM_ARGS(call), op_array->num_args);
+    }
+    return op_array->last_var;
 }
 
 /* Copy from zend_builin_functions.c */
