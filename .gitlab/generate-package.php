@@ -94,9 +94,14 @@ function system_tests_run_scenarios(string $scenarios): void
 $branch_changed_files = array_filter(explode("\n", (string)@file_get_contents(__DIR__ . "/changed-files.txt")));
 
 // A PR branch runs these job families only when it changes one of their paths; master and the rest run them always.
-$ssi_test_paths =["libdatadog", "loader/*", "tooling/bin/generate-ssi-package.sh", ".gitlab/generate-package.php", ".gitlab/one-pipeline.locked.yml", ".gitlab/prepare-oci-package.sh", "Cargo.lock"];
-$installer_test_paths = ["datadog-setup.php", "dockerfiles/verify_packages/*", "tooling/bin/*", ".gitlab/generate-package.php"];
-$verify_paths = array_merge($installer_test_paths, ["dockerfiles/packaging/*", ".gitlab/package-extension.sh", ".gitlab/link-tracing-extension.sh", ".gitlab/build-*.sh", ".gitlab/compile_extension.sh", "config.m4", "Makefile", "compile_rust.sh", "*.sym", "rust-toolchain*"]);
+// Generic build inputs (sources, config.m4, shared build scripts) stay out: the always-on compile and test jobs cover them.
+$generator_paths = [".gitlab/generate-package.php", ".gitlab/generate-common.php"];
+$ssi_test_paths = array_merge($generator_paths, ["libdatadog", "loader/*", ".gitlab/build-loader.sh", ".gitlab/build-sidecar.sh",
+    ".gitlab/build-ssi-combined-alpine.sh", "tooling/bin/build-ssi-common", "tooling/bin/build-xlang-lto",
+    "tooling/bin/build-ddtrace-php-abi-archive", "tooling/bin/generate-ssi-package.sh", ".gitlab/one-pipeline.locked.yml",
+    ".gitlab/prepare-oci-package.sh", "Cargo.lock"]);
+$installer_test_paths = array_merge($generator_paths, ["datadog-setup.php", "dockerfiles/verify_packages/*", "tooling/bin/*"]);
+$verify_paths = array_merge($installer_test_paths, ["package/*", "dockerfiles/packaging/*", ".gitlab/package-extension.sh", ".gitlab/link-tracing-extension.sh", ".gitlab/build-*.sh", ".gitlab/compile_extension.sh", "config.m4", "Makefile", "compile_rust.sh", "*.sym", "rust-toolchain*"]);
 
 /**
  * Rules making a job manual on a PR branch that changes none of $globs (`*` also matches `/`).
