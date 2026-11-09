@@ -960,9 +960,10 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     ARCH: "amd64"
     REPORT_EXIT_STATUS: "1"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make install_all
     - '# Run xdebug tests'
-    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
+    - TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/xdebug-phpt.xml" php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
 <?php if ($xdebug != "2.7.2" && $xdebug != "2.9.2"): ?>
     - '# Run unit tests with xdebug'
     - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/php-tests.xml"
