@@ -330,35 +330,28 @@ static void datadog_deactivate(void) {
 #endif
 }
 
-static zend_extension dd_zend_extension_entry = {PHP_DDTRACE_EXTNAME,
-                                                  PHP_DDTRACE_VERSION,
-                                                  "Datadog",
-                                                  "https://github.com/DataDog/dd-trace-php",
-                                                  "Copyright Datadog",
-                                                  datadog_startup,
-                                                  datadog_shutdown,
-                                                  datadog_activate,
-                                                  datadog_deactivate,
-                                                  NULL,
+static zend_extension dd_zend_extension_entry = {
+    .name = PHP_DDTRACE_EXTNAME,
+    .version = PHP_DDTRACE_VERSION,
+    .author = "Datadog",
+    .URL = "https://github.com/DataDog/dd-trace-php",
+    .copyright = "Copyright Datadog",
+    .startup = datadog_startup,
+    .shutdown = datadog_shutdown,
+    .activate = datadog_activate,
+    .deactivate = datadog_deactivate,
 #if PHP_VERSION_ID < 80000 && defined(TRACER)
-                                                  zai_interceptor_op_array_pass_two,
-#else
-                                                  NULL,
+    .op_array_handler = zai_interceptor_op_array_pass_two,
+    .op_array_ctor = zai_interceptor_op_array_ctor,
 #endif
-                                                  NULL,
-                                                  NULL,
-                                                  NULL,
-#if PHP_VERSION_ID < 80000 && defined(TRACER)
-                                                  zai_interceptor_op_array_ctor,
-#else
-                                                  NULL,
+#if PHP_VERSION_ID >= 80100 && defined(TRACER)
+    .op_array_persist_calc = zai_hook_op_array_persist_calc,
 #endif
 #ifdef TRACER
-                                                  zai_hook_unresolve_op_array,
-#else
-                                                  NULL,
+    .op_array_dtor = zai_hook_unresolve_op_array,
 #endif
-                                                  STANDARD_ZEND_EXTENSION_PROPERTIES};
+    .resource_number = -1,
+};
 
 static void php_datadog_init_globals(zend_datadog_globals *ng) { memset(ng, 0, sizeof(zend_datadog_globals)); }
 

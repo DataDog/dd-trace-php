@@ -6,6 +6,13 @@ mkdir -p temp_versions
 find . -name "tested_versions_*.json" -path "*/artifacts/*" -exec sh -c 'cp "$1" "temp_versions/$(basename "$1" .json)_$(date +%s_%N).json"' _ {} \;
 ls -la temp_versions/
 
+# The job runs `when: always`: if no test job ran (e.g. compile failed), there is nothing to aggregate,
+# and the upstream failures already turn the pipeline red.
+if [[ -z "$(ls -A temp_versions/)" ]]; then
+  echo "No tested_versions_*.json found: no integration test job produced results, nothing to aggregate."
+  exit 0
+fi
+
 jq -s 'reduce .[] as $item ({};
   . as $acc |
   reduce ($item | to_entries[]) as $entry ($acc;
