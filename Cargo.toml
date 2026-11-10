@@ -60,7 +60,7 @@ sidecar = [
 tracer-runtime = [
   "sidecar", "otel-context", "appsec", "dep:ddtrace-sidecar",
   "dep:libdd-telemetry", "dep:zwohash", "dep:hashbrown",
-  "dep:bincode", "dep:const-str", "dep:libdd-trace-utils",
+  "dep:bincode", "dep:const-str", "dep:libdd-trace-utils", "dep:libdd-trace-model",
   "dep:libdd-trace-stats", "dep:libdd-tinybytes", "dep:libdd-remote-config",
   "dep:libdd-live-debugger", "dep:libdd-live-debugger-ffi",
   "dep:libdd-data-pipeline", "dep:datadog-ffe", "dep:itertools",
@@ -107,6 +107,7 @@ datadog-sidecar-ffi = { path = "libdatadog/datadog-sidecar-ffi", optional = true
 libdd-data-pipeline = { path = "libdatadog/libdd-data-pipeline", optional = true }
 libdd-tinybytes = { path = "libdatadog/libdd-tinybytes", optional = true }
 libdd-trace-utils = { path = "libdatadog/libdd-trace-utils", optional = true }
+libdd-trace-model = { path = "libdatadog/libdd-trace-model", optional = true }
 libdd-trace-stats = { path = "libdatadog/libdd-trace-stats", optional = true }
 libdd-trace-protobuf = { path = "libdatadog/libdd-trace-protobuf", optional = true }
 libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector"], optional = true }
