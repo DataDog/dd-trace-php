@@ -91,7 +91,7 @@ struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_endpoint(const ddo
  */
 struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_path(const char *path);
 
-char *ddog_remote_config_path(const struct ddog_ConfigInvariants *id,
+char *ddog_remote_config_path(const struct ddog_RemoteConfigInvariants *id,
                               const struct ddog_Arc_Target *target);
 
 void ddog_remote_config_path_free(char *path);
@@ -335,6 +335,12 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
  * caller-driven; callers must aggregate and bound event cardinality before passing
  * a batch.
  *
+ * When all batch `context` fields (service, env and version) are empty, the sidecar
+ * fills them from the application set on this transport with
+ * `ddog_sidecar_set_application`. If no application is set or any of its identity
+ * fields exceeds 256 characters, the batch context stays empty. Explicit batch
+ * context is preserved.
+ *
  * # Safety
  * All slices must reference valid memory under the CharSlice contract. Context
  * metadata and flag keys must be UTF-8. Malformed optional variant, allocation,
@@ -549,6 +555,12 @@ void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
  * Protected mode does not inspect context. Invalid optional fields are omitted;
  * a snapshot failure retains the evaluation without context. Use matching headers
  * and library. No diagnostic is recursively submitted through this EVP path.
+ *
+ * When all batch `context` fields (service, env and version) are empty, the sidecar
+ * fills them from the application set on this transport with
+ * `ddog_sidecar_set_application`. If no application is set or any of its identity
+ * fields exceeds 256 characters, the batch context stays empty. Explicit batch
+ * context is preserved.
  *
  * # Safety
  * All references must be valid for the call, with exclusive access to the transport.

@@ -942,7 +942,7 @@ mod tests {
     #[cfg(unix)]
     fn crucible_c02_agent_directory_cannot_replace_cdn_selection() {
         use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
-        use datadog_sidecar::shm_remote_config::RemoteConfigWriter;
+        use datadog_sidecar::shm_remote_config::{RemoteConfigInvariants, RemoteConfigWriter};
         use libdd_ipc::platform::{FileBackedHandle, NamedShmHandle};
         use libdd_remote_config::{fetch::ConfigInvariants, Target};
         let _guard = FFE_TEST_LOCK.lock().unwrap();
@@ -951,13 +951,13 @@ mod tests {
         assert!(load_empty_config());
         let original = current_config().unwrap();
         let endpoint = libdd_common::Endpoint::default();
-        let invariants = ConfigInvariants {
-            publication_scope: None,
+        let invariants: RemoteConfigInvariants = ConfigInvariants {
             language: "php".into(),
             tracer_version: include_str!("../../VERSION").trim().into(),
             endpoint: endpoint.clone(),
             agentless: None,
-        };
+        }
+        .into();
         let target = Arc::new(Target::new(
             format!("crucible-c02-{}", std::process::id()),
             "test".into(),

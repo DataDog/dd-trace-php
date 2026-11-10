@@ -1406,11 +1406,6 @@ typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWrit
 typedef struct ddog_Arc_Target ddog_Arc_Target;
 
 /**
- * Fundamental configuration of the RC client, which always must be set.
- */
-typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
-
-/**
  * A mapping of a shared-memory segment, at an address that never changes.
  */
 typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
@@ -1420,6 +1415,11 @@ typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
  * allowing safe transfer and sharing of file handles across processes, and threads
  */
 typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
+
+/**
+ * Identifies a sidecar RC publication independently of its server configuration.
+ */
+typedef struct ddog_RemoteConfigInvariants ddog_RemoteConfigInvariants;
 
 /**
  * Opaque registration for a Windows remote configuration callback.

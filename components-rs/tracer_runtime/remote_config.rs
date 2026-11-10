@@ -220,7 +220,6 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
     Box::new(RemoteConfigState {
         manager: RemoteConfigManager::new_with_registry(
             ConfigInvariants {
-                publication_scope: None,
                 language: "php".to_string(),
                 tracer_version: include_str!("../../VERSION").trim().into(),
                 endpoint: endpoint.clone(),
