@@ -39,8 +39,12 @@ class PhpFpm {
     ExecResult restart(Map<String, String> env = [:], String iniPath = DEFAULT_INI) {
         container.flushProfilingData()
         String exports = env.collect { k, v -> "export ${k}=${v};" }.join(' ')
+        // SIGKILL is asynchronous: wait (up to 5 s) until the old processes are
+        // gone, or the new master can find the old one still holding the
+        // listening sockets.
         ExecResult res = container.execInContainer('bash', '-c',
-                "kill -9 `pgrep php-fpm`; ${exports} php-fpm -y ${FPM_CONF} -c ${iniPath}".toString())
+                ("kill -9 `pgrep php-fpm`; for i in \$(seq 100); do pgrep php-fpm >/dev/null || break; sleep 0.05; done; " +
+                        "${exports} php-fpm -y ${FPM_CONF} -c ${iniPath}").toString())
         assert res.exitCode == 0 : "php-fpm restart failed: ${res.stderr}"
         res
     }
