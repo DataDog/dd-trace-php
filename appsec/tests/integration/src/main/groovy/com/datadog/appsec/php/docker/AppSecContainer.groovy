@@ -101,7 +101,11 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         }
         // very verbose:
         withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
-        withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
+        // configure() runs when the container starts, after the test class's
+        // own withEnv calls: keep a heartbeat the class chose.
+        if (!envMap.containsKey('DD_TELEMETRY_HEARTBEAT_INTERVAL')) {
+            withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
+        }
         // withEnv '_DD_SHARED_LIB_DEBUG', '1'
         if (System.getProperty('XDEBUG') == '1') {
             Testcontainers.exposeHostPorts(9003)
