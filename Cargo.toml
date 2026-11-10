@@ -93,6 +93,7 @@ trigger_time_sample = ["profiling"]
 
 [dependencies]
 libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-networking = { path = "libdatadog/libdd-networking" }
 libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false, features = ["std"], optional = true }
 libdd-telemetry = { path = "libdatadog/libdd-telemetry", optional = true }
 libdd-telemetry-ffi = { path = "libdatadog/libdd-telemetry-ffi", default-features = false, optional = true }

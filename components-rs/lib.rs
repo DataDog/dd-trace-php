@@ -73,7 +73,7 @@ pub use datadog_sidecar_ffi::*;
 use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 #[cfg(unix)]
-use libdd_common::connector::uds::socket_path_to_uri;
+use libdd_networking::connector::uds::socket_path_to_uri;
 use libdd_common::entity_id::{get_container_id, set_cgroup_file};
 use libdd_common::{parse_uri, Endpoint};
 use libdd_common_ffi::slice::AsBytes;
