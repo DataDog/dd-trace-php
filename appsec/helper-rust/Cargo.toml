@@ -32,7 +32,12 @@ libdd-process-utils = { path = "../../libdatadog/libdd-process-utils" }
 libdd-remote-config = { path = "../../libdatadog/libdd-remote-config" }
 libdd-telemetry = { path = "../../libdatadog/libdd-telemetry" }
 base64 = "0.22.1"
-flate2 = "1.0"         # gzip compression for schemas
+# gzip compression for schemas.
+# TODO: do we and libdatadog really need runtime_detection? It only gives
+# crc32fast runtime CPU detection. libdatadog's gzip users don't request it,
+# but get it through this crate because features unify; dropping it here
+# drops it for them too.
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend", "runtime_detection"] }
 
 [features]
 coverage = []
