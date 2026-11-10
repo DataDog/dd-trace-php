@@ -343,10 +343,14 @@ pub extern "C" fn ddog_ffe_atfork_child() {
     if super::agentless::is_worker_thread() {
         return;
     }
-    FORK_GUARD.with(|slot| {
-        slot.borrow_mut().take();
+    let pending = FORK_GUARD.with(|slot| {
+        slot.borrow_mut()
+            .take()
+            .is_some_and(|state| state.worker.is_some())
     });
-    CHILD_RESUME_PENDING.store(true, Ordering::Release);
+    // Apache/FPM can fork before the first request configures FFE. There is
+    // then no inherited reader to reset: ordinary first-use setup must run.
+    CHILD_RESUME_PENDING.store(pending, Ordering::Release);
 }
 
 #[no_mangle]
@@ -399,9 +403,13 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn publishing_configuration_wakes_concurrent_initializers() {
+    fn publishing_configuration_wakes_initializers_after_prefork_startup() {
         let _test_guard = crate::ffe::tests::FFE_TEST_LOCK.lock().unwrap();
         crate::ffe::clear_config();
+        // Prefork SAPIs split before first-request setup and have no inherited
+        // FFE worker. First use must still initialize and wait for publication.
+        ddog_ffe_prepare_for_fork();
+        ddog_ffe_atfork_child();
         let input = FfeSettingsInput {
             enabled: true,
             enabled_set: true,
