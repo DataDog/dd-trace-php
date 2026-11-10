@@ -80,9 +80,16 @@ class PhpFpm {
         }
     }
 
-    /** Rewrite a single pool directive (e.g. {@code pm.max_children}) in place. */
+    /**
+     * Rewrite a single pool directive (e.g. {@code pm.max_children}) in place. The
+     * key is matched literally, so a bracketed one ({@code php_admin_value[...]})
+     * works too; a directive the file does not have is not added (see
+     * {@link #appendPoolLines}).
+     */
     void setPoolValue(String key, String value, String poolConf = POOL_CONF) {
-        container.execInContainer('sed', '-i', "s/${key} = .*/${key} = ${value}/".toString(), poolConf)
+        String k = key.replaceAll(/[\\\/.*\[\]^$]/) { "\\${it}" }
+        String v = value.replaceAll(/[\\\/&]/) { "\\${it}" }
+        container.execInContainer('sed', '-i', "s/${k} = .*/${k} = ${v}/".toString(), poolConf)
     }
 
     /** Append directives to the pool file. */
