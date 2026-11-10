@@ -526,6 +526,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "buffered-io"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5698b2eda4613b62f3aa3119805df1ca6739e00167a2600b3a234ac49b14803"
+dependencies = [
+ "embedded-io",
+ "embedded-io-async",
+]
+
+[[package]]
 name = "build_common"
 version = "0.0.1"
 dependencies = [
@@ -1336,6 +1346,7 @@ dependencies = [
  "cc",
  "datadog-sidecar",
  "http 1.4.2",
+ "httpmock",
  "libc",
  "libdd-common",
  "libdd-common-ffi",
@@ -1569,6 +1580,40 @@ name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
+
+[[package]]
+name = "embedded-io"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
+
+[[package]]
+name = "embedded-io-async"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ff09972d4073aa8c299395be75161d582e7629cd663171d62af73c8d50dba3f"
+dependencies = [
+ "embedded-io",
+]
+
+[[package]]
+name = "embedded-nal"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c56a28be191a992f28f178ec338a0bf02f63d7803244add736d026a471e6ed77"
+dependencies = [
+ "nb",
+]
+
+[[package]]
+name = "embedded-nal-async"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76959917cd2b86f40a98c28dd5624eddd1fa69d746241c8257eac428d83cb211"
+dependencies = [
+ "embedded-io-async",
+ "embedded-nal",
+]
 
 [[package]]
 name = "encoding_rs"
@@ -2006,6 +2051,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2089,6 +2143,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54b4a22553d4242c49fddb9ba998a99962b5cc6f22cb5a3482bec22522403ce4"
 dependencies = [
  "http 1.4.2",
+]
+
+[[package]]
+name = "heapless"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
+dependencies = [
+ "hash32",
+ "stable_deref_trait",
 ]
 
 [[package]]
@@ -3308,7 +3372,6 @@ dependencies = [
  "libdd-common",
  "libdd-regex",
  "tokio",
- "tokio-util",
  "tracing",
  "wasm-bindgen-futures",
 ]
@@ -3318,9 +3381,12 @@ name = "libdd-telemetry"
 version = "11.0.0"
 dependencies = [
  "anyhow",
+ "assert_no_alloc",
  "async-trait",
  "base64 0.22.1",
  "bytes",
+ "embedded-io",
+ "embedded-io-async",
  "futures",
  "hashbrown 0.17.1",
  "http 1.4.2",
@@ -3331,11 +3397,14 @@ dependencies = [
  "libdd-common",
  "libdd-ddsketch",
  "libdd-shared-runtime",
+ "reqwless",
  "serde",
+ "serde-json-core",
  "serde_json",
  "strum",
  "strum_macros",
  "sys-info",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-util",
  "tools",
@@ -3419,6 +3488,7 @@ name = "libdd-trace-protobuf"
 version = "5.1.1"
 dependencies = [
  "bolero",
+ "libdd-trace-model",
  "prost",
  "prost-build",
  "protoc-bin-vendored",
@@ -3447,6 +3517,8 @@ dependencies = [
  "libdd-dogstatsd-client",
  "libdd-shared-runtime",
  "libdd-telemetry",
+ "libdd-tinybytes",
+ "libdd-trace-model",
  "libdd-trace-obfuscation",
  "libdd-trace-protobuf",
  "libdd-trace-utils",
@@ -3836,6 +3908,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
+name = "nb"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
+
+[[package]]
 name = "nix"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3869,6 +3947,12 @@ dependencies = [
  "memchr",
  "minimal-lexical",
 ]
+
+[[package]]
+name = "nourl"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bdf177075516a2681d344b047633cd75893126f376469f05a346acf17431eadd"
 
 [[package]]
 name = "num-conv"
@@ -4934,6 +5018,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "reqwless"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb1be74cb817fa6dbda417110f575d9b9ad5488817f1eb65f2f6468fe6d5d663"
+dependencies = [
+ "base64 0.21.7",
+ "buffered-io",
+ "embedded-io",
+ "embedded-io-async",
+ "embedded-nal-async",
+ "heapless",
+ "hex",
+ "httparse",
+ "nourl",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+]
+
+[[package]]
 name = "resolv-conf"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5313,6 +5416,16 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde-json-core"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b81787e655bd59cecadc91f7b6b8651330b2be6c33246039a65e5cd6f4e0828"
+dependencies = [
+ "ryu",
+ "serde",
 ]
 
 [[package]]

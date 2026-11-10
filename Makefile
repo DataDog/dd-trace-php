@@ -534,6 +534,7 @@ remove_cbindgen:
 
 generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
 	( \
+		set -e; \
 		cbindgen --crate datadog-php  \
 			--config cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/datadog.h; \

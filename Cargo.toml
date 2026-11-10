@@ -241,6 +241,8 @@ cxx-build = { version = "1.0", default-features = false }
 derive_more = { version = "2.0.0", default-features = false }
 duplicate = { version = "2.0.1", default-features = false }
 either = { version = "1.13.0", default-features = false }
+embedded-io = { version = "0.6", default-features = false }
+embedded-io-async = { version = "0.6", default-features = false }
 elf = { version = "0.7", default-features = false }
 env_logger = { version = "0.10", default-features = false }
 errno = { version = "0.3", default-features = false }
@@ -330,6 +332,7 @@ rcgen = { version = "0.13", default-features = false, features = ["pem", "ring"]
 regex = { version = "1.5", default-features = false }
 regex-lite = { version = "0.1", default-features = false }
 reqwest = { version = "0.13", default-features = false }
+reqwless = { version = "0.13.0", default-features = false }
 ring = { version = "0.17", default-features = false }
 rlimit = { version = "0.9", default-features = false }
 rmp = { version = "0.8.14", default-features = false }
@@ -344,6 +347,7 @@ semver = { version = "1.0", default-features = false }
 serde = { version = "1.0", default-features = false }
 serde-transcode = { version = "1.1", default-features = false }
 serde_bytes = { version = "0.11.9", default-features = false }
+serde-json-core = { version = "0.6.0", default-features = false }
 serde_ignored = { version = "0.1.14", default-features = false }
 # allow(workspace-deps-features): serde_json requires at least one of `std` or
 # `alloc`. We set `alloc` here as the minimal working baseline, and to avoid
