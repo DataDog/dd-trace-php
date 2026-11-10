@@ -435,6 +435,7 @@ itertools = { version = "0.11.0" }
 lazy_static = { version = "1.4" }
 libdd-alloc = { path = "libdatadog/libdd-alloc" }
 libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-networking = { path = "libdatadog/libdd-networking" }
 libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false, features = ["std"] }
 libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector"] }
 libdd-crashtracker-ffi = { path = "libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
@@ -453,6 +454,7 @@ libdd-tinybytes = { path = "libdatadog/libdd-tinybytes" }
 libdd-trace-protobuf = { path = "libdatadog/libdd-trace-protobuf" }
 libdd-trace-stats = { path = "libdatadog/libdd-trace-stats" }
 libdd-trace-utils = { path = "libdatadog/libdd-trace-utils" }
+libdd-trace-model = { path = "libdatadog/libdd-trace-model" }
 mach2 = { version = "0.6.0" }
 rand_distr = { version = "0.5.1" }
 regex-automata = { version = "0.4.5" }

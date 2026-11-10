@@ -42,7 +42,7 @@ sidecar = [
 tracer-runtime = [
   "sidecar", "otel-context", "appsec", "dep:ddtrace-sidecar",
   "dep:libdd-telemetry", "dep:zwohash", "dep:hashbrown",
-  "dep:bincode", "dep:const-str", "dep:libdd-trace-utils",
+  "dep:bincode", "dep:const-str", "dep:libdd-trace-utils", "dep:libdd-trace-model",
   "dep:libdd-trace-stats", "dep:libdd-tinybytes", "dep:libdd-remote-config",
   "dep:libdd-live-debugger", "dep:libdd-live-debugger-ffi",
   "dep:libdd-data-pipeline", "dep:datadog-ffe", "dep:itertools",
@@ -62,6 +62,7 @@ profiling-runtime = ["dep:libdd-profiling"]
 
 [dependencies]
 libdd-common = { workspace = true }
+libdd-networking = { workspace = true }
 libdd-common-ffi = { workspace = true, optional = true }
 libdd-telemetry = { workspace = true, optional = true }
 libdd-telemetry-ffi = { workspace = true, optional = true }
@@ -77,6 +78,7 @@ datadog-sidecar-ffi = { workspace = true, optional = true }
 libdd-data-pipeline = { workspace = true, optional = true }
 libdd-tinybytes = { workspace = true, optional = true }
 libdd-trace-utils = { workspace = true, optional = true }
+libdd-trace-model = { workspace = true, optional = true }
 libdd-trace-stats = { workspace = true, optional = true }
 libdd-trace-protobuf = { workspace = true, optional = true }
 libdd-crashtracker = { workspace = true, optional = true }
