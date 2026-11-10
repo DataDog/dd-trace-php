@@ -1,5 +1,4 @@
 use crate::profiling::SAPI;
-use core::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -15,63 +14,8 @@ where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
 {
-    /* This helper thread has no valid PHP/TSRM context, so it must not run
-     * any PHP signal handler. Block asynchronous signals in the parent before
-     * spawning: the new thread inherits the mask atomically with its creation.
-     * Masking only inside the new thread leaves a window in which PHP can
-     * install and trigger an asynchronous handler before the helper runs.
-     *
-     * Synchronous fault signals remain unblocked so a genuine fault on the
-     * helper thread is still reported, for example by the crashtracker.
-     */
-    let mut sigset_mem = MaybeUninit::uninit();
-    let mut previous_mask_mem = MaybeUninit::uninit();
-    let sigset = sigset_mem.as_mut_ptr();
-
-    // SAFETY: both signal sets point to valid, suitably aligned storage.
-    let mask_result = unsafe {
-        libc::sigfillset(sigset);
-
-        const KEEP_UNBLOCKED: [libc::c_int; 6] = [
-            libc::SIGSEGV,
-            libc::SIGBUS,
-            libc::SIGFPE,
-            libc::SIGILL,
-            libc::SIGABRT,
-            libc::SIGTRAP,
-        ];
-
-        for signal in KEEP_UNBLOCKED {
-            libc::sigdelset(sigset, signal);
-        }
-
-        libc::pthread_sigmask(libc::SIG_BLOCK, sigset, previous_mask_mem.as_mut_ptr())
-    };
-    assert_eq!(
-        mask_result, 0,
-        "failed to block signals before spawning {name}"
-    );
-
-    let result = std::thread::Builder::new().name(name.to_string()).spawn(f);
-
-    // SAFETY: pthread_sigmask initialized previous_mask_mem above, and this
-    // restores the spawning PHP thread regardless of whether spawn succeeded.
-    let restore_result = unsafe {
-        libc::pthread_sigmask(
-            libc::SIG_SETMASK,
-            previous_mask_mem.as_ptr(),
-            std::ptr::null_mut(),
-        )
-    };
-    assert_eq!(
-        restore_result, 0,
-        "failed to restore signal mask after spawning {name}"
-    );
-
-    match result {
-        Ok(handle) => handle,
-        Err(err) => panic!("Failed to spawn thread {name}: {err}"),
-    }
+    crate::threads::spawn(name, f)
+        .unwrap_or_else(|err| panic!("Failed to spawn thread {name}: {err}"))
 }
 
 #[derive(thiserror::Error, Debug)]

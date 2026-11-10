@@ -16,5 +16,6 @@ datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 
 [target.'cfg(unix)'.dependencies]
+libc.workspace = true
 ddappsec-helper = { package = "helper-rust", path = "../appsec/helper-rust" }
 tokio = { version = "1.49.0", features = ["rt"] }

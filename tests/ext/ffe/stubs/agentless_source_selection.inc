@@ -8,6 +8,14 @@ $environment['DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS'] = '1
 $keys = array('DD_FEATURE_FLAGS_ENABLED', 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE', 'DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED');
 foreach ($cases as $name => $case) {
     $environment['DD_TRACE_SIDECAR_CONNECTION_MODE'] = $name === 'thread_mode' ? 'thread' : 'auto';
+    if ($name === 'auto_thread_fallback') {
+        // Exec startup needs a temporary file; only the child gets this invalid
+        // path. Thread-mode IPC uses an abstract socket and remains available.
+        $environment['_DD_DEBUG_SIDECAR_IPC_MODE'] = 'instance_per_process';
+        $environment['DD_SPAWN_WORKER_USE_EXEC'] = '1';
+        $environment['TMPDIR'] = sys_get_temp_dir() . '/ffe-no-such-directory-' . getmypid();
+        $environment['PHP_FFE_EXPECT_THREAD_LISTENER'] = '1';
+    }
     foreach ($keys as $i => $key) {
         unset($environment[$key]);
         if ($case[$i] !== null) $environment[$key] = $case[$i];
@@ -41,7 +49,7 @@ foreach ($cases as $name => $case) {
     if ($state['enabled'] !== $case[3] || $state['mode'] !== $case[4] || $state['ready']) {
         throw new RuntimeException($name . ' wrong source: ' . $stdout);
     }
-    if ($name === 'thread_mode' && $state['reason'] !== 'unsupported_sidecar_mode') {
+    if (in_array($name, array('thread_mode', 'auto_thread_fallback'), true) && $state['reason'] !== 'unsupported_sidecar_mode') {
         throw new RuntimeException('thread mode did not report its permanent failure');
     }
     echo $name, "=ok\n";

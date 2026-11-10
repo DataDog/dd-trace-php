@@ -1,5 +1,25 @@
 <?php
 require_once __DIR__ . '/ffe_process.inc';
+// Match only the dedicated sidecar listener owned by this test child.
+function ffeTestSidecarPid($childPid) {
+    foreach (file('/proc/net/unix') as $row) {
+        $columns = preg_split('/\s+/', trim($row));
+        if (!isset($columns[7]) || $columns[3] !== '00010000'
+            || strpos($columns[7], '@libdatadog/') !== 0
+            || substr($columns[7], -strlen('.' . $childPid . '.sock')) !== '.' . $childPid . '.sock') continue;
+        foreach (glob('/proc/[0-9]*', GLOB_ONLYDIR) as $directory) {
+            if (@fileowner($directory) !== posix_geteuid()) continue;
+            foreach (glob($directory . '/fd/*') as $descriptor) {
+                if (@readlink($descriptor) !== 'socket:[' . $columns[6] . ']') continue;
+                $pid = (int)basename($directory);
+                if ($pid === $childPid || $pid === getmypid()) throw new RuntimeException('sidecar listener is in a PHP application process');
+                return $pid;
+            }
+        }
+    }
+    return null;
+}
+
 $instrumented = getenv('USE_ZEND_ALLOC') === '0';
 // Keep the no-renewal assertion decisive: ten renewed 2s waits exceed 3s.
 if ($instrumented && in_array($scenario, array('recovery', 'shutdown'), true)) {
@@ -10,9 +30,10 @@ $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
 $address = stream_socket_get_name($server, false);
 putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL=http://' . $address . '/configuration');
-$process = ffeTestProcess(__DIR__ . '/agentless_process_app.php', $pipes);
+$application = $scenario === 'swoole' ? '/agentless_swoole_app.php' : '/agentless_process_app.php';
+$process = ffeTestProcess(__DIR__ . $application, $pipes);
 if (!is_resource($process)) throw new RuntimeException('cannot launch agentless PHP');
-if ($scenario !== 'shutdown') fclose($pipes[0]);
+if (!in_array($scenario, array('shutdown', 'restart'), true)) fclose($pipes[0]);
 $stdout = $stderr = '';
 $requests = 0;
 $heldConnections = array();
@@ -22,6 +43,7 @@ $start = microtime(true);
 $readyAt = null;
 $shutdownStart = null;
 $restarted = false;
+$terminated = false;
 try {
     do {
         $stdout .= ffeTestProcessRead($pipes[1]);
@@ -34,33 +56,21 @@ try {
             break;
         }
         if ($scenario === 'restart' && !$restarted && strpos($stdout, "fixture_restart_ready\n") !== false) {
-            // Kill only this child's per-process sidecar: match its unique
-            // listening socket, then find the process that owns that socket.
-            $socketInode = null;
-            foreach (file('/proc/net/unix') as $row) {
-                $columns = preg_split('/\s+/', trim($row));
-                if (isset($columns[7]) && $columns[3] === '00010000'
-                    && strpos($columns[7], '@libdatadog/') === 0
-                    && substr($columns[7], -strlen('.' . $status['pid'] . '.sock')) === '.' . $status['pid'] . '.sock') {
-                    $socketInode = $columns[6];
-                    break;
-                }
-            }
-            if ($socketInode === null) throw new RuntimeException('cannot locate the dedicated sidecar socket');
-            foreach (glob('/proc/[0-9]*', GLOB_ONLYDIR) as $directory) {
-                if (@fileowner($directory) !== posix_geteuid()) continue;
-                foreach (glob($directory . '/fd/*') as $descriptor) {
-                    if (@readlink($descriptor) !== 'socket:[' . $socketInode . ']') continue;
-                    $sidecarPid = (int)basename($directory);
-                    if ($sidecarPid === $status['pid'] || $sidecarPid === getmypid()) {
-                        throw new RuntimeException('sidecar listener is in a PHP application process');
-                    }
-                    if (!posix_kill($sidecarPid, SIGKILL)) throw new RuntimeException('cannot stop dedicated sidecar');
-                    $restarted = true;
-                    break 2;
-                }
-            }
-            if (!$restarted) throw new RuntimeException('cannot find the dedicated sidecar owner');
+            $sidecarPid = ffeTestSidecarPid($status['pid']);
+            if ($sidecarPid === null) throw new RuntimeException('cannot locate the dedicated sidecar');
+            if (!posix_kill($sidecarPid, SIGKILL)) throw new RuntimeException('cannot stop dedicated sidecar');
+            $restarted = true;
+        }
+        if ($scenario === 'restart' && !$terminated && strpos($stdout, "sidecar_restarted_and_refreshed\n") !== false) {
+            $replacement = ffeTestSidecarPid($status['pid']);
+            if ($replacement === null || $replacement === $sidecarPid) throw new RuntimeException('replacement sidecar missing');
+            if (!posix_kill($replacement, SIGTERM)) throw new RuntimeException('cannot signal replacement sidecar');
+            $deadline = microtime(true) + ($instrumented ? 10 : 3);
+            while (ffeTestSidecarPid($status['pid']) === $replacement && microtime(true) < $deadline) usleep(20000);
+            if (ffeTestSidecarPid($status['pid']) === $replacement) throw new RuntimeException('replacement sidecar ignored SIGTERM');
+            $terminated = true;
+            fwrite($pipes[0], "sidecar_terminated\n");
+            fclose($pipes[0]);
         }
         $connection = @stream_socket_accept($server, 0.1);
         if (!$connection) continue;
@@ -132,7 +142,7 @@ try {
         } else {
             $stdout .= ffeTestProcessRead($pipes[1]);
             $forked = strpos($stdout, 'parent_forked') !== false && strpos($stdout, 'child_forked') !== false;
-            $value = ($scenario === 'fork' && $forked) || ($scenario === 'restart' && $restarted) ? 'green' : 'blue';
+            $value = (in_array($scenario, array('fork', 'swoole'), true) && $forked) || ($scenario === 'restart' && $restarted) ? 'green' : 'blue';
             $code = '200 OK';
             $configuration = array(
                 'createdAt' => '2026-05-22T00:00:00Z', 'environment' => array('name' => 'test'),
@@ -154,7 +164,7 @@ try {
     } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 45 : 20)));
     $stdout .= ffeTestProcessRead($pipes[1]);
     $stderr .= ffeTestProcessRead($pipes[2]);
-    if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);
+    if ($exitCode !== 0) throw new RuntimeException('child failed or timed out (exit=' . $exitCode . ', signal=' . $status['termsig'] . '): ' . $stdout . ' ' . $stderr);
     if ($requests === 0) throw new RuntimeException('no configuration request');
     if ($scenario === 'shutdown' && microtime(true) - $shutdownStart > ($instrumented ? 10 : 3)) {
         throw new RuntimeException('shutdown waited on HTTP timeout');

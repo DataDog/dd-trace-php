@@ -334,11 +334,17 @@ ddog_CharSlice ddog_ffe_initialization_error_message(void);
  * First-use compatibility path for PHP providers without an initialize API.
  * Concurrent first callers share one deadline; later calls never renew it.
  */
-void ddog_ffe_ensure_initialized(void);
+void ddog_ffe_ensure_initialized(bool subprocess_mode);
 
 void ddog_ffe_shutdown(void);
 
 void ddog_ffe_prepare_for_fork(void);
+
+/**
+ * The child atfork callback only releases the inherited guard. Normal PHP
+ * fork handling resets the sidecar runtime before allocating/restarting here.
+ */
+void ddog_ffe_atfork_child(void);
 
 void ddog_ffe_resume_after_fork(bool child);
 

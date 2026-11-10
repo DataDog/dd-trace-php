@@ -30,3 +30,4 @@ require __DIR__ . '/stubs/agentless_process.inc';
 --EXPECT--
 last_configuration_retained
 sidecar_restarted_and_refreshed
+sidecar_sigterm_handled

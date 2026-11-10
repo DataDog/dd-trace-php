@@ -13,6 +13,7 @@ use datadog_sidecar::shm_remote_config::{
 };
 use libdd_remote_config::Target;
 use libdd_remote_config::{default_registry, RemoteConfigProduct};
+use std::cell::Cell;
 use std::ffi::c_void;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -22,7 +23,7 @@ use tokio_util::sync::CancellationToken;
 #[derive(Clone)]
 pub(crate) struct AgentlessWorkerConfig {
     subscription: CdnConfig,
-    pub(crate) sidecar_self_telemetry: bool,
+    pub(crate) sidecar: datadog_sidecar::config::Config,
     pub(crate) thread_cleanup: Option<extern "C" fn(*mut c_void)>,
 }
 
@@ -41,9 +42,19 @@ impl AgentlessWorkerConfig {
                 version: include_str!("../../../VERSION").trim().to_owned(),
             },
             thread_cleanup: None,
-            sidecar_self_telemetry: false,
+            sidecar: datadog_sidecar::config::FromEnv::config(),
         }
     }
+}
+
+thread_local! {
+    // Spawning the sidecar can itself fork. It must not join its own reader or
+    // wait on the lifecycle lock held by a concurrent shutdown/fork preparation.
+    static IS_AGENTLESS_WORKER: Cell<bool> = const { Cell::new(false) };
+}
+
+pub(crate) fn is_worker_thread() -> bool {
+    IS_AGENTLESS_WORKER.with(Cell::get)
 }
 
 // PHP intercepts Rust TLS destructors to permit extension unloading. Threads
@@ -87,6 +98,10 @@ impl AgentlessWorker {
         }
     }
 
+    pub(crate) fn configure_sidecar(&mut self, config: &datadog_sidecar::config::Config) {
+        self.config.sidecar = config.clone();
+    }
+
     pub(crate) fn start(&mut self) -> Result<bool, WorkerStartError> {
         // A reader that exits unexpectedly must not suppress later retries.
         if self
@@ -104,9 +119,8 @@ impl AgentlessWorker {
         let thread_cancellation = cancellation.clone();
         let config = self.config.clone();
         let log_dispatch = tracing::dispatcher::get_default(Clone::clone);
-        let thread = std::thread::Builder::new()
-            .name("ddtrace-ffe-agentless".to_owned())
-            .spawn(move || {
+        let thread = crate::threads::spawn("ddtrace-ffe-agentless", move || {
+                IS_AGENTLESS_WORKER.with(|flag| flag.set(true));
                 let _thread_cleanup = ThreadCleanup(config.thread_cleanup);
                 let _log_guard = tracing::dispatcher::set_default(&log_dispatch);
                 let mut warned = false;
@@ -142,7 +156,7 @@ impl AgentlessWorker {
     }
 
     pub(crate) fn prepare_for_fork(&mut self) {
-        self.restart_after_fork = self.running.is_some() && !self.permanently_stopped;
+        self.restart_after_fork |= self.running.is_some() && !self.permanently_stopped;
         self.stop_running();
     }
 
@@ -183,9 +197,14 @@ fn read_configuration(
     if cancellation.is_cancelled() {
         return Ok(());
     }
-    let mut sidecar = datadog_sidecar::config::FromEnv::config();
-    sidecar.self_telemetry = config.sidecar_self_telemetry;
-    let mut transport = crate::sidecar::run_sidecar(sidecar)?;
+    #[cfg(unix)]
+    if matches!(
+        datadog_sidecar::shm_namespace(),
+        datadog_sidecar::ShmNamespace::Thread(_)
+    ) {
+        anyhow::bail!("Feature Flags CDN requires an active subprocess sidecar");
+    }
+    let mut transport = crate::sidecar::run_sidecar(config.sidecar.clone())?;
     transport.set_read_timeout(Some(Duration::from_millis(200)))?;
     transport.set_write_timeout(Some(Duration::from_millis(200)))?;
     let registration = CdnRegistration {
@@ -263,8 +282,35 @@ mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
+    #[cfg(unix)]
+    #[test]
+    fn existing_thread_sidecar_namespace_is_preserved() {
+        use datadog_sidecar::{shm_namespace, use_thread_sidecar_shm_namespace, ShmNamespace};
+        let _guard = crate::ffe::tests::FFE_TEST_LOCK.lock().unwrap();
+        let previous = shm_namespace();
+        use_thread_sidecar_shm_namespace(Some(424242));
+        let endpoint = AgentlessEndpoint::build("http://127.0.0.1:1/config", "", "", "").unwrap();
+        let config =
+            AgentlessWorkerConfig::new(endpoint, Duration::from_secs(30), Duration::from_secs(30));
+        let cancellation = CancellationToken::new();
+        let cancel = cancellation.clone();
+        let timer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            cancel.cancel();
+        });
+        let _ = read_configuration(&config, &cancellation);
+        timer.join().unwrap();
+        let observed = shm_namespace();
+        use_thread_sidecar_shm_namespace(match previous {
+            ShmNamespace::User(_) => None,
+            ShmNamespace::Thread(pid) => Some(pid),
+        });
+        assert_eq!(observed, ShmNamespace::Thread(424242));
+    }
+
     #[test]
     fn worker_cleanup_runs_on_its_thread_after_reader_shutdown() {
+        let _guard = crate::ffe::tests::FFE_TEST_LOCK.lock().unwrap();
         static CLEANUPS: AtomicUsize = AtomicUsize::new(0);
         extern "C" fn cleanup(_: *mut c_void) {
             // Runtime and tracing guards must have exited before TLS is drained.
@@ -289,6 +335,7 @@ mod tests {
 
     #[test]
     fn a_finished_worker_can_restart_but_shutdown_is_permanent() {
+        let _guard = crate::ffe::tests::FFE_TEST_LOCK.lock().unwrap();
         let endpoint = AgentlessEndpoint::build("http://127.0.0.1:1/config", "", "", "").unwrap();
         let mut worker = AgentlessWorker::new(AgentlessWorkerConfig::new(
             endpoint,

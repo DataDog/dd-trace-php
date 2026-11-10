@@ -1993,7 +1993,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         attrs_count = idx;
     }
 
-    ddog_ffe_ensure_initialized();
+    ddog_ffe_ensure_initialized(datadog_sidecar_active_mode != DD_SIDECAR_CONNECTION_THREAD);
     result = ddog_ffe_evaluate(
         dd_zend_string_to_CharSlice(flag_key),
         type_id,

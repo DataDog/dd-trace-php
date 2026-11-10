@@ -150,6 +150,12 @@ void datadog_set_coredumpfilter(void) {
 void datadog_pcntl_handlers_startup(void);
 
 // put this into startup so that other extensions running code as part of rinit do not crash
+#if defined(TRACER) && !defined(_WIN32)
+static void dd_ffe_atfork_parent(void) {
+    ddog_ffe_resume_after_fork(false);
+}
+#endif
+
 static int datadog_startup(zend_extension *extension) {
     UNUSED(extension);
 
@@ -201,6 +207,15 @@ static int datadog_startup(zend_extension *extension) {
 #endif
 #ifdef PROFILING
     if (datadog_profiling_initialized && ddog_php_prof_zend_startup(extension) != SUCCESS) {
+        return FAILURE;
+    }
+#endif
+
+#if defined(TRACER) && !defined(_WIN32)
+    // Prepare callbacks run in reverse order: join the FFE reader before the
+    // profiler pauses, and resume it after the profiler's parent callback.
+    if (pthread_atfork(ddog_ffe_prepare_for_fork, dd_ffe_atfork_parent, ddog_ffe_atfork_child)) {
+        LOG(ERROR, "Failed registering Feature Flags fork handlers");
         return FAILURE;
     }
 #endif

@@ -155,6 +155,10 @@ pub(crate) fn store_config_for_environment(
 
 pub(crate) fn clear_config() -> ConfigurationTransition {
     debug!("Feature Flags: readiness=unavailable; configuration removed, evaluations return defaults until recovery");
+    clear_config_inner()
+}
+
+fn clear_config_inner() -> ConfigurationTransition {
     if !agentless_config() {
         return REMOTE_CONFIG.with(|state| {
             let mut state = state.borrow_mut();

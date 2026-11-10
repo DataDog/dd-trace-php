@@ -243,8 +243,6 @@ cxx-build = { version = "1.0", default-features = false }
 derive_more = { version = "2.0.0", default-features = false }
 duplicate = { version = "2.0.1", default-features = false }
 either = { version = "1.13.0", default-features = false }
-embedded-io = { version = "0.6", default-features = false }
-embedded-io-async = { version = "0.6", default-features = false }
 elf = { version = "0.7", default-features = false }
 embedded-io = { version = "0.6", default-features = false }
 embedded-io-async = { version = "0.6", default-features = false }
@@ -352,7 +350,6 @@ serde = { version = "1.0", default-features = false }
 serde-json-core = { version = "0.6.0", default-features = false }
 serde-transcode = { version = "1.1", default-features = false }
 serde_bytes = { version = "0.11.9", default-features = false }
-serde-json-core = { version = "0.6.0", default-features = false }
 serde_ignored = { version = "0.1.14", default-features = false }
 # allow(workspace-deps-features): serde_json requires at least one of `std` or
 # `alloc`. We set `alloc` here as the minimal working baseline, and to avoid

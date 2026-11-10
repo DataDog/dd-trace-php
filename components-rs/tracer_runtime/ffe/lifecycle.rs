@@ -125,6 +125,7 @@ type ConfigurationSignal = (Mutex<()>, Condvar);
 static CONFIGURATION_CHANGED: LazyLock<ArcSwap<ConfigurationSignal>> =
     LazyLock::new(|| ArcSwap::from_pointee((Mutex::new(()), Condvar::new())));
 static INITIALIZATION_STOPPED: AtomicBool = AtomicBool::new(false);
+static CHILD_RESUME_PENDING: AtomicBool = AtomicBool::new(false);
 
 thread_local! {
     // Keep lifecycle operations excluded across PHP's fork boundary. The
@@ -189,7 +190,7 @@ pub extern "C" fn ddog_ffe_configure(input: &FfeSettingsInput<'_>) -> FfeRuntime
                     settings.request_timeout,
                 );
                 worker_config.thread_cleanup = input.thread_cleanup;
-                worker_config.sidecar_self_telemetry = input.sidecar_self_telemetry;
+                worker_config.sidecar.self_telemetry = input.sidecar_self_telemetry;
                 if input.sidecar_subprocess_enabled {
                     state.worker = Some(AgentlessWorker::new(worker_config));
                 } else {
@@ -234,10 +235,22 @@ pub extern "C" fn ddog_ffe_initialization_error_message() -> CharSlice<'static> 
         .into()
 }
 
+/// Preserve PHP's canonical startup configuration for reader-owned respawns.
+pub(crate) fn configure_sidecar(config: &datadog_sidecar::config::Config) {
+    if let Some(worker) = &mut lifecycle().worker {
+        worker.configure_sidecar(config);
+    }
+}
+
 /// First-use compatibility path for PHP providers without an initialize API.
 /// Concurrent first callers share one deadline; later calls never renew it.
 #[no_mangle]
-pub extern "C" fn ddog_ffe_ensure_initialized() {
+pub extern "C" fn ddog_ffe_ensure_initialized(subprocess_mode: bool) {
+    // Native frameworks must finish PHP's normal child hook before a worker
+    // can use inherited sidecar runtime state. Retained flags stay usable.
+    if CHILD_RESUME_PENDING.load(Ordering::Acquire) {
+        return;
+    }
     let deadline = {
         let mut state = lifecycle();
         state.report_diagnostics();
@@ -245,6 +258,14 @@ pub extern "C" fn ddog_ffe_ensure_initialized() {
             return;
         }
         if state.config.source != FfeConfigurationSource::Agentless {
+            return;
+        }
+        if !subprocess_mode {
+            if state.failure.is_none() {
+                log::log(Log::Warn, InitializationFailure::SidecarMode.message());
+            }
+            state.failure = Some(InitializationFailure::SidecarMode);
+            set_delivery_state(DeliveryState::PermanentError);
             return;
         }
         if state.worker.is_none() {
@@ -293,13 +314,16 @@ pub extern "C" fn ddog_ffe_shutdown() {
     state.settings = None;
     // Static configuration has no automatic destructor at module shutdown.
     // Release its owned evaluator data only after the publisher has joined.
-    super::clear_config();
+    super::clear_config_inner();
     set_delivery_state(DeliveryState::Stopped);
     notify_configuration();
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_prepare_for_fork() {
+    if super::agentless::is_worker_thread() {
+        return;
+    }
     FORK_GUARD.with(|slot| {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
@@ -312,10 +336,37 @@ pub extern "C" fn ddog_ffe_prepare_for_fork() {
     });
 }
 
+/// The child atfork callback only releases the inherited guard. Normal PHP
+/// fork handling resets the sidecar runtime before allocating/restarting here.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_atfork_child() {
+    if super::agentless::is_worker_thread() {
+        return;
+    }
+    FORK_GUARD.with(|slot| {
+        slot.borrow_mut().take();
+    });
+    CHILD_RESUME_PENDING.store(true, Ordering::Release);
+}
+
 #[no_mangle]
 pub extern "C" fn ddog_ffe_resume_after_fork(child: bool) {
+    if super::agentless::is_worker_thread() {
+        return;
+    }
     FORK_GUARD.with(|slot| {
-        if let Some(mut state) = slot.borrow_mut().take() {
+        let guard = slot.borrow_mut().take();
+        // A framework's manager may fork again before entering PHP's normal
+        // child hook. Do not start a worker against inherited runtime state.
+        if !child && CHILD_RESUME_PENDING.load(Ordering::Acquire) {
+            return;
+        }
+        let guard = if child && CHILD_RESUME_PENDING.swap(false, Ordering::AcqRel) {
+            guard.or_else(|| Some(lifecycle()))
+        } else {
+            guard
+        };
+        if let Some(mut state) = guard {
             if child {
                 // Other parent threads may have been waiting on the old
                 // condition variable. Never reuse that synchronization state.
@@ -378,7 +429,7 @@ mod tests {
                 let tx = tx.clone();
                 std::thread::spawn(move || {
                     barrier.wait();
-                    ddog_ffe_ensure_initialized();
+                    ddog_ffe_ensure_initialized(true);
                     tx.send(()).unwrap();
                 })
             })

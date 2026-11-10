@@ -1396,6 +1396,7 @@ dependencies = [
  "anyhow",
  "datadog-sidecar",
  "helper-rust",
+ "libc",
  "spawn_worker",
  "tokio",
 ]

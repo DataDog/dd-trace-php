@@ -1,8 +1,8 @@
 // Copyright 2021-Present Datadog, Inc. https://www.datadoghq.com/
 // SPDX-License-Identifier: Apache-2.0
 
-// This crate only exists to register the appsec backend around libdatadog's sidecar daemon
-// entrypoint, which is a unix-only concern. On Windows the extension uses
+// This crate sets up the PHP AppSec backend and signal handling around libdatadog's
+// sidecar daemon entrypoint, which is a unix-only concern. On Windows the extension uses
 // `datadog_sidecar::start_or_connect_to_sidecar` (i.e. `ddog_daemon_entry_point`) directly, so the
 // whole crate is compiled away there.
 #![cfg(unix)]
@@ -46,6 +46,18 @@ pub extern "C" fn ddtrace_sidecar_entry_point(trampoline_data: &TrampolineData) 
     #[cfg(feature = "helper-rust-coverage")]
     ddappsec_helper::initialize_coverage();
 
+    // A PHP helper thread can spawn this subprocess with application signals
+    // masked. The daemon handles SIGTERM and SIGINT; unblock them before its runtime
+    // threads inherit the mask. The spawning PHP thread remains untouched.
+    unsafe {
+        let mut signals = std::mem::MaybeUninit::uninit();
+        libc::sigemptyset(signals.as_mut_ptr());
+        libc::sigaddset(signals.as_mut_ptr(), libc::SIGTERM);
+        libc::sigaddset(signals.as_mut_ptr(), libc::SIGINT);
+        if libc::pthread_sigmask(libc::SIG_UNBLOCK, signals.as_ptr(), std::ptr::null_mut()) != 0 {
+            libc::_exit(1);
+        }
+    }
     register_appsec_backend();
     datadog_sidecar::ddog_daemon_entry_point(trampoline_data);
 }

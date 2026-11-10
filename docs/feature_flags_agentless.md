@@ -22,7 +22,10 @@ interval is 30 seconds and request timeout is 5 seconds, controlled by
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS`.
 Shutdown and fork preparation join the local reader without waiting for CDN HTTP.
 The parent and child resume their readers after the fork; the child first clears
-inherited sidecar runtime state. Thread-mode sidecars do not support CDN fetching.
+inherited sidecar runtime state. Thread-mode sidecars, including AUTO fallback
+to a thread, do not support CDN fetching. Native framework forks use the same reader stop/resume lifecycle as
+pcntl forks. Reader-owned sidecar restarts preserve PHP's resolved startup
+configuration, including its log destination and level.
 
 Retention uses normal Remote Config semantics. A malformed response, transport
 failure, or 304 leaves the last accepted configuration usable. Identical successful

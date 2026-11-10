@@ -41,6 +41,11 @@ if ($scenario === 'restart') {
     } while (microtime(true) < $deadline);
     if (!$retained || $value !== 'green') throw new RuntimeException('sidecar restart did not recover');
     echo "sidecar_restarted_and_refreshed\n";
+    // Keep PHP and its IPC connection alive while the fixture signals the
+    // reader-spawned daemon; an idle exit would hide an inherited blocked mask.
+    stream_set_timeout(STDIN, $instrumented ? 20 : 5);
+    if (fgets(STDIN) !== "sidecar_terminated\n") throw new RuntimeException('replacement sidecar did not handle SIGTERM');
+    echo "sidecar_sigterm_handled\n";
     exit;
 }
 
