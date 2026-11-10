@@ -34,7 +34,7 @@ typedef struct {
 #endif
 
 static inline dd_span_tags_view *dd_tags_view_from_obj(zend_object *obj) {
-    return (dd_span_tags_view *)((char *)obj - XtOffsetOf(dd_span_tags_view, std));
+    return (dd_span_tags_view *)((char *)obj - offsetof(dd_span_tags_view, std));
 }
 
 // 0 for $meta, 1 for $metrics, -1 for any other property.
@@ -614,7 +614,7 @@ void ddtrace_register_span_tags_view(void) {
     zend_class_implements(ddtrace_ce_span_tags_view, 3, zend_ce_arrayaccess, zend_ce_countable, zend_ce_aggregate);
 
     memcpy(&dd_span_tags_view_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-    dd_span_tags_view_handlers.offset = XtOffsetOf(dd_span_tags_view, std);
+    dd_span_tags_view_handlers.offset = offsetof(dd_span_tags_view, std);
     dd_span_tags_view_handlers.clone_obj = NULL;
     dd_span_tags_view_handlers.read_dimension = dd_tags_view_read_dimension;
     dd_span_tags_view_handlers.write_dimension = dd_tags_view_write_dimension;
