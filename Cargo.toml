@@ -93,6 +93,7 @@ trigger_time_sample = ["profiling"]
 
 [dependencies]
 libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-networking = { path = "libdatadog/libdd-networking" }
 libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false, features = ["std"], optional = true }
 libdd-telemetry = { path = "libdatadog/libdd-telemetry", optional = true }
 libdd-telemetry-ffi = { path = "libdatadog/libdd-telemetry-ffi", default-features = false, optional = true }
@@ -135,7 +136,7 @@ regex-automata = { version = "0.4.5", optional = true }
 http = "1.4"
 libc = "0.2"
 bincode = { version = "1.3.3", optional = true }
-hashbrown = { version = "0.15", optional = true }
+hashbrown = { workspace = true, optional = true }
 chrono = { version = "0.4", optional = true }
 cpu-time = { version = "1.0", optional = true }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"], optional = true }
@@ -245,6 +246,8 @@ either = { version = "1.13.0", default-features = false }
 embedded-io = { version = "0.6", default-features = false }
 embedded-io-async = { version = "0.6", default-features = false }
 elf = { version = "0.7", default-features = false }
+embedded-io = { version = "0.6", default-features = false }
+embedded-io-async = { version = "0.6", default-features = false }
 env_logger = { version = "0.10", default-features = false }
 errno = { version = "0.3", default-features = false }
 fastrand = { version = "2", default-features = false }
@@ -321,7 +324,7 @@ proptest = { version = "1", default-features = false }
 prost = { version = "0.14.1", default-features = false }
 prost-build = { version = "0.14.1", default-features = false }
 protoc-bin-vendored = { version = "3.0.0", default-features = false }
-pyo3 = { version = "0.29", default-features = false }
+pyo3 = { version = "0.30", default-features = false }
 quick-xml = { version = "0.37", default-features = false }
 quote = { version = "1", default-features = false }
 rand = { version = "0.8", default-features = false }
@@ -346,6 +349,7 @@ rustls-webpki = { version = "0.103.16", default-features = false }
 schemars = { version = "0.8.21", default-features = false }
 semver = { version = "1.0", default-features = false }
 serde = { version = "1.0", default-features = false }
+serde-json-core = { version = "0.6.0", default-features = false }
 serde-transcode = { version = "1.1", default-features = false }
 serde_bytes = { version = "0.11.9", default-features = false }
 serde-json-core = { version = "0.6.0", default-features = false }

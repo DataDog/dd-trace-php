@@ -1229,7 +1229,7 @@ dependencies = [
  "ddtrace-sidecar",
  "dynasmrt",
  "env_logger",
- "hashbrown 0.15.2",
+ "hashbrown 0.17.1",
  "http 1.4.2",
  "itertools 0.11.0",
  "lazy_static",
@@ -1246,6 +1246,7 @@ dependencies = [
  "libdd-library-config-ffi",
  "libdd-live-debugger",
  "libdd-live-debugger-ffi",
+ "libdd-networking",
  "libdd-process-utils",
  "libdd-profiling",
  "libdd-remote-config",
@@ -1307,6 +1308,7 @@ dependencies = [
  "libdd-ipc",
  "libdd-ipc-macros",
  "libdd-live-debugger",
+ "libdd-networking",
  "libdd-process-utils",
  "libdd-remote-config",
  "libdd-telemetry",
@@ -2082,8 +2084,6 @@ version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
 dependencies = [
- "allocator-api2",
- "equivalent",
  "foldhash 0.1.5",
 ]
 
@@ -2841,6 +2841,7 @@ dependencies = [
  "http-body-util",
  "libdd-capabilities",
  "libdd-common",
+ "libdd-networking",
  "libdd-process-utils",
  "tempfile",
  "tokio",
@@ -2852,40 +2853,17 @@ version = "9.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
- "bytes",
  "const_format",
- "futures",
  "hex",
  "http 1.4.2",
- "http-body",
- "http-body-util",
- "httparse",
- "hyper",
- "hyper-rustls",
- "hyper-util",
  "indexmap 2.12.1",
  "libc",
- "libdd-process-utils",
  "libdd-regex",
  "maplit",
- "pin-project",
  "proptest",
- "rand 0.8.8",
- "rcgen",
- "reqwest 0.13.2",
- "rustls",
- "rustls-platform-verifier",
- "rustls-webpki",
  "serde",
  "static_assertions",
  "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "tools",
- "tower-service",
- "webpki-root-certs",
- "webpki-roots",
  "windows-sys 0.52.0",
 ]
 
@@ -2926,6 +2904,7 @@ dependencies = [
  "libdd-common",
  "libdd-gotter",
  "libdd-libunwind-sys",
+ "libdd-networking",
  "libdd-process-utils",
  "libdd-telemetry",
  "nix 0.29.0",
@@ -2992,6 +2971,7 @@ dependencies = [
  "libdd-ddsketch",
  "libdd-dogstatsd-client",
  "libdd-log",
+ "libdd-networking",
  "libdd-regex",
  "libdd-shared-runtime",
  "libdd-telemetry",
@@ -3060,6 +3040,7 @@ dependencies = [
  "cadence",
  "http 1.4.2",
  "libdd-common",
+ "libdd-networking",
  "libdd-process-utils",
  "libdd-shared-runtime",
  "serde",
@@ -3087,6 +3068,7 @@ dependencies = [
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
+ "libdd-networking",
  "libdd-regex",
  "libdd-remote-config",
  "libdd-trace-protobuf",
@@ -3212,6 +3194,7 @@ dependencies = [
  "libdd-capabilities-impl",
  "libdd-common",
  "libdd-data-pipeline",
+ "libdd-networking",
  "libdd-regex",
  "libdd-remote-config",
  "percent-encoding",
@@ -3253,6 +3236,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "libdd-networking"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "futures",
+ "hex",
+ "http 1.4.2",
+ "http-body",
+ "http-body-util",
+ "httparse",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "libdd-common",
+ "libdd-process-utils",
+ "pin-project",
+ "rand 0.8.8",
+ "rcgen",
+ "reqwest 0.13.2",
+ "rustls",
+ "rustls-platform-verifier",
+ "rustls-webpki",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "tools",
+ "tower-service",
+ "webpki-root-certs",
+ "webpki-roots",
+]
+
+[[package]]
 name = "libdd-process-utils"
 version = "1.0.0"
 dependencies = [
@@ -3283,6 +3300,7 @@ dependencies = [
  "indexmap 2.12.1",
  "libdd-alloc",
  "libdd-common",
+ "libdd-networking",
  "libdd-process-utils",
  "libdd-profiling-protobuf",
  "opentelemetry-proto",
@@ -3342,6 +3360,7 @@ dependencies = [
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
+ "libdd-networking",
  "libdd-regex",
  "libdd-remote-config",
  "libdd-trace-protobuf",
@@ -3397,6 +3416,7 @@ dependencies = [
  "libdd-capabilities-impl",
  "libdd-common",
  "libdd-ddsketch",
+ "libdd-networking",
  "libdd-shared-runtime",
  "reqwless",
  "serde",
@@ -3559,6 +3579,7 @@ dependencies = [
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
+ "libdd-networking",
  "libdd-regex",
  "libdd-tinybytes",
  "libdd-trace-model",
@@ -4671,9 +4692,9 @@ checksum = "7dc55d7dec32ecaf61e0bd90b3d2392d721a28b95cfd23c3e176eccefbeab2f2"
 
 [[package]]
 name = "pyo3"
-version = "0.29.2"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4688ddedf473e32662b9b067670129a8afb8c18e351482c70d62ba4a88171e8b"
+checksum = "229ca13b8a15bb0d1487b81ab975bfcd97513416499a8312011b6036e42e0de4"
 dependencies = [
  "libc",
  "once_cell",
@@ -4685,18 +4706,18 @@ dependencies = [
 
 [[package]]
 name = "pyo3-build-config"
-version = "0.29.2"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f41027e41b4bd03f6e60f9f417fe24a6341a6bb744edd62b6f709f2a52ea30e9"
+checksum = "70130e2b6dd1ee589a8788026a429561ca5c40fa7a2fa7914c2282eddae24700"
 dependencies = [
  "target-lexicon",
 ]
 
 [[package]]
 name = "pyo3-ffi"
-version = "0.29.2"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e591a95526fead067432c3b3a33fc74770b87b1e04e73671090d9c2055a2b327"
+checksum = "5e7ff73c555c286d212d4ce7e5fbda845a973c4f61bd5f160f5f2c3c2a04d1c4"
 dependencies = [
  "libc",
  "pyo3-build-config",
@@ -4704,26 +4725,26 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros"
-version = "0.29.2"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73225868fc1cd84eef2c3c230ddb91273bf1de46aeb8a4248da76d32a0924a1c"
+checksum = "c46d2e5862c7bb8207e3b639f713dda3c499933444784154c11d013c5a691b60"
 dependencies = [
  "proc-macro2",
  "pyo3-macros-backend",
  "quote",
- "syn 2.0.118",
+ "syn 3.0.10",
 ]
 
 [[package]]
 name = "pyo3-macros-backend"
-version = "0.29.2"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "571575aa3749fa6216757dd47d2a3e7ef360f329a40f0666a9fbd14889024952"
+checksum = "38b89f066f2ae72a2aef52d1537ca2fcd104440ebfadee06e97aa90738a25b9b"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.118",
+ "syn 3.0.10",
 ]
 
 [[package]]
@@ -5941,6 +5962,17 @@ name = "syn"
 version = "2.0.118"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b9ae57f904213ebb649ce6895b8a66c66f0203b9319718f69a5612a065b1422"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
+version = "3.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ae9ccbea3a7b0b09443036490c8f34a8b1b760fd345e5c0dae0aac718faea79"
 dependencies = [
  "proc-macro2",
  "quote",
