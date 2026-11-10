@@ -8,20 +8,20 @@ name = "ddappsec_helper"
 path = "src/lib.rs"
 
 [dependencies]
-tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "net", "io-util", "sync", "time", "macros"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "io-util", "sync", "time", "macros"] }
 
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true, default-features = true, features = ["derive"] }
 serde_tuple = { version = "1.0" }
-rmp-serde = "1.1"      # MessagePack support for serde
-serde_json = "1.0"
-anyhow = { version = "1.0", features = ["backtrace"] }
-thiserror = "2"
-futures = "0.3"
-log = { version = "0.4", features = ["kv", "kv_std"] }  # Logging facade with key-value support
-tokio-util = { version = "0.7", features = ["codec", "rt"] }
+rmp-serde = { workspace = true }  # MessagePack support for serde
+serde_json = { workspace = true, default-features = true }
+anyhow = { workspace = true, default-features = true, features = ["backtrace"] }
+thiserror = { workspace = true, default-features = true }
+futures = { workspace = true, default-features = true }
+log = { workspace = true, features = ["kv", "kv_std"] }  # Logging facade with key-value support
+tokio-util = { workspace = true, features = ["codec", "rt"] }
 tokio-stream = "0.1"
-libc = "0.2"
-arc-swap = "1.7"
+libc = { workspace = true }
+arc-swap = { workspace = true }
 crossbeam-epoch = "0.9"  # Epoch-based memory reclamation
 libddwaf = { path = "../third_party/libddwaf-rust/crates/libddwaf" }
 libddwaf-sys = { path = "../third_party/libddwaf-rust/crates/libddwaf-sys", default-features = false, features = ["ring"] }
@@ -31,20 +31,20 @@ libdd-ipc = { path = "../../libdatadog/libdd-ipc" }
 libdd-process-utils = { path = "../../libdatadog/libdd-process-utils" }
 libdd-remote-config = { path = "../../libdatadog/libdd-remote-config" }
 libdd-telemetry = { path = "../../libdatadog/libdd-telemetry" }
-base64 = "0.22.1"
+base64 = { workspace = true, default-features = true }
 # gzip compression for schemas.
 # TODO: do we and libdatadog really need runtime_detection? It only gives
 # crc32fast runtime CPU detection. libdatadog's gzip users don't request it,
 # but get it through this crate because features unify; dropping it here
 # drops it for them too.
-flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend", "runtime_detection"] }
+flate2 = { workspace = true, features = ["runtime_detection"] }
 
 [features]
 coverage = []
 source-static = ["libddwaf-sys/source-static"]
 
 [build-dependencies]
-cc = "1.0"
+cc = { workspace = true }
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = { workspace = true, default-features = true }

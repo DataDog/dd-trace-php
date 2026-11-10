@@ -250,7 +250,8 @@ faststr = { version = "0.2.23", default-features = false }
 # allow(workspace-deps-features): flate2 without a backend feature is unusable
 # (no compression backend at all). `rust_backend` (pure Rust, no C dependency)
 # is the baseline we want everywhere.
-flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }
+# dd-trace-php: 1.1.10, not libdatadog's 1.0, for helper-rust's `runtime_detection`.
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
 fluent-uri = { version = "0.4.1", default-features = false }
 function_name = { version = "0.3.0", default-features = false }
 futures = { version = "0.3", default-features = false }
