@@ -11,12 +11,9 @@
  */
 
 /**
- * Whether Data Streams Monitoring is on: DD_DATA_STREAMS_ENABLED is set, and this process (or, in
- * ZTS builds, this thread) has a connection to the sidecar, which aggregates the checkpoints and
- * sends them. DD_DATA_STREAMS_ENABLED starts the sidecar, so the second part only fails when the
- * sidecar could not be connected. Remote Config can turn the setting on or off at runtime (the
- * lib_config key data_streams_enabled); Remote Config itself runs on the sidecar, so enabling DSM
- * that way needs no sidecar start of its own.
+ * Whether Data Streams Monitoring is on: DD_DATA_STREAMS_ENABLED is set, from the environment or
+ * Remote Config, and this process (or ZTS thread) has a sidecar connection to aggregate and send
+ * the checkpoints.
  */
 bool ddtrace_dsm_enabled(void);
 
