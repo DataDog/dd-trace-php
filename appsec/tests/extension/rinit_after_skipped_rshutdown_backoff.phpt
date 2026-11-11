@@ -1,16 +1,12 @@
 --TEST--
-A connection kept after a skipped request shutdown still resets the connection backoff
+Reset the connection backoff when a skipped shutdown leaves an idle helper
 --DESCRIPTION--
-After an earlier connection failure, a request reconnects and the helper
-answers its request_init without starting a helper request (config_features).
-That request's RSHUTDOWN is skipped. The connection is kept, so it must count
-as a success, as it would have in the skipped shutdown, and reset the shared
-failure counter. Otherwise reconnects would stay serialized across processes
-and the next failure would wait longer.
-The test runs both requests in one process, so a root span forgotten by the
-second one would stay alive and be reported as a leak. In a real request the
-old span went away with the old request heap, so no root span is generated
-here.
+A connection attempt fails, then a retry succeeds. The helper replies with
+config_features, which leaves it outside a request. AppSec can therefore keep
+the connection when it discovers that request shutdown was skipped.
+
+Keeping a working connection must reset the failure count, just as normal
+request shutdown would. Otherwise later failures would incur longer backoffs.
 --INI--
 datadog.appsec.enabled=1
 display_errors=0
@@ -42,7 +38,8 @@ usleep(3200000);
 rinit();
 echo "failed_count after reconnecting: ", backoff_status()['failed_count'], "\n";
 
-// The next request starts.
+// No root spans: these simulated requests share a heap, so forgetting an old
+// span would leak it rather than leave it to the previous request's teardown.
 req_lifecycle_rinit();
 echo "commands: ", implode(',', array_column($helper->get_commands(), 0)), "\n";
 echo "connected: ";

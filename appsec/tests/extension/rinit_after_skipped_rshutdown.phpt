@@ -1,43 +1,57 @@
 --TEST--
-Request init after a skipped request shutdown does not send request_init while the helper is still inside the previous request
+Reconnect to the helper after a skipped request shutdown
 --DESCRIPTION--
-When AppSec's RSHUTDOWN does not run (a bailout in the RINIT of a module
-loaded after ddtrace, a bailout in an earlier RSHUTDOWN on PHP < 8.1), the
-helper is left inside the request that received request_init. The helper
-only accepts request_exec, request_shutdown or client_shutdown there, and
-rejects anything else as an unexpected command. Here the first request ends
-without rshutdown(), and the second one must not start with request_init
-or config_sync on the same helper client.
+If request shutdown is skipped, the helper is still waiting for that request
+to finish. AppSec must reconnect before sending another request_init. Closing
+the old connection must not increase the connection failure count.
+
+Check both recovery paths: starting another request directly, and running the
+next PHP request's RINIT first. The latter must close the old connection even
+if the new request has not yet contacted the helper.
 --INI--
 datadog.appsec.enabled=1
 display_errors=0
+--ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-use function datadog\appsec\testing\rinit;
+use function datadog\appsec\testing\{rinit,req_lifecycle_rinit,backoff_status,is_connected_to_helper};
 
 include __DIR__ . '/inc/mock_helper.php';
 
-// The extension's third command, whichever it is, gets an error response.
-// Only which command it was matters here.
+$empty_obj = new ArrayObject();
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
-    response_list(response("error", [])),
+    response_list(response_client_init(
+        ['ok', phpversion('ddtrace'), [], $empty_obj, $empty_obj, null])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_client_init(
+        ['ok', phpversion('ddtrace'), [], $empty_obj, $empty_obj, null])),
+    response_list(response_request_init([[['ok', []]]])),
 ], ['no_wait_shutdown' => true]);
 
-// First request: the helper receives request_init. Its RSHUTDOWN is skipped.
-var_dump(rinit());
+// No rshutdown() between requests: request_init itself must reconnect.
+rinit();
+rinit();
+echo "direct init: ", implode(',', array_column($helper->get_commands(), 0)), "\n";
+echo "failed_count: ", backoff_status()['failed_count'], "\n";
 
-// Second request on the same process and connection.
-var_dump(rinit());
+// Simulate the next PHP request's RINIT. Disable root spans above because
+// these requests share a heap; a real request would have freed the old span.
+req_lifecycle_rinit();
+echo "connected after RINIT: ";
+var_dump(is_connected_to_helper());
 
-$commands = array_column($helper->get_commands(), 0);
-echo "first two commands: ", implode(',', array_slice($commands, 0, 2)), "\n";
-echo "third command is valid inside a request: ";
-var_dump(isset($commands[2]) &&
-    !in_array($commands[2], ['request_init', 'config_sync'], true));
+rinit();
+echo "init after RINIT: ", implode(',', array_column($helper->get_commands(), 0)), "\n";
+echo "connected: ";
+var_dump(is_connected_to_helper());
+echo "failed_count: ", backoff_status()['failed_count'], "\n";
 ?>
 --EXPECT--
-bool(true)
-bool(true)
-first two commands: client_init,request_init
-third command is valid inside a request: bool(true)
+direct init: client_init,request_init,client_init,request_init
+failed_count: 0
+connected after RINIT: bool(false)
+init after RINIT: client_init,request_init
+connected: bool(true)
+failed_count: 0
