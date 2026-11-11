@@ -21,7 +21,8 @@ All benchmark jobs are defined in `benchmarks.yml`.
     - `check-slo-breaches` gates releases based on SLOs defined on `bp-runner.fail-on-breach.yml`.
 - `dsm-throughput`: Data Streams Monitoring overhead on Kafka and RabbitMQ
   produce/consume workloads, against real brokers and agent.
-    - Runs on `master`, manual elsewhere; allowed to fail.
+    - Runs on non-scheduled `master` pipelines, manual elsewhere; allowed to
+      fail.
     - The workload is `benchmark/data-streams-monitoring/`, run against this
       pipeline's `package extension (bundles)` build.
     - Steps live in the `php/data-streams-monitoring` branch of

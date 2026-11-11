@@ -21,8 +21,8 @@ sample process RSS. Duration per iteration = produce + consume.
 
 `dsm-throughput` in `.gitlab/benchmarks.yml` runs it on the
 [benchmarking-platform](https://github.com/DataDog/benchmarking-platform)
-branch `php/data-streams-monitoring` (automatic on `master`, manual elsewhere,
-allowed to fail). It passes this checkout (`DD_TRACE_PHP_SRC_DIR`) and the
+branch `php/data-streams-monitoring` (automatic on non-scheduled `master`
+pipelines, manual elsewhere, allowed to fail). It passes this checkout (`DD_TRACE_PHP_SRC_DIR`) and the
 pipeline's packaged build (`DD_TRACE_PHP_PACKAGE_DIR`), so the workload and
 the tracer are the commit under test. The `steps/` and `bp-runner.yml`
 mentioned in the files' comments, the scenarios and the gate are in that
