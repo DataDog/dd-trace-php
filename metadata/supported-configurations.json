@@ -420,7 +420,7 @@
     ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "int",
         "default": "10000"
       }
@@ -728,7 +728,7 @@
     ],
     "DD_SITE": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "string",
         "default": "datadoghq.com"
       }

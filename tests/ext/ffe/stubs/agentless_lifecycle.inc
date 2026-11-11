@@ -70,7 +70,10 @@ try {
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nETag: $etag\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
-        if ($sentPhase === 3 || $sentPhase === 4) fwrite($pipes[0], $sentPhase . "\n");
+        // Acknowledge every response. On Windows a non-blocking read of an empty pipe still
+        // waits (PHP polls PeekNamedPipe for 32+ seconds), so the child must always get a line.
+        // The child can exit after the last response: ignore a closed pipe.
+        @fwrite($pipes[0], $sentPhase . "\n");
         if ($phase === 0) { $expectedEtag = '"blue"'; $phase = 1; }
         elseif ($phase === 1) $phase = 3;
         elseif ($phase === 5) { $expectedEtag = '"green"'; $phase = 6; }

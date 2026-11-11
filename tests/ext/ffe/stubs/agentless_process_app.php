@@ -52,7 +52,8 @@ if ($scenario === 'restart') {
     if (fgets(STDIN) !== "sidecar_killed\n") throw new RuntimeException('fixture did not stop the sidecar');
     if ($client->getStringValue('flag', 'fallback') !== 'blue') throw new RuntimeException('sidecar loss dropped the configuration');
     echo "last_configuration_retained\n";
-    $deadline = microtime(true) + 12;
+    // Under valgrind (--trace-children), the replacement sidecar takes many seconds to start.
+    $deadline = microtime(true) + ($instrumented ? 90 : 12);
     do {
         // Sidecar traffic detects the lost connection; reconnecting replays the CDN registration.
         \DDTrace\Internal\flush_ffe_evaluation_metrics();
@@ -65,7 +66,7 @@ if ($scenario === 'restart') {
     echo "sidecar_restarted_and_refreshed\n";
     // Keep PHP and its IPC connection alive while the fixture signals the
     // replacement daemon; an idle exit would hide an inherited blocked mask.
-    stream_set_timeout(STDIN, $instrumented ? 20 : 5);
+    stream_set_timeout(STDIN, $instrumented ? 60 : 5);
     if (fgets(STDIN) !== "sidecar_terminated\n") throw new RuntimeException('replacement sidecar did not handle SIGTERM');
     echo "sidecar_sigterm_handled\n";
     exit;

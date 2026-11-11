@@ -48,7 +48,7 @@ try {
             $replacement = ffeTestSidecarPid($status['pid']);
             if ($replacement === null || $replacement === $sidecarPid) throw new RuntimeException('replacement sidecar missing');
             if (!posix_kill($replacement, SIGTERM)) throw new RuntimeException('cannot signal replacement sidecar');
-            $deadline = microtime(true) + ($instrumented ? 10 : 3);
+            $deadline = microtime(true) + ($instrumented ? 45 : 3);
             while (ffeTestSidecarPid($status['pid']) === $replacement && microtime(true) < $deadline) usleep(20000);
             if (ffeTestSidecarPid($status['pid']) === $replacement) throw new RuntimeException('replacement sidecar ignored SIGTERM');
             $terminated = true;
@@ -144,7 +144,7 @@ try {
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
-    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 45 : 20)));
+    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 150 : 20)));
     $stdout .= ffeTestProcessRead($pipes[1]);
     $stderr .= ffeTestProcessRead($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out (exit=' . $exitCode . ', signal=' . $status['termsig'] . '): ' . $stdout . ' ' . $stderr);
