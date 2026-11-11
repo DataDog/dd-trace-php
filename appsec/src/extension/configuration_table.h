@@ -49,5 +49,7 @@
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")                                                                          \
     CONFIG(BOOL, DD_API_SECURITY_ENABLED, "true", .ini_change = zai_config_system_ini_change)                                         \
-    CONFIG(DOUBLE, DD_API_SECURITY_SAMPLE_DELAY, "30", .ini_change = zai_config_system_ini_change)
+    CONFIG(DOUBLE, DD_API_SECURITY_SAMPLE_DELAY, "30", .ini_change = zai_config_system_ini_change)                                    \
+    CONFIG(INT, DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS, "1")                                                            \
+    CONFIG(DOUBLE, DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE, "0.5")
 // clang-format on

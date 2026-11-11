@@ -52,6 +52,10 @@ static atomic_int _thread_count;
 #endif
 
 static void _check_enabled(void);
+static bool _parse_push_addresses_opts(zval *nullable opts_zv,
+    zend_string *nullable rule_variant, struct req_exec_opts *nonnull opts);
+static bool _get_str_opt(HashTable *nonnull ht, const char *nonnull name,
+    size_t name_len, zend_string * nullable * nonnull out);
 #ifdef TESTING
 static void _register_testing_objects(void);
 #endif
@@ -245,6 +249,14 @@ PHP_FUNCTION(datadog_appsec_is_enabled)
     RETURN_BOOL(DDAPPSEC_G(active));
 }
 
+PHP_FUNCTION(datadog_appsec_is_fully_disabled)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED);
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_rinit)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -397,12 +409,19 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
     }
 
     zval *addresses;
-    zend_string *rasp_rule = NULL;
+    zval *opts_zv = NULL;
     zend_string *rule_variant = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a|SS", &addresses, &rasp_rule,
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a|zS", &addresses, &opts_zv,
             &rule_variant) == FAILURE) {
         RETURN_FALSE;
     }
+
+    struct req_exec_opts opts = {0};
+    if (!_parse_push_addresses_opts(opts_zv, rule_variant, &opts)) {
+        RETURN_FALSE;
+    }
+    zend_string *nullable rasp_rule = opts.rasp_rule;
+    rule_variant = opts.rule_variant;
 
     bool is_rasp = rasp_rule != NULL && ZSTR_LEN(rasp_rule) > 0;
 
@@ -426,8 +445,6 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
-    struct req_exec_opts opts = {
-        .rasp_rule = rasp_rule, .rule_variant = rule_variant};
     struct block_params block_params = {0};
     struct timespec start = dd_monotime_start();
     dd_result res =
@@ -443,6 +460,76 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
     dd_request_abort_destroy_block_params(&block_params);
 
     RETURN_TRUE;
+}
+
+// The second argument is either the RASP rule name (followed by an optional
+// rule variant) or an array with the keys rasp_rule, rule_variant, subctx_id
+// and subctx_last_call. The array form exists so that callers can run the WAF
+// on a named subcontext that spans several push_addresses calls (e.g. the
+// request and the response of a downstream HTTP request).
+static bool _parse_push_addresses_opts(zval *nullable opts_zv,
+    zend_string *nullable rule_variant, struct req_exec_opts *nonnull opts)
+{
+    if (!opts_zv) {
+        return true;
+    }
+    ZVAL_DEREF(opts_zv);
+
+    if (Z_TYPE_P(opts_zv) == IS_STRING) {
+        opts->rasp_rule = Z_STR_P(opts_zv);
+        opts->rule_variant = rule_variant;
+        return true;
+    }
+
+    if (Z_TYPE_P(opts_zv) != IS_ARRAY) {
+        php_error_docref(NULL, E_WARNING,
+            "The second argument must be either a string or an array");
+        return false;
+    }
+
+    if (rule_variant) {
+        php_error_docref(NULL, E_WARNING,
+            "The rule variant must be given in the options array when the "
+            "second argument is an array");
+        return false;
+    }
+
+    HashTable *ht = Z_ARR_P(opts_zv);
+    if (!_get_str_opt(ht, LSTRARG("rasp_rule"), &opts->rasp_rule) ||
+        !_get_str_opt(ht, LSTRARG("rule_variant"), &opts->rule_variant) ||
+        !_get_str_opt(ht, LSTRARG("subctx_id"), &opts->subctx_id)) {
+        return false;
+    }
+
+    zval *last_call_zv = zend_hash_str_find(ht, LSTRARG("subctx_last_call"));
+    if (last_call_zv) {
+        ZVAL_DEREF(last_call_zv);
+        if (Z_TYPE_P(last_call_zv) != IS_TRUE &&
+            Z_TYPE_P(last_call_zv) != IS_FALSE) {
+            php_error_docref(
+                NULL, E_WARNING, "Invalid type for option subctx_last_call");
+            return false;
+        }
+        opts->subctx_last_call = Z_TYPE_P(last_call_zv) == IS_TRUE;
+    }
+
+    return true;
+}
+
+static bool _get_str_opt(HashTable *nonnull ht, const char *nonnull name,
+    size_t name_len, zend_string * nullable * nonnull out)
+{
+    zval *zv = zend_hash_str_find(ht, name, name_len);
+    if (!zv) {
+        return true;
+    }
+    ZVAL_DEREF(zv);
+    if (Z_TYPE_P(zv) != IS_STRING) {
+        php_error_docref(NULL, E_WARNING, "Invalid type for option %s", name);
+        return false;
+    }
+    *out = Z_STR_P(zv);
+    return true;
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(

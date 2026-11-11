@@ -46,9 +46,11 @@ const zend_array *nonnull _get_server_equiv(
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     dd_api_sec_outcome *nonnull outcome);
 static void _register_testing_objects(void);
+static void _set_downstream_request_metric(void);
 
 static bool _enabled_user_req;
 static zend_string *_server_zstr;
+static zend_string *_downstream_request_metric_zstr;
 
 static THREAD_LOCAL_ON_ZTS zend_object *nullable _cur_req_span;
 static THREAD_LOCAL_ON_ZTS zend_array *nullable _superglob_equiv;
@@ -60,6 +62,10 @@ static THREAD_LOCAL_ON_ZTS bool _request_blocked;
 enum { MAX_LENGTH_OF_REM_CFG_PATH = 31 };
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
+// downstream request bodies sent for analysis in the current request
+static THREAD_LOCAL_ON_ZTS uint64_t _downstream_body_count_req;
+// downstream requests considered for body analysis in this thread
+static THREAD_LOCAL_ON_ZTS uint64_t _downstream_body_count_total;
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
 bool dd_req_is_user_req(void) { return _enabled_user_req; }
@@ -93,6 +99,8 @@ void dd_req_lifecycle_startup(void)
     }
 
     _server_zstr = zend_string_init_interned(LSTRARG("_SERVER"), 1);
+    _downstream_request_metric_zstr =
+        zend_string_init_interned(LSTRARG("_dd.appsec.downstream_request"), 1);
 
     _register_testing_objects();
 }
@@ -200,6 +208,8 @@ static zend_array *nullable _do_request_begin(
     dd_tags_rinit();
 
     dd_telemetry_rinit();
+
+    _downstream_body_count_req = 0;
 
     zend_string *nullable rbe = NULL;
     if (rbe_zv) {
@@ -348,6 +358,8 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
         _reset_globals();
         return;
     }
+
+    _set_downstream_request_metric();
 
     if (_enabled_user_req) {
         if (_cur_req_span) {
@@ -1265,6 +1277,76 @@ PHP_FUNCTION(datadog_appsec_testing_dump_req_lifecycle_state)
             "shutdown_done_on_commit", sizeof("shutdown_done_on_commit") - 1,
             &zshutdown_on_commit);
     }
+}
+
+// Whether the caller should send the bodies of a downstream request it is
+// about to make to the WAF (RFC-1062). At most
+// DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS requests per request
+// are analysed, and of the candidates only a fraction given by
+// DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE is picked. The pick is
+// deterministic (Knuth multiplicative hashing of a per-thread counter) rather
+// than random, so that it spreads evenly over consecutive candidates.
+PHP_FUNCTION(datadog_appsec_should_send_downstream_bodies)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    if (!DDAPPSEC_G(active)) {
+        RETURN_FALSE;
+    }
+
+    _downstream_body_count_total++;
+
+    if (_downstream_body_count_req >=
+        (uint64_t)get_DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS()) {
+        mlog_g(dd_log_debug,
+            "Downstream body analysis limit reached for this request (%" PRIu64
+            " analysed)",
+            _downstream_body_count_req);
+        RETURN_FALSE;
+    }
+
+    double sample_rate =
+        get_DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE();
+    bool sampled;
+    if (sample_rate >= 1.0) {
+        sampled = true;
+    } else if (sample_rate <= 0.0) {
+        sampled = false;
+    } else {
+        static const uint64_t KNUTH_FACTOR = 11400714819323198549ULL;
+        uint64_t threshold = (uint64_t)(sample_rate * (double)UINT64_MAX);
+        sampled = _downstream_body_count_total * KNUTH_FACTOR < threshold;
+    }
+
+    if (!sampled) {
+        mlog_g(dd_log_debug, "Not sending downstream bodies for analysis");
+        RETURN_FALSE;
+    }
+
+    _downstream_body_count_req++;
+    mlog_g(dd_log_debug, "Sending downstream bodies for analysis");
+    RETURN_TRUE;
+}
+
+static void _set_downstream_request_metric(void)
+{
+    if (!_cur_req_span || _downstream_body_count_req == 0) {
+        return;
+    }
+    zval *metrics_zv = dd_trace_span_get_metrics(_cur_req_span);
+    if (!metrics_zv) {
+        return;
+    }
+    zval zv;
+    ZVAL_DOUBLE(&zv, 1.0);
+    zend_hash_update(
+        Z_ARRVAL_P(metrics_zv), _downstream_request_metric_zstr, &zv);
+    mlog_g(dd_log_debug,
+        "Set _dd.appsec.downstream_request metric (analysed %" PRIu64
+        " downstream requests)",
+        _downstream_body_count_req);
 }
 
 // clang-format off
