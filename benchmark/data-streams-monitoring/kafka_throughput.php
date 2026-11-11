@@ -26,8 +26,6 @@
 
 require_once __DIR__ . '/common.php';
 
-const PAYLOAD_SIZE = 1024;
-
 function bootstrap_servers(): string
 {
     return getenv('KAFKA_BOOTSTRAP_SERVERS') ?: 'localhost:9092';

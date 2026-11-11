@@ -6,6 +6,8 @@
 
 const MESSAGE_COUNT = 1000;
 const NUM_HEADERS = 5;
+// Fixed message body: str_repeat('x', PAYLOAD_SIZE).
+const PAYLOAD_SIZE = 1024;
 const DEFAULT_COMMIT_EVERY = 100;
 // How long setup waits for the broker (to start, or to create a topic), and the
 // timed consume phase for all of the messages, before giving up.

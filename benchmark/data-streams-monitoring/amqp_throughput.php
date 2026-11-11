@@ -3,10 +3,10 @@
 // RabbitMQ publish/consume throughput workload for DSM overhead benchmarking.
 //
 // The AMQP counterpart of kafka_throughput.php, with the same message-level
-// work (MESSAGE_COUNT messages carrying NUM_HEADERS headers, a commit -- here
-// an ack -- every COMMIT_EVERY messages and after the last one) so the two
-// brokers' numbers can be read side by side. None of the other languages'
-// data-streams-monitoring branches has a RabbitMQ workload.
+// work (MESSAGE_COUNT PAYLOAD_SIZE-byte messages carrying NUM_HEADERS headers,
+// a commit -- here an ack -- every COMMIT_EVERY messages and after the last
+// one) so the two brokers' numbers can be read side by side. None of the other
+// languages' data-streams-monitoring branches has a RabbitMQ workload.
 //
 // The client is php-amqplib, which dd-trace-php's AMQP integration
 // instruments (src/DDTrace/Integrations/AMQP): it sets the publish checkpoint
@@ -51,6 +51,7 @@ function amqp_connect(): AMQPStreamConnection
 
 function run_amqp_worker(string $queue, int $commitEvery): array
 {
+    $payload = str_repeat('x', PAYLOAD_SIZE);
     $headers = [];
     for ($j = 0; $j < NUM_HEADERS; $j++) {
         $headers["key$j"] = "value$j";
@@ -91,7 +92,7 @@ function run_amqp_worker(string $queue, int $commitEvery): array
         // the queue by name.
         $produceStart = now_ms();
         for ($i = 0; $i < MESSAGE_COUNT; $i++) {
-            $message = new AMQPMessage((string) $i, [
+            $message = new AMQPMessage($payload, [
                 'message_id' => (string) microtime(true),
                 'application_headers' => new AMQPTable($headers),
             ]);
