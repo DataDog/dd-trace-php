@@ -1,6 +1,0 @@
-{
-	global:
-		get_module;
-		dd_appsec_maybe_enable_helper;
-	local: *;
-};
