@@ -19,9 +19,11 @@ include __DIR__ . '/../includes/request_replayer.inc';
 const APM_TRACING_DATA_STREAMS_ENABLED = 20;
 
 // The capabilities are a big-endian bit mask: capability n is bit n % 8 of byte n / 8 from the end.
-function has_capability($base64, $capability) {
-    $bytes = str_split(strrev(base64_decode($base64)));
-    return isset($bytes[$capability >> 3]) && (ord($bytes[$capability >> 3]) >> ($capability & 7)) & 1;
+function has_capability($encoded, $capability) {
+    // The agent protocol has a base64 string; the request replayer shows the raw bytes as a list.
+    $bytes = is_array($encoded) ? $encoded : array_map('ord', str_split(base64_decode($encoded)));
+    $bytes = array_reverse($bytes);
+    return isset($bytes[$capability >> 3]) && (($bytes[$capability >> 3] >> ($capability & 7)) & 1) === 1;
 }
 
 reset_request_replayer();

@@ -26,7 +26,7 @@ dsm_state("startup");
 $path = dsm_put_config(["data_streams_enabled" => true], 0.11);
 dsm_state("enabled");
 // Only data_streams_enabled was asked for.
-var_dump(ini_get("datadog.trace.enabled"));
+var_dump(dd_trace_env_config("DD_TRACE_ENABLED"));
 
 dsm_remove_config($path, 0.11);
 dsm_state("key removed");
@@ -49,7 +49,7 @@ reset_request_replayer();
 --EXPECT--
 startup: setting=off checkpoint=none
 enabled: setting=on checkpoint=set
-string(1) "1"
+bool(true)
 key removed: setting=off checkpoint=none
 enabled again: setting=on checkpoint=set
 key removed again: setting=off checkpoint=none
