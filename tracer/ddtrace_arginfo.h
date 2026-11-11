@@ -1,5 +1,7 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: b3087c1f239d5aa8ea38f875b7236f47e56a1ca7 */
+ * Stub hash: 2e0f658dfa4016a2ee2adcc8bc8466ed3bd97a14 */
+
+#include "zend_constants.h"
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -184,17 +186,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_ffe_evaluate, 0, 4, DDTra
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, recordMetric, _IS_BOOL, 0, "true")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_has_config, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_DDTrace_ffe_has_config arginfo_DDTrace_are_endpoints_collected
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_config_version, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_ffe_load_config, 0, 1, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, json, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
-#define arginfo_DDTrace_Testing_flush_ffe_exposures arginfo_DDTrace_are_endpoints_collected
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
@@ -229,6 +224,12 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_set_blocking
 	ZEND_ARG_TYPE_INFO(0, blockingFunction, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_ffe_load_config, 0, 1, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, json, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_DDTrace_Testing_flush_ffe_exposures arginfo_DDTrace_are_endpoints_collected
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_trigger_error, 0, 2, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, message, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, errorType, IS_LONG, 0)
@@ -255,7 +256,40 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_eval
 	ZEND_ARG_TYPE_INFO(0, allocationKey, IS_STRING, 1)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, 0, _IS_BOOL, 0)
+#define arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics arginfo_DDTrace_are_endpoints_collected
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, 9, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, variant, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, allocationKey, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, targetingKey, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, attributes, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO(0, errorType, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, runtimeDefaultUsed, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, observeFullEvaluationData, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, evaluationTimestampMs, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, targetingKeyInvalid, _IS_BOOL, 0, "false")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_dsm_set_checkpoint, 0, 1, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, edgeTags, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, context, IS_STRING, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, payloadSize, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_dsm_track_backlog, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, tags, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO(0, offset, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_DDTrace_Internal_dsm_push_pathway arginfo_DDTrace_flush
+
+#define arginfo_DDTrace_Internal_dsm_pop_pathway arginfo_DDTrace_flush
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_kafka_cluster_id, 0, 1, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, kafka, IS_OBJECT, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, bootstrapServers, IS_STRING, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, waitMs, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datadog_appsec_v2_track_user_login_success, 0, 1, IS_VOID, 0)
@@ -286,8 +320,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_noop, 0, 0, _IS_BOOL, 0
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, args, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_dd_get_memory_limit, 0, 0, IS_LONG, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_dd_trace_dd_get_memory_limit arginfo_DDTrace_ffe_config_version
 
 #define arginfo_dd_trace_check_memory_under_limit arginfo_DDTrace_are_endpoints_collected
 
@@ -311,7 +344,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_buffer_span, 0, 1, _IS_
 	ZEND_ARG_TYPE_INFO(0, traceArray, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_coms_trigger_writer_flush arginfo_dd_trace_dd_get_memory_limit
+#define arginfo_dd_trace_coms_trigger_writer_flush arginfo_DDTrace_ffe_config_version
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_internal_fn, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, functionName, IS_STRING, 0)
@@ -322,11 +355,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_set_trace_id, 0, 0, _IS
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, traceId, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_closed_spans_count arginfo_dd_trace_dd_get_memory_limit
+#define arginfo_dd_trace_closed_spans_count arginfo_DDTrace_ffe_config_version
 
 #define arginfo_dd_trace_tracer_is_limited arginfo_DDTrace_are_endpoints_collected
 
-#define arginfo_dd_trace_compile_time_microseconds arginfo_dd_trace_dd_get_memory_limit
+#define arginfo_dd_trace_compile_time_microseconds arginfo_DDTrace_ffe_config_version
 
 #define arginfo_dd_trace_serialize_closed_spans arginfo_DDTrace_current_context
 
@@ -371,16 +404,16 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_SpanLink_fromHeader
 	ZEND_ARG_TYPE_MASK(0, headersOrCallback, MAY_BE_ARRAY|MAY_BE_CALLABLE, NULL)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_DDTrace_SpanData_getDuration arginfo_dd_trace_dd_get_memory_limit
+#define arginfo_class_DDTrace_SpanData_getDuration arginfo_DDTrace_ffe_config_version
 
-#define arginfo_class_DDTrace_SpanData_getStartTime arginfo_dd_trace_dd_get_memory_limit
+#define arginfo_class_DDTrace_SpanData_getStartTime arginfo_DDTrace_ffe_config_version
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_SpanData_getLink, 0, 0, DDTrace\\SpanLink, 0)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_DDTrace_SpanData_hexId arginfo_DDTrace_startup_logs
 
-#define arginfo_class_DDTrace_Integration_init arginfo_dd_trace_dd_get_memory_limit
+#define arginfo_class_DDTrace_Integration_init arginfo_DDTrace_ffe_config_version
 
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(DDTrace_trace_function);
@@ -428,8 +461,6 @@ ZEND_FUNCTION(DDTrace_flush_endpoints);
 ZEND_FUNCTION(DDTrace_ffe_evaluate);
 ZEND_FUNCTION(DDTrace_ffe_has_config);
 ZEND_FUNCTION(DDTrace_ffe_config_version);
-ZEND_FUNCTION(DDTrace_Testing_ffe_load_config);
-ZEND_FUNCTION(DDTrace_Testing_flush_ffe_exposures);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_System_process_tags_base_hash);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
@@ -438,6 +469,8 @@ ZEND_FUNCTION(DDTrace_UserRequest_has_listeners);
 ZEND_FUNCTION(DDTrace_UserRequest_notify_start);
 ZEND_FUNCTION(DDTrace_UserRequest_notify_commit);
 ZEND_FUNCTION(DDTrace_UserRequest_set_blocking_function);
+ZEND_FUNCTION(DDTrace_Testing_ffe_load_config);
+ZEND_FUNCTION(DDTrace_Testing_flush_ffe_exposures);
 ZEND_FUNCTION(DDTrace_Testing_trigger_error);
 ZEND_FUNCTION(DDTrace_Testing_emit_asm_event);
 ZEND_FUNCTION(DDTrace_Testing_normalize_tag_value);
@@ -445,6 +478,12 @@ ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(DDTrace_Internal_handle_fork);
 ZEND_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric);
 ZEND_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics);
+ZEND_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation);
+ZEND_FUNCTION(DDTrace_Internal_dsm_set_checkpoint);
+ZEND_FUNCTION(DDTrace_Internal_dsm_track_backlog);
+ZEND_FUNCTION(DDTrace_Internal_dsm_push_pathway);
+ZEND_FUNCTION(DDTrace_Internal_dsm_pop_pathway);
+ZEND_FUNCTION(DDTrace_Internal_kafka_cluster_id);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_success);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_failure);
 ZEND_FUNCTION(dd_trace_env_config);
@@ -547,6 +586,12 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_evaluation_metric"), zif_DDTrace_Internal_record_ffe_evaluation_metric, arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "flush_ffe_evaluation_metrics"), zif_DDTrace_Internal_flush_ffe_evaluation_metrics, arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_flag_evaluation"), zif_DDTrace_Internal_record_ffe_flag_evaluation, arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_set_checkpoint"), zif_DDTrace_Internal_dsm_set_checkpoint, arginfo_DDTrace_Internal_dsm_set_checkpoint, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_track_backlog"), zif_DDTrace_Internal_dsm_track_backlog, arginfo_DDTrace_Internal_dsm_track_backlog, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_push_pathway"), zif_DDTrace_Internal_dsm_push_pathway, arginfo_DDTrace_Internal_dsm_push_pathway, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_pop_pathway"), zif_DDTrace_Internal_dsm_pop_pathway, arginfo_DDTrace_Internal_dsm_pop_pathway, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "kafka_cluster_id"), zif_DDTrace_Internal_kafka_cluster_id, arginfo_DDTrace_Internal_kafka_cluster_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_success"), zif_datadog_appsec_v2_track_user_login_success, arginfo_datadog_appsec_v2_track_user_login_success, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_failure"), zif_datadog_appsec_v2_track_user_login_failure, arginfo_datadog_appsec_v2_track_user_login_failure, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
@@ -672,6 +717,12 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 	zend_string *property_doLog_name = zend_string_init("doLog", sizeof("doLog") - 1, true);
 	zend_declare_typed_property(class_entry, property_doLog_name, &property_doLog_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
 	zend_string_release_ex(property_doLog_name, true);
+
+	zval property_observeFullEvaluationData_default_value;
+	ZVAL_FALSE(&property_observeFullEvaluationData_default_value);
+	zend_string *property_observeFullEvaluationData_name = zend_string_init("observeFullEvaluationData", sizeof("observeFullEvaluationData") - 1, true);
+	zend_declare_typed_property(class_entry, property_observeFullEvaluationData_name, &property_observeFullEvaluationData_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
+	zend_string_release_ex(property_observeFullEvaluationData_name, true);
 
 	zval property_serialId_default_value;
 	ZVAL_NULL(&property_serialId_default_value);

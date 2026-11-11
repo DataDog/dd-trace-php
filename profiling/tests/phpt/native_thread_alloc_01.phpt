@@ -10,7 +10,7 @@ otherwise bypass the cache-lifetime behavior this test covers.
 --CGI--
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
   die("skip: test requires datadog-profiling");
 if (PHP_ZTS)
   die("skip: test only applies to NTS builds");

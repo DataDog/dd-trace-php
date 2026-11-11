@@ -1,0 +1,339 @@
+pecl-memcache PHP 8.6 support, applied on top of ac8e8c521a18 (main) by build-extensions.sh.
+Diff of the octopus merge of the unmerged upstream PRs:
+  #120 5007fe083a22907a7e6a1d811a0e3f72a8dbf0f4 (build fix for PHP 8.6)
+  #122 7edf43e28b06268ae21988105b568d6df1ea8564 (PS_CREATE_SID/PS_VALIDATE_SID session handlers)
+Drop once upstream releases PHP 8.6 support.
+
+diff --git a/src/memcache.c b/src/memcache.c
+index 524ca47..df75462 100644
+--- a/src/memcache.c
++++ b/src/memcache.c
+@@ -985,7 +985,12 @@ static void php_mmc_store(INTERNAL_FUNCTION_PARAMETERS, int op) /* {{{ */
+ 		}
+ 	}
+ 	else {
++#if PHP_VERSION_ID < 80600
+ 		WRONG_PARAM_COUNT;
++#else
++		zend_wrong_param_count();
++		RETURN_THROWS();
++#endif
+ 	}
+ 
+ 	/* execute all requests */
+@@ -2245,7 +2250,7 @@ static int mmc_stats_handler(mmc_t *mmc, mmc_request_t *request, int response, c
+ 			return MMC_REQUEST_AGAIN;
+ 		}
+ 
+-		zval_dtor((zval *)param);
++		zval_ptr_dtor_nogc((zval *)param);
+ 		ZVAL_FALSE((zval *)param);
+ 		return MMC_REQUEST_FAILURE;
+ 	}
+diff --git a/src/memcache_binary_protocol.c b/src/memcache_binary_protocol.c
+index 77a93f9..dd1106c 100644
+--- a/src/memcache_binary_protocol.c
++++ b/src/memcache_binary_protocol.c
+@@ -383,7 +383,7 @@ static int mmc_request_read_mutate(mmc_t *mmc, mmc_request_t *request) /*
+ 				Z_STRVAL(keytmp), Z_STRLEN(keytmp), &value,
+ 				req->value.flags, req->value.cas, request->value_handler_param);
+ 
+-			zval_dtor(&keytmp);
++			zval_ptr_dtor_nogc(&keytmp);
+ 		}
+ 		else {
+ 			result = request->value_handler(
+@@ -454,7 +454,7 @@ static int mmc_request_read_value(mmc_t *mmc, mmc_request_t *request) /*
+ 				mmc, request, &(request->readbuf), Z_STRVAL(keytmp), Z_STRLEN(keytmp),
+ 				req->value.flags, req->value.cas, req->value.length);
+ 
+-			zval_dtor(&keytmp);
++			zval_ptr_dtor_nogc(&keytmp);
+ 		}
+ 		else {
+ 			result = mmc_unpack_value(
+diff --git a/src/memcache_pool.c b/src/memcache_pool.c
+index bd1429c..d075c8b 100644
+--- a/src/memcache_pool.c
++++ b/src/memcache_pool.c
+@@ -426,7 +426,7 @@ int mmc_pack_value(mmc_pool_t *pool, mmc_buffer_t *buffer, zval *value, unsigned
+ 			PHP_VAR_SERIALIZE_DESTROY(value_hash);
+ 
+ 			if (!buf.s) {
+-				zval_dtor(&value_copy);
++				zval_ptr_dtor_nogc(&value_copy);
+ 				php_error_docref(NULL, E_WARNING, "Failed to serialize value");
+ 				return MMC_REQUEST_FAILURE;
+ 			}
+@@ -436,13 +436,13 @@ int mmc_pack_value(mmc_pool_t *pool, mmc_buffer_t *buffer, zval *value, unsigned
+ 
+ 			/* trying to save null or something went really wrong */
+ 			if (buffer->value.c == NULL || buffer->value.len == prev_len) {
+-				zval_dtor(&value_copy);
++				zval_ptr_dtor_nogc(&value_copy);
+ 				php_error_docref(NULL, E_WARNING, "Failed to serialize value");
+ 				return MMC_REQUEST_FAILURE;
+ 			}
+ 
+ 			*flags |= MMC_SERIALIZED;
+-			zval_dtor(&value_copy);
++			zval_ptr_dtor_nogc(&value_copy);
+ 
+ 			mmc_compress(pool, buffer, buffer->value.c + prev_len, buffer->value.len - prev_len, flags, 1);
+ 		}
+@@ -2095,7 +2095,7 @@ MMC_POOL_INLINE int mmc_prepare_key(zval *key, char *result, unsigned int *resul
+ 
+ 		res = mmc_prepare_key_ex(Z_STRVAL(keytmp), Z_STRLEN(keytmp), result, result_len, MEMCACHE_G(key_prefix));
+ 
+-		zval_dtor(&keytmp);
++		zval_ptr_dtor_nogc(&keytmp);
+ 		return res;
+ 	}
+ }
+diff --git a/src/memcache_session.c b/src/memcache_session.c
+index 55a6e82..2b5c942 100644
+--- a/src/memcache_session.c
++++ b/src/memcache_session.c
+@@ -60,7 +60,11 @@ PS_OPEN_FUNC(memcache)
+ 	if (!path) {
+ 		/* allow to work with standard session.save_path option
+ 		   and session_save_path function */
++#if PHP_VERSION_ID < 80600
+ 		path = save_path;
++#else
++		path = ZSTR_VAL(save_path);
++#endif
+ 	}
+ 	if (!path) {
+ 		PS_SET_MOD_DATA(NULL);
+@@ -355,7 +359,7 @@ PS_READ_FUNC(memcache)
+ 				}
+ 
+ 				/* if missing value, skip this server and try next */
+-				zval_dtor(&dataresult);
++				zval_ptr_dtor_nogc(&dataresult);
+ 				mmc_queue_push(&skip_servers, mmc);
+ 				
+ 				/* if it is the last server in pool and connection was ok return success and empty string due to php70 changes */
+@@ -366,7 +370,7 @@ PS_READ_FUNC(memcache)
+ 				}
+ 			}
+ 			else {
+-				zval_dtor(&dataresult);
++				zval_ptr_dtor_nogc(&dataresult);
+ 
+ 				/* if missing lock, back off and retry same server */
+ 				last_index = prev_index;
+@@ -382,7 +386,7 @@ PS_READ_FUNC(memcache)
+ 		} while (skip_servers.len < MEMCACHE_G(session_redundancy) && skip_servers.len < pool->num_servers && remainingtime > 0);
+ 
+ 		mmc_queue_free(&skip_servers);
+-		zval_dtor(&dataresult);
++		zval_ptr_dtor_nogc(&dataresult);
+ 
+ 		return SUCCESS;
+ 	}
+@@ -405,7 +409,7 @@ PS_WRITE_FUNC(memcache)
+ 		mmc_t *mmc;
+ 		mmc_request_t *lockrequest, *datarequest;
+ 		mmc_queue_t skip_servers = {0};
+-		size_t lifetime = (size_t)time(NULL) + INI_INT("session.gc_maxlifetime");
++		size_t lifetime = (size_t)time(NULL) + zend_ini_long("session.gc_maxlifetime", strlen("session.gc_maxlifetime"), 0);
+ 		unsigned int last_index = 0;
+ 
+ 		ZVAL_NULL(&lockresult);
+@@ -573,6 +577,116 @@ PS_GC_FUNC(memcache)
+ }
+ /* }}} */
+ 
++#if PHP_VERSION_ID >= 80600
++static zend_result php_mmc_session_key_exists(mmc_pool_t *pool, zend_string *key)
++{
++	zval result, zkey;
++	zval *resultparam[3];
++	mmc_t *mmc;
++	mmc_request_t *request;
++	mmc_queue_t skip_servers = {0};
++	unsigned int last_index = 0;
++
++	ZVAL_STR(&zkey, key);
++
++	resultparam[0] = &result;
++	resultparam[1] = NULL;
++	resultparam[2] = NULL;
++
++	do {
++		ZVAL_NULL(&result);
++
++		request = mmc_pool_request_get(
++			pool, MMC_PROTO_TCP, mmc_value_handler_single, resultparam,
++			mmc_pool_failover_handler_null, NULL);
++
++		if (mmc_prepare_key_ex(
++				ZSTR_VAL(key), ZSTR_LEN(key),
++				request->key, &(request->key_len),
++				MEMCACHE_G(session_key_prefix)) != MMC_OK) {
++			mmc_pool_release(pool, request);
++			mmc_queue_free(&skip_servers);
++			return FAILURE;
++		}
++
++		pool->protocol->get(
++			request, MMC_OP_GET, &zkey,
++			request->key, request->key_len);
++
++		mmc = mmc_pool_find_next(
++			pool,
++			request->key, request->key_len,
++			&skip_servers, &last_index);
++
++		if (!mmc_server_valid(mmc) ||
++			mmc_pool_schedule(pool, mmc, request) != MMC_OK) {
++			mmc_pool_release(pool, request);
++			mmc_queue_push(&skip_servers, mmc);
++			continue;
++		}
++
++		mmc_pool_run(pool);
++
++		if (Z_TYPE(result) == IS_STRING) {
++			zval_ptr_dtor(&result);
++			mmc_queue_free(&skip_servers);
++			return SUCCESS;
++		}
++
++		zval_ptr_dtor(&result);
++		mmc_queue_push(&skip_servers, mmc);
++
++	} while (skip_servers.len < MEMCACHE_G(session_redundancy) &&
++		 skip_servers.len < pool->num_servers);
++
++	mmc_queue_free(&skip_servers);
++
++	return FAILURE;
++}
++
++PS_VALIDATE_SID_FUNC(memcache)
++{
++	mmc_pool_t *pool = PS_GET_MOD_DATA();
++
++	if (pool == NULL) {
++		return FAILURE;
++	}
++
++	return php_mmc_session_key_exists(pool, key);
++}
++
++PS_CREATE_SID_FUNC(memcache)
++{
++	mmc_pool_t *pool = PS_GET_MOD_DATA();
++	zend_string *sid;
++	int maxfail = 3;
++
++	do {
++		sid = php_session_create_id(mod_data);
++
++		if (sid == NULL) {
++			if (--maxfail < 0) {
++				return NULL;
++			}
++			continue;
++		}
++
++		if (pool != NULL &&
++			php_mmc_session_key_exists(pool, sid) == SUCCESS) {
++			zend_string_release_ex(sid, false);
++			sid = NULL;
++
++			if (--maxfail < 0) {
++				return NULL;
++			}
++		}
++	} while (sid == NULL);
++
++	return sid;
++}
++
++#endif /* PHP_VERSION_ID >= 80600 */
++
+ /*
+  * Local variables:
+  * tab-width: 4
+diff --git a/tests/pecl63142.phpt b/tests/pecl63142.phpt
+index 5eef5f9..bea5697 100644
+--- a/tests/pecl63142.phpt
++++ b/tests/pecl63142.phpt
+@@ -2,9 +2,6 @@
+ PECL bug #63142 (memcache 3.0.7 segfaults with object (un)serialization)
+ --SKIPIF--
+ <?php include 'connect.inc'; ?>
+---INI--
+-;fix me later
+-report_memleaks=0
+ --FILE--
+ <?php
+ 
+diff --git a/tests/session_strict_mode.phpt b/tests/session_strict_mode.phpt
+new file mode 100644
+index 0000000..85b0144
+--- /dev/null
++++ b/tests/session_strict_mode.phpt
+@@ -0,0 +1,58 @@
++--TEST--
++Memcache session handler supports strict mode
++--SKIPIF--
++<?php
++if (!extension_loaded('memcache')) {
++    die('skip memcache extension not loaded');
++}
++if (PHP_VERSION_ID < 80600) {
++    die('skip PHP 8.6+ only');
++}
++?>
++--INI--
++session.save_handler=memcache
++session.save_path=tcp://127.0.0.1:11211
++session.use_strict_mode=1
++session.use_cookies=0
++session.cache_limiter=
++--FILE--
++<?php
++
++/* Create a session and write some data. */
++session_start();
++$sid = session_id();
++
++$_SESSION['foo'] = 'bar';
++$_SESSION['answer'] = 42;
++
++session_write_close();
++
++/* An existing SID must be accepted in strict mode. */
++session_id($sid);
++var_dump(session_start());
++var_dump(session_id() === $sid);
++var_dump($_SESSION);
++
++session_write_close();
++
++/* A nonexistent SID must be rejected in strict mode. */
++$invalid = 'this-session-does-not-exist';
++
++session_id($invalid);
++var_dump(session_start());
++var_dump(session_id() !== $invalid);
++
++session_abort();
++
++?>
++--EXPECT--
++bool(true)
++bool(true)
++array(2) {
++  ["foo"]=>
++  string(3) "bar"
++  ["answer"]=>
++  int(42)
++}
++bool(true)
++bool(true)

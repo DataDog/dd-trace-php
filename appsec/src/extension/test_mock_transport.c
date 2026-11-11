@@ -11,11 +11,10 @@
 #    include <unistd.h>
 
 #    include "attributes.h"
-#    include "compatibility.h"
 #    include "logging.h"
-#    include "php_compat.h"
 #    include "php_objects.h"
 #    include "test_mock_transport.h"
+#    include <ext/compatibility.h>
 
 /* In test mode the PHP script creates a socketpair and tells the extension
  * which fd to use via datadog\appsec\testing\set_mock_helper_fd().  The fd is

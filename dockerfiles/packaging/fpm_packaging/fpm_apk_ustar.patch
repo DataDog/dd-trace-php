@@ -1,0 +1,19 @@
+Build the apk tars in ustar format. tar defaults to the GNU format, which stores paths
+over 100 chars in a GNU long-name (L) entry whose size counts the trailing NUL. apk-tools
+>= 3.0.9 (Alpine 3.24.4) takes that NUL as part of the file name and rejects the package
+with "file format is invalid or inconsistent". ustar splits long paths into the prefix
+field instead (up to 255 chars; tar errors out above that).
+Applied on top of fpm_apk_tar_headers.patch.
+
+--- a/lib/fpm/package/apk.rb
++++ b/lib/fpm/package/apk.rb
+@@ -433,6 +433,9 @@
+       args =
+       [
+         tar_cmd,
++        # ustar: long paths go in the prefix field. apk-tools 3.0.9 (Alpine 3.24.4)
++        # rejects the GNU long-name (L) entries tar writes by default for paths over 100 chars.
++        "--format=ustar",
+         "-f",
+         target_path,
+         "-c"

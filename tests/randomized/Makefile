@@ -3,6 +3,7 @@ TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 DOCKER_IMAGE_VERSION := 2
+CENTOS_DOCKER_IMAGE_VERSION := 3
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
@@ -58,7 +59,7 @@ pull.buster: \
 	pull.buster.8.3
 
 pull.centos.%:
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos-$(*)-$(DOCKER_IMAGE_VERSION)
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(CENTOS_DOCKER_IMAGE_VERSION)
 
 pull.buster.%:
 	@docker pull $(DOCKER_IMAGE_PREFIX)buster-$(*)-$(DOCKER_IMAGE_VERSION)

@@ -4,6 +4,7 @@ name = "php_sidecar_mockgen"
 version = "0.1.0"
 
 [dependencies]
+object = { version = "0.31.0" }
 sidecar_mockgen = { path = "../../libdatadog/tools/sidecar_mockgen" }
 
 [[bin]]

@@ -2,8 +2,6 @@ mod ffi;
 
 pub use ffi::*;
 
-pub use libdd_library_config_ffi::*;
-
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -14,6 +12,10 @@ use std::{ptr, str};
 extern "C" {
     pub static ddog_php_prof_functions: *const zend_function_entry;
 }
+
+// PHP 8.6 turned the ZEND_*_FUNCTION macros into enumerators of a C23_ENUM.
+#[cfg(php_function_type_enum)]
+pub const ZEND_INTERNAL_FUNCTION: u8 = zend_function_type_ZEND_INTERNAL_FUNCTION;
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
@@ -362,6 +364,8 @@ extern "C" {
     /// until mshutdown.
     pub(crate) fn ddog_php_prof_get_memoized_config(config_id: ConfigId) -> *mut zval;
 
+    pub(crate) fn ddog_php_prof_config_count() -> u16;
+    pub(crate) fn datadog_php_profiling_config_count_error(c_count: u16, rust_count: usize);
     /// Returns true if the config value was explicitly set by the user (not
     /// just the compiled-in default), false otherwise.
     pub(crate) fn ddog_php_prof_config_is_set_by_user(config_id: ConfigId) -> bool;
@@ -489,6 +493,19 @@ impl TryFrom<&mut zval> for zend_long {
     }
 }
 
+impl TryFrom<&mut zval> for f64 {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == IS_DOUBLE {
+            Ok(unsafe { zval.value.dval })
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
 impl TryFrom<&mut zval> for u32 {
     type Error = u8;
 
@@ -608,12 +625,7 @@ impl Default for ZaiStr<'_> {
 
 impl<'a> ZaiStr<'a> {
     pub const fn new() -> ZaiStr<'a> {
-        const NULL: &[u8] = b"\0";
-        Self {
-            len: 0,
-            ptr: NULL.as_ptr() as *const c_char,
-            _marker: PhantomData,
-        }
+        Self::from_cstr(c"")
     }
 
     pub fn is_empty(&self) -> bool {
@@ -621,19 +633,10 @@ impl<'a> ZaiStr<'a> {
         self.len == 0 || self.ptr.is_null()
     }
 
-    /// # Safety
-    /// `str` must be valid for [CStr::from_bytes_with_nul_unchecked]
-    pub const unsafe fn literal(bytes: &'static [u8]) -> Self {
-        // Chance at catching some UB at runtime with debug builds.
-        debug_assert!(!bytes.is_empty() && bytes[bytes.len() - 1] == 0);
-
-        let mut i: usize = 0;
-        while bytes[i] != b'\0' {
-            i += 1;
-        }
+    pub const fn from_cstr(cstr: &'a CStr) -> Self {
         Self {
-            len: i as size_t,
-            ptr: bytes.as_ptr() as *const c_char,
+            len: cstr.to_bytes().len() as size_t,
+            ptr: cstr.as_ptr(),
             _marker: PhantomData,
         }
     }

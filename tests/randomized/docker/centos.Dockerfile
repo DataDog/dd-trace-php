@@ -1,6 +1,7 @@
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
 ARG PHP_MAJOR_MINOR
 
-FROM datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_centos-7
+FROM ${CI_REGISTRY_IMAGE}:php-${PHP_MAJOR_MINOR}_centos-7-3
 
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
@@ -20,17 +21,17 @@ RUN for DIR in /opt/php/*; do (echo "zend_extension=opcache.so"; echo "opcache.e
 
 # Igbinary
 RUN set -eux; \
-    pecl install "igbinary"; \
+    pecl install "igbinary-3.2.17RC1"; \
     for DIR in /opt/php/*; do echo "extension=igbinary.so" > $DIR/conf.d/igbinary.ini; done
 
 # Memached
 RUN set -eux; \
-    printf 'yes' | pecl install "memcached"; \
+    printf 'yes' | pecl install "memcached-3.4.0"; \
     for DIR in /opt/php/*; do echo "extension=memcached.so" > $DIR/conf.d/memcached.ini; done
 
-# Redis
+# Redis, pinned: 6.1+ needs PHP 7.4 and 6.3 no longer builds with CentOS 7's GCC 4.8
 RUN set -eux; \
-    printf 'yes' | pecl install "redis$(if [ ${PHP_VERSION/./} -le 71 ]; then echo -5.3.7; fi)"; \
+    printf 'yes' | pecl install "redis-$(if [ ${PHP_VERSION/./} -le 71 ]; then echo 5.3.7; else echo 6.0.2; fi)"; \
     for DIR in /opt/php/*; do echo "extension=redis.so" > $DIR/conf.d/redis.ini; done
 
 # Create coredumps folder

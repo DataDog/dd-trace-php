@@ -15,7 +15,7 @@ compile_rust.sh @Datadog/libdatadog-apm @DataDog/apm-php-core
 /src/ @DataDog/apm-idm-php @DataDog/apm-php-core
 
 # FFE (Feature Flagging & Experimentation) SDK Team
-/components-rs/ffe.rs @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/components-rs/tracer_runtime/ffe.rs @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
 /libdatadog @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
 /src/api/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
 /src/DDTrace/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core

@@ -39,7 +39,6 @@ Original:
 Array
 (
     [key] => value
-    [number] => 42
 )
 Test 2: Truncated array:
 Original:
@@ -49,7 +48,6 @@ Array
     [0] => 1
     [1] => 2
     [2] => 3
-    [3] => 4
 )
 Test 3: Nested truncated object:
 Original:
@@ -63,7 +61,6 @@ Array
                     [deep] => value
                 )
 
-            [other] => 123
         )
 
 )
@@ -72,13 +69,13 @@ Original:
 {"message": "This is a long messa
 Array
 (
+    [message] => This is a long messa
 )
 Test 5: Number truncation:
 Original:
 {"pi": 3.14159
 Array
 (
-    [pi] => 3.14159
 )
 Test 6: Mixed array truncation:
 Original:
@@ -128,6 +125,7 @@ Array
     [1] => Array
         (
             [id] => 2
+            [name] => sec
         )
 
 )

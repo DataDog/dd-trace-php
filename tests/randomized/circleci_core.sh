@@ -40,7 +40,8 @@ done
 
 COREFILE=${COREFILES[$((num - 1))]}
 corefilename=$(echo "$COREFILE" | grep -Eo 'randomized-[^/]+')
-container="datadog/dd-trace-ci:php-randomizedtests-$(if [[ $COREFILE == *buster* ]]; then echo buster; else echo centos7; fi)-${corefilename: -2:1}.${corefilename: -1}-2"
+if [[ $COREFILE == *buster* ]]; then os=buster; image_version=2; else os=centos7; image_version=3; fi
+container="datadog/dd-trace-ci:php-randomizedtests-${os}-${corefilename: -2:1}.${corefilename: -1}-${image_version}"
 
 if [[ $TEST_NAME == *asan* ]]; then
   ARTIFACTS_JOB='package extension zts-debug-asan'

@@ -2,7 +2,7 @@
 
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "ddtrace.h"
+#include "tracer_bridge.h"
 #include "request_abort.h"
 
 extern ddtrace_user_req_listeners dd_user_req_listeners;

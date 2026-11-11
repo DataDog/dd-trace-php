@@ -1,5 +1,7 @@
 --TEST--
 Test calls to request_shutdown only when enabled
+--ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit, rshutdown};

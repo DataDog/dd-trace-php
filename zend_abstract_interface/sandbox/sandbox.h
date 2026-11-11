@@ -99,7 +99,7 @@
  *     void zai_sandbox_engine_state_restore(zai_engine_state *es);
  */
 
-extern long zai_sandbox_active;
+extern ZEND_EXT_TLS long zai_sandbox_active;
 
 #if PHP_VERSION_ID >= 80000
 /********************************** <PHP 8> **********************************/
@@ -255,6 +255,9 @@ inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
 void zai_reset_observed_frame_post_bailout(void);
 #if PHP_VERSION_ID >= 80200
 zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data);
+/* The saved observer head at a callback boundary, or NULL if this frame is not a boundary.
+ * Running-frame joins must update this head instead of the callback's isolated chain. */
+zend_execute_data **zai_sandbox_observed_frame(zend_execute_data *boundary);
 #endif
 /********************************** </PHP 8> *********************************/
 #else

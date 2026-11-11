@@ -13,19 +13,18 @@
 
 #define HELPER_PROCESS_C_INCLUDES
 #include "commands/client_shutdown.h"
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
+#include "ddappsec_api.h"
 #include "dddefs.h"
 #include "helper_process.h"
 #include "logging.h"
 #include "network.h"
-#include "php_compat.h"
 #include "php_objects.h"
 #include "telemetry.h"
-#include "version.h"
+#include <ext/compatibility.h>
+#include <ext/version.h>
 
-#define MAX_WAIT_TIME_MS (1ULL << 55)
 typedef struct _dd_helper_shared_state {
     uint8_t failed_count : 7;
     bool try_in_progress : 1; // only for log messages
@@ -44,15 +43,11 @@ typedef struct _dd_helper_mgr {
 static _Atomic(dd_helper_shared_state) *_shared_state;
 
 static THREAD_LOCAL_ON_ZTS dd_helper_mgr _mgr;
-static THREAD_LOCAL_ON_ZTS helper_runtime _helper_runtime =
-    HELPER_RUNTIME_UNKNOWN;
 
 static const double _backoff_initial = 3.0;
 static const double _backoff_base = 2.0;
 // max retry will be 3 * 2^10 =~ 51 mins */
 static const double _backoff_max_exponent = 10.0;
-
-#define DD_PATH_FORMAT "%s%sddappsec_" PHP_DDAPPSEC_VERSION "_%u"
 
 #ifdef TESTING
 static void _register_testing_objects(void);
@@ -86,22 +81,29 @@ void dd_helper_shutdown(void)
     }
 }
 
-void dd_helper_gshutdown(zend_ddappsec_globals *nonnull globals)
+void dd_helper_mshutdown(void)
 {
+    if (dd_conn_connected(&DDAPPSEC_G(conn))) {
+        mlog_g(dd_log_debug, "Sending client shutdown goodbye on mshutdown");
+        dd_helper_close_conn(true, NULL, 0);
+    }
+}
+
+void dd_helper_gshutdown(ddappsec_globals *nonnull globals)
+{
+    if (!dd_conn_connected(&globals->conn)) {
+        mlog(dd_log_debug, "Not connected; nothing to do in %s", __func__);
+        return;
+    }
+
     // Under ZTS, ts_free_id calls this from the main thread for each worker's
-    // TSRM storage. We temporarily redirect this thread's DDAPPSEC_G lookups
-    // to the worker's ls cache.
+    // TSRM storage. Point this thread's DATADOG_G lookups at the worker's
+    // globals, so the goodbye goes over the worker's sidecar transport, which
+    // the datadog module's GSHUTDOWN only drops after this.
 #ifdef ZTS
     void *saved_ls = TSRMLS_CACHE;
     TSRMLS_CACHE = globals->ts_ls_cache;
 #endif
-    if (!dd_conn_connected(&globals->conn)) {
-        mlog(dd_log_debug, "Not connected; nothing to do in %s", __func__);
-        goto exit;
-    }
-
-    // we assume we're running before the ddtrace shutdown, so we're able to
-    // send the goodbye
     mlog_g(dd_log_debug, "Sending client shutdown goodbye on gshutdown");
     struct client_shutdown_data data = {.clean = true, .error = NULL};
     int res = dd_client_shutdown(&globals->conn, &data);
@@ -112,8 +114,6 @@ void dd_helper_gshutdown(zend_ddappsec_globals *nonnull globals)
     }
 
     dd_conn_destroy(&globals->conn);
-
-exit:;
 #ifdef ZTS
     TSRMLS_CACHE = saved_ls;
 #endif
@@ -130,7 +130,7 @@ void dd_helper_rshutdown(void)
 dd_conn *nullable dd_helper_mgr_acquire_conn(
     client_init_func nonnull init_func, void *unspecnull ctx)
 {
-    dd_conn *conn = &DDAPPSEC_G(conn);
+    dd_conn *volatile conn = &DDAPPSEC_G(conn);
     if (dd_conn_connected(conn)) {
         return conn;
     }
@@ -145,18 +145,25 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
 
     dd_conn_init(conn);
 
-    int res = init_func(conn, ctx);
+    volatile int res;
+    zend_try { res = init_func(conn, ctx); }
+    zend_catch
+    {
+        dd_conn_destroy(conn);
+        _release_shared_state_lock(&_mgr.hss);
+        zend_bailout();
+    }
+    zend_end_try();
     if (res) {
+        dd_conn_destroy(conn);
         mlog_g(dd_log_warning, "Initial exchange with helper failed; "
                                "abandoning the connection");
-        dd_conn_destroy(conn);
         goto error;
     }
 
-    mlog(dd_log_debug, "returning fresh connection");
-
     _mgr.connected_this_req = true;
     _release_shared_state_lock(&_mgr.hss);
+    mlog(dd_log_debug, "returning fresh connection");
     dd_telemetry_helper_conn_success();
 
     return conn;
@@ -176,17 +183,12 @@ dd_conn *nullable dd_helper_mgr_cur_conn(void)
     return NULL;
 }
 
-helper_runtime dd_helper_get_runtime(void) { return _helper_runtime; }
-
-void dd_helper_set_runtime(helper_runtime rt) { _helper_runtime = rt; }
-
 static inline ddog_CharSlice to_char_slice(zend_string *zs)
 {
     return (ddog_CharSlice){.len = ZSTR_LEN(zs), .ptr = ZSTR_VAL(zs)};
 }
 
-__attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
-    sidecar_enable_appsec_t nonnull enable_appsec,
+bool dd_appsec_maybe_enable_helper(
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     bool *nonnull appsec_activation, bool *nonnull appsec_conf)
 {
@@ -204,7 +206,7 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
     ddog_CharSlice log_level =
         to_char_slice(get_global_DD_APPSEC_HELPER_LOG_LEVEL());
 
-    enable_appsec(log_path, log_level);
+    ddog_sidecar_enable_appsec(log_path, log_level);
 
     *appsec_activation = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
     // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
@@ -239,7 +241,6 @@ void dd_helper_close_conn(
 
     dd_conn_destroy(&DDAPPSEC_G(conn));
 
-    dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
     if (error) {
         dd_telemetry_helper_conn_close();
     }
@@ -459,7 +460,6 @@ static PHP_FUNCTION(datadog_appsec_testing_is_connected_to_helper)
     }
 }
 
-#    define TEN_E9_D 1000000000.0
 static PHP_FUNCTION(datadog_appsec_testing_backoff_status)
 {
     if (zend_parse_parameters_none() == FAILURE) {

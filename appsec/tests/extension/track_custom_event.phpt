@@ -1,7 +1,5 @@
 --TEST--
 Track a custom event and verify the contents of the root span
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--

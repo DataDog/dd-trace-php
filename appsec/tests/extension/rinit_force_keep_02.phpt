@@ -1,7 +1,6 @@
 --TEST--
 Sampling priority is left as it is when not forced
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

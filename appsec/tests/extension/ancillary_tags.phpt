@@ -1,7 +1,6 @@
 --TEST--
 Test full set of ancillary tags
 --INI--
-extension=ddtrace.so
 datadog.appsec.extra_headers=,mY-header,,my-other-header
 --ENV--
 REQUEST_URI=/my/ur%69/

@@ -185,7 +185,7 @@ final class OpenFeatureMetricEvaluator implements Evaluator
         return $this;
     }
 
-    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = [])
+    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = [], $targetingKeyInvalid = false)
     {
         if (!array_key_exists($flagKey, $this->details)) {
             return new EvaluationDetails(

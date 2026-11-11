@@ -1,9 +1,7 @@
 {
 	# Enable FrankenPHP
 	frankenphp {
-        worker {
-            file {{frankenphp_php}}
-        }
+		{{frankenphp_worker}}
 	}
 	# Configure when the directive must be executed
 	order php_server before file_server

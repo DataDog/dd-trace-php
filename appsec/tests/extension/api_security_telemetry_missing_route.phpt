@@ -1,7 +1,6 @@
 --TEST--
 appsec.api_security.missing_route is reported when no route can be determined
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test_apisec_missing_route.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1

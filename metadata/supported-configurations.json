@@ -278,6 +278,13 @@
         "default": "true"
       }
     ],
+    "DD_DATA_STREAMS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_DBM_ALWAYS_APPEND_SQL_COMMENT": [
       {
         "implementation": "A",
@@ -297,6 +304,13 @@
         "implementation": "A",
         "type": "string",
         "default": "disabled"
+      }
+    ],
+    "DD_DBM_TRACE_PREPARED_STATEMENTS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
       }
     ],
     "DD_DISTRIBUTED_TRACING": [
@@ -362,6 +376,13 @@
         "default": ""
       }
     ],
+    "DD_ENTITY_ID": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
     "DD_ENV": [
       {
         "implementation": "A",
@@ -407,6 +428,13 @@
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
         "implementation": "B",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
+      {
+        "implementation": "A",
         "type": "boolean",
         "default": "true"
       }
@@ -539,9 +567,9 @@
     ],
     "DD_PROFILING_ENABLED": [
       {
-        "implementation": "D",
+        "implementation": "A",
         "type": "boolean",
-        "default": "true"
+        "default": "false"
       }
     ],
     "DD_PROFILING_ENDPOINT_COLLECTION_ENABLED": [
@@ -614,7 +642,10 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "true"
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED"
+        ]
       }
     ],
     "DD_PROFILING_WALLTIME_ENABLED": [
@@ -2353,6 +2384,20 @@
         "implementation": "C",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS": [
+      {
+        "implementation": "C",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
       }
     ],
     "DD_TRACE_STATS_COMPUTATION_ENABLED": [

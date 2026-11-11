@@ -366,7 +366,7 @@ static inline void dd_make_span_creation_observers_ref(zval *observers) {
     if (!Z_ISREF_P(observers)) {
         ZVAL_NEW_REF(observers, observers);
 #if PHP_VERSION_ID >= 80000
-        zend_property_info *prop = ddtrace_ce_span_stack->properties_info_table[(XtOffsetOf(ddtrace_span_stack, property_span_creation_observers) - (sizeof(zend_object) - sizeof(zval))) / sizeof(zval)];
+        zend_property_info *prop = ddtrace_ce_span_stack->properties_info_table[(offsetof(ddtrace_span_stack, property_span_creation_observers) - (sizeof(zend_object) - sizeof(zval))) / sizeof(zval)];
         ZEND_REF_ADD_TYPE_SOURCE(Z_REF_P(observers), prop);
 #endif
     }
@@ -696,7 +696,7 @@ void ddtrace_push_root_span(void) {
     ddtrace_observe_opened_span(span);
 }
 
-DATADOG_PUBLIC zend_object *ddtrace_get_root_span()
+zend_object *ddtrace_get_root_span()
 {
     if (!DDTRACE_G(active_stack)) {
         return NULL;
@@ -741,6 +741,16 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_
 
 void dd_trace_stop_span_time(ddtrace_span_data *span) {
     span->duration = zend_hrtime() - span->duration_start;
+}
+
+void dd_trace_stop_span_time_with_exception(ddtrace_span_data *span) {
+    if (!span || !span->start || ddtrace_span_is_dropped(span) || span->type == DDTRACE_SPAN_CLOSED) {
+        return;
+    }
+    if (EG(exception) && Z_TYPE(span->property_exception) <= IS_FALSE) {
+        ZVAL_OBJ_COPY(&span->property_exception, EG(exception));
+    }
+    dd_trace_stop_span_time(span);
 }
 
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end) {
@@ -888,7 +898,15 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
     }
 #endif
 
-    if (closed_root_stack && get_DD_TRACE_AUTO_FLUSH_ENABLED()
+    // Do not auto-flush while PHP is still in request startup. In that state an
+    // unforced ddtrace_flush_tracer() drops the trace, to avoid traces of
+    // requests that ran no PHP code (#1327), and it consumes the closed spans
+    // while doing so. A forced flush that comes later, such as the one AppSec
+    // does when it blocks a request in RINIT (#1901), would then find nothing
+    // to send. Auto-flush should only change when traces are sent, never
+    // whether they are. If nothing forces a flush, the flush at the end of the
+    // request still drops these spans.
+    if (closed_root_stack && get_DD_TRACE_AUTO_FLUSH_ENABLED() && !PG(during_request_startup)
         && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES(), false) == FAILURE) {
         // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
         LOG(WARN, "Unable to auto flush the tracer");
@@ -1150,7 +1168,8 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     dd_drop_span(span, false);
 }
 
-void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown) {
+bool ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown) {
+    bool success = true;
     if (DDTRACE_G(top_closed_stack)) {
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
@@ -1164,7 +1183,7 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown
                 stack = next_stack;
                 next_stack = stack->next;
             }
-            ddog_TraceBytes *trace = ddog_traces_new_trace(traces);
+            ddog_TraceBytes *trace = success ? ddog_traces_new_trace(traces) : NULL;
             bool sampling_decided = false;
             bool p0_trace = false;
 
@@ -1172,7 +1191,7 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown
                 // Note this ->next: We always splice in new spans at next, so start at next to mostly preserve order
                 ddtrace_span_data *span = stack->closed_ring_flush->next, *end = span;
                 stack->closed_ring_flush = NULL;
-                if (!sampling_decided) {
+                if (success && !sampling_decided) {
                     // Detach the ring before sampling, which can trigger destructors or GC.
                     // Snapshot once for this chunk, including attached stacks and inferred spans.
                     // Later chunks reevaluate automatic sampling (existing behavior, unlike other tracers).
@@ -1182,7 +1201,11 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown
                 do {
                     ddtrace_span_data *tmp = span;
                     span = tmp->next;
-                    ddtrace_serialize_span_to_rust_span(tmp, trace, p0_trace);
+                    // A soft OOM must reach PHP before any more serialization.
+                    // Keep draining the detached rings so their references are released.
+                    if (success) {
+                        success = ddtrace_serialize_span_to_rust_span(tmp, trace, p0_trace, NULL);
+                    }
 #if PHP_VERSION_ID < 70400
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
@@ -1207,17 +1230,21 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown
     // Reset closed span counter for limit-refresh, don't touch open spans
     DDTRACE_G(closed_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
+    return success;
 }
 
-void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown) {
+bool ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown) {
     // We need to loop here, as closing the last span root stack could add other spans here
     while (DDTRACE_G(top_closed_stack)) {
-        ddtrace_serialize_closed_spans(traces, fast_shutdown);
+        if (!ddtrace_serialize_closed_spans(traces, fast_shutdown)) {
+            return false;
+        }
         if (DDTRACE_G(open_spans_count)) {
             // Also flush possible cycles here, if there are remaining open spans
             gc_collect_cycles();
         }
     }
+    return true;
 }
 
 zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }

@@ -13,7 +13,6 @@ if (key_exists('CI', $_ENV) && $_ENV['CI'] === 'true') {
 }
 ?>
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1

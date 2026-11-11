@@ -36,6 +36,8 @@ function download_php {
   local download_url
   if [[ $version_id -lt 50400 ]]; then
     download_url="http://museum.php.net/php5/php-${version}.tar.gz"
+  elif [[ $version == 8.6.0RC* ]]; then
+    download_url="https://downloads.php.net/~svpernova09/php-${version}.tar.gz"
   else
     download_url="https://www.php.net/distributions/php-${version}.tar.gz"
   fi
@@ -106,8 +108,11 @@ function get_xdebug_version {
     echo '3.1.6'
   elif [[ $version_id -lt 80400 ]]; then
     echo '3.3.2'
-  elif [[ $version_id -ge 80400 ]]; then
+  elif [[ $version_id -lt 80600 ]]; then
     echo '3.5.0'
+  else
+    # Xdebug master (3.6.0alpha2-dev): no 8.6 release yet; same pin as the bookworm CI image
+    echo '64007df3a0925808022fb87b6c6f06febf058ee2'
   fi
 }
 
@@ -223,7 +228,7 @@ function build_php {
     options+=(--enable-json) # not shared to make it consistent with php 8
   fi
 
-  if [[ $version_id -lt 85000 ]]; then
+  if [[ $version_id -lt 80500 ]]; then
     options+=(--enable-opcache=shared)
   fi
 
@@ -306,7 +311,9 @@ function build_php {
     patch -p1 < "$REPO_ROOT"/php_patches/recent_icu.patch
     touch .patch_ns_icu
   fi
-  if [[ $version_id -ge 80200 && $version_id -lt 80400 && ! -f .patch_gcc_atomics ]]; then
+  # Recent PHP patch releases already include this fix.
+  if [[ $version_id -ge 80200 && $version_id -lt 80400 && ! -f .patch_gcc_atomics ]] &&
+      grep -q '^#if __has_feature(c_atomic)$' Zend/zend_atomic.h; then
     patch -p1 < "$REPO_ROOT"/php_patches/gcc_atomics.patch
     touch .patch_gcc_atomics
   fi

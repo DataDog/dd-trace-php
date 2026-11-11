@@ -7,9 +7,10 @@ log level is set for this test to the highest setting, to hopefully provide
 opportunities to lock or crash if that lock is held.
 --SKIPIF--
 <?php
-foreach (['datadog-profiling', 'pcntl'] as $extension)
-    if (!extension_loaded($extension))
-        echo "skip: test requires {$extension}\n";
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
+    echo "skip: test requires Datadog profiling support\n";
+if (!extension_loaded('pcntl'))
+    echo "skip: test requires pcntl\n";
 if (getenv('SKIP_ASAN')) die('skip: the profiler leaks on purpose in child of a fork');
 ?>
 --INI--

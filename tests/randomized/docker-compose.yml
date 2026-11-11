@@ -8,8 +8,9 @@ services:
           - linux/arm64
           - linux/amd64
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "7.0"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.0-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-7.0-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   centos-7.1:
     build:
@@ -17,8 +18,9 @@ services:
       dockerfile: centos.Dockerfile
       x-bake: *bake
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "7.1"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.1-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-7.1-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   centos-7.2:
     build:
@@ -26,8 +28,9 @@ services:
       dockerfile: centos.Dockerfile
       x-bake: *bake
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "7.2"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.2-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-7.2-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   centos-7.3:
     build:
@@ -35,8 +38,9 @@ services:
       dockerfile: centos.Dockerfile
       x-bake: *bake
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "7.3"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.3-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-7.3-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   centos-7.4:
     build:
@@ -44,8 +48,9 @@ services:
       dockerfile: centos.Dockerfile
       x-bake: *bake
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "7.4"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.4-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-7.4-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   buster-7.4:
     build:
@@ -62,8 +67,9 @@ services:
       dockerfile: centos.Dockerfile
       x-bake: *bake
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "8.0"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.0-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-8.0-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   buster-8.0:
     build:
@@ -80,8 +86,9 @@ services:
       dockerfile: centos.Dockerfile
       x-bake: *bake
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "8.1"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.1-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-8.1-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   buster-8.1:
     build:
@@ -98,8 +105,9 @@ services:
       dockerfile: centos.Dockerfile
       x-bake: *bake
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "8.2"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.2-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-8.2-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   buster-8.2:
     build:
@@ -116,8 +124,9 @@ services:
       dockerfile: centos.Dockerfile
       x-bake: *bake
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         PHP_MAJOR_MINOR: "8.3"
-    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.3-2'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-randomizedtests-centos7-8.3-$RANDOMIZED_CENTOS_NEXT_VERSION'
 
   buster-8.3:
     build:

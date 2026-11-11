@@ -257,6 +257,20 @@ static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *exec
     }
     return prev_declare_class_delayed_handler ? prev_declare_class_delayed_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
+
+// PHP 7.4 links anonymous-class inheritance and traits during ZEND_DECLARE_ANON_CLASS. Resolve afterwards to
+// include methods added at link time; earlier versions expose separate binding opcodes.
+static user_opcode_handler_t prev_declare_anon_class_handler;
+static int zai_interceptor_declare_anon_class_handler(zend_execute_data *execute_data) {
+    if (ZEND_DECLARE_ANON_CLASS == EX(opline)->opcode) {
+        // Repeated evaluation reuses the linked class; only its first link needs resolving.
+        zend_class_entry *ce = zend_hash_find_ptr(EG(class_table), Z_STR_P(RT_CONSTANT(EX(opline), EX(opline)->op1)));
+        if (ce && !(ce->ce_flags & ZEND_ACC_LINKED)) {
+            zai_interceptor_install_post_declare_op(execute_data);
+        }
+    }
+    return prev_declare_anon_class_handler ? prev_declare_anon_class_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
 #else
 static user_opcode_handler_t prev_declare_inherited_class_handler;
 static int zai_interceptor_declare_inherited_class_handler(zend_execute_data *execute_data) {
@@ -336,6 +350,8 @@ void zai_interceptor_setup_resolving_post_startup(void) {
 #if PHP_VERSION_ID >= 70400
     prev_declare_class_delayed_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED);
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, zai_interceptor_declare_class_delayed_handler);
+    prev_declare_anon_class_handler = zend_get_user_opcode_handler(ZEND_DECLARE_ANON_CLASS);
+    zend_set_user_opcode_handler(ZEND_DECLARE_ANON_CLASS, zai_interceptor_declare_anon_class_handler);
 #else
     prev_declare_inherited_class_handler = zend_get_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS);
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS, zai_interceptor_declare_inherited_class_handler);
@@ -368,6 +384,7 @@ void zai_interceptor_shutdown_resolving(void) {
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS, NULL);
 #if PHP_VERSION_ID >= 70400
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, NULL);
+    zend_set_user_opcode_handler(ZEND_DECLARE_ANON_CLASS, NULL);
 #else
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS, NULL);
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS_DELAYED, NULL);

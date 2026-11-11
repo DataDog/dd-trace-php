@@ -1,7 +1,6 @@
 --TEST--
 When user event is triggered by user first and then the event is triggered by automation, all headers are sent
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 HTTP_X_FORWARDED_FOR=7.7.7.7

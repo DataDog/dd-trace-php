@@ -11,7 +11,7 @@ static size_t datadog_info_print(const char *str) { return php_output_write(str,
 static void dd_info_tracer_config(void) {
     smart_str buf = {0};
     datadog_startup_logging_json(&buf, PHP_JSON_PRETTY_PRINT);
-    php_info_print_table_row(2, "DATADOG TRACER CONFIGURATION", ZSTR_VAL(buf.s));
+    php_info_print_table_row(2, "DATADOG TRACER CONFIGURATION", buf.s ? ZSTR_VAL(buf.s) : "{}");
     smart_str_free(&buf);
 }
 
@@ -84,7 +84,7 @@ void datadog_phpinfo() {
     php_info_print_box_end();
 
     php_info_print_table_start();
-#ifdef DDTRACE
+#ifdef TRACER
     php_info_print_table_row(2, "Datadog tracing support", datadog_disable ? "disabled" : "enabled");
 #else
     php_info_print_table_row(2, "Datadog tracing support", "disabled (not built)");

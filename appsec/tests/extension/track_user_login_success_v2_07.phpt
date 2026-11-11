@@ -1,7 +1,6 @@
 --TEST--
 Test \datadog\appsec\v2\track_user_login_success no user id or metadata given
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

@@ -110,24 +110,16 @@ Test 7: Comments:
 Original:
 {"a": 1, /* comment */ "b": 2}
 Result:
-array(2) {
+array(1) {
   ["a"]=>
   int(1)
-  ["b"]=>
-  int(2)
 }
 
 Test 8: NaN and Infinity:
 Original:
 {"nan": NaN, "inf": Infinity, "negInf": -Infinity}
 Result:
-array(3) {
-  ["nan"]=>
-  float(NAN)
-  ["inf"]=>
-  float(INF)
-  ["negInf"]=>
-  float(-INF)
+array(0) {
 }
 
 Test 9: Empty input:
