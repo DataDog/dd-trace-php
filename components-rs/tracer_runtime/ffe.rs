@@ -1,5 +1,5 @@
 use crate::bytes::MaybeOwnedZendString;
-use arc_swap::ArcSwap;
+use arc_swap::ArcSwapOption;
 use datadog_ffe::cdn::{CdnConfig, CdnEndpoint, EndpointError};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
@@ -357,15 +357,27 @@ pub extern "C" fn ddog_ffe_features_drop(features: Option<Box<FfeFeatures>>) {
 }
 
 // Shared by every thread of the process. The sidecar deduplicates again
-// across processes before sending. Swappable so that a forked child can start
-// empty without locking a mutex another thread held at fork time.
-static EXPOSURE_CACHE: LazyLock<ArcSwap<ExposureDeduplicator>> =
-    LazyLock::new(|| ArcSwap::from_pointee(ExposureDeduplicator::default()));
+// across processes before sending. Created on first use and swapped without
+// locks, so a forked child can start empty without waiting on a mutex or a
+// first initialization that another thread was running at fork time.
+static EXPOSURE_CACHE: ArcSwapOption<ExposureDeduplicator> = ArcSwapOption::const_empty();
+
+fn exposure_cache() -> Arc<ExposureDeduplicator> {
+    if let Some(cache) = EXPOSURE_CACHE.load_full() {
+        return cache;
+    }
+    let fresh = Arc::new(ExposureDeduplicator::default());
+    let previous = EXPOSURE_CACHE.compare_and_swap(&None::<Arc<_>>, Some(fresh.clone()));
+    match &*previous {
+        Some(winner) => winner.clone(),
+        None => fresh,
+    }
+}
 
 /// Gives the calling process an empty exposure cache. Call it in a forked child.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_exposure_cache_reset() {
-    EXPOSURE_CACHE.store(Arc::new(ExposureDeduplicator::default()));
+    EXPOSURE_CACHE.store(None);
 }
 
 #[repr(C)]
@@ -417,9 +429,7 @@ pub extern "C" fn ddog_ffe_exposure_cache_record(key: &FfeExposureKey<'_>) -> bo
         serial_id: key.has_serial_id.then_some(key.serial_id),
         features_json: String::new(),
     };
-    EXPOSURE_CACHE
-        .load()
-        .should_send_in_scope(&cache_key_text(key.scope), &context, &exposure)
+    exposure_cache().should_send_in_scope(&cache_key_text(key.scope), &context, &exposure)
 }
 
 #[repr(C)]
@@ -1012,6 +1022,26 @@ mod tests {
         assert!(!record("user", "off", Some(0)));
         ddog_ffe_exposure_cache_reset();
         assert!(record("user", "off", Some(0)));
+
+        // Threads that create the cache at the same time share one cache.
+        ddog_ffe_exposure_cache_reset();
+        let barrier = std::sync::Barrier::new(8);
+        let new_exposures = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..8)
+                .map(|_| {
+                    scope.spawn(|| {
+                        barrier.wait();
+                        record_in("race", "user", "on", Some(1))
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .filter(|&new| new)
+                .count()
+        });
+        assert_eq!(new_exposures, 1);
     }
 
     #[test]
