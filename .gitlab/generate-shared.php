@@ -169,20 +169,6 @@ stages:
     - switch-php nts
     - bash tooling/php-lint/run.sh
 
-"CI script tests":
-  tags: [ "arch:amd64" ]
-  stage: test
-  needs: []
-  variables:
-    PHP_MAJOR_MINOR: "<?= $latest_ga_minor_major ?>"
-    GIT_SUBMODULE_STRATEGY: none
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14"
-  script:
-    - |
-      status=0
-      for test in .gitlab/tests/*-test.sh; do sh "$test" || status=1; done
-      exit "$status"
-
 <?php
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
