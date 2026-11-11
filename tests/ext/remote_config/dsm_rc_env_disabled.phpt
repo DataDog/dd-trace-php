@@ -29,6 +29,9 @@ dsm_state("key removed");
 
 $path = dsm_put_config(["data_streams_enabled" => true], 0.32);
 dsm_state("rc true");
+// Remote Config owns the setting while its key is present.
+var_dump(ini_set("datadog.data_streams_enabled", "0"));
+dsm_state("ini_set while rc true");
 
 dsm_remove_config($path, 0.32);
 dsm_state("key removed again");
@@ -44,4 +47,6 @@ startup: setting=off checkpoint=none
 rc false: setting=off checkpoint=none
 key removed: setting=off checkpoint=none
 rc true: setting=on checkpoint=set
+bool(false)
+ini_set while rc true: setting=on checkpoint=set
 key removed again: setting=off checkpoint=none
