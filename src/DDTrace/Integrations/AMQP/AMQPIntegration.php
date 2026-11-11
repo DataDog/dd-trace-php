@@ -219,13 +219,17 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Channel\AMQPChannel::basic_consume',
             static function (HookData $hook) {
                 $hook->span();
-                if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
-                        || !isset($hook->args[6]) || !is_callable($hook->args[6])) {
+                if (!isset($hook->args[6]) || !is_callable($hook->args[6])) {
                     return;
                 }
                 $queue = (string)($hook->args[0] ?? '');
                 $callback = $hook->args[6];
+                // Always wrapped: Remote Config can turn DSM on after a long-running consumer
+                // registered, so DSM is checked per message, as in the publish hooks.
                 $hook->args[6] = static function ($message) use ($queue, $callback) {
+                    if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                        return call_user_func($callback, $message);
+                    }
                     // Each message gets its own pathway, so what the callback produces links to
                     // this message only, and nothing after the callback links to it. Not fiber
                     // safe: callbacks that interleave on fibers would pop each other's pathways.
