@@ -37,6 +37,9 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 use tracing::debug;
 
+#[cfg(all(test, unix))]
+mod cdn_tests;
+
 #[allow(clippy::manual_dangling_ptr)] // cbindgen needs the literal sentinel address.
 pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
 
@@ -453,13 +456,50 @@ pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState)
 pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigState) -> bool {
     let mut has_updates = false;
     let mut ffe_update = crate::ffe::remote_config::ConfigurationUpdate::default();
+    let mut deferred = Vec::new();
+    if remote_config.cdn.is_some() {
+        let publication = crate::ffe::remote_config::lock_cdn_publication();
+        loop {
+            match remote_config.manager.fetch_update() {
+                RemoteConfigUpdate::None => break,
+                RemoteConfigUpdate::Add { value, .. }
+                    if value.path.product() == RemoteConfigProduct::FfeFlags =>
+                {
+                    ffe_update.add_remote_config(&value);
+                }
+                // A target switch can remove its directory temporarily. Valid
+                // empty CDN configurations arrive as Add, not Remove.
+                RemoteConfigUpdate::Remove(path)
+                    if path.product() == RemoteConfigProduct::FfeFlags => {}
+                update => deferred.push(update),
+            }
+            has_updates = true;
+        }
+        #[cfg(all(test, unix))]
+        cdn_tests::before_publication();
+        ffe_update.apply_cdn(&publication);
+        ffe_update = Default::default();
+        // Apply other RC products on this PHP thread after releasing the guard:
+        // PHP callbacks must not run under the process-wide publication lock.
+    }
+    let mut deferred = deferred.into_iter();
     loop {
-        match remote_config.manager.fetch_update() {
+        let update = if remote_config.cdn.is_some() {
+            deferred.next().unwrap_or(RemoteConfigUpdate::None)
+        } else {
+            remote_config.manager.fetch_update()
+        };
+        match update {
             RemoteConfigUpdate::None => break,
             RemoteConfigUpdate::Add {
                 value,
                 limiter_index,
             } => {
+                if value.path.product() == RemoteConfigProduct::FfeFlags {
+                    ffe_update.add_remote_config(&value);
+                    has_updates = true;
+                    continue;
+                }
                 if let Some(data) = value.data {
                     match value.path.product() {
                         RemoteConfigProduct::LiveDebugging => {
@@ -506,22 +546,6 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                                 }
                             }
                         }
-                        RemoteConfigProduct::FfeFlags => {
-                            debug!(
-                                "Feature Flags: remote_config configuration received (config_id={})",
-                                value.path.config_id()
-                            );
-                            if let Some(ufc) = data.downcast::<UniversalFlagConfig>() {
-                                if let Err(error) = ffe_update.add(ufc) {
-                                    debug!("Failed preparing FFE configuration: {error}");
-                                }
-                            } else {
-                                debug!(
-                                    "Feature Flags: remote_config configuration rejected: unexpected configuration type; {}",
-                                    crate::ffe::retained_config_description()
-                                );
-                            }
-                        }
                         _ => {}
                     }
                 }
@@ -557,23 +581,15 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 }
                 RemoteConfigProduct::FfeFlags => {
-                    // A CDN identity is process-stable. Switching the ordinary
-                    // application target can temporarily remove its directory;
-                    // retain flags until that target publishes a replacement.
-                    // A valid empty CDN configuration arrives as Add, not Remove.
-                    if remote_config.cdn.is_none() {
-                        debug!("FFE flags configuration removed");
-                        ffe_update.remove();
-                    }
+                    debug!("FFE flags configuration removed");
+                    ffe_update.remove();
                 }
                 _ => (),
             },
         }
         has_updates = true
     }
-    if remote_config.cdn.is_some() {
-        ffe_update.apply();
-    } else if !crate::ffe::agentless_config() {
+    if !crate::ffe::agentless_config() {
         ffe_update.apply_for_environment(
             remote_config
                 .manager

@@ -123,10 +123,15 @@ static LIFECYCLE: LazyLock<Mutex<Lifecycle>> = LazyLock::new(|| Mutex::new(Lifec
 static INITIALIZATION_STOPPED: AtomicBool = AtomicBool::new(false);
 static CHILD_RESUME_PENDING: AtomicBool = AtomicBool::new(false);
 
+struct ForkGuard {
+    _publication: MutexGuard<'static, ()>,
+    lifecycle: MutexGuard<'static, Lifecycle>,
+}
+
 thread_local! {
     // Keep lifecycle operations excluded across PHP's fork boundary. The
     // forking thread releases this guard in both parent and child callbacks.
-    static FORK_GUARD: RefCell<Option<MutexGuard<'static, Lifecycle>>> = const { RefCell::new(None) };
+    static FORK_GUARD: RefCell<Option<ForkGuard>> = const { RefCell::new(None) };
 }
 
 fn lifecycle() -> MutexGuard<'static, Lifecycle> {
@@ -302,6 +307,7 @@ pub extern "C" fn ddog_ffe_ensure_initialized(
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_shutdown() {
+    let _publication = super::remote_config::lock_cdn_publication();
     let mut state = lifecycle();
     state.stopped = true;
     INITIALIZATION_STOPPED.store(true, Ordering::Release);
@@ -318,8 +324,12 @@ pub extern "C" fn ddog_ffe_prepare_for_fork() {
     FORK_GUARD.with(|slot| {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
+            let publication = super::remote_config::lock_cdn_publication();
             let state = lifecycle();
-            *slot = Some(state);
+            *slot = Some(ForkGuard {
+                _publication: publication,
+                lifecycle: state,
+            });
         }
     });
 }
@@ -331,7 +341,7 @@ pub extern "C" fn ddog_ffe_atfork_child() {
     let pending = FORK_GUARD.with(|slot| {
         slot.borrow_mut()
             .take()
-            .is_some_and(|state| state.subscription.is_some())
+            .is_some_and(|state| state.lifecycle.subscription.is_some())
     });
     // Apache/FPM can fork before the first request configures FFE. There is
     // then no inherited subscription to reset: ordinary first-use setup must run.
@@ -347,6 +357,7 @@ pub extern "C" fn ddog_ffe_resume_after_fork(child: bool) {
         if !child && CHILD_RESUME_PENDING.load(Ordering::Acquire) {
             return;
         }
+        let guard = guard.map(|state| state.lifecycle);
         let guard = if child && CHILD_RESUME_PENDING.swap(false, Ordering::AcqRel) {
             guard.or_else(|| Some(lifecycle()))
         } else {

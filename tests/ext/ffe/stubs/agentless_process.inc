@@ -12,6 +12,7 @@ if (!$server) throw new RuntimeException($error);
 $address = stream_socket_get_name($server, false);
 putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL=http://' . $address . '/configuration');
 $application = $scenario === 'swoole' ? '/agentless_swoole_app.php' : '/agentless_process_app.php';
+if ($scenario === 'threads') $application = '/agentless_threads_app.php';
 $process = ffeTestProcess(__DIR__ . $application, $pipes);
 if (!is_resource($process)) throw new RuntimeException('cannot launch agentless PHP');
 if (!in_array($scenario, array('shutdown', 'restart'), true)) fclose($pipes[0]);
@@ -123,7 +124,7 @@ try {
         } else {
             $stdout .= ffeTestProcessRead($pipes[1]);
             $forked = strpos($stdout, 'parent_forked') !== false && strpos($stdout, 'child_forked') !== false;
-            $value = (in_array($scenario, array('fork', 'swoole'), true) && $forked) || ($scenario === 'restart' && $restarted) || ($scenario === 'retarget' && strpos($stdout, 'configuration_retained_after_target_changes') !== false) ? 'green' : 'blue';
+            $value = (in_array($scenario, array('fork', 'swoole'), true) && $forked) || ($scenario === 'restart' && $restarted) || ($scenario === 'retarget' && strpos($stdout, 'configuration_retained_after_target_changes') !== false) || ($scenario === 'threads' && strpos($stdout, 'thread_readers_shared_blue') !== false) ? 'green' : 'blue';
             $code = '200 OK';
             $configuration = array(
                 'createdAt' => '2026-05-22T00:00:00Z', 'environment' => array('name' => 'test'),

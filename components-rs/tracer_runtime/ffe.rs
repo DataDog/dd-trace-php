@@ -45,7 +45,8 @@ static DELIVERY_STATE: AtomicU8 = AtomicU8::new(DeliveryState::Inactive as u8);
 static AGENTLESS_CONFIG: AtomicBool = AtomicBool::new(false);
 
 // RC readers belong to PHP threads and can target different services or
-// environments. Only the process-owned CDN worker publishes shared state.
+// environments. Agent RC remains thread-local; CDN publication is coordinated
+// across the ordinary RC readers before updating the shared evaluator.
 #[derive(Default)]
 struct RemoteConfigState {
     config: Option<Arc<Configuration>>,
@@ -64,7 +65,7 @@ pub(crate) fn agentless_config() -> bool {
     AGENTLESS_CONFIG.load(Ordering::Acquire)
 }
 
-fn current_config() -> Option<Arc<Configuration>> {
+pub(super) fn current_config() -> Option<Arc<Configuration>> {
     if agentless_config() {
         FFE_CONFIG.load_full()
     } else {

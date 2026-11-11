@@ -2,6 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
+use libdd_remote_config::RemoteConfigValue;
+use std::sync::{Mutex, MutexGuard};
+use tracing::debug;
+
+// All ordinary RC readers install CDN flags into one process-wide evaluator.
+// Hold this from before consuming a batch until publication, not just at the swap.
+static CDN_PUBLICATION: Mutex<()> = Mutex::new(());
+
+pub(crate) fn lock_cdn_publication() -> MutexGuard<'static, ()> {
+    CDN_PUBLICATION
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
 
 /// Stage a complete RC update batch before changing the evaluator's configuration.
 /// RC replaces a path with Remove followed by Add. Publishing the Remove immediately
@@ -12,6 +25,24 @@ pub(crate) struct ConfigurationUpdate {
 }
 
 impl ConfigurationUpdate {
+    pub(crate) fn add_remote_config(&mut self, value: &RemoteConfigValue) {
+        let Some(data) = &value.data else { return };
+        debug!(
+            "Feature Flags: remote_config configuration received (config_id={})",
+            value.path.config_id()
+        );
+        if let Some(ufc) = data.downcast::<UniversalFlagConfig>() {
+            if let Err(error) = self.add(ufc) {
+                debug!("Failed preparing FFE configuration: {error}");
+            }
+        } else {
+            debug!(
+                "Feature Flags: remote_config configuration rejected: unexpected configuration type; {}",
+                super::retained_config_description()
+            );
+        }
+    }
+
     pub(crate) fn add(&mut self, flags: &UniversalFlagConfig) -> anyhow::Result<()> {
         // If preparing the replacement fails, retain the installed configuration.
         self.pending = None;
@@ -28,6 +59,21 @@ impl ConfigurationUpdate {
     /// leaves the installed configuration untouched.
     pub(crate) fn apply(self) {
         self.apply_for_environment(None);
+    }
+
+    /// The caller keeps the publication guard across both consumption and this call.
+    pub(crate) fn apply_cdn(self, _guard: &MutexGuard<'static, ()>) {
+        if let Some(Some(config)) = &self.pending {
+            if super::current_config().is_some_and(|current| {
+                current.get_flags_configuration() == config.get_flags_configuration()
+            }) {
+                // A new reader, target, or sidecar can deliver the same accepted
+                // payload. It confirms recovery without inventing a flag change.
+                super::set_delivery_state(super::DeliveryState::Ready);
+                return;
+            }
+        }
+        self.apply();
     }
 
     pub(crate) fn apply_for_environment(self, requested_env: Option<&str>) {
