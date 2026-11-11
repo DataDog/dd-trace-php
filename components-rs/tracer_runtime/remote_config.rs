@@ -1,10 +1,11 @@
 use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
+use crate::ffe::FfeCdnConfig;
 use crate::sidecar::MaybeShmLimiter;
-use datadog_ffe::rules_based::UniversalFlagConfig;
-use datadog_sidecar::service::blocking::SidecarTransport;
+use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
+use datadog_sidecar::service::blocking::{self, SidecarTransport};
 use datadog_sidecar::service::InstanceId;
 use datadog_sidecar::shm_remote_config::{
-    CdnRegistration, RemoteConfigManager, RemoteConfigUpdate,
+    CdnRegistration, RemoteConfigInvariants, RemoteConfigManager, RemoteConfigUpdate,
 };
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
 use itertools::Itertools;
@@ -35,10 +36,8 @@ use std::ffi::c_char;
 use std::mem;
 use std::ptr::NonNull;
 use std::sync::Arc;
-use tracing::debug;
-
-#[cfg(all(test, unix))]
-mod cdn_tests;
+use std::time::{Duration, Instant};
+use tracing::{debug, warn};
 
 #[allow(clippy::manual_dangling_ptr)] // cbindgen needs the literal sentinel address.
 pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
@@ -99,22 +98,10 @@ fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>)
 
 pub struct RemoteConfigState {
     pub(crate) manager: RemoteConfigManager,
+    /// The agentless feature flags source, registered for the current target.
     cdn: Option<CdnRegistration>,
-    cdn_last_check: Option<std::time::Instant>,
     live_debugger: LiveDebuggerState,
     dynamic_config: DynamicConfig,
-}
-
-impl RemoteConfigState {
-    pub(crate) fn reconnect(&mut self) {
-        if self.cdn.is_some()
-            && self.manager.current_remote_config_generation() != 0
-            && crate::ffe::ddog_ffe_has_config()
-        {
-            crate::ffe::set_delivery_state(crate::ffe::DeliveryState::Stale);
-        }
-        self.manager.reconnect();
-    }
 }
 
 #[repr(C)]
@@ -226,6 +213,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
 #[no_mangle]
 pub unsafe extern "C" fn ddog_init_remote_config_state(
     endpoint: &Endpoint,
+    cdn_config: Option<&FfeCdnConfig>,
     di_enabled: bool,
 ) -> Box<RemoteConfigState> {
     #[allow(clippy::expect_used)]
@@ -236,29 +224,37 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
             .with::<UniversalFlagConfig>()
             .expect("FFE is distinct from default products"),
     );
-    // Never consume an unscoped Agent directory as a CDN source if deriving
-    // the publication identity fails.
-    let (cdn, invariants) = crate::ffe::lifecycle::registration(endpoint)
-        .and_then(|registration| registration.invariants().ok().map(|id| (registration, id)))
-        .map_or_else(
-            || {
-                (
-                    None,
-                    ConfigInvariants {
-                        language: "php".to_string(),
-                        tracer_version: include_str!("../../VERSION").trim().into(),
-                        endpoint: endpoint.clone(),
-                        agentless: None,
-                    }
-                    .into(),
-                )
-            },
-            |(registration, invariants)| (Some(registration), invariants),
-        );
+    let agent_invariants = ConfigInvariants {
+        language: "php".to_string(),
+        tracer_version: include_str!("../../VERSION").trim().into(),
+        endpoint: endpoint.clone(),
+        agentless: None,
+    };
+    // The agentless source is published in a directory of its own, next to the
+    // other products of the Agent. Its identity does not depend on the target.
+    let mut cdn = cdn_config.map(|cdn| CdnRegistration {
+        config: cdn.0.clone(),
+        agent_endpoint: endpoint.clone(),
+        target: Arc::new(Target::new(
+            String::new(),
+            String::new(),
+            String::new(),
+            vec![],
+            vec![],
+        )),
+    });
+    let invariants: RemoteConfigInvariants = match cdn.as_ref().map(CdnRegistration::invariants) {
+        Some(Ok(invariants)) => invariants,
+        Some(Err(e)) => {
+            warn!("Feature Flags: agentless configuration unavailable: {e}");
+            cdn = None;
+            agent_invariants.into()
+        }
+        None => agent_invariants.into(),
+    };
     Box::new(RemoteConfigState {
         manager: RemoteConfigManager::new_with_registry(invariants, registry),
         cdn,
-        cdn_last_check: None,
         live_debugger: LiveDebuggerState {
             di_enabled,
             ..Default::default()
@@ -455,51 +451,13 @@ pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState)
 #[no_mangle]
 pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigState) -> bool {
     let mut has_updates = false;
-    let mut ffe_update = crate::ffe::remote_config::ConfigurationUpdate::default();
-    let mut deferred = Vec::new();
-    if remote_config.cdn.is_some() {
-        let publication = crate::ffe::remote_config::lock_cdn_publication();
-        loop {
-            match remote_config.manager.fetch_update() {
-                RemoteConfigUpdate::None => break,
-                RemoteConfigUpdate::Add { value, .. }
-                    if value.path.product() == RemoteConfigProduct::FfeFlags =>
-                {
-                    ffe_update.add_remote_config(&value);
-                }
-                // A target switch can remove its directory temporarily. Valid
-                // empty CDN configurations arrive as Add, not Remove.
-                RemoteConfigUpdate::Remove(path)
-                    if path.product() == RemoteConfigProduct::FfeFlags => {}
-                update => deferred.push(update),
-            }
-            has_updates = true;
-        }
-        #[cfg(all(test, unix))]
-        cdn_tests::before_publication();
-        ffe_update.apply_cdn(&publication);
-        ffe_update = Default::default();
-        // Apply other RC products on this PHP thread after releasing the guard:
-        // PHP callbacks must not run under the process-wide publication lock.
-    }
-    let mut deferred = deferred.into_iter();
     loop {
-        let update = if remote_config.cdn.is_some() {
-            deferred.next().unwrap_or(RemoteConfigUpdate::None)
-        } else {
-            remote_config.manager.fetch_update()
-        };
-        match update {
+        match remote_config.manager.fetch_update() {
             RemoteConfigUpdate::None => break,
             RemoteConfigUpdate::Add {
                 value,
                 limiter_index,
             } => {
-                if value.path.product() == RemoteConfigProduct::FfeFlags {
-                    ffe_update.add_remote_config(&value);
-                    has_updates = true;
-                    continue;
-                }
                 if let Some(data) = value.data {
                     match value.path.product() {
                         RemoteConfigProduct::LiveDebugging => {
@@ -546,6 +504,42 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                                 }
                             }
                         }
+                        RemoteConfigProduct::FfeFlags => {
+                            debug!(
+                                "Feature Flags: {} configuration received (config_id={})",
+                                if remote_config.cdn.is_some() {
+                                    "agentless"
+                                } else {
+                                    "remote_config"
+                                },
+                                value.path.config_id()
+                            );
+                            if let Some(ufc) = data.downcast::<UniversalFlagConfig>() {
+                                match UniversalFlagConfig::from_json(ufc.to_json().to_vec()) {
+                                    Ok(ufc_owned) => {
+                                        let requested_env = remote_config
+                                            .manager
+                                            .get_target()
+                                            .map(|target| target.env());
+                                        crate::ffe::store_config(
+                                            Configuration::from_server_response(ufc_owned),
+                                            requested_env,
+                                        );
+                                    }
+                                    Err(error) => {
+                                        debug!(
+                                            "Feature Flags: remote_config configuration rejected: {error}; {}",
+                                            crate::ffe::retained_config_description()
+                                        );
+                                    }
+                                }
+                            } else {
+                                debug!(
+                                    "Feature Flags: remote_config configuration rejected: unexpected configuration type; {}",
+                                    crate::ffe::retained_config_description()
+                                );
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -580,22 +574,21 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         }
                     }
                 }
+                // The agentless directory lacks its flags file until the first poll of a
+                // restarted sidecar or a new target. A valid empty configuration is an Add.
+                RemoteConfigProduct::FfeFlags if remote_config.cdn.is_some() => {}
                 RemoteConfigProduct::FfeFlags => {
-                    debug!("FFE flags configuration removed");
-                    ffe_update.remove();
+                    crate::ffe::clear_config();
+                    debug!(
+                        "Feature Flags: remote_config configuration removed (config_id={}, version={}); no configuration is loaded until another is applied",
+                        path.config_id(),
+                        crate::ffe::ddog_ffe_config_version()
+                    );
                 }
                 _ => (),
             },
         }
         has_updates = true
-    }
-    if !crate::ffe::agentless_config() {
-        ffe_update.apply_for_environment(
-            remote_config
-                .manager
-                .get_target()
-                .map(|target| target.env()),
-        );
     }
     has_updates
 }
@@ -783,71 +776,6 @@ pub unsafe extern "C" fn ddog_CharSlice_to_owned(str: CharSlice) -> *mut Vec<c_c
     Box::into_raw(Box::new(str.as_slice().into()))
 }
 
-/// Check the existing connection during evaluation without waiting for a reply.
-/// Reannouncing the idempotent registration detects a dead sidecar even when
-/// telemetry is disabled. The normal transport owns reconnection and replay.
-///
-/// # Safety
-/// `remote_config` must be null or the calling PHP thread's valid RC state.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_ffe_refresh_remote_config(
-    remote_config: *mut RemoteConfigState,
-    transport: &mut Box<SidecarTransport>,
-) {
-    let registration = {
-        // End this borrow before transport operations: their reconnect callback
-        // rebinds the same PHP thread's RC manager.
-        let Some(state) = (unsafe { remote_config.as_mut() }) else {
-            return;
-        };
-        if state.cdn.is_none()
-            || state
-                .cdn_last_check
-                .is_some_and(|last| last.elapsed() < std::time::Duration::from_secs(1))
-        {
-            return;
-        }
-        let Some(target) = state.manager.get_target().cloned() else {
-            return;
-        };
-        state.cdn_last_check = Some(std::time::Instant::now());
-        let mut registration = state.cdn.clone().unwrap();
-        registration.target = target;
-        registration
-    };
-    // Unlike the state setter (which coalesces unchanged registrations), this
-    // makes one nonblocking send. Backpressure keeps the existing subscription;
-    // a fatal transport error activates the ordinary reconnect machinery.
-    transport.sender().send(
-        &datadog_sidecar::service::sidecar_interface::SidecarInterfaceRequest::SetCdnConfiguration {
-            config: Some(registration),
-        },
-    );
-    transport.ensure_alive();
-}
-
-/// Register against the same target and Agent endpoint as the ordinary RC reader.
-/// The sidecar transport retains and replays this registration on reconnect.
-///
-/// # Safety
-/// `remote_config` must be null or the calling PHP thread's valid RC state.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_ffe_register_remote_config(
-    remote_config: *const RemoteConfigState,
-    transport: &mut Box<SidecarTransport>,
-) -> MaybeError {
-    // Do not hold an RC borrow across the transport's reconnect callback.
-    let registration = unsafe { remote_config.as_ref() }.and_then(|state| {
-        let mut registration = state.cdn.clone()?;
-        registration.target = state.manager.get_target()?.clone();
-        Some(registration)
-    });
-    match datadog_sidecar::service::blocking::set_cdn_configuration(transport, registration) {
-        Ok(()) => MaybeError::None,
-        Err(error) => MaybeError::Some(error.to_string().into()),
-    }
-}
-
 #[no_mangle]
 pub extern "C" fn ddog_remote_configs_service_env_change(
     remote_config: &mut RemoteConfigState,
@@ -880,6 +808,54 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     // We don't call it here to allow the caller delaying the call as necessary.
 
     true
+}
+
+/// Subscribes the sidecar to the agentless feature flags source of the current target.
+/// The transport replays it after reconnects and forks, and skips unchanged registrations.
+///
+/// # Safety
+/// `remote_config` must be valid. It is not borrowed while sending: reconnecting rebinds it.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_remote_config_register_cdn(
+    remote_config: *const RemoteConfigState,
+    transport: &mut Box<SidecarTransport>,
+) -> MaybeError {
+    let registration = {
+        let remote_config = unsafe { &*remote_config };
+        let (Some(cdn), Some(target)) = (&remote_config.cdn, remote_config.manager.get_target())
+        else {
+            return MaybeError::None;
+        };
+        CdnRegistration {
+            target: target.clone(),
+            ..cdn.clone()
+        }
+    };
+    match blocking::set_cdn_configuration(transport, Some(registration)) {
+        Ok(()) => MaybeError::None,
+        Err(e) => MaybeError::Some(libdd_common_ffi::Error::from(e.to_string())),
+    }
+}
+
+/// Processes updates, then waits for feature flags until they are loaded or `timeout_ms` elapses.
+#[no_mangle]
+pub extern "C" fn ddog_remote_config_await_ffe(
+    remote_config: &mut RemoteConfigState,
+    timeout_ms: u32,
+) {
+    let deadline = Instant::now() + Duration::from_millis(timeout_ms.into());
+    loop {
+        ddog_process_remote_configs(remote_config);
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if crate::ffe::ddog_ffe_has_config() || remaining.is_zero() {
+            return;
+        }
+        // Waiting sleeps the full timeout while the directory does not exist yet, and on
+        // platforms without futexes: keep polling.
+        remote_config
+            .manager
+            .wait_for_change(remaining.min(Duration::from_millis(10)));
+    }
 }
 
 #[no_mangle]

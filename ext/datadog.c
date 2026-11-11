@@ -150,12 +150,6 @@ void datadog_set_coredumpfilter(void) {
 void datadog_pcntl_handlers_startup(void);
 
 // put this into startup so that other extensions running code as part of rinit do not crash
-#if defined(TRACER) && !defined(_WIN32)
-static void dd_ffe_atfork_parent(void) {
-    ddog_ffe_resume_after_fork(false);
-}
-#endif
-
 static int datadog_startup(zend_extension *extension) {
     UNUSED(extension);
 
@@ -207,15 +201,6 @@ static int datadog_startup(zend_extension *extension) {
 #endif
 #ifdef PROFILING
     if (datadog_profiling_initialized && ddog_php_prof_zend_startup(extension) != SUCCESS) {
-        return FAILURE;
-    }
-#endif
-
-#if defined(TRACER) && !defined(_WIN32)
-    // Prepare callbacks run in reverse order: join the FFE reader before the
-    // profiler pauses, and resume it after the profiler's parent callback.
-    if (pthread_atfork(ddog_ffe_prepare_for_fork, dd_ffe_atfork_parent, ddog_ffe_atfork_child)) {
-        LOG(ERROR, "Failed registering Feature Flags fork handlers");
         return FAILURE;
     }
 #endif
@@ -864,7 +849,7 @@ static PHP_RINIT_FUNCTION(datadog) {
 
 #ifdef SIDECAR
     if (!DATADOG_G(remote_config_state) && datadog_endpoint) {
-        DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
+        DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_ffe_cdn_config(), ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
     }
 
     // We need to init RC for the sidecar to write to it immediately
@@ -1093,8 +1078,6 @@ void datadog_internal_handle_fork(void) {
 #ifdef SIDECAR
     datadog_force_new_instance_id();
     datadog_sidecar_handle_fork();
-#elif defined(TRACER)
-    ddog_ffe_resume_after_fork(true);
 #endif
 #if defined(__linux__) && defined(TRACER)
     zend_string *process_tags = datadog_process_tags_get_serialized();

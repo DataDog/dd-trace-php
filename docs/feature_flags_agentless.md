@@ -1,71 +1,78 @@
 # Agentless Feature Flags configuration
 
-Enable CDN configuration with `DD_FEATURE_FLAGS_ENABLED=true` and
-`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless`. Managed delivery uses
-`DD_SITE`, `DD_ENV`, and `DD_API_KEY`. A custom
-`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` is fetched as supplied;
-it does not receive the Datadog API key. Explicit source selection takes precedence
-over the legacy provider setting. Existing applications using only
-`DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED` retain their Agent Remote Config source.
+## Settings
 
-The sidecar subprocess owns CDN HTTP. PHP queues registration on its existing
-sidecar transport without waiting for a reply. The ordinary Remote Config manager
-reads the combined Agent/CDN directory and uses the existing product parsers;
-there is no dedicated PHP reader thread or separate CDN IPC connection.
-Accepted CDN replacements are published atomically to the process-wide evaluator.
-Other Agent products retain their existing per-thread processing.
+Feature flags are enabled by default and use the agentless (CDN) source. The
+source is resolved once at process startup, in this order of precedence:
 
-The first evaluation can wait up to
-`DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS` (default 10000 ms).
-Later evaluations do not renew that initialization budget. The default poll
-interval is 30 seconds and request timeout is 5 seconds, controlled by
+1. `DD_FEATURE_FLAGS_ENABLED=false` disables feature flags.
+2. A non-blank `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` selects `agentless`,
+   `remote_config` or `offline`. Any other value disables feature flags and is
+   reported as an invalid source.
+3. Otherwise, `DD_FEATURE_FLAGS_ENABLED=true` selects `agentless`.
+4. Otherwise, the deprecated `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED`
+   selects Agent Remote Configuration, or disables feature flags.
+
+The managed CDN endpoint is derived from `DD_SITE` and `DD_ENV`, and
+authenticated with `DD_API_KEY`. A custom
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` is fetched as given
+and never receives the API key. The poll interval defaults to 30 seconds and
+the request timeout to 5 seconds. They are set with
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS` and
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS`.
-Shutdown and fork handling use the ordinary sidecar lifecycle. If a native
-framework's tracing hook is disabled, the first flag evaluation performs the
-pending child reset before using the sidecar transport.
+Invalid values fall back to their defaults.
 
-The pinned libdatadog disables CDN fetching in thread-mode listeners, including
-AUTO fallback to thread mode. PHP retains its explicit unsupported-mode diagnostic;
-supporting this mode requires changing and validating libdatadog as well.
+Settings problems are logged once, on the first flag evaluation, so
+applications that never evaluate flags get no feature flag diagnostics.
+`DDTrace\Internal\ffe_provider_state()` reports the failure reason to the SDK.
 
-PHP consumes changes through ordinary RC notifications and at flag evaluation.
-The pinned libdatadog sends CDN notifications only for RC-enabled connections;
-with `DD_REMOTE_CONFIG_ENABLED=0`, evaluation-time reads provide updates.
-There is no independent PHP heartbeat or idle-time sidecar restart worker.
-Evaluations reannounce registration at most once per second through a nonblocking
-IPC send, so dead-connection detection does not depend on telemetry traffic. The
-existing transport owns reconnection and replays CDN registration.
+## Delivery
 
-Retention uses normal Remote Config semantics. A malformed response, transport
-failure, or 304 leaves the last accepted configuration usable. Identical successful
-responses do not advance its version. A successful changed configuration advances
-the version once, and a valid empty configuration clears the old flags. Readiness
-means a configuration is available; it is not a promise that the last HTTP poll
-succeeded. Reconnecting the ordinary transport marks retained flags stale until the RC
-reader accepts a replacement. There is no new durable cache or freshness lease.
+The sidecar fetches the CDN. PHP never opens an HTTP connection for it.
 
-Configuration identity is fixed during process setup. Restart PHP to change the
-credentials, endpoint, or managed environment. The new identity selects a separate
-Remote Config directory and starts without the old identity's evaluator state.
-A sidecar restart within the same running PHP process retains parsed last-good
-flags while waiting for an accepted replacement.
+- The CDN configuration is registered on the existing sidecar transport, as
+  part of the connection state. No reply is awaited. The transport replays the
+  registration after a reconnect and when a forked child adopts the
+  connection.
+- The sidecar publishes the accepted flags in a Remote Config shared-memory
+  directory of their own. That directory also carries every other product of
+  the Agent, but replaces the Agent's `FFE_FLAGS`.
+- Each PHP thread's ordinary Remote Config reader reads that directory instead
+  of the Agent's directory. It applies the flags with the same parser and
+  thread-local evaluator state as Agent Remote Configuration.
+- Updates arrive through Remote Config notifications, and on every evaluation.
+  Notifications require `DD_REMOTE_CONFIG_ENABLED`.
 
-Configuration delivery and telemetry delivery are separate. Exposure and
-evaluation telemetry continue through the configured sidecar/Agent and OTLP paths;
-a working CDN connection alone does not establish that telemetry was delivered.
+The in-process thread listener does not fetch the CDN. In thread mode,
+including the AUTO fallback to it, the agentless source is reported as
+`unsupported_sidecar_mode`. The reader then keeps using the Agent's directory.
 
-The local native regression tests are in `tests/ext/ffe/agentless_*.phpt`. They
-cover first-use deadlines, source selection, conditional requests, failed polls,
-process isolation, shutdown, fork, and sidecar restart. The FFE Rust tests cover
-atomic replacement, thread ownership, concurrent initialization, and cleanup.
+## Retention
 
-If initial shared-memory publication fails temporarily, the sidecar retains the
-connection's registration and retries asynchronously, starting at 100 ms and
-capping the delay at five seconds. Invalid settings are rejected without retry.
-Replacing or clearing registration, disconnecting, or shutting down the sidecar
-cancels pending retries. Connections with the same configuration share a poller.
+- The last accepted configuration stays in use through failed polls, 304
+  responses, sidecar restarts and target changes.
+- A valid empty configuration clears the flags.
+- Credentials, endpoint and environment are fixed at process startup. Restart
+  PHP to change them.
 
-The CDN-scoped directory replaces Agent FFE entries while preserving other Agent
-products. They continue to use their normal processing path. Expiring an Agent source
-that never accepted a snapshot does not clear previously accepted CDN flags.
+## First evaluation
+
+The first evaluation of the process waits until a configuration is available,
+for up to `DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS`
+(default 10000 ms). Later evaluations, on any thread, do not get a new wait.
+A forked child that did not inherit a configuration gets its own wait.
+
+## Telemetry
+
+Configuration delivery and telemetry delivery are independent. Exposure and
+evaluation telemetry still go through the sidecar to the Agent, or through
+OTLP.
+
+## Tests
+
+- `tests/ext/ffe/agentless_*.phpt` cover:
+  - source selection and settings diagnostics;
+  - the first-use deadline, failed polls and recovery;
+  - fork, threads, Swoole workers and sidecar restarts;
+  - process isolation of the CDN requests.
+- The sidecar side is tested in libdatadog.

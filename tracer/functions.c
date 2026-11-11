@@ -1935,7 +1935,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         Z_PARAM_BOOL(record_metric)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (!ddog_ffe_runtime_config().enabled) {
+    if (!ddtrace_ffe_enabled()) {
         LOG_ONCE(DEBUG, "Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; check DD_FEATURE_FLAGS_ENABLED and DD_FEATURE_FLAGS_CONFIGURATION_SOURCE at startup (environment or php.ini) and restart");
     }
 
@@ -1993,18 +1993,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         attrs_count = idx;
     }
 
-    // Native frameworks can fork with tracing or their integration disabled.
-    // Perform the ordinary PHP child reset before using the inherited transport.
-    if (ddog_ffe_needs_child_reset()) {
-        datadog_internal_handle_fork();
-    }
-    if (ddog_ffe_runtime_config().source == DDOG_FFE_CONFIGURATION_SOURCE_AGENTLESS) {
-        datadog_sidecar_ensure_active();
-        if (DATADOG_G(sidecar)) {
-            ddog_ffe_refresh_remote_config(DATADOG_G(remote_config_state), &DATADOG_G(sidecar));
-        }
-    }
-    ddog_ffe_ensure_initialized(DATADOG_G(remote_config_state), datadog_sidecar_active_mode != DD_SIDECAR_CONNECTION_THREAD);
+    ddtrace_ffe_before_evaluate();
     result = ddog_ffe_evaluate(
         dd_zend_string_to_CharSlice(flag_key),
         type_id,
@@ -3077,28 +3066,7 @@ PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {
 
 PHP_FUNCTION(DDTrace_Internal_ffe_provider_state) {
     ZEND_PARSE_PARAMETERS_NONE();
-    ddog_FfeRuntimeConfig config = ddog_ffe_runtime_config();
-    bool has_config = ddog_ffe_has_config();
-    array_init(return_value);
-    add_assoc_bool(return_value, "ready", config.enabled && has_config);
-    add_assoc_bool(return_value, "hasConfig", has_config);
-    add_assoc_long(return_value, "configVersion", ddog_ffe_config_version());
-    add_assoc_bool(return_value, "productionRuntime", true);
-    add_assoc_bool(return_value, "enabled", config.enabled);
-    const char *mode = config.source == DDOG_FFE_CONFIGURATION_SOURCE_AGENTLESS
-        ? "native_agentless" : config.source == DDOG_FFE_CONFIGURATION_SOURCE_REMOTE_CONFIG
-        ? "native_remote_config" : "native_disabled";
-    add_assoc_string(return_value, "mode", (char *) mode);
-    ddog_CharSlice failure_reason = ddog_ffe_initialization_error_reason();
-    ddog_CharSlice failure_message = ddog_ffe_initialization_error_message();
-    if (!has_config && failure_reason.len) {
-        add_assoc_stringl(return_value, "reason", (char *)failure_reason.ptr, failure_reason.len);
-        add_assoc_stringl(return_value, "errorMessage", (char *)failure_message.ptr, failure_message.len);
-    } else {
-        add_assoc_string(return_value, "reason", !config.enabled ? "disabled"
-            : has_config ? (ddog_ffe_delivery_state() == DDOG_DELIVERY_STATE_STALE ? "stale" : "ready")
-            : "configuration_missing");
-    }
+    ddtrace_ffe_provider_state(return_value);
 }
 
 PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {

@@ -1,5 +1,5 @@
 --TEST--
-FFE ordinary ZTS RC readers publish each CDN configuration once per process
+FFE agentless configuration reaches and refreshes the RC reader of every ZTS thread
 --SKIPIF--
 <?php
 if (!PHP_ZTS || !extension_loaded('parallel')) die('skip: ZTS and parallel extension required');
@@ -27,4 +27,4 @@ require __DIR__ . '/stubs/agentless_process.inc';
 ?>
 --EXPECT--
 thread_readers_shared_blue
-thread_refresh_published_once
+thread_readers_refreshed

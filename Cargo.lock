@@ -1270,8 +1270,6 @@ dependencies = [
  "static_assertions",
  "tempfile",
  "thiserror 2.0.18",
- "tokio",
- "tokio-util",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -1396,7 +1394,6 @@ dependencies = [
  "anyhow",
  "datadog-sidecar",
  "helper-rust",
- "libc",
  "spawn_worker",
  "tokio",
 ]

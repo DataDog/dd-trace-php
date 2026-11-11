@@ -12,7 +12,7 @@ $server = new \Swoole\Http\Server('127.0.0.1', 0, SWOOLE_PROCESS);
 $server->set(array('worker_num' => 1, 'enable_coroutine' => false, 'log_level' => SWOOLE_LOG_ERROR));
 $server->on('request', function ($request, $response) { $response->end('ok'); });
 $server->on('WorkerStart', function ($server) use ($client, $parentPid, $version) {
-    // Evaluation must also reset the child when the tracing hook is disabled.
+    // The worker inherits the configuration and the Remote Config reader, even without the fork hook.
     if (getmypid() === $parentPid || $client->getStringValue('flag', 'fallback') !== 'blue') {
         throw new RuntimeException('worker did not inherit the configuration');
     }

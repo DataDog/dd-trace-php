@@ -300,18 +300,6 @@ typedef struct _zend_string _zend_string;
  */
 #define ddog_DSM_CONTEXT_MAX_LEN 36
 
-#define ddog_DEFAULT_POLL_INTERVAL_SECONDS 30
-
-#define ddog_MAX_POLL_INTERVAL_SECONDS 3600
-
-#define ddog_DEFAULT_REQUEST_TIMEOUT_SECONDS 5
-
-#define ddog_MAX_REQUEST_TIMEOUT_SECONDS 300
-
-#define ddog_DEFAULT_INITIALIZATION_TIMEOUT_MS 10000
-
-#define ddog_MAX_INITIALIZATION_TIMEOUT_MS (int64_t)INT32_MAX
-
 /**
  * Number of gRPC status-code keys checked by the stats aggregation (must match
  * `GRPC_STATUS_CODE_FIELD` in libdd-trace-stats/src/span_concentrator/aggregation.rs).
@@ -360,8 +348,6 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_UNKNOWN,
 } ddog_ConfigurationOrigin;
 
-typedef uint8_t ddog_DeliveryState;
-
 typedef enum ddog_DynamicConfigUpdateMode {
   DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
   DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
@@ -374,11 +360,12 @@ typedef enum ddog_EvaluateAt {
   DDOG_EVALUATE_AT_EXIT,
 } ddog_EvaluateAt;
 
-typedef enum ddog_FfeConfigurationSource {
-  DDOG_FFE_CONFIGURATION_SOURCE_DISABLED,
-  DDOG_FFE_CONFIGURATION_SOURCE_REMOTE_CONFIG,
-  DDOG_FFE_CONFIGURATION_SOURCE_AGENTLESS,
-} ddog_FfeConfigurationSource;
+typedef enum ddog_FfeCdnConfigError {
+  DDOG_FFE_CDN_CONFIG_ERROR_MISSING_API_KEY,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_API_KEY,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_SITE,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_URL,
+} ddog_FfeCdnConfigError;
 
 typedef enum ddog_InBodyLocation {
   DDOG_IN_BODY_LOCATION_NONE,
@@ -543,6 +530,11 @@ typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 typedef struct ddog_DslString ddog_DslString;
 
 /**
+ * The agentless (CDN) configuration source, fixed for the lifetime of the process.
+ */
+typedef struct ddog_FfeCdnConfig ddog_FfeCdnConfig;
+
+/**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
 typedef struct ddog_InstanceId ddog_InstanceId;
@@ -625,32 +617,6 @@ typedef struct ddog_FfeAttribute {
   double number_value;
   bool bool_value;
 } ddog_FfeAttribute;
-
-typedef struct ddog_FfeRuntimeConfig {
-  enum ddog_FfeConfigurationSource source;
-  bool enabled;
-  bool endpoint_valid;
-} ddog_FfeRuntimeConfig;
-
-/**
- * Borrowed process settings. Strings are copied; credentials are never logged.
- */
-typedef struct ddog_FfeSettingsInput {
-  bool enabled;
-  bool enabled_set;
-  ddog_CharSlice source;
-  bool source_set;
-  bool legacy_enabled;
-  bool legacy_enabled_set;
-  ddog_CharSlice agentless_base_url;
-  int64_t poll_interval_seconds;
-  int64_t request_timeout_seconds;
-  int64_t initialization_timeout_ms;
-  ddog_CharSlice site;
-  ddog_CharSlice api_key;
-  ddog_CharSlice environment;
-  bool sidecar_subprocess_enabled;
-} ddog_FfeSettingsInput;
 
 /**
  * Flags selecting which Remote Config products/capabilities to subscribe to.

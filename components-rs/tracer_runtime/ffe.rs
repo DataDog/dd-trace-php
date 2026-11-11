@@ -1,5 +1,5 @@
 use crate::bytes::MaybeOwnedZendString;
-use arc_swap::ArcSwapOption;
+use datadog_ffe::cdn::{CdnConfig, CdnEndpoint, EndpointError};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
@@ -7,176 +7,137 @@ use datadog_ffe::rules_based::{
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
+use std::time::Duration;
 use tracing::debug;
 
-#[allow(dead_code)]
-pub(crate) mod lifecycle;
-pub(crate) mod remote_config;
-#[allow(dead_code)]
-pub(crate) mod settings;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-#[allow(dead_code)]
-pub enum DeliveryState {
-    Inactive,
-    Starting,
-    Ready,
-    Stale,
-    Stopped,
-    PermanentError,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ConfigurationTransition {
-    Ready,
-    Recovered,
-    Changed,
-    Stale,
-    Unchanged,
-}
-
-static FFE_CONFIG: LazyLock<ArcSwapOption<Configuration>> =
-    LazyLock::new(|| ArcSwapOption::new(None));
-static FFE_VERSION: AtomicU64 = AtomicU64::new(0);
-static DELIVERY_STATE: AtomicU8 = AtomicU8::new(DeliveryState::Inactive as u8);
-static AGENTLESS_CONFIG: AtomicBool = AtomicBool::new(false);
-
-// RC readers belong to PHP threads and can target different services or
-// environments. Agent RC remains thread-local; CDN publication is coordinated
-// across the ordinary RC readers before updating the shared evaluator.
-#[derive(Default)]
-struct RemoteConfigState {
-    config: Option<Arc<Configuration>>,
+struct FfeState {
+    config: Option<Configuration>,
     version: u64,
 }
 
 thread_local! {
-    static REMOTE_CONFIG: RefCell<RemoteConfigState> = RefCell::new(RemoteConfigState::default());
+    static FFE_STATE: RefCell<FfeState> = const { RefCell::new(FfeState {
+        config: None,
+        version: 0,
+    }) };
 }
 
-pub(super) fn use_agentless_config(enabled: bool) {
-    AGENTLESS_CONFIG.store(enabled, Ordering::Release);
-}
-
-pub(crate) fn agentless_config() -> bool {
-    AGENTLESS_CONFIG.load(Ordering::Acquire)
-}
-
-pub(super) fn current_config() -> Option<Arc<Configuration>> {
-    if agentless_config() {
-        FFE_CONFIG.load_full()
-    } else {
-        REMOTE_CONFIG.with(|state| state.borrow().config.clone())
-    }
-}
-
-#[allow(dead_code)]
-pub(crate) fn delivery_state() -> DeliveryState {
-    if !agentless_config() {
-        return if ddog_ffe_has_config() {
-            DeliveryState::Ready
-        } else {
-            DeliveryState::Inactive
-        };
-    }
-    match DELIVERY_STATE.load(Ordering::Acquire) {
-        value if value == DeliveryState::Starting as u8 => DeliveryState::Starting,
-        value if value == DeliveryState::Ready as u8 => DeliveryState::Ready,
-        value if value == DeliveryState::Stale as u8 => DeliveryState::Stale,
-        value if value == DeliveryState::Stopped as u8 => DeliveryState::Stopped,
-        value if value == DeliveryState::PermanentError as u8 => DeliveryState::PermanentError,
-        _ => DeliveryState::Inactive,
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_ffe_delivery_state() -> DeliveryState {
-    delivery_state()
-}
-
-#[allow(dead_code)]
-pub(crate) fn set_delivery_state(state: DeliveryState) {
-    DELIVERY_STATE.store(state as u8, Ordering::Release);
-}
-
-pub(crate) fn store_config(config: Configuration) -> ConfigurationTransition {
-    store_config_for_environment(config, None)
-}
-
-pub(crate) fn store_config_for_environment(
-    config: Configuration,
-    requested_env: Option<&str>,
-) -> ConfigurationTransition {
+/// `requested_env` is the environment the SDK asked Remote Configuration for,
+/// labeled separately from the environment the configuration was built for.
+pub fn store_config(config: Configuration, requested_env: Option<&str>) {
+    // Summarized before installing and logged after releasing the state, so a
+    // logging failure can neither prevent nor follow a partial install.
     let summary = tracing::enabled!(tracing::Level::DEBUG).then(|| ConfigSummary::new(&config));
-    let replaced_version = current_config().map(|_| ddog_ffe_config_version());
-    let transition = if !agentless_config() {
-        REMOTE_CONFIG.with(|state| {
-            let mut state = state.borrow_mut();
-            let transition = if state.config.is_some() {
-                ConfigurationTransition::Changed
-            } else {
-                ConfigurationTransition::Ready
-            };
-            state.config = Some(Arc::new(config));
-            state.version = state.version.wrapping_add(1);
-            transition
-        })
-    } else {
-        FFE_CONFIG.store(Some(Arc::new(config)));
-        FFE_VERSION.fetch_add(1, Ordering::AcqRel);
-        let previous = DELIVERY_STATE.swap(DeliveryState::Ready as u8, Ordering::AcqRel);
-        if previous == DeliveryState::Ready as u8 {
-            ConfigurationTransition::Changed
-        } else if previous == DeliveryState::Stale as u8 {
-            ConfigurationTransition::Recovered
-        } else {
-            ConfigurationTransition::Ready
-        }
-    };
+    let (version, replaced_version) = FFE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let replaced_version = state.config.as_ref().map(|_| state.version);
+        state.config = Some(config);
+        state.version = state.version.wrapping_add(1);
+        (state.version, replaced_version)
+    });
     if let Some(summary) = summary {
-        let version = ddog_ffe_config_version();
         debug!(
             "{}",
             summary.applied_message(requested_env, version, replaced_version)
         );
-        debug!("Feature Flags: readiness={}; configuration applied (version={version}, initial_source={})",
+        debug!(
+            "Feature Flags: readiness={}; configuration applied (version={version}, initial_source={})",
             if version > 1 && replaced_version.is_none() { "recovered" } else { "ready" },
-            if agentless_config() { "agentless" } else if requested_env.is_some() { "remote_config" } else { "local" });
+            if requested_env.is_some() { "remote_config" } else { "local" }
+        );
         if !summary.rejected.is_empty() {
-            debug!("Feature Flags: {} flag(s) rejected as invalid or unsupported; evaluating them returns the default value with PARSE_ERROR: {:?}", summary.rejected.len(), summary.rejected);
+            debug!(
+                "Feature Flags: {} flag(s) rejected as invalid or unsupported; evaluating them returns the default value with PARSE_ERROR: {:?}",
+                summary.rejected.len(),
+                summary.rejected,
+            );
         }
     }
-    transition
 }
 
-pub(crate) fn clear_config() -> ConfigurationTransition {
+pub fn clear_config() {
+    FFE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        state.config = None;
+        state.version = state.version.wrapping_add(1);
+    });
     debug!("Feature Flags: readiness=unavailable; configuration removed, evaluations return defaults until recovery");
-    clear_config_inner()
 }
 
-fn clear_config_inner() -> ConfigurationTransition {
-    if !agentless_config() {
-        return REMOTE_CONFIG.with(|state| {
-            let mut state = state.borrow_mut();
-            let had_config = state.config.take().is_some();
-            state.version = state.version.wrapping_add(1);
-            if had_config {
-                ConfigurationTransition::Stale
-            } else {
-                ConfigurationTransition::Unchanged
+/// Describes what stays active after a configuration is rejected.
+pub fn retained_config_description() -> String {
+    FFE_STATE.with(|state| {
+        let state = state.borrow();
+        match state.config {
+            Some(_) => format!(
+                "retaining previous configuration (version={})",
+                state.version
+            ),
+            None => "no configuration is loaded, so evaluations return default values".to_string(),
+        }
+    })
+}
+
+struct ConfigSummary {
+    flags: usize,
+    disabled: usize,
+    rejected: Vec<String>,
+    environment: String,
+    created_at: String,
+}
+
+impl ConfigSummary {
+    fn new(config: &Configuration) -> ConfigSummary {
+        // Disabled and rejected flags fail at lookup, before any targeting
+        // runs, so an empty context classifies every flag.
+        let context = EvaluationContext::new(None, Arc::new(HashMap::new()));
+        let now = ffe::now();
+        let mut summary = ConfigSummary {
+            flags: 0,
+            disabled: 0,
+            rejected: Vec::new(),
+            environment: config.environment().to_string(),
+            created_at: config.created_at().to_string(),
+        };
+        for key in config.flag_keys() {
+            summary.flags += 1;
+            match ffe::get_assignment(Some(config), key, &context, ExpectedFlagType::Any, now) {
+                Err(EvaluationError::FlagDisabled) => summary.disabled += 1,
+                Err(EvaluationError::FlagConfigurationInvalid) => {
+                    summary.rejected.push(key.to_string())
+                }
+                _ => {}
             }
-        });
+        }
+        summary.rejected.sort();
+        summary
     }
-    FFE_CONFIG.store(None);
-    FFE_VERSION.fetch_add(1, Ordering::AcqRel);
-    let previous = DELIVERY_STATE.swap(DeliveryState::Stale as u8, Ordering::AcqRel);
-    if previous == DeliveryState::Stale as u8 {
-        ConfigurationTransition::Unchanged
-    } else {
-        ConfigurationTransition::Stale
+
+    fn applied_message(
+        &self,
+        requested_env: Option<&str>,
+        version: u64,
+        replaced_version: Option<u64>,
+    ) -> String {
+        let requested_env = requested_env
+            .map(|env| format!(", requested env={env:?}"))
+            .unwrap_or_default();
+        let replaced = replaced_version
+            .map(|version| format!("replaced version {version}"))
+            .unwrap_or_else(|| "no previous configuration".to_string());
+        format!(
+            "Feature Flags: configuration applied successfully ({} flag(s): {} usable, {} disabled, {} rejected; delivered env={:?}{}, created_at={}, version={}, {})",
+            self.flags,
+            self.flags - self.disabled - self.rejected.len(),
+            self.disabled,
+            self.rejected.len(),
+            self.environment,
+            requested_env,
+            self.created_at,
+            version,
+            replaced,
+        )
     }
 }
 
@@ -199,7 +160,7 @@ pub extern "C" fn ddog_ffe_load_config(json: CharSlice<'_>) -> bool {
 
     match UniversalFlagConfig::from_json(json.as_bytes().to_vec()) {
         Ok(ufc) => {
-            store_config(Configuration::from_server_response(ufc));
+            store_config(Configuration::from_server_response(ufc), None);
             true
         }
         Err(error) => {
@@ -214,17 +175,67 @@ pub extern "C" fn ddog_ffe_load_config(json: CharSlice<'_>) -> bool {
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_has_config() -> bool {
-    current_config().is_some()
+    FFE_STATE.with(|state| state.borrow().config.is_some())
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_config_version() -> u64 {
-    if agentless_config() {
-        FFE_VERSION.load(Ordering::Acquire)
-    } else {
-        REMOTE_CONFIG.with(|state| state.borrow().version)
-    }
+    FFE_STATE.with(|state| state.borrow().version)
 }
+
+/// The agentless (CDN) configuration source, fixed for the lifetime of the process.
+pub struct FfeCdnConfig(pub(crate) CdnConfig);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum FfeCdnConfigError {
+    MissingApiKey,
+    InvalidApiKey,
+    InvalidSite,
+    InvalidUrl,
+}
+
+/// A non-empty `base_url` is fetched as given and never receives the API key.
+/// Otherwise the managed endpoint of `site` is used, filtered to `env`.
+/// The intervals must already be within the ranges accepted by the sidecar.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_cdn_config_new(
+    base_url: CharSlice,
+    site: CharSlice,
+    env: CharSlice,
+    api_key: CharSlice,
+    poll_interval_secs: u32,
+    request_timeout_secs: u32,
+    error: &mut FfeCdnConfigError,
+) -> Option<Box<FfeCdnConfig>> {
+    let endpoint = CdnEndpoint::build(
+        &base_url.to_utf8_lossy(),
+        &site.to_utf8_lossy(),
+        &env.to_utf8_lossy(),
+        &api_key.to_utf8_lossy(),
+    )
+    .map_err(|e| {
+        *error = match e {
+            EndpointError::MissingApiKey => FfeCdnConfigError::MissingApiKey,
+            EndpointError::InvalidApiKey => FfeCdnConfigError::InvalidApiKey,
+            EndpointError::InvalidSite => FfeCdnConfigError::InvalidSite,
+            EndpointError::InvalidUrl
+            | EndpointError::UnsupportedScheme
+            | EndpointError::UrlContainsWhitespace => FfeCdnConfigError::InvalidUrl,
+        };
+    })
+    .ok()?;
+    Some(Box::new(FfeCdnConfig(CdnConfig {
+        endpoint,
+        poll_interval: Duration::from_secs(poll_interval_secs.into()),
+        request_timeout: Duration::from_secs(request_timeout_secs.into()),
+        language: "php".to_string(),
+        version: include_str!("../../VERSION").trim().into(),
+    })))
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_cdn_config_drop(_: Box<FfeCdnConfig>) {}
 
 const REASON_STATIC: i32 = 0;
 const REASON_DEFAULT: i32 = 1;
@@ -319,27 +330,40 @@ pub extern "C" fn ddog_ffe_evaluate(
     let context = EvaluationContext::new(targeting_key, Arc::new(attributes));
     let expects_object = matches!(expected_type, ExpectedFlagType::Object);
 
-    let config = current_config();
-    let assignment = ffe::get_assignment(
-        config.as_deref(),
-        flag_key,
-        &context,
-        expected_type,
-        ffe::now(),
-    );
-    let mut result = if expects_object
-        && assignment
+    FFE_STATE.with(|state| {
+        let state = state.borrow();
+        let assignment = ffe::get_assignment(
+            state.config.as_ref(),
+            flag_key,
+            &context,
+            expected_type,
+            ffe::now(),
+        );
+        if let Err(error) = &assignment {
+            debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): {error}", state.version);
+        }
+
+        // The PHP SDK returns object flags as arrays, so reject scalar JSON
+        // before recording logs, metrics and exposures. Error observations still
+        // capture the consent setting from the same configuration.
+        let mut result = if expects_object
+            && assignment
+                .as_ref()
+                .is_ok_and(|assignment| !is_json_container(&assignment.value))
+        {
+            if let Ok(assignment) = &assignment {
+                debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): expected object/array, resolved raw JSON={}", state.version, assignment_value_to_json(&assignment.value));
+            }
+            error_result(ERROR_TYPE_MISMATCH, REASON_ERROR)
+        } else {
+            result_from_assignment(assignment)
+        };
+        result.observe_full_evaluation_data = state
+            .config
             .as_ref()
-            .is_ok_and(|assignment| !is_json_container(&assignment.value))
-    {
-        error_result(ERROR_TYPE_MISMATCH, REASON_ERROR)
-    } else {
-        result_from_assignment(assignment)
-    };
-    result.observe_full_evaluation_data = config
-        .as_deref()
-        .is_some_and(Configuration::observe_full_evaluation_data);
-    result
+            .is_some_and(Configuration::observe_full_evaluation_data);
+        result
+    })
 }
 
 fn is_json_container(value: &AssignmentValue) -> bool {
@@ -475,81 +499,8 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
     }
 }
 
-struct ConfigSummary {
-    flags: usize,
-    disabled: usize,
-    rejected: Vec<String>,
-    environment: String,
-    created_at: String,
-}
-
-impl ConfigSummary {
-    fn new(config: &Configuration) -> ConfigSummary {
-        // Disabled and rejected flags fail at lookup, before any targeting
-        // runs, so an empty context classifies every flag.
-        let context = EvaluationContext::new(None, Arc::new(HashMap::new()));
-        let now = ffe::now();
-        let mut summary = ConfigSummary {
-            flags: 0,
-            disabled: 0,
-            rejected: Vec::new(),
-            environment: config.environment().to_string(),
-            created_at: config.created_at().to_string(),
-        };
-        for key in config.flag_keys() {
-            summary.flags += 1;
-            match ffe::get_assignment(Some(config), key, &context, ExpectedFlagType::Any, now) {
-                Err(EvaluationError::FlagDisabled) => summary.disabled += 1,
-                Err(EvaluationError::FlagConfigurationInvalid) => {
-                    summary.rejected.push(key.to_string())
-                }
-                _ => {}
-            }
-        }
-        summary.rejected.sort();
-        summary
-    }
-
-    fn applied_message(
-        &self,
-        requested_env: Option<&str>,
-        version: u64,
-        replaced_version: Option<u64>,
-    ) -> String {
-        let requested_env = requested_env
-            .map(|env| format!(", requested env={env:?}"))
-            .unwrap_or_default();
-        let replaced = replaced_version
-            .map(|version| format!("replaced version {version}"))
-            .unwrap_or_else(|| "no previous configuration".to_string());
-        format!(
-            "Feature Flags: configuration applied successfully ({} flag(s): {} usable, {} disabled, {} rejected; delivered env={:?}{}, created_at={}, version={}, {})",
-            self.flags,
-            self.flags - self.disabled - self.rejected.len(),
-            self.disabled,
-            self.rejected.len(),
-            self.environment,
-            requested_env,
-            self.created_at,
-            version,
-            replaced,
-        )
-    }
-}
-
-pub fn retained_config_description() -> String {
-    if ddog_ffe_has_config() {
-        format!(
-            "retaining previous configuration (version={})",
-            ddog_ffe_config_version()
-        )
-    } else {
-        "no configuration is loaded, so evaluations return default values".to_owned()
-    }
-}
-
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
     use crate::bytes::{OwnedZendString, ZendString};
     use std::alloc::{alloc_zeroed, dealloc, Layout};
@@ -557,10 +508,9 @@ pub(crate) mod tests {
     use std::mem;
     use std::ptr;
     use std::ptr::NonNull;
-    use std::sync::{Mutex, Once};
+    use std::sync::Once;
 
     static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
-    pub(crate) static FFE_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     fn setup_zend_string_functions() {
         INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {
@@ -666,7 +616,6 @@ pub(crate) mod tests {
 
     #[test]
     fn empty_targeting_key_is_not_dropped() {
-        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
         setup_zend_string_functions();
         clear_config();
         let config =
@@ -733,7 +682,6 @@ pub(crate) mod tests {
 
     #[test]
     fn scalar_json_object_flags_are_type_mismatches() {
-        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
         setup_zend_string_functions();
         clear_config();
         for value in ["42", r#""text""#, "null"] {
@@ -755,7 +703,6 @@ pub(crate) mod tests {
 
     #[test]
     fn evaluation_captures_consent_from_its_configuration() {
-        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
         setup_zend_string_functions();
         clear_config();
         let flag_key = CString::new("empty.targeting.shard.flag").unwrap();
@@ -794,33 +741,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remote_config_remains_thread_local() {
-        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
-        clear_config();
-        assert!(load_empty_config());
-        let version = ddog_ffe_config_version();
-        std::thread::spawn(|| {
-            assert!(
-                !ddog_ffe_has_config(),
-                "another RC thread must not inherit configuration"
-            );
-            assert!(load_empty_config());
-            clear_config();
-        })
-        .join()
-        .expect("RC thread should remain isolated");
-        assert!(
-            ddog_ffe_has_config(),
-            "another RC thread must not clear this configuration"
-        );
-        assert_eq!(ddog_ffe_config_version(), version);
-        clear_config();
-    }
-
-    #[test]
-    fn configuration_state_is_process_wide() {
-        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
-        use_agentless_config(true);
+    fn configuration_state_is_thread_local() {
         clear_config();
         let empty_version = ddog_ffe_config_version();
         assert!(!ddog_ffe_has_config());
@@ -830,56 +751,20 @@ pub(crate) mod tests {
         let loaded_version = ddog_ffe_config_version();
         assert_eq!(loaded_version, empty_version.wrapping_add(1));
 
-        let child = std::thread::spawn(move || {
-            assert!(ddog_ffe_has_config());
-            assert_eq!(ddog_ffe_config_version(), loaded_version);
+        let child = std::thread::spawn(|| {
+            assert!(!ddog_ffe_has_config());
+            assert_eq!(ddog_ffe_config_version(), 0);
 
             assert!(load_empty_config());
             assert!(ddog_ffe_has_config());
-            assert_eq!(ddog_ffe_config_version(), loaded_version.wrapping_add(1));
+            assert_eq!(ddog_ffe_config_version(), 1);
         });
 
         child.join().expect("child thread should not panic");
 
         assert!(ddog_ffe_has_config());
-        assert_eq!(ddog_ffe_config_version(), loaded_version.wrapping_add(1));
+        assert_eq!(ddog_ffe_config_version(), loaded_version);
         clear_config();
-        use_agentless_config(false);
-    }
-
-    #[test]
-    fn configuration_transitions_track_ready_stale_and_recovery() {
-        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
-        use_agentless_config(true);
-        set_delivery_state(DeliveryState::Inactive);
-        clear_config();
-        assert_eq!(delivery_state(), DeliveryState::Stale);
-        assert_eq!(clear_config(), ConfigurationTransition::Unchanged);
-
-        let json = UniversalFlagConfig::from_json(EMPTY_CONFIG.as_bytes().to_vec())
-            .expect("test configuration");
-        assert_eq!(
-            store_config(Configuration::from_server_response(json)),
-            ConfigurationTransition::Recovered
-        );
-        assert_eq!(delivery_state(), DeliveryState::Ready);
-
-        let json = UniversalFlagConfig::from_json(EMPTY_CONFIG.as_bytes().to_vec())
-            .expect("test configuration");
-        assert_eq!(
-            store_config(Configuration::from_server_response(json)),
-            ConfigurationTransition::Changed
-        );
-
-        set_delivery_state(DeliveryState::Starting);
-        let json = UniversalFlagConfig::from_json(EMPTY_CONFIG.as_bytes().to_vec())
-            .expect("test configuration");
-        assert_eq!(
-            store_config(Configuration::from_server_response(json)),
-            ConfigurationTransition::Ready
-        );
-        clear_config();
-        use_agentless_config(false);
     }
 
     #[test]
@@ -922,7 +807,6 @@ pub(crate) mod tests {
 
     #[test]
     fn retained_config_description_reports_the_active_configuration() {
-        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
         clear_config();
         assert_eq!(
             retained_config_description(),
@@ -940,84 +824,5 @@ pub(crate) mod tests {
             )
         );
         clear_config();
-    }
-    #[test]
-    #[cfg(unix)]
-    fn crucible_c02_agent_directory_cannot_replace_cdn_selection() {
-        use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
-        use datadog_sidecar::shm_remote_config::{RemoteConfigInvariants, RemoteConfigWriter};
-        use libdd_ipc::platform::{FileBackedHandle, NamedShmHandle};
-        use libdd_remote_config::{fetch::ConfigInvariants, Target};
-        let _guard = FFE_TEST_LOCK.lock().unwrap();
-        use_agentless_config(true);
-        clear_config();
-        assert!(load_empty_config());
-        let original = current_config().unwrap();
-        let endpoint = libdd_common::Endpoint::default();
-        let invariants: RemoteConfigInvariants = ConfigInvariants {
-            language: "php".into(),
-            tracer_version: include_str!("../../VERSION").trim().into(),
-            endpoint: endpoint.clone(),
-            agentless: None,
-        }
-        .into();
-        let target = Arc::new(Target::new(
-            format!("crucible-c02-{}", std::process::id()),
-            "test".into(),
-            "".into(),
-            vec![],
-            vec![],
-        ));
-        let writer = RemoteConfigWriter::new(&invariants, &target).unwrap();
-        let mut state =
-            unsafe { crate::remote_config::ddog_init_remote_config_state(&endpoint, false) };
-        state.manager.track_target(&target);
-        let path = CString::new(format!("/c02-{}", std::process::id())).unwrap();
-        let mut file = NamedShmHandle::create(path.clone(), EMPTY_CONFIG.len())
-            .unwrap()
-            .map()
-            .unwrap();
-        file.as_slice_mut().copy_from_slice(EMPTY_CONFIG.as_bytes());
-        let directory = format!(
-            "runtime\n{}:0:{}\n",
-            path.to_str().unwrap(),
-            BASE64_URL_SAFE_NO_PAD.encode("datadog/0/FFE_FLAGS/agent/config")
-        );
-        assert!(writer.write(directory.as_bytes()));
-        assert!(crate::remote_config::ddog_process_remote_configs(
-            &mut state
-        ));
-        let survived_add = current_config().is_some_and(|c| Arc::ptr_eq(&original, &c));
-        assert!(writer.write(b"runtime\n"));
-        assert!(crate::remote_config::ddog_process_remote_configs(
-            &mut state
-        ));
-        let survived_remove = current_config().is_some_and(|c| Arc::ptr_eq(&original, &c));
-        clear_config();
-        use_agentless_config(false);
-        assert!(writer.write(directory.as_bytes()));
-        assert!(crate::remote_config::ddog_process_remote_configs(
-            &mut state
-        ));
-        let agent_add_works = ddog_ffe_has_config();
-        assert!(writer.write(b"runtime\n"));
-        assert!(crate::remote_config::ddog_process_remote_configs(
-            &mut state
-        ));
-        let agent_remove_works = !ddog_ffe_has_config();
-        clear_config();
-        eprintln!("survived_add={survived_add}, survived_remove={survived_remove}, agent_add={agent_add_works}, agent_remove={agent_remove_works}");
-        assert!(
-            survived_add,
-            "Agent RC overwrote process-wide CDN configuration"
-        );
-        assert!(
-            survived_remove,
-            "Agent RC removal cleared process-wide CDN configuration"
-        );
-        assert!(
-            agent_add_works && agent_remove_works,
-            "ordinary Agent source must remain functional"
-        );
     }
 }

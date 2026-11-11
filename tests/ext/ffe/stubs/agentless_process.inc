@@ -42,6 +42,7 @@ try {
             if ($sidecarPid === null) throw new RuntimeException('cannot locate the dedicated sidecar');
             if (!posix_kill($sidecarPid, SIGKILL)) throw new RuntimeException('cannot stop dedicated sidecar');
             $restarted = true;
+            fwrite($pipes[0], "sidecar_killed\n");
         }
         if ($scenario === 'restart' && !$terminated && strpos($stdout, "sidecar_restarted_and_refreshed\n") !== false) {
             $replacement = ffeTestSidecarPid($status['pid']);
@@ -84,16 +85,16 @@ try {
             }
         }
         if ($scenario === 'restart' && $restarted) {
-            // Keep the replacement response pending until PHP has observed
-            // stale readiness while still evaluating the last good snapshot.
-            $staleDeadline = microtime(true) + 5;
+            // Keep the replacement response pending until PHP has evaluated
+            // the last good snapshot without a sidecar.
+            $retainedDeadline = microtime(true) + 5;
             do {
                 $stdout .= ffeTestProcessRead($pipes[1]);
                 if (strpos($stdout, "last_configuration_retained\n") !== false) break;
                 usleep(10000);
-            } while (microtime(true) < $staleDeadline);
+            } while (microtime(true) < $retainedDeadline);
             if (strpos($stdout, "last_configuration_retained\n") === false) {
-                throw new RuntimeException('sidecar loss did not preserve stale configuration');
+                throw new RuntimeException('sidecar loss did not preserve the configuration');
             }
         }
         if ($scenario === 'shutdown') {

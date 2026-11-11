@@ -70,9 +70,9 @@ function map_type($raw, $parser) {
 }
 
 function normalize_default($v, $type, $name) {
-    // PHP INI represents an unset optional URL as an empty string. The FFE
-    // settings resolver converts it to None and selects the managed endpoint;
-    // report that semantic default rather than an empty custom endpoint.
+    // PHP INI represents an unset optional URL as an empty string, which
+    // selects the managed endpoint: report that semantic default rather than
+    // an empty custom endpoint.
     if ($name === 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL' && $v === '') {
         return null;
     }

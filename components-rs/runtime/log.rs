@@ -371,6 +371,7 @@ mod tests {
     use std::sync::Mutex;
 
     static CAPTURED: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
     extern "C" fn capture(msg: CharSlice) {
         CAPTURED
             .lock()

@@ -650,12 +650,6 @@ void datadog_sidecar_handle_fork(void) {
     datadog_ffi_try("Failed clearing inherited sidecar state",
                     ddog_sidecar_handle_fork_php());
 
-#ifdef TRACER
-    // Clear inherited sidecar runtime state before starting threads, then release
-    // the FFE lifecycle guard before sidecar setup calls ddtrace_ffe_configure().
-    ddog_ffe_resume_after_fork(true);
-#endif
-
     // The inherited connections belong to the parent: nothing must be sent on them anymore.
 #ifdef ZTS
     dd_sidecar_close_inherited_thread_transports();
@@ -964,10 +958,10 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
         datadog_ffi_try("Failed sending config data",
                         ddog_sidecar_set_application(transport, service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
 
-#ifdef TRACER
-        datadog_ffi_try("Failed registering CDN remote configuration",
-            ddog_ffe_register_remote_config(DATADOG_G(remote_config_state), transport));
-#endif
+        if (DATADOG_G(remote_config_state)) {
+            datadog_ffi_try("Failed registering the agentless feature flags source",
+                ddog_remote_config_register_cdn(DATADOG_G(remote_config_state), transport));
+        }
 
         if (DATADOG_G(telemetry_buffer)) {
             datadog_ffi_try("Failed flushing filtered telemetry buffer",

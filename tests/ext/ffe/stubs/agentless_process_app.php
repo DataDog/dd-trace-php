@@ -48,20 +48,20 @@ if ($scenario === 'restart') {
     }
     if ($first !== 'blue') throw new RuntimeException('initial configuration unavailable: ' . json_encode(\DDTrace\Internal\ffe_provider_state()));
     echo "fixture_restart_ready\n";
-    $retained = false;
+    stream_set_timeout(STDIN, $instrumented ? 20 : 5);
+    if (fgets(STDIN) !== "sidecar_killed\n") throw new RuntimeException('fixture did not stop the sidecar');
+    if ($client->getStringValue('flag', 'fallback') !== 'blue') throw new RuntimeException('sidecar loss dropped the configuration');
+    echo "last_configuration_retained\n";
     $deadline = microtime(true) + 12;
     do {
+        // Sidecar traffic detects the lost connection; reconnecting replays the CDN registration.
+        \DDTrace\Internal\flush_ffe_evaluation_metrics();
         $value = $client->getStringValue('flag', 'fallback');
-        $state = \DDTrace\Internal\ffe_provider_state();
-        if (!$retained && $value === 'blue' && $state['reason'] === 'stale') {
-            $retained = true;
-            echo "last_configuration_retained\n";
-        }
-        if ($value === 'green' && $state['ready']) break;
+        if ($value === 'green') break;
         if ($value !== 'blue') throw new RuntimeException('sidecar restart lost configuration');
         usleep(20000);
     } while (microtime(true) < $deadline);
-    if (!$retained || $value !== 'green') throw new RuntimeException('sidecar restart did not recover');
+    if ($value !== 'green') throw new RuntimeException('sidecar restart did not recover');
     echo "sidecar_restarted_and_refreshed\n";
     // Keep PHP and its IPC connection alive while the fixture signals the
     // replacement daemon; an idle exit would hide an inherited blocked mask.

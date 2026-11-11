@@ -83,7 +83,7 @@ $logs = read_log_snapshot(__DIR__ . '/remote_config_lifecycle.log');
 $configId = sha1($config);
 show('received_logged', strpos($logs, 'Feature Flags: remote_config configuration received (config_id=' . $configId . ')') !== false);
 show('applied_logged', strpos($logs, 'Feature Flags: configuration applied successfully (1 flag(s): 1 usable, 0 disabled, 0 rejected; delivered env="test", requested env="') !== false);
-show('removed_logged', strpos($logs, 'FFE flags configuration removed') !== false);
+show('removed_logged', strpos($logs, 'Feature Flags: remote_config configuration removed (config_id=' . $configId . ', version=') !== false);
 show('unavailable_logged', strpos($logs, 'Feature Flags: readiness=unavailable; configuration removed') !== false);
 show('recovered_logged', strpos($logs, 'Feature Flags: readiness=recovered; configuration applied') !== false);
 ?>

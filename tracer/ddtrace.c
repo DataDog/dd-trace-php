@@ -385,7 +385,7 @@ void ddtrace_minit_late() {
 }
 
 void ddtrace_mshutdown() {
-    ddog_ffe_shutdown();
+    ddtrace_ffe_shutdown();
     zai_uhook_mshutdown();
     zai_hook_mshutdown();
     zai_line_hook_mshutdown();
@@ -732,8 +732,8 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 }
 
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
-    ddog_FfeRuntimeConfig ffe = ddtrace_ffe_configure();
-    flags->ffe_enabled = ffe.enabled && ffe.source == DDOG_FFE_CONFIGURATION_SOURCE_REMOTE_CONFIG;
+    ddtrace_ffe_startup();
+    flags->ffe_enabled = ddtrace_ffe_remote_config_enabled();
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
     if (flags->ffe_enabled) {
         LOG(DEBUG, "Feature Flags: effective settings (sdk_env=%s, poll_interval_seconds=%g, agent_timeout_ms=%" PRId64 "); source=Agent Remote Configuration, no direct flag endpoint or initialization timeout",
@@ -752,7 +752,8 @@ bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
         }
     }
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
-        || (ffe.enabled && (flags->ffe_enabled || ffe.endpoint_valid))
+        || flags->ffe_enabled
+        || ddtrace_ffe_agentless_enabled()
         || get_global_DD_METRICS_OTEL_ENABLED()
         || get_global_DD_DATA_STREAMS_ENABLED();
 }
@@ -767,11 +768,9 @@ void ddtrace_internal_handle_prefork(void) {
         ddtrace_coms_flush_shutdown_writer_synchronous();
     }
 #endif
-    ddog_ffe_prepare_for_fork();
 }
 
 void ddtrace_internal_handle_postfork(void) {
-    ddog_ffe_resume_after_fork(false);
 #if JOIN_BGS_BEFORE_FORK
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_restart_writer();
@@ -788,6 +787,7 @@ void ddtrace_internal_handle_fork() {
 #endif
     // Acquire the child's shared line-hook references and re-establish inherited trampolines.
     zai_line_hook_handle_fork();
+    ddtrace_ffe_handle_fork();
 
     if (DATADOG_G(sidecar)) {
         // Unconditionally send, even if root span is NULL

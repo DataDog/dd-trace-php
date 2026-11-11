@@ -3,7 +3,6 @@ require __DIR__ . '/ffe_api_bootstrap.inc';
 echo "fixture_child_ready\n";
 $client = new \DDTrace\FeatureFlags\Client();
 if ($client->getStringValue('flag', 'fallback') !== 'blue') throw new RuntimeException('initial configuration missing');
-$version = \DDTrace\ffe_config_version();
 $runtimes = $futures = array();
 for ($i = 0; $i < 8; ++$i) {
     $runtimes[$i] = new \parallel\Runtime();
@@ -14,13 +13,12 @@ for ($i = 0; $i < 8; ++$i) {
             if ($client->getStringValue('flag', 'fallback') !== 'blue') throw new \RuntimeException('worker configuration missing');
             usleep(1000);
         }
-        return \DDTrace\ffe_config_version();
+        return true;
     }, array(__DIR__ . '/ffe_api_bootstrap.inc'));
 }
 foreach ($futures as $future) {
-    if ($future->value() !== $version) throw new RuntimeException('duplicate reader advanced shared version');
+    $future->value();
 }
-if (\DDTrace\ffe_config_version() !== $version) throw new RuntimeException('duplicate publication');
 echo "thread_readers_shared_blue\n";
 foreach ($runtimes as $i => $runtime) {
     $futures[$i] = $runtime->run(function () {
@@ -34,12 +32,19 @@ foreach ($runtimes as $i => $runtime) {
             usleep(1000);
         } while ($green < 250 && microtime(true) < $deadline);
         if ($green < 250) throw new \RuntimeException('worker did not refresh');
-        return \DDTrace\ffe_config_version();
+        return true;
     });
 }
 foreach ($futures as $future) {
-    if ($future->value() !== $version + 1) throw new RuntimeException('refresh advanced shared version more than once');
+    $future->value();
 }
 foreach ($runtimes as $runtime) $runtime->close();
-if (\DDTrace\ffe_config_version() !== $version + 1) throw new RuntimeException('refresh publication count');
-echo "thread_refresh_published_once\n";
+$deadline = microtime(true) + 15;
+do {
+    $value = $client->getStringValue('flag', 'fallback');
+    if ($value === 'green') break;
+    if ($value !== 'blue') throw new RuntimeException('main thread lost its configuration');
+    usleep(1000);
+} while (microtime(true) < $deadline);
+if ($value !== 'green') throw new RuntimeException('main thread did not refresh');
+echo "thread_readers_refreshed\n";

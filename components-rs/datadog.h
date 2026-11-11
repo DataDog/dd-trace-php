@@ -8,14 +8,6 @@ struct _zend_string;
 #include "common.h"
 #include "telemetry.h"
 #include "sidecar.h"
-enum ddog_DeliveryState {
-  DDOG_DELIVERY_STATE_INACTIVE,
-  DDOG_DELIVERY_STATE_STARTING,
-  DDOG_DELIVERY_STATE_READY,
-  DDOG_DELIVERY_STATE_STALE,
-  DDOG_DELIVERY_STATE_STOPPED,
-  DDOG_DELIVERY_STATE_PERMANENT_ERROR,
-};
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
@@ -301,13 +293,26 @@ void ddog_dsm_set_kafka_cluster_id(struct ddog_SidecarTransport *transport,
                                    ddog_CharSlice bootstrap_servers,
                                    ddog_CharSlice cluster_id);
 
-ddog_DeliveryState ddog_ffe_delivery_state(void);
-
 bool ddog_ffe_load_config(ddog_CharSlice json);
 
 bool ddog_ffe_has_config(void);
 
 uint64_t ddog_ffe_config_version(void);
+
+/**
+ * A non-empty `base_url` is fetched as given and never receives the API key.
+ * Otherwise the managed endpoint of `site` is used, filtered to `env`.
+ * The intervals must already be within the ranges accepted by the sidecar.
+ */
+struct ddog_FfeCdnConfig *ddog_ffe_cdn_config_new(ddog_CharSlice base_url,
+                                                  ddog_CharSlice site,
+                                                  ddog_CharSlice env,
+                                                  ddog_CharSlice api_key,
+                                                  uint32_t poll_interval_secs,
+                                                  uint32_t request_timeout_secs,
+                                                  enum ddog_FfeCdnConfigError *error);
+
+void ddog_ffe_cdn_config_drop(struct ddog_FfeCdnConfig*);
 
 struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
@@ -315,49 +320,10 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         const struct ddog_FfeAttribute *attributes,
                                         uintptr_t attributes_count);
 
-/**
- * Configure once during PHP's ordinary process setup, before sidecar startup.
- * This does not start network polling; ordinary sidecar setup registers CDN delivery.
- */
-struct ddog_FfeRuntimeConfig ddog_ffe_configure(const struct ddog_FfeSettingsInput *input);
-
-struct ddog_FfeRuntimeConfig ddog_ffe_runtime_config(void);
-
-/**
- * Static, redacted configuration failure. Empty when initialization can retry.
- */
-ddog_CharSlice ddog_ffe_initialization_error_reason(void);
-
-ddog_CharSlice ddog_ffe_initialization_error_message(void);
-
-/**
- * Whether PHP must reset its inherited sidecar runtime before evaluating.
- * Native frameworks may fork without loading the tracing integration hook.
- */
-bool ddog_ffe_needs_child_reset(void);
-
-/**
- * First-use compatibility path for PHP providers without an initialize API.
- * Concurrent first callers share one deadline; later calls never renew it.
- */
-void ddog_ffe_ensure_initialized(struct ddog_RemoteConfigState *remote_config,
-                                 bool subprocess_mode);
-
-void ddog_ffe_shutdown(void);
-
-void ddog_ffe_prepare_for_fork(void);
-
-/**
- * The child atfork callback only releases the inherited guard. Normal PHP
- * fork handling resets the sidecar runtime before clearing the pending reset here.
- */
-void ddog_ffe_atfork_child(void);
-
-void ddog_ffe_resume_after_fork(bool child);
-
 void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
+                                                             const struct ddog_FfeCdnConfig *cdn_config,
                                                              bool di_enabled);
 
 uint64_t ddog_remote_config_current_generation(const struct ddog_RemoteConfigState *remote_config);
@@ -384,33 +350,28 @@ bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remo
 
 struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
 
-/**
- * Check the existing connection during evaluation without waiting for a reply.
- * Reannouncing the idempotent registration detects a dead sidecar even when
- * telemetry is disabled. The normal transport owns reconnection and replay.
- *
- * # Safety
- * `remote_config` must be null or the calling PHP thread's valid RC state.
- */
-void ddog_ffe_refresh_remote_config(struct ddog_RemoteConfigState *remote_config,
-                                    struct ddog_SidecarTransport **transport);
-
-/**
- * Register against the same target and Agent endpoint as the ordinary RC reader.
- * The sidecar transport retains and replays this registration on reconnect.
- *
- * # Safety
- * `remote_config` must be null or the calling PHP thread's valid RC state.
- */
-ddog_MaybeError ddog_ffe_register_remote_config(const struct ddog_RemoteConfigState *remote_config,
-                                                struct ddog_SidecarTransport **transport);
-
 bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
                                             ddog_CharSlice service,
                                             ddog_CharSlice env,
                                             ddog_CharSlice version,
                                             const struct ddog_Vec_Tag *tags,
                                             const struct ddog_Vec_Tag *process_tags);
+
+/**
+ * Subscribes the sidecar to the agentless feature flags source of the current target.
+ * The transport replays it after reconnects and forks, and skips unchanged registrations.
+ *
+ * # Safety
+ * `remote_config` must be valid. It is not borrowed while sending: reconnecting rebinds it.
+ */
+ddog_MaybeError ddog_remote_config_register_cdn(const struct ddog_RemoteConfigState *remote_config,
+                                                struct ddog_SidecarTransport **transport);
+
+/**
+ * Processes updates, then waits for feature flags until they are loaded or `timeout_ms` elapses.
+ */
+void ddog_remote_config_await_ffe(struct ddog_RemoteConfigState *remote_config,
+                                  uint32_t timeout_ms);
 
 bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remote_config,
                                              ddog_CharSlice config,

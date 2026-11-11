@@ -24,7 +24,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 #[cfg(php_shared_build)]
-pub(crate) fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     #[cfg(target_os = "linux")]
     let mut cfg = cfg;
     #[cfg(target_os = "linux")]
@@ -50,12 +50,12 @@ pub(crate) fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTranspor
 }
 
 #[cfg(all(not(any(windows, php_shared_build)), feature = "tracer-runtime"))]
-pub(crate) fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[cfg(all(not(any(windows, php_shared_build)), not(feature = "tracer-runtime")))]
-pub(crate) fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
@@ -64,7 +64,7 @@ pub(crate) fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTranspor
 pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
 
 #[cfg(windows)]
-pub(crate) fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
     cfg.library_dependencies
         .push(LibDependency::Path(php_dll.into()));
@@ -342,7 +342,7 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
         telemetry.reconnect();
     }
     if let Some(remote_config) = remote_config {
-        remote_config.reconnect();
+        remote_config.manager.reconnect();
     }
     if let Some(agent_info) = agent_info {
         agent_info.reconnect();
