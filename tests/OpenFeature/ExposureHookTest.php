@@ -256,7 +256,9 @@ final class ExposureHookTest extends TestCase
             public function error($message, array $context = []) { throw new \RuntimeException('error'); }
             public function isLevelActive($level) { throw new \RuntimeException('level'); }
         });
-        $hook = new ExposureHook(function (): void {
+        $calls = 0;
+        $hook = new ExposureHook(function () use (&$calls): void {
+            ++$calls;
             throw new \RuntimeException('callback failed');
         });
         $context = (new \OpenFeature\implementation\hooks\HookContextBuilder())
@@ -264,12 +266,13 @@ final class ExposureHookTest extends TestCase
             ->withType('STRING')
             ->withDefaultValue('d')
             ->withEvaluationContext(new EvaluationContext('u'))
+            ->withProviderMetadata(new \OpenFeature\implementation\common\Metadata(DataDogProvider::NAME))
             ->build();
 
         $hook->finally($context, new \OpenFeature\implementation\hooks\HookHints());
         $hook->finally($context, new \OpenFeature\implementation\hooks\HookHints());
 
-        $this->addToAssertionCount(1);
+        self::assertSame(2, $calls);
     }
 
     public function testFeaturesAreTheHookFeaturesAndTheContextIsACopy(): void
