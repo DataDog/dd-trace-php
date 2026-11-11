@@ -130,11 +130,11 @@ void dd_helper_rshutdown(void)
 
 // Stands in for dd_helper_rshutdown when AppSec's shutdown for a request was
 // skipped. If the helper got that request's request_init, it is still inside
-// the request, and no request_shutdown will ever end it. In that case, close
-// the connection without telling the helper; the next client_init then makes
-// the helper replace its client. The close is not a helper failure, so it does
-// not count toward the backoff. A connection that is kept counts as a success
-// and resets the failure counter, as it would have in dd_helper_rshutdown.
+// the request, and no request_shutdown will ever end it. Send a clean goodbye
+// before closing the connection so the next client_init starts a new client.
+// This deliberate close is not a helper failure and does not count toward the
+// backoff. A connection that is kept counts as a success and resets the failure
+// counter, as it would have in dd_helper_rshutdown.
 void dd_helper_abandon_request(void)
 {
     dd_conn *conn = &DDAPPSEC_G(conn);
@@ -149,8 +149,7 @@ void dd_helper_abandon_request(void)
     if (mid_request) {
         mlog(dd_log_info, "The helper is still inside a request that was "
                           "not finished; dropping the connection");
-        dd_helper_close_conn(
-            false, LSTRARG("previous request was not finished"));
+        dd_helper_close_conn(true, NULL, 0);
     }
 }
 

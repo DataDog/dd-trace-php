@@ -1058,6 +1058,7 @@ fn send_command_resp(
     debug!("Sending command: {:?}", cmd);
 
     let is_fatal_error = matches!(cmd, CommandResponse::FatalError);
+    let is_client_shutdown = matches!(cmd, CommandResponse::ClientShutdown);
 
     let mut buf = BytesMut::new();
     if let Err(e) = protocol::CommandCodec.encode(cmd, &mut buf) {
@@ -1084,7 +1085,11 @@ fn send_command_resp(
         }
     }
 
-    let resp = sidecar_msg::HelperResponse::Data(buf.into());
+    let resp = if is_client_shutdown {
+        sidecar_msg::HelperResponse::ClientShutdown(buf.into())
+    } else {
+        sidecar_msg::HelperResponse::Data(buf.into())
+    };
     response_tx
         .send(resp)
         .map_err(|_| anyhow::anyhow!("Error sending response command"))

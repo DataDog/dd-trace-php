@@ -3,6 +3,7 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.docker.LogFile
 import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.Tag
@@ -64,7 +65,7 @@ class Apache2ModTests implements CommonTests {
     }
 
     @Test
-    void 'request after a request blocked during startup finds no stale state'() {
+    void 'request recovery preserves state and closes unfinished clients cleanly'() {
         // PHP skips RSHUTDOWN after a failed startup, so a request blocked in
         // AppSec's request init runs AppSec's request shutdown by hand. The
         // next request on the same worker must not take that request for
@@ -87,6 +88,43 @@ class Apache2ModTests implements CommonTests {
         }
         assert trace.first().metrics."_dd.appsec.enabled" == 1.0d
         assert countStale() == before
+
+        def helperLog = new LogFile(CONTAINER, 'helper.log')
+        helperLog.markEndPos()
+
+        // Start another helper request without finishing the first, then send
+        // a blocked IP to check that the replacement client still runs the WAF.
+        def blocked = CONTAINER.traceFromRequest('/restart_request.php', ofString()) {
+            HttpResponse<String> resp ->
+                assert resp.statusCode() == 403
+        }
+        assert blocked.first().meta.'appsec.blocked' == 'true'
+
+        List<String> lines = []
+        List<String> clients = []
+        long deadline = System.currentTimeMillis() + 5_000
+        while (System.currentTimeMillis() < deadline) {
+            lines = helperLog.linesSinceMark
+            clients = lines.findResults { line ->
+                def match = line =~ /Client #(\d+): Received command: RequestInit/
+                match.find() ? match.group(1) : null
+            }
+            if (clients.size() == 2 &&
+                    lines.any { it.contains("Client #${clients[0]}: ended normally") }) {
+                break
+            }
+            Thread.sleep(100)
+        }
+
+        assert clients.size() == 2 : 'Expected both requests to reach the helper'
+        assert clients[0] != clients[1] : 'Expected a new helper client'
+        String oldClient = "Client #${clients[0]}: "
+        assert lines.any { it.contains(oldClient + 'client_shutdown received (clean)') } :
+                'The old client did not receive a clean goodbye'
+        assert lines.any { it.contains(oldClient + 'ended normally') } :
+                'The old client did not exit normally'
+        assert !lines.any { it.contains('replaces its running client') }
+        assert !lines.any { it.contains(oldClient + 'ended due to client connectivity issue') }
     }
 
     @Test

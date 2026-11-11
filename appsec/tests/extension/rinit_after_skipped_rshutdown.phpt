@@ -22,13 +22,15 @@ include __DIR__ . '/inc/mock_helper.php';
 $empty_obj = new ArrayObject();
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
+    response_list(response('client_shutdown', null)),
     response_list(response_client_init(
         ['ok', phpversion('ddtrace'), [], $empty_obj, $empty_obj, null])),
     response_list(response_request_init([[['ok', []]]])),
+    response_list(response('client_shutdown', null)),
     response_list(response_client_init(
         ['ok', phpversion('ddtrace'), [], $empty_obj, $empty_obj, null])),
     response_list(response_request_init([[['ok', []]]])),
-], ['no_wait_shutdown' => true]);
+], ['continuous' => true]);
 
 // No rshutdown() between requests: request_init itself must reconnect.
 rinit();
@@ -47,11 +49,12 @@ echo "init after RINIT: ", implode(',', array_column($helper->get_commands(), 0)
 echo "connected: ";
 var_dump(is_connected_to_helper());
 echo "failed_count: ", backoff_status()['failed_count'], "\n";
+$helper->finished_with_commands();
 ?>
 --EXPECT--
-direct init: client_init,request_init,client_init,request_init
+direct init: client_init,request_init,client_shutdown,client_init,request_init
 failed_count: 0
 connected after RINIT: bool(false)
-init after RINIT: client_init,request_init
+init after RINIT: client_shutdown,client_init,request_init
 connected: bool(true)
 failed_count: 0
