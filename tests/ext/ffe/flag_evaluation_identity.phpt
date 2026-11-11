@@ -1,5 +1,5 @@
 --TEST--
-FFE evaluations remain deliverable without application identity pending sidecar attribution
+FFE evaluation payload identity is attributed by the sidecar and follows runtime service/env/version changes
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
@@ -45,11 +45,16 @@ try {
             }
             if (strpos($request, '/flagevaluation ') !== false) {
                 $payload = json_decode($body, true);
-                // FFL-3438/FFL-3439 will replace these temporary expectations
-                // with identity supplied by the sidecar before aggregation.
+                // The extension submits an empty context; the sidecar fills
+                // it from the application set on the transport.
                 foreach ($payload['flagEvaluations'] as $row) {
-                    $contexts[$row['flag']['key']] = $payload['context'] === array()
-                        && !isset($row['context']['dd']) && $row['evaluation_count'] === 1;
+                    $context = $payload['context'];
+                    ksort($context);
+                    $contexts[$row['flag']['key']] = json_encode(array(
+                        'context' => $context,
+                        'dd' => isset($row['context']['dd']) ? $row['context']['dd'] : null,
+                        'count' => $row['evaluation_count'],
+                    ));
                 }
             }
             fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
@@ -60,7 +65,7 @@ try {
     }
     if ($exitCode !== 0) throw new RuntimeException('child failed: ' . ffeTestProcessRead($pipes[2]));
     foreach (array('default', 'configured') as $flag) {
-        echo $flag, '='; var_dump($contexts[$flag]);
+        echo $flag, '=', $contexts[$flag], "\n";
     }
 } finally {
     if ($exitCode === null) proc_terminate($process);
@@ -70,5 +75,5 @@ try {
 }
 ?>
 --EXPECT--
-default=bool(true)
-configured=bool(true)
+default={"context":{"env":"none","service":"flag_evaluation_identity_app.php"},"dd":{"service":"flag_evaluation_identity_app.php"},"count":1}
+configured={"context":{"env":"changed-env","service":"changed-service","version":"changed-version"},"dd":{"service":"changed-service"},"count":1}
