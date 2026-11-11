@@ -795,6 +795,17 @@ zend_string *ddtrace_active_service_name(void) {
     return datadog_default_service_name();
 }
 
+zend_string *ddtrace_formatted_runtime_id(bool persistent) {
+    /* Compilers rightfully complain about array bounds due to the struct
+     * hack if we write straight to the char storage. Saving the char* to a
+     * temporary avoids the warning without a performance penalty.
+     */
+    zend_string *encoded_id = zend_string_alloc(36, persistent);
+    datadog_format_runtime_id((uint8_t(*)[36])&ZSTR_VAL(encoded_id));
+    ZSTR_VAL(encoded_id)[36] = '\0';
+    return encoded_id;
+}
+
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
@@ -805,16 +816,8 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
 
     zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
 
-    /* Compilers rightfully complain about array bounds due to the struct
-     * hack if we write straight to the char storage. Saving the char* to a
-     * temporary avoids the warning without a performance penalty.
-     */
-    zend_string *encoded_id = zend_string_alloc(36, false);
-    datadog_format_runtime_id((uint8_t(*)[36])&ZSTR_VAL(encoded_id));
-    ZSTR_VAL(encoded_id)[36] = '\0';
-
     zval zv;
-    ZVAL_STR(&zv, encoded_id);
+    ZVAL_STR(&zv, ddtrace_formatted_runtime_id(false));
     zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
 
     if (ddtrace_span_is_entrypoint_root(&span->span)) {

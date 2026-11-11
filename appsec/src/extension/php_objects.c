@@ -15,23 +15,16 @@
 #include "attributes.h"
 
 static int _module_number;
-static zend_llist _function_entry_arrays;
 
 void dd_phpobj_startup(int module_number)
 {
     _module_number = module_number;
-    zend_llist_init(&_function_entry_arrays,
-        sizeof(const zend_function_entry *), NULL, 1 /* persistent */);
 }
 
 dd_result dd_phpobj_reg_funcs(const zend_function_entry *entries)
 {
     int res = zend_register_functions(NULL, entries, NULL, MODULE_PERSISTENT);
-    if (res == FAILURE) {
-        return dd_error;
-    }
-    zend_llist_add_element(&_function_entry_arrays, (void *)&entries);
-    return dd_success;
+    return res == FAILURE ? dd_error : dd_success;
 }
 
 void dd_phpobj_reg_long_const(
@@ -39,5 +32,3 @@ void dd_phpobj_reg_long_const(
 {
     zend_register_long_constant(name, name_len, value, flags, _module_number);
 }
-
-void dd_phpobj_shutdown(void) { zend_llist_destroy(&_function_entry_arrays); }
