@@ -281,6 +281,8 @@ dsm-throughput:
       - artifacts/
     expire_in: 3 months
   variables:
+    # Gitlab and BP specific env vars. Do not modify.
+    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
     # Workload and tracer come from this pipeline: this checkout and its packaged build.
     DD_TRACE_PHP_SRC_DIR: "${CI_PROJECT_DIR}"
