@@ -9,6 +9,8 @@ pub mod bytes;
 #[cfg(feature = "tracer-runtime")]
 pub mod data_streams;
 #[cfg(feature = "tracer-runtime")]
+pub mod dsm_dynamic_config;
+#[cfg(feature = "tracer-runtime")]
 pub mod ffe;
 #[cfg(feature = "tracer-runtime")]
 pub mod remote_config;

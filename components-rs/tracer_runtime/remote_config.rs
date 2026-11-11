@@ -1,4 +1,7 @@
 use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
+use crate::dsm_dynamic_config::{
+    self, ApmTracingConfig, ApmTracingConfigFile, DATA_STREAMS_ENABLED_INI,
+};
 use crate::ffe::FfeCdnConfig;
 use crate::sidecar::MaybeShmLimiter;
 use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
@@ -20,12 +23,10 @@ use libdd_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluator
 use libdd_live_debugger_ffi::send_data::{
     ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
 };
-use libdd_remote_config::config::dynamic::{
-    Configs, DynamicConfigFile, TracingSamplingRuleProvenance,
-};
+use libdd_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use libdd_remote_config::fetch::ConfigInvariants;
 use libdd_remote_config::{
-    default_registry, RemoteConfigCapabilities, RemoteConfigParsed, RemoteConfigProduct, Target,
+    RemoteConfigCapabilities, RemoteConfigParsed, RemoteConfigProduct, Target,
 };
 use regex_automata::dfa::regex::Regex;
 use serde::Serialize;
@@ -71,24 +72,26 @@ pub static mut DATADOG_REMOTE_CONFIG_CAPABILITIES: VecRemoteConfigCapabilities =
 
 struct ActiveDynamicConfig {
     priority: u8,
-    configs: Vec<Configs>,
+    configs: Vec<ApmTracingConfig>,
 }
 
 #[derive(Default)]
 struct DynamicConfig {
     active_configs: HashMap<String, ActiveDynamicConfig>,
-    merged_configs: Vec<Configs>,
+    merged_configs: Vec<ApmTracingConfig>,
     old_config_values: HashMap<String, Option<OwnedZendString>>,
 }
 
-fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>) -> Vec<Configs> {
+fn compute_merged_configs(
+    active_configs: &HashMap<String, ActiveDynamicConfig>,
+) -> Vec<ApmTracingConfig> {
     let mut sorted: Vec<_> = active_configs.values().collect();
     sorted.sort_by_key(|c| c.priority);
     let mut seen = HashSet::new();
     let mut merged = vec![];
     for entry in sorted {
         for config in &entry.configs {
-            if seen.insert(mem::discriminant(config)) {
+            if seen.insert(map_config_name(config)) {
                 merged.push(config.clone());
             }
         }
@@ -160,6 +163,9 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRate);
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingMulticonfig);
+    // Reported because ApmTracingConfig::DataStreamsEnabled maps to DD_DATA_STREAMS_ENABLED.
+    DATADOG_REMOTE_CONFIG_CAPABILITIES
+        .push(RemoteConfigCapabilities::ApmTracingDataStreamsEnabled);
 
     DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
@@ -218,7 +224,8 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
 ) -> Box<RemoteConfigState> {
     #[allow(clippy::expect_used)]
     let registry = Arc::new(
-        default_registry()
+        dsm_dynamic_config::registry()
+            .expect("APM_TRACING is distinct from the other default products")
             .with::<LiveDebuggingData>()
             .expect("LiveDebugger is distinct from default products")
             .with::<UniversalFlagConfig>()
@@ -280,7 +287,14 @@ fn bool_config(value: &bool) -> Cow<'static, str> {
     Cow::Borrowed(if *value { "1" } else { "0" })
 }
 
-fn map_config_name(config: &Configs) -> &'static str {
+fn map_config_name(config: &ApmTracingConfig) -> &'static str {
+    match config {
+        ApmTracingConfig::Lib(config) => map_lib_config_name(config),
+        ApmTracingConfig::DataStreamsEnabled(_) => DATA_STREAMS_ENABLED_INI,
+    }
+}
+
+fn map_lib_config_name(config: &Configs) -> &'static str {
     match config {
         Configs::TracingHeaderTags(_) => "datadog.trace.header_tags",
         Configs::TracingSamplingRate(_) => "datadog.trace.sample_rate",
@@ -295,7 +309,14 @@ fn map_config_name(config: &Configs) -> &'static str {
     }
 }
 
-fn map_config_value(config: &Configs) -> Cow<'_, str> {
+fn map_config_value(config: &ApmTracingConfig) -> Cow<'_, str> {
+    match config {
+        ApmTracingConfig::Lib(config) => map_lib_config_value(config),
+        ApmTracingConfig::DataStreamsEnabled(enabled) => bool_config(enabled),
+    }
+}
+
+fn map_lib_config_value(config: &Configs) -> Cow<'_, str> {
     match config {
         Configs::TracingHeaderTags(tags) => tags.keys().join(",").into(),
         Configs::TracingSamplingRate(rate) => rate.to_string().into(),
@@ -327,11 +348,13 @@ fn map_config_value(config: &Configs) -> Cow<'_, str> {
     }
 }
 
-fn use_rc_config<'a>(config: &Configs, user_value: &'a [u8], _rc_value: &'a str) -> bool {
+fn use_rc_config<'a>(config: &ApmTracingConfig, user_value: &'a [u8], _rc_value: &'a str) -> bool {
     match config {
-        Configs::DynamicInstrumentationEnabled(_)
-        | Configs::ExceptionReplayEnabled(_)
-        | Configs::CodeOriginEnabled(_) => {
+        ApmTracingConfig::Lib(
+            Configs::DynamicInstrumentationEnabled(_)
+            | Configs::ExceptionReplayEnabled(_)
+            | Configs::CodeOriginEnabled(_),
+        ) => {
             let user_str = String::from_utf8_lossy(user_value);
             user_str.parse::<i32>().unwrap_or(0) != 0
                 || user_str.eq_ignore_ascii_case("true")
@@ -366,8 +389,8 @@ fn remove_old_configs(remote_config: &mut RemoteConfigState) {
 
 fn insert_new_configs(
     old_config_values: &mut HashMap<String, Option<OwnedZendString>>,
-    old_configs: &mut Vec<Configs>,
-    new_configs: Vec<Configs>,
+    old_configs: &mut Vec<ApmTracingConfig>,
+    new_configs: Vec<ApmTracingConfig>,
 ) {
     let mut found_configs = HashSet::new();
     for config in new_configs.iter() {
@@ -423,11 +446,11 @@ fn insert_new_configs(
                 },
             );
         }
-        found_configs.insert(mem::discriminant(config));
+        found_configs.insert(name);
     }
     for config in old_configs.iter() {
-        if !found_configs.contains(&mem::discriminant(config)) {
-            let name = map_config_name(config);
+        let name = map_config_name(config);
+        if !found_configs.contains(name) {
             if let Some(val) = old_config_values.remove(name) {
                 reset_old_config(name, val);
             }
@@ -487,13 +510,13 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                             }
                         }
                         RemoteConfigProduct::ApmTracing => {
-                            if let Some(config_data) = data.downcast::<DynamicConfigFile>() {
+                            if let Some(config_data) = data.downcast::<ApmTracingConfigFile>() {
                                 let priority = config_data.priority();
                                 // DD_DATA_STREAMS_ENABLED decides at process level whether the
                                 // sidecar is started, so it cannot be toggled per request, and
                                 // the ApmTracingDataStreamsEnabled capability is not advertised.
-                                let mut configs: Vec<Configs> =
-                                    config_data.lib_config.clone().into();
+                                let mut configs =
+                                    config_data.configs();
                                 configs.retain(|c| !matches!(c, Configs::DataStreamsEnabled(_)));
                                 if !configs.is_empty() {
                                     remote_config.dynamic_config.active_configs.insert(
