@@ -43,3 +43,23 @@ function ffeTestStreamContains($stream, $needle)
     }
     return false;
 }
+
+// Match only the dedicated sidecar listener owned by this test child.
+function ffeTestSidecarPid($childPid) {
+    foreach (file('/proc/net/unix') as $row) {
+        $columns = preg_split('/\s+/', trim($row));
+        if (!isset($columns[7]) || $columns[3] !== '00010000'
+            || strpos($columns[7], '@libdatadog/') !== 0
+            || substr($columns[7], -strlen('.' . $childPid . '.sock')) !== '.' . $childPid . '.sock') continue;
+        foreach (glob('/proc/[0-9]*', GLOB_ONLYDIR) as $directory) {
+            if (@fileowner($directory) !== posix_geteuid()) continue;
+            foreach (glob($directory . '/fd/*') as $descriptor) {
+                if (@readlink($descriptor) !== 'socket:[' . $columns[6] . ']') continue;
+                $pid = (int)basename($directory);
+                if ($pid === $childPid || $pid === getmypid()) throw new RuntimeException('sidecar listener is in a PHP application process');
+                return $pid;
+            }
+        }
+    }
+    return null;
+}

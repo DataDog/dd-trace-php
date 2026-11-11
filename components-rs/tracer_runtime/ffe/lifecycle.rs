@@ -242,6 +242,13 @@ pub(crate) fn configure_sidecar(config: &datadog_sidecar::config::Config) {
     }
 }
 
+/// Whether PHP must reset its inherited sidecar runtime before evaluating.
+/// Native frameworks may fork without loading the tracing integration hook.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_needs_child_reset() -> bool {
+    CHILD_RESUME_PENDING.load(Ordering::Acquire)
+}
+
 /// First-use compatibility path for PHP providers without an initialize API.
 /// Concurrent first callers share one deadline; later calls never renew it.
 #[no_mangle]

@@ -23,9 +23,13 @@ interval is 30 seconds and request timeout is 5 seconds, controlled by
 Shutdown and fork preparation join the local reader without waiting for CDN HTTP.
 The parent and child resume their readers after the fork; the child first clears
 inherited sidecar runtime state. Thread-mode sidecars, including AUTO fallback
-to a thread, do not support CDN fetching. Native framework forks use the same reader stop/resume lifecycle as
-pcntl forks. Reader-owned sidecar restarts preserve PHP's resolved startup
-configuration, including its log destination and level.
+to a thread, do not support CDN fetching. Native framework forks use the same
+reader stop/resume lifecycle as pcntl forks. If a native framework's tracing
+hook is disabled, the first flag
+evaluation performs the child reset before resuming the reader. This supports
+Swoole with tracing or its tracing integration disabled. Reader-owned sidecar
+restarts preserve PHP's resolved startup configuration, including its log
+destination and level.
 
 Retention uses normal Remote Config semantics. A malformed response, transport
 failure, or 304 leaves the last accepted configuration usable. Identical successful

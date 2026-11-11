@@ -118,11 +118,11 @@ impl AgentlessWorker {
         let cancellation = CancellationToken::new();
         let thread_cancellation = cancellation.clone();
         let config = self.config.clone();
-        let log_dispatch = tracing::dispatcher::get_default(Clone::clone);
+        // Native readers have no PHP/TSRM context. Use the global off-thread
+        // subscriber instead of inheriting the PHP caller's dispatcher.
         let thread = crate::threads::spawn("ddtrace-ffe-agentless", move || {
                 IS_AGENTLESS_WORKER.with(|flag| flag.set(true));
                 let _thread_cleanup = ThreadCleanup(config.thread_cleanup);
-                let _log_guard = tracing::dispatcher::set_default(&log_dispatch);
                 let mut warned = false;
                 while !thread_cancellation.is_cancelled() {
                     if read_configuration(&config, &thread_cancellation).is_err() {

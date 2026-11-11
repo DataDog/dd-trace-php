@@ -1993,6 +1993,11 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         attrs_count = idx;
     }
 
+    // Native frameworks can fork with tracing or their integration disabled.
+    // Perform the ordinary PHP child reset before resuming the CDN reader.
+    if (ddog_ffe_needs_child_reset()) {
+        datadog_internal_handle_fork();
+    }
     ddog_ffe_ensure_initialized(datadog_sidecar_active_mode != DD_SIDECAR_CONNECTION_THREAD);
     result = ddog_ffe_evaluate(
         dd_zend_string_to_CharSlice(flag_key),

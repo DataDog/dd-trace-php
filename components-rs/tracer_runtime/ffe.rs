@@ -550,7 +550,7 @@ pub fn retained_config_description() -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::bytes::{OwnedZendString, ZendString};
     use std::alloc::{alloc_zeroed, dealloc, Layout};
@@ -561,7 +561,7 @@ mod tests {
     use std::sync::{Mutex, Once};
 
     static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
-    pub(super) static FFE_TEST_LOCK: Mutex<()> = Mutex::new(());
+    pub(crate) static FFE_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     fn setup_zend_string_functions() {
         INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {

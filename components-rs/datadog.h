@@ -331,6 +331,12 @@ ddog_CharSlice ddog_ffe_initialization_error_reason(void);
 ddog_CharSlice ddog_ffe_initialization_error_message(void);
 
 /**
+ * Whether PHP must reset its inherited sidecar runtime before evaluating.
+ * Native frameworks may fork without loading the tracing integration hook.
+ */
+bool ddog_ffe_needs_child_reset(void);
+
+/**
  * First-use compatibility path for PHP providers without an initialize API.
  * Concurrent first callers share one deadline; later calls never renew it.
  */
