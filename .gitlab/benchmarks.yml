@@ -244,23 +244,15 @@ benchmarks-appsec:
   variables:
     SCENARIO: "appsec"
 
-# Kafka and RabbitMQ produce/consume throughput with Data Streams Monitoring
-# off and on, against real brokers and agent; fails if DSM adds more than 3%
+# DSM overhead (baseline / apm-only / apm+dsm) on benchmark/data-streams-monitoring,
+# Kafka and RabbitMQ, against real brokers and agent; fails if DSM adds more than 3%
 # duration or memory on top of APM for either broker. Same methodology as the other tracers'
-# `<lang>/data-streams-monitoring` suites; see that branch's README.
+# `<lang>/data-streams-monitoring` suites; see that branch's README. Not gating yet.
 .benchmarks-dsm-rules: &benchmarks-dsm-rules
-  - if: $CI_PIPELINE_SOURCE != "schedule"
-    changes:
-      paths:
-        - src/DDTrace/Integrations/Kafka/**/*
-        - src/DDTrace/Integrations/AMQP/**/*
-        - tracer/data_streams.*
-        - components-rs/data_streams.rs
-        - libdatadog
-      compare_to: "master"
+  - if: $CI_COMMIT_REF_NAME == "master"
     when: on_success
     allow_failure: true
-    interruptible: true
+    interruptible: false
   - when: manual
     allow_failure: true
     interruptible: true
@@ -279,7 +271,6 @@ dsm-throughput:
   image: $DSM_THROUGHPUT_CI_IMAGE
   script:
     - export ARTIFACTS_DIR="$(pwd)/artifacts" && (mkdir "${ARTIFACTS_DIR}" || :)
-    # steps/install-tracer.sh installs the packaged build from ../packages.
     - git clone --branch php/data-streams-monitoring https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - bp-runner bp-runner.yml --debug
   artifacts:
@@ -288,6 +279,11 @@ dsm-throughput:
     paths:
       - artifacts/
     expire_in: 3 months
+  variables:
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+    # Workload and tracer come from this pipeline: this checkout and its packaged build.
+    DD_TRACE_PHP_SRC_DIR: "${CI_PROJECT_DIR}"
+    DD_TRACE_PHP_PACKAGE_DIR: "${CI_PROJECT_DIR}/packages"
 
 check-big-regressions:
   rules: *benchmarks-tracer-rules
