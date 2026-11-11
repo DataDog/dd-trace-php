@@ -54,13 +54,13 @@
 // /proc/self/status (the analog of Ruby's get_process_mem and Java's
 // /proc/self/status read); the Zend heap (memory_get_usage(true)) is reported
 // for context. Medians are used for robustness against outliers, matching the
-// other languages' gates.
+// other languages' reports.
 //
 // The sidecar.* metrics have no counterpart on the other branches: the PHP
 // tracer aggregates DSM checkpoints in its sidecar process
 // (datadog-ipc-helper), not in the PHP process, so that part of DSM's cost
-// is not in the gated numbers. They are reported for context, not gated, and
-// omitted when no sidecar is running (the baseline experiment).
+// is not in the process numbers. They are reported separately, for context,
+// and omitted when no sidecar is running (the baseline experiment).
 
 const WORKLOADS = [
     'kafka' => [
@@ -91,7 +91,7 @@ function fail(string $message): void
     exit(1);
 }
 
-// Fail loudly rather than report a meaningless PASS if the run isn't measuring
+// Fail loudly rather than report a meaningless result if the run isn't measuring
 // what its experiment says it is.
 function check_environment(string $broker, bool $tracerEnabled, bool $dsmEnabled): void
 {

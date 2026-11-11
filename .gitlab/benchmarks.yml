@@ -245,9 +245,10 @@ benchmarks-appsec:
     SCENARIO: "appsec"
 
 # DSM overhead (baseline / apm-only / apm+dsm) on benchmark/data-streams-monitoring,
-# Kafka and RabbitMQ, against real brokers and agent; fails if DSM adds more than 3%
-# duration or memory on top of APM for either broker. Same methodology as the other tracers'
-# `<lang>/data-streams-monitoring` suites; see that branch's README. Not gating yet.
+# Kafka and RabbitMQ, against real brokers and agent; reports DSM's duration and memory
+# overhead on top of APM for each broker. Same methodology as the other tracers'
+# `<lang>/data-streams-monitoring` suites; see that branch's README.
+# Report-only benchmark: never blocks PRs.
 .benchmarks-dsm-rules: &benchmarks-dsm-rules
   # Child pipeline: CI_PIPELINE_SOURCE is parent_pipeline, so use the forwarded source.
   - if: $CI_COMMIT_REF_NAME == "master" && $CI_PARENT_PIPELINE_SOURCE != "schedule"

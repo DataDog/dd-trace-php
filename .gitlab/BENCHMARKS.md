@@ -29,8 +29,8 @@ All benchmark jobs are defined in `benchmarks.yml`.
       [benchmarking-platform](https://github.com/DataDog/benchmarking-platform),
       which follows the other tracers' `<lang>/data-streams-monitoring`
       suites.
-    - Fails if DSM adds more than 3% duration or memory on top of APM, for
-      either broker.
+    - Report only: DSM's duration and memory overhead on top of APM, for
+      each broker; never blocks PRs.
 - `linux-php-laravel-realworld-parallel`, `linux-php-symfony-realworld-parallel`,
   `linux-php-wordpress-parallel`: included from
   [apm-sdks-benchmarks](https://github.com/DataDog/apm-sdks-benchmarks/tree/main/.gitlab).
