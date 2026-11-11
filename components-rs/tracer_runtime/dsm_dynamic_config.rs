@@ -8,9 +8,7 @@
 use libdd_remote_config::config::agent_config::AgentConfigFile;
 use libdd_remote_config::config::agent_task::AgentTaskFile;
 use libdd_remote_config::config::dynamic::{self, Configs, DynamicConfigFile};
-use libdd_remote_config::{
-    ParseError, ParserRegistry, RemoteConfigContent, RemoteConfigProduct,
-};
+use libdd_remote_config::{ParseError, ParserRegistry, RemoteConfigContent, RemoteConfigProduct};
 use serde::Deserialize;
 
 /// INI entry behind `DD_DATA_STREAMS_ENABLED`.
@@ -114,10 +112,14 @@ mod tests {
 
     #[test]
     fn absent_or_null_yields_no_entry() {
-        assert!(parse(r#"{"action":"enable","lib_config":{}}"#).configs().is_empty());
-        assert!(parse(r#"{"action":"enable","lib_config":{"data_streams_enabled":null}}"#)
+        assert!(parse(r#"{"action":"enable","lib_config":{}}"#)
             .configs()
             .is_empty());
+        assert!(
+            parse(r#"{"action":"enable","lib_config":{"data_streams_enabled":null}}"#)
+                .configs()
+                .is_empty()
+        );
     }
 
     #[test]

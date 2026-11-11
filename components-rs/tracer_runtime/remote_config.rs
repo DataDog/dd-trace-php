@@ -164,8 +164,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingMulticonfig);
     // Reported because ApmTracingConfig::DataStreamsEnabled maps to DD_DATA_STREAMS_ENABLED.
-    DATADOG_REMOTE_CONFIG_CAPABILITIES
-        .push(RemoteConfigCapabilities::ApmTracingDataStreamsEnabled);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingDataStreamsEnabled);
 
     DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
