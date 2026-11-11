@@ -64,6 +64,32 @@ class Apache2ModTests implements CommonTests {
     }
 
     @Test
+    void 'request after a request blocked during startup finds no stale state'() {
+        // PHP skips RSHUTDOWN after a failed startup, so a request blocked in
+        // AppSec's request init runs AppSec's request shutdown by hand. The
+        // next request on the same worker must not take that request for
+        // one whose shutdown was skipped.
+        def countStale = { ->
+            CONTAINER.execInContainer('grep', '-c',
+                    "AppSec's shutdown did not run", '/tmp/logs/appsec.log')
+                    .stdout.trim() as int
+        }
+        int before = countStale()
+
+        HttpRequest req = CONTAINER.buildReq('/hello.php')
+                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+        CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+        }
+
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> it ->
+            assert it.body().text == 'Hello world!'
+        }
+        assert trace.first().metrics."_dd.appsec.enabled" == 1.0d
+        assert countStale() == before
+    }
+
+    @Test
     void 'test authorization header'() {
         //This test is only on Apache2mod because it requires to configure webserver to pass down authorization headers
         HttpRequest req = container.buildReq('/phpinfo.php')

@@ -256,6 +256,20 @@ static PHP_FUNCTION(datadog_appsec_testing_rinit)
     RETURN_TRUE;
 }
 
+// Runs AppSec's automatic RINIT, which PHP runs at the start of every request,
+// without the current request's RSHUTDOWN having run. Tests use it to start
+// the next request after a skipped shutdown in the same process.
+static PHP_FUNCTION(datadog_appsec_testing_rinit_next_request)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    mlog(dd_log_debug, "Running automatic rinit actions");
+    dd_req_lifecycle_rinit(false);
+    RETURN_TRUE;
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_rshutdown)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -464,6 +478,7 @@ static const zend_function_entry testing_request_control_functions[] = {
 static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit_next_request", PHP_FN(datadog_appsec_testing_rinit_next_request), void_ret_bool_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_invalid_command_functions[] = {

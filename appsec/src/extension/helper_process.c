@@ -21,6 +21,7 @@
 #include "logging.h"
 #include "network.h"
 #include "php_objects.h"
+#include "string_helpers.h"
 #include "telemetry.h"
 #include <ext/compatibility.h>
 #include <ext/version.h>
@@ -125,6 +126,31 @@ void dd_helper_rshutdown(void)
 
     _mgr.connected_this_req = false;
     _mgr.hss = (typeof(_mgr.hss)){0};
+}
+
+// The extension will not finish the request the helper may be in, because
+// AppSec's shutdown for it was skipped. Drop a connection whose helper client
+// is still inside a request, so that the next client_init replaces that client.
+// That drop is not the helper's fault, so it does not count toward the backoff.
+// A connection that is kept answered every command it was sent, so it counts
+// as a success, as it would have in the skipped shutdown.
+void dd_helper_abandon_request(void)
+{
+    dd_conn *conn = &DDAPPSEC_G(conn);
+    bool mid_request = dd_conn_connected(conn) && conn->request_started;
+    if (!mid_request) {
+        _maybe_reset_failed_counter();
+    }
+
+    _mgr.connected_this_req = false;
+    _mgr.hss = (typeof(_mgr.hss)){0};
+
+    if (mid_request) {
+        mlog(dd_log_info, "The helper is still inside a request that was "
+                          "not finished; dropping the connection");
+        dd_helper_close_conn(
+            false, LSTRARG("previous request was not finished"));
+    }
 }
 
 dd_conn *nullable dd_helper_mgr_acquire_conn(
