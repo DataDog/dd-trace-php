@@ -30,6 +30,8 @@
 #    include "test_mock_transport.h"
 #endif
 
+static THREAD_LOCAL_ON_ZTS bool _asm_event_emitted;
+
 static void _register_testing_objects(void);
 
 void dd_trace_startup(void)
@@ -41,6 +43,8 @@ void dd_trace_startup(void)
 #endif
     }
 }
+
+void dd_trace_root_span_changed(void) { _asm_event_emitted = false; }
 
 bool dd_trace_enabled(void) { return get_DD_TRACE_ENABLED(); }
 
@@ -257,14 +261,14 @@ void dd_trace_span_add_propagated_tags(
 
 void dd_trace_emit_asm_event(void)
 {
-    // the tracer tracks this per root span
-    if (ddtrace_asm_event_emitted()) {
+    if (_asm_event_emitted) {
         return;
     }
 
     mlog(dd_log_trace, "Emitting ASM event");
 
     ddtrace_emit_asm_event();
+    _asm_event_emitted = true;
 }
 
 zend_string *dd_trace_guess_endpoint_from_url(

@@ -19,6 +19,9 @@
 typedef zend_object root_span_t;
 
 void dd_trace_startup(void);
+// The request's root span changed (see _set_cur_span):
+// dd_trace_emit_asm_event() emits once per root span.
+void dd_trace_root_span_changed(void);
 
 // This function should only be used in RINIT
 bool dd_trace_enabled(void);

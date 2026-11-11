@@ -16,10 +16,7 @@
 
 static int _module_number;
 
-void dd_phpobj_startup(int module_number)
-{
-    _module_number = module_number;
-}
+void dd_phpobj_startup(int module_number) { _module_number = module_number; }
 
 dd_result dd_phpobj_reg_funcs(const zend_function_entry *entries)
 {
