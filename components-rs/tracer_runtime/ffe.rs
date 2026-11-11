@@ -383,28 +383,43 @@ pub struct FfeExposureKey<'a> {
     pub has_serial_id: bool,
 }
 
+/// Cache-key text for a PHP string: distinct byte strings give distinct text,
+/// including invalid UTF-8, which a lossy conversion would merge.
+fn cache_key_text(slice: CharSlice<'_>) -> String {
+    match slice.try_to_utf8() {
+        Ok(text) => format!("u{text}"),
+        Err(_) => {
+            let mut text = String::from("b");
+            for byte in slice.as_bytes() {
+                text.push_str(&format!("{byte:02x}"));
+            }
+            text
+        }
+    }
+}
+
 /// Records the exposure in the process exposure cache. Returns false when the
 /// subject was already exposed to the same allocation, variant and serial id.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_exposure_cache_record(key: &FfeExposureKey<'_>) -> bool {
     let context = FfeTelemetryContext {
-        service: key.service.to_utf8_lossy().into_owned(),
-        env: key.env.to_utf8_lossy().into_owned(),
-        version: key.version.to_utf8_lossy().into_owned(),
+        service: cache_key_text(key.service),
+        env: cache_key_text(key.env),
+        version: cache_key_text(key.version),
     };
     let exposure = FfeExposure {
         timestamp_ms: 0,
-        flag_key: key.flag_key.to_utf8_lossy().into_owned(),
-        subject_id: key.subject_id.to_utf8_lossy().into_owned(),
+        flag_key: cache_key_text(key.flag_key),
+        subject_id: cache_key_text(key.subject_id),
         subject_attributes_json: String::new(),
-        allocation_key: key.allocation_key.to_utf8_lossy().into_owned(),
-        variant: key.variant.to_utf8_lossy().into_owned(),
+        allocation_key: cache_key_text(key.allocation_key),
+        variant: cache_key_text(key.variant),
         serial_id: key.has_serial_id.then_some(key.serial_id),
         features_json: String::new(),
     };
     EXPOSURE_CACHE
         .load()
-        .should_send_in_scope(&key.scope.to_utf8_lossy(), &context, &exposure)
+        .should_send_in_scope(&cache_key_text(key.scope), &context, &exposure)
 }
 
 #[repr(C)]
@@ -945,6 +960,29 @@ mod tests {
 
     #[test]
     fn exposure_cache_reports_new_and_changed_exposures() {
+        // Invalid UTF-8 must not merge with its lossy replacement.
+        {
+            let record = |subject: &[u8]| {
+                ddog_ffe_exposure_cache_record(&FfeExposureKey {
+                    scope: CharSlice::from(""),
+                    service: CharSlice::from("service"),
+                    env: CharSlice::from("env"),
+                    version: CharSlice::from("1.0"),
+                    flag_key: CharSlice::from("exposure.cache.bytes.flag"),
+                    subject_id: CharSlice::from_bytes(subject),
+                    allocation_key: CharSlice::from("alloc"),
+                    variant: CharSlice::from("on"),
+                    serial_id: 1,
+                    has_serial_id: true,
+                })
+            };
+            assert!(record(b"invalid\xff"));
+            assert!(record(b"invalid\xef\xbf\xbd"));
+            assert!(!record(b"invalid\xff"));
+            assert!(!record(b"invalid\xef\xbf\xbd"));
+            // The hex text that encodes the invalid subject is a distinct valid subject.
+            assert!(record(b"b696e76616c6964ff"));
+        }
         let record_in = |scope: &str, subject: &str, variant: &str, serial_id: Option<i32>| {
             ddog_ffe_exposure_cache_record(&FfeExposureKey {
                 scope: CharSlice::from(scope),
