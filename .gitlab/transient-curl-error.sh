@@ -10,7 +10,7 @@ is_transient_curl_error() {
     5|6|7|16|18|28|52|55|56|92) return 0 ;;
     35)
       # Of the SSL-connect errors, only the observed peer reset is transient.
-      # Other TLS failures, such as handshake rejections, keep their status.
+      # Other TLS failures, such as handshake rejections, are permanent.
       case "$2" in
         *'Connection reset by peer'*) return 0 ;;
       esac
