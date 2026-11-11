@@ -113,7 +113,7 @@ void dd_req_lifecycle_rinit(bool force)
 
     if (!force && _shutdown_pending) {
         mlog(dd_log_info, "AppSec's shutdown did not run for the previous "
-                         "request; discarding its state");
+                          "request; discarding its state");
         _reset_globals(false);
         // resets the connection bookkeeping; drops a connection mid-request
         dd_helper_abandon_request();
