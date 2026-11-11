@@ -3,6 +3,8 @@ DSM2-611: Remote Config cannot enable DSM when nothing starts the sidecar
 --DESCRIPTION--
 Known limit. Remote Config runs on the sidecar, and with telemetry and the sidecar trace sender off
 (and no other reason for it) the sidecar is not started, so no Remote Config setting applies.
+Negative by design: when this limit is lifted (e.g. by starting the sidecar lazily), flip the
+expectations below.
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the sidecar trace sender is always on on Windows'); ?>
@@ -24,6 +26,11 @@ include __DIR__ . '/../includes/request_replayer.inc';
 reset_request_replayer();
 \DDTrace\start_span();
 
+// Precondition: there is no sidecar, so DSM stays inactive even with the setting on.
+ini_set("datadog.data_streams_enabled", "1");
+dsm_state("no sidecar, setting on by ini_set");
+ini_restore("datadog.data_streams_enabled");
+
 put_dynamic_config_file(["data_streams_enabled" => true, "tracing_sampling_rate" => 0.61]);
 await_remote_config(function () {
     return (float) ini_get("datadog.trace.sample_rate") === 0.61;
@@ -39,5 +46,6 @@ require __DIR__ . "/remote_config.inc";
 reset_request_replayer();
 ?>
 --EXPECT--
+no sidecar, setting on by ini_set: setting=on checkpoint=none
 bool(false)
 remote config sent: setting=off checkpoint=none
