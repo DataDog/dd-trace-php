@@ -77,6 +77,9 @@ bool dd_trace_user_req_add_listeners(
 
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
 
+// The tracer's http.url (query string filtered/obfuscated). Empty if unknown.
+zend_string *nonnull dd_trace_build_req_url(const zend_array *nonnull server);
+
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void);
 
 zend_string *nullable dd_trace_guess_endpoint_from_url(

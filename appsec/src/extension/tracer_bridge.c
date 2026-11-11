@@ -14,6 +14,7 @@
 #include <tracer/auto_flush.h>
 #include <tracer/endpoint_guessing.h>
 #include <tracer/ip_extraction.h>
+#include <tracer/serializer.h>
 #include <tracer/span.h>
 #include <tracer/tracer_tag_propagation/tracer_tag_propagation.h>
 #include <unistd.h>
@@ -275,6 +276,11 @@ zend_object *nullable dd_trace_get_active_root_span(void)
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
 {
     return ddtrace_ip_extraction_find(server);
+}
+
+zend_string *nonnull dd_trace_build_req_url(const zend_array *nonnull server)
+{
+    return ddtrace_build_req_url((zend_array *)server);
 }
 
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void)

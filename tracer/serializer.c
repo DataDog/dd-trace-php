@@ -518,7 +518,7 @@ static const char *dd_get_query_string(zend_array *_server) {
     return query_string;
 }
 
-static zend_string *dd_build_req_url(zend_array *_server) {
+zend_string *ddtrace_build_req_url(zend_array *_server) {
     const char *uri = dd_get_req_uri(_server);
     if (!uri) {
         return ZSTR_EMPTY_ALLOC();
@@ -626,7 +626,7 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     if (data->server){
-        zend_string *http_url = dd_build_req_url(data->server);
+        zend_string *http_url = ddtrace_build_req_url(data->server);
         if (ZSTR_LEN(http_url) > 0) {
             zval http_url_zv;
             ZVAL_STR(&http_url_zv, http_url);
