@@ -18,7 +18,7 @@ display_errors=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rinit_next_request,backoff_status,is_connected_to_helper};
+use function datadog\appsec\testing\{rinit,req_lifecycle_rinit,backoff_status,is_connected_to_helper};
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -43,7 +43,7 @@ rinit();
 echo "failed_count after reconnecting: ", backoff_status()['failed_count'], "\n";
 
 // The next request starts.
-rinit_next_request();
+req_lifecycle_rinit();
 echo "commands: ", implode(',', array_column($helper->get_commands(), 0)), "\n";
 echo "connected: ";
 var_dump(is_connected_to_helper());

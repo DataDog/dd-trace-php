@@ -128,12 +128,13 @@ void dd_helper_rshutdown(void)
     _mgr.hss = (typeof(_mgr.hss)){0};
 }
 
-// The extension will not finish the request the helper may be in, because
-// AppSec's shutdown for it was skipped. Drop a connection whose helper client
-// is still inside a request, so that the next client_init replaces that client.
-// That drop is not the helper's fault, so it does not count toward the backoff.
-// A connection that is kept answered every command it was sent, so it counts
-// as a success, as it would have in the skipped shutdown.
+// Stands in for dd_helper_rshutdown when AppSec's shutdown for a request was
+// skipped. If the helper got that request's request_init, it is still inside
+// the request, and no request_shutdown will ever end it. In that case, close
+// the connection without telling the helper; the next client_init then makes
+// the helper replace its client. The close is not a helper failure, so it does
+// not count toward the backoff. A connection that is kept counts as a success
+// and resets the failure counter, as it would have in dd_helper_rshutdown.
 void dd_helper_abandon_request(void)
 {
     dd_conn *conn = &DDAPPSEC_G(conn);

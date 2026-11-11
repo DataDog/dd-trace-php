@@ -16,7 +16,7 @@ datadog.appsec.enabled=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rinit_next_request,backoff_status,is_connected_to_helper};
+use function datadog\appsec\testing\{rinit,req_lifecycle_rinit,backoff_status,is_connected_to_helper};
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -32,7 +32,7 @@ $helper = Helper::createInitedRun([
 var_dump(rinit());
 
 // The next request starts.
-var_dump(rinit_next_request());
+var_dump(req_lifecycle_rinit());
 echo "connected after the next request's init: ";
 var_dump(is_connected_to_helper());
 echo "failed_count: ", backoff_status()['failed_count'], "\n";
@@ -46,7 +46,7 @@ var_dump(is_connected_to_helper());
 --EXPECTF--
 bool(true)
 
-Warning: datadog\appsec\testing\rinit_next_request(): [ddappsec] AppSec's shutdown did not run for the previous request; discarding its state in %s on line %d
+Warning: datadog\appsec\testing\req_lifecycle_rinit(): [ddappsec] AppSec's shutdown did not run for the previous request; discarding its state in %s on line %d
 bool(true)
 connected after the next request's init: bool(false)
 failed_count: 0

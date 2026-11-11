@@ -35,8 +35,7 @@ static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv);
 static zend_string *nullable _extract_ip_from_autoglobal(void);
 static zend_string *nullable _get_entity_as_string(zval *rbe_zv);
 static void _set_cur_span(zend_object *nullable span);
-static void _reset_globals(void);
-static void _forget_unfinished_request(void);
+static void _reset_globals(bool release);
 static zend_long _raise_shutdown_memory_limit(void);
 static bool _restore_shutdown_memory_limit(zend_long limit);
 static zend_array *_request_finish_user_req(bool ignore_verdict,
@@ -58,10 +57,9 @@ static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 static THREAD_LOCAL_ON_ZTS bool _request_blocked;
-// Set by AppSec's automatic RINIT and cleared by its automatic RSHUTDOWN. If
-// it is still set at the next RINIT, the previous request's shutdown was
-// skipped.
-static THREAD_LOCAL_ON_ZTS bool _php_req_open;
+// Set by request init and cleared by request shutdown. If AppSec's RINIT finds
+// it set, the previous request's shutdown was skipped.
+static THREAD_LOCAL_ON_ZTS bool _shutdown_pending;
 enum { MAX_LENGTH_OF_REM_CFG_PATH = 31 };
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
@@ -102,6 +100,9 @@ void dd_req_lifecycle_startup(void)
     _register_testing_objects();
 }
 
+// force is true when the testing function rinit() calls this instead of
+// AppSec's RINIT. It runs even in testing mode and, as it does not start a new
+// PHP request, never takes a pending shutdown for a skipped one.
 void dd_req_lifecycle_rinit(bool force)
 {
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
@@ -110,12 +111,14 @@ void dd_req_lifecycle_rinit(bool force)
         return;
     }
 
-    if (!force) {
-        if (_php_req_open) {
-            _forget_unfinished_request();
-        }
-        _php_req_open = true;
+    if (!force && _shutdown_pending) {
+        mlog(dd_log_warning, "AppSec's shutdown did not run for the previous "
+                             "request; discarding its state");
+        _reset_globals(false);
+        // resets the connection bookkeeping; drops a connection mid-request
+        dd_helper_abandon_request();
     }
+    _shutdown_pending = true;
 
     if (_enabled_user_req) {
         mlog(dd_log_debug, "Skipping automatic request init on CLI because "
@@ -229,8 +232,8 @@ static zend_array *nullable _do_request_begin(
     // The helper only accepts request_exec, request_shutdown or
     // client_shutdown while it is inside a request; never start a new one on
     // top of it.
-    dd_conn *stale = dd_helper_mgr_cur_conn();
-    if (stale && stale->request_started) {
+    dd_conn *cur_conn = dd_helper_mgr_cur_conn();
+    if (cur_conn && cur_conn->request_started) {
         dd_helper_abandon_request();
     }
 
@@ -311,7 +314,7 @@ cleanup:
 
     dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
     if (res == dd_oom) {
-        _reset_globals();
+        _reset_globals(true);
         zend_error_noreturn(E_ERROR,
             "Failed to allocate memory while parsing the AppSec request body");
     }
@@ -323,9 +326,7 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force);
 
 void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 {
-    if (!force) {
-        _php_req_open = false;
-    }
+    _shutdown_pending = false;
 
     // temporarily remove the memory limit to avoid bailouts
     // and as a safety net do a try-catch
@@ -349,7 +350,7 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
                 "Bailout in request shutdown; disconnecting from helper");
         }
         (void)_restore_shutdown_memory_limit(orig_mem_limit);
-        _reset_globals();
+        _reset_globals(true);
     }
     zend_end_try();
 
@@ -369,7 +370,7 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 
     if (get_global_DD_APPSEC_TESTING() && !force) {
         mlog_g(dd_log_debug, "Skipping automatic request shutdown in testing");
-        _reset_globals();
+        _reset_globals(true);
         return;
     }
 
@@ -379,7 +380,7 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
                 "Finishing user request whose corresponding "
                 "span is presumably still unclosed on rshutdown");
             _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
-            _reset_globals();
+            _reset_globals(true);
         }
     } else {
         _do_request_finish_php(ignore_verdict);
@@ -465,7 +466,7 @@ static void _do_request_finish_php(bool ignore_verdict)
     }
     dd_tags_rshutdown();
 
-    _reset_globals();
+    _reset_globals(true);
 
     dd_req_lifecycle_abort(
         REQUEST_STAGE_REQUEST_END, verdict, &ctx.req_info.block_params);
@@ -487,7 +488,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     {
         dd_helper_close_conn(false, NULL, 0);
         (void)_restore_shutdown_memory_limit(orig_mem_limit);
-        _reset_globals();
+        _reset_globals(true);
         zend_bailout();
     }
     zend_end_try();
@@ -496,7 +497,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
         if (result) {
             zend_array_destroy(result);
         }
-        _reset_globals();
+        _reset_globals(true);
         zend_error_noreturn(E_ERROR,
             "Failed to restore memory limit after AppSec request shutdown");
     }
@@ -592,24 +593,34 @@ static bool _restore_shutdown_memory_limit(zend_long limit)
 }
 
 // Detach request-owned values before releasing them: user destructors can bail.
-static void _reset_globals(void)
+// Without release, the values are only forgotten: AppSec's shutdown was skipped
+// for their request, so they went away with its heap (or leaked, if the SAPI
+// did not shut that request down at all).
+static void _reset_globals(bool release)
 {
     zend_object *span = _cur_req_span;
     zend_array *superglob_equiv = _superglob_equiv;
+    zend_string *client_ip = _client_ip;
     zval blocking_function = _blocking_function;
     _cur_req_span = NULL;
     dd_trace_root_span_changed();
     _superglob_equiv = NULL;
     ZVAL_UNDEF(&_blocking_function);
-
-    if (_client_ip && _client_ip != CLIENT_IP_LOOKUP_FAILED) {
-        zend_string_release(_client_ip);
-    }
     _client_ip = NULL;
     _shutdown_done_on_commit = false;
     _request_blocked = false;
-    dd_tags_rshutdown();
     dd_duration_reset_globals();
+
+    if (!release) {
+        // forgets the fragments and user ids without freeing them
+        dd_tags_rinit();
+        return;
+    }
+
+    if (client_ip && client_ip != CLIENT_IP_LOOKUP_FAILED) {
+        zend_string_release(client_ip);
+    }
+    dd_tags_rshutdown();
 
     if (span && GC_DELREF(span) == 0) {
         zend_objects_store_del(span);
@@ -621,27 +632,6 @@ static void _reset_globals(void)
     if (Z_TYPE(blocking_function) != IS_UNDEF) {
         zval_ptr_dtor(&blocking_function);
     }
-}
-
-// AppSec's RSHUTDOWN did not run for the previous request, so its request
-// values were freed with that request's heap (or leaked, if the SAPI did not
-// shut the request down at all). Forget them without releasing anything.
-static void _forget_unfinished_request(void)
-{
-    mlog(dd_log_warning, "AppSec's shutdown did not run for the previous "
-                         "request; discarding its state");
-    _cur_req_span = NULL;
-    dd_trace_root_span_changed();
-    _superglob_equiv = NULL;
-    ZVAL_UNDEF(&_blocking_function);
-    _client_ip = NULL;
-    _shutdown_done_on_commit = false;
-    _request_blocked = false;
-    // forgets the fragments and user ids without freeing them
-    dd_tags_rinit();
-    dd_duration_reset_globals();
-    // resets the connection bookkeeping; drops a connection mid-request
-    dd_helper_abandon_request();
 }
 
 static zend_string *nullable _extract_ip_from_autoglobal(void)
@@ -717,7 +707,7 @@ static zend_array *nullable _start_user_req(
                              "previous request before starting the new one");
         zend_array *spec =
             _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
-        _reset_globals();
+        _reset_globals(true);
         UNUSED(spec);
         assert(spec == NULL);
     }
@@ -929,7 +919,7 @@ static void _finish_user_req(
     if (_shutdown_done_on_commit) {
         mlog(dd_log_debug, "Skipping user request shutdown because it was "
                            "already done on commit");
-        _reset_globals();
+        _reset_globals(true);
         return;
     }
 
@@ -939,7 +929,7 @@ static void _finish_user_req(
             "root span currently associated through the "
             "request started span (or it was cleared already). "
             "Resetting");
-        _reset_globals();
+        _reset_globals(true);
         return;
     }
     if (_cur_req_span != span) {
@@ -947,7 +937,7 @@ static void _finish_user_req(
             "Request finished callback called, but the root span currently "
             "associated is not the same as the one that was provided. "
             "Resetting");
-        _reset_globals();
+        _reset_globals(true);
     }
 
     mlog(dd_log_debug, "Finishing user request for span %p", (void *)span);
@@ -956,7 +946,7 @@ static void _finish_user_req(
         _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
     UNUSED(arr);
     assert(arr == NULL);
-    _reset_globals();
+    _reset_globals(true);
 }
 
 const zend_array *nonnull _get_server_equiv(
