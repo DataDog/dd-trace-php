@@ -3,7 +3,6 @@
 #include "components-rs/common.h"
 #include "span.h"
 
-int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p);
 
 // Returns the span's V1 builder node, or NULL when the span was dropped.
 ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace);

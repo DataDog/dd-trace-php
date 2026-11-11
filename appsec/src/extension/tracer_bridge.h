@@ -45,7 +45,6 @@ void dd_trace_emit_asm_event(void);
 // Provides the array zval representing $root_span->attributes, if any.
 // It is ready for modification, with refcount == 1
 zval *nullable dd_trace_span_get_attributes(zend_object *nonnull);
-zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
 // Provides $root_span->component (borrowed), if it is a string
 zend_string *nullable dd_trace_span_get_component(zend_object *nonnull);
 void dd_trace_span_add_propagated_tags(

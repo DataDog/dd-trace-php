@@ -77,8 +77,6 @@ void ddtrace_coms_kill_background_sender(void);
 void ddtrace_coms_clean_background_sender_after_fork(void);
 
 /* exposed for testing {{{ */
-uint32_t ddtrace_coms_test_writers(void);
-uint32_t ddtrace_coms_test_consumer(void);
 uint32_t ddtrace_coms_test_msgpack_consumer(void);
 /* }}} */
 

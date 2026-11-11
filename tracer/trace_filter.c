@@ -82,14 +82,12 @@ static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uint
                 *out_len = (uintptr_t)(len > 0 ? len : 0);
                 return attr_buf;
             }
+            case IS_ARRAY:
+            case IS_OBJECT:
+                // Composite values (e.g. _dd.stack): key-presence only, as they are unrepresentable as a string.
+                *out_len = 0;
+                return "";
         }
-    }
-
-    // Meta struct: key-presence only (value is unrepresentable as a string).
-    zend_array *meta_struct = ddtrace_property_array(&root->property_meta_struct);
-    if (meta_struct && zend_hash_str_exists(meta_struct, key, key_len)) {
-        *out_len = 0;
-        return "";
     }
 
     return NULL;

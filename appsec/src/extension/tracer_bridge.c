@@ -136,11 +136,6 @@ zval *nullable dd_trace_span_get_attributes(zend_object *nonnull zobj)
     return _span_array_property(&OBJ_SPANDATA(zobj)->property_attributes);
 }
 
-zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
-{
-    return _span_array_property(&OBJ_SPANDATA(zobj)->property_meta_struct);
-}
-
 zend_string *nullable dd_trace_span_get_component(zend_object *nonnull zobj)
 {
 #if PHP_VERSION_ID >= 80000
@@ -350,23 +345,6 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_attributes) // NOLINT
     }
 }
 
-static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta_struct) // NOLINT
-{
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_FALSE;
-    }
-
-    __auto_type root_span = dd_trace_get_active_root_span();
-    if (!root_span) {
-        RETURN_NULL();
-    }
-
-    zval *meta_struct_zv = dd_trace_span_get_meta_struct(root_span);
-    if (meta_struct_zv) {
-        RETURN_ZVAL(meta_struct_zv, 1 /* copy */, 0 /* no destroy original */);
-    }
-}
-
 static PHP_FUNCTION(datadog_appsec_testing_get_formatted_runtime_id) // NOLINT
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -400,7 +378,6 @@ static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "ddtrace_rshutdown", PHP_FN(datadog_appsec_testing_ddtrace_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_attribute", PHP_FN(datadog_appsec_testing_root_span_add_attribute), arginfo_root_span_add_attribute, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_attributes", PHP_FN(datadog_appsec_testing_root_span_get_attributes), void_ret_nullable_array, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta_struct", PHP_FN(datadog_appsec_testing_root_span_get_meta_struct), void_ret_nullable_array, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0, NULL, NULL)
     PHP_FE_END
 };

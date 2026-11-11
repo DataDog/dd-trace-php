@@ -2111,35 +2111,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
             RETVAL_TRUE;
 #ifndef _WIN32
-        } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
-            RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
-        } else if (FUNCTION_NAME_MATCHES("ddtrace_coms_next_group_id")) {
-            RETVAL_LONG(ddtrace_coms_next_group_id());
-        } else if (params_count == 2 && FUNCTION_NAME_MATCHES("ddtrace_coms_buffer_span")) {
-            zval *group_id = ZVAL_VARARG_PARAM(params, 0);
-            zval *trace_array = ZVAL_VARARG_PARAM(params, 1);
-            char *data = NULL;
-            size_t size = 0;
-            if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size)) {
-                RETVAL_BOOL(ddtrace_coms_buffer_data(Z_LVAL_P(group_id), data, size));
-                efree(data);
-            } else {
-                RETVAL_FALSE;
-            }
-        } else if (params_count == 2 && FUNCTION_NAME_MATCHES("ddtrace_coms_buffer_data")) {
-            zval *group_id = ZVAL_VARARG_PARAM(params, 0);
-            zval *data = ZVAL_VARARG_PARAM(params, 1);
-            RETVAL_BOOL(ddtrace_coms_buffer_data(Z_LVAL_P(group_id), Z_STRVAL_P(data), Z_STRLEN_P(data)));
-        } else if (FUNCTION_NAME_MATCHES("shutdown_writer")) {
-            RETVAL_BOOL(ddtrace_coms_flush_shutdown_writer_synchronous());
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_writer_send_on_flush")) {
             RETVAL_BOOL(ddtrace_coms_set_writer_send_on_flush(IS_TRUE_P(ZVAL_VARARG_PARAM(params, 0))));
-        } else if (FUNCTION_NAME_MATCHES("test_consumer")) {
-            ddtrace_coms_test_consumer();
-            RETVAL_TRUE;
-        } else if (FUNCTION_NAME_MATCHES("test_writers")) {
-            ddtrace_coms_test_writers();
-            RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("test_msgpack_consumer")) {
             ddtrace_coms_test_msgpack_consumer();
             RETVAL_TRUE;

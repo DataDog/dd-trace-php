@@ -147,7 +147,6 @@ if (PHP_DDTRACE != 'no') {
 		ADD_SOURCES(zai_dirname + "/interceptor/php8", "interceptor.c resolver" + (version < 802 ? "_pre-8_2" : "") + ".c", "ddtrace");
 	}
 
-	ADD_SOURCES(configure_module_dirname + "/tracer/vendor/mpack", "mpack.c", "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/tracer/vendor/mt19937", "mt19937-64.c", "ddtrace");
 	// ADD_SOURCES(configure_module_dirname + "/src/dogstatsd", "client.c", "ddtrace");
 

@@ -27,7 +27,6 @@
 #include <components/atomic_win32_polyfill.h>
 #include <synchapi.h>
 #endif
-#include "vendor/mpack/mpack.h"
 #include <zai_string/string.h>
 #include <sandbox/sandbox.h>
 #include <ext/standard/url.h>
@@ -62,180 +61,9 @@ extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_str span_type,
                                                zai_str resource);
 
-static void mpack_write_utf8_lossy_cstr(mpack_writer_t *writer, const char *str, size_t len) {
-    if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        char *strippedStr = ddtrace_strip_invalid_utf8(str, &len);
-        if (strippedStr) {
-            mpack_write_str(writer, strippedStr, len);
-            ddtrace_drop_rust_string(strippedStr, len);
-            return;
-        }
-    }
-
-    mpack_write_str(writer, str, len);
-}
-
-#define MAX_ID_BUFSIZ 40  // 3.4e^38 = 39 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
-#define KEY_META_STRUCT "meta_struct"
-
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level);
-static void serialize_meta_struct(mpack_writer_t *writer, zval *trace);
-
-static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
-    zval *tmp;
-    zend_string *string_key;
-    zend_long num_key;
-    bool is_assoc = 0;
-
-#if PHP_VERSION_ID >= 80100
-    is_assoc = !zend_array_is_list(ht);
-#else
-    Bucket *bucket;
-    ZEND_HASH_FOREACH_BUCKET(ht, bucket) { is_assoc = is_assoc || bucket->key != NULL; }
-    ZEND_HASH_FOREACH_END();
-#endif
-
-    if (is_assoc) {
-        mpack_start_map(writer, zend_hash_num_elements(ht));
-    } else {
-        mpack_start_array(writer, zend_hash_num_elements(ht));
-    }
-
-    ZEND_HASH_FOREACH_KEY_VAL_IND(ht, num_key, string_key, tmp) {
-        // Writing the key, if associative
-        bool zval_string_as_uint64 = false;
-        bool is_meta_struct = false;
-        if (is_assoc == 1) {
-            char num_str_buf[MAX_ID_BUFSIZ], *key;
-            size_t len;
-            if (string_key) {
-                key = ZSTR_VAL(string_key);
-                len = ZSTR_LEN(string_key);
-            } else {
-                key = num_str_buf;
-                len = sprintf(num_str_buf, ZEND_LONG_FMT, num_key);
-            }
-            mpack_write_utf8_lossy_cstr(writer, key, len);
-            // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
-            if (level <= 3 &&
-                (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key))) {
-                zval_string_as_uint64 = true;
-            }
-            if (level <= 3 &&
-                (0 == strcmp(KEY_META_STRUCT, key))) {
-                is_meta_struct = true;
-            }
-        }
-
-        // Writing the value
-        if (zval_string_as_uint64) {
-            mpack_write_u64(writer, strtoull(Z_STRVAL_P(tmp), NULL, 10));
-        } else if(is_meta_struct) {
-            serialize_meta_struct(writer, tmp);
-        } else if (msgpack_write_zval(writer, tmp, level) != 1) {
-            return 0;
-        }
-    }
-    ZEND_HASH_FOREACH_END();
-
-    if (is_assoc) {
-        mpack_finish_map(writer);
-    } else {
-        mpack_finish_array(writer);
-    }
-    return 1;
-}
-
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
-    if (Z_TYPE_P(trace) == IS_REFERENCE) {
-        trace = Z_REFVAL_P(trace);
-    }
-    switch (Z_TYPE_P(trace)) {
-        case IS_ARRAY:
-            if (write_hash_table(writer, Z_ARRVAL_P(trace), level + 1) != 1) {
-                return 0;
-            }
-            break;
-        case IS_DOUBLE:
-            mpack_write_double(writer, Z_DVAL_P(trace));
-            break;
-        case IS_LONG:
-            mpack_write_int(writer, Z_LVAL_P(trace));
-            break;
-        case IS_NULL:
-            mpack_write_nil(writer);
-            break;
-        case IS_TRUE:
-        case IS_FALSE:
-            mpack_write_bool(writer, Z_TYPE_P(trace) == IS_TRUE);
-            break;
-        case IS_STRING:
-            mpack_write_utf8_lossy_cstr(writer, Z_STRVAL_P(trace), Z_STRLEN_P(trace));
-            break;
-        default:
-            LOG(WARN, "Serialize values must be of type array, string, int, float, bool or null");
-            mpack_writer_flag_error(writer, mpack_error_type);
-            return 0;
-    }
-    return 1;
-}
-
-static void serialize_meta_struct(mpack_writer_t *writer, zval *meta_struct) {
-    zval *tmp;
-    zend_string *string_key;
-    zend_ulong num_key;
-
-    HashTable *ht = Z_ARRVAL_P(meta_struct);
-
-    mpack_start_map(writer, zend_hash_num_elements(ht));
-
-    ZEND_HASH_FOREACH_KEY_VAL_IND(ht, num_key, string_key, tmp) {
-        if (string_key) {
-            mpack_write_cstr(writer, ZSTR_VAL(string_key));
-        } else {
-            char num_str_buf[MAX_ID_BUFSIZ];
-            mpack_write_str(writer, num_str_buf, sprintf(num_str_buf, ZEND_ULONG_FMT, num_key));
-        }
-        mpack_write_bin(writer, Z_STRVAL_P(tmp), Z_STRLEN_P(tmp));
-    }
-    ZEND_HASH_FOREACH_END();
-
-    mpack_finish_map(writer);
-}
-
-int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p) {
-    // encode to memory buffer
-    char *data;
-    size_t size;
-    mpack_writer_t writer;
-    mpack_writer_init_growable(&writer, &data, &size);
-    if (msgpack_write_zval(&writer, trace, 0) != 1) {
-        mpack_writer_destroy(&writer);
-        if (data) {
-            efree(data);
-        }
-        return 0;
-    }
-    // finish writing
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
-        if (data) {
-            efree(data);
-        }
-        return 0;
-    }
-
-    if (data_p && size_p) {
-        *data_p = data;
-        *size_p = size;
-
-        return 1;
-    } else {
-        return 0;
-    }
-}
 
 typedef struct dd_error_info {
     zend_string *type;
@@ -1208,26 +1036,6 @@ void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric) {
     }
 }
 
-static void dd_serialize_array_meta_struct_recursively(ddog_SpanBytes *target, ddog_CharSlice key, zval *value) {
-    char *data;
-    size_t size;
-
-    mpack_writer_t writer;
-    mpack_writer_init_growable(&writer, &data, &size);
-    int result = msgpack_write_zval(&writer, value, 5);
-    mpack_writer_destroy(&writer);
-
-    if (size == 0 || result == 0) {
-        if (data) {
-            efree(data);
-        }
-        return;
-    }
-
-    ddog_attributes_add_bytes(ddog_span_get_attributes(target), key, (ddog_CharSlice){.ptr = data, .len = size});
-    efree(data);
-}
-
 struct iter {
     // caller owns key/value
     bool (*next)(struct iter *self, zend_string **key, zend_string **value);
@@ -2036,16 +1844,6 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
         ddog_free_charslice(span_log);
     });
 
-    zend_array *meta_struct = ddtrace_property_array(&span->property_meta_struct);
-    zend_string *ms_str_key;
-    zend_ulong ms_num_key;
-    zval *ms_val;
-    ZEND_HASH_FOREACH_KEY_VAL_IND(meta_struct, ms_num_key, ms_str_key, ms_val) {
-        char numbuf[24];
-        dd_serialize_array_meta_struct_recursively(rspan, dd_native_member_key(ms_str_key, ms_num_key, numbuf), ms_val);
-    }
-    ZEND_HASH_FOREACH_END();
-
     ddtrace_free_span_precomputed(&pre);
     return rspan;
 }
@@ -2095,17 +1893,15 @@ static void dd_attr_value_to_zval(const ddog_AttrValue *value, zval *out) {
     }
 }
 
-// Reads an attribute map into the `out` array. With `bytes_out`, Bytes values go
-// there instead (v0.4 meta_struct entries). A repeated key keeps its last write, as on the wire.
-static void dd_attributes_to_zval(const ddog_Attributes *attrs, zval *out, zval *bytes_out) {
+// Reads an attribute map into the `out` array. A repeated key keeps its last write, as on the wire.
+static void dd_attributes_to_zval(const ddog_Attributes *attrs, zval *out) {
     size_t n = ddog_v1_attributes_len(attrs);
     for (size_t i = 0; i < n; i++) {
         ddog_CharSlice key = ddog_v1_attributes_key(attrs, i);
         const ddog_AttrValue *value = ddog_v1_attributes_value(attrs, i);
         zval v;
         dd_attr_value_to_zval(value, &v);
-        zval *target = bytes_out && ddog_v1_value_type(value) == ddog_DDOG_V1_ATTR_BYTES ? bytes_out : out;
-        zend_symtable_str_update(Z_ARR_P(target), dd_CharSlice_ptr(key), key.len, &v);
+        zend_symtable_str_update(Z_ARR_P(out), dd_CharSlice_ptr(key), key.len, &v);
     }
 }
 
@@ -2149,13 +1945,10 @@ static void dd_span_to_zval(ddog_SpanBytes *span, zval *span_zv) {
         add_assoc_long(span_zv, "span_kind", span_kind);
     }
 
-    // Bytes-typed attributes go under "meta_struct" (as on SpanData), not in the attribute map.
-    zval attrs_zv, meta_struct_zv;
+    zval attrs_zv;
     array_init(&attrs_zv);
-    array_init(&meta_struct_zv);
-    dd_attributes_to_zval(ddog_span_get_attributes(span), &attrs_zv, &meta_struct_zv);
+    dd_attributes_to_zval(ddog_span_get_attributes(span), &attrs_zv);
     dd_add_assoc_nonempty(span_zv, "attributes", &attrs_zv);
-    dd_add_assoc_nonempty(span_zv, "meta_struct", &meta_struct_zv);
 
     size_t link_count = ddog_v1_get_link_count(span);
     if (link_count > 0) {
@@ -2171,7 +1964,7 @@ static void dd_span_to_zval(ddog_SpanBytes *span, zval *span_zv) {
             dd_add_assoc_charslice(&link_zv, "tracestate", ddog_v1_get_link_tracestate(link));
             zval lattrs_zv;
             array_init(&lattrs_zv);
-            dd_attributes_to_zval(ddog_link_get_attributes(link), &lattrs_zv, NULL);
+            dd_attributes_to_zval(ddog_link_get_attributes(link), &lattrs_zv);
             dd_add_assoc_nonempty(&link_zv, "attributes", &lattrs_zv);
             zend_hash_next_index_insert_new(Z_ARR(links_zv), &link_zv);
         }
@@ -2190,7 +1983,7 @@ static void dd_span_to_zval(ddog_SpanBytes *span, zval *span_zv) {
             add_assoc_long(&event_zv, "time_unix_nano", ddog_v1_get_event_time(event));
             zval eattrs_zv;
             array_init(&eattrs_zv);
-            dd_attributes_to_zval(ddog_event_get_attributes(event), &eattrs_zv, NULL);
+            dd_attributes_to_zval(ddog_event_get_attributes(event), &eattrs_zv);
             dd_add_assoc_nonempty(&event_zv, "attributes", &eattrs_zv);
             zend_hash_next_index_insert_new(Z_ARR(events_zv), &event_zv);
         }
@@ -2208,7 +2001,7 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadBytes *b) {
     dd_add_assoc_charslice(&payload_zv, "app_version", ddog_v1_get_payload_app_version(b));
     zval payload_attrs_zv;
     array_init(&payload_attrs_zv);
-    dd_attributes_to_zval(ddog_payload_get_attributes(b), &payload_attrs_zv, NULL);
+    dd_attributes_to_zval(ddog_payload_get_attributes(b), &payload_attrs_zv);
     dd_add_assoc_nonempty(&payload_zv, "attributes", &payload_attrs_zv);
 
     zval chunks_zv;
@@ -2232,7 +2025,7 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadBytes *b) {
         }
         zval chunk_attrs_zv;
         array_init(&chunk_attrs_zv);
-        dd_attributes_to_zval(ddog_chunk_get_attributes(chunk), &chunk_attrs_zv, NULL);
+        dd_attributes_to_zval(ddog_chunk_get_attributes(chunk), &chunk_attrs_zv);
         dd_add_assoc_nonempty(&chunk_zv, "attributes", &chunk_attrs_zv);
 
         zval spans_zv;

@@ -38,7 +38,6 @@
 #include <ext/endpoints.h>
 #include <ext/ffi_utils.h>
 #include "tracer_telemetry.h"
-#include "mpack/mpack.h"
 #include <ext/sidecar.h>
 #include "zend_smart_str.h"
 
@@ -509,21 +508,26 @@ struct _grouped_stack_t {
 static size_t dd_write_array_header(char *buffer, size_t buffer_size, size_t position, uint32_t array_size) {
     size_t free_space = buffer_size - position;
     char *data = buffer + position;
+    // msgpack fixarray, array 16 and array 32 headers; the sizes are big-endian.
     if (array_size < 16) {
         if (free_space >= 1) {
-            mpack_store_u8(data, (uint8_t)(0x90u | array_size));
+            data[0] = (char)(0x90u | array_size);
             return 1;
         }
     } else if (array_size < UINT16_MAX) {
         if (free_space >= 3) {
-            mpack_store_u8(data, 0xdc);
-            mpack_store_u16(data + 1, array_size);
+            data[0] = (char)0xdc;
+            data[1] = (char)(array_size >> 8);
+            data[2] = (char)array_size;
             return 3;
         }
     } else {
         if (free_space >= 5) {
-            mpack_store_u8(data, 0xdd);
-            mpack_store_u32(data + 1, array_size);
+            data[0] = (char)0xdd;
+            data[1] = (char)(array_size >> 24);
+            data[2] = (char)(array_size >> 16);
+            data[3] = (char)(array_size >> 8);
+            data[4] = (char)array_size;
             return 5;
         }
     }
@@ -1552,79 +1556,6 @@ void ddtrace_coms_set_test_session_token(const char *token, size_t token_len) {
 }
 
 /* for testing {{{ */
-#define DDTRACE_NUMBER_OF_DATA_TO_WRITE 2000
-#define DDTRACE_DATA_TO_WRITE "0123456789"
-
-static void *dd_test_writer_function(void *_) {
-    (void)_;
-    for (int i = 0; i < DDTRACE_NUMBER_OF_DATA_TO_WRITE; i++) {
-        ddtrace_coms_buffer_data(0, DDTRACE_DATA_TO_WRITE, sizeof(DDTRACE_DATA_TO_WRITE) - 1);
-    }
-    pthread_exit(NULL);
-    return NULL;
-}
-
-uint32_t ddtrace_coms_test_writers(void) {
-    int threads = 100;
-
-    pthread_t *thread = malloc(sizeof(pthread_t) * threads);
-
-    for (int i = 0; i < threads; i++) {
-        int ret = pthread_create(&thread[i], NULL, &dd_test_writer_function, NULL);
-
-        if (ret != 0) {
-            printf("Create pthread error!\n");
-        }
-    }
-
-    for (int i = 0; i < threads; i++) {
-        void *ptr;
-        pthread_join(thread[i], &ptr);
-    }
-    printf("written %lu\n",
-           DDTRACE_NUMBER_OF_DATA_TO_WRITE * threads * (sizeof(DDTRACE_DATA_TO_WRITE) - 1 + sizeof(size_t)));
-    fflush(stdout);
-    free(thread);
-
-    return 1;
-}
-
-uint32_t ddtrace_coms_test_consumer(void) {
-    if (!dd_coms_unsafe_rotate_stack(true, atomic_load(&ddtrace_coms_globals.stack_size))) {
-        printf("error rotating stacks");
-    }
-
-    for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
-        ddtrace_coms_stack_t *stack = ddtrace_coms_globals.stacks[i];
-        if (!stack) continue;
-
-        if (!ddtrace_coms_is_stack_unused(stack)) {
-            continue;
-        }
-
-        size_t bytes_written = atomic_load(&stack->bytes_written);
-
-        size_t position = 0;
-
-        while (position < bytes_written) {
-            size_t size = 0;
-            memcpy(&size, stack->data + position, sizeof(size_t));
-
-            position += sizeof(size_t) + sizeof(uint32_t);
-            if (size == 0) {
-            }
-            char *data = stack->data + position;
-            position += size;
-            if (strncmp(data, "0123456789", sizeof("0123456789") - 1) != 0) {
-                printf("%.*s\n", (int)size, data);
-            }
-        }
-        printf("bytes_written %lu\n", bytes_written);
-    }
-
-    return 1;
-}
-
 #define PRINT_PRINTABLE(with_prefix, previous_ch, ch)           \
     do {                                                        \
         if (ch >= 0x20 && ch < 0x7f) {                          \

@@ -252,7 +252,7 @@ foreach ($arch_targets as $arch_target) {
       DD_TRACE_AGENT_URL: ""
 
   request-replayer:
-    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:5.0
+    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:6.0
     alias: request-replayer
     command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
     variables:

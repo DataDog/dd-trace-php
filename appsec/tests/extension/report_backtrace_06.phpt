@@ -24,7 +24,7 @@ $root = DDTrace\active_span();
 one("foo");
 DDTrace\close_span(0);
 $span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? [];
-var_dump(isset($span[0]["meta_struct"]));
+var_dump(isset($span[0]["attributes"]["_dd.stack"]));
 DDTrace\flush();
 ?>
 --EXPECTF--

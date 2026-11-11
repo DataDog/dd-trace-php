@@ -13,6 +13,39 @@ if ('cli-server' !== PHP_SAPI) {
     exit;
 }
 
+/**
+ * A v0.4 meta_struct value is msgpack inside a bin: decode it. Anything which isn't exactly one
+ * msgpack value is kept as ['bytes' => base64], like v1 Bytes attributes.
+ */
+function decodeMetaStructValue($bin)
+{
+    if (!is_string($bin)) {
+        return $bin;
+    }
+    try {
+        $unpacker = new BufferUnpacker($bin, UnpackOptions::BIGINT_AS_STR);
+        $value = $unpacker->unpack();
+        if ($unpacker->hasRemaining()) {
+            return ['bytes' => base64_encode($bin)];
+        }
+    } catch (\Throwable $e) {
+        return ['bytes' => base64_encode($bin)];
+    }
+    return jsonSafeStrings($value);
+}
+
+/** Strings which aren't valid UTF-8 (nested bin values) become ['bytes' => base64], as json_encode() rejects them. */
+function jsonSafeStrings($value)
+{
+    if (is_string($value)) {
+        return preg_match('//u', $value) ? $value : ['bytes' => base64_encode($value)];
+    }
+    if (is_array($value)) {
+        return array_map('jsonSafeStrings', $value);
+    }
+    return $value;
+}
+
 function decodeDogStatsDMetrics($metrics)
 {
     $metrics = array_filter($metrics);
@@ -455,6 +488,9 @@ switch ($uri) {
                             }
 
                             $span[$field] = (string)$span[$field];
+                        }
+                        if (isset($span['meta_struct']) && is_array($span['meta_struct'])) {
+                            $span['meta_struct'] = array_map('decodeMetaStructValue', $span['meta_struct']);
                         }
                     }
                 }

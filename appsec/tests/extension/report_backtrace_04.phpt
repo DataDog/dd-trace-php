@@ -7,7 +7,7 @@ DD_APPSEC_MAX_STACK_TRACES=0
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
 
-use function datadog\appsec\testing\{report_exploit_backtrace, root_span_get_meta_struct};
+use function datadog\appsec\testing\{report_exploit_backtrace, root_span_get_attributes};
 
 function two($param01, $param02)
 {
@@ -27,7 +27,7 @@ one("foo01"); //Line 22
 one("foo02"); //Line 23
 one("foo03"); //Line 24
 
-var_dump(root_span_get_meta_struct());
+var_dump(array_intersect_key(root_span_get_attributes(), ['_dd.stack' => 1]));
 
 ?>
 --EXPECTF--

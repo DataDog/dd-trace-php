@@ -212,9 +212,8 @@ namespace DDTrace {
         public string|null $service = "";
 
         /**
-         * @var string[] Meta struct can be used to send any data to the backend. The peculiarity of meta struct is
-         * that the values are encoded with msgpack when sent to the agent. The values are first encoded to msgpack
-         * and then, encoded again with msgpack to binary
+         * @var array Ignored: its contents are not sent.
+         * @deprecated Has no effect. Use $attributes, which keep nested arrays as they are.
          */
         public array $meta_struct = [];
 
@@ -1338,9 +1337,7 @@ namespace {
     /**
      * Execute a given internal function
      *
-     * Internal functions are: init_and_start_writer, ddtrace_coms_next_group_id, ddtrace_coms_buffer_span,
-     * ddtrace_coms_buffer_data, shutdown_writer, set_writer_send_on_flush, test_consumer, test_writers,
-     * test_msgpack_consumer, and synchronous_flush
+     * Internal functions are: set_writer_send_on_flush, test_msgpack_consumer, and synchronous_flush
      *
      * @internal
      * @param string $functionName Internal function name

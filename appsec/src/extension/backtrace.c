@@ -230,44 +230,41 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
         return false;
     }
 
-    zval *meta_struct = dd_trace_span_get_meta_struct(span);
-    if (!meta_struct) {
-        mlog(dd_log_warning, "Failed to retrieve root span meta_struct");
+    zval *attributes = dd_trace_span_get_attributes(span);
+    if (!attributes) {
+        mlog(dd_log_warning, "Failed to retrieve root span attributes");
         return false;
     }
 
-    if (Z_TYPE_P(meta_struct) == IS_NULL) {
-        array_init(meta_struct);
-    } else if (Z_TYPE_P(meta_struct) != IS_ARRAY) {
-        mlog(dd_log_trace,
-            "Field 'meta_struct' is of type '%d', expected 'array'",
-            Z_TYPE_P(meta_struct));
-        return false;
-    }
-
-    zval *dd_stack = zend_hash_find(Z_ARR_P(meta_struct), _dd_stack_key);
-    zval *exploit = NULL;
+    zval *dd_stack = zend_hash_find(Z_ARR_P(attributes), _dd_stack_key);
     if (!dd_stack || Z_TYPE_P(dd_stack) == IS_NULL) {
-        dd_stack = zend_hash_add_new(
-            Z_ARR_P(meta_struct), _dd_stack_key, &EG(uninitialized_zval));
-        array_init(dd_stack);
-        exploit = zend_hash_add_new(
-            Z_ARR_P(dd_stack), _exploit_key, &EG(uninitialized_zval));
-        array_init(exploit);
+        zval new_stack;
+        array_init(&new_stack);
+        dd_stack =
+            zend_hash_update(Z_ARR_P(attributes), _dd_stack_key, &new_stack);
         mlog(dd_log_trace, "Backtrace stack created");
     } else if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
-        mlog(dd_log_warning, "Field 'stack' is of type '%d', expected 'array'",
+        mlog(dd_log_warning,
+            "Field '_dd.stack' is of type '%d', expected 'array'",
             Z_TYPE_P(dd_stack));
         return false;
     } else {
-        exploit = zend_hash_find(Z_ARR_P(dd_stack), _exploit_key);
+        SEPARATE_ARRAY(dd_stack);
     }
 
-    if (Z_TYPE_P(exploit) != IS_ARRAY) {
+    zval *exploit = zend_hash_find_deref(Z_ARR_P(dd_stack), _exploit_key);
+    if (!exploit || Z_TYPE_P(exploit) == IS_NULL) {
+        zval new_exploit;
+        array_init(&new_exploit);
+        exploit =
+            zend_hash_update(Z_ARR_P(dd_stack), _exploit_key, &new_exploit);
+    } else if (Z_TYPE_P(exploit) != IS_ARRAY) {
         mlog(dd_log_warning,
             "Field 'exploit' is of type '%d', expected 'array'",
             Z_TYPE_P(exploit));
         return false;
+    } else {
+        SEPARATE_ARRAY(exploit);
     }
 
     unsigned int limit = get_global_DD_APPSEC_MAX_STACK_TRACES();
