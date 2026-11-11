@@ -10,7 +10,7 @@ use datadog_ffe::telemetry::FfeTelemetryContext;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::debug;
 
