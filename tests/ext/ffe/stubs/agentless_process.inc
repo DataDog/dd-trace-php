@@ -123,7 +123,7 @@ try {
         } else {
             $stdout .= ffeTestProcessRead($pipes[1]);
             $forked = strpos($stdout, 'parent_forked') !== false && strpos($stdout, 'child_forked') !== false;
-            $value = (in_array($scenario, array('fork', 'swoole'), true) && $forked) || ($scenario === 'restart' && $restarted) ? 'green' : 'blue';
+            $value = (in_array($scenario, array('fork', 'swoole'), true) && $forked) || ($scenario === 'restart' && $restarted) || ($scenario === 'retarget' && strpos($stdout, 'configuration_retained_after_target_changes') !== false) ? 'green' : 'blue';
             $code = '200 OK';
             $configuration = array(
                 'createdAt' => '2026-05-22T00:00:00Z', 'environment' => array('name' => 'test'),

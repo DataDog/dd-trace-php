@@ -634,7 +634,6 @@ typedef struct ddog_FfeRuntimeConfig {
 
 /**
  * Borrowed process settings. Strings are copied; credentials are never logged.
- * The optional cleanup callback must remain valid until shutdown joins workers.
  */
 typedef struct ddog_FfeSettingsInput {
   bool enabled;
@@ -651,8 +650,6 @@ typedef struct ddog_FfeSettingsInput {
   ddog_CharSlice api_key;
   ddog_CharSlice environment;
   bool sidecar_subprocess_enabled;
-  bool sidecar_self_telemetry;
-  void (*thread_cleanup)(void*);
 } ddog_FfeSettingsInput;
 
 /**

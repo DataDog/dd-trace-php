@@ -3,7 +3,9 @@ use crate::sidecar::MaybeShmLimiter;
 use datadog_ffe::rules_based::UniversalFlagConfig;
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::InstanceId;
-use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
+use datadog_sidecar::shm_remote_config::{
+    CdnRegistration, RemoteConfigManager, RemoteConfigUpdate,
+};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
 use itertools::Itertools;
 use libdd_common::tag::Tag;
@@ -94,8 +96,22 @@ fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>)
 
 pub struct RemoteConfigState {
     pub(crate) manager: RemoteConfigManager,
+    cdn: Option<CdnRegistration>,
+    cdn_last_check: Option<std::time::Instant>,
     live_debugger: LiveDebuggerState,
     dynamic_config: DynamicConfig,
+}
+
+impl RemoteConfigState {
+    pub(crate) fn reconnect(&mut self) {
+        if self.cdn.is_some()
+            && self.manager.current_remote_config_generation() != 0
+            && crate::ffe::ddog_ffe_has_config()
+        {
+            crate::ffe::set_delivery_state(crate::ffe::DeliveryState::Stale);
+        }
+        self.manager.reconnect();
+    }
 }
 
 #[repr(C)]
@@ -217,16 +233,29 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
             .with::<UniversalFlagConfig>()
             .expect("FFE is distinct from default products"),
     );
-    Box::new(RemoteConfigState {
-        manager: RemoteConfigManager::new_with_registry(
-            ConfigInvariants {
-                language: "php".to_string(),
-                tracer_version: include_str!("../../VERSION").trim().into(),
-                endpoint: endpoint.clone(),
-                agentless: None,
+    // Never consume an unscoped Agent directory as a CDN source if deriving
+    // the publication identity fails.
+    let (cdn, invariants) = crate::ffe::lifecycle::registration(endpoint)
+        .and_then(|registration| registration.invariants().ok().map(|id| (registration, id)))
+        .map_or_else(
+            || {
+                (
+                    None,
+                    ConfigInvariants {
+                        language: "php".to_string(),
+                        tracer_version: include_str!("../../VERSION").trim().into(),
+                        endpoint: endpoint.clone(),
+                        agentless: None,
+                    }
+                    .into(),
+                )
             },
-            registry,
-        ),
+            |(registration, invariants)| (Some(registration), invariants),
+        );
+    Box::new(RemoteConfigState {
+        manager: RemoteConfigManager::new_with_registry(invariants, registry),
+        cdn,
+        cdn_last_check: None,
         live_debugger: LiveDebuggerState {
             di_enabled,
             ..Default::default()
@@ -528,15 +557,23 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 }
                 RemoteConfigProduct::FfeFlags => {
-                    debug!("FFE flags configuration removed");
-                    ffe_update.remove();
+                    // A CDN identity is process-stable. Switching the ordinary
+                    // application target can temporarily remove its directory;
+                    // retain flags until that target publishes a replacement.
+                    // A valid empty CDN configuration arrives as Add, not Remove.
+                    if remote_config.cdn.is_none() {
+                        debug!("FFE flags configuration removed");
+                        ffe_update.remove();
+                    }
                 }
                 _ => (),
             },
         }
         has_updates = true
     }
-    if !crate::ffe::agentless_config() {
+    if remote_config.cdn.is_some() {
+        ffe_update.apply();
+    } else if !crate::ffe::agentless_config() {
         ffe_update.apply_for_environment(
             remote_config
                 .manager
@@ -728,6 +765,71 @@ pub extern "C" fn ddog_global_log_probe_limiter_inc(remote_config: &RemoteConfig
 #[no_mangle]
 pub unsafe extern "C" fn ddog_CharSlice_to_owned(str: CharSlice) -> *mut Vec<c_char> {
     Box::into_raw(Box::new(str.as_slice().into()))
+}
+
+/// Check the existing connection during evaluation without waiting for a reply.
+/// Reannouncing the idempotent registration detects a dead sidecar even when
+/// telemetry is disabled. The normal transport owns reconnection and replay.
+///
+/// # Safety
+/// `remote_config` must be null or the calling PHP thread's valid RC state.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_refresh_remote_config(
+    remote_config: *mut RemoteConfigState,
+    transport: &mut Box<SidecarTransport>,
+) {
+    let registration = {
+        // End this borrow before transport operations: their reconnect callback
+        // rebinds the same PHP thread's RC manager.
+        let Some(state) = (unsafe { remote_config.as_mut() }) else {
+            return;
+        };
+        if state.cdn.is_none()
+            || state
+                .cdn_last_check
+                .is_some_and(|last| last.elapsed() < std::time::Duration::from_secs(1))
+        {
+            return;
+        }
+        let Some(target) = state.manager.get_target().cloned() else {
+            return;
+        };
+        state.cdn_last_check = Some(std::time::Instant::now());
+        let mut registration = state.cdn.clone().unwrap();
+        registration.target = target;
+        registration
+    };
+    // Unlike the state setter (which coalesces unchanged registrations), this
+    // makes one nonblocking send. Backpressure keeps the existing subscription;
+    // a fatal transport error activates the ordinary reconnect machinery.
+    transport.sender().send(
+        &datadog_sidecar::service::sidecar_interface::SidecarInterfaceRequest::SetCdnConfiguration {
+            config: Some(registration),
+        },
+    );
+    transport.ensure_alive();
+}
+
+/// Register against the same target and Agent endpoint as the ordinary RC reader.
+/// The sidecar transport retains and replays this registration on reconnect.
+///
+/// # Safety
+/// `remote_config` must be null or the calling PHP thread's valid RC state.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_register_remote_config(
+    remote_config: *const RemoteConfigState,
+    transport: &mut Box<SidecarTransport>,
+) -> MaybeError {
+    // Do not hold an RC borrow across the transport's reconnect callback.
+    let registration = unsafe { remote_config.as_ref() }.and_then(|state| {
+        let mut registration = state.cdn.clone()?;
+        registration.target = state.manager.get_target()?.clone();
+        Some(registration)
+    });
+    match datadog_sidecar::service::blocking::set_cdn_configuration(transport, registration) {
+        Ok(()) => MaybeError::None,
+        Err(error) => MaybeError::Some(error.to_string().into()),
+    }
 }
 
 #[no_mangle]

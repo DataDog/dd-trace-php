@@ -1994,11 +1994,17 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     // Native frameworks can fork with tracing or their integration disabled.
-    // Perform the ordinary PHP child reset before resuming the CDN reader.
+    // Perform the ordinary PHP child reset before using the inherited transport.
     if (ddog_ffe_needs_child_reset()) {
         datadog_internal_handle_fork();
     }
-    ddog_ffe_ensure_initialized(datadog_sidecar_active_mode != DD_SIDECAR_CONNECTION_THREAD);
+    if (ddog_ffe_runtime_config().source == DDOG_FFE_CONFIGURATION_SOURCE_AGENTLESS) {
+        datadog_sidecar_ensure_active();
+        if (DATADOG_G(sidecar)) {
+            ddog_ffe_refresh_remote_config(DATADOG_G(remote_config_state), &DATADOG_G(sidecar));
+        }
+    }
+    ddog_ffe_ensure_initialized(DATADOG_G(remote_config_state), datadog_sidecar_active_mode != DD_SIDECAR_CONNECTION_THREAD);
     result = ddog_ffe_evaluate(
         dd_zend_string_to_CharSlice(flag_key),
         type_id,

@@ -1,20 +1,22 @@
 // Copyright 2026-Present Datadog, Inc. https://www.datadoghq.com/
 // SPDX-License-Identifier: Apache-2.0
 
-use super::agentless::{AgentlessWorker, AgentlessWorkerConfig};
 use super::settings::{
     ConfigurationSource, DisableReason, EndpointError, FeatureFlagsSettings, SettingsInput,
     SettingsIssue, SourceInput,
 };
 use super::{ddog_ffe_has_config, set_delivery_state, DeliveryState};
 use crate::log::{self, Log};
-use arc_swap::ArcSwap;
+use crate::remote_config::{ddog_process_remote_configs, RemoteConfigState};
+use datadog_ffe::cdn::CdnConfig;
+use datadog_sidecar::shm_remote_config::CdnRegistration;
+use libdd_common::Endpoint;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use libdd_remote_config::Target;
 use std::cell::RefCell;
-use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Condvar, LazyLock, Mutex, MutexGuard};
-use std::time::Instant;
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -34,7 +36,6 @@ pub struct FfeRuntimeConfig {
 }
 
 /// Borrowed process settings. Strings are copied; credentials are never logged.
-/// The optional cleanup callback must remain valid until shutdown joins workers.
 #[repr(C)]
 pub struct FfeSettingsInput<'a> {
     pub enabled: bool,
@@ -51,15 +52,13 @@ pub struct FfeSettingsInput<'a> {
     pub api_key: CharSlice<'a>,
     pub environment: CharSlice<'a>,
     pub sidecar_subprocess_enabled: bool,
-    pub sidecar_self_telemetry: bool,
-    pub thread_cleanup: Option<extern "C" fn(*mut c_void)>,
 }
 
 #[derive(Default)]
 struct Lifecycle {
     settings: Option<FeatureFlagsSettings>,
     config: FfeRuntimeConfig,
-    worker: Option<AgentlessWorker>,
+    subscription: Option<CdnConfig>,
     initialization_deadline: Option<Instant>,
     stopped: bool,
     failure: Option<InitializationFailure>,
@@ -121,9 +120,6 @@ impl Lifecycle {
 }
 
 static LIFECYCLE: LazyLock<Mutex<Lifecycle>> = LazyLock::new(|| Mutex::new(Lifecycle::default()));
-type ConfigurationSignal = (Mutex<()>, Condvar);
-static CONFIGURATION_CHANGED: LazyLock<ArcSwap<ConfigurationSignal>> =
-    LazyLock::new(|| ArcSwap::from_pointee((Mutex::new(()), Condvar::new())));
 static INITIALIZATION_STOPPED: AtomicBool = AtomicBool::new(false);
 static CHILD_RESUME_PENDING: AtomicBool = AtomicBool::new(false);
 
@@ -137,14 +133,8 @@ fn lifecycle() -> MutexGuard<'static, Lifecycle> {
     LIFECYCLE.lock().unwrap_or_else(|error| error.into_inner())
 }
 
-pub(super) fn notify_configuration() {
-    let signal = CONFIGURATION_CHANGED.load();
-    let _guard = signal.0.lock().unwrap_or_else(|error| error.into_inner());
-    signal.1.notify_all();
-}
-
 /// Configure once during PHP's ordinary process setup, before sidecar startup.
-/// This does not start network polling; the first evaluation activates it.
+/// This does not start network polling; ordinary sidecar setup registers CDN delivery.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_configure(input: &FfeSettingsInput<'_>) -> FfeRuntimeConfig {
     let mut state = lifecycle();
@@ -184,15 +174,14 @@ pub extern "C" fn ddog_ffe_configure(input: &FfeSettingsInput<'_>) -> FfeRuntime
         match settings.agentless_endpoint() {
             Ok(endpoint) => {
                 endpoint_valid = true;
-                let mut worker_config = AgentlessWorkerConfig::new(
-                    endpoint,
-                    settings.poll_interval,
-                    settings.request_timeout,
-                );
-                worker_config.thread_cleanup = input.thread_cleanup;
-                worker_config.sidecar.self_telemetry = input.sidecar_self_telemetry;
                 if input.sidecar_subprocess_enabled {
-                    state.worker = Some(AgentlessWorker::new(worker_config));
+                    state.subscription = Some(CdnConfig {
+                        endpoint,
+                        poll_interval: settings.poll_interval,
+                        request_timeout: settings.request_timeout,
+                        language: "php".into(),
+                        version: include_str!("../../../VERSION").trim().into(),
+                    });
                 } else {
                     state.failure = Some(InitializationFailure::SidecarMode);
                     set_delivery_state(DeliveryState::PermanentError);
@@ -235,11 +224,13 @@ pub extern "C" fn ddog_ffe_initialization_error_message() -> CharSlice<'static> 
         .into()
 }
 
-/// Preserve PHP's canonical startup configuration for reader-owned respawns.
-pub(crate) fn configure_sidecar(config: &datadog_sidecar::config::Config) {
-    if let Some(worker) = &mut lifecycle().worker {
-        worker.configure_sidecar(config);
-    }
+/// CDN scopes the ordinary RC directory while retaining other Agent products.
+pub(crate) fn registration(endpoint: &Endpoint) -> Option<CdnRegistration> {
+    Some(CdnRegistration {
+        config: lifecycle().subscription.clone()?,
+        agent_endpoint: endpoint.clone(),
+        target: Arc::new(Target::new("".into(), "".into(), "".into(), vec![], vec![])),
+    })
 }
 
 /// Whether PHP must reset its inherited sidecar runtime before evaluating.
@@ -252,9 +243,12 @@ pub extern "C" fn ddog_ffe_needs_child_reset() -> bool {
 /// First-use compatibility path for PHP providers without an initialize API.
 /// Concurrent first callers share one deadline; later calls never renew it.
 #[no_mangle]
-pub extern "C" fn ddog_ffe_ensure_initialized(subprocess_mode: bool) {
-    // Native frameworks must finish PHP's normal child hook before a worker
-    // can use inherited sidecar runtime state. Retained flags stay usable.
+pub extern "C" fn ddog_ffe_ensure_initialized(
+    remote_config: Option<&mut RemoteConfigState>,
+    subprocess_mode: bool,
+) {
+    // Native frameworks must finish PHP's normal child hook before using
+    // inherited sidecar runtime state. Retained flags stay usable.
     if CHILD_RESUME_PENDING.load(Ordering::Acquire) {
         return;
     }
@@ -275,15 +269,8 @@ pub extern "C" fn ddog_ffe_ensure_initialized(subprocess_mode: bool) {
             set_delivery_state(DeliveryState::PermanentError);
             return;
         }
-        if state.worker.is_none() {
+        if state.subscription.is_none() {
             set_delivery_state(DeliveryState::PermanentError);
-            return;
-        }
-        if state.worker.as_mut().unwrap().start().is_err() {
-            log::log(
-                Log::Warn,
-                "Feature Flags agentless worker could not be started",
-            );
             return;
         }
         if state.initialization_deadline.is_none() {
@@ -295,18 +282,21 @@ pub extern "C" fn ddog_ffe_ensure_initialized(subprocess_mode: bool) {
         }
         state.initialization_deadline.unwrap()
     };
-    let signal = CONFIGURATION_CHANGED.load_full();
-    let mut guard = signal.0.lock().unwrap_or_else(|error| error.into_inner());
-    while !ddog_ffe_has_config() && !INITIALIZATION_STOPPED.load(Ordering::Acquire) {
+    let Some(remote_config) = remote_config else {
+        return;
+    };
+    loop {
+        ddog_process_remote_configs(remote_config);
         let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
+        if ddog_ffe_has_config()
+            || INITIALIZATION_STOPPED.load(Ordering::Acquire)
+            || remaining.is_zero()
+        {
             break;
         }
-        guard = signal
-            .1
-            .wait_timeout(guard, remaining)
-            .unwrap_or_else(|error| error.into_inner())
-            .0;
+        remote_config
+            .manager
+            .wait_for_change(remaining.min(Duration::from_millis(10)));
     }
 }
 
@@ -315,60 +305,45 @@ pub extern "C" fn ddog_ffe_shutdown() {
     let mut state = lifecycle();
     state.stopped = true;
     INITIALIZATION_STOPPED.store(true, Ordering::Release);
-    if let Some(mut worker) = state.worker.take() {
-        worker.shutdown();
-    }
+    state.subscription = None;
     state.settings = None;
     // Static configuration has no automatic destructor at module shutdown.
-    // Release its owned evaluator data only after the publisher has joined.
+    // No background publisher remains at module shutdown.
     super::clear_config_inner();
     set_delivery_state(DeliveryState::Stopped);
-    notify_configuration();
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_prepare_for_fork() {
-    if super::agentless::is_worker_thread() {
-        return;
-    }
     FORK_GUARD.with(|slot| {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
-            let mut state = lifecycle();
-            if let Some(worker) = &mut state.worker {
-                worker.prepare_for_fork();
-            }
+            let state = lifecycle();
             *slot = Some(state);
         }
     });
 }
 
 /// The child atfork callback only releases the inherited guard. Normal PHP
-/// fork handling resets the sidecar runtime before allocating/restarting here.
+/// fork handling resets the sidecar runtime before clearing the pending reset here.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_atfork_child() {
-    if super::agentless::is_worker_thread() {
-        return;
-    }
     let pending = FORK_GUARD.with(|slot| {
         slot.borrow_mut()
             .take()
-            .is_some_and(|state| state.worker.is_some())
+            .is_some_and(|state| state.subscription.is_some())
     });
     // Apache/FPM can fork before the first request configures FFE. There is
-    // then no inherited reader to reset: ordinary first-use setup must run.
+    // then no inherited subscription to reset: ordinary first-use setup must run.
     CHILD_RESUME_PENDING.store(pending, Ordering::Release);
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_resume_after_fork(child: bool) {
-    if super::agentless::is_worker_thread() {
-        return;
-    }
     FORK_GUARD.with(|slot| {
         let guard = slot.borrow_mut().take();
         // A framework's manager may fork again before entering PHP's normal
-        // child hook. Do not start a worker against inherited runtime state.
+        // child hook. Leave the pending reset for the next PHP entry.
         if !child && CHILD_RESUME_PENDING.load(Ordering::Acquire) {
             return;
         }
@@ -378,24 +353,6 @@ pub extern "C" fn ddog_ffe_resume_after_fork(child: bool) {
             guard
         };
         if let Some(mut state) = guard {
-            if child {
-                // Other parent threads may have been waiting on the old
-                // condition variable. Never reuse that synchronization state.
-                CONFIGURATION_CHANGED.store(Arc::new((Mutex::new(()), Condvar::new())));
-            }
-            if let Some(worker) = &mut state.worker {
-                let result = if child {
-                    worker.reset_after_fork_child()
-                } else {
-                    worker.resume_after_fork_parent()
-                };
-                if result.is_err() {
-                    log::log(
-                        Log::Warn,
-                        "Feature Flags agentless worker could not restart after fork",
-                    );
-                }
-            }
             if child && !ddog_ffe_has_config() {
                 state.initialization_deadline = None;
             }
@@ -410,11 +367,11 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn publishing_configuration_wakes_initializers_after_prefork_startup() {
+    fn initializers_share_the_deadline_after_prefork_startup() {
         let _test_guard = crate::ffe::tests::FFE_TEST_LOCK.lock().unwrap();
         crate::ffe::clear_config();
         // Prefork SAPIs split before first-request setup and have no inherited
-        // FFE worker. First use must still initialize and wait for publication.
+        // FFE subscription. First use must still initialize and wait for publication.
         ddog_ffe_prepare_for_fork();
         ddog_ffe_atfork_child();
         let input = FfeSettingsInput {
@@ -432,8 +389,6 @@ mod tests {
             api_key: CharSlice::from(""),
             environment: CharSlice::from(""),
             sidecar_subprocess_enabled: true,
-            sidecar_self_telemetry: false,
-            thread_cleanup: None,
         };
         assert!(ddog_ffe_configure(&input).endpoint_valid);
         let barrier = Arc::new(Barrier::new(5));
@@ -444,7 +399,13 @@ mod tests {
                 let tx = tx.clone();
                 std::thread::spawn(move || {
                     barrier.wait();
-                    ddog_ffe_ensure_initialized(true);
+                    let mut rc = unsafe {
+                        crate::remote_config::ddog_init_remote_config_state(
+                            &Endpoint::default(),
+                            false,
+                        )
+                    };
+                    ddog_ffe_ensure_initialized(Some(&mut rc), true);
                     tx.send(()).unwrap();
                 })
             })
@@ -464,7 +425,7 @@ mod tests {
         ddog_ffe_shutdown();
         assert_eq!(crate::ffe::delivery_state(), DeliveryState::Stopped);
         assert!(!ddog_ffe_has_config());
-        assert!(lifecycle().worker.is_none());
+        assert!(lifecycle().subscription.is_none());
         assert!(lifecycle().settings.is_none());
         *lifecycle() = Lifecycle::default();
         INITIALIZATION_STOPPED.store(false, Ordering::Release);

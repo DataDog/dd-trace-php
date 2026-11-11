@@ -39,7 +39,7 @@ pub mod profiling;
 #[path = "../profiling/config_id.rs"]
 pub mod config;
 
-#[cfg(any(feature = "profiling", feature = "tracer-runtime"))]
+#[cfg(feature = "profiling")]
 mod threads;
 
 #[cfg(feature = "runtime")]

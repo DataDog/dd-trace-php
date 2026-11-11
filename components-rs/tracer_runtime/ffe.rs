@@ -12,7 +12,6 @@ use std::sync::{Arc, LazyLock};
 use tracing::debug;
 
 #[allow(dead_code)]
-pub(crate) mod agentless;
 pub(crate) mod lifecycle;
 pub(crate) mod remote_config;
 #[allow(dead_code)]
@@ -127,7 +126,6 @@ pub(crate) fn store_config_for_environment(
     } else {
         FFE_CONFIG.store(Some(Arc::new(config)));
         FFE_VERSION.fetch_add(1, Ordering::AcqRel);
-        lifecycle::notify_configuration();
         let previous = DELIVERY_STATE.swap(DeliveryState::Ready as u8, Ordering::AcqRel);
         if previous == DeliveryState::Ready as u8 {
             ConfigurationTransition::Changed

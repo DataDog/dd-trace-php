@@ -964,6 +964,11 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
         datadog_ffi_try("Failed sending config data",
                         ddog_sidecar_set_application(transport, service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
 
+#ifdef TRACER
+        datadog_ffi_try("Failed registering CDN remote configuration",
+            ddog_ffe_register_remote_config(DATADOG_G(remote_config_state), transport));
+#endif
+
         if (DATADOG_G(telemetry_buffer)) {
             datadog_ffi_try("Failed flushing filtered telemetry buffer",
                 ddog_sidecar_telemetry_filter_flush(transport, datadog_telemetry_buffer(), datadog_telemetry_cache(), service_slice, env_slice));

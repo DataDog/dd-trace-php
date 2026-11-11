@@ -133,10 +133,6 @@ ddog_FfeRuntimeConfig ddtrace_ffe_configure(void) {
         .api_key = dd_zend_string_to_CharSlice(get_global_DD_API_KEY()),
         .environment = dd_zend_string_to_CharSlice(get_global_DD_ENV()),
         .sidecar_subprocess_enabled = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE() != DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD,
-        .sidecar_self_telemetry = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(),
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-        .thread_cleanup = dd_run_rust_thread_destructors,
-#endif
     };
     return ddog_ffe_configure(&settings);
 }

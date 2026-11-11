@@ -274,9 +274,6 @@ pub extern "C" fn ddog_sidecar_connect_php(
     }
 
     cfg.pipe_buffer_size = backpressure_bytes as usize;
-    #[cfg(feature = "tracer-runtime")]
-    crate::ffe::lifecycle::configure_sidecar(&cfg);
-
 
     let reconnect_fn = on_reconnect.map(|on_reconnect| {
         let cfg = cfg.clone();
@@ -345,7 +342,7 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
         telemetry.reconnect();
     }
     if let Some(remote_config) = remote_config {
-        remote_config.manager.reconnect();
+        remote_config.reconnect();
     }
     if let Some(agent_info) = agent_info {
         agent_info.reconnect();

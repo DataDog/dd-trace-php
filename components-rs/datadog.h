@@ -317,7 +317,7 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
 
 /**
  * Configure once during PHP's ordinary process setup, before sidecar startup.
- * This does not start network polling; the first evaluation activates it.
+ * This does not start network polling; ordinary sidecar setup registers CDN delivery.
  */
 struct ddog_FfeRuntimeConfig ddog_ffe_configure(const struct ddog_FfeSettingsInput *input);
 
@@ -340,7 +340,8 @@ bool ddog_ffe_needs_child_reset(void);
  * First-use compatibility path for PHP providers without an initialize API.
  * Concurrent first callers share one deadline; later calls never renew it.
  */
-void ddog_ffe_ensure_initialized(bool subprocess_mode);
+void ddog_ffe_ensure_initialized(struct ddog_RemoteConfigState *remote_config,
+                                 bool subprocess_mode);
 
 void ddog_ffe_shutdown(void);
 
@@ -348,7 +349,7 @@ void ddog_ffe_prepare_for_fork(void);
 
 /**
  * The child atfork callback only releases the inherited guard. Normal PHP
- * fork handling resets the sidecar runtime before allocating/restarting here.
+ * fork handling resets the sidecar runtime before clearing the pending reset here.
  */
 void ddog_ffe_atfork_child(void);
 
@@ -382,6 +383,27 @@ bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_c
 bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remote_config);
 
 struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
+
+/**
+ * Check the existing connection during evaluation without waiting for a reply.
+ * Reannouncing the idempotent registration detects a dead sidecar even when
+ * telemetry is disabled. The normal transport owns reconnection and replay.
+ *
+ * # Safety
+ * `remote_config` must be null or the calling PHP thread's valid RC state.
+ */
+void ddog_ffe_refresh_remote_config(struct ddog_RemoteConfigState *remote_config,
+                                    struct ddog_SidecarTransport **transport);
+
+/**
+ * Register against the same target and Agent endpoint as the ordinary RC reader.
+ * The sidecar transport retains and replays this registration on reconnect.
+ *
+ * # Safety
+ * `remote_config` must be null or the calling PHP thread's valid RC state.
+ */
+ddog_MaybeError ddog_ffe_register_remote_config(const struct ddog_RemoteConfigState *remote_config,
+                                                struct ddog_SidecarTransport **transport);
 
 bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
                                             ddog_CharSlice service,

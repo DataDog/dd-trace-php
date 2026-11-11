@@ -371,17 +371,6 @@ mod tests {
     use std::sync::Mutex;
 
     static CAPTURED: Mutex<Vec<String>> = Mutex::new(Vec::new());
-    #[cfg(all(unix, feature = "tracer-runtime"))]
-    static PHP_CAPTURED: Mutex<Vec<String>> = Mutex::new(Vec::new());
-
-    #[cfg(all(unix, feature = "tracer-runtime"))]
-    extern "C" fn capture_php(msg: CharSlice) {
-        PHP_CAPTURED
-            .lock()
-            .unwrap()
-            .push(msg.to_utf8_lossy().into_owned());
-    }
-
     extern "C" fn capture(msg: CharSlice) {
         CAPTURED
             .lock()
@@ -438,53 +427,6 @@ mod tests {
         );
         log(Log::Debug, "third");
         assert!(!logged(&drain(), "third"), "debug emitted at level error");
-
-        #[cfg(all(unix, feature = "tracer-runtime"))]
-        {
-            use crate::ffe::agentless::{AgentlessWorker, AgentlessWorkerConfig};
-            use crate::ffe::settings::AgentlessEndpoint;
-            use datadog_sidecar::{shm_namespace, use_thread_sidecar_shm_namespace, ShmNamespace};
-            use std::time::{Duration, Instant};
-
-            let _guard = crate::ffe::tests::FFE_TEST_LOCK.lock().unwrap();
-            // This test alone owns the callbacks and global subscriber. Model
-            // a PHP request with its own logger, then force a reader diagnostic.
-            unsafe {
-                ddog_log_callback = Some(capture_php);
-                ddog_set_log_level(CharSlice::from("warn"), false);
-            }
-            log(Log::Warn, "PHP caller");
-            assert!(logged(&PHP_CAPTURED.lock().unwrap(), "PHP caller"));
-            let previous = shm_namespace();
-            use_thread_sidecar_shm_namespace(Some(std::process::id()));
-            let endpoint =
-                AgentlessEndpoint::build("http://127.0.0.1:1/config", "", "", "").unwrap();
-            let mut worker = AgentlessWorker::new(AgentlessWorkerConfig::new(
-                endpoint,
-                Duration::from_secs(30),
-                Duration::from_secs(30),
-            ));
-            worker.start().unwrap();
-            let warning = "Feature Flags CDN sidecar is unavailable; retaining the last configuration";
-            let deadline = Instant::now() + Duration::from_secs(3);
-            while !logged(&CAPTURED.lock().unwrap(), warning) && Instant::now() < deadline {
-                std::thread::sleep(Duration::from_millis(10));
-            }
-            worker.shutdown();
-            use_thread_sidecar_shm_namespace(match previous {
-                ShmNamespace::User(_) => None,
-                ShmNamespace::Thread(pid) => Some(pid),
-            });
-            ddog_reset_logger();
-            assert!(
-                !logged(&PHP_CAPTURED.lock().unwrap(), warning),
-                "reader called the PHP logger"
-            );
-            assert!(
-                logged(&drain(), warning),
-                "reader warning did not reach the off-thread logger"
-            );
-        }
     }
 
     /// Per-target directives are what `dd_log_set_level` sends for startup logs.

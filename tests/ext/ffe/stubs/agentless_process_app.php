@@ -15,6 +15,28 @@ if ($scenario === 'isolation') {
     exit;
 }
 
+if ($scenario === 'retarget') {
+    if ($first !== 'blue') throw new RuntimeException('initial fetch failed');
+    foreach (array('datadog.service', 'datadog.env', 'datadog.version') as $setting) {
+        if (ini_set($setting, 'changed-target') === false) throw new RuntimeException('cannot change target');
+        // Target replacement must not clear the process-stable CDN snapshot
+        // while the new combined RC directory is still being published.
+        if (!\DDTrace\ffe_has_config()) throw new RuntimeException('target change cleared CDN flags');
+        if ($client->getStringValue('flag', 'fallback') !== 'blue') throw new RuntimeException('target change lost CDN flags');
+    }
+    echo "configuration_retained_after_target_changes\n";
+    $deadline = microtime(true) + 7;
+    do {
+        $value = $client->getStringValue('flag', 'fallback');
+        if ($value === 'green') break;
+        if ($value !== 'blue') throw new RuntimeException('target change lost configuration during refresh');
+        usleep(20000);
+    } while (microtime(true) < $deadline);
+    if ($value !== 'green') throw new RuntimeException('new target did not receive replacement');
+    echo "replacement_received_after_target_changes\n";
+    exit;
+}
+
 if ($scenario === 'restart') {
     // Establish a last-good snapshot before testing its survival. Instrumented
     // subprocess startup may exceed the first-use budget and legitimately
@@ -42,7 +64,7 @@ if ($scenario === 'restart') {
     if (!$retained || $value !== 'green') throw new RuntimeException('sidecar restart did not recover');
     echo "sidecar_restarted_and_refreshed\n";
     // Keep PHP and its IPC connection alive while the fixture signals the
-    // reader-spawned daemon; an idle exit would hide an inherited blocked mask.
+    // replacement daemon; an idle exit would hide an inherited blocked mask.
     stream_set_timeout(STDIN, $instrumented ? 20 : 5);
     if (fgets(STDIN) !== "sidecar_terminated\n") throw new RuntimeException('replacement sidecar did not handle SIGTERM');
     echo "sidecar_sigterm_handled\n";
@@ -60,11 +82,11 @@ if ($scenario === 'fork') {
     $deadline = microtime(true) + 7;
     $value = $first;
     do {
-        // Merely evaluating would invoke first-use activation again and hide
-        // a broken fork callback. Require the background reader to publish a
-        // new snapshot before another evaluation is allowed to run.
+        // With RC enabled, require the ordinary notification/VM-interrupt
+        // path to publish before evaluation. Without notifications, evaluation
+        // itself consumes the shared-memory update; no helper thread is needed.
         $currentVersion = \DDTrace\ffe_config_version();
-        if ($currentVersion !== $version) {
+        if (getenv('DD_REMOTE_CONFIG_ENABLED') !== '1' || $currentVersion !== $version) {
             $version = $currentVersion;
             $value = $client->getStringValue('flag', 'fallback');
         }
@@ -72,7 +94,7 @@ if ($scenario === 'fork') {
         if ($value !== 'blue') throw new RuntimeException('fork lost configuration');
         usleep(20000);
     } while (microtime(true) < $deadline);
-    if ($value !== 'green') throw new RuntimeException('forked worker did not resume');
+    if ($value !== 'green') throw new RuntimeException('forked process did not refresh');
     echo $pid === 0 ? "child_recovered\n" : "parent_recovered\n";
     if ($pid > 0) {
         pcntl_waitpid($pid, $status);
