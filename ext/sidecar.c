@@ -214,6 +214,7 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
         }
     }
     ddog_Endpoint *otlp_metrics_endpoint = datadog_otel_metrics_endpoint();
+    zend_long dsm_checkpoint_slots = get_global_DD_DATA_STREAMS_CHECKPOINT_SLOTS();
 #ifdef _WIN32
     const struct ddog_RemoteConfigNotification *remote_config_notification = datadog_remote_config_notification_get();
 #else
@@ -245,7 +246,9 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
                                     dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
                                     dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
                                     root_session_id,
-                                    parent_session_id
+                                    parent_session_id,
+                                    // 0, and so the default, for nonsensical values; the sidecar caps it
+                                    dsm_checkpoint_slots > 0 ? (uintptr_t)dsm_checkpoint_slots : 0
                                 );
     if (normalized_service_name) {
         ddog_free_normalized_tag_value(normalized_service_name);

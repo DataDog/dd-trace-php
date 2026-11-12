@@ -236,7 +236,8 @@ ddog_MaybeError ddog_sidecar_set_connection_config(struct ddog_SidecarTransport 
                                                    ddog_CharSlice hostname,
                                                    ddog_CharSlice root_service,
                                                    ddog_CharSlice root_session_id,
-                                                   ddog_CharSlice parent_session_id);
+                                                   ddog_CharSlice parent_session_id,
+                                                   uintptr_t dsm_checkpoint_slot_count);
 
 /**
  * Updates the process_tags of the connection.
