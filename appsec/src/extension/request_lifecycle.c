@@ -18,6 +18,8 @@
 #include "telemetry.h"
 #include "tracer_bridge.h"
 #include <ext/compatibility.h>
+#include <tracer/endpoint_guessing.h>
+#include <tracer/span.h>
 
 #include <SAPI.h>
 #include <Zend/zend_exceptions.h>
@@ -45,6 +47,8 @@ const zend_array *nonnull _get_server_equiv(
     const zend_array *nonnull superglob_equiv);
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     dd_api_sec_outcome *nonnull outcome);
+static zend_long _api_sec_sampling_priority(
+    ddtrace_root_span_data *nonnull root);
 static void _register_testing_objects(void);
 
 static bool _enabled_user_req;
@@ -1115,15 +1119,13 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
         return 0;
     }
 
-    zval *nullable meta = dd_trace_span_get_meta(root_span);
-    if (!meta) {
-        return 0;
-    }
+    assert(root_span->ce == ddtrace_ce_root_span_data);
+    ddtrace_root_span_data *root = ROOTSPANDATA(root_span);
+    zend_array *meta = ddtrace_property_array(&root->property_meta);
 
     // check sampling priority: must be >=1. o/wise return 0
-    zend_long sampling_priority =
-        dd_trace_get_priority_sampling_on_span_zobj(root_span);
-    if (get_DD_APM_TRACING_ENABLED() && sampling_priority < 1) {
+    zend_long sampling_priority = _api_sec_sampling_priority(root);
+    if (sampling_priority < 1) {
         mlog_g(dd_log_debug, "Sampling priority is %" PRIi64 "; not sampling",
             (int64_t)sampling_priority);
         return 0;
@@ -1132,14 +1134,13 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     zend_string *route_or_endpoint = NULL;
     bool free_route_or_endpoint = false;
 
-    zval *route = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.route"));
+    zval *route = zend_hash_str_find(meta, ZEND_STRL("http.route"));
     const bool has_http_route = route && Z_TYPE_P(route) == IS_STRING;
     if (has_http_route) {
         route_or_endpoint = Z_STR_P(route);
     } else {
         // http.route is absent, check for http.endpoint
-        zval *endpoint =
-            zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.endpoint"));
+        zval *endpoint = zend_hash_str_find(meta, ZEND_STRL("http.endpoint"));
         const bool has_http_endpoint =
             endpoint && Z_TYPE_P(endpoint) == IS_STRING;
         if (has_http_endpoint) {
@@ -1155,11 +1156,10 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
         } else {
             // http.endpoint not computed, compute it now without setting the
             // tag
-            zval *url =
-                zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.url"));
+            zval *url = zend_hash_str_find(meta, ZEND_STRL("http.url"));
             const bool has_http_url = url && Z_TYPE_P(url) == IS_STRING;
             if (has_http_url) {
-                route_or_endpoint = dd_trace_guess_endpoint_from_url(
+                route_or_endpoint = ddtrace_guess_endpoint_from_url(
                     Z_STRVAL_P(url), Z_STRLEN_P(url));
                 if (route_or_endpoint) {
                     free_route_or_endpoint = true;
@@ -1178,8 +1178,7 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
         goto missing_route;
     }
 
-    zval *method =
-        zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.method"));
+    zval *method = zend_hash_str_find(meta, ZEND_STRL("http.method"));
     if (!method || Z_TYPE_P(method) != IS_STRING) {
         mlog_g(dd_log_debug, "No http.method tag; not sampling");
         // we treat the absence of http.method also as a missing route, because
@@ -1226,6 +1225,21 @@ missing_route:
         zend_string_release(route_or_endpoint);
     }
     return 0;
+}
+
+static zend_long _api_sec_sampling_priority(
+    ddtrace_root_span_data *nonnull root)
+{
+    if (!get_DD_APM_TRACING_ENABLED()) {
+        // without APM tracing, the priority is not a sampling criterion
+        return PRIORITY_SAMPLING_AUTO_KEEP;
+    }
+
+    // Read, don't fetch: fetching would force the sampling decision now,
+    // which writes sampling tags (e.g. _dd.agent_psr) that would stick even if
+    // AppSec later forces keep. An undecided priority
+    // (DDTRACE_PRIORITY_SAMPLING_UNKNOWN) is > 0 and so counts as kept.
+    return zval_get_long(&root->property_sampling_priority);
 }
 
 PHP_FUNCTION(datadog_appsec_testing_dump_req_lifecycle_state)

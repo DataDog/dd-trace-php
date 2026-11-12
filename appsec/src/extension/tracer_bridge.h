@@ -67,10 +67,6 @@ ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(
     ddog_AppsecBodyAllocator allocator);
 void dd_trace_drop_body_msgpack(ddog_AppsecBodyMessagePack body);
 
-// Set sampling priority on root span
-zend_long dd_trace_get_priority_sampling_on_span_zobj(
-    zend_object *nonnull root_span);
-
 bool dd_trace_user_req_add_listeners(
     ddtrace_user_req_listeners *nonnull listeners);
 
@@ -80,7 +76,4 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
 zend_string *nonnull dd_trace_build_req_url(const zend_array *nonnull server);
 
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void);
-
-zend_string *nullable dd_trace_guess_endpoint_from_url(
-    const char *nonnull url, size_t url_len);
 
