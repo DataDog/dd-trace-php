@@ -504,7 +504,30 @@ static zend_property_info *dd_add_exception_locals_property(zend_class_entry *ce
     return prop;
 }
 
+#if PHP_VERSION_ID >= 80000
+static void (*dd_prev_throw_exception_hook)(zend_object *ex);
+
+static void dd_throw_exception_hook(zend_object *ex) {
+    if (ex) { // only if not a rethrow to avoid quadratic runtime
+        for (zend_execute_data *call = EG(current_execute_data); call; call = call->prev_execute_data) {
+            if (call->func && ZEND_USER_CODE(call->func->type)) {
+                ddtrace_undef_unreceived_cvs(call);
+            }
+        }
+    }
+
+    if (dd_prev_throw_exception_hook) {
+        dd_prev_throw_exception_hook(ex);
+    }
+}
+#endif
+
 void ddtrace_exception_handlers_startup(void) {
+#if PHP_VERSION_ID >= 80000
+    dd_prev_throw_exception_hook = zend_throw_exception_hook;
+    zend_throw_exception_hook = dd_throw_exception_hook;
+#endif
+
     ddtrace_exception_or_error_handler = (zend_internal_function){
         .type = ZEND_INTERNAL_FUNCTION,
         .function_name = zend_string_init_interned(ZEND_STRL("ddtrace_exception_handler"), 1),
@@ -629,6 +652,11 @@ void ddtrace_exception_handlers_startup(void) {
 }
 
 void ddtrace_exception_handlers_shutdown(void) {
+#if PHP_VERSION_ID >= 80000
+    if (zend_throw_exception_hook == dd_throw_exception_hook) {
+        zend_throw_exception_hook = dd_prev_throw_exception_hook;
+    }
+#endif
 #if PHP_VERSION_ID >= 80600
     zend_free_internal_arg_info(&ddtrace_exception_or_error_handler, true);
 #endif
