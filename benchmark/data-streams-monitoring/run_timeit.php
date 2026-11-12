@@ -146,8 +146,8 @@ function check_environment(string $broker, bool $tracerEnabled, bool $dsmEnabled
 }
 
 // An integration is loaded the first time the application uses a class it
-// hooks. If the broker's hasn't been by the end of warmup, the tracer
-// experiments ran uninstrumented. A build can also have DSM for Kafka but not
+// hooks. If the broker's hasn't been by the end of the first iteration, the
+// tracer experiments ran uninstrumented. A build can also have DSM for Kafka but not
 // for AMQP.
 function check_instrumented(string $broker): void
 {
@@ -252,7 +252,7 @@ function main(string $broker): void
     for ($i = 0; $i < $warmup; $i++) {
         run_benchmark($runId++, $commitEvery);
     }
-    if ($tracerEnabled) {
+    if ($tracerEnabled && $warmup > 0) {
         check_instrumented($broker);
     }
 
@@ -275,6 +275,10 @@ function main(string $broker): void
         $memoryUsageBytes[] = memory_get_usage(true);
         $produceMs[] = $phases['produce_ms'];
         $consumeMs[] = $phases['consume_ms'];
+        // WARMUP=0: no iteration has loaded the integration before this one.
+        if ($tracerEnabled && $warmup === 0 && $i === 0) {
+            check_instrumented($broker);
+        }
     }
 
     $metrics = [
