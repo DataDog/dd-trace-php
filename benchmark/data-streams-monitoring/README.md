@@ -40,8 +40,13 @@ needs php-amqplib (`AMQP_AUTOLOAD`, default
 php benchmark/data-streams-monitoring/run_timeit.php
 # apm-only (apm+dsm: DD_DATA_STREAMS_ENABLED=true): ddtrace installed and loaded
 ENABLE_TRACER=true DD_DATA_STREAMS_ENABLED=false \
+    DD_TRACE_GENERATE_ROOT_SPAN=false DD_TRACE_AUTO_FLUSH_ENABLED=true \
     php benchmark/data-streams-monitoring/run_timeit.php
 ```
+
+The tracer experiments require both `DD_TRACE_*` settings (the platform's
+`bp-runner.yml` sets them): under one script-wide root span, spans pile up past
+`DD_TRACE_SPANS_LIMIT` and stop being created.
 
 The platform's `steps/start-benchmark.sh` does this per experiment (it loads
 ddtrace through `PHP_INI_SCAN_DIR` only in the tracer experiments).

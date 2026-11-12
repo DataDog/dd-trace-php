@@ -120,6 +120,12 @@ function check_environment(string $broker, bool $tracerEnabled, bool $dsmEnabled
         fail('the tracer sees DD_DATA_STREAMS_ENABLED=' . var_export(dd_trace_env_config('DD_DATA_STREAMS_ENABLED'), true)
             . ', expected ' . var_export($dsmEnabled, true));
     }
+    // Under one script-wide root span, spans pile up past DD_TRACE_SPANS_LIMIT
+    // mid-iteration and stop being created, so apm-only would not measure APM.
+    if (dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')
+            || !dd_trace_env_config('DD_TRACE_AUTO_FLUSH_ENABLED')) {
+        fail('the tracer experiments need DD_TRACE_GENERATE_ROOT_SPAN=false and DD_TRACE_AUTO_FLUSH_ENABLED=true');
+    }
 
     // Checkpoints are only recorded once the agent's /info lists the DSM
     // endpoint. Until then they are hashed and encoded but never reach the
