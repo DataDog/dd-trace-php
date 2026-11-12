@@ -1,5 +1,7 @@
 --TEST--
 FFE SDK evaluations log raw native results and returned values under DD_TRACE_DEBUG
+--ENV--
+DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=0
 --INI--
 datadog.trace.debug=1
 datadog.trace.log_level="debug,ddtrace=trace"
@@ -12,7 +14,7 @@ require __DIR__ . '/../../../Common/FeatureFlags/ffe_api_bootstrap.inc';
 require __DIR__ . '/../../../ext/ffe/logging.inc';
 
 $file = __DIR__ . '/sdk_debug_logging.log';
-$hint = 'Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; set DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true at startup (environment or php.ini) and restart';
+$hint = 'Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; check DD_FEATURE_FLAGS_ENABLED and DD_FEATURE_FLAGS_CONFIGURATION_SOURCE at startup (environment or php.ini) and restart';
 
 // A request-local change must not be reported as enabling the startup subscription.
 ini_set('datadog.experimental_flagging_provider_enabled', '1');

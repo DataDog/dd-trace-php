@@ -1710,6 +1710,11 @@ endforeach;
     - source venv/bin/activate
     - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
     - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
+    # The mirror builder keeps another copy of the weblog layers and of the library bundle in its build context.
+    # The scenarios only run the loaded images: free that space for their services, RabbitMQ blocks publishers
+    # below 50 MB of free disk.
+    - docker buildx rm --force system-tests-mirror 2>/dev/null || true
+    - docker system df || true
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done

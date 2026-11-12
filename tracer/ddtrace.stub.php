@@ -1094,6 +1094,7 @@ namespace DDTrace\Internal {
      */
     function flush_ffe_evaluation_metrics(): bool {}
 
+    function ffe_provider_state(): array {}
     /** @internal Submit one final evaluation without waiting or reconnecting. */
     function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData, int $evaluationTimestampMs, bool $targetingKeyInvalid = false): bool {}
 

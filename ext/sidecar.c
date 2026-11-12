@@ -958,6 +958,11 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
         datadog_ffi_try("Failed sending config data",
                         ddog_sidecar_set_application(transport, service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
 
+        if (DATADOG_G(remote_config_state)) {
+            datadog_ffi_try("Failed registering the agentless feature flags source",
+                ddog_remote_config_register_cdn(DATADOG_G(remote_config_state), transport));
+        }
+
         if (DATADOG_G(telemetry_buffer)) {
             datadog_ffi_try("Failed flushing filtered telemetry buffer",
                 ddog_sidecar_telemetry_filter_flush(transport, datadog_telemetry_buffer(), datadog_telemetry_cache(), service_slice, env_slice));

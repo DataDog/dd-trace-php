@@ -1,5 +1,5 @@
 --TEST--
-FFE evaluation payload identity is attributed by the sidecar and follows runtime service/env/version changes
+FFE evaluations inherit the current application identity before sidecar aggregation
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
@@ -25,6 +25,10 @@ if (!$listener) throw new RuntimeException($error);
 putenv('DD_TRACE_AGENT_URL=http://' . stream_socket_get_name($listener, false));
 $process = ffeTestProcess(__DIR__ . '/stubs/flag_evaluation_identity_app.php', $pipes);
 $contexts = array();
+$expectedContexts = array(
+    'default' => array('service' => 'flag_evaluation_identity_app.php', 'env' => 'none'),
+    'configured' => array('service' => 'changed-service', 'env' => 'changed-env', 'version' => 'changed-version'),
+);
 $exitCode = null;
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
@@ -45,16 +49,16 @@ try {
             }
             if (strpos($request, '/flagevaluation ') !== false) {
                 $payload = json_decode($body, true);
-                // The extension submits an empty context; the sidecar fills
-                // it from the application set on the transport.
                 foreach ($payload['flagEvaluations'] as $row) {
-                    $context = $payload['context'];
-                    ksort($context);
-                    $contexts[$row['flag']['key']] = json_encode(array(
-                        'context' => $context,
-                        'dd' => isset($row['context']['dd']) ? $row['context']['dd'] : null,
-                        'count' => $row['evaluation_count'],
-                    ));
+                    $flag = $row['flag']['key'];
+                    $expected = $expectedContexts[$flag];
+                    if (isset($contexts[$flag]) || $payload['context'] != $expected
+                        || !isset($row['context']['dd']['service'])
+                        || $row['context']['dd']['service'] !== $expected['service']
+                        || $row['evaluation_count'] !== 1) {
+                        throw new RuntimeException('unexpected attributed evaluation: ' . json_encode($payload));
+                    }
+                    $contexts[$flag] = true;
                 }
             }
             fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
@@ -65,7 +69,7 @@ try {
     }
     if ($exitCode !== 0) throw new RuntimeException('child failed: ' . ffeTestProcessRead($pipes[2]));
     foreach (array('default', 'configured') as $flag) {
-        echo $flag, '=', $contexts[$flag], "\n";
+        echo $flag, '='; var_dump($contexts[$flag]);
     }
 } finally {
     if ($exitCode === null) proc_terminate($process);
@@ -75,5 +79,5 @@ try {
 }
 ?>
 --EXPECT--
-default={"context":{"env":"none","service":"flag_evaluation_identity_app.php"},"dd":{"service":"flag_evaluation_identity_app.php"},"count":1}
-configured={"context":{"env":"changed-env","service":"changed-service","version":"changed-version"},"dd":{"service":"changed-service"},"count":1}
+default=bool(true)
+configured=bool(true)

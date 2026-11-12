@@ -91,7 +91,7 @@ struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_endpoint(const ddo
  */
 struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_path(const char *path);
 
-char *ddog_remote_config_path(const struct ddog_ConfigInvariants *id,
+char *ddog_remote_config_path(const struct ddog_RemoteConfigInvariants *id,
                               const struct ddog_Arc_Target *target);
 
 void ddog_remote_config_path_free(char *path);

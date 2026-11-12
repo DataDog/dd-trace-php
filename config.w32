@@ -179,12 +179,16 @@ if (PHP_DDTRACE != 'no') {
 		.concat(recursivelySearchRustFiles(configure_module_dirname + "/sidecar"));
 	rust_files.push(condense_path(configure_module_dirname + "/Cargo.toml"));
 	rust_files.push(condense_path(configure_module_dirname + "/Cargo.lock"));
+	rust_files.push(condense_path(configure_module_dirname + "/VERSION"));
 
 	var cargo_lib = "$(BUILD_DIR)/target-common/" + ddtrace_cargo_profile + "/datadog_php.lib";
 
 	var fragment = configure_module_dirname + "/Makefile.frag.w32";
 	frag_out = FSO.CreateTextFile(fragment, true);
 
+	// Match Unix helper identity: incompatible tracer releases must not reuse a pipe.
+	frag_out.WriteLine("!if [set SIDECAR_VERSION=" + versionContent + "]");
+	frag_out.WriteLine("!endif");
 	frag_out.WriteLine("CARGO_TARGET_DIR=$(BUILD_DIR)/target-common/");
 	// Promote to env var
 	frag_out.WriteLine("!if [set CARGO_TARGET_DIR=$(CARGO_TARGET_DIR)]");
