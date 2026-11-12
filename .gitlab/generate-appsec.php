@@ -145,6 +145,7 @@ stages:
     KUBERNETES_HELPER_CPU_LIMIT: 1
     KUBERNETES_HELPER_MEMORY_REQUEST: 3Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 3Gi
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/appsec-extension-tests.xml"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -158,6 +159,7 @@ stages:
         SWITCH_PHP_VERSION: debug-zts-asan
   script:
     - switch-php $SWITCH_PHP_VERSION
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - cd appsec/build
     - if [[ "$SWITCH_PHP_VERSION" == *"asan"* ]]; then ASAN_FLAG=ON; else ASAN_FLAG=OFF; fi
     # FetchContent downloads boost and rapidjson at configure time: a Depot 503 or a boost transfer error there exits 75 and is retried.
@@ -166,6 +168,14 @@ stages:
 	  -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
       -DENABLE_ASAN=$ASAN_FLAG || exit $?"
     - ASAN_OPTIONS=malloc_context_size=0 ../../.gitlab/run-with-retryable-download.sh make -j 4 xtest || exit $?
+  after_script:
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:appsec/"
+  artifacts:
+    reports:
+      junit: "artifacts/tests/*.xml"
+    paths:
+      - "artifacts/"
+    when: "always"
 
 .appsec_integration_tests:
   stage: test

@@ -152,7 +152,10 @@ merge-gate:
   stage: merge-gate
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
-  when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: never
+    - when: always
   # The parent pipeline has no default retry; merge-gate.sh exits 75 on GitLab/Vault API failures.
   retry:
     max: 2

@@ -119,11 +119,7 @@ static zend_string *_dd_login_failure_event_auto_mode;
 static zend_string *_dd_signup_event_sdk;
 static zend_string *_dd_login_success_event_sdk;
 static zend_string *_dd_login_failure_event_sdk;
-static zend_string *_key_request_uri_zstr;
-static zend_string *_key_http_host_zstr;
-static zend_string *_key_server_name_zstr;
 static zend_string *_key_http_user_agent_zstr;
-static zend_string *_key_https_zstr;
 static zend_string *_key_remote_addr_zstr;
 static zend_string *_1_zstr;
 static zend_string *_null_zstr;
@@ -200,14 +196,8 @@ void dd_tags_startup(void)
     _dd_metric_enabled =
         zend_string_init_interned(LSTRARG(DD_METRIC_ENABLED), 1);
 
-    _key_request_uri_zstr =
-        zend_string_init_interned(LSTRARG("REQUEST_URI"), 1);
-    _key_http_host_zstr = zend_string_init_interned(LSTRARG("HTTP_HOST"), 1);
-    _key_server_name_zstr =
-        zend_string_init_interned(LSTRARG("SERVER_NAME"), 1);
     _key_http_user_agent_zstr =
         zend_string_init_interned(LSTRARG("HTTP_USER_AGENT"), 1);
-    _key_https_zstr = zend_string_init_interned(LSTRARG("HTTPS"), 1);
     _key_remote_addr_zstr =
         zend_string_init_interned(LSTRARG("REMOTE_ADDR"), 1);
 
@@ -609,49 +599,16 @@ static void _dd_http_url(zend_array *meta_ht, const zend_array *_server)
         return;
     }
 
-    // match what the tracer does for http.url: 1st try $_SERVER['REQUEST_URI'],
-    // then SG(request_info).request_uri
-    const char *uri = SG(request_info).request_uri;
-    size_t uri_len;
-    if (!uri) {
-        const zend_string *uri_zstr =
-            dd_php_get_string_elem(_server, _key_request_uri_zstr);
-        if (!uri_zstr) {
-            mlog(dd_log_info, "Could not determine request URI");
-            return;
-        }
-        uri = ZSTR_VAL(uri_zstr);
-        uri_len = ZSTR_LEN(uri_zstr);
-    } else {
-        uri_len = strlen(uri);
+    // use the tracer's implementation so the query string gets the same
+    // filtering/obfuscation (DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED etc.)
+    zend_string *url = dd_trace_build_req_url(_server);
+    if (ZSTR_LEN(url) == 0) {
+        mlog(dd_log_info, "Could not determine request URL");
+        zend_string_release(url);
+        return;
     }
 
-    const zend_string *http_host_zstr =
-        dd_php_get_string_elem(_server, _key_http_host_zstr);
-    if (!http_host_zstr) {
-        http_host_zstr = dd_php_get_string_elem(_server, _key_server_name_zstr);
-        if (!http_host_zstr) {
-            mlog(dd_log_info, "Could not determine hostname");
-            return;
-        }
-    }
-
-    bool has_https = zend_hash_exists(_server, _key_https_zstr);
-    size_t final_len = (has_https ? LSTRLEN("https") : LSTRLEN("http")) +
-                       LSTRLEN("://") + ZSTR_LEN(http_host_zstr) + uri_len;
-    smart_str url_str = {0};
-    smart_str_alloc(&url_str, final_len, 0);
-    smart_str_appendl_ex(&url_str, LSTRARG("http"), 0);
-    if (has_https) {
-        smart_str_appendc(&url_str, 's');
-    }
-    smart_str_appendl_ex(&url_str, LSTRARG("://"), 0);
-    smart_str_append(&url_str, http_host_zstr);
-    smart_str_appendl(&url_str, uri, uri_len);
-    smart_str_0(&url_str);
-
-    _add_new_zstr_to_meta(
-        meta_ht, _dd_tag_http_url_zstr, url_str.s, false, false);
+    _add_new_zstr_to_meta(meta_ht, _dd_tag_http_url_zstr, url, false, false);
 }
 
 static void _dd_http_user_agent(
