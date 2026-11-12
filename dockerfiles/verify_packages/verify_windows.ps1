@@ -9,13 +9,15 @@ Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1
 $env:Path = "$env:ChocolateyInstall\bin;$env:Path"
 
 choco install -y php
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$phpInstallCode = $LASTEXITCODE
 choco install -y 7zip
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$sevenZipInstallCode = $LASTEXITCODE
 refreshenv
-# choco exits 0 after a feed error with "installed 0/0 packages"; treat a missing packages as infra (75 is retried).
+# A feed error makes choco either exit 0 with "installed 0/0 packages" or exit 1 with "installed 0/1 packages"; treat a missing php or 7zip as infra (75 is retried) before propagating choco's exit codes.
 if (-not (Get-Command php -ErrorAction SilentlyContinue)) { Write-Host "php is not installed after choco install (feed failure?); exiting 75 so GitLab auto-retries"; exit 75 }
 if (-not (Get-Command 7z -ErrorAction SilentlyContinue)) { Write-Host "7zip is not installed after choco install (feed failure?); exiting 75 so GitLab auto-retries"; exit 75 }
+if ($phpInstallCode -ne 0) { exit $phpInstallCode }
+if ($sevenZipInstallCode -ne 0) { exit $sevenZipInstallCode }
 
 php build/packages/datadog-setup.php --php-bin=all --file=$(ls build/packages/dd-library-php-*-x86_64-windows.tar.gz)
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
