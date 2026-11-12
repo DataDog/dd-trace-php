@@ -1287,6 +1287,115 @@ class AMQPTest extends IntegrationTestCase
     }
 
     /**
+     * A batched message gets its checkpoint, sized like basic_publish's, when it is added to the
+     * batch, and publish_batch() sends it with its context. The batch's messages are a run of
+     * publishes, so all of them continue the pathway from before the run.
+     */
+    public function testDataStreamsBatchedPublishing()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $contexts = [];
+        $received = [];
+        $sizes = [];
+        $hook = \DDTrace\install_hook('DDTrace\Internal\dsm_set_checkpoint', function ($hook) use (&$sizes) {
+            if (in_array('direction:out', $hook->args[0], true)) {
+                $sizes[] = $hook->args[2];
+            }
+        });
+        try {
+            $this->isolateTracer(function () use (&$contexts, &$received) {
+                \DDTrace\Internal\dsm_push_pathway();
+                try {
+                    $connection = $this->connectionToServer();
+                    $channel = $connection->channel();
+                    $channel->queue_declare('dsm_batch_orders', false, false, true, false);
+                    $channel->queue_declare('dsm_batch_billing', false, false, true, false);
+                    $channel->exchange_declare('dsm_batch_exchange', 'direct', false, false, true);
+                    $channel->queue_declare('dsm_batch_routed', false, false, true, false);
+                    $channel->queue_bind('dsm_batch_routed', 'dsm_batch_exchange', 'dsm_key');
+
+                    $messages = [
+                        'orders' => [new AMQPMessage('order'), '', 'dsm_batch_orders'],
+                        'billing' => [new AMQPMessage('invoice'), '', 'dsm_batch_billing'],
+                        'routed' => [new AMQPMessage('shipment'), 'dsm_batch_exchange', 'dsm_key'],
+                    ];
+                    foreach ($messages as $name => list($message, $exchange, $routingKey)) {
+                        $channel->batch_basic_publish($message, $exchange, $routingKey);
+                        $contexts["$name added"] = self::dsmContext($message);
+                    }
+                    $channel->publish_batch();
+
+                    foreach (['orders' => 'dsm_batch_orders', 'billing' => 'dsm_batch_billing',
+                                'routed' => 'dsm_batch_routed'] as $name => $queue) {
+                        $received[$name] = $channel->basic_get($queue, true);
+                    }
+
+                    $channel->close();
+                    $connection->close();
+                } finally {
+                    \DDTrace\Internal\dsm_pop_pathway();
+                }
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $edgeTags = [
+            'orders' => ['direction:out', 'topic:dsm_batch_orders', 'type:rabbitmq'],
+            'billing' => ['direction:out', 'topic:dsm_batch_billing', 'type:rabbitmq'],
+            'routed' => ['direction:out', 'exchange:dsm_batch_exchange', 'has_routing_key:true', 'type:rabbitmq'],
+        ];
+        $expectedSizes = [];
+        foreach ($edgeTags as $name => $tags) {
+            $this->assertNotNull($contexts["$name added"], "$name has a context once added to the batch");
+            $this->assertSame(self::dsmHashOnFreshPathway([[$tags, null]]), self::dsmHash($contexts["$name added"]));
+            $this->assertNotNull($received[$name], "$name was published");
+            $this->assertSame($contexts["$name added"], self::dsmContext($received[$name]));
+            $headers = $received[$name]->get('application_headers')->getNativeData();
+            $expectedSizes[] = strlen($received[$name]->getBody())
+                + self::dsmHeadersSize($headers, 'dd-pathway-ctx-base64');
+        }
+        $this->assertSame($expectedSizes, $sizes);
+    }
+
+    /**
+     * Past the span limit, where no spans are made, a batched message still gets its checkpoint and
+     * is sent with its context.
+     */
+    public function testDataStreamsBatchedPublishingPastTheSpanLimit()
+    {
+        self::putEnvAndReloadConfig(['DD_DATA_STREAMS_ENABLED=true']);
+        $contexts = [];
+        $traces = $this->isolateLimitedTracer(function () use (&$contexts) {
+            \DDTrace\Internal\dsm_push_pathway();
+            try {
+                $connection = $this->connectionToServer();
+                $channel = $connection->channel();
+                $channel->queue_declare('dsm_batch_limited', false, false, true, false);
+
+                $order = new AMQPMessage('order');
+                $channel->batch_basic_publish($order, '', 'dsm_batch_limited');
+                $contexts['added'] = self::dsmContext($order);
+                $channel->publish_batch();
+                $contexts['received'] = self::dsmContext($channel->basic_get('dsm_batch_limited', true));
+
+                $channel->close();
+                $connection->close();
+            } finally {
+                \DDTrace\Internal\dsm_pop_pathway();
+            }
+        });
+
+        $this->assertEmpty($traces);
+        $this->assertNotNull($contexts['added']);
+        $this->assertSame(
+            self::dsmHashOnFreshPathway([[['direction:out', 'topic:dsm_batch_limited', 'type:rabbitmq'], null]]),
+            self::dsmHash($contexts['added'])
+        );
+        $this->assertSame($contexts['added'], $contexts['received']);
+    }
+
+    /**
      * A message cut short by the channel's body size limit is counted at the size it was sent with,
      * as its span counts it, not at what is left of its body.
      */
@@ -1427,6 +1536,11 @@ class AMQPTest extends IntegrationTestCase
             $channel->basic_publish($message, '', 'dsm_disabled');
             $result['sent'] = self::dsmContext($message);
 
+            $batched = new AMQPMessage('invoice');
+            $channel->batch_basic_publish($batched, '', 'dsm_disabled');
+            $channel->publish_batch();
+            $result['batched'] = self::dsmContext($batched);
+
             $callback = function (AMQPMessage $message) {
             };
             $consumerTag = $channel->basic_consume('dsm_disabled', '', false, true, false, false, $callback);
@@ -1437,6 +1551,7 @@ class AMQPTest extends IntegrationTestCase
         });
 
         $this->assertNull($result['sent']);
+        $this->assertNull($result['batched']);
         $this->assertTrue($result['callback kept']);
     }
 

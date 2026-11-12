@@ -224,6 +224,26 @@ class AMQPIntegration extends Integration
             ]
         );
 
+        // A batched message gets its checkpoint, and the context it is sent with, when it is added
+        // to the batch, as a Kafka message does when it is queued in the producer.
+        // publish_batch() writes the batch's frames itself rather than through basic_publish(),
+        // so it needs no hook: it serializes each message's properties as it writes it, and so
+        // sends the header set here. Installed after the span's hook, like basic_publish's, to
+        // count the distributed tracing headers in the payload size.
+        //
+        // One message object added to a batch more than once is sent with the context of the
+        // last add, as all its entries are serialized after it: a consumer links each of them to
+        // that add's checkpoint.
+        \DDTrace\install_hook(
+            'PhpAmqpLib\Channel\AMQPChannel::batch_basic_publish',
+            static function (HookData $hook) {
+                $message = $hook->args[0] ?? null;
+                if ($message instanceof AMQPMessage && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                    self::setDataStreamsProduceCheckpoint($message, $hook->args[1] ?? '', $hook->args[2] ?? '');
+                }
+            }
+        );
+
         trace_method(
             "PhpAmqpLib\Channel\AMQPChannel",
             "publish_batch",
