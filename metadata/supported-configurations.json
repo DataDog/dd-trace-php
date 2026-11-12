@@ -278,6 +278,13 @@
         "default": "true"
       }
     ],
+    "DD_DATA_STREAMS_CHECKPOINT_SLOTS": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "128"
+      }
+    ],
     "DD_DATA_STREAMS_ENABLED": [
       {
         "implementation": "A",

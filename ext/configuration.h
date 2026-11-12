@@ -101,6 +101,7 @@ enum datadog_sidecar_connection_mode {
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
     CONFIG(INT, DD_TRACE_SIDECAR_BACKPRESSURE_BYTES, "4194304", .ini_change = zai_config_system_ini_change)    \
     CONFIG(INT, DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE, "100", .ini_change = zai_config_system_ini_change)        \
+    CONFIG(INT, DD_DATA_STREAMS_CHECKPOINT_SLOTS, "128", .ini_change = zai_config_system_ini_change)           \
     CONFIG(STRING, DD_TRACE_AGENT_TEST_SESSION_TOKEN, "", .ini_change = datadog_alter_test_session_token)      \
     CONFIG(CUSTOM(INT), DD_TRACE_SIDECAR_CONNECTION_MODE, "auto", .parser = dd_parse_sidecar_connection_mode)  \
     CONFIG(STRING, DD_TRACE_LOG_FILE, "", .ini_change = zai_config_system_ini_change)                          \
