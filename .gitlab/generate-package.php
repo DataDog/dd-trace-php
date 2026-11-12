@@ -2141,7 +2141,8 @@ foreach ($arch_targets as $arch) {
     apt-get update -qq && apt-get install -y -qq curl jq > /dev/null
 
     STATUS=$(curl -s --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/pulls.json -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open")
+        "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open") || true
+    # `|| true`: with no response, curl exits non-zero and writes 000, which must reach the retry mapping below (set -e)
     if [ "${STATUS}" != "200" ]; then
       echo "ERROR: failed to check for an open PR on branch ${CI_COMMIT_BRANCH} (HTTP ${STATUS}):"; cat /tmp/pulls.json
       # 000 (no response after curl's retries) and 5xx are transient: exit 75 for GitLab's job retry
