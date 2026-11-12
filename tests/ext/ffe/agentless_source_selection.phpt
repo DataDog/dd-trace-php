@@ -16,8 +16,13 @@ DD_TRACE_AGENT_URL=http://127.0.0.1:1
 --FILE--
 <?php
 $cases = array(
-    'default_disabled' => array(null, null, null, false, 'native_agentless'),
-    'blank_disabled' => array(null, '   ', null, false, 'native_agentless'),
+    'default_disabled' => array(null, null, null, false, 'native_disabled'),
+    'blank_disabled' => array(null, '   ', null, false, 'native_disabled'),
+    'stable_no_source' => array('1', null, null, false, 'native_disabled'),
+    'stable_empty_source' => array('1', '', null, false, 'native_disabled'),
+    'stable_blank_source' => array('1', '   ', null, false, 'native_disabled'),
+    'stable_over_legacy_true' => array('1', null, '1', false, 'native_disabled'),
+    'stable_over_legacy_false' => array('1', null, '0', false, 'native_disabled'),
     'stable_kill' => array('0', 'agentless', '1', false, 'native_agentless'),
     'legacy_kill' => array(null, null, '0', false, 'native_remote_config'),
     'legacy_remote_config' => array(null, null, '1', true, 'native_remote_config'),
@@ -31,6 +36,11 @@ require __DIR__ . '/stubs/agentless_source_selection.inc';
 --EXPECT--
 default_disabled=ok
 blank_disabled=ok
+stable_no_source=ok
+stable_empty_source=ok
+stable_blank_source=ok
+stable_over_legacy_true=ok
+stable_over_legacy_false=ok
 stable_kill=ok
 legacy_kill=ok
 legacy_remote_config=ok

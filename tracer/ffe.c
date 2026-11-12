@@ -188,10 +188,10 @@ static void dd_ffe_resolve_source(void) {
         dd_ffe.legacy_key_decided = true;
         dd_ffe.source = DDTRACE_FFE_SOURCE_REMOTE_CONFIG;
         dd_ffe.enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
-    } else {
-        dd_ffe.source = DDTRACE_FFE_SOURCE_AGENTLESS;
-        dd_ffe.enabled = get_global_DD_FEATURE_FLAGS_ENABLED();
     }
+    // No implicit source: canonical enablement alone must not start delivery or
+    // inherit the legacy RC opt-in. Only an explicit source or legacy-only
+    // enablement above can activate configuration delivery.
     zend_string_release(source);
 
     if (dd_ffe_config_is_set(DATADOG_CONFIG_DD_FEATURE_FLAGS_ENABLED) && !get_global_DD_FEATURE_FLAGS_ENABLED()) {

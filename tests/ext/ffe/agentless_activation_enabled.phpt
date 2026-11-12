@@ -1,5 +1,5 @@
 --TEST--
-FFE explicit enablement starts CDN fetching with an implicit agentless source
+FFE canonical enablement without an explicit source remains inactive even after provider use
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80000) die('skip: OpenFeature requires PHP 8+');
@@ -18,21 +18,25 @@ DD_TRACE_AGENT_URL=http://127.0.0.1:1
 --FILE--
 <?php
 require __DIR__ . '/stubs/agentless_activation.inc';
-ffeTestAgentlessActivation('enabled_absent', null, '1', true, true);
-ffeTestAgentlessActivation('enabled_empty', '', '1', true, true);
-ffeTestAgentlessActivation('enabled_whitespace', '   ', '1', true, true);
-ffeTestAgentlessActivation('enabled_over_legacy', null, '1', true, true, '0');
+ffeTestAgentlessActivation('enabled_absent', null, '1', false, false);
+ffeTestAgentlessActivation('enabled_empty', '', '1', false, false);
+ffeTestAgentlessActivation('enabled_whitespace', '   ', '1', false, false);
+ffeTestAgentlessActivation('enabled_over_legacy', null, '1', false, false, '0');
+ffeTestAgentlessActivation('enabled_over_legacy_true', null, '1', false, false, '1');
 ?>
 --EXPECT--
-enabled_absent.before_registration=fetching
-enabled_absent.after_registration=fetching
-enabled_absent.value=blue
-enabled_empty.before_registration=fetching
-enabled_empty.after_registration=fetching
-enabled_empty.value=blue
-enabled_whitespace.before_registration=fetching
-enabled_whitespace.after_registration=fetching
-enabled_whitespace.value=blue
-enabled_over_legacy.before_registration=fetching
-enabled_over_legacy.after_registration=fetching
-enabled_over_legacy.value=blue
+enabled_absent.before_registration=quiet
+enabled_absent.after_registration=quiet
+enabled_absent.value=fallback
+enabled_empty.before_registration=quiet
+enabled_empty.after_registration=quiet
+enabled_empty.value=fallback
+enabled_whitespace.before_registration=quiet
+enabled_whitespace.after_registration=quiet
+enabled_whitespace.value=fallback
+enabled_over_legacy.before_registration=quiet
+enabled_over_legacy.after_registration=quiet
+enabled_over_legacy.value=fallback
+enabled_over_legacy_true.before_registration=quiet
+enabled_over_legacy_true.after_registration=quiet
+enabled_over_legacy_true.value=fallback

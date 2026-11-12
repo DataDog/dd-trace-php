@@ -19,12 +19,16 @@ DD_TRACE_AGENT_URL=http://127.0.0.1:1
 <?php
 require __DIR__ . '/stubs/agentless_activation.inc';
 ffeTestAgentlessActivation('explicit', 'agentless', null, true, true);
+ffeTestAgentlessActivation('canonical', 'agentless', '1', true, true);
 ffeTestAgentlessActivation('explicit_over_legacy', 'agentless', null, true, true, '0');
 ?>
 --EXPECT--
 explicit.before_registration=fetching
 explicit.after_registration=fetching
 explicit.value=blue
+canonical.before_registration=fetching
+canonical.after_registration=fetching
+canonical.value=blue
 explicit_over_legacy.before_registration=fetching
 explicit_over_legacy.after_registration=fetching
 explicit_over_legacy.value=blue

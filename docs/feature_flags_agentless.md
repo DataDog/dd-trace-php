@@ -5,18 +5,28 @@
 Feature flags are disabled by default. The source is resolved once at process
 startup, in this order of precedence:
 
-1. `DD_FEATURE_FLAGS_ENABLED=false` disables feature flags.
+1. Explicit `DD_FEATURE_FLAGS_ENABLED=false` disables feature flags.
 2. A non-blank `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` selects `agentless`,
    `remote_config` or `offline`. Any other value disables feature flags and is
    reported as an invalid source.
-3. Otherwise, `DD_FEATURE_FLAGS_ENABLED=true` selects `agentless`.
+3. Otherwise, `DD_FEATURE_FLAGS_ENABLED=true` leaves configuration delivery
+   disabled: an explicit source is required, even if the deprecated switch is set.
 4. Otherwise, the deprecated `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED`
    selects Agent Remote Configuration, or disables feature flags.
 5. Otherwise, feature flags remain disabled.
 
-To enable CDN fetching, explicitly set
-`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` or
-`DD_FEATURE_FLAGS_ENABLED=true`. A blank source does not enable fetching.
+`DD_FEATURE_FLAGS_ENABLED` is the canonical enable/disable switch, not a source
+selector. To enable CDN fetching, set
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless`. An explicit source is sufficient
+unless `DD_FEATURE_FLAGS_ENABLED=false` is also set. An absent, empty or
+whitespace-only source starts no delivery, except for the legacy-only RC opt-in.
+
+To migrate an existing RC installation away from
+`DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true`, set both
+`DD_FEATURE_FLAGS_ENABLED=true` and
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config`. Replacing only the legacy
+switch with the canonical switch stops configuration delivery.
+
 Creating or registering the OpenFeature provider does not enable fetching.
 After explicit opt-in, the sidecar can fetch before provider registration.
 
