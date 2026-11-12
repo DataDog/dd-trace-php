@@ -18,6 +18,9 @@
 #include "target_metadata.h"
 #include "ffi_utils.h"
 #include <tracer/tracer_api.h>
+#ifdef TRACER
+#include <tracer/ffe.h>
+#endif
 #ifdef APPSEC
 #include <appsec/src/extension/ddappsec_api.h>
 #endif
@@ -183,9 +186,20 @@ static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport
         .origin = DDOG_CHARSLICE_C("dd-trace-php"),
         .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
     };
+    bool agentless = ddtrace_ffe_agentless_enabled();
+    ddog_Endpoint *direct_endpoint = agentless ? ddog_ffe_evp_endpoint_new(
+        dd_zend_string_to_CharSlice(get_global_DD_SITE()),
+        dd_zend_string_to_CharSlice(get_global_DD_API_KEY())) : NULL;
+    if (direct_endpoint) {
+        dd_set_endpoint_test_token(direct_endpoint);
+    }
     datadog_ffi_try("Failed configuring PHP FFE EVP transport",
-        ddog_sidecar_session_set_evp_transport(transport, DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
-            datadog_endpoint, NULL, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+        ddog_sidecar_session_set_evp_transport(transport,
+            agentless ? DDOG_EVP_TRANSPORT_MODE_PREFER_LOCAL_THEN_DIRECT : DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
+            datadog_endpoint, direct_endpoint, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+    if (direct_endpoint) {
+        ddog_endpoint_drop(direct_endpoint);
+    }
 }
 #endif
 

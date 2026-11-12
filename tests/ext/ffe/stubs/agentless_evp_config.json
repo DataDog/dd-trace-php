@@ -1,0 +1,17 @@
+{
+  "createdAt": "2026-05-22T00:00:00Z",
+  "format": "SERVER",
+  "environment": {"name": "test"},
+  "flags": {
+    "transport-flag": {
+      "key": "transport-flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {"on": {"key": "on", "value": "blue"}},
+      "allocations": [{
+        "key": "allocation", "rules": [], "doLog": true,
+        "splits": [{"variationKey": "on", "serialId": 7, "shards": []}]
+      }]
+    }
+  }
+}

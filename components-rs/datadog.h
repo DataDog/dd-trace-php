@@ -314,6 +314,12 @@ struct ddog_FfeCdnConfig *ddog_ffe_cdn_config_new(ddog_CharSlice base_url,
 
 void ddog_ffe_cdn_config_drop(struct ddog_FfeCdnConfig*);
 
+/**
+ * Build the authenticated EVP intake independently of any custom CDN URL.
+ * Missing credentials or an invalid destination leave local EVP discovery available.
+ */
+struct ddog_Endpoint *ddog_ffe_evp_endpoint_new(ddog_CharSlice site, ddog_CharSlice api_key);
+
 struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
                                         ddog_CharSlice targeting_key,
