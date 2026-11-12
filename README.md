@@ -28,6 +28,14 @@ Compilation of the tracer and the profiler requires cargo to be installed. Ensur
 
 For more information about configuring and instrumenting **ddtrace**, view the [configuration documentation](https://docs.datadoghq.com/tracing/setup/php/#configuration).
 
+### Feature Flag evaluation events
+
+Set `DD_FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED=false` before starting PHP to disable aggregated
+Feature Flag evaluation event delivery. The default is `true`. The legacy
+`DD_FLAGGING_EVALUATION_COUNTS_ENABLED` name remains a compatibility alias; the canonical name takes
+precedence when both environment variables are set. This setting does not disable flag evaluation,
+experiment exposures, or the separate OpenTelemetry evaluation metric.
+
 ### OpenTracing
 
 The **ddtrace** package provides an [OpenTracing-compatible tracer](https://docs.datadoghq.com/tracing/custom_instrumentation/php/?tab=tracingfunctioncalls#opentracing).
