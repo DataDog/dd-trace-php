@@ -704,7 +704,7 @@ foreach ($build_platforms as $platform) {
 
 .package_extension_base:
   stage: packaging
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-5
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-6-buildx-0382-dd3@sha256:1631753e67349698b2b752730696dc6384678044c960365ae7ed37b06f2e4b6e
   tags: [ "arch:amd64" ]
   after_script:
     - |
@@ -867,7 +867,7 @@ endforeach;
 
 "datadog-setup.php":
   stage: packaging
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-5
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-6-buildx-0382-dd3@sha256:1631753e67349698b2b752730696dc6384678044c960365ae7ed37b06f2e4b6e
   tags: [ "arch:amd64" ]
   script:
     - mkdir -p "build/packages"
