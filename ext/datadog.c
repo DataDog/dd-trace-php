@@ -30,6 +30,7 @@
 #include "startup_logging.h"
 #include "telemetry.h"
 #include "zend_hrtime.h"
+#include <ext/date/php_date.h>
 #ifndef _WIN32
 #include <dlfcn.h>
 #include <limits.h>
@@ -255,6 +256,10 @@ static void dd_activate_once(void) {
 }
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
+#ifndef ZTS
+static zend_module_entry *dd_date_module;
+static void dd_clear_stale_date_tzcache(void);
+#endif
 #ifdef TRACER
 static pthread_once_t dd_tracer_first_rinit_control = PTHREAD_ONCE_INIT;
 #endif
@@ -272,6 +277,11 @@ static bool dd_is_cli_autodisabled(const char *arg) {
 }
 
 static void datadog_activate(void) {
+#ifndef ZTS
+    // Before anything that may log; see dd_clear_stale_date_tzcache().
+    dd_clear_stale_date_tzcache();
+#endif
+
     ddog_reset_logger();
 
     if (!datadog_disable && datadog_has_excluded_module == true) {
@@ -315,6 +325,37 @@ static void datadog_activate(void) {
     }
 #endif
 }
+
+#ifndef ZTS
+// ext/date caches parsed timezones in a table at DATEG(tzcache), created by
+// the first timezone lookup. Date's RINIT sets the pointer to NULL without
+// freeing anything, and date's post-deactivate (RSHUTDOWN before PHP 7.4.23
+// and 8.0.10) frees the table.
+//
+// When error_log names a file, NTS builds timestamp every logged line in
+// local time, which looks the timezone up (ZTS builds use UTC until module
+// startup ends). A line logged during module startup, such as the SSI
+// loader's debug output, then creates the table on a heap that
+// php_module_startup() discards before it returns. The pointer dangles until
+// date's first RINIT, in the startup process and in every worker forked from
+// it. Any line logged in that first request before the module RINITs then
+// looks a timezone up in the freed table, a warning that the POST data
+// exceeds post_max_size for instance. If the request fails before
+// the RINITs, such as with a fatal while PHP parses its POST data, date's
+// post-deactivate also frees the table ("zend_mm_heap corrupted").
+//
+// This hook runs before PHP parses the request data and before any module
+// RINIT, so reset the pointer here, as date's RINIT would. A live table that
+// another zend_extension's activate hook created is merely left to the
+// end-of-request heap reset, as date's RINIT would leave it too.
+static void dd_clear_stale_date_tzcache(void) {
+    if (!dd_date_module) {
+        return;
+    }
+    zend_date_globals *globals = dd_date_module->globals_ptr;
+    globals->tzcache = NULL;
+}
+#endif
 
 static void datadog_deactivate(void) {
 #ifdef PROFILING
@@ -619,6 +660,10 @@ static int datadog_register_zend_extension(void) {
 
 static PHP_MINIT_FUNCTION(datadog) {
     UNUSED(type);
+#ifndef ZTS
+    // ext/date is always compiled in, so it is registered before ddtrace.
+    dd_date_module = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("date"));
+#endif
 #ifdef PROFILING
     datadog_profiling_initialized = false;
 #endif
