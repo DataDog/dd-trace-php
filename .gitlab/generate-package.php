@@ -4,6 +4,16 @@ include "generate-common.php";
 
 const FRANKENPHP_ALPINE_PHP_VERSION = "8.3.12";
 
+// Trial the independent PHP 7.0 arm64 Alpine release builds in parallel only
+// on ordinary feature branches. Keep all publishing and scheduled paths intact.
+$ci_branch = getenv('CI_COMMIT_BRANCH') ?: '';
+$parallel_php70_arm64_lto = $ci_branch !== ''
+    && !in_array($ci_branch, ['master', 'v2'], true)
+    && !str_starts_with($ci_branch, 'ddtrace-')
+    && !str_starts_with($ci_branch, 'bot/')
+    && getenv('CI_PIPELINE_SOURCE') !== 'schedule'
+    && $_libdatadog_sha === '';
+
 $build_platforms = [
     [
         "triplet" => "x86_64-alpine-linux-musl",
@@ -349,6 +359,42 @@ foreach ($build_platforms as $platform) {
         }
         $image = sprintf($platform['image_template'], $major_minor);
         $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
+        $parallel_lto = $parallel_php70_arm64_lto && $platform['triplet'] === 'aarch64-alpine-linux-musl';
+        if ($parallel_lto):
+?>
+"compile tracing LTO: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: "<?= $image ?>"
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  parallel:
+    matrix:
+      - PHP_FLAVOUR: [nts, zts]
+  variables:
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+    - echo "" >> "$BASH_ENV"
+    - source "$BASH_ENV"
+    - PHP_SUFFIX=""; if [ "$PHP_FLAVOUR" = "zts" ]; then PHP_SUFFIX="-zts"; fi
+    - switch_php "${PHP_VERSION}${PHP_SUFFIX}"
+    - make -s xlang-lto
+    - mkdir -p "extensions_aarch64"
+    - cp "tmp/release-variants/aarch64/php-${PHP_VERSION}/${PHP_FLAVOUR}/combined/ddtrace.so" "extensions_aarch64/ddtrace-${ABI_NO}-alpine${PHP_SUFFIX}.so"
+  artifacts:
+    paths:
+      - "extensions_*"
+
+<?php
+        endif;
 ?>
 "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: tracing
@@ -357,6 +403,11 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
+<?php if ($parallel_lto): ?>
+    # Collect both ABI-specific release files before the legacy static builds.
+    - job: "compile tracing LTO: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php endif; ?>
   variables:
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -371,6 +422,10 @@ foreach ($build_platforms as $platform) {
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
+<?php if ($parallel_lto): ?>
+    - test -s "extensions_aarch64/ddtrace-${ABI_NO}-alpine.so"
+    - test -s "extensions_aarch64/ddtrace-${ABI_NO}-alpine-zts.so"
+<?php else: ?>
 <?php if ($platform['host_os'] === 'linux-musl'): ?>
     # Load the function in this shell too, not just the build-tracing subprocess.
     - source "$BASH_ENV"
@@ -383,6 +438,7 @@ foreach ($build_platforms as $platform) {
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+<?php endif; ?>
   artifacts:
     paths:
       - "extensions_*"
