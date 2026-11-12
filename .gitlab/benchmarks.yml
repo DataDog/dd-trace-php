@@ -1,5 +1,7 @@
 include:
   - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/build-ci-images.template.yml'
+  - project: 'DataDog/benchmarking-platform-tools'
     file: 'images/templates/gitlab/check-slo-breaches.template.yml'
   - project: 'DataDog/benchmarking-platform-tools'
     file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
@@ -105,9 +107,16 @@ php-wordpress-parallel-upload-results:
   rules: *macrobenchmarks-rules
 
 variables:
-  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
-  # The Dockerfile to this image is located at:
-  # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
+  # Microbenchmarks CI image, consumed by the benchmark jobs below. Repin to the
+  # tag pushed by a `build-benchmark-ci-images` run after changing anything in
+  # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
+  MICROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
+  # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
+  # Image build, consumed by the included build-ci-images template. The per-pipeline
+  # suffix pins each build to a unique tag so a rebuild can't shift what older
+  # pipelines pulled.
+  BASE_CI_IMAGE_SUFFIX: dd-trace-php-${CI_PIPELINE_ID}
+  BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/php/laravel-realworld
@@ -201,7 +210,7 @@ workflow:
   tags: ["runner:apm-k8s-tweaked-metal"]
   needs: []
   image:
-    name: $BASE_CI_IMAGE
+    name: $MICROBENCHMARKS_CI_IMAGE
   timeout: 90m
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
@@ -219,15 +228,15 @@ workflow:
         fi
         echo "Tracer-related file changes detected - proceeding with benchmarks"
       fi
-    - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
-    - ./steps/capture-hardware-software-info.sh
+    - export PATH="$PATH:${CI_PROJECT_DIR}/.gitlab/benchmarks/steps"
+    - capture-hardware-software-info.sh
     # Keep submodules at the selected candidate and baseline revisions.
     - >-
       GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=submodule.recurse GIT_CONFIG_VALUE_0=true
-      BP_SCENARIO=$SCENARIO bp-runner bp-runner.yml --debug -t
-    - ./steps/analyze-results.sh
-    - "./steps/upload-results-to-s3.sh || :"
-    - "./steps/post-pr-comment.sh || :"
+      BP_SCENARIO=$SCENARIO bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.yml" --debug -t
+    - analyze-results.sh
+    - "upload-results-to-s3.sh || :"
+    - "post-pr-comment.sh || :"
   artifacts:
     name: "reports"
     paths:
@@ -336,12 +345,8 @@ check-big-regressions:
     else
       echo "Reports directory found with content - running regression check"
       export ARTIFACTS_DIR="$(pwd)/reports/"
-      if [[ -n "$CI_JOB_TOKEN" ]]; then
-        git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-      fi
-      git clone --branch dd-trace-php https://github.com/DataDog/benchmarking-platform /platform
-      export PATH="$PATH:/platform/steps"
-      bp-runner /platform/bp-runner.fail-on-regression.yml --debug
+      export PATH="$PATH:${CI_PROJECT_DIR}/.gitlab/benchmarks/steps"
+      bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.fail-on-regression.yml" --debug
     fi
   variables:
     # Gitlab and BP specific env vars. Do not modify.
