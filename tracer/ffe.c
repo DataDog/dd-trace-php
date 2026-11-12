@@ -161,6 +161,7 @@ static struct {
 static _Atomic(int64_t) dd_ffe_diagnostics_reported;
 // Shared by all threads: only the first evaluation of the process waits for a configuration.
 static _Atomic(int64_t) dd_ffe_initialization_deadline_ns;
+static _Atomic(int64_t) dd_ffe_initialization_pid;
 
 static bool dd_ffe_config_is_set(zai_config_id id) {
     return zai_config_memoized_entries[id].name_index != ZAI_CONFIG_ORIGIN_DEFAULT;
@@ -206,6 +207,7 @@ void ddtrace_ffe_startup(void) {
         return;
     }
     dd_ffe.resolved = true;
+    atomic_store(&dd_ffe_initialization_pid, (int64_t)getpid());
     dd_ffe_resolve_source();
 
     zend_long poll_interval = dd_ffe_validated(get_global_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS(), 30, 3600, &dd_ffe.invalid_poll_interval);
@@ -240,9 +242,19 @@ void ddtrace_ffe_shutdown(void) {
 }
 
 void ddtrace_ffe_handle_fork(void) {
-    // A child that did not inherit a configuration gets its own initialization wait.
-    if (!ddog_ffe_has_config()) {
-        atomic_store(&dd_ffe_initialization_deadline_ns, 0);
+    int64_t pid = (int64_t)getpid();
+    int64_t owner = atomic_load(&dd_ffe_initialization_pid);
+    while (owner != pid) {
+        // A negative PID owns the reset. Other child threads wait until it is
+        // complete; a reset inherited from a different process can be reclaimed.
+        if (owner != -pid && atomic_compare_exchange_strong(&dd_ffe_initialization_pid, &owner, -pid)) {
+            if (!ddog_ffe_has_config()) {
+                atomic_store(&dd_ffe_initialization_deadline_ns, 0);
+            }
+            atomic_store(&dd_ffe_initialization_pid, pid);
+            return;
+        }
+        owner = atomic_load(&dd_ffe_initialization_pid);
     }
 }
 
@@ -299,6 +311,9 @@ void ddtrace_ffe_before_evaluate(void) {
         return;
     }
 
+    // Swoole can fork without the optional tracing hook. Detect that boundary
+    // before using the process-wide initialization deadline, once per child.
+    ddtrace_ffe_handle_fork();
     int64_t now = (int64_t)zend_hrtime();
     int64_t deadline = atomic_load(&dd_ffe_initialization_deadline_ns);
     if (!deadline) {

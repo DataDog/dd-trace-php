@@ -25,7 +25,7 @@ DD_API_KEY=custom-endpoint-must-not-receive-this
 NO_PROXY=127.0.0.1,localhost
 --FILE--
 <?php
-foreach (array('0', '1') as $cold) {
+foreach (array('0', '1', 'expired') as $cold) {
     putenv('PHP_FFE_SWOOLE_COLD=' . $cold);
     $scenario = 'swoole';
     require __DIR__ . '/stubs/agentless_process.inc';
@@ -40,5 +40,11 @@ parent_recovered
 child_forked
 child_recovered
 fork_clean_exit
+parent_forked
+parent_recovered
+child_forked
+child_recovered
+fork_clean_exit
+parent_deadline_expired
 parent_forked
 parent_recovered

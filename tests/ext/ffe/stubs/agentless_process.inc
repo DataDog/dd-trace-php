@@ -6,6 +6,9 @@ $instrumented = getenv('USE_ZEND_ALLOC') === '0';
 if ($instrumented && in_array($scenario, array('recovery', 'shutdown'), true)) {
     putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=2000');
 }
+if ($scenario === 'swoole' && getenv('PHP_FFE_SWOOLE_COLD') === 'expired') {
+    putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=1000');
+}
 putenv('PHP_FFE_PROCESS_SCENARIO=' . $scenario);
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
@@ -60,6 +63,19 @@ try {
         stream_set_timeout($connection, 1);
         while (($line = fgets($connection)) !== false && trim($line) !== '') {}
         $requests++;
+        if ($scenario === 'swoole' && getenv('PHP_FFE_SWOOLE_COLD') === 'expired' && $requests === 1) {
+            // Withhold configuration until the parent has timed out and its worker evaluates.
+            $workerDeadline = microtime(true) + 15;
+            do {
+                $stdout .= ffeTestProcessRead($pipes[1]);
+                if (strpos($stdout, "fixture_worker_waiting\n") !== false) break;
+                usleep(10000);
+            } while (microtime(true) < $workerDeadline);
+            if (strpos($stdout, "fixture_worker_waiting\n") === false) {
+                throw new RuntimeException('worker did not begin evaluation after the parent timed out');
+            }
+            usleep(200000);
+        }
         if ($scenario === 'isolation') {
             // The server holds the response while we inspect the live client
             // connection. A background thread still belongs to the PHP PID.
@@ -153,7 +169,7 @@ try {
         throw new RuntimeException('shutdown waited on HTTP timeout');
     }
     // Fork output is intentionally concurrent; compare the complete set.
-    $lines = explode("\n", trim(str_replace(array("fixture_child_ready\n", "fixture_restart_ready\n"), '', $stdout)));
+    $lines = explode("\n", trim(str_replace(array("fixture_child_ready\n", "fixture_restart_ready\n", "fixture_worker_waiting\n"), '', $stdout)));
     sort($lines);
     echo implode("\n", $lines), "\n";
     if ($scenario === 'shutdown') echo "shutdown_cancelled_inflight_request\n";
