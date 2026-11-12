@@ -15,7 +15,7 @@ Once the library is assembled its contents are linked in ddtrace.so which is the
 library is the extension which the PHP engine will load at runtime in order to provide all tracing functionality.
 
 ## Adding new features
-Upon adding new modules in the libdatadog repository there is the need to create the neccessary glue code in the php
+Upon adding new modules in the libdatadog repository there is the need to create the necessary glue code in the php
 side to use those new modules. For that purpose you'll need to follow the next steps:
 * Modify the [project file in components-rs](https://github.com/DataDog/dd-trace-php/blob/master/components-rs/Cargo.toml) to add
 the new dependency.
