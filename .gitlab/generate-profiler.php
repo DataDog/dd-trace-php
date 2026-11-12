@@ -177,7 +177,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - |
       if [ "${PHP_MAJOR_MINOR}" = "8.4" ] && [ "${FLAVOUR}" = "nts" ]; then
         mkdir -p /tmp/otel-sdk
-        composer require --working-dir=/tmp/otel-sdk --no-interaction --no-progress open-telemetry/sdk:^1.0
+        .gitlab/run-with-retryable-download.sh composer require --working-dir=/tmp/otel-sdk --no-interaction --no-progress open-telemetry/sdk:^1.0
         php -d "extension=${PROFILER_SO}" -r '
           require "/tmp/otel-sdk/vendor/autoload.php";
           $provider = new OpenTelemetry\SDK\Trace\TracerProvider();

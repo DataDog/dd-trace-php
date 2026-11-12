@@ -165,6 +165,7 @@ ADD flow/Settings.yaml Configuration/Testing/Settings.yaml
 ADD flow/run.sh ./
 ADD flow/patch.patch ./
 ADD flow/tty.patch ./
+ADD flow/flaky-auth-date.patch ./
 
 RUN set -xe; \
     git apply *.patch
