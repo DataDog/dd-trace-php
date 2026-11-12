@@ -1413,11 +1413,12 @@ endforeach;
     - mkdir build
     - mv packages build
     - '# Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore - https://serverfault.com/a/1161847'
-    - sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
+    - '# vault.centos.org is read through the depot cache: vault answers 403 for 20+ min windows under our parallel jobs'
+    - sed -i 's|http://mirror.centos.org|https://depot-read-api-bzl.us1.ddbuild.io/vault.centos.org|g' /etc/yum.repos.d/*.repo
     - sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
     - sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
     - |
-      # Retry yum update as vault.centos.org can be slow/unreliable
+      # Retry yum update as the CentOS vault can be slow/unreliable
       for i in 1 2 3; do
         if yum update -y; then
           echo "yum update succeeded on attempt $i"

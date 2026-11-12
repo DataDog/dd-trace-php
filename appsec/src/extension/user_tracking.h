@@ -23,7 +23,6 @@ typedef enum _user_event {
 } user_event;
 
 void dd_user_tracking_startup(void);
-void dd_user_tracking_shutdown(void);
 
 void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
     zend_string *nullable user_login, user_event event);

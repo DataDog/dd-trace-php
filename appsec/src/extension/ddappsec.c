@@ -8,7 +8,6 @@
 #include <ext/standard/info.h>
 #include <php.h>
 
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -126,11 +125,7 @@ void dd_appsec_mshutdown(void)
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
-    dd_user_tracking_shutdown();
-    dd_trace_shutdown();
     dd_helper_shutdown();
-
-    dd_phpobj_shutdown();
 
     // The configuration is about to be destroyed; logging from GSHUTDOWN must
     // not read it anymore.
