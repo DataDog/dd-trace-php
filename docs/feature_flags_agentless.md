@@ -2,8 +2,8 @@
 
 ## Settings
 
-Feature flags are enabled by default and use the agentless (CDN) source. The
-source is resolved once at process startup, in this order of precedence:
+Feature flags are disabled by default. The source is resolved once at process
+startup, in this order of precedence:
 
 1. `DD_FEATURE_FLAGS_ENABLED=false` disables feature flags.
 2. A non-blank `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` selects `agentless`,
@@ -12,6 +12,13 @@ source is resolved once at process startup, in this order of precedence:
 3. Otherwise, `DD_FEATURE_FLAGS_ENABLED=true` selects `agentless`.
 4. Otherwise, the deprecated `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED`
    selects Agent Remote Configuration, or disables feature flags.
+5. Otherwise, feature flags remain disabled.
+
+To enable CDN fetching, explicitly set
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` or
+`DD_FEATURE_FLAGS_ENABLED=true`. A blank source does not enable fetching.
+Creating or registering the OpenFeature provider does not enable fetching.
+After explicit opt-in, the sidecar can fetch before provider registration.
 
 The managed CDN endpoint is derived from `DD_SITE` and `DD_ENV`, and
 authenticated with `DD_API_KEY`. A custom
@@ -71,6 +78,7 @@ OTLP.
 ## Tests
 
 - `tests/ext/ffe/agentless_*.phpt` cover:
+  - explicit opt-in and no CDN traffic without opt-in, including provider use;
   - source selection and settings diagnostics;
   - the first-use deadline, failed polls and recovery;
   - fork, threads, Swoole workers and sidecar restarts;

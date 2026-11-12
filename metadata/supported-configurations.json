@@ -472,7 +472,7 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "true"
+        "default": "false"
       }
     ],
     "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [

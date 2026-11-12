@@ -190,7 +190,7 @@ static void dd_ffe_resolve_source(void) {
         dd_ffe.enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
     } else {
         dd_ffe.source = DDTRACE_FFE_SOURCE_AGENTLESS;
-        dd_ffe.enabled = true;
+        dd_ffe.enabled = get_global_DD_FEATURE_FLAGS_ENABLED();
     }
     zend_string_release(source);
 

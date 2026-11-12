@@ -23,10 +23,10 @@ $base['DD_API_KEY'] = '';
 $base['DD_SITE'] = 'datadoghq.com';
 $base['DD_TRACE_LOG_LEVEL'] = 'warn';
 $cases = array(
-    'missing_key' => array(array(), 'missing_api_key', array('requires DD_API_KEY')),
+    'missing_key' => array(array('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE' => 'agentless'), 'missing_api_key', array('requires DD_API_KEY')),
     'source' => array(array('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE' => 'secret-source'), 'invalid_source', array('configuration source is invalid')),
-    'endpoint' => array(array('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL' => 'ftp://secret-user:secret-password@example.com/path?key=secret-query'), 'invalid_endpoint', array('CDN base URL must')),
-    'site' => array(array('DD_API_KEY' => 'secret-key', 'DD_SITE' => 'secret-site/path'), 'invalid_site', array('requires a valid DD_SITE')),
+    'endpoint' => array(array('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE' => 'agentless', 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL' => 'ftp://secret-user:secret-password@example.com/path?key=secret-query'), 'invalid_endpoint', array('CDN base URL must')),
+    'site' => array(array('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE' => 'agentless', 'DD_API_KEY' => 'secret-key', 'DD_SITE' => 'secret-site/path'), 'invalid_site', array('requires a valid DD_SITE')),
     'timings' => array(array('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE' => 'offline', 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS' => '0', 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS' => '-1', 'DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS' => '0'), 'disabled', array('using 30 seconds', 'using 5 seconds', 'using 10000 milliseconds')),
     'legacy' => array(array('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED' => '0'), 'disabled', array('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED is deprecated')),
 );
