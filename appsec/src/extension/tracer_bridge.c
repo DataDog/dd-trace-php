@@ -138,7 +138,11 @@ zval *nullable dd_trace_span_get_attributes(zend_object *nonnull zobj)
 
 zend_string *nullable dd_trace_span_get_component(zend_object *nonnull zobj)
 {
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80600
+    // 8.6 asserts type != BP_VAR_IS; BP_VAR_W matches the old IS path
+    zval *res = zobj->handlers->get_property_ptr_ptr(
+        zobj, _component_propname, BP_VAR_W, NULL);
+#elif PHP_VERSION_ID >= 80000
     zval *res = zobj->handlers->get_property_ptr_ptr(
         zobj, _component_propname, BP_VAR_IS, NULL);
 #else

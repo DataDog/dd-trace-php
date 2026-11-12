@@ -252,7 +252,10 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
         SEPARATE_ARRAY(dd_stack);
     }
 
-    zval *exploit = zend_hash_find_deref(Z_ARR_P(dd_stack), _exploit_key);
+    zval *exploit = zend_hash_find(Z_ARR_P(dd_stack), _exploit_key);
+    if (exploit) {
+        ZVAL_DEREF(exploit);
+    }
     if (!exploit || Z_TYPE_P(exploit) == IS_NULL) {
         zval new_exploit;
         array_init(&new_exploit);
