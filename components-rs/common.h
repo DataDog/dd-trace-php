@@ -1401,11 +1401,6 @@ typedef struct ddog_AttrList ddog_AttrList;
 typedef struct ddog_AttrMap ddog_AttrMap;
 
 /**
- * Fundamental configuration of the RC client, which always must be set.
- */
-typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
-
-/**
  * A mapping of a shared-memory segment, at an address that never changes.
  */
 typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
@@ -1415,6 +1410,11 @@ typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
  * allowing safe transfer and sharing of file handles across processes, and threads
  */
 typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
+
+/**
+ * Identifies a sidecar RC publication independently of its server configuration.
+ */
+typedef struct ddog_RemoteConfigInvariants ddog_RemoteConfigInvariants;
 
 /**
  * Opaque registration for a Windows remote configuration callback.
@@ -1491,6 +1491,13 @@ typedef struct ddog_FfeExposure {
   ddog_CharSlice variant;
   int32_t serial_id;
   bool has_serial_id;
+  /**
+   * UTF-8 JSON object of the split features routed to exposures, mapping a
+   * key to a string, number or boolean. Empty, invalid or non-object input
+   * means no features and never rejects the exposure. Input larger than one
+   * IPC packet is ignored. Not part of deduplication.
+   */
+  ddog_CharSlice features_json;
 } ddog_FfeExposure;
 
 typedef struct ddog_Slice_FfeExposure {
@@ -1532,6 +1539,14 @@ typedef struct ddog_FfeFlagEvaluation {
    * Consent captured from the configuration used for this evaluation.
    */
   bool observe_full_evaluation_data;
+  /**
+   * UTF-8 JSON object of the split features routed to evaluation counts,
+   * mapping a key to a string, number or boolean. Rows with different
+   * features are counted separately. Kept regardless of consent. Empty,
+   * invalid or non-object input means no features and never rejects the
+   * evaluation. Input larger than one IPC packet is ignored.
+   */
+  ddog_CharSlice features_json;
 } ddog_FfeFlagEvaluation;
 
 typedef struct ddog_Slice_FfeFlagEvaluation {
@@ -1865,6 +1880,11 @@ typedef struct ddog_crasht_Config {
    * (not just the crashing thread) using ptrace-based remote unwinding.
    */
   bool collect_all_threads;
+  /**
+   * If true, the collector will read OTel thread-level context (trace_id, span_id, etc.) from
+   * each thread's TLS and include them in the crash report under `experimental`.
+   */
+  bool collect_otel_thread_contexts;
   bool create_alt_stack;
   bool demangle_names;
   /**

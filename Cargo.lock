@@ -1291,6 +1291,7 @@ dependencies = [
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-tinybytes",
+ "libdd-trace-model",
  "libdd-trace-stats",
  "libdd-trace-utils",
  "manual_future",
@@ -1561,6 +1562,12 @@ name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
+
+[[package]]
+name = "elf"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
 
 [[package]]
 name = "embedded-io"
@@ -2831,6 +2838,7 @@ dependencies = [
  "http 1.4.2",
  "indexmap 2.12.1",
  "libc",
+ "libdd-env",
  "libdd-regex",
  "maplit",
  "proptest",
@@ -2875,9 +2883,11 @@ dependencies = [
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
+ "libdd-env",
  "libdd-gotter",
  "libdd-libunwind-sys",
  "libdd-networking",
+ "libdd-otel-thread-ctx",
  "libdd-process-utils",
  "libdd-telemetry",
  "nix 0.29.0",
@@ -3020,6 +3030,10 @@ dependencies = [
  "tokio",
  "tracing",
 ]
+
+[[package]]
+name = "libdd-env"
+version = "0.1.0"
 
 [[package]]
 name = "libdd-ffe"
@@ -3243,6 +3257,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libdd-otel-thread-ctx"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "elf",
+ "libdd-otel-thread-ctx",
+ "object 0.36.7",
+]
+
+[[package]]
 name = "libdd-process-utils"
 version = "1.0.0"
 dependencies = [
@@ -3389,6 +3413,7 @@ dependencies = [
  "libdd-capabilities-impl",
  "libdd-common",
  "libdd-ddsketch",
+ "libdd-env",
  "libdd-networking",
  "libdd-shared-runtime",
  "reqwless",
@@ -3464,7 +3489,7 @@ dependencies = [
  "criterion",
  "duplicate",
  "fluent-uri",
- "libdd-common",
+ "libdd-env",
  "libdd-regex",
  "libdd-tinybytes",
  "libdd-trace-model",
