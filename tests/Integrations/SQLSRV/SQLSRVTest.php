@@ -413,7 +413,7 @@ class SQLSRVTest extends IntegrationTestCase
         });
 
         $prepareSpan = null;
-        foreach ($traces[0] as $span) {
+        foreach ((new SpanChecker())->flattenTraces($traces) as $span) {
             if ($span['name'] === 'sqlsrv_prepare') {
                 $prepareSpan = $span;
             }

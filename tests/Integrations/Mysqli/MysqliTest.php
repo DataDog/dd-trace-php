@@ -646,7 +646,7 @@ class MysqliTest extends IntegrationTestCase
 
         $prepareSpan = null;
         $executeSpan = null;
-        foreach ($traces[0] as $span) {
+        foreach ((new SpanChecker())->flattenTraces($traces) as $span) {
             if ($span['name'] === 'mysqli.prepare') {
                 $prepareSpan = $span;
             } elseif ($span['name'] === 'mysqli_stmt.execute') {

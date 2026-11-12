@@ -795,7 +795,7 @@ final class PDOTest extends IntegrationTestCase
 
         $prepareSpan = null;
         $executeSpan = null;
-        foreach ($traces[0] as $span) {
+        foreach ((new SpanChecker())->flattenTraces($traces) as $span) {
             if ($span['name'] === 'PDO.prepare') {
                 $prepareSpan = $span;
             } elseif ($span['name'] === 'PDOStatement.execute') {
