@@ -1417,6 +1417,20 @@ endforeach;
     - sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
     - sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
     - |
+      # The CentOS archive rejects the stock yum client with HTTP 403s.
+      # Use the kernel.org mirror listed by CentOS Vault: its final 7.9.2009
+      # os, updates and extras repomd.xml files are byte-identical to the vault's.
+      # This alternate external package source uses TLS and keeps RPM signature checks.
+      # Apply only to feature branches; keep master, release and tag behavior unchanged.
+      case "${CI_COMMIT_REF_NAME:-}" in
+        master|ddtrace-*|bot/*|v2|"") ;;
+        *)
+          if [ -z "${CI_COMMIT_TAG:-}" ]; then
+            sed -i 's|http://vault.centos.org/centos/[$]releasever/|https://archive.kernel.org/centos-vault/7.9.2009/|g' /etc/yum.repos.d/*.repo
+          fi
+          ;;
+      esac
+    - |
       # Retry yum update as vault.centos.org can be slow/unreliable
       for i in 1 2 3; do
         if yum update -y; then
