@@ -2,14 +2,14 @@
 
 ## Settings
 
-Feature flags are disabled by default. The source is resolved once at process
+Feature flag configuration delivery is inactive by default. The source is resolved once at process
 startup, in this order of precedence:
 
 1. Explicit `DD_FEATURE_FLAGS_ENABLED=false` disables feature flags.
-2. A non-blank `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` selects `agentless`,
+2. An explicitly configured, non-blank `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` selects `agentless`,
    `remote_config` or `offline`. Any other value disables feature flags and is
    reported as an invalid source.
-3. Otherwise, `DD_FEATURE_FLAGS_ENABLED=true` leaves configuration delivery
+3. Otherwise, explicit `DD_FEATURE_FLAGS_ENABLED=true` leaves configuration delivery
    disabled: an explicit source is required, even if the deprecated switch is set.
 4. Otherwise, the deprecated `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED`
    selects Agent Remote Configuration, or disables feature flags.
@@ -20,6 +20,11 @@ selector. To enable CDN fetching, set
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless`. An explicit source is sufficient
 unless `DD_FEATURE_FLAGS_ENABLED=false` is also set. An absent, empty or
 whitespace-only source starts no delivery, except for the legacy-only RC opt-in.
+
+The declared defaults are `DD_FEATURE_FLAGS_ENABLED=true` and
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless`, matching the shared SDK
+configuration definitions. PHP checks whether these settings were explicitly
+configured: their default values alone do not start either CDN or RC delivery.
 
 To migrate an existing RC installation away from
 `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true`, set both

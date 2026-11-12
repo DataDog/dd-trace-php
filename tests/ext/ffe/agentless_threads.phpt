@@ -26,5 +26,5 @@ $scenario = 'threads';
 require __DIR__ . '/stubs/agentless_process.inc';
 ?>
 --EXPECT--
-thread_readers_shared_blue
 thread_readers_refreshed
+thread_readers_shared_blue

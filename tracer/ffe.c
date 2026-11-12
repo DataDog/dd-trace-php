@@ -172,6 +172,8 @@ static zend_long dd_ffe_validated(zend_long value, zend_long def, zend_long max,
 }
 
 static void dd_ffe_resolve_source(void) {
+    // The shared configuration defaults do not opt this PHP process into delivery.
+    // The canonical source selects a transport only when explicitly configured.
     zend_string *source = php_trim(get_global_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE(), NULL, 0, 3);
     if (dd_ffe_config_is_set(DATADOG_CONFIG_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE) && ZSTR_LEN(source)) {
         if (zend_string_equals_literal_ci(source, "agentless")) {
