@@ -76,8 +76,10 @@ otel-context = ["dep:libdd-library-config", "dep:libdd-trace-protobuf"]
 # build.rs compiles them as the separate components-rs/appsec_body crate.
 appsec = ["dep:libdd-common-ffi", "dep:cc"]
 profiling = ["profiling-dependencies", "io_profiling"]
-# Resolve the same dependency features for SSI common even when the selected
-# PHP ABI has no profiler (PHP 7.0). This does not enable PHP code or codegen.
+# SSI requires byte-identical common DSOs across PHP versions and NTS/ZTS.
+# Match the dependency features unified by a paired profiler archive build even
+# on PHP 7.0, since they can change common's code and private Rust ABI.
+# This does not enable PHP-facing profiler code or codegen.
 profiling-dependencies = [
   "dep:bindgen", "dep:cc",
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",

@@ -51,6 +51,10 @@ tracer-runtime = [
 otel-context = ["dep:libdd-library-config", "dep:libdd-trace-protobuf"]
 # build.rs compiles them as the separate components-rs/appsec_body crate.
 appsec = ["dep:libdd-common-ffi", "dep:cc"]
+# Match the dependency features unified by a paired profiler archive build, even
+# when building common alone (e.g. PHP 7.0). SSI ships one byte-identical common
+# DSO per architecture/libc family; changing features could change its code and
+# the private Rust ABI. See the root manifest for the full rationale.
 profiling-dependencies = [
   "dep:bindgen", "dep:cc",
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
