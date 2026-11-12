@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: b30bfa986f7592664cb6cb217e51700bd4fb3bb7 */
+ * Stub hash: e3627d250d8ed660e565daeb88454b949225b9c8 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -182,6 +182,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_ffe_evaluate, 0, 4, DDTra
 	ZEND_ARG_TYPE_INFO(0, targetingKey, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, attributes, IS_ARRAY, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, recordMetric, _IS_BOOL, 0, "true")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, deferExposures, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_ffe_has_config arginfo_DDTrace_are_endpoints_collected
@@ -255,6 +256,16 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_eval
 ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics arginfo_DDTrace_are_endpoints_collected
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_exposure, 0, 7, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, targetingKey, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, attributes, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO(0, allocationKey, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, variant, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, serialId, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, hasSerialId, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, 9, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
@@ -476,6 +487,7 @@ ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(DDTrace_Internal_handle_fork);
 ZEND_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric);
 ZEND_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics);
+ZEND_FUNCTION(DDTrace_Internal_record_ffe_exposure);
 ZEND_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation);
 ZEND_FUNCTION(DDTrace_Internal_dsm_set_checkpoint);
 ZEND_FUNCTION(DDTrace_Internal_dsm_track_backlog);
@@ -584,6 +596,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_evaluation_metric"), zif_DDTrace_Internal_record_ffe_evaluation_metric, arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "flush_ffe_evaluation_metrics"), zif_DDTrace_Internal_flush_ffe_evaluation_metrics, arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_exposure"), zif_DDTrace_Internal_record_ffe_exposure, arginfo_DDTrace_Internal_record_ffe_exposure, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_flag_evaluation"), zif_DDTrace_Internal_record_ffe_flag_evaluation, arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_set_checkpoint"), zif_DDTrace_Internal_dsm_set_checkpoint, arginfo_DDTrace_Internal_dsm_set_checkpoint, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_track_backlog"), zif_DDTrace_Internal_dsm_track_backlog, arginfo_DDTrace_Internal_dsm_track_backlog, 0, NULL, NULL)
@@ -739,6 +752,12 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 	zend_string *property_providerState_name = zend_string_init("providerState", sizeof("providerState") - 1, 1);
 	zend_declare_typed_property(class_entry, property_providerState_name, &property_providerState_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_providerState_name);
+
+	zval property_exposureCandidates_default_value;
+	ZVAL_EMPTY_ARRAY(&property_exposureCandidates_default_value);
+	zend_string *property_exposureCandidates_name = zend_string_init("exposureCandidates", sizeof("exposureCandidates") - 1, 1);
+	zend_declare_typed_property(class_entry, property_exposureCandidates_name, &property_exposureCandidates_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_exposureCandidates_name);
 
 	zval property_errorMessage_default_value;
 	ZVAL_NULL(&property_errorMessage_default_value);

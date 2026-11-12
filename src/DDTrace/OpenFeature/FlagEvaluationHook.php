@@ -18,6 +18,7 @@ final class FlagEvaluationHook implements Hook
     private object $scope;
     private ?self $previous = null;
     private ?array $observation = null;
+    private ?array $exposures = null;
     private int $startedAtMs;
 
     public function __construct(object $scope)
@@ -53,6 +54,11 @@ final class FlagEvaluationHook implements Hook
         $this->observation = $observation;
     }
 
+    public function captureExposures(array $batch): void
+    {
+        $this->exposures = $batch;
+    }
+
     public function after(HookContext $context, ResolutionDetails $details, HookHints $hints): void
     {
         if ($this->observation === null) {
@@ -68,6 +74,7 @@ final class FlagEvaluationHook implements Hook
 
     public function error(HookContext $context, \Throwable $error, HookHints $hints): void
     {
+        $this->exposures = null;
         $this->observation = $this->observation ?? $this->protectedObservation($context);
         // Before/after failures replace the SDK result with the caller default.
         // Keep evaluated consent/time, but not the successful variant/allocation.
@@ -81,12 +88,16 @@ final class FlagEvaluationHook implements Hook
     public function finally(HookContext $context, HookHints $hints): void
     {
         try {
+            if ($this->exposures !== null) {
+                NativeEvaluator::submitExposures($this->exposures);
+            }
             if ($this->observation !== null) {
                 NativeEvaluator::submitFlagEvaluation($this->observation);
             }
         } finally {
             $this->claim();
             $this->observation = null;
+            $this->exposures = null;
         }
     }
 

@@ -68,8 +68,9 @@ namespace DDTrace {
         public bool $doLog = false;
         public bool $observeFullEvaluationData = false;
         public ?int $serialId = null;
-        public array $providerState = [];
         public array $dependencyEvaluations = [];
+        public array $providerState = [];
+        public array $exposureCandidates = [];
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;
         public ?int $configVersion = null;
@@ -905,11 +906,12 @@ namespace DDTrace {
      * @param int $expectedType One of the DDTrace\FFE_* constants.
      * @param string|null $targetingKey The targeting key for evaluation context.
      * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
+     * @param bool $deferExposures Return eligible exposure candidates for terminal OpenFeature reporting.
      * @return FfeResult|null Object with the native evaluation result fields. Null only if evaluation engine is unavailable.
      *
      * @internal Used by the Datadog feature flag client.
      */
-    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true): ?FfeResult {}
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true, bool $deferExposures = false): ?FfeResult {}
 
     /**
      * Check if FFE (Feature Flag Evaluation) configuration is loaded.
@@ -1094,6 +1096,9 @@ namespace DDTrace\Internal {
      * @internal
      */
     function flush_ffe_evaluation_metrics(): bool {}
+
+    /** @internal Commit a successful evaluation's staged exposure. */
+    function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, int $serialId, bool $hasSerialId): bool {}
 
     /** @internal Submit one final evaluation without waiting or reconnecting. */
     function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData, int $evaluationTimestampMs, bool $targetingKeyInvalid = false): bool {}

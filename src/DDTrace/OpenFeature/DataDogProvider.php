@@ -55,6 +55,13 @@ final class DataDogProvider extends AbstractProvider
             } else {
                 NativeEvaluator::submitFlagEvaluation($observation);
             }
+        }, function (array $batch): void {
+            $recorder = $this->observationScope()->recorder;
+            if ($recorder !== null) {
+                $recorder->captureExposures($batch);
+            } else {
+                NativeEvaluator::submitExposures($batch);
+            }
         });
         $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
