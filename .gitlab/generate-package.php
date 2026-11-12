@@ -380,15 +380,45 @@ foreach ($build_platforms as $platform) {
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
-    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
-    - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    # The ZTS ThinLTO extension is built by the sibling "zts lto" job in parallel;
+    # it uses its own Cargo target and artifact directories.
   artifacts:
     paths:
       - "extensions_*"
       - "standalone_*"
       - "ddtrace_*-fat.ldflags"
       - "ddtrace_*-fat.sym"
+
+"compile tracing extension zts lto: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+    # Fix for $BASH_ENV not having a newline at the end of the file
+    - echo "" >> "$BASH_ENV"
+<?php if ($platform['host_os'] === 'linux-musl'): ?>
+    - source "$BASH_ENV"
+<?php endif; ?>
+    - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
+    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
+    - make -s xlang-lto
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+  artifacts:
+    paths:
+      - "extensions_*"
 
 <?php
     }
@@ -550,6 +580,8 @@ foreach ($build_platforms as $platform) {
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing extension: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: "compile tracing extension zts lto: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
 foreach ($profiler_minor_major_targets as $major_minor) {
@@ -856,6 +888,8 @@ foreach ($windows_minor_major_targets as $major_minor) {
 ?>
     # PHP 7.0 still uses the split SSI extension (tracer and AppSec only).
     - job: "compile tracing extension: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: "compile tracing extension zts lto: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
