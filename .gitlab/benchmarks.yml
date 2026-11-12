@@ -211,8 +211,23 @@ workflow:
       if [ "${CHECK_TRACER_FILE_CHANGES:-false}" = "true" ] && [ "${CI_PARENT_PIPELINE_SOURCE}" != "pipeline" ]; then
         echo "Checking if tracer-related files changed..."
         git fetch origin master:master 2>/dev/null || true
-        CHANGED_FILES=$(git diff --name-only HEAD master 2>/dev/null || echo "")
-        if ! echo "$CHANGED_FILES" | grep -q -E "^(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/)"; then
+        TRACER_PATHS="^(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/)"
+        # On feature branches, diff against the merge base, the same baseline the benchmark compares
+        # with, so tracer changes merged to master after the branch forked don't count as its own;
+        # tracer/ holds the tracer sources split off from ext/.
+        # master, release branches, tags and a missing merge base keep the diff against master.
+        MERGE_BASE=""
+        case "${CI_COMMIT_REF_NAME}" in
+          master|ddtrace-*) ;;
+          *) [ -n "${CI_COMMIT_TAG:-}" ] || MERGE_BASE=$(git merge-base HEAD master 2>/dev/null) || MERGE_BASE="" ;;
+        esac
+        if [ -n "${MERGE_BASE}" ] && CHANGED_FILES=$(git diff --name-only "${MERGE_BASE}" HEAD 2>/dev/null); then
+          echo "Comparing with merge base ${MERGE_BASE}"
+          TRACER_PATHS="^(ext/|tracer/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/)"
+        else
+          CHANGED_FILES=$(git diff --name-only HEAD master 2>/dev/null || echo "")
+        fi
+        if ! echo "$CHANGED_FILES" | grep -q -E "${TRACER_PATHS}"; then
           echo "No tracer-related file changes detected - skipping benchmark execution"
           echo "Reports directory created but empty (no benchmarks needed)" > "${ARTIFACTS_DIR}/skip-reason.txt"
           exit 0
