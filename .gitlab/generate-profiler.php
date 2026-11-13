@@ -58,16 +58,20 @@ foreach ($profiler_minor_major_targets as $version) {
     PROFILER_LOG: "${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log"
     PROF_ANALYZE: "${CI_PROJECT_DIR}/tmp/prof-analyze"
     CARGO_HOME: "${CI_PROJECT_DIR}/.cache/prof-correctness-cargo"
+    # Keep rlib to avoid an extra fat-LTO pass for the static archive.
+    CARGO_CRATE_TYPE: staticlib,rlib
+    CACHE_COMPRESSION_FORMAT: tarzstd
+    CACHE_COMPRESSION_LEVEL: fastest
   cache:
     key:
-      prefix: "prof-correctness-${PHP_MAJOR_MINOR}-${FLAVOUR}"
+      prefix: "prof-correctness-v5-bookworm14-${PHP_MAJOR_MINOR}-${FLAVOUR}"
       files:
         - Cargo.lock
         - rust-toolchain.toml
     paths:
       - .cache/prof-correctness-cargo/registry/index/
       - .cache/prof-correctness-cargo/registry/cache/
-      - tmp/build_profiler/target-profiling/
+      - tmp/build_profiler/target-common/
       - tmp/build_combined/target-common/
   parallel:
     matrix:
@@ -245,6 +249,8 @@ foreach ($profiler_minor_major_targets as $version) {
       check_correctness exceptions
       check_correctness allocation_upscaling_mixed_sizes
   after_script:
+    # Final archives are rebuilt for the checked-out PHP headers, not cached twice via hard links.
+    - if [ -d tmp ]; then find tmp -path '*/target-common/*' -type f -name 'libdatadog_php.*' -delete; fi
     - |
       mkdir -p "${CI_PROJECT_DIR}/artifacts/prof-correctness"
       if [ -f "${PROFILER_LOG}" ]; then
@@ -304,15 +310,26 @@ foreach ($profiler_minor_major_targets as $version) {
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
   variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_CPU_LIMIT: 3
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
     KUBERNETES_MEMORY_REQUEST: 6Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
     KUBERNETES_HELPER_CPU_REQUEST: 1
     KUBERNETES_HELPER_CPU_LIMIT: 1
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
-    CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
+    CARGO_CRATE_TYPE: staticlib,rlib
+    CARGO_TARGET_DIR: "${CI_PROJECT_DIR}/.cache/profiler-target"
+    CACHE_COMPRESSION_FORMAT: tarzstd
+    CACHE_COMPRESSION_LEVEL: fastest
+  cache:
+    key:
+      prefix: "prof-phpt-v4-${ARCH}-${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}"
+      files:
+        - Cargo.lock
+        - rust-toolchain.toml
+    paths:
+      - .cache/profiler-target/
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
@@ -373,11 +390,20 @@ foreach ($profiler_minor_major_targets as $version) {
     - switch-php "${PHP_MAJOR_MINOR}-zts"
     - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
     - touch ../profiling/build.rs # regenerate PHP bindings after switching ABI
-    - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - |
+      (cd ..;
+        # PHP's distclean recursively removes native archives and proc-macro DSOs.
+        cache_keep="${CI_PROJECT_DIR}/../profiler-target-${CI_JOB_ID}"
+        mv "${CARGO_TARGET_DIR}" "${cache_keep}"
+        make distclean || true
+        mv "${cache_keep}" "${CARGO_TARGET_DIR}"
+        phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc)
+      )
     - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined ZTS build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
     - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-combined-results.xml" php profiling/tests/run-tests.php -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
+    - if [ -d "${CARGO_TARGET_DIR}" ]; then find "${CARGO_TARGET_DIR}" -type f -name 'libdatadog_php.*' -delete; fi
     - |
       if [ "${IMAGE_SUFFIX}" != "_centos-7-3" ]; then
         .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
@@ -490,6 +516,7 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /tmp/cargo
+    CARGO_CRATE_TYPE: staticlib,rlib
     SKIP_ONLINE_TESTS: "1"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
