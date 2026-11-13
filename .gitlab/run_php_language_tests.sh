@@ -7,8 +7,9 @@ unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
 # Helper to parse version strings for comparison
 function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
 
-# Remove extensions whose mere presence pollutes test output or output
-# ordering:
+# Remove extensions whose mere presence changes PHP language test behavior:
+#  - memcache initializes $_SERVER during RINIT, breaking tests that need it
+#    uninitialized (e.g. ext/phar/tests/webphar_cgi_no_path_info.phpt)
 #  - rdkafka emits CONFWARN lines, breaking Zend/tests/instantiate_all_classes.phpt
 #  - parallel (ZTS-only) defers 'PHP Startup' diagnostics until after the
 #    script's first output, breaking ~56 deprecation/warning-ordering tests
@@ -16,6 +17,7 @@ function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4
 # variant (debug for the tracer job, nts/zts for the profiler job) instead
 # of hardcoding the debug path.
 scan_dir="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')"
+sudo rm -f "${scan_dir}/memcache.ini"
 sudo rm -f "${scan_dir}/memcached.ini"
 sudo rm -f "${scan_dir}/rdkafka.ini"
 sudo rm -f "${scan_dir}/parallel.ini"
