@@ -203,15 +203,17 @@ fi
 export RUSTFLAGS="-C debuginfo=line-tables-only$rust_lto_flags$rust_arch_flags$rust_system_flags -C linker=$rust_linker"
 export CARGO_PROFILE_TRACER_RELEASE_LTO="$lto_mode" DDTRACE_RUST_PROFILE=tracer-release
 
-# Build std/panic_abort for all modes, including the no-LTO comparison.
-case "${DDTRACE_XLANG_BUILD_STD:-1}" in
+# Rebuild the host's std/panic_abort and the parser's private std/panic_unwind
+# for all modes, including the no-LTO comparison.
+case "${DD_RUST_BUILD_STD:-1}" in
     1)
         [[ -f "$(rustc --print sysroot)/lib/rustlib/src/rust/library/Cargo.toml" ]] ||
             fail 'rust-src is required for -Z build-std'
-        export RUSTC_BOOTSTRAP=1 DDTRACE_PROFILING_TARGET="$rust_target"
+        export RUSTC_BOOTSTRAP=1 DDTRACE_PROFILING_TARGET="$rust_target" DD_RUST_BUILD_STD=1
         export DDTRACE_PROFILING_CARGO_BUILD_FLAGS='-Z build-std=std,panic_abort'
         ;;
     0)
+        export DD_RUST_BUILD_STD=0
         unset DDTRACE_PROFILING_CARGO_BUILD_FLAGS
         if [[ "$os" == Darwin || "$host_triple" == *-linux-musl ]]; then
             # Keep plugin-LTO off host tools and keep the archive path consistent
@@ -221,7 +223,7 @@ case "${DDTRACE_XLANG_BUILD_STD:-1}" in
             unset DDTRACE_PROFILING_TARGET
         fi
         ;;
-    *) fail 'DDTRACE_XLANG_BUILD_STD must be 0 or 1' ;;
+    *) fail 'DD_RUST_BUILD_STD must be 0 or 1' ;;
 esac
 
 cd "$root"

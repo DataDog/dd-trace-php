@@ -1,6 +1,7 @@
 //! Build a complete parser staticlib with LTO, resolve its internal references, then
 //! localize every definition except the three private C entry points.
 //! Also executable with rustc: rustc isolate.rs && ./isolate SOURCE OUT TARGET.
+//! Set DD_RUST_BUILD_STD=1 to rebuild std without its backtrace feature.
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -50,21 +51,26 @@ pub fn build(
             "--lib",
             "--target",
             target,
-            // Without std's backtrace feature, the default panic hook cannot
-            // pull in the DWARF symbolizer. Unwinding is unaffected.
-            "-Zbuild-std=std,panic_unwind",
-            "-Zbuild-std-features=panic-unwind",
         ])
         .args(["--package", "ddtrace-appsec-body"])
         .arg("--manifest-path")
         .arg(source.join("Cargo.toml"))
         .arg("--target-dir")
         .arg(out.join("target"))
-        // build-std needs unstable features in cargo and std on our pinned
-        // Rust toolchain; it also requires the rust-src component.
+        // The parser uses the unstable allocation-error hook even when
+        // linking the toolchain's prebuilt std.
         .env("RUSTC_BOOTSTRAP", "1")
         .env("CARGO_ENCODED_RUSTFLAGS", rustflags)
         .env_remove("RUSTFLAGS");
+    if env::var("DD_RUST_BUILD_STD").as_deref() == Ok("1") {
+        // Release builds can omit std's backtrace feature and DWARF symbolizer.
+        // This needs rust-src and std's dependencies, which a plain root
+        // `cargo vendor` does not include, so packagers use prebuilt std.
+        cargo.args([
+            "-Zbuild-std=std,panic_unwind",
+            "-Zbuild-std-features=panic-unwind",
+        ]);
+    }
     run(&mut cargo);
 
     let archive = out
