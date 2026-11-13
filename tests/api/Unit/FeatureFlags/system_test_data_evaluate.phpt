@@ -8,6 +8,7 @@ if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) {
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config
 --FILE--
 <?php
 require __DIR__ . '/../../../Common/FeatureFlags/ffe_api_bootstrap.inc';

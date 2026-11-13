@@ -80,7 +80,7 @@ try {
     $rows = array();
     $exposureCount = 0;
     $identity = true;
-    $evaluationIdentity = true;
+    $evaluationRowService = true;
     $protectedBytesAbsent = true;
     foreach ($captures as $capture) {
         list($request, $headers, $payload) = $capture;
@@ -100,11 +100,12 @@ try {
             }
             $context = $payload['context'];
             ksort($context);
-            $evaluationIdentity = $evaluationIdentity
-                && $context === array('env' => 'test', 'service' => 'php-ffe-wire', 'version' => 'wire-version');
+            if ($context !== array('env' => 'test', 'service' => 'php-ffe-wire', 'version' => 'wire-version')) {
+                throw new RuntimeException('incorrect evaluation context: ' . json_encode($payload['context']));
+            }
             foreach ($payload['flagEvaluations'] as $row) {
                 // Environment and application version belong only on the batch.
-                $evaluationIdentity = $evaluationIdentity
+                $evaluationRowService = $evaluationRowService
                     && isset($row['context']['dd'])
                     && $row['context']['dd'] === array('service' => 'php-ffe-wire');
                 $key = $row['flag']['key'];
@@ -126,9 +127,9 @@ try {
             $exposureCount += count($payload['exposures']);
         }
     }
-    echo 'exposure_service=php-ffe-wire', "\n";
+    echo 'service=php-ffe-wire', "\n";
     echo 'identity='; var_dump($identity);
-    echo 'evaluation_application_identity='; var_dump($evaluationIdentity);
+    echo 'evaluation_row_service='; var_dump($evaluationRowService);
     echo 'exposures='; var_dump($exposureCount);
     echo 'consented_count='; var_dump($rows['consented']['evaluation_count']);
     echo 'consented_subject='; var_dump($rows['consented']['targeting_key']);

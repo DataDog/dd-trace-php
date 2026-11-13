@@ -57,7 +57,6 @@ foreach ($profiler_minor_major_targets as $version) {
     DD_REMOTE_CONFIG_ENABLED: "false"
     PROFILER_LOG: "${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log"
     PROF_ANALYZE: "${CI_PROJECT_DIR}/tmp/prof-analyze"
-    PARALLEL_VERSION: "1.2.15"
     CARGO_HOME: "${CI_PROJECT_DIR}/.cache/prof-correctness-cargo"
   cache:
     key:
@@ -81,13 +80,9 @@ foreach ($profiler_minor_major_targets as $version) {
     - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit 1; }
     - |
       if [ "${FLAVOUR}" = "zts" ]; then
-        sudo env PHP_INI_SCAN_DIR= MAKEFLAGS="-j$(nproc)" \
-          pecl install -f "parallel-${PARALLEL_VERSION}"
-        installed_version="$(php -r 'echo phpversion("parallel");')"
-        if [ "${installed_version}" != "${PARALLEL_VERSION}" ]; then
-          echo "Expected parallel ${PARALLEL_VERSION}, got ${installed_version}"
-          exit 1
-        fi
+        # The CI image ships parallel for ZTS builds (see
+        # dockerfiles/ci/bookworm/build-extensions.sh).
+        php -r 'exit(extension_loaded("parallel") ? 0 : 1);' || { echo "ERROR parallel not loaded"; exit 1; }
       fi
     - mkdir -p "$(dirname "${PROFILER_LOG}")"
     - ': > "${PROFILER_LOG}"'
@@ -182,7 +177,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - |
       if [ "${PHP_MAJOR_MINOR}" = "8.4" ] && [ "${FLAVOUR}" = "nts" ]; then
         mkdir -p /tmp/otel-sdk
-        composer require --working-dir=/tmp/otel-sdk --no-interaction --no-progress open-telemetry/sdk:^1.0
+        .gitlab/run-with-retryable-download.sh composer require --working-dir=/tmp/otel-sdk --no-interaction --no-progress open-telemetry/sdk:^1.0
         php -d "extension=${PROFILER_SO}" -r '
           require "/tmp/otel-sdk/vendor/autoload.php";
           $provider = new OpenTelemetry\SDK\Trace\TracerProvider();

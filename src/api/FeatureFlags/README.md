@@ -24,7 +24,8 @@ restart PHP-FPM or your web server:
 
 | Environment variable | `php.ini` name | Value | Purpose |
 |---|---|---|---|
-| `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED` | `datadog.experimental_flagging_provider_enabled` | `true` | Turns on Feature Flags. |
+| `DD_FEATURE_FLAGS_ENABLED` | `datadog.feature_flags_enabled` | `true` | Enables Feature Flags when a configuration source is selected. |
+| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` | `datadog.feature_flags_configuration_source` | `remote_config` | Selects Agent Remote Configuration for this example. |
 | `DD_TRACE_DEBUG` | `datadog.trace.debug` | `true` | Debug level for the extension and the sidecar. It is also the **only** switch for the PHP SDK layer's logs. |
 | `DD_TRACE_LOG_FILE` | `datadog.trace.log_file` | e.g. `/var/log/php/ddtrace.log` | Log file for the extension and the sidecar. **The sidecar has no other log destination.** |
 | *(PHP setting)* | `error_log` | same path as `DD_TRACE_LOG_FILE` | Destination for the PHP SDK layer's logs. |
@@ -32,7 +33,8 @@ restart PHP-FPM or your web server:
 Example `php.ini`:
 
 ```ini
-datadog.experimental_flagging_provider_enabled = 1
+datadog.feature_flags_enabled = 1
+datadog.feature_flags_configuration_source = remote_config
 datadog.trace.debug = 1
 datadog.trace.log_file = /var/log/php/ddtrace.log
 error_log = /var/log/php/ddtrace.log
@@ -41,7 +43,13 @@ error_log = /var/log/php/ddtrace.log
 Make sure the PHP workers can write to the file. The sidecar process must be
 able to write to it too.
 
-Remote Configuration must stay available. The defaults work: you need
+The deprecated `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true` alone still
+selects RC. When migrating to the canonical switch, also set the source explicitly;
+`DD_FEATURE_FLAGS_ENABLED=true` alone starts no configuration delivery. See the
+[configuration-source contract](../../../docs/feature_flags_agentless.md#settings)
+for agentless setup and precedence.
+
+For the RC example above, Remote Configuration must stay available. You need
 `DD_REMOTE_CONFIG_ENABLED=true` and `DD_TRACE_AGENTLESS=false`. If either
 setting blocks the subscription, the extension logs
 `Feature Flags: configuration subscription disabled` with the reason.

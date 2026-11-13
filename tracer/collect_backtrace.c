@@ -8,6 +8,30 @@
 #include <Zend/zend_interfaces.h>
 #include <ext/compatibility.h>
 
+/* zend_handle_undef_args() evaluates the defaults of skipped named parameters, pointing to RECV(_INIT), before i_init_func_execute_data() has initialized the (non-arg) CVs.
+ * They still hold whatever a previous frame left on the VM stack. If the exception is thrown right there, we'll collect invalid locals.
+ * Make sure to UNDEF these locals so that (potentially nested due to destructors) exceptions don't collect them. */
+void ddtrace_undef_unreceived_cvs(zend_execute_data *call) {
+    zend_op_array *op_array = &call->func->op_array;
+    const zend_op *opline = call->opline;
+
+    if (!opline || opline < op_array->opcodes || opline >= op_array->opcodes + op_array->last) {
+        return;
+    }
+    if (opline->opcode != ZEND_RECV && opline->opcode != ZEND_RECV_INIT) {
+        return;
+    }
+
+    uint32_t num_args = ZEND_CALL_NUM_ARGS(call);
+    if (opline->op1.num > num_args || !Z_ISUNDEF_P(ZEND_CALL_VAR_NUM(call, opline->op1.num - 1))) {
+        return;
+    }
+
+    for (uint32_t i = num_args; i < op_array->last_var; ++i) {
+        ZVAL_UNDEF(ZEND_CALL_VAR_NUM(call, i));
+    }
+}
+
 // skip_args to not capture args if anyway captured via !DEBUG_BACKTRACE_IGNORE_ARGS
 void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool skip_args) {
     zend_op_array *op_array = &call->func->op_array;
@@ -36,11 +60,22 @@ void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool s
     }
 
     zend_array *locals = zend_new_array(op_array->last_var - op_array->num_args);
-    for (int i = skip_args ? (int)op_array->num_args : 0; i < op_array->last_var; ++i) {
-        zval *var = ZEND_CALL_VAR_NUM(call, i);
-        if (Z_TYPE_P(var) != IS_UNDEF) {
-            Z_TRY_ADDREF_P(var);
-            zend_hash_add_new(locals, op_array->vars[i], var);
+    const zend_op *opline = call->opline;
+
+    // check if it's a frame executing op_array, e.g. not the SCCP dummy frame (except for exceptions)
+    if (opline && ((opline >= op_array->opcodes && opline < op_array->opcodes + op_array->last) || (opline >= EG(exception_op) && opline < EG(exception_op) + sizeof(EG(exception_op)) / sizeof(EG(exception_op)[0])))) {
+        ddtrace_undef_unreceived_cvs(call);
+        for (int i = skip_args ? (int)op_array->num_args : 0; i < op_array->last_var; ++i) {
+            zval *var = ZEND_CALL_VAR_NUM(call, i);
+            // RECV_INIT evaluates a constant expression default in place, so the parameter holds the unevaluated AST until the evaluation finishes.
+            if (Z_TYPE_P(var) != IS_UNDEF && Z_TYPE_P(var) != IS_CONSTANT_AST
+#if PHP_VERSION_ID < 70300
+                    && Z_TYPE_P(var) != IS_CONSTANT
+#endif
+            ) {
+                Z_TRY_ADDREF_P(var);
+                zend_hash_add_new(locals, op_array->vars[i], var);
+            }
         }
     }
     ZVAL_ARR(locals_array, locals);

@@ -14,6 +14,7 @@
 #include <tracer/auto_flush.h>
 #include <tracer/endpoint_guessing.h>
 #include <tracer/ip_extraction.h>
+#include <tracer/serializer.h>
 #include <tracer/span.h>
 #include <tracer/tracer_tag_propagation/tracer_tag_propagation.h>
 #include <unistd.h>
@@ -29,20 +30,12 @@
 #    include "test_mock_transport.h"
 #endif
 
-static zend_string *_meta_propname;
-static zend_string *_metrics_propname;
-static zend_string *_meta_struct_propname;
 static THREAD_LOCAL_ON_ZTS bool _asm_event_emitted;
 
 static void _register_testing_objects(void);
 
 void dd_trace_startup(void)
 {
-    _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
-    _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
-    _meta_struct_propname =
-        zend_string_init_interned(LSTRARG("meta_struct"), 1);
-
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
 #ifdef TESTING
@@ -52,8 +45,6 @@ void dd_trace_startup(void)
 }
 
 void dd_trace_root_span_changed(void) { _asm_event_emitted = false; }
-
-void dd_trace_shutdown(void) {}
 
 bool dd_trace_enabled(void) { return get_DD_TRACE_ENABLED(); }
 
@@ -128,66 +119,33 @@ void dd_trace_close_all_spans_and_flush(void)
     ddtrace_close_all_spans_and_flush();
 }
 
-static zval *_get_span_modifiable_array_property(
-    zend_object *nonnull zobj, zend_string *nonnull propname)
+// Spans are the tracer's own objects: read their properties directly. Like
+// the tracer, (re)initialize the property if userland replaced the array.
+static zval *nonnull _span_array_property(zval *nonnull prop)
 {
-#if PHP_VERSION_ID >= 80600
-    // 8.6 asserts type != BP_VAR_IS; BP_VAR_W matches the old IS path (no
-    // undefined-property warning, unlike BP_VAR_RW)
-    zval *res =
-        zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_W, NULL);
-#elif PHP_VERSION_ID >= 80000
-    zval *res =
-        zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_IS, NULL);
-#else
-    zval obj;
-    ZVAL_OBJ(&obj, zobj);
-    zval prop;
-    ZVAL_STR(&prop, propname);
-    zval *res =
-        zobj->handlers->get_property_ptr_ptr(&obj, &prop, BP_VAR_IS, NULL);
-
-#endif
-
-    if (Z_TYPE_P(res) == IS_REFERENCE) {
-        ZVAL_DEREF(res);
-        if (Z_TYPE_P(res) == IS_ARRAY) {
-            return res;
-        }
-        return NULL;
-    }
-    if (Z_TYPE_P(res) != IS_ARRAY) {
-        return NULL;
-    }
-
-    SEPARATE_ZVAL_NOREF(res);
-
-    return res;
+    ZVAL_DEREF(prop);
+    ddtrace_property_array(prop);
+    return prop;
 }
 
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull zobj)
 {
-    return _get_span_modifiable_array_property(zobj, _meta_propname);
+    return _span_array_property(&OBJ_SPANDATA(zobj)->property_meta);
 }
 
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
 {
-    return _get_span_modifiable_array_property(zobj, _metrics_propname);
+    return _span_array_property(&OBJ_SPANDATA(zobj)->property_metrics);
 }
 
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
 {
-    return _get_span_modifiable_array_property(zobj, _meta_struct_propname);
+    return _span_array_property(&OBJ_SPANDATA(zobj)->property_meta_struct);
 }
 
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 {
-    enum { runtime_id_len = 36 };
-    zend_string *encoded_id = zend_string_alloc(runtime_id_len, persistent);
-    datadog_format_runtime_id(
-        (uint8_t (*)[runtime_id_len])ZSTR_VAL(encoded_id));
-    ZSTR_VAL(encoded_id)[runtime_id_len] = '\0';
-    return encoded_id;
+    return ddtrace_formatted_runtime_id(persistent);
 }
 
 ddog_AppsecCResponse dd_trace_send_appsec_message(
@@ -275,6 +233,11 @@ zend_object *nullable dd_trace_get_active_root_span(void)
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
 {
     return ddtrace_ip_extraction_find(server);
+}
+
+zend_string *nonnull dd_trace_build_req_url(const zend_array *nonnull server)
+{
+    return ddtrace_build_req_url((zend_array *)server);
 }
 
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void)

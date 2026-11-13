@@ -27,7 +27,7 @@ $ctx = stream_context_create([
             'version' => '7.65.0',
             'client_drop_p0s' => true,
             'filter_tags' => [
-                'require' => ['filter_required:yes'],
+                'require' => ['filter_required:yes', 'env:test-env', 'version:1.2.3-filters', 'span.kind:server', 'component:filter-test'],
                 'reject'  => ['filter_reject:yes'],
             ],
             'filter_tags_regex' => [
@@ -71,11 +71,15 @@ $rr->clearDumpedData();
 
 // Each test case is a separate root span (= separate trace), because trace filters are
 // evaluated per trace (root span properties / tags).
-function makeSpan(string $name, string $resource, array $meta): void {
+function makeSpan(string $name, string $resource, array $meta, ?string $env = null, ?string $version = null): void {
     $s = \DDTrace\start_trace_span();
     $s->name     = $name;
     $s->resource = $resource;
     $s->service  = 'filter-test-service';
+    $s->meta['span.kind'] = 'server';
+    $s->meta['component'] = 'filter-test';
+    if ($env !== null) $s->env = $env;
+    if ($version !== null) $s->version = $version;
     foreach ($meta as $k => $v) {
         $s->meta[$k] = $v;
     }
@@ -124,6 +128,20 @@ makeSpan('op.blocked.regex_require', 'GET /other4', [
 makeSpan('GET /healthcheck', '', [
     'filter_required' => 'yes',
     'http.method'     => 'GET',
+]);
+
+// Promoted fields must reach the platform filter through its dedicated getters.
+makeSpan('op.blocked.env', 'GET /other5', [
+    'filter_required' => 'yes', 'http.method' => 'GET',
+], 'other-env');
+makeSpan('op.blocked.version', 'GET /other6', [
+    'filter_required' => 'yes', 'http.method' => 'GET',
+], null, 'other-version');
+makeSpan('op.blocked.span_kind', 'GET /other7', [
+    'filter_required' => 'yes', 'http.method' => 'GET', 'span.kind' => 'client',
+]);
+makeSpan('op.blocked.component', 'GET /other8', [
+    'filter_required' => 'yes', 'http.method' => 'GET', 'component' => 'other-component',
 ]);
 
 // Submit all cases together so a filtered span cannot arrive in a later batch

@@ -25,6 +25,13 @@ if (!$listener) throw new RuntimeException($error);
 putenv('DD_TRACE_AGENT_URL=http://' . stream_socket_get_name($listener, false));
 $process = ffeTestProcess(__DIR__ . '/stubs/flag_evaluation_identity_app.php', $pipes);
 $contexts = array();
+$expectedContexts = array(
+    'flag_evaluation_identity_app.php|none|' => array('service' => 'flag_evaluation_identity_app.php', 'env' => 'none'),
+    'app-a|test|v1' => array('service' => 'app-a', 'env' => 'test', 'version' => 'v1'),
+    'app-b|test|v1' => array('service' => 'app-b', 'env' => 'test', 'version' => 'v1'),
+    'app-b|production|v1' => array('service' => 'app-b', 'env' => 'production', 'version' => 'v1'),
+    'app-b|production|v2' => array('service' => 'app-b', 'env' => 'production', 'version' => 'v2'),
+);
 $exitCode = null;
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
@@ -52,13 +59,16 @@ try {
                     isset($context['version']) ? $context['version'] : '',
                 ));
                 foreach ($payload['flagEvaluations'] as $row) {
-                    if (isset($contexts[$key])) throw new RuntimeException('duplicate application row');
-                    $contexts[$key] = $row['flag']['key'] === 'same-flag'
-                        && isset($row['context']['dd'])
-                        && $row['context']['dd'] === array('service' => $context['service'])
-                        && $row['evaluation_count'] === 1
-                        && $row['first_evaluation'] === 1700000000123
-                        && $row['last_evaluation'] === 1700000000123;
+                    if (isset($contexts[$key]) || !isset($expectedContexts[$key])
+                        || $context != $expectedContexts[$key] || $row['flag']['key'] !== 'same-flag'
+                        || !isset($row['context']['dd'])
+                        || $row['context']['dd'] !== array('service' => $context['service'])
+                        || $row['evaluation_count'] !== 1
+                        || $row['first_evaluation'] !== 1700000000123
+                        || $row['last_evaluation'] !== 1700000000123) {
+                        throw new RuntimeException('unexpected attributed evaluation: ' . json_encode($payload));
+                    }
+                    $contexts[$key] = true;
                 }
             }
             fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
@@ -68,13 +78,7 @@ try {
         if (!$status['running']) { $exitCode = $status['exitcode']; break; }
     }
     if ($exitCode !== 0) throw new RuntimeException('child failed: ' . ffeTestProcessRead($pipes[2]));
-    foreach (array(
-        'flag_evaluation_identity_app.php|none|',
-        'app-a|test|v1',
-        'app-b|test|v1',
-        'app-b|production|v1',
-        'app-b|production|v2',
-    ) as $key) {
+    foreach ($expectedContexts as $key => $expected) {
         echo $key, '='; var_dump(isset($contexts[$key]) && $contexts[$key]);
     }
     echo 'application_groups='; var_dump(count($contexts));

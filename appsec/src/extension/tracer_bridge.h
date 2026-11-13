@@ -19,7 +19,6 @@
 typedef zend_object root_span_t;
 
 void dd_trace_startup(void);
-void dd_trace_shutdown(void);
 // The request's root span changed (see _set_cur_span):
 // dd_trace_emit_asm_event() emits once per root span.
 void dd_trace_root_span_changed(void);
@@ -76,6 +75,9 @@ bool dd_trace_user_req_add_listeners(
     ddtrace_user_req_listeners *nonnull listeners);
 
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
+
+// The tracer's http.url (query string filtered/obfuscated). Empty if unknown.
+zend_string *nonnull dd_trace_build_req_url(const zend_array *nonnull server);
 
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void);
 

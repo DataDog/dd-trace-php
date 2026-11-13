@@ -206,17 +206,6 @@ void dd_user_tracking_startup(void)
     }
 }
 
-void dd_user_tracking_shutdown(void)
-{
-    if (_ddtrace_set_user != NULL) {
-        zend_function *set_user = zend_hash_str_find_ptr(
-            CG(function_table), LSTRARG("ddtrace\\set_user"));
-        if (set_user != NULL) {
-            set_user->internal_function.handler = _ddtrace_set_user;
-        }
-    }
-}
-
 void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
     zend_string *nullable user_login, user_event event)
 {

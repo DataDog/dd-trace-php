@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: 2e0f658dfa4016a2ee2adcc8bc8466ed3bd97a14 */
+ * Stub hash: 260a53204159d9d0b025e75b96d5f379cc8e3cbb */
 
 #include "zend_constants.h"
 
@@ -258,6 +258,8 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics arginfo_DDTrace_are_endpoints_collected
 
+#define arginfo_DDTrace_Internal_ffe_provider_state arginfo_DDTrace_current_context
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, 9, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, variant, IS_STRING, 1)
@@ -478,6 +480,7 @@ ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(DDTrace_Internal_handle_fork);
 ZEND_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric);
 ZEND_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics);
+ZEND_FUNCTION(DDTrace_Internal_ffe_provider_state);
 ZEND_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation);
 ZEND_FUNCTION(DDTrace_Internal_dsm_set_checkpoint);
 ZEND_FUNCTION(DDTrace_Internal_dsm_track_backlog);
@@ -586,6 +589,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_evaluation_metric"), zif_DDTrace_Internal_record_ffe_evaluation_metric, arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "flush_ffe_evaluation_metrics"), zif_DDTrace_Internal_flush_ffe_evaluation_metrics, arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "ffe_provider_state"), zif_DDTrace_Internal_ffe_provider_state, arginfo_DDTrace_Internal_ffe_provider_state, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_flag_evaluation"), zif_DDTrace_Internal_record_ffe_flag_evaluation, arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_set_checkpoint"), zif_DDTrace_Internal_dsm_set_checkpoint, arginfo_DDTrace_Internal_dsm_set_checkpoint, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "dsm_track_backlog"), zif_DDTrace_Internal_dsm_track_backlog, arginfo_DDTrace_Internal_dsm_track_backlog, 0, NULL, NULL)

@@ -257,7 +257,7 @@ finished:
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
-      composer update --no-interaction
+      .gitlab/run-with-retryable-download.sh composer update --no-interaction
     # Compiling dd-tace-php files into single file
     - make generate
     # Showing folder containing generated files
@@ -704,7 +704,7 @@ foreach ($build_platforms as $platform) {
 
 .package_extension_base:
   stage: packaging
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-3
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-5
   tags: [ "arch:amd64" ]
   after_script:
     - |
@@ -867,7 +867,7 @@ endforeach;
 
 "datadog-setup.php":
   stage: packaging
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-3
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-5
   tags: [ "arch:amd64" ]
   script:
     - mkdir -p "build/packages"
@@ -1063,7 +1063,7 @@ endforeach;
     # The only two the official image lacks out of what composer.json and tests/composer.json ask
     # for (zip for the root install, sockets for tests/).
     - install-php-extensions sockets zip || exit 75
-    - php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+    - .gitlab/download-file.sh https://getcomposer.org/installer /tmp/composer-setup.php
     - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
@@ -1071,8 +1071,8 @@ endforeach;
     - tar -xzf packages/dd-library-php-*-aarch64-linux-musl.tar.gz
     - php_api=$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
     - cp "dd-library-php/trace/ext/${php_api}/ddtrace-zts.so" tmp/build_extension/modules/ddtrace.so
-    - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction
-    - make composer_tests_update
+    - COMPOSER_MEMORY_LIMIT=-1 .gitlab/run-with-retryable-download.sh composer update --no-interaction
+    - .gitlab/run-with-retryable-download.sh make composer_tests_update
     - .gitlab/wait-for-service-ready.sh
   script:
     # The Fabric proxy changes network failure semantics in integration tests.
@@ -1413,11 +1413,12 @@ endforeach;
     - mkdir build
     - mv packages build
     - '# Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore - https://serverfault.com/a/1161847'
-    - sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
+    - '# vault.centos.org is read through the depot cache: vault answers 403 for 20+ min windows under our parallel jobs'
+    - sed -i 's|http://mirror.centos.org|https://depot-read-api-bzl.us1.ddbuild.io/vault.centos.org|g' /etc/yum.repos.d/*.repo
     - sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
     - sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
     - |
-      # Retry yum update as vault.centos.org can be slow/unreliable
+      # Retry yum update as the CentOS vault can be slow/unreliable
       for i in 1 2 3; do
         if yum update -y; then
           echo "yum update succeeded on attempt $i"
@@ -1709,6 +1710,11 @@ endforeach;
     - source venv/bin/activate
     - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
     - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
+    # The mirror builder keeps another copy of the weblog layers and of the library bundle in its build context.
+    # The scenarios only run the loaded images: free that space for their services, RabbitMQ blocks publishers
+    # below 50 MB of free disk.
+    - docker buildx rm --force system-tests-mirror 2>/dev/null || true
+    - docker system df || true
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done

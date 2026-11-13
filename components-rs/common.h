@@ -360,6 +360,13 @@ typedef enum ddog_EvaluateAt {
   DDOG_EVALUATE_AT_EXIT,
 } ddog_EvaluateAt;
 
+typedef enum ddog_FfeCdnConfigError {
+  DDOG_FFE_CDN_CONFIG_ERROR_MISSING_API_KEY,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_API_KEY,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_SITE,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_URL,
+} ddog_FfeCdnConfigError;
+
 typedef enum ddog_InBodyLocation {
   DDOG_IN_BODY_LOCATION_NONE,
   DDOG_IN_BODY_LOCATION_START,
@@ -521,6 +528,11 @@ typedef struct ddog_Config ddog_Config;
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
+
+/**
+ * The agentless (CDN) configuration source, fixed for the lifetime of the process.
+ */
+typedef struct ddog_FfeCdnConfig ddog_FfeCdnConfig;
 
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
@@ -1357,11 +1369,6 @@ typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWrit
 typedef struct ddog_Arc_Target ddog_Arc_Target;
 
 /**
- * Fundamental configuration of the RC client, which always must be set.
- */
-typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
-
-/**
  * A mapping of a shared-memory segment, at an address that never changes.
  */
 typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
@@ -1371,6 +1378,11 @@ typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
  * allowing safe transfer and sharing of file handles across processes, and threads
  */
 typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
+
+/**
+ * Identifies a sidecar RC publication independently of its server configuration.
+ */
+typedef struct ddog_RemoteConfigInvariants ddog_RemoteConfigInvariants;
 
 /**
  * Opaque registration for a Windows remote configuration callback.
@@ -1447,6 +1459,13 @@ typedef struct ddog_FfeExposure {
   ddog_CharSlice variant;
   int32_t serial_id;
   bool has_serial_id;
+  /**
+   * UTF-8 JSON object of the split features routed to exposures, mapping a
+   * key to a string, number or boolean. Empty, invalid or non-object input
+   * means no features and never rejects the exposure. Input larger than one
+   * IPC packet is ignored. Not part of deduplication.
+   */
+  ddog_CharSlice features_json;
 } ddog_FfeExposure;
 
 typedef struct ddog_Slice_FfeExposure {
@@ -1488,6 +1507,14 @@ typedef struct ddog_FfeFlagEvaluation {
    * Consent captured from the configuration used for this evaluation.
    */
   bool observe_full_evaluation_data;
+  /**
+   * UTF-8 JSON object of the split features routed to evaluation counts,
+   * mapping a key to a string, number or boolean. Rows with different
+   * features are counted separately. Kept regardless of consent. Empty,
+   * invalid or non-object input means no features and never rejects the
+   * evaluation. Input larger than one IPC packet is ignored.
+   */
+  ddog_CharSlice features_json;
 } ddog_FfeFlagEvaluation;
 
 typedef struct ddog_Slice_FfeFlagEvaluation {
