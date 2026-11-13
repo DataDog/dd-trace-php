@@ -186,6 +186,12 @@ Disabled on versions: `8.6`.
 
 The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
 
+## `ext/soap/tests/gh23686/*.phpt` (the 28 listed in `8.6.list`), `sapi/cli/tests/gh16137_duplicate_headers.phpt`
+
+Disabled on versions: `8.6` (new in 8.6.0RC4/RC5, not yet in the 8.4/8.5 releases used in CI).
+
+The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
+
 ## `ext/standard/tests/filters/stream_filter_register_*.phpt` (the 5 listed in `8.6.list`)
 
 Disabled on versions: `8.6` (the tests are new in 8.6).
