@@ -110,7 +110,7 @@ static component_type_t component_replacement(const char* path, size_t len) {
     return (component_type_t)lsb;
 }
 
-static zend_string* guess_endpoint(const char* orig_url, size_t orig_url_len) {
+zend_string* ddtrace_guess_endpoint_from_url(const char* orig_url, size_t orig_url_len) {
     smart_str result = {0};
 
     if (!orig_url || orig_url_len == 0) {
@@ -183,11 +183,6 @@ static zend_string* guess_endpoint(const char* orig_url, size_t orig_url_len) {
     return smart_str_extract(&result);
 }
 
-zend_string* ddtrace_guess_endpoint_from_url(const char* url, size_t url_len)
-{
-    return guess_endpoint(url, url_len);
-}
-
 void ddtrace_maybe_add_guessed_endpoint_tag(ddtrace_root_span_data *span)
 {
     zval *span_type = &span->property_type;
@@ -215,7 +210,7 @@ void ddtrace_maybe_add_guessed_endpoint_tag(ddtrace_root_span_data *span)
             // "In case the url is not available, a default value of / should be used for the endpoint tag."
             ZVAL_STRING(endpoint, "/");
         } else {
-            ZVAL_STR(endpoint, guess_endpoint(Z_STRVAL_P(url), Z_STRLEN_P(url)));
+            ZVAL_STR(endpoint, ddtrace_guess_endpoint_from_url(Z_STRVAL_P(url), Z_STRLEN_P(url)));
         }
     }
 }

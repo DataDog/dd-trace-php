@@ -464,15 +464,3 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
         }
     }
 }
-
-void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism) {
-    assert(root_span->ce == ddtrace_ce_root_span_data);
-
-    ddtrace_set_priority_sampling_on_span(ROOTSPANDATA(root_span), priority, mechanism);
-}
-
-zend_long ddtrace_get_priority_sampling_on_span_zobj(zend_object *root_span) {
-    assert(root_span->ce == ddtrace_ce_root_span_data);
-
-    return zval_get_long(&ROOTSPANDATA(root_span)->property_sampling_priority);
-}

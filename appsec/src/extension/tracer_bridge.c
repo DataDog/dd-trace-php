@@ -12,7 +12,6 @@
 #include <string.h>
 #include <tracer/asm_event.h>
 #include <tracer/auto_flush.h>
-#include <tracer/endpoint_guessing.h>
 #include <tracer/ip_extraction.h>
 #include <tracer/serializer.h>
 #include <tracer/span.h>
@@ -213,12 +212,6 @@ void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)
     ddog_sidecar_appsec_response_drop(response);
 }
 
-zend_long dd_trace_get_priority_sampling_on_span_zobj(
-    zend_object *nonnull root_span)
-{
-    return ddtrace_get_priority_sampling_on_span_zobj(root_span);
-}
-
 bool dd_trace_user_req_add_listeners(
     ddtrace_user_req_listeners *nonnull listeners)
 {
@@ -269,12 +262,6 @@ void dd_trace_emit_asm_event(void)
 
     ddtrace_emit_asm_event();
     _asm_event_emitted = true;
-}
-
-zend_string *dd_trace_guess_endpoint_from_url(
-    const char *nonnull url, size_t url_len)
-{
-    return ddtrace_guess_endpoint_from_url(url, url_len);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)
