@@ -179,7 +179,7 @@ static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
 }
 
 #ifdef TRACER
-static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport) {
+static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport, ddog_CharSlice test_token) {
     // Both FFE writers share this target. Replace it when the test token changes
     // so new observations use the new session and queued ones keep the old one.
     const ddog_EvpProducerIdentity ffe_producer = {
@@ -191,7 +191,7 @@ static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport
         dd_zend_string_to_CharSlice(get_global_DD_SITE()),
         dd_zend_string_to_CharSlice(get_global_DD_API_KEY())) : NULL;
     if (direct_endpoint) {
-        dd_set_endpoint_test_token(direct_endpoint);
+        ddog_endpoint_set_test_token_if_changed(direct_endpoint, test_token);
     }
     datadog_ffi_try("Failed configuring PHP FFE EVP transport",
         ddog_sidecar_session_set_evp_transport(transport,
@@ -272,7 +272,8 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
     // Configure during ordinary connection setup, including fork recovery.
     // The transport replays its configuration after reconnects.
     // Remote Config keeps the fixed Agent EVP v2 route.
-    dd_sidecar_configure_ffe_transport(transport);
+    dd_sidecar_configure_ffe_transport(transport, dd_zend_string_to_CharSlice(zai_config_is_initialized()
+        ? get_DD_TRACE_AGENT_TEST_SESSION_TOKEN() : get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
 #endif
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
@@ -1049,7 +1050,8 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
                         ddog_sidecar_set_test_session_token(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
 #ifdef TRACER
         if (token_changed) {
-            dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar));
+            // The INI callback runs before the new value is visible through the getter.
+            dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
         }
 #endif
     }

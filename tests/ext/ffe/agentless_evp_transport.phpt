@@ -36,6 +36,8 @@ foreach (array('agentless', 'no-key', 'invalid-site', 'remote-config') as $mode)
     $process = ffeTestProcess(__DIR__ . '/stubs/agentless_evp_app.php', $pipes, $environment);
     $events = array();
     $exitCode = null;
+    $exitedAt = null;
+    $lastCaptureAt = 0;
     $prefix = $mode === 'remote-config' ? '/evp_proxy/v2/api/v2/' : '/evp_proxy/v4/api/v2/';
     try {
         $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
@@ -79,6 +81,7 @@ foreach (array('agentless', 'no-key', 'invalid-site', 'remote-config') as $mode)
                         }
                         if (isset($events[$kind])) throw new RuntimeException('duplicate event batch');
                         $events[$kind] = true;
+                        $lastCaptureAt = microtime(true);
                     }
                     fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
                         . strlen($response) . "\r\nConnection: close\r\n\r\n" . $response);
@@ -86,8 +89,18 @@ foreach (array('agentless', 'no-key', 'invalid-site', 'remote-config') as $mode)
                     fclose($connection);
                 }
             }
-            $status = proc_get_status($process);
-            if (!$status['running']) { $exitCode = $status['exitcode']; break; }
+            if ($exitedAt === null) {
+                $status = proc_get_status($process);
+                if (!$status['running']) {
+                    $exitCode = $status['exitcode'];
+                    $exitedAt = microtime(true);
+                }
+            }
+            if ($exitCode !== null && $exitCode !== 0) break;
+            // The sidecar can finish delivery after PHP exits. Keep receiving
+            // both streams, then observe a short quiet period for duplicates.
+            if ($exitedAt !== null && isset($events['exposures'], $events['flagevaluation'])
+                && microtime(true) - max($exitedAt, $lastCaptureAt) > 0.5) break;
         } while (microtime(true) < $deadline);
         if ($exitCode !== 0) throw new RuntimeException('child failed: ' . ffeTestProcessRead($pipes[2]));
         if (!isset($events['exposures'], $events['flagevaluation'])) throw new RuntimeException('missing event stream');
