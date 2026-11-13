@@ -184,6 +184,19 @@ static bool dd_tags_special_read(ddtrace_span_data *span, enum dd_tags_special s
     return false;
 }
 
+bool ddtrace_span_read_tag(ddtrace_span_data *span, zend_string *key, zval *rv) {
+    enum dd_tags_special special = dd_tags_special_of(key);
+    if (special != DD_TAGS_PLAIN && dd_tags_special_read(span, special, rv)) {
+        return true;
+    }
+    zval *attr = zend_symtable_find(ddtrace_property_array(&span->property_attributes), key);
+    if (!attr) {
+        return false;
+    }
+    ZVAL_COPY_DEREF(rv, attr);
+    return true;
+}
+
 static void dd_tags_special_reset(ddtrace_span_data *span, enum dd_tags_special special) {
     zval *prop = dd_tags_special_prop(span, special);
     zval_ptr_dtor(prop);
@@ -356,6 +369,24 @@ static bool dd_tags_view_special_read(dd_span_tags_view *view, zend_string *key,
     return view->span && !view->metrics && special != DD_TAGS_PLAIN && dd_tags_special_read(view->span, special, rv);
 }
 
+// Write fetches ($span->meta['a']['b'] = ..., ++, by-ref) of a plain key get its $attributes slot as a refcount-1
+// reference, which the engine unwraps in place (as for ArrayObject). An entry of the other view restarts from null.
+static zval *dd_tags_view_slot(dd_span_tags_view *view, zend_string *key, int type, zval *rv) {
+    zend_array *attrs = ddtrace_property_array(&view->span->property_attributes);
+    zval *val = zend_symtable_find(attrs, key);
+    if (!val || !dd_tags_in_bucket(val, view->metrics)) {
+        if (type == BP_VAR_UNSET) {
+            ZVAL_NEW_REF(rv, &EG(uninitialized_zval));  // nothing to unset below it
+            return rv;
+        }
+        val = zend_symtable_update(attrs, key, &EG(uninitialized_zval));
+    }
+    if (!Z_ISREF_P(val)) {
+        ZVAL_NEW_REF(val, val);
+    }
+    return val;
+}
+
 static zval *dd_tags_view_read(dd_span_tags_view *view, zval *offset, int type, zval *rv) {
     if (!offset) {
         zend_throw_error(NULL, "Cannot read an appended element of SpanData::$%s", view->metrics ? "metrics" : "meta");
@@ -365,6 +396,8 @@ static zval *dd_tags_view_read(dd_span_tags_view *view, zval *offset, int type, 
     zval *val = dd_tags_find(view, offset, &key);
     if (!EG(exception) && dd_tags_view_special_read(view, key, rv)) {
         // a legacy key aliasing a span property
+    } else if (type != BP_VAR_R && type != BP_VAR_IS && view->span && !EG(exception) && dd_tags_special_of(key) == DD_TAGS_PLAIN) {
+        rv = dd_tags_view_slot(view, key, type, rv);
     } else if (val) {
         ZVAL_COPY_DEREF(rv, val);
     } else {

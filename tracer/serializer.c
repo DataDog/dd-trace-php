@@ -728,8 +728,12 @@ static zend_array *dd_native_props(zval *value, bool *release) {
     *release = false;
     if (Z_TYPE_P(value) == IS_OBJECT) {
 #if PHP_VERSION_ID >= 70400
+        zend_array *props = zend_get_properties_for(value, ZEND_PROP_PURPOSE_JSON);
+        if (!props) {  // e.g. WeakMap, SensitiveParameterValue: nothing to expose
+            return (zend_array *)&zend_empty_array;
+        }
         *release = true;
-        return zend_get_properties_for(value, ZEND_PROP_PURPOSE_JSON);
+        return props;
 #else
         return Z_OBJPROP_P(value);
 #endif

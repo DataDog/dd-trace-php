@@ -17,6 +17,8 @@ void ddtrace_span_tags_views_release(ddtrace_span_data *span);
 // resource.name, operation.name, span.type, env, version, component, span.kind, error.ignored) set
 // the property (null resets it), any other key the normalized value in $attributes.
 void ddtrace_span_write_meta(ddtrace_span_data *span, zend_string *key, zval *value, bool metric);
+// The legacy tag (meta or metrics) `key` into `rv` (owned): the aliased property when set, else the attribute.
+bool ddtrace_span_read_tag(ddtrace_span_data *span, zend_string *key, zval *rv);
 // Handles assignments to $meta/$metrics; false for any other property.
 bool ddtrace_span_tags_view_write_property(zend_object *obj, zend_string *name, zval *value);
 

@@ -12,6 +12,7 @@
 #include "../rule_matching.h"
 #include "../ddtrace.h"
 #include "../span.h"
+#include "../span_tags_view.h"
 #ifdef __linux__
 #include "../otel_context.h"
 #endif
@@ -127,15 +128,17 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
     }
     if ((rule_pattern = zend_hash_str_find(rule, ZEND_STRL("tags"))) && Z_TYPE_P(rule_pattern) == IS_ARRAY) {
         zend_array *tag_rules = Z_ARR_P(rule_pattern);
-        zend_array *attributes = ddtrace_property_array(&span->property_attributes);
         zend_string *tag_name;
         ZEND_HASH_FOREACH_STR_KEY_VAL(tag_rules, tag_name, rule_pattern) {
             if (tag_name) {
-                zval *value;
-                if (!(value = zend_hash_find(attributes, tag_name))) {
+                // Keys aliasing span properties (component, span.kind, ...) match like the $meta view reads them.
+                zval value;
+                if (!ddtrace_span_read_tag(span, tag_name, &value)) {
                     return false;
                 }
-                if (!dd_rule_matches(rule_pattern, value, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
+                bool matches = dd_rule_matches(rule_pattern, &value, get_DD_TRACE_SAMPLING_RULES_FORMAT());
+                zval_ptr_dtor(&value);
+                if (!matches) {
                     return false;
                 }
             }
