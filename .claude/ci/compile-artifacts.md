@@ -47,29 +47,29 @@ If you need to run this step outside a build script and your host lacks `binutil
 |--------|-------|--------------|
 | `compile extension: debug` | `dd-trace-ci:php-{ver}_bookworm-11` | Runs `append-build-id.sh` to stamp VERSION; compiles Rust (`compile_rust.sh`, debug profile) and C (`make -j static`) in parallel; `make static` also builds `php_sidecar_mockgen` (a secondary Rust tool that weakens PHP symbol references, not a C-stub generator); links `ddtrace.a` + `libdatadog_php.a` → `ddtrace.so` with the generated target export list and `-soname ddtrace.so`. Sets `SHARED=1` (adds `--cfg php_shared_build` to `RUSTFLAGS`). |
 | `compile extension: debug-zts-asan` | `dd-trace-ci:php-{ver}_bookworm-11` | Same as `compile extension: debug` (inherits `SHARED=1` via `extends:`) but with `WITH_ASAN=1` (sets `ASAN=1`+`COMPILE_ASAN=1`) and `SWITCH_PHP_VERSION=debug-zts-asan`; produces `ddtrace.so` instrumented with AddressSanitizer for ASAN test jobs |
-| `Prepare code` | `php:8.2-cli` | Runs `composer update` + `make generate` to produce `src/bridge/_generated_*.php` |
+| `Prepare code` | `composer:2.10.3` | Runs `composer update` + `make generate` to produce `src/bridge/_generated_*.php` |
 
 Runner: `arch:{amd64,arm64}`
 Matrix (`compile extension: debug`): PHP 7.0+ x {amd64, arm64}
 Matrix (`compile extension: debug-zts-asan`): PHP 7.4+ x {amd64, arm64}
 
-**Note on `Prepare code` vs `prepare code`:** These are two distinct jobs. The tracer
-pipeline `Prepare code` uses `php:8.2-cli` (which has no Composer), installs Composer
-from scratch, runs `composer update` + `make generate`, and lives in the `compile`
-stage. The package pipeline `prepare code` uses `composer:2`, runs
-`append-build-id.sh` first (bumping VERSION to `{major}.{minor+1}.0+{CI_COMMIT_SHA}` on
-non-release branches; for pre-release versions like `1.2.3-beta1` it strips the
-suffix to produce `1.2.3+{CI_COMMIT_SHA}` instead; no-op on tags and `ddtrace-`
-release branches), then `composer self-update` + `composer update`
-+ `make generate`, and lives in the `prepare` stage. `make generate` produces three
-files via `classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
+**Note on `Prepare code` vs `prepare code`:** These are two distinct jobs. Both
+use the `composer:2.10.3` image, which ships Composer. The tracer pipeline
+`Prepare code` runs `composer update` + `make generate`, and lives in the
+`compile` stage. The package pipeline `prepare code` runs `append-build-id.sh`
+first (bumping VERSION to `{major}.{minor+1}.0+{CI_COMMIT_SHA}` on non-release
+branches; for pre-release versions like `1.2.3-beta1` it strips the suffix to
+produce `1.2.3+{CI_COMMIT_SHA}` instead; no-op on tags and `ddtrace-` release
+branches), then `composer update` + `make generate`, and lives in the `prepare`
+stage. `make generate` produces three files via `classpreloader`:
+`_generated_api.php`, `_generated_tracer.php`, and
 `_generated_opentelemetry.php`.
 
 ### Package pipeline (generate-package.php)
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
-| `prepare code` | `composer:2` | `.gitlab/append-build-id.sh` (bumps VERSION first) + `composer self-update` + `composer update` + `make generate`; produces VERSION + generated bridge files |
+| `prepare code` | `composer:2.10.3` | `.gitlab/append-build-id.sh` (bumps VERSION first) + `composer update` + `make generate`; produces VERSION + generated bridge files |
 | `cache cargo deps: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` (alpine uses `php-compile-extension-alpine-8.1`) | `cargo fetch` to warm the Cargo cache for the given target triplet |
 | `compile tracing extension: [7.0, {arch}, {triplet}]` | `dd-trace-ci:php-7.0_{platform}` | Legacy tracer-only path: `build-tracing.sh` produces C archives and slim SSI DSOs, then `make xlang-lto` replaces NTS/ZTS self-contained DSOs. Debug remains non-LTO (GNU only). Outputs `extensions_{arch}/`, `standalone_{arch}/`, and legacy link metadata. |
 | `compile tracing sidecar: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | `build-sidecar.sh` uses `build-xlang-lto ssi-common` to build `libdatadog_php_{arch}[-alpine].so` (common runtime plus embedded AppSec helper), once per platform. Also retains a Rust archive solely for the legacy debug link; it is not shipped. |

@@ -308,7 +308,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
   before_script:
-    - composer update --no-interaction
+    - .gitlab/run-with-retryable-download.sh composer update --no-interaction
   script:
     - make generate
   artifacts:
@@ -738,9 +738,9 @@ endforeach;
     COMPOSER_VERSION: 2
   before_script:
 <?php before_script_steps(true) ?>
-    - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
-    - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
-    - make composer_tests_update
+    - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then .gitlab/run-with-retryable-download.sh sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
+    - COMPOSER_MEMORY_LIMIT=-1 .gitlab/run-with-retryable-download.sh composer update --no-interaction # disable composer memory limit completely
+    - .gitlab/run-with-retryable-download.sh make composer_tests_update
     - .gitlab/wait-for-service-ready.sh
   script:
     # The Fabric proxy changes network failure semantics in integration tests.

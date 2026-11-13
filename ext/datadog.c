@@ -894,7 +894,7 @@ static PHP_RINIT_FUNCTION(datadog) {
 
 #ifdef SIDECAR
     if (!DATADOG_G(remote_config_state) && datadog_endpoint) {
-        DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
+        DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_ffe_cdn_config(), ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
     }
 
     // We need to init RC for the sidecar to write to it immediately

@@ -299,6 +299,21 @@ bool ddog_ffe_has_config(void);
 
 uint64_t ddog_ffe_config_version(void);
 
+/**
+ * A non-empty `base_url` is fetched as given and never receives the API key.
+ * Otherwise the managed endpoint of `site` is used, filtered to `env`.
+ * The intervals must already be within the ranges accepted by the sidecar.
+ */
+struct ddog_FfeCdnConfig *ddog_ffe_cdn_config_new(ddog_CharSlice base_url,
+                                                  ddog_CharSlice site,
+                                                  ddog_CharSlice env,
+                                                  ddog_CharSlice api_key,
+                                                  uint32_t poll_interval_secs,
+                                                  uint32_t request_timeout_secs,
+                                                  enum ddog_FfeCdnConfigError *error);
+
+void ddog_ffe_cdn_config_drop(struct ddog_FfeCdnConfig*);
+
 struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
                                         ddog_CharSlice targeting_key,
@@ -308,6 +323,7 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
 void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
+                                                             const struct ddog_FfeCdnConfig *cdn_config,
                                                              bool di_enabled);
 
 uint64_t ddog_remote_config_current_generation(const struct ddog_RemoteConfigState *remote_config);
@@ -340,6 +356,22 @@ bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remot
                                             ddog_CharSlice version,
                                             const struct ddog_Vec_Tag *tags,
                                             const struct ddog_Vec_Tag *process_tags);
+
+/**
+ * Subscribes the sidecar to the agentless feature flags source of the current target.
+ * The transport replays it after reconnects and forks, and skips unchanged registrations.
+ *
+ * # Safety
+ * `remote_config` must be valid. It is not borrowed while sending: reconnecting rebinds it.
+ */
+ddog_MaybeError ddog_remote_config_register_cdn(const struct ddog_RemoteConfigState *remote_config,
+                                                struct ddog_SidecarTransport **transport);
+
+/**
+ * Processes updates, then waits for feature flags until they are loaded or `timeout_ms` elapses.
+ */
+void ddog_remote_config_await_ffe(struct ddog_RemoteConfigState *remote_config,
+                                  uint32_t timeout_ms);
 
 bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remote_config,
                                              ddog_CharSlice config,

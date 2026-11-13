@@ -4,6 +4,9 @@
 # After four attempts, exit 75 so GitLab's bounded job retry can take over.
 set -uo pipefail
 
+# shellcheck source-path=SCRIPTDIR source=transient-curl-error.sh
+. "$(dirname -- "$0")/transient-curl-error.sh" || exit 1
+
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 URL DESTINATION" >&2
     exit 64
@@ -45,19 +48,9 @@ for attempt in 1 2 3 4; do
         408|429|500|502|503|504) ;;
         4??|5??) exit "$status" ;;
         *)
-            case "$status" in
-                # DNS/proxy resolution, connection, partial transfer, timeout, empty
-                # response, send/receive, and HTTP/2 framing/stream failures can be transient.
-                5|6|7|16|18|28|52|55|56|92) ;;
-                35)
-                    # SSL-connect errors are not all transient. Retry the observed peer
-                    # reset, but preserve other TLS failures instead of retrying blindly.
-                    if ! grep -Fq 'Connection reset by peer' "$curl_log"; then
-                        exit "$status"
-                    fi
-                    ;;
-                *) exit "$status" ;;
-            esac
+            if ! is_transient_curl_error "$status" "$(cat "$curl_log")"; then
+                exit "$status"
+            fi
             ;;
     esac
 

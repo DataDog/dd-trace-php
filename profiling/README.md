@@ -20,12 +20,18 @@ variances in allocation size e.g. 32 bytes and 4,096 bytes.
 
 The profiler sets the Zend VM interrupt flag approximately every 10ms. The
 Zend Engine will handle this interrupt at the next place it's safe to do so.
-Notably, this waits until an internal function like `curl_exec` has been
-popped off the stack. This information is quite valuable, so this extension
-installs a `zend_execute_internal` hook which also checks the interrupt and
-handles the profiler's portion of the interrupt, but doesn't clear the
-interrupt. This allows interrupts to continue as normal for other extensions
-while allowing the profiler to see the internal function.
+
+On PHP versions before 8.4, this normally waits until an internal function
+like `curl_exec` has been popped off the stack. This information is quite
+valuable, so on these versions the extension installs a `zend_execute_internal`
+hook which also checks the interrupt and handles the profiler's portion of the
+interrupt, but doesn't clear the interrupt. This allows interrupts to continue
+as normal for other extensions while allowing the profiler to see the internal
+function.
+
+Starting with PHP 8.4, the Zend Engine handles interrupts while the internal
+function is still on the stack, so the profiler no longer installs this
+`zend_execute_internal` hook.
 
 When the interrupt handler runs, it collects the wall-time and cpu-time since
 the last run. This makes the cpu-time biased towards functions which do I/O,

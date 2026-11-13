@@ -1,4 +1,5 @@
 use crate::bytes::MaybeOwnedZendString;
+use datadog_ffe::cdn::{CdnConfig, CdnEndpoint, EndpointError};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
@@ -7,6 +8,7 @@ use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::debug;
 
 struct FfeState {
@@ -180,6 +182,60 @@ pub extern "C" fn ddog_ffe_has_config() -> bool {
 pub extern "C" fn ddog_ffe_config_version() -> u64 {
     FFE_STATE.with(|state| state.borrow().version)
 }
+
+/// The agentless (CDN) configuration source, fixed for the lifetime of the process.
+pub struct FfeCdnConfig(pub(crate) CdnConfig);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum FfeCdnConfigError {
+    MissingApiKey,
+    InvalidApiKey,
+    InvalidSite,
+    InvalidUrl,
+}
+
+/// A non-empty `base_url` is fetched as given and never receives the API key.
+/// Otherwise the managed endpoint of `site` is used, filtered to `env`.
+/// The intervals must already be within the ranges accepted by the sidecar.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_cdn_config_new(
+    base_url: CharSlice,
+    site: CharSlice,
+    env: CharSlice,
+    api_key: CharSlice,
+    poll_interval_secs: u32,
+    request_timeout_secs: u32,
+    error: &mut FfeCdnConfigError,
+) -> Option<Box<FfeCdnConfig>> {
+    let endpoint = CdnEndpoint::build(
+        &base_url.to_utf8_lossy(),
+        &site.to_utf8_lossy(),
+        &env.to_utf8_lossy(),
+        &api_key.to_utf8_lossy(),
+    )
+    .map_err(|e| {
+        *error = match e {
+            EndpointError::MissingApiKey => FfeCdnConfigError::MissingApiKey,
+            EndpointError::InvalidApiKey => FfeCdnConfigError::InvalidApiKey,
+            EndpointError::InvalidSite => FfeCdnConfigError::InvalidSite,
+            EndpointError::InvalidUrl
+            | EndpointError::UnsupportedScheme
+            | EndpointError::UrlContainsWhitespace => FfeCdnConfigError::InvalidUrl,
+        };
+    })
+    .ok()?;
+    Some(Box::new(FfeCdnConfig(CdnConfig {
+        endpoint,
+        poll_interval: Duration::from_secs(poll_interval_secs.into()),
+        request_timeout: Duration::from_secs(request_timeout_secs.into()),
+        language: "php".to_string(),
+        version: include_str!("../../VERSION").trim().into(),
+    })))
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_cdn_config_drop(_: Box<FfeCdnConfig>) {}
 
 const REASON_STATIC: i32 = 0;
 const REASON_DEFAULT: i32 = 1;
