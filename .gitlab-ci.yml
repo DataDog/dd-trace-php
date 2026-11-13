@@ -182,7 +182,7 @@ prof-correctness original:
     CARGO_HOME: ${CI_PROJECT_DIR}/.cache/prof-correctness-cargo
   cache:
     key:
-      prefix: prof16656-correctness-original-v1-${PHP_MAJOR_MINOR}-${FLAVOUR}-${RUN}
+      prefix: prof16656-correctness-original-v2-${PHP_MAJOR_MINOR}-${FLAVOUR}-${RUN}
       files:
       - Cargo.lock
       - rust-toolchain.toml
@@ -305,7 +305,7 @@ prof-correctness trimmed:
     CACHE_COMPRESSION_LEVEL: fastest
   cache:
     key:
-      prefix: prof16656-correctness-trimmed-v1-${PHP_MAJOR_MINOR}-${FLAVOUR}-${RUN}
+      prefix: prof16656-correctness-trimmed-v2-${PHP_MAJOR_MINOR}-${FLAVOUR}-${RUN}
       files:
       - Cargo.lock
       - rust-toolchain.toml
@@ -531,7 +531,7 @@ profiling tests trimmed:
     CACHE_COMPRESSION_LEVEL: fastest
   cache:
     key:
-      prefix: prof16656-phpt-trimmed-v1-${ARCH}-${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}-${RUN}
+      prefix: prof16656-phpt-trimmed-v2-${ARCH}-${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}-${RUN}
       files:
       - Cargo.lock
       - rust-toolchain.toml
