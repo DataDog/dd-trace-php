@@ -123,9 +123,6 @@ stages:
   - combined
   - tracing
   - packaging
-  # Stage for the manual build-benchmark-ci-images job, included by
-  # .gitlab/benchmarks.yml via build-ci-images.template.yml.
-  - ci-image
   - benchmarks
   - gate
   - notify
