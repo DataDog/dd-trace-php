@@ -111,11 +111,6 @@ variables:
   # tag pushed by a `build-benchmark-ci-images` run after changing anything in
   # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
   MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-152770667
-
-# The template puts this job in the ci-image stage; run it next to the
-# benchmarks it builds for instead.
-build-benchmark-ci-images:
-  stage: benchmarks
   # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
   # Image build, consumed by the included build-ci-images template. The per-pipeline
   # suffix pins each build to a unique tag so a rebuild can't shift what older
@@ -128,6 +123,11 @@ build-benchmark-ci-images:
   DSM_THROUGHPUT_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-dsm
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/php/data-streams-monitoring
+
+# The template puts this job in the ci-image stage; run it next to the
+# benchmarks it builds for instead.
+build-benchmark-ci-images:
+  stage: benchmarks
 
 workflow:
   auto_cancel:
