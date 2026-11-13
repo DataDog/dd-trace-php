@@ -304,8 +304,8 @@ foreach ($profiler_minor_major_targets as $version) {
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
   variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_CPU_LIMIT: 3
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
     KUBERNETES_MEMORY_REQUEST: 6Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
     KUBERNETES_HELPER_CPU_REQUEST: 1
