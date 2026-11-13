@@ -86,6 +86,8 @@ green-ci-exclude:
     - .gitlab/tag-pipeline-green-ci-excluded.sh
 
 tracer-trigger:
+  rules:
+    - when: never
   stage: tests
   needs: [ "generate-templates" ]
   trigger:
@@ -99,6 +101,8 @@ tracer-trigger:
     GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
 
 appsec-trigger:
+  rules:
+    - when: never
   stage: tests
   needs: [ "generate-templates" ]
   trigger:
@@ -127,6 +131,8 @@ ci-images:
         job: generate-templates
 
 profiler-trigger:
+  rules:
+    - when: never
   stage: tests
   needs: [ "generate-templates" ]
   trigger:
@@ -138,6 +144,8 @@ profiler-trigger:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
 
 shared-trigger:
+  rules:
+    - when: never
   stage: tests
   needs: [ "generate-templates" ]
   trigger:
