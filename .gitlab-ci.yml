@@ -1,216 +1,628 @@
 stages:
-  - build
-  - tests
-  - deploy
-  - ci-build
-  - ci-publish
-  - merge-gate
-
+- test
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: 'true'
+  FF_USE_NEW_BASH_EVAL_STRATEGY: 'true'
   GIT_SUBMODULE_STRATEGY: recursive
-  GITHUB_RELEASES_MIRROR: "https://depot-read-api-github-releases.us1.ddbuild.io/internal/mirror/github-releases"
-  # Only clone submodules required by default test jobs
-  # libddwaf-rust is needed because the root Cargo workspace includes
-  # appsec/helper-rust, which depends on it (see 3f893e263)
   GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
-  RELIABILITY_ENV_BRANCH:
-    value: "master"
-    description: "Run a specific datadog-reliability-env branch downstream"
-  SYSTEM_TESTS_LIBRARY: php
-
-generate-templates:
-  stage: build
-  # The generators only need php-cli: no git history, no submodules.
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli-alpine
-  tags: [ "arch:amd64" ]
-  needs: []
-  script:
-    - |
-      touch libdatadog.env  # always present so dotenv artifact never errors
-      # On libdatadog CI schedule: fetch the latest SHA from GitHub, export it so
-      # generate-common.php can embed it directly in compilation job before_scripts.
-      if [ "${SCHEDULED_LIBDATADOG_LATEST:-}" = "true" ]; then
-        set -x
-        apk add --no-cache git
-        LIBDATADOG_PINNED_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
-        LIBDATADOG_OVERRIDE_SHA=$(git ls-remote https://github.com/DataDog/libdatadog main | cut -f1)
-        export LIBDATADOG_OVERRIDE_SHA LIBDATADOG_PINNED_SHA
-        printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_PINNED_SHA=%s\n' "$LIBDATADOG_OVERRIDE_SHA" "$LIBDATADOG_PINNED_SHA" >> libdatadog.env
-        if [ "$LIBDATADOG_OVERRIDE_SHA" = "$LIBDATADOG_PINNED_SHA" ]; then
-          echo 'LIBDATADOG_NO_CHANGES=true'  >> libdatadog.env
-        else
-          echo 'LIBDATADOG_NO_CHANGES=false' >> libdatadog.env
-        fi
-      elif [ "${CI_COMMIT_BRANCH:-}" = "bot/libdatadog-latest" ]; then
-        # Feedback run after a bot commit: the submodule already points to the tested SHA.
-        # Don't export — generate-common.php must not inject fetch/checkout (no-op anyway).
-        set -x
-        apk add --no-cache git
-        LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
-        printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
-      fi
-    - php ./.gitlab/generate-package.php  | tee .gitlab/package-gen.yml
-    - php ./.gitlab/generate-tracer.php   | tee .gitlab/tracer-gen.yml
-    - php ./.gitlab/generate-appsec.php   | tee .gitlab/appsec-gen.yml
-    - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
-    - php ./.gitlab/generate-shared.php   | tee .gitlab/shared-gen.yml
-    - php ./.gitlab/generate-ci-images.php | tee .gitlab/ci-images-gen.yml
+  GITHUB_RELEASES_MIRROR: https://depot-read-api-github-releases.us1.ddbuild.io/internal/mirror/github-releases
+default:
+  retry:
+    max: 2
+    when:
+    - unknown_failure
+    - data_integrity_failure
+    - runner_system_failure
+    - scheduler_failure
+    - api_failure
+    - stuck_or_timeout_failure
+    - job_execution_timeout
+    exit_codes:
+    - 75
+    - 128
+prof-correctness-analyzer:
+  stage: test
+  tags:
+  - arch:amd64
+  image: registry.ddbuild.io/images/mirror/golang:1.25.13
+  retry: 1
   variables:
-    GIT_SUBMODULE_STRATEGY: none
-    GIT_DEPTH: "1"
+    GIT_STRATEGY: empty
+    GOMODCACHE: ${CI_PROJECT_DIR}/tmp/go/pkg/mod
+    GOCACHE: ${CI_PROJECT_DIR}/tmp/go/build-cache
+  cache:
+    key: prof-correctness-go
+    paths:
+    - tmp/go/
+  script:
+  - "unset GOPRIVATE\ndepot_host=\"depot-read-api-go.us1.ddbuild.io\"\nexport GOPROXY=\"https://${depot_host}/magicmirror/magicmirror/@current/\"\
+    \nexport GONOPROXY=none\nexport GONOSUMDB=\"github.com/DataDog,go.ddbuild.io\"\nexport GOTOOLCHAIN=local\ngo env GOPROXY\
+    \ GONOPROXY GONOSUMDB GOSUMDB GOTOOLCHAIN\ngit clone --depth 1 --branch main https://github.com/DataDog/prof-correctness.git\
+    \ \\\n  \"${CI_PROJECT_DIR}/tmp/prof-correctness\"\ncd \"${CI_PROJECT_DIR}/tmp/prof-correctness\" || exit 1\ngit rev-parse\
+    \ HEAD\n# Build in the checkout to verify dependencies using its go.sum.\ngo build -o \"${CI_PROJECT_DIR}/tmp/prof-analyze\"\
+    \ ./cmd/prof-analyze\n"
   artifacts:
     paths:
-      - .gitlab/*-gen.yml
-      # merge-gate runs these without a checkout.
-      - .gitlab/merge-gate.sh
-      - .gitlab/flaky-jobs.txt
+    - tmp/prof-analyze
+prof-correctness uncached:
+  stage: test
+  tags:
+  - arch:amd64
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  retry: 1
+  needs:
+  - job: prof-correctness-analyzer
+    artifacts: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    PROFILER_SO: ${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so
+    DD_PROFILING_ENABLED: 'true'
+    DD_TRACE_ENABLED: 'false'
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: 'false'
+    DD_REMOTE_CONFIG_ENABLED: 'false'
+    PROFILER_LOG: ${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log
+    PROF_ANALYZE: ${CI_PROJECT_DIR}/tmp/prof-analyze
+    CARGO_HOME: ${CI_PROJECT_DIR}/.cache/prof-correctness-cargo
+  parallel:
+    matrix:
+    - PHP_MAJOR_MINOR:
+      - '8.5'
+      - '8.6'
+      FLAVOUR:
+      - nts
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+  before_script:
+  - unset DD_SERVICE
+  - unset DD_ENV
+  - unset DD_TAGS
+  - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+  - unset DD_ENTITY_ID
+  script:
+  - switch-php "${FLAVOUR}"
+  - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit
+    1; }
+  - "if [ \"${FLAVOUR}\" = \"zts\" ]; then\n  # The CI image ships parallel for ZTS builds (see\n  # dockerfiles/ci/bookworm/build-extensions.sh).\n\
+    \  php -r 'exit(extension_loaded(\"parallel\") ? 0 : 1);' || { echo \"ERROR parallel not loaded\"; exit 1; }\nfi\n"
+  - mkdir -p "$(dirname "${PROFILER_LOG}")"
+  - ': > "${PROFILER_LOG}"'
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.5\" ]; then\n  # Exercise the shipped self-contained tracer+profiler product.\n  export\
+    \ PROFILER_SO=\"${CI_PROJECT_DIR}/tmp/build_combined/modules/ddtrace.so\"\n  profiler_ri=ddtrace\n  make compile_combined\n\
+    else\n  profiler_ri=datadog-profiling\n  make compile_profiler PROFILER_FEATURES=trigger_time_sample\nfi\n"
+  - php -v
+  - php -d extension="${PROFILER_SO}" --ri "${profiler_ri}"
+  - "export DD_PROFILING_ENABLED=Off\nexport DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1\nexport DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1\n\
+    test_cases=(\n  allocations\n  allocation_upscaling_mixed_sizes\n  time\n  strange_frames\n  timeline\n  exceptions\n\
+    \  io\n  socket_io\n  io_upscaling\n  allocation_time_combined\n  generators\n)\nfor test_case in allocation_sampling_distance\
+    \ \"${test_cases[@]}\"; do\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof\"\n  mkdir\
+    \ -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    \"profiling/tests/correctness/${test_case}.php\" \\\n    2>> \"${PROFILER_LOG}\"\n  if compgen -G \"${output}.*\"\
+    \ > /dev/null; then\n    echo \"Profile output should not exist:\"\n    ls -l \"${output}\".*\n    exit 1\n  fi\ndone\n\
+    export DD_PROFILING_ENABLED=true\n"
+  - "export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1\nexport DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1\n\
+    export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1\nfor test_case in \"${test_cases[@]}\"; do\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof\"\
+    \n  mkdir -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    \"profiling/tests/correctness/${test_case}.php\" \\\n    2>> \"${PROFILER_LOG}\"\ndone\n\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocation_sampling_distance/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n  php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n  -d datadog.profiling.allocation_sampling_distance=1 \\\n  profiling/tests/correctness/allocation_sampling_distance.php\
+    \ \\\n  2>> \"${PROFILER_LOG}\"\n\nexport DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n  php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n  profiling/tests/correctness/allocations.php \\\n  2>> \"${PROFILER_LOG}\"\n\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte_no_zend_alloc/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" USE_ZEND_ALLOC=0 \\\n  php -d extension=\"\
+    ${PROFILER_SO}\" \\\n  profiling/tests/correctness/allocations.php \\\n  2>> \"${PROFILER_LOG}\"\nunset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE\n"
+  - "if [ \"${FLAVOUR}\" = \"zts\" ]; then\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/exceptions_zts/test.pprof\"\
+    \n  mkdir -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    profiling/tests/correctness/exceptions_zts.php \\\n    2>> \"${PROFILER_LOG}\"\nfi\n"
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.4\" ] && [ \"${FLAVOUR}\" = \"nts\" ]; then\n  mkdir -p /tmp/otel-sdk\n  .gitlab/run-with-retryable-download.sh\
+    \ composer require --working-dir=/tmp/otel-sdk --no-interaction --no-progress open-telemetry/sdk:^1.0\n  php -d \"extension=${PROFILER_SO}\"\
+    \ -r '\n    require \"/tmp/otel-sdk/vendor/autoload.php\";\n    $provider = new OpenTelemetry\\SDK\\Trace\\TracerProvider();\n\
+    \    $tracer = $provider->getTracer(\"datadog-profiler-coexistence\");\n    $span = $tracer->spanBuilder(\"coexistence\"\
+    )->startSpan();\n    $scope = $span->activate();\n    if (!extension_loaded(\"datadog-profiling\") || extension_loaded(\"\
+    ddtrace\")) {\n        throw new RuntimeException(\"expected only the standalone profiler extension\");\n    }\n    if\
+    \ (!filter_var(ini_get(\"datadog.profiling.enabled\"), FILTER_VALIDATE_BOOL)) {\n        throw new RuntimeException(\"\
+    profiling is not enabled\");\n    }\n    $scope->detach();\n    $span->end();\n    $provider->shutdown();\n    echo \"\
+    standalone profiler and OpenTelemetry SDK tracer coexist\\n\";\n  '\nfi\n"
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.5\" ] && [ \"${FLAVOUR}\" = \"nts\" ]; then\n  export DD_TRACE_ENABLED=true\n  export\
+    \ TEST_PHP_EXECUTABLE=\"$(command -v php)\"\n  php \"$(php-config --prefix)/lib/php/build/run-tests.php\" -q \\\n    -d\
+    \ \"extension=${PROFILER_SO}\" \\\n    tests/ext/extension_disabled.phpt \\\n    tests/ext/profiling/runtime_id_01.phpt\
+    \ \\\n    tests/ext/profiling/runtime_id_02.phpt\n\n  endpoint_output=$(\n    DD_TRACE_CLI_ENABLED=true \\\n    DD_PROFILING_LOG_LEVEL=trace\
+    \ \\\n    DD_PROFILING_OUTPUT_PPROF=/tmp/combined-endpoint.pprof \\\n    php -d \"extension=${PROFILER_SO}\" \\\n    \
+    \  -r '$span = DDTrace\\active_span(); $span->type = \"web\"; $span->resource = \"combined-endpoint-test\";' \\\n    \
+    \  2>&1\n  )\n  echo \"${endpoint_output}\"\n  grep -q 'Enqueued endpoint profiling information for span id:' <<<\"${endpoint_output}\"\
+    \n  export DD_TRACE_ENABLED=false\nfi\n"
+  - "check_correctness() {\n  expected=\"$1\"\n  profile=\"${2:-$1}\"\n  \"${PROF_ANALYZE}\" \\\n    -expectedJson \"profiling/tests/correctness/${expected}.json\"\
+    \ \\\n    -pprofPath \"profiling/tests/correctness/${profile}/\"\n}\n\ncheck_correctness allocation_sampling_distance\n\
+    check_correctness allocations\ncheck_correctness allocations allocations_1byte\ncheck_correctness allocations allocations_1byte_no_zend_alloc\n\
+    check_correctness time\ncheck_correctness strange_frames\ncheck_correctness timeline\ncheck_correctness allocation_time_combined\n\
+    check_correctness generators\ncheck_correctness io\ncheck_correctness socket_io\ncheck_correctness io_upscaling\nif [\
+    \ \"${FLAVOUR}\" = \"zts\" ]; then\n  check_correctness exceptions_zts\nfi\ncheck_correctness exceptions\ncheck_correctness\
+    \ allocation_upscaling_mixed_sizes\n"
+  after_script:
+  - "mkdir -p \"${CI_PROJECT_DIR}/artifacts/prof-correctness\"\nif [ -f \"${PROFILER_LOG}\" ]; then\n  if [ \"${CI_JOB_STATUS}\"\
+    \ = \"failed\" ]; then\n    tail -n 100 \"${PROFILER_LOG}\"\n  fi\n  gzip -9 -f \"${PROFILER_LOG}\"\nfi\n"
+  artifacts:
+    when: always
+    paths:
+    - artifacts/prof-correctness/
+    - profiling/tests/correctness/*/test.pprof*
+prof-correctness original:
+  stage: test
+  tags:
+  - arch:amd64
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  retry: 1
+  needs:
+  - job: prof-correctness-analyzer
+    artifacts: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    PROFILER_SO: ${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so
+    DD_PROFILING_ENABLED: 'true'
+    DD_TRACE_ENABLED: 'false'
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: 'false'
+    DD_REMOTE_CONFIG_ENABLED: 'false'
+    PROFILER_LOG: ${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log
+    PROF_ANALYZE: ${CI_PROJECT_DIR}/tmp/prof-analyze
+    CARGO_HOME: ${CI_PROJECT_DIR}/.cache/prof-correctness-cargo
+  cache:
+    key:
+      prefix: prof16656-correctness-original-v1-${PHP_MAJOR_MINOR}-${FLAVOUR}-${RUN}
+      files:
+      - Cargo.lock
+      - rust-toolchain.toml
+    paths:
+    - .cache/prof-correctness-cargo/registry/index/
+    - .cache/prof-correctness-cargo/registry/cache/
+    - tmp/build_profiler/target-profiling/
+    - tmp/build_combined/target-common/
+  parallel:
+    matrix:
+    - PHP_MAJOR_MINOR:
+      - '8.5'
+      - '8.6'
+      FLAVOUR:
+      - nts
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+  before_script:
+  - unset DD_SERVICE
+  - unset DD_ENV
+  - unset DD_TAGS
+  - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+  - unset DD_ENTITY_ID
+  script:
+  - switch-php "${FLAVOUR}"
+  - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit
+    1; }
+  - "if [ \"${FLAVOUR}\" = \"zts\" ]; then\n  # The CI image ships parallel for ZTS builds (see\n  # dockerfiles/ci/bookworm/build-extensions.sh).\n\
+    \  php -r 'exit(extension_loaded(\"parallel\") ? 0 : 1);' || { echo \"ERROR parallel not loaded\"; exit 1; }\nfi\n"
+  - mkdir -p "$(dirname "${PROFILER_LOG}")"
+  - ': > "${PROFILER_LOG}"'
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.5\" ]; then\n  # Exercise the shipped self-contained tracer+profiler product.\n  export\
+    \ PROFILER_SO=\"${CI_PROJECT_DIR}/tmp/build_combined/modules/ddtrace.so\"\n  profiler_ri=ddtrace\n  make compile_combined\n\
+    else\n  profiler_ri=datadog-profiling\n  make compile_profiler PROFILER_FEATURES=trigger_time_sample\nfi\n"
+  - php -v
+  - php -d extension="${PROFILER_SO}" --ri "${profiler_ri}"
+  - "export DD_PROFILING_ENABLED=Off\nexport DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1\nexport DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1\n\
+    test_cases=(\n  allocations\n  allocation_upscaling_mixed_sizes\n  time\n  strange_frames\n  timeline\n  exceptions\n\
+    \  io\n  socket_io\n  io_upscaling\n  allocation_time_combined\n  generators\n)\nfor test_case in allocation_sampling_distance\
+    \ \"${test_cases[@]}\"; do\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof\"\n  mkdir\
+    \ -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    \"profiling/tests/correctness/${test_case}.php\" \\\n    2>> \"${PROFILER_LOG}\"\n  if compgen -G \"${output}.*\"\
+    \ > /dev/null; then\n    echo \"Profile output should not exist:\"\n    ls -l \"${output}\".*\n    exit 1\n  fi\ndone\n\
+    export DD_PROFILING_ENABLED=true\n"
+  - "export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1\nexport DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1\n\
+    export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1\nfor test_case in \"${test_cases[@]}\"; do\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof\"\
+    \n  mkdir -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    \"profiling/tests/correctness/${test_case}.php\" \\\n    2>> \"${PROFILER_LOG}\"\ndone\n\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocation_sampling_distance/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n  php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n  -d datadog.profiling.allocation_sampling_distance=1 \\\n  profiling/tests/correctness/allocation_sampling_distance.php\
+    \ \\\n  2>> \"${PROFILER_LOG}\"\n\nexport DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n  php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n  profiling/tests/correctness/allocations.php \\\n  2>> \"${PROFILER_LOG}\"\n\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte_no_zend_alloc/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" USE_ZEND_ALLOC=0 \\\n  php -d extension=\"\
+    ${PROFILER_SO}\" \\\n  profiling/tests/correctness/allocations.php \\\n  2>> \"${PROFILER_LOG}\"\nunset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE\n"
+  - "if [ \"${FLAVOUR}\" = \"zts\" ]; then\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/exceptions_zts/test.pprof\"\
+    \n  mkdir -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    profiling/tests/correctness/exceptions_zts.php \\\n    2>> \"${PROFILER_LOG}\"\nfi\n"
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.4\" ] && [ \"${FLAVOUR}\" = \"nts\" ]; then\n  mkdir -p /tmp/otel-sdk\n  .gitlab/run-with-retryable-download.sh\
+    \ composer require --working-dir=/tmp/otel-sdk --no-interaction --no-progress open-telemetry/sdk:^1.0\n  php -d \"extension=${PROFILER_SO}\"\
+    \ -r '\n    require \"/tmp/otel-sdk/vendor/autoload.php\";\n    $provider = new OpenTelemetry\\SDK\\Trace\\TracerProvider();\n\
+    \    $tracer = $provider->getTracer(\"datadog-profiler-coexistence\");\n    $span = $tracer->spanBuilder(\"coexistence\"\
+    )->startSpan();\n    $scope = $span->activate();\n    if (!extension_loaded(\"datadog-profiling\") || extension_loaded(\"\
+    ddtrace\")) {\n        throw new RuntimeException(\"expected only the standalone profiler extension\");\n    }\n    if\
+    \ (!filter_var(ini_get(\"datadog.profiling.enabled\"), FILTER_VALIDATE_BOOL)) {\n        throw new RuntimeException(\"\
+    profiling is not enabled\");\n    }\n    $scope->detach();\n    $span->end();\n    $provider->shutdown();\n    echo \"\
+    standalone profiler and OpenTelemetry SDK tracer coexist\\n\";\n  '\nfi\n"
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.5\" ] && [ \"${FLAVOUR}\" = \"nts\" ]; then\n  export DD_TRACE_ENABLED=true\n  export\
+    \ TEST_PHP_EXECUTABLE=\"$(command -v php)\"\n  php \"$(php-config --prefix)/lib/php/build/run-tests.php\" -q \\\n    -d\
+    \ \"extension=${PROFILER_SO}\" \\\n    tests/ext/extension_disabled.phpt \\\n    tests/ext/profiling/runtime_id_01.phpt\
+    \ \\\n    tests/ext/profiling/runtime_id_02.phpt\n\n  endpoint_output=$(\n    DD_TRACE_CLI_ENABLED=true \\\n    DD_PROFILING_LOG_LEVEL=trace\
+    \ \\\n    DD_PROFILING_OUTPUT_PPROF=/tmp/combined-endpoint.pprof \\\n    php -d \"extension=${PROFILER_SO}\" \\\n    \
+    \  -r '$span = DDTrace\\active_span(); $span->type = \"web\"; $span->resource = \"combined-endpoint-test\";' \\\n    \
+    \  2>&1\n  )\n  echo \"${endpoint_output}\"\n  grep -q 'Enqueued endpoint profiling information for span id:' <<<\"${endpoint_output}\"\
+    \n  export DD_TRACE_ENABLED=false\nfi\n"
+  - "check_correctness() {\n  expected=\"$1\"\n  profile=\"${2:-$1}\"\n  \"${PROF_ANALYZE}\" \\\n    -expectedJson \"profiling/tests/correctness/${expected}.json\"\
+    \ \\\n    -pprofPath \"profiling/tests/correctness/${profile}/\"\n}\n\ncheck_correctness allocation_sampling_distance\n\
+    check_correctness allocations\ncheck_correctness allocations allocations_1byte\ncheck_correctness allocations allocations_1byte_no_zend_alloc\n\
+    check_correctness time\ncheck_correctness strange_frames\ncheck_correctness timeline\ncheck_correctness allocation_time_combined\n\
+    check_correctness generators\ncheck_correctness io\ncheck_correctness socket_io\ncheck_correctness io_upscaling\nif [\
+    \ \"${FLAVOUR}\" = \"zts\" ]; then\n  check_correctness exceptions_zts\nfi\ncheck_correctness exceptions\ncheck_correctness\
+    \ allocation_upscaling_mixed_sizes\n"
+  after_script:
+  - "mkdir -p \"${CI_PROJECT_DIR}/artifacts/prof-correctness\"\nif [ -f \"${PROFILER_LOG}\" ]; then\n  if [ \"${CI_JOB_STATUS}\"\
+    \ = \"failed\" ]; then\n    tail -n 100 \"${PROFILER_LOG}\"\n  fi\n  gzip -9 -f \"${PROFILER_LOG}\"\nfi\n"
+  artifacts:
+    when: always
+    paths:
+    - artifacts/prof-correctness/
+    - profiling/tests/correctness/*/test.pprof*
+prof-correctness trimmed:
+  stage: test
+  tags:
+  - arch:amd64
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  retry: 1
+  needs:
+  - job: prof-correctness-analyzer
+    artifacts: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    PROFILER_SO: ${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so
+    DD_PROFILING_ENABLED: 'true'
+    DD_TRACE_ENABLED: 'false'
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: 'false'
+    DD_REMOTE_CONFIG_ENABLED: 'false'
+    PROFILER_LOG: ${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log
+    PROF_ANALYZE: ${CI_PROJECT_DIR}/tmp/prof-analyze
+    CARGO_HOME: ${CI_PROJECT_DIR}/.cache/prof-correctness-cargo
+    CACHE_COMPRESSION_FORMAT: tarzstd
+    CACHE_COMPRESSION_LEVEL: fastest
+  cache:
+    key:
+      prefix: prof16656-correctness-trimmed-v1-${PHP_MAJOR_MINOR}-${FLAVOUR}-${RUN}
+      files:
+      - Cargo.lock
+      - rust-toolchain.toml
+    paths:
+    - .cache/prof-correctness-cargo/registry/index/
+    - .cache/prof-correctness-cargo/registry/cache/
+    - tmp/build_profiler/target-common/
+    - tmp/build_combined/target-common/
+  parallel:
+    matrix:
+    - PHP_MAJOR_MINOR:
+      - '8.5'
+      - '8.6'
+      FLAVOUR:
+      - nts
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+  before_script:
+  - unset DD_SERVICE
+  - unset DD_ENV
+  - unset DD_TAGS
+  - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+  - unset DD_ENTITY_ID
+  script:
+  - switch-php "${FLAVOUR}"
+  - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit
+    1; }
+  - "if [ \"${FLAVOUR}\" = \"zts\" ]; then\n  # The CI image ships parallel for ZTS builds (see\n  # dockerfiles/ci/bookworm/build-extensions.sh).\n\
+    \  php -r 'exit(extension_loaded(\"parallel\") ? 0 : 1);' || { echo \"ERROR parallel not loaded\"; exit 1; }\nfi\n"
+  - mkdir -p "$(dirname "${PROFILER_LOG}")"
+  - ': > "${PROFILER_LOG}"'
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.5\" ]; then\n  # Exercise the shipped self-contained tracer+profiler product.\n  export\
+    \ PROFILER_SO=\"${CI_PROJECT_DIR}/tmp/build_combined/modules/ddtrace.so\"\n  profiler_ri=ddtrace\n  make compile_combined\n\
+    else\n  profiler_ri=datadog-profiling\n  make compile_profiler PROFILER_FEATURES=trigger_time_sample\nfi\n"
+  - php -v
+  - php -d extension="${PROFILER_SO}" --ri "${profiler_ri}"
+  - "export DD_PROFILING_ENABLED=Off\nexport DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1\nexport DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1\n\
+    test_cases=(\n  allocations\n  allocation_upscaling_mixed_sizes\n  time\n  strange_frames\n  timeline\n  exceptions\n\
+    \  io\n  socket_io\n  io_upscaling\n  allocation_time_combined\n  generators\n)\nfor test_case in allocation_sampling_distance\
+    \ \"${test_cases[@]}\"; do\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof\"\n  mkdir\
+    \ -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    \"profiling/tests/correctness/${test_case}.php\" \\\n    2>> \"${PROFILER_LOG}\"\n  if compgen -G \"${output}.*\"\
+    \ > /dev/null; then\n    echo \"Profile output should not exist:\"\n    ls -l \"${output}\".*\n    exit 1\n  fi\ndone\n\
+    export DD_PROFILING_ENABLED=true\n"
+  - "export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1\nexport DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1\n\
+    export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1\nfor test_case in \"${test_cases[@]}\"; do\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof\"\
+    \n  mkdir -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    \"profiling/tests/correctness/${test_case}.php\" \\\n    2>> \"${PROFILER_LOG}\"\ndone\n\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocation_sampling_distance/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n  php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n  -d datadog.profiling.allocation_sampling_distance=1 \\\n  profiling/tests/correctness/allocation_sampling_distance.php\
+    \ \\\n  2>> \"${PROFILER_LOG}\"\n\nexport DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n  php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n  profiling/tests/correctness/allocations.php \\\n  2>> \"${PROFILER_LOG}\"\n\noutput=\"${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte_no_zend_alloc/test.pprof\"\
+    \nmkdir -p \"$(dirname \"${output}\")\"\nDD_PROFILING_OUTPUT_PPROF=\"${output}\" USE_ZEND_ALLOC=0 \\\n  php -d extension=\"\
+    ${PROFILER_SO}\" \\\n  profiling/tests/correctness/allocations.php \\\n  2>> \"${PROFILER_LOG}\"\nunset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE\n"
+  - "if [ \"${FLAVOUR}\" = \"zts\" ]; then\n  output=\"${CI_PROJECT_DIR}/profiling/tests/correctness/exceptions_zts/test.pprof\"\
+    \n  mkdir -p \"$(dirname \"${output}\")\"\n  DD_PROFILING_OUTPUT_PPROF=\"${output}\" \\\n    php -d extension=\"${PROFILER_SO}\"\
+    \ \\\n    profiling/tests/correctness/exceptions_zts.php \\\n    2>> \"${PROFILER_LOG}\"\nfi\n"
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.4\" ] && [ \"${FLAVOUR}\" = \"nts\" ]; then\n  mkdir -p /tmp/otel-sdk\n  .gitlab/run-with-retryable-download.sh\
+    \ composer require --working-dir=/tmp/otel-sdk --no-interaction --no-progress open-telemetry/sdk:^1.0\n  php -d \"extension=${PROFILER_SO}\"\
+    \ -r '\n    require \"/tmp/otel-sdk/vendor/autoload.php\";\n    $provider = new OpenTelemetry\\SDK\\Trace\\TracerProvider();\n\
+    \    $tracer = $provider->getTracer(\"datadog-profiler-coexistence\");\n    $span = $tracer->spanBuilder(\"coexistence\"\
+    )->startSpan();\n    $scope = $span->activate();\n    if (!extension_loaded(\"datadog-profiling\") || extension_loaded(\"\
+    ddtrace\")) {\n        throw new RuntimeException(\"expected only the standalone profiler extension\");\n    }\n    if\
+    \ (!filter_var(ini_get(\"datadog.profiling.enabled\"), FILTER_VALIDATE_BOOL)) {\n        throw new RuntimeException(\"\
+    profiling is not enabled\");\n    }\n    $scope->detach();\n    $span->end();\n    $provider->shutdown();\n    echo \"\
+    standalone profiler and OpenTelemetry SDK tracer coexist\\n\";\n  '\nfi\n"
+  - "if [ \"${PHP_MAJOR_MINOR}\" = \"8.5\" ] && [ \"${FLAVOUR}\" = \"nts\" ]; then\n  export DD_TRACE_ENABLED=true\n  export\
+    \ TEST_PHP_EXECUTABLE=\"$(command -v php)\"\n  php \"$(php-config --prefix)/lib/php/build/run-tests.php\" -q \\\n    -d\
+    \ \"extension=${PROFILER_SO}\" \\\n    tests/ext/extension_disabled.phpt \\\n    tests/ext/profiling/runtime_id_01.phpt\
+    \ \\\n    tests/ext/profiling/runtime_id_02.phpt\n\n  endpoint_output=$(\n    DD_TRACE_CLI_ENABLED=true \\\n    DD_PROFILING_LOG_LEVEL=trace\
+    \ \\\n    DD_PROFILING_OUTPUT_PPROF=/tmp/combined-endpoint.pprof \\\n    php -d \"extension=${PROFILER_SO}\" \\\n    \
+    \  -r '$span = DDTrace\\active_span(); $span->type = \"web\"; $span->resource = \"combined-endpoint-test\";' \\\n    \
+    \  2>&1\n  )\n  echo \"${endpoint_output}\"\n  grep -q 'Enqueued endpoint profiling information for span id:' <<<\"${endpoint_output}\"\
+    \n  export DD_TRACE_ENABLED=false\nfi\n"
+  - "check_correctness() {\n  expected=\"$1\"\n  profile=\"${2:-$1}\"\n  \"${PROF_ANALYZE}\" \\\n    -expectedJson \"profiling/tests/correctness/${expected}.json\"\
+    \ \\\n    -pprofPath \"profiling/tests/correctness/${profile}/\"\n}\n\ncheck_correctness allocation_sampling_distance\n\
+    check_correctness allocations\ncheck_correctness allocations allocations_1byte\ncheck_correctness allocations allocations_1byte_no_zend_alloc\n\
+    check_correctness time\ncheck_correctness strange_frames\ncheck_correctness timeline\ncheck_correctness allocation_time_combined\n\
+    check_correctness generators\ncheck_correctness io\ncheck_correctness socket_io\ncheck_correctness io_upscaling\nif [\
+    \ \"${FLAVOUR}\" = \"zts\" ]; then\n  check_correctness exceptions_zts\nfi\ncheck_correctness exceptions\ncheck_correctness\
+    \ allocation_upscaling_mixed_sizes\n"
+  after_script:
+  - find tmp -path '*/target-common/*' -type f -name 'libdatadog_php.*' -delete
+  - "mkdir -p \"${CI_PROJECT_DIR}/artifacts/prof-correctness\"\nif [ -f \"${PROFILER_LOG}\" ]; then\n  if [ \"${CI_JOB_STATUS}\"\
+    \ = \"failed\" ]; then\n    tail -n 100 \"${PROFILER_LOG}\"\n  fi\n  gzip -9 -f \"${PROFILER_LOG}\"\nfi\n"
+  artifacts:
+    when: always
+    paths:
+    - artifacts/prof-correctness/
+    - profiling/tests/correctness/*/test.pprof*
+profiling tests uncached:
+  stage: test
+  tags:
+  - arch:${ARCH}
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  interruptible: true
+  rules:
+  - if: $CI_COMMIT_BRANCH == "master"
+    interruptible: false
+  - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    CARGO_TARGET_DIR: /mnt/ramdisk/cargo
+  parallel:
+    matrix:
+    - PHP_MAJOR_MINOR:
+      - '8.6'
+      ARCH:
+      - amd64
+      IMAGE_PREFIX:
+      - php-
+      IMAGE_SUFFIX:
+      - _centos-7-3
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+    - PHP_MAJOR_MINOR:
+      - '8.6'
+      ARCH:
+      - amd64
+      IMAGE_PREFIX:
+      - php-compile-extension-alpine-
+      IMAGE_SUFFIX:
+      - ''
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+    - PHP_MAJOR_MINOR:
+      - '8.6'
+      ARCH:
+      - arm64
+      IMAGE_PREFIX:
+      - php-compile-extension-alpine-
+      IMAGE_SUFFIX:
+      - ''
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+  script:
+  - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
+  - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include";
+    fi
+  - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
+  - export DD_PROFILING_OUTPUT_PPROF=/tmp/
+  - cd profiling
+  - 'echo "nproc: $(nproc)"'
+  - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
+  - run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
+  - cp -v "${run_tests_php}" tests
+  - '# run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)'
+  - run_tests_jobs=$(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";')
+  - unset DD_SERVICE; unset DD_ENV
+  - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
+  - shopt -s expand_aliases
+  - '# NTS combined (tracer + profiling in one ddtrace.so, as shipped)'
+  - switch-php "${PHP_MAJOR_MINOR}"
+  - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
+  - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure
+    --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+  - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined build did not produce modules/ddtrace.so"; find
+    "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+  - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled")
+    === false) { exit(1); }'
+  - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-combined-results.xml" php profiling/tests/run-tests.php
+    -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP"
+    "profiling/tests/phpt")
+  - '# ZTS combined (tracer + profiling in one ddtrace.so, as shipped)'
+  - switch-php "${PHP_MAJOR_MINOR}-zts"
+  - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
+  - touch ../profiling/build.rs
+  - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample"
+    ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+  - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined ZTS build did not produce modules/ddtrace.so";
+    find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+  - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled")
+    === false) { exit(1); }'
+  - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-combined-results.xml" php profiling/tests/run-tests.php
+    -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP"
+    "profiling/tests/phpt")
+  after_script:
+  - "if [ \"${IMAGE_SUFFIX}\" != \"_centos-7-3\" ]; then\n  .gitlab/silent-upload-junit-to-datadog.sh \"test.source.file:profiling/\"\
+    \nelse\n  echo \"Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)\"\nfi\n"
+  artifacts:
     reports:
-      dotenv: libdatadog.env
-
-# Builds against libdatadog main, not the pinned submodule: keep it out of Green CI.
-# Child pipelines get the same job from .gitlab/green-ci-exclude-job.yml.
-green-ci-exclude:
-  stage: build
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
-  tags: [ "arch:amd64" ]
-  needs: []
+      junit: artifacts/profiler-tests/*.xml
+    paths:
+    - artifacts/
+    when: always
+profiling tests trimmed:
+  stage: test
+  tags:
+  - arch:${ARCH}
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  interruptible: true
   rules:
-    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
-  timeout: 10 minutes
-  allow_failure: true
+  - if: $CI_COMMIT_BRANCH == "master"
+    interruptible: false
+  - when: on_success
   variables:
-    GIT_SUBMODULE_STRATEGY: none
-    GIT_DEPTH: "1"
-    GREEN_CI_EXCLUDE_STRICT: "true"
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    CARGO_TARGET_DIR: ${CI_PROJECT_DIR}/.cache/profiler-target
+    CACHE_COMPRESSION_FORMAT: tarzstd
+    CACHE_COMPRESSION_LEVEL: fastest
+  cache:
+    key:
+      prefix: prof16656-phpt-trimmed-v1-${ARCH}-${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}-${RUN}
+      files:
+      - Cargo.lock
+      - rust-toolchain.toml
+    paths:
+    - .cache/profiler-target/
+  parallel:
+    matrix:
+    - PHP_MAJOR_MINOR:
+      - '8.6'
+      ARCH:
+      - amd64
+      IMAGE_PREFIX:
+      - php-
+      IMAGE_SUFFIX:
+      - _centos-7-3
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+    - PHP_MAJOR_MINOR:
+      - '8.6'
+      ARCH:
+      - amd64
+      IMAGE_PREFIX:
+      - php-compile-extension-alpine-
+      IMAGE_SUFFIX:
+      - ''
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+    - PHP_MAJOR_MINOR:
+      - '8.6'
+      ARCH:
+      - arm64
+      IMAGE_PREFIX:
+      - php-compile-extension-alpine-
+      IMAGE_SUFFIX:
+      - ''
+      RUN:
+      - '1'
+      - '2'
+      - '3'
   script:
-    - .gitlab/tag-pipeline-green-ci-excluded.sh
-
-tracer-trigger:
-  stage: tests
-  needs: [ "generate-templates" ]
-  trigger:
-    include:
-      - artifact: .gitlab/tracer-gen.yml
-        job: "generate-templates"
-    strategy: depend
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
-
-appsec-trigger:
-  stage: tests
-  needs: [ "generate-templates" ]
-  trigger:
-    include:
-      - artifact: .gitlab/appsec-gen.yml
-        job: "generate-templates"
-    strategy: depend
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
-
-# Manual maintenance pipeline that (re)builds the CI Docker images. Generated
-# from dockerfiles/ci/*/docker-compose.yml + .env so versions live in one place.
-# No strategy: depend — the parent must not wait on these manual jobs.
-ci-images:
-  stage: ci-build
-  rules:
-    - when: manual
-      allow_failure: true
-  needs:
-    - job: generate-templates
-      artifacts: true
-  trigger:
-    include:
-      - artifact: .gitlab/ci-images-gen.yml
-        job: generate-templates
-
-profiler-trigger:
-  stage: tests
-  needs: [ "generate-templates" ]
-  trigger:
-    include:
-      - artifact: .gitlab/profiler-gen.yml
-        job: "generate-templates"
-    strategy: depend
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-
-shared-trigger:
-  stage: tests
-  needs: [ "generate-templates" ]
-  trigger:
-    include:
-      - artifact: .gitlab/shared-gen.yml
-        job: "generate-templates"
-    strategy: depend
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-
-merge-gate:
-  stage: merge-gate
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
-  tags: [ "arch:amd64" ]
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-      when: never
-    - when: always
-  # No clone: merge-gate.sh and flaky-jobs.txt come from this commit's generate-templates artifacts.
-  dependencies: [ generate-templates ]
-  variables:
-    GIT_STRATEGY: none
-  script:
-    - test -f .gitlab/merge-gate.sh || { echo "generate-templates artifacts missing (expired after 14 days?)"; exit 1; }
-    - bash .gitlab/merge-gate.sh
-
-package-trigger:
-  stage: build
-  needs: [ "generate-templates" ]
-  inherit:
-    variables: false
-  trigger:
-    include:
-      - artifact: .gitlab/package-gen.yml
-        job: "generate-templates"
-      - local: .gitlab/benchmarks.yml
-    strategy: depend
-    forward:
-      pipeline_variables: true
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    NIGHTLY_BUILD: $NIGHTLY_BUILD
-    # CI_PARENT_PIPELINE_SOURCE is set to $CI_PIPELINE_SOURCE so benchmarks defined on
-    # .gitlab/benchmarks.yml can use rules based on the original pipeline source, instead of the
-    # default source "parent_pipeline", automatically set on any children pipeline.
-    CI_PARENT_PIPELINE_SOURCE: $CI_PIPELINE_SOURCE
-
-# Runs after the full CI completes.  Triggered in two situations:
-#   1. Scheduled libdatadog CI run (SCHEDULED_LIBDATADOG_LATEST=true)
-#   2. Push to bot/libdatadog-latest by the bot — feeds CI results back so we can verify whether Claude's fixes actually worked.  The [no-ci-feedback] marker in bot commits prevents triggering a third run.
-analyze-and-create-pr:
-  stage: deploy
-  rules:
-    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
-      when: always
-    - if: '$CI_COMMIT_BRANCH == "bot/libdatadog-latest" && $CI_COMMIT_AUTHOR =~ /github-actions\[bot\]/ && $CI_COMMIT_MESSAGE !~ /\[no-ci-feedback\]/'
-      when: always
-    - when: never
-  needs:
-    - job: generate-templates
-      artifacts: true
-    - tracer-trigger
-    - appsec-trigger
-    - profiler-trigger
-    - shared-trigger
-    - package-trigger
-  trigger:
-    include:
-      - local: .gitlab/libdatadog-latest.yml
-    strategy: depend
-  variables:
-    LIBDATADOG_OVERRIDE_SHA: $LIBDATADOG_OVERRIDE_SHA
-    LIBDATADOG_PINNED_SHA: $LIBDATADOG_PINNED_SHA
-    LIBDATADOG_NO_CHANGES: $LIBDATADOG_NO_CHANGES
-    LIBDATADOG_FEEDBACK_RUN: $LIBDATADOG_FEEDBACK_RUN
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+  - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
+  - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include";
+    fi
+  - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
+  - export DD_PROFILING_OUTPUT_PPROF=/tmp/
+  - cd profiling
+  - 'echo "nproc: $(nproc)"'
+  - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
+  - run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
+  - cp -v "${run_tests_php}" tests
+  - '# run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)'
+  - run_tests_jobs=$(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";')
+  - unset DD_SERVICE; unset DD_ENV
+  - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
+  - shopt -s expand_aliases
+  - '# NTS combined (tracer + profiling in one ddtrace.so, as shipped)'
+  - switch-php "${PHP_MAJOR_MINOR}"
+  - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
+  - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure
+    --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+  - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined build did not produce modules/ddtrace.so"; find
+    "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+  - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled")
+    === false) { exit(1); }'
+  - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-combined-results.xml" php profiling/tests/run-tests.php
+    -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP"
+    "profiling/tests/phpt")
+  - '# ZTS combined (tracer + profiling in one ddtrace.so, as shipped)'
+  - switch-php "${PHP_MAJOR_MINOR}-zts"
+  - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
+  - touch ../profiling/build.rs
+  - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample"
+    ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+  - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined ZTS build did not produce modules/ddtrace.so";
+    find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+  - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled")
+    === false) { exit(1); }'
+  - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-combined-results.xml" php profiling/tests/run-tests.php
+    -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP"
+    "profiling/tests/phpt")
+  after_script:
+  - find "${CARGO_TARGET_DIR}" -type f -name 'libdatadog_php.*' -delete
+  - "if [ \"${IMAGE_SUFFIX}\" != \"_centos-7-3\" ]; then\n  .gitlab/silent-upload-junit-to-datadog.sh \"test.source.file:profiling/\"\
+    \nelse\n  echo \"Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)\"\nfi\n"
+  artifacts:
+    reports:
+      junit: artifacts/profiler-tests/*.xml
+    paths:
+    - artifacts/
+    when: always
