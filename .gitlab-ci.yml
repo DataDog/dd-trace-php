@@ -107,6 +107,7 @@ PHP language tests:
     \ 2>&1 || true\n  mv \"${core}\" \"${output}/core-${i}\"\ndone\n"
   - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
   artifacts:
-    when: on_failure
+    when: always
     paths:
     - artifacts/php-language-tests/
+    - artifacts/tests/php-tests.xml

@@ -88,12 +88,15 @@ if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) 
   extra_args="-j$(nproc)"
 elif [[ $(nproc) -gt 1 ]]; then
   parallelize=("${CI_PROJECT_DIR}/tooling/parallelize-run-tests.sh" "-j$(nproc)")
-  # Old session tests share files; network suites reuse fixed ports across directories.
-  for suite in ext/session/tests ext/curl/tests sapi/cli/tests \
-      ext/standard/tests/{http,network,streams} \
-      ext/{openssl,sockets,opcache,soap}/tests; do
-    conflict=network
-    [[ $suite == ext/session/tests ]] && conflict=session
+  # Old suites share filesystem fixtures or fixed ports across directories.
+  for suite in ext/session/tests ext/curl/tests sapi/cli/tests tests/security \
+      ext/standard/tests/{http,network,streams,file,dir} \
+      ext/{openssl,sockets,opcache,soap,phar}/tests; do
+    case "$suite" in
+      ext/session/tests) conflict=session ;;
+      tests/security|ext/standard/tests/file|ext/standard/tests/dir|ext/phar/tests) conflict=filesystem ;;
+      *) conflict=network ;;
+    esac
     while IFS= read -r -d '' dir; do
       printf '%s\n' "$conflict" > "$dir/CONFLICTS"
     done < <(find "$suite" -type d -print0)
