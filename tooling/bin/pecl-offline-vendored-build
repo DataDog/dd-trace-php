@@ -1,86 +1,196 @@
 #!/usr/bin/env bash
-# Build a PECL tarball like distro packagers do (#4432): vendor crates from the
-# root manifest only, then build offline with a toolchain that has no rust-src.
+# Exercise the PECL source package the way distro packagers build it (#4432).
 set -euo pipefail
+
+script=$(realpath "$0")
+packaging=$(realpath "$(dirname "$script")/../pecl-remi")
+
+build_packages() {
+    local work=$1 variant extension_dir php_include php_api zend_api
+    php_include=$(/opt/php/nts/bin/php-config --include-dir)
+    php_api=$(awk '/^#define PHP_API_VERSION / { print $3 }' "$php_include/main/php.h")
+    zend_api=$(awk '/^#define ZEND_MODULE_API_NO / { print $3 }' "$php_include/Zend/zend_modules.h")
+    export CARGO_HOME="$work/cargo-home" CARGO_NET_OFFLINE=true
+    export CARGO_TARGET_DIR="$work/target" CARGO_BUILD_JOBS="$BUILD_WORKERS"
+    export CC=gcc CXX=g++
+    export CFLAGS='-O2 -g -fexceptions -fstack-protector-strong -fasynchronous-unwind-tables -fstack-clash-protection -Wformat -Werror=format-security -D_FORTIFY_SOURCE=3'
+    export CXXFLAGS="$CFLAGS" LDFLAGS='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed'
+    mkdir -p "$CARGO_HOME" "$work/build"
+    # Execute the downstream spec, adapting only distro paths/macros to our
+    # Debian image. Its prep/build/install/check commands remain authoritative.
+    rpmbuild -bi --nodeps --noclean --with libddwaf_source \
+        --buildroot "$work/installed" \
+        --define "_topdir $work" --define "_sourcedir $work/sources" \
+        --define "_builddir $work/build" --define '_buildshell /bin/bash' \
+        --define "_smp_mflags -j$BUILD_WORKERS" \
+        --define "_bindir $work/toolchain/bin" \
+        --define '__php /opt/php/nts/bin/php -d ddtrace.disable=1' \
+        --define '__phpize /opt/php/nts/bin/phpize' \
+        --define '__phpconfig /opt/php/nts/bin/php-config' \
+        --define '__ztsphp /opt/php/zts/bin/php -d ddtrace.disable=1' \
+        --define '__ztsphpconfig /opt/php/zts/bin/php-config' \
+        --define "php_version $(/opt/php/nts/bin/php-config --version)" \
+        --define "php_core_api $php_api" --define "php_zend_api $zend_api" \
+        --define "php_extdir $(/opt/php/nts/bin/php-config --extension-dir)" \
+        --define "php_ztsextdir $(/opt/php/zts/bin/php-config --extension-dir)" \
+        --define 'php_inidir /etc/php/nts/conf.d' \
+        --define 'php_ztsinidir /etc/php/zts/conf.d' \
+        --define 'pear_phpdir /usr/share/pear' \
+        --define 'pecl_xmldir /usr/share/pear/packages' \
+        --define 'pecl_docdir /usr/share/doc/pecl' \
+        --define "build_cflags $CFLAGS" --define "build_cxxflags $CXXFLAGS" \
+        --define "build_ldflags $LDFLAGS" \
+        --define "configure %{_configure} --with-ddtrace-sidecar-mockgen=$CARGO_TARGET_DIR/debug/php_sidecar_mockgen" \
+        --define '__os_install_post %{nil}' "$work/php-pecl-datadog-trace.spec"
+    local source
+    source=$(find "$work/build" -mindepth 2 -maxdepth 2 -type d -name 'datadog_trace-*')
+    cp "$source/run-tests.php" "$work/run-tests.php"
+    for variant in nts zts; do
+        grep -q 'DD_RUST_BUILD_STD=0' "$(dirname "$source")/${variant^^}/Makefile.fragments"
+        extension_dir=$(/opt/php/"$variant"/bin/php-config --extension-dir)
+        test -f "$work/installed$extension_dir/ddtrace.so"
+        test -f "$work/installed/etc/php/$variant/conf.d/40-ddtrace.ini"
+    done
+    test -f "$work/installed/usr/share/pear/packages/php-pecl-datadog-trace.xml"
+
+    local objects=() archives=()
+    mapfile -t objects < <(find "$CARGO_TARGET_DIR" -path '*/out/appsec_body/parser-private.o')
+    mapfile -t archives < <(find "$CARGO_TARGET_DIR" -name libdatadog_php.a -not -path '*/deps/*')
+    test "${#objects[@]}" -eq 1 && test "${#archives[@]}" -eq 1
+    ar t "${archives[0]}" > "$PECL_BUILD_ARTIFACTS/rust-archive-members.txt"
+    grep -qx parser-private.o "$PECL_BUILD_ARTIFACTS/rust-archive-members.txt"
+    test ! -e "$CARGO_HOME/registry" && test ! -e "$CARGO_HOME/git"
+}
+
+test_packages() {
+    local work=$1 tgz=$2 variant pid test_tree status=0
+    # Some packaged tests use fixed /tmp sockets and UDP ports. Running the
+    # same test for both ABIs concurrently would collide, so parallelize within
+    # each suite instead.
+    for variant in nts zts; do
+        test_tree=$(mktemp -d "$work/tests-$variant.XXXXXX")
+        (
+            php="/opt/php/$variant/bin/php"
+            php_config="/opt/php/$variant/bin/php-config"
+            extension="$work/installed$($php_config --extension-dir)/ddtrace.so"
+            sources="$work/installed/usr/share/pear/datadog_trace/src"
+            "$php" -n -d "extension=$extension" -d "datadog.trace.sources_path=$sources" -r '
+                if (!extension_loaded("ddtrace") || !class_exists("DDTrace\\Tag")) exit(1);
+                $file = (new ReflectionClass("DDTrace\\Tag"))->getFileName();
+                if (strpos($file, $argv[1] . "/") !== 0) exit(1);
+            ' -- "$sources"
+            tar -xzf "$tgz" -C "$test_tree"
+            cd "$test_tree"/datadog_trace-*/
+            test_count=$(find tests -name '*.phpt' | wc -l)
+            if [[ $test_count == 0 ]]; then
+                echo 'PECL archive contains no PHPTs' >&2
+                exit 1
+            fi
+            echo "=== running $test_count packaged PHPTs for $variant with $MAKE_JOBS workers"
+            export TEST_PHP_EXECUTABLE="$php" TEST_PHP_CGI_EXECUTABLE="/opt/php/$variant/bin/php-cgi"
+            export TEST_PHP_SRCDIR="$PWD" REPORT_EXIT_STATUS=1 NO_INTERACTION=1
+            export TEST_PHP_JUNIT="$PECL_BUILD_ARTIFACTS/$variant-junit.xml"
+            export DD_TRACE_GIT_METADATA_ENABLED=0
+            unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+            # Match `pecl tests`: extension PHPTs expect the embedded API and
+            # control integration loading themselves. Installed PHP autoloading
+            # is exercised independently by the assertion above.
+            "$php" -n -d memory_limit=-1 "$work/run-tests.php" -n -p "$php" -q -j"$MAKE_JOBS" \
+                --show-diff -g FAIL,XFAIL,BORK,WARN \
+                -d "extension=$extension" -d datadog.trace.sources_path= tests
+        ) > "$PECL_BUILD_ARTIFACTS/$variant-tests.log" 2>&1 &
+        pid=$!
+        wait "$pid" || status=1
+        tr '\r' '\n' < "$PECL_BUILD_ARTIFACTS/$variant-tests.log" | tail -n 25
+        echo "=== $variant PHPTs finished; elapsed: ${SECONDS}s"
+        mkdir -p "$PECL_BUILD_ARTIFACTS/$variant-failures"
+        (cd "$test_tree"; find . -name '*.diff' -o -name '*.out' -o -name '*.exp' \
+            | tar -cf - -T -) | tar -xf - -C "$PECL_BUILD_ARTIFACTS/$variant-failures"
+    done
+    return "$status"
+}
+
+if [[ ${1:-} == --build ]]; then
+    build_packages "$2"
+    exit
+fi
+if [[ ${1:-} == --test ]]; then
+    test_packages "$2" "$3"
+    exit
+fi
 
 if [[ $# -ne 1 || ! -f $1 ]]; then
     echo "usage: $0 <datadog_trace-*.tgz>" >&2
     exit 2
 fi
 tgz=$(realpath "$1")
-# Outside any checkout, so no repository .cargo/config.toml is picked up.
 work=$(mktemp -d)
-echo "=== work dir: $work"
+export PECL_BUILD_ARTIFACTS="${PECL_BUILD_ARTIFACTS:-$PWD/artifacts/pecl-offline}"
+mkdir -p "$PECL_BUILD_ARTIFACTS"
+PECL_BUILD_ARTIFACTS=$(realpath "$PECL_BUILD_ARTIFACTS")
+printf '%s\n' "$work" > "$PECL_BUILD_ARTIFACTS/work-dir.txt"
+workers=${MAKE_JOBS:-$(nproc)}
+[[ $workers =~ ^[1-9][0-9]*$ ]]
+export MAKE_JOBS="$workers"
+export BUILD_WORKERS=$((workers > 1 ? workers / 2 : 1))
+echo "=== work dir: $work; NTS/ZTS workers: $BUILD_WORKERS each"
 
-show_errors() {
-    echo "=== first errors in $1:"
-    grep -n -A12 -E '^\s*error(\[E[0-9]+\])?:' "$1" | head -n 80 || true
-}
-
-# Copy the active toolchain without lib/rustlib/src: distro rustc ships no rust-src.
+# A distro compiler has prebuilt std but no rust-src. Use actual binaries so
+# rustup cannot silently install components or switch to a different compiler.
 sysroot=$(rustc --print sysroot)
 mkdir "$work/toolchain"
 tar -C "$sysroot" --exclude=./lib/rustlib/src -cf - . | tar -C "$work/toolchain" -xf -
-export PATH="$work/toolchain/bin:$PATH" RUSTC="$work/toolchain/bin/rustc"
-sysroot=$(rustc --print sysroot)
-if [[ -e $sysroot/lib/rustlib/src ]]; then
-    echo "rust-src is still present in $sysroot" >&2
-    exit 1
-fi
-echo "=== rust-src probe: $(rustc -V), sysroot $sysroot, lib/rustlib/src absent"
-
-# Same as the packager's makedeps.sh: plain `cargo vendor` in a throwaway tree.
-export CARGO_HOME="$work/cargo-home-vendor"
-echo "=== cargo vendor (the only networked step), CARGO_HOME=$CARGO_HOME"
-mkdir -p "$CARGO_HOME" "$work/vendor-tree"
-tar -xzf "$tgz" -C "$work/vendor-tree"
-(cd "$work"/vendor-tree/datadog_trace-*/ && cargo vendor "$work/mycargo" >/dev/null)
-rm -rf "$work/vendor-tree" "$CARGO_HOME"
-
-mkdir "$work/.cargo"
-cat > "$work/.cargo/config.toml" <<EOF
-[source.crates-io]
-replace-with = "vendored-sources"
-
-[source.vendored-sources]
-directory = "$work/mycargo"
+# Remi's unmodified tar commands use gzip from PATH. Compress its large vendor
+# archive in parallel, as well as parallelizing the ABI builds and PHPT suites.
+cat > "$work/toolchain/bin/gzip" <<'EOF'
+#!/usr/bin/env bash
+exec pigz -p "$MAKE_JOBS" "$@"
 EOF
+chmod +x "$work/toolchain/bin/gzip"
+export PATH="$work/toolchain/bin:$PATH" RUSTC="$work/toolchain/bin/rustc"
+export CARGO="$work/toolchain/bin/cargo"
+test ! -e "$(rustc --print sysroot)/lib/rustlib/src"
+unset CARGO_TARGET_DIR CARGO_BUILD_BUILD_DIR RUSTC_WRAPPER RUSTC_WORKSPACE_WRAPPER
+unset RUSTFLAGS CARGO_ENCODED_RUSTFLAGS LIBDDWAF_PREFIX DD_RUST_BUILD_STD
 
-tar -xzf "$tgz" -C "$work"
-cd "$work"/datadog_trace-*/
-build=$PWD
-export CARGO_HOME="$work/cargo-home" CARGO_NET_OFFLINE=true
-mkdir "$CARGO_HOME"
-unset CARGO_TARGET_DIR
+# The only networked preparation step. Archive just the root-vendored crates,
+# then discard both the source tree (including any lockfile changes) and cache.
+export CARGO_HOME="$work/cargo-home-vendor"
+archive=$(basename "$tgz")
+version=${archive#datadog_trace-}
+version=${version%.tgz}
+[[ $version =~ ^[0-9][a-zA-Z0-9._-]*$ ]]
+mkdir -p "$CARGO_HOME" "$work/prepare" "$work/sources"
+cp "$tgz" "$work/prepare/$archive"
+(cd "$work/prepare"; bash -e "$packaging/upstream/makedeps.sh" "$version") \
+    > "$PECL_BUILD_ARTIFACTS/vendor.log" 2>&1
+cp "$work/prepare/datadog_trace-deps-$version.tgz" "$work/sources/"
+cp "$tgz" "$work/sources/"
+rm -rf "$work/prepare" "$CARGO_HOME"
+cp "$packaging/upstream/php-pecl-datadog-trace.spec" "$work/"
+patch --batch --fuzz=0 -d "$work" -p1 < "$packaging/parallel-build.patch"
+sed -i -E "s/^(%global upstream_version)[[:space:]]+.*/\1 $version/" "$work/php-pecl-datadog-trace.spec"
+cp "$work/php-pecl-datadog-trace.spec" "$PECL_BUILD_ARTIFACTS/"
+cp "$packaging/upstream/REVISION" "$PECL_BUILD_ARTIFACTS/remi-revision.txt"
+echo "=== dependency packaging finished; elapsed: ${SECONDS}s"
 
-echo "=== offline build in $build, CARGO_HOME=$CARGO_HOME, CARGO_NET_OFFLINE=$CARGO_NET_OFFLINE"
-phpize
-./configure --enable-ddtrace --enable-ddtrace-libddwaf-source
-if ! make -j"${MAKE_JOBS:-$(nproc)}" 2>&1 | tee "$work/make.log"; then
-    show_errors "$work/make.log"
-    exit 1
+# Trace the entire configure/build/install phase, including subprocesses.
+# Cargo's offline switch alone does not constrain native build-script downloads.
+status=0
+strace -f -qq --seccomp-bpf -s 256 -e trace=network -e signal=none \
+    -o "$PECL_BUILD_ARTIFACTS/build-network.log" \
+    bash "$script" --build "$work" > "$PECL_BUILD_ARTIFACTS/build.log" 2>&1 || status=$?
+if grep -m 10 -E 'socket\(AF_INET6?' "$PECL_BUILD_ARTIFACTS/build-network.log"; then
+    echo 'configure/build/install attempted network access' >&2
+    status=1
 fi
-if [[ -e $CARGO_HOME/registry || -e $CARGO_HOME/git ]]; then
-    echo "cargo downloaded crates during the offline build: $(ls -A "$CARGO_HOME")" >&2
-    exit 1
+if [[ $status != 0 ]]; then
+    tail -n 60 "$PECL_BUILD_ARTIFACTS/"*build.log
+    exit "$status"
 fi
-echo "=== no crates fetched: $CARGO_HOME has no registry/ or git/"
+echo "=== offline NTS/ZTS build and installation finished; elapsed: ${SECONDS}s"
 
-loaded=$(php -n -d extension="$build/modules/ddtrace.so" -r 'var_dump(extension_loaded("ddtrace"));')
-echo "=== load check: $loaded"
-[[ $loaded == "bool(true)" ]]
-
-# The nested appsec_body build (isolate.rs) must have run and be bundled into the
-# Rust staticlib; without --enable-ddtrace-appsec, ddtrace.so drops it as unused.
-mapfile -t objects < <(find "$build" -path '*/out/appsec_body/parser-private.o')
-mapfile -t staticlibs < <(find "$build" -name libdatadog_php.a -not -path '*/deps/*')
-if [[ ${#objects[@]} -ne 1 || ${#staticlibs[@]} -ne 1 ]]; then
-    echo "expected one parser-private.o and one libdatadog_php.a, found ${#objects[@]} and ${#staticlibs[@]}" >&2
-    exit 1
-fi
-members=$(ar t "${staticlibs[0]}")
-if ! grep -qx parser-private.o <<<"$members"; then
-    echo "${staticlibs[0]} does not bundle parser-private.o" >&2
-    exit 1
-fi
-echo "=== OK: ddtrace.so loads; ${staticlibs[0]} bundles parser-private.o"
+# Installed code must work without the build sources. Each ABI gets its own
+# writable copy of the archive's PHPTs and separate failure artifacts.
+mv "$work/build" "$work/build-unavailable"
+test_packages "$work" "$tgz"

@@ -341,22 +341,35 @@ foreach ($build_platforms as $platform) {
     paths:
       - pecl
 
-# Distro packagers (e.g. Remi's RPMs) vendor crates and build offline (#4432).
+# Package sources, root-vendor dependencies, then build/install/test both PHP ABIs.
 "pecl offline vendored build":
   stage: verify
   image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.4_bookworm-14"
   tags: [ "arch:amd64" ]
+  services:
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
   needs:
     - job: "pecl build"
       artifacts: true
   variables:
-    MAKE_JOBS: 4
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    MAKE_JOBS: 8
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - sudo apt-get update -qq
+    - sudo apt-get install -y --no-install-recommends gcc g++ rpm pigz
   script:
     - switch-php nts
-    - tooling/bin/pecl-offline-vendored-build ./pecl/datadog_trace-*.tgz
+    - HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 tooling/bin/pecl-offline-vendored-build ./pecl/datadog_trace-*.tgz
+  artifacts:
+    when: always
+    paths:
+      - artifacts/pecl-offline/
+    reports:
+      junit: artifacts/pecl-offline/*-junit.xml
 
 <?php
 foreach ($build_platforms as $platform) {

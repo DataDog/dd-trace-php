@@ -58,7 +58,7 @@ fn main() {
                 println!("cargo:rerun-if-changed={}", path.display());
             }
         }
-        for name in ["DD_APPSEC_OBJCOPY", "DD_APPSEC_NM"] {
+        for name in ["DD_APPSEC_OBJCOPY", "DD_APPSEC_NM", "DD_RUST_BUILD_STD"] {
             println!("cargo:rerun-if-env-changed={name}");
         }
         let out =

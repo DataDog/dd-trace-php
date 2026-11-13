@@ -106,6 +106,9 @@ tar -cf - --exclude=.git --exclude=tmp --exclude=target --exclude=target-common 
     "${root_excludes[@]}" . | tar -xf - -C "${build_dir}/src"
 cd "${build_dir}/src"
 phpize
+if [[ ${DD_RUST_BUILD_STD:-1} == 1 ]]; then
+    configure_products+=" --enable-ddtrace-rust-build-std"
+fi
 ./configure ${configure_products}
 # Make -s propagates via MAKEFLAGS. Keep libtool's own --silent setting local
 # to this generated PHP Makefile: a command-line LIBTOOL= override would also

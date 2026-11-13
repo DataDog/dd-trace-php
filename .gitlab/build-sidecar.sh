@@ -28,7 +28,7 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}"
 # build-std uses an explicit native target. Musl also needs --target when
 # build-std is disabled, so its build scripts can dynamically load libclang.
 archive_dir="$CARGO_TARGET_DIR"
-if [[ "${DDTRACE_XLANG_BUILD_STD:-1}" == 1 || "$suffix" == "-alpine" ]]; then
+if [[ "${DD_RUST_BUILD_STD:-1}" == 1 || "$suffix" == "-alpine" ]]; then
   archive_dir+="/$(rustc -vV | awk '/^host: / { print $2 }')"
 fi
 # This archive is an intermediate input to the legacy PHP 7.0 debug link,
