@@ -86,20 +86,15 @@ parallelize=()
 test_paths=()
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) ]]; then
   extra_args="-j$(nproc)"
-elif [[ $(nproc) -gt 1 ]]; then
+elif [[ ${PHP_MAJOR_MINOR} =~ ^7\.[123]$ && $(nproc) -gt 1 ]]; then
   parallelize=("${CI_PROJECT_DIR}/tooling/parallelize-run-tests.sh" "-j$(nproc)")
-  # Old suites share filesystem fixtures or fixed ports across directories.
-  for suite in ext/session/tests ext/curl/tests sapi/cli/tests tests/security \
-      ext/standard/tests/{http,network,streams,file,dir} \
-      ext/{openssl,sockets,opcache,soap,phar}/tests; do
-    case "$suite" in
-      ext/session/tests) conflict=session ;;
-      tests/security|ext/standard/tests/file|ext/standard/tests/dir|ext/phar/tests) conflict=filesystem ;;
-      *) conflict=network ;;
-    esac
+  # Old suites share files and ports across directories; keep them in one ordered batch.
+  for suite in tests/{basic,security} sapi/cli/tests \
+      ext/standard/tests/{http,network,streams,url,file,dir} \
+      ext/{session,curl,openssl,sockets,opcache,soap,phar,spl}/tests; do
     while IFS= read -r -d '' dir; do
-      printf '%s\n' "$conflict" > "$dir/CONFLICTS"
-    done < <(find "$suite" -type d -print0)
+      printf 'legacy-shared\n' > "$dir/CONFLICTS"
+    done < <(find "$suite" -type f -name '*.phpt' -printf '%h\0' | sort -zu)
   done
   # Match run-tests.php's default discovery: core tests and loaded extensions.
   mapfile -t test_paths < <(php -r '
