@@ -18,6 +18,7 @@
 #include "ddtrace.h"
 #include <ext/sidecar.h>
 #include "span.h"
+#include "span_tags_view.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
@@ -408,22 +409,23 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
     stats.peer_tags_count = actual_peer_tags;
     stats.peer_tags = actual_peer_tags > 0 ? peer_tags : NULL;
 
-    // Additional metric tags: the configured keys present in the $meta view, i.e. non-numeric
-    // attributes, stringified. Arrays and objects have no scalar value of the key itself.
+    // Additional metric tags: the configured keys present in the $meta view (incl. aliased properties
+    // like component and span.kind), stringified. Arrays and objects have no scalar value of the key itself.
     const ddtrace_stats_additional_tags *configured = dd_stats_additional_tags();
     ddog_PhpPeerTag additional_tags[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS];
     zend_string *additional_tag_values[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS];
     size_t actual_additional_tags = 0;
     for (uint32_t i = 0; i < configured->count; i++) {
-        zval *val = zend_hash_find(pre->attributes, configured->keys[i]);
-        if (!val) {
+        zval tmp;
+        if (!ddtrace_span_read_tag(span, configured->keys[i], &tmp)) {
             continue;
         }
-        ZVAL_DEREF(val);
-        if (Z_TYPE_P(val) == IS_LONG || Z_TYPE_P(val) == IS_DOUBLE || Z_TYPE_P(val) == IS_ARRAY || Z_TYPE_P(val) == IS_OBJECT) {
+        if (Z_TYPE(tmp) <= IS_NULL || Z_TYPE(tmp) == IS_LONG || Z_TYPE(tmp) == IS_DOUBLE || Z_TYPE(tmp) == IS_ARRAY || Z_TYPE(tmp) == IS_OBJECT) {
+            zval_ptr_dtor(&tmp);
             continue;
         }
-        zend_string *str = datadog_convert_to_str(val);
+        zend_string *str = datadog_convert_to_str(&tmp);
+        zval_ptr_dtor(&tmp);
         additional_tag_values[actual_additional_tags] = str;
         additional_tags[actual_additional_tags].key   = dd_zend_string_to_CharSlice(configured->keys[i]);
         additional_tags[actual_additional_tags].value = dd_zend_string_to_CharSlice(str);

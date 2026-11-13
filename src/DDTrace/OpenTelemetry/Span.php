@@ -190,8 +190,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $isRemapped
         );
 
-        // operation.name wins over the default operation name set by the constructor
+        // operation.name wins over the default operation name set by the constructor, restored on its removal
         if (isset($attributes['operation.name'])) {
+            ObjectKVStore::put($span, 'operation.name', null);
             self::_setAttribute($span, 'operation.name', $attributes['operation.name']);
         }
 
@@ -298,7 +299,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private function getAttributes(): array
     {
         $attributes = $this->span->attributes;
-        foreach ([...\array_keys(self::PROPERTY_ATTRIBUTES), Tag::SPAN_KIND] as $key) {
+        foreach ([...\array_keys(self::PROPERTY_ATTRIBUTES), Tag::SPAN_KIND, 'http.response.status_code'] as $key) {
             if (($value = $this->propertyAttribute($key)) !== null) {
                 $attributes[$key] = $value;
             }
@@ -306,11 +307,14 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return $attributes;
     }
 
-    /** The attribute _setAttribute stored on a span property, or null. */
-    private function propertyAttribute(string $key): ?string
+    /** The attribute _setAttribute stored on a span property or in the KV store, or null. */
+    private function propertyAttribute(string $key)
     {
         if ($key === Tag::SPAN_KIND) {
             return SpanKindNames::NAMES[$this->span->spanKind] ?? null;
+        }
+        if ($key === 'http.response.status_code') {
+            return ObjectKVStore::get($this->span, $key)['value'] ?? null;
         }
         if (!isset(self::PROPERTY_ATTRIBUTES[$key])) {
             return null;
@@ -345,12 +349,33 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     private static function _setAttribute(SpanData $span, string $key, $value): void
     {
-        if ($value === null) {
+        if ($key === Tag::HTTP_STATUS_CODE || ($key === 'http.response.status_code' && !\is_string($value))) {
+            // OTel's numeric status code becomes the (string) http.status_code and wins over it in any order. Its KV
+            // entry keeps it readable, and the http.status_code it overrides to restore once it is removed.
+            $status = ObjectKVStore::get($span, 'http.response.status_code')
+                ?? ['value' => null, 'orig' => $span->attributes[Tag::HTTP_STATUS_CODE] ?? null];
+            if ($key === Tag::HTTP_STATUS_CODE) {
+                $status['orig'] = $value === null ? null : (string)$value;
+            } else {
+                unset($span->attributes[$key]);
+                $status['value'] = $value;
+            }
+            ObjectKVStore::put($span, 'http.response.status_code', $status['value'] === null ? null : $status);
+            $statusCode = $status['value'] === null ? $status['orig'] : (string)$status['value'];
+            if ($statusCode === null) {
+                unset($span->attributes[Tag::HTTP_STATUS_CODE]);
+            } else {
+                $span->attributes[Tag::HTTP_STATUS_CODE] = $statusCode;
+            }
+        } elseif ($value === null) {
             unset($span->attributes[$key]);
             if ($key === Tag::COMPONENT) {
                 $span->component = '';
             } elseif (isset(self::PROPERTY_ATTRIBUTES[$key])) {
-                ObjectKVStore::put($span, $key, false);
+                if ($override = ObjectKVStore::get($span, $key)) {
+                    $span->{self::PROPERTY_ATTRIBUTES[$key]} = $override['orig'];
+                    ObjectKVStore::put($span, $key, null);
+                }
             } elseif ($key === Tag::SPAN_KIND) {
                 $span->spanKind = \DDTrace\SpanKind::UNSPECIFIED;
             }
@@ -360,18 +385,19 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         } elseif ($key === 'service.name') {
             $span->service = $value;
         } elseif (isset(self::PROPERTY_ATTRIBUTES[$key]) && \is_scalar($value)) {
+            $property = self::PROPERTY_ATTRIBUTES[$key];
+            // The first override keeps the property value, restored once the attribute is removed
+            ObjectKVStore::put($span, $key, ObjectKVStore::get($span, $key) ?? ['orig' => $span->$property]);
             $value = (string)$value;
-            $span->{self::PROPERTY_ATTRIBUTES[$key]} = $key === 'operation.name' ? \strtolower($value) : $value;
-            ObjectKVStore::put($span, $key, true);
-        } elseif ($key === Tag::SPAN_KIND && ($kind = \array_search($value, SpanKindNames::NAMES, true)) !== false) {
-            $span->spanKind = $kind;
-        } elseif ($key === 'http.response.status_code' && !\is_string($value)) {
-            // OTel's numeric status code becomes the (string) http.status_code and wins over it in any order
-            $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$value;
-            ObjectKVStore::put($span, 'http.response.status_code', true);
-        } elseif ($key === Tag::HTTP_STATUS_CODE) {
-            if (!ObjectKVStore::get($span, 'http.response.status_code')) {
-                $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$value;
+            $span->$property = $key === 'operation.name' ? \strtolower($value) : $value;
+        } elseif ($key === Tag::SPAN_KIND) {
+            // The latest kind wins: a canonical one sets the property, any other stays a plain attribute
+            $kind = \array_search($value, SpanKindNames::NAMES, true);
+            $span->spanKind = $kind !== false ? $kind : \DDTrace\SpanKind::UNSPECIFIED;
+            if ($kind === false) {
+                $span->attributes[$key] = $value;
+            } else {
+                unset($span->attributes[$key]);
             }
         } else {
             $span->attributes[$key] = $value;

@@ -370,6 +370,101 @@ final class TracerTest extends BaseTestCase
         $this->assertSame($expected, $actual);
     }
 
+    public function providerHttpStatusCodeRemoval()
+    {
+        return [
+            'removal leaves no status code' => [
+                [['http.response.status_code', 300], ['http.response.status_code', null]],
+                [],
+            ],
+            'removal restores the overridden http.status_code' => [
+                [['http.status_code', 302], ['http.response.status_code', 300], ['http.response.status_code', null]],
+                ['http.status_code' => '302'],
+            ],
+            'removal restores the http.status_code set while overridden' => [
+                [['http.response.status_code', 300], ['http.status_code', 404], ['http.response.status_code', null]],
+                ['http.status_code' => '404'],
+            ],
+            'http.status_code set after removal applies' => [
+                [['http.response.status_code', 300], ['http.response.status_code', null], ['http.status_code', 404]],
+                ['http.status_code' => '404'],
+            ],
+            'removing http.status_code keeps the response status code' => [
+                [['http.response.status_code', 300], ['http.status_code', 404], ['http.status_code', null]],
+                ['http.status_code' => '300'],
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider providerHttpStatusCodeRemoval
+     */
+    public function testHttpStatusCodeRemoval($attributes, $expected)
+    {
+        $traces = $this->isolateTracer(function () use ($attributes) {
+            $span = self::getTracer()->spanBuilder('test.span')->startSpan();
+            foreach ($attributes as [$key, $value]) {
+                $span->setAttribute($key, $value);
+            }
+            $span->end();
+        });
+
+        $actual = array_intersect_key(
+            $traces[0]['spans'][0]['attributes'] ?? [],
+            ['http.status_code' => true, 'http.response.status_code' => true]
+        );
+        $this->assertSame($expected, $actual);
+    }
+
+    public function testRemovedPropertyAttributesRestoreTheSpanFields()
+    {
+        $reference = $this->isolateTracer(function () {
+            self::getTracer()->spanBuilder('test.span')->setSpanKind(SpanKind::KIND_CLIENT)->startSpan()->end();
+        })[0]['spans'][0];
+        $traces = $this->isolateTracer(function () {
+            $span = self::getTracer()->spanBuilder('test.span')->setSpanKind(SpanKind::KIND_CLIENT)->startSpan();
+            $span->setAttributes(['resource.name' => 'new.name', 'operation.name' => 'new.name', 'span.type' => 'new.type']);
+            $span->setAttributes(['resource.name' => null, 'operation.name' => null, 'span.type' => null]);
+            // The operation name convention applies again
+            $span->setAttribute('db.system', 'MySQL');
+            $span->end();
+        });
+
+        $span = $traces[0]['spans'][0];
+        $this->assertSame('mysql.query', $span['name']);
+        $this->assertSame('test.span', $span['resource']);
+        $this->assertSame($reference['type'] ?? null, $span['type'] ?? null);
+    }
+
+    public function testRemovedOperationNameSetAtStartRestoresTheConvention()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = self::getTracer()->spanBuilder('test.span')
+                ->setSpanKind(SpanKind::KIND_SERVER)
+                ->setAttribute('operation.name', 'new.name')
+                ->startSpan();
+            $this->assertSame('new.name', $span->getAttribute('operation.name'));
+            $span->setAttribute('operation.name', null);
+            $span->end();
+        });
+
+        $this->assertSame('server.request', $traces[0]['spans'][0]['name']);
+    }
+
+    public function testCustomSpanKindReplacesTheCanonicalOne()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = self::getTracer()->spanBuilder('test.span')->startSpan();
+            $span->setAttribute('span.kind', 'process');
+            $span->end();
+        });
+
+        $span = $traces[0]['spans'][0];
+        $this->assertSame('process', $span['name']);
+        $this->assertSame('process', $span['attributes']['span.kind']);
+        $this->assertSame(0, $span['span_kind'] ?? 0);
+    }
+
     public function testSpanErrorStatus()
     {
         $traces = $this->isolateTracer(function () {
