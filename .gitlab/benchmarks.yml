@@ -110,7 +110,7 @@ variables:
   # Microbenchmarks CI image, consumed by the benchmark jobs below. Repin to the
   # tag pushed by a `build-benchmark-ci-images` run after changing anything in
   # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
-  MICROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
+  MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-152770667
   # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
   # Image build, consumed by the included build-ci-images template. The per-pipeline
   # suffix pins each build to a unique tag so a rebuild can't shift what older
