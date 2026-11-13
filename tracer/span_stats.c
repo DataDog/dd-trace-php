@@ -213,11 +213,7 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         pre->version = zend_string_copy(Z_STR_P(prop_version));
     }
 
-    // has_exception: used by dd_compute_span_is_error() for exception-based error detection.
-    zval *exception_zv = &span->property_exception;
-    pre->has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT &&
-                         instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
-    pre->ignore_error = zend_is_true(&span->property_ignore_error);
+    ddtrace_precompute_span_error(span, pre);
 
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
@@ -228,11 +224,23 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
     pre->span_kind = zval_get_long(&span->property_span_kind);
 }
 
+void ddtrace_precompute_span_error(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
+    // The chunk error scan must not separate arrays or release invalid property values:
+    // those operations can run destructors before the span rings have been drained.
+    zval *attributes = &span->property_attributes;
+    ZVAL_DEREF(attributes);
+    pre->attributes = Z_TYPE_P(attributes) == IS_ARRAY ? Z_ARR_P(attributes) : NULL;
+    zval *exception_zv = &span->property_exception;
+    pre->has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT &&
+                         instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
+    pre->ignore_error = zend_is_true(&span->property_ignore_error);
+}
+
 bool dd_compute_span_is_error(const ddtrace_span_precomputed *pre) {
     if (pre->ignore_error) {
         return false;
     }
-    if (zend_hash_str_find(pre->attributes, ZEND_STRL("error.message")) || zend_hash_str_find(pre->attributes, ZEND_STRL("error.type"))) {
+    if (pre->attributes && (zend_hash_str_find(pre->attributes, ZEND_STRL("error.message")) || zend_hash_str_find(pre->attributes, ZEND_STRL("error.type")))) {
         return true;
     }
     return pre->has_exception;

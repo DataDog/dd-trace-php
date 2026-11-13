@@ -1168,6 +1168,31 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     dd_drop_span(span, false);
 }
 
+static bool ddtrace_chunk_has_error(ddtrace_span_data *ring, ddtrace_span_stack *next_stack) {
+    for (;;) {
+        if (ring) {
+            ddtrace_span_data *span = ring;
+            do {
+                if (ddtrace_span_has_error(span)) {
+                    return true;
+                }
+                if (span->std.ce == ddtrace_ce_root_span_data) {
+                    ddtrace_span_data *inferred = ddtrace_get_inferred_span(ROOTSPANDATA(&span->std));
+                    if (inferred && ddtrace_span_has_error(inferred)) {
+                        return true;
+                    }
+                }
+                span = span->next;
+            } while (span != ring);
+        }
+        if (!next_stack) {
+            return false;
+        }
+        ring = next_stack->closed_ring_flush;
+        next_stack = next_stack->next;
+    }
+}
+
 void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdown) {
     if (DDTRACE_G(top_closed_stack)) {
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
@@ -1187,6 +1212,7 @@ void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdo
             }
             bool sampling_decided = false;
             bool p0_trace = false;
+            bool keep_error_chunk = false;
 
             do {
                 // Note this ->next: We always splice in new spans at next, so start at next to mostly preserve order
@@ -1197,12 +1223,17 @@ void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdo
                     // Snapshot once for this chunk, including attached stacks and inferred spans.
                     // Later chunks reevaluate automatic sampling (existing behavior, unlike other tracers).
                     p0_trace = ddtrace_fetch_priority_sampling_from_span(span->root) <= 0;
+                    // Inspect the complete available chunk before dropping any spans. This includes
+                    // unmeasured children and attached stacks, without serializing rejected P0 spans.
+                    if (p0_trace && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+                        keep_error_chunk = ddtrace_chunk_has_error(span, next_stack);
+                    }
                     sampling_decided = true;
                 }
                 do {
                     ddtrace_span_data *tmp = span;
                     span = tmp->next;
-                    ddtrace_serialize_span_to_rust_span(tmp, ctx, p0_trace);
+                    ddtrace_serialize_span_to_rust_span(tmp, ctx, p0_trace, keep_error_chunk);
 #if PHP_VERSION_ID < 70400
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);

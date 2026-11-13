@@ -41,6 +41,9 @@ typedef struct {
  */
 void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *pre);
 
+/** Fill only attributes (NULL unless an array), has_exception and ignore_error, without resolving span strings. */
+void ddtrace_precompute_span_error(ddtrace_span_data *span, ddtrace_span_precomputed *pre);
+
 /** Whether the span's emitted service (DD_SERVICE_MAPPING applied) differs from its parent's, mapped alike. */
 bool ddtrace_span_service_differs_from_parent(ddtrace_span_data *span, zend_string *service);
 

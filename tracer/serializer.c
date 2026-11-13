@@ -1226,6 +1226,23 @@ static void dd_set_http_error(zend_array *attributes, int status, bool ignore_er
     }
 }
 
+bool ddtrace_span_has_error(ddtrace_span_data *span) {
+    ddtrace_span_precomputed pre;
+    ddtrace_precompute_span_error(span, &pre);
+    if (dd_compute_span_is_error(&pre)) {
+        return true;
+    }
+    // Match the HTTP error enrichment performed by the serializer without allocating tags.
+    if (!pre.ignore_error && (ddtrace_span_is_entrypoint_root(span) || span->std.ce == ddtrace_ce_inferred_span_data)) {
+        int status = SG(sapi_headers).http_response_code;
+        if (datadog_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
+            status = pre.has_exception ? 500 : 200;
+        }
+        return status && dd_is_http_error(status);
+    }
+    return false;
+}
+
 static void dd_set_entrypoint_root_span_props_end(zend_array *attributes, int status, struct iter *headers, bool ignore_error) {
     dd_set_http_error(attributes, status, ignore_error);
 
@@ -1336,7 +1353,7 @@ static void dd_set_payload_fields(ddog_TracerPayloadBytes *builder, ddtrace_span
     }
 }
 
-ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace) {
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace, bool keep_error_chunk) {
     zend_array *attributes = ddtrace_property_array(&span->property_attributes);
 
     ddtrace_span_precomputed pre;
@@ -1517,7 +1534,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
     }
 
 
-    if (p0_trace && !span_sampling_applied && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+    if (p0_trace && !keep_error_chunk && !span_sampling_applied && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
         if (inferred_span) {
             // Inferred span won't be serialized, so feed it to the concentrator here.
             ddtrace_span_precomputed inferred_pre;
@@ -1820,7 +1837,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
         }
     }
 
-    ddog_SpanBytes *inferred = inferred_span ? ddtrace_serialize_span_to_rust_span(inferred_span, ctx, p0_trace) : NULL;
+    ddog_SpanBytes *inferred = inferred_span ? ddtrace_serialize_span_to_rust_span(inferred_span, ctx, p0_trace, keep_error_chunk) : NULL;
     // The inferred span was pushed into the same chunk, which may have moved rspan (rattrs is stale too).
     rspan = ddog_v1_get_span(ctx->chunk, rspan_index);
     // A dropped inferred span returns NULL; skip the transfers then.

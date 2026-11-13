@@ -5,7 +5,8 @@
 
 
 // Returns the span's V1 builder node, or NULL when the span was dropped.
-ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace);
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace, bool keep_error_chunk);
+bool ddtrace_span_has_error(ddtrace_span_data *span);
 zval dd_serialize_rust_to_zval(struct ddog_TracerPayloadBytes *builder);
 
 // String span attribute setters shared with exception_serialize.c.
