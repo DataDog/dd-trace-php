@@ -138,6 +138,19 @@ bool ddtrace_alter_stats_additional_tags(zval *old_value, zval *new_value, zend_
     return true;
 }
 
+bool ddtrace_span_service_differs_from_parent(ddtrace_span_data *span, zend_string *service) {
+    zval *parent_service = &span->parent->property_service;
+    ZVAL_DEREF(parent_service);
+    if (Z_TYPE_P(parent_service) <= IS_NULL || !service) {
+        return (Z_TYPE_P(parent_service) > IS_NULL) != (service != NULL);
+    }
+    zend_string *parent = datadog_convert_to_str(parent_service);
+    zval *mapped = zend_hash_find(get_DD_SERVICE_MAPPING(), parent);
+    bool differs = !zend_string_equals(service, mapped ? Z_STR_P(mapped) : parent);
+    zend_string_release(parent);
+    return differs;
+}
+
 void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
     pre->attributes = ddtrace_property_array(&span->property_attributes);
 
@@ -202,7 +215,7 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
 
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
-    pre->has_top_level = ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0) || (span->parent && !zend_is_identical(&span->property_service, &span->parent->property_service));
+    pre->has_top_level = ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0) || (span->parent && ddtrace_span_service_differs_from_parent(span, pre->service));
     zval *is_measured = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.measured"));
     pre->is_measured = is_measured && zval_get_double(is_measured) != 0.0;
     pre->is_partial_snapshot = false;

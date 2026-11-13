@@ -1796,21 +1796,9 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
         ddog_attributes_add_double_lit(rattrs, "_dd.apm.enabled", 0);
     }
 
-    // Top-level as the agent defines it: a local root, or a span whose service differs from its parent's.
+    // Top-level as the agent defines it: a local root, or a span whose (mapped) service differs from its parent's.
     if (ctx->mark_top_level || (DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && !is_inferred_span)) {
-        bool is_top_level_span = !span->parent;
-        if (span->parent) {
-            zval *parent_service = &SPANDATA(span->parent)->property_service;
-            zval *span_service = &span->property_service;
-            ZVAL_DEREF(parent_service);
-            ZVAL_DEREF(span_service);
-            if (Z_TYPE_P(span_service) == IS_STRING && Z_TYPE_P(parent_service) == IS_STRING) {
-                is_top_level_span = !zend_string_equals(Z_STR_P(span_service), Z_STR_P(parent_service));
-            } else if (Z_TYPE_P(span_service) != Z_TYPE_P(parent_service)) {
-                is_top_level_span = true;
-            }
-        }
-        if (is_top_level_span) {
+        if (!span->parent || ddtrace_span_service_differs_from_parent(span, pre.service)) {
             ddog_attributes_add_double_lit(rattrs, "_dd.top_level", 1);
         }
     }
