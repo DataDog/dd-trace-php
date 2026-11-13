@@ -200,7 +200,7 @@ void ddtrace_maybe_add_guessed_endpoint_tag(ddtrace_root_span_data *span)
     zend_array* attributes = ddtrace_property_array(&span->property_attributes);
 
     if (!get_DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT()) {
-        zval* route = zend_hash_str_find(attributes, ZEND_STRL("http.route"));
+        zval* route = zend_hash_str_find_deref(attributes, ZEND_STRL("http.route"));
         // unless we have always_simplified_endpoiont set,
         // we skip the calculation if http.route is set
         if (route && Z_TYPE_P(route) == IS_STRING) {

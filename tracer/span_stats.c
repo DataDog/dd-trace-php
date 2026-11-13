@@ -264,22 +264,23 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
 
     // HTTP and gRPC fields only appear on service entry spans, which are always stats-eligible.
     // They are fetched here (after the eligibility check) rather than in ddtrace_precompute_span.
-    zval *http_status_str_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("http.status_code"));
+    // Attributes may hold references (by-ref uses of $attributes or the $meta/$metrics views): read through them.
+    zval *http_status_str_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("http.status_code"));
     ddog_CharSlice http_status_str_slice = http_status_str_zv && Z_TYPE_P(http_status_str_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_status_str_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_method_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("http.method"));
+    zval *http_method_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("http.method"));
     ddog_CharSlice http_method_slice = http_method_zv && Z_TYPE_P(http_method_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_method_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_endpoint_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("http.endpoint"));
+    zval *http_endpoint_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("http.endpoint"));
     ddog_CharSlice http_endpoint_slice = http_endpoint_zv && Z_TYPE_P(http_endpoint_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_endpoint_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_route_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("http.route"));
+    zval *http_route_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("http.route"));
     ddog_CharSlice http_route_slice = http_route_zv && Z_TYPE_P(http_route_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_route_zv))
         : DDOG_CHARSLICE_C("");
@@ -290,7 +291,7 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
         ? dd_zend_string_to_CharSlice(Z_STR_P(origin_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *service_source_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.svc_src"));
+    zval *service_source_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("_dd.svc_src"));
     ddog_CharSlice service_source_slice = service_source_zv && Z_TYPE_P(service_source_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(service_source_zv))
         : DDOG_CHARSLICE_C("");
@@ -301,7 +302,7 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
         grpc_meta[i]    = DDOG_CHARSLICE_C("");
         grpc_metrics[i] = NAN;
         // A string tag lands in the meta slot, a number in the metrics slot.
-        zval *ga = zend_hash_str_find(pre->attributes, GRPC_META_KEYS[i], GRPC_META_KEY_LENS[i]);
+        zval *ga = zend_hash_str_find_deref(pre->attributes, GRPC_META_KEYS[i], GRPC_META_KEY_LENS[i]);
         if (ga && Z_TYPE_P(ga) == IS_STRING) {
             grpc_meta[i] = dd_zend_string_to_CharSlice(Z_STR_P(ga));
         } else if (ga) {
@@ -372,7 +373,7 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
         if (peer_tag_keys_count > 0 && peer_tag_keys) {
             for (size_t i = 0; i < peer_tag_keys_count && actual_peer_tags < DDTRACE_MAX_PEER_TAGS; i++) {
                 const ddog_CharSlice *k = &peer_tag_keys[i];
-                zval *val = zend_hash_str_find(pre->attributes, k->ptr, k->len);
+                zval *val = zend_hash_str_find_deref(pre->attributes, k->ptr, k->len);
                 if (val && Z_TYPE_P(val) == IS_STRING) {
                     peer_tags[actual_peer_tags].key   = *k;
                     peer_tags[actual_peer_tags].value = dd_zend_string_to_CharSlice(Z_STR_P(val));
@@ -383,7 +384,7 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
     } else if (pre->span_kind != DDTRACE_SPAN_KIND_SERVER) {
         // internal or no span.kind: use _dd.base_service only if it marks a service override
         static const ddog_CharSlice BASE_SERVICE_KEY = DDOG_CHARSLICE_C_BARE("_dd.base_service");
-        zval *base_svc_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.base_service"));
+        zval *base_svc_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("_dd.base_service"));
         if (base_svc_zv && Z_TYPE_P(base_svc_zv) == IS_STRING) {
             peer_tags[0].key   = BASE_SERVICE_KEY;
             peer_tags[0].value = dd_zend_string_to_CharSlice(Z_STR_P(base_svc_zv));

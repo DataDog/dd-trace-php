@@ -189,10 +189,12 @@ bool ddtrace_span_read_tag(ddtrace_span_data *span, zend_string *key, zval *rv) 
     if (special != DD_TAGS_PLAIN && dd_tags_special_read(span, special, rv)) {
         return true;
     }
-    zval *attr = zend_symtable_find(ddtrace_property_array(&span->property_attributes), key);
+    zend_array *attrs = dd_tags_attrs_read(span);
+    zval *attr = attrs ? zend_symtable_find(attrs, key) : NULL;
     if (!attr) {
         return false;
     }
+    // A null entry (explicit, or left by a by-ref fetch) still matches rules, as on master.
     ZVAL_COPY_DEREF(rv, attr);
     return true;
 }

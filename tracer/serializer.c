@@ -570,8 +570,9 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     zval *parent_svc_src = zend_hash_str_find(ddtrace_property_array(&parent->property_attributes), ZEND_STRL("_dd.svc_src"));
     if (parent_svc_src) {
         zend_array *child_attributes = ddtrace_property_array(&span->property_attributes);
-        Z_TRY_ADDREF_P(parent_svc_src);
-        zend_hash_str_update(child_attributes, ZEND_STRL("_dd.svc_src"), parent_svc_src);
+        zval svc_src;
+        ZVAL_COPY_DEREF(&svc_src, parent_svc_src);  // a copy: never share the parent's reference
+        zend_hash_str_update(child_attributes, ZEND_STRL("_dd.svc_src"), &svc_src);
     }
 
     zval *prop_version = &span->property_version;
@@ -1655,7 +1656,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
     if (is_root_span || is_inferred_span) {
         // _dd.p.dm is "-N" (legacy "<hash>-N"): the mechanism is the digits after the last '-'.
         // Unparseable values leave the chunk field unset rather than claiming mechanism 0.
-        zval *dm = zend_hash_str_find(attributes, ZEND_STRL("_dd.p.dm"));
+        zval *dm = zend_hash_str_find_deref(attributes, ZEND_STRL("_dd.p.dm"));
         if (dm && Z_TYPE_P(dm) == IS_STRING) {
             const char *dash = zend_memrchr(Z_STRVAL_P(dm), '-', Z_STRLEN_P(dm));
             const char *p = dash ? dash + 1 : Z_STRVAL_P(dm);
@@ -1709,7 +1710,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
 
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) {
         zend_array *peer_service_sources = ddtrace_property_array(&span->property_peer_service_sources);
-        zval *peer_service_tag = zend_hash_str_find(attributes, ZEND_STRL("peer.service"));
+        zval *peer_service_tag = zend_hash_str_find_deref(attributes, ZEND_STRL("peer.service"));
         if (peer_service_tag && Z_TYPE_P(peer_service_tag) == IS_STRING) {
             ddog_attributes_add_lit(rattrs, "_dd.peer.service.source", DDOG_CHARSLICE_C("peer.service"));
             dd_set_mapped_peer_service(rspan, Z_STR_P(peer_service_tag));
@@ -1718,6 +1719,9 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
             ZEND_HASH_FOREACH_VAL(peer_service_sources, tag) {
                 if (Z_TYPE_P(tag) == IS_STRING) {
                     zval *found_peer_service = zend_hash_find(attributes, Z_STR_P(tag));
+                    if (found_peer_service) {
+                        ZVAL_DEREF(found_peer_service);
+                    }
                     if (found_peer_service && Z_TYPE_P(found_peer_service) == IS_STRING) {
                         ddog_attributes_add_lit(rattrs, "_dd.peer.service.source", dd_zend_string_to_CharSlice(Z_STR_P(tag)));
                         zend_string *peer = zval_get_string(found_peer_service);

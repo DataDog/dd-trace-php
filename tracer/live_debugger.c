@@ -2086,6 +2086,10 @@ static void dd_stringify_zval(const zval *zv, smart_str *str, const ddog_Capture
                     zend_get_properties_for((zval *)zv, ZEND_PROP_PURPOSE_DEBUG)
 #endif
                     : Z_OBJPROP_P(zv);
+            if (!ht) {  // e.g. SensitiveParameterValue exposes no properties
+                smart_str_appendc(str, '}');
+                break;
+            }
             bool first = true;
             ZEND_HASH_REVERSE_FOREACH_STR_KEY_VAL(ht, key, val) {
                 if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {

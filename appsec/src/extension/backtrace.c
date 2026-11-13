@@ -237,6 +237,10 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
     }
 
     zval *dd_stack = zend_hash_find(Z_ARR_P(attributes), _dd_stack_key);
+    if (dd_stack) {
+        // by-ref uses of $attributes/$meta leave references
+        ZVAL_DEREF(dd_stack);
+    }
     if (!dd_stack || Z_TYPE_P(dd_stack) == IS_NULL) {
         zval new_stack;
         array_init(&new_stack);

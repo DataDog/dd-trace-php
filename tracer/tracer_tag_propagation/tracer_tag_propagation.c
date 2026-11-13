@@ -117,7 +117,7 @@ zval *ddtrace_propagated_tags_get_tag(const char *tag) {
         return NULL;
     }
 
-    return zend_hash_str_find(root_attributes, tag, tag_len);
+    return zend_hash_str_find_deref(root_attributes, tag, tag_len);
 }
 
 void ddtrace_get_propagated_tags(zend_array *tags) {
@@ -128,6 +128,7 @@ void ddtrace_get_propagated_tags(zend_array *tags) {
     ZEND_HASH_FOREACH_STR_KEY(propagated, tagname) {
         zval *tag;
         if ((tag = zend_hash_find(root_attributes, tagname))) {
+            ZVAL_DEREF(tag);  // copy the value: never share a reference into the span
             Z_TRY_ADDREF_P(tag);
             zend_hash_update(tags, tagname, tag);
         }

@@ -71,7 +71,7 @@ bool ddtrace_trace_source_is_asm_sourced(zend_array *attributes) {
         return false;
     }
 
-    zval *trace_source_zv = zend_hash_str_find(attributes, ZEND_STRL(DD_P_TS_KEY));
+    zval *trace_source_zv = zend_hash_str_find_deref(attributes, ZEND_STRL(DD_P_TS_KEY));
     if (!trace_source_zv || Z_TYPE_P(trace_source_zv) != IS_STRING) {
         return false;
     }

@@ -82,7 +82,7 @@ static void dd_update_knuth_sampling_rate_attribute(ddtrace_root_span_data *root
     }
 
     // Skip update if already set to the same value
-    zval *existing = zend_hash_str_find(attributes, ZEND_STRL("_dd.p.ksr"));
+    zval *existing = zend_hash_str_find_deref(attributes, ZEND_STRL("_dd.p.ksr"));
     if (existing && Z_TYPE_P(existing) == IS_STRING && zend_string_equals_cstr(Z_STR_P(existing), buf, len) == 0) {
         return;
     }
