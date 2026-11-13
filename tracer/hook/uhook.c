@@ -576,7 +576,7 @@ static void dd_uhook_dtor(void *data) {
 #define DD_ACC2_UNCACHED_LAMBDA (1u << 31)
 
 // PHP 8.6 caches static closures without captured state, so later evaluations would share the instance hook: disable it at
-// the declaration. Re-verify with the php-src#23911 fix. With opcache, workers share it: on debug and -fno-strict-aliasing builds,
+// the declaration. Since the php-src#23911 fix (8.6.0RC5) the cache is keyed by called scope, and -1 still disables it. With opcache, workers share it: on debug and -fno-strict-aliasing builds,
 // ZEND_DECLARE_LAMBDA_FUNCTION re-reads extended_value, so a racing worker may use -1 as its cache slot and crash (php-src should read it once).
 static void dd_uhook_uncache_closure(zend_object *closure) {
     zend_op_array *op_array = &((zend_function *)zend_get_closure_method_def(closure))->op_array;
