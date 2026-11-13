@@ -5,6 +5,12 @@ memory_limit=64M
 display_errors=0
 log_errors=0
 datadog.appsec.log_file=php_error_reporting
+--SKIPIF--
+<?php
+if (datadog\appsec\testing\memory_limit_exits_process()) {
+    die('skip on this PHP build an allocation over memory_limit ends the process, so recovery cannot be tested');
+}
+?>
 --FILE--
 <?php
 use function datadog\appsec\testing\mlog;
