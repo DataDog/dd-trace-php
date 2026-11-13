@@ -31,6 +31,8 @@ ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CI_COMMIT_SHA}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
+# Repository builds have rust-src; PECL's configure default remains disabled.
+export DD_RUST_BUILD_STD ?= 1
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 MAX_TEST_PARALLELISM ?= $(shell nproc)
 # macOS CI runs on bare-metal runners that leak GitLab's infra-monitoring DD_* env vars into the
@@ -149,7 +151,7 @@ $(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
 		|| mv $(BUILD_DIR)/.rust_files_list.tmp $(BUILD_DIR)/.rust_files_list
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure $(BUILD_DIR)/.rust_files_list
-	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug --disable-ddtrace-libddwaf-source $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
+	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug --$(if $(filter 1,$(DD_RUST_BUILD_STD)),enable,disable)-ddtrace-rust-build-std --disable-ddtrace-libddwaf-source $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
 	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
