@@ -18,6 +18,7 @@ DD_FLAGGING_EVALUATION_COUNTS_ENABLED=1
 --FILE--
 <?php
 require __DIR__ . '/stubs/ffe_process.inc';
+require __DIR__ . '/stubs/ffe_http_server.inc';
 foreach (array('agentless', 'no-key', 'invalid-site', 'remote-config') as $mode) {
     $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
     if (!$server) throw new RuntimeException($error);
@@ -35,6 +36,7 @@ foreach (array('agentless', 'no-key', 'invalid-site', 'remote-config') as $mode)
     $environment['NO_PROXY'] = '127.0.0.1,localhost';
     $process = ffeTestProcess(__DIR__ . '/stubs/agentless_evp_app.php', $pipes, $environment);
     $events = array();
+    $clients = array();
     $exitCode = null;
     $exitedAt = null;
     $lastCaptureAt = 0;
@@ -42,24 +44,10 @@ foreach (array('agentless', 'no-key', 'invalid-site', 'remote-config') as $mode)
     try {
         $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
         do {
-            if ($connection = @stream_socket_accept($server, 0.05)) {
-                stream_set_timeout($connection, 2);
+            if ($request = ffeTestHttpRequest($server, $clients)) {
+                list($connection, $path, $headers, $body) = $request;
                 try {
-                    $request = explode(' ', trim((string)fgets($connection)));
-                    $path = $request[1];
-                    $headers = array();
-                    while (($line = fgets($connection)) !== false && trim($line) !== '') {
-                        $pair = explode(':', $line, 2);
-                        if (count($pair) === 2) $headers[strtolower($pair[0])] = trim($pair[1]);
-                    }
                     if (isset($headers['dd-api-key'])) throw new RuntimeException('credentials reached local proxy or custom CDN');
-                    $length = isset($headers['content-length']) ? (int)$headers['content-length'] : 0;
-                    $body = '';
-                    while (strlen($body) < $length && !feof($connection)) {
-                        $chunk = fread($connection, $length - strlen($body));
-                        if ($chunk === false || $chunk === '') break;
-                        $body .= $chunk;
-                    }
                     $response = '{}';
                     if ($path === '/info') {
                         $response = json_encode(array('endpoints' => array('/evp_proxy/v2', '/evp_proxy/v4'),
@@ -103,12 +91,16 @@ foreach (array('agentless', 'no-key', 'invalid-site', 'remote-config') as $mode)
                 && microtime(true) - max($exitedAt, $lastCaptureAt) > 0.5) break;
         } while (microtime(true) < $deadline);
         if ($exitCode !== 0) throw new RuntimeException('child failed: ' . ffeTestProcessRead($pipes[2]));
-        if (!isset($events['exposures'], $events['flagevaluation'])) throw new RuntimeException('missing event stream');
+        if (!isset($events['exposures'], $events['flagevaluation'])) {
+            throw new RuntimeException($mode . ': missing event stream; received ' . implode(', ', array_keys($events))
+                . '; child output: ' . ffeTestProcessRead($pipes[1]) . ffeTestProcessRead($pipes[2]));
+        }
         echo $mode, ': both streams delivered with PHP identity and no API key', "\n";
     } finally {
         if ($exitCode === null) proc_terminate($process);
         foreach ($pipes as $pipe) fclose($pipe);
         proc_close($process);
+        foreach ($clients as $client) fclose($client['stream']);
         fclose($server);
     }
 }
