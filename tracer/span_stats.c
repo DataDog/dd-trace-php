@@ -258,13 +258,7 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         }
     }
 
-    // has_exception: used by dd_compute_span_is_error() for exception-based error detection.
-    zval *exception_zv = &span->property_exception;
-    pre->has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT &&
-                         instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
-
-    zval *error_ignored_zv = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("error.ignored")) : NULL;
-    pre->ignore_error = error_ignored_zv && zend_is_true(error_ignored_zv);
+    ddtrace_precompute_span_error(span, pre);
 
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
@@ -274,6 +268,19 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
     pre->is_partial_snapshot = false;
     zval *span_kind_zv = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("span.kind")) : NULL;
     pre->span_kind = (span_kind_zv && Z_TYPE_P(span_kind_zv) == IS_STRING) ? Z_STR_P(span_kind_zv) : NULL;
+}
+
+void ddtrace_precompute_span_error(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
+    // The chunk error scan must not separate arrays or release invalid property values:
+    // those operations can run destructors before the span rings have been drained.
+    zval *meta = &span->property_meta;
+    ZVAL_DEREF(meta);
+    pre->meta = Z_TYPE_P(meta) == IS_ARRAY ? Z_ARR_P(meta) : NULL;
+    zval *exception_zv = &span->property_exception;
+    pre->has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT &&
+                         instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
+    zval *error_ignored_zv = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("error.ignored")) : NULL;
+    pre->ignore_error = error_ignored_zv && zend_is_true(error_ignored_zv);
 }
 
 bool dd_compute_span_is_error(const ddtrace_span_precomputed *pre) {
