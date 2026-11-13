@@ -58,6 +58,8 @@ foreach ($profiler_minor_major_targets as $version) {
     PROFILER_LOG: "${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log"
     PROF_ANALYZE: "${CI_PROJECT_DIR}/tmp/prof-analyze"
     CARGO_HOME: "${CI_PROJECT_DIR}/.cache/prof-correctness-cargo"
+    # Keep rlib to avoid an extra fat-LTO pass for the static archive.
+    CARGO_CRATE_TYPE: staticlib,rlib
   cache:
     key:
       prefix: "prof-correctness-${PHP_MAJOR_MINOR}-${FLAVOUR}"
@@ -312,6 +314,7 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_CPU_LIMIT: 1
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    CARGO_CRATE_TYPE: staticlib,rlib
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
   parallel:
     matrix:
@@ -490,6 +493,7 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /tmp/cargo
+    CARGO_CRATE_TYPE: staticlib,rlib
     SKIP_ONLINE_TESTS: "1"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"

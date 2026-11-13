@@ -72,20 +72,26 @@ EOF
 fi
 
 cargo_command=build
+crate_type=${CARGO_CRATE_TYPE:-}
 case "${host_os}:${RUSTFLAGS}" in
   darwin*:*linker-plugin-lto*)
     # Apple's ld rejects Rust's -plugin-opt arguments when Cargo also links the
     # crate's cdylib. The PHP extension needs only the Rust staticlib here.
-    cargo_command=rustc
-    set -- --lib --crate-type staticlib "$@"
+    crate_type=staticlib
     ;;
 esac
+# Keep cargo build for callers that need multiple packages or binary targets.
+if test -n "$crate_type"; then
+  cargo_command=rustc
+  set -- --lib --crate-type "$crate_type" "$@"
+fi
 if test "${PROFILE:-debug}" = "debug"; then
   set -- "$cargo_command" ${CARGO_FEATURES:---features tracer,tracer-runtime} "$@"
 else
   set -- "$cargo_command" ${CARGO_FEATURES:---features tracer,tracer-runtime} --profile "$PROFILE" "$@"
 fi
 
+artifact_source=
 case "${host_os}" in
   *musl*)
     # Build scripts using bindgen need dynamic musl linkage to dlopen libclang.
@@ -97,19 +103,22 @@ case "${host_os}" in
     target=$("${RUSTC:-rustc}" -vV | sed -n 's/^host: //p')
     artifact_dir="${CARGO_TARGET_DIR:-target}/${PROFILE:-debug}"
     # The cross-language release path already supplies --target for build-std.
-    # Do not add it twice: Cargo treats that as a multi-target build, which is
-    # incompatible with --artifact-dir.
     has_target=
     for arg do
       case "$arg" in --target|--target=*) has_target=1 ;; esac
     done
     if test -z "$has_target"; then
       set -- "$@" --target "$target"
+      if test "$cargo_command" = rustc; then
+        artifact_source="${CARGO_TARGET_DIR:-target}/$target/${PROFILE:-debug}"
+      fi
     fi
     set -- --config target-applies-to-host=false \
       --config 'host.rustflags=["-C", "target-feature=-crt-static"]' \
-      "$@" -Zhost-config -Ztarget-applies-to-host -Zunstable-options \
-      --artifact-dir "$artifact_dir"
+      "$@" -Zhost-config -Ztarget-applies-to-host
+    if test "$cargo_command" = build; then
+      set -- "$@" -Zunstable-options --artifact-dir "$artifact_dir"
+    fi
     ;;
 esac
 
@@ -117,4 +126,12 @@ if test -n "$RUST_TOOLCHAIN"; then
   set -- "+$RUST_TOOLCHAIN" "$@"
 fi
 
-SIDECAR_VERSION=$(cat VERSION) RUSTFLAGS="$RUSTFLAGS" "${DDTRACE_CARGO:-cargo}" "$@"
+SIDECAR_VERSION=$(cat VERSION) RUSTFLAGS="$RUSTFLAGS" "${DDTRACE_CARGO:-cargo}" "$@" || exit $?
+
+# cargo rustc has no --artifact-dir; implicit musl targets still need the flat path.
+if test -n "$artifact_source"; then
+  mkdir -p "$artifact_dir" || exit $?
+  for artifact in "$artifact_source"/libdatadog_php.*; do
+    cp "$artifact" "$artifact_dir/" || exit $?
+  done
+fi
