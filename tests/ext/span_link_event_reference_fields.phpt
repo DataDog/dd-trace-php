@@ -44,10 +44,10 @@ DDTrace\trace_function('foo', function (\DDTrace\SpanData $span) {
 foo();
 
 $spans = dd_clean_spans();
-[$link, $plainLink] = $spans[0]['span_links'];
+list($link, $plainLink) = $spans[0]['span_links'];
 var_dump($link);
 var_dump($link === $plainLink);
-[$event, $exceptionEvent] = $spans[0]['span_events'];
+list($event, $exceptionEvent) = $spans[0]['span_events'];
 var_dump($event['name']);
 var_dump($exceptionEvent['attributes']['exception.message'] ?? null);
 

@@ -4,6 +4,7 @@
 #include <exceptions/exceptions.h>
 #include "zai_string/string.h"
 #include "span.h"
+#include "span_tags_view.h"
 #include "hook/uhook.h"
 #include "hook/uhook_line.h"
 #include <hook/line_hooks.h>
@@ -567,7 +568,11 @@ static void dd_span_decoration_apply(dd_probe_def *def, zend_execute_data *execu
             ddog_Vec_SnapshotEvaluationError *error;
             ddog_CaptureConfiguration config_defaults = ddog_capture_defaults();
             ZVAL_STR(&zv, dd_eval_string(spanTag->tag.value, &config_defaults, execute_data, retval, &error));
-            zend_hash_str_update(attributes, spanTag->tag.name.ptr, spanTag->tag.name.len, &zv);
+            // As a $meta write, so aliased keys (resource.name, service.name, ...) set the span property.
+            zend_string *name = zend_string_init(spanTag->tag.name.ptr, spanTag->tag.name.len, 0);
+            ddtrace_span_write_meta(span, name, &zv, false);
+            zend_string_release(name);
+            zval_ptr_dtor(&zv);
 
             zend_string *tag = zend_strpprintf(0, "_dd.di.%.*s.probe_id", (int)spanTag->tag.name.len, spanTag->tag.name.ptr);
             ZVAL_STR_COPY(&zv, def->probe_id);

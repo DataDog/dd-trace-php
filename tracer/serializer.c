@@ -1662,7 +1662,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
     if (is_root_span || is_inferred_span) {
         // _dd.p.dm is "-N" (legacy "<hash>-N"): the mechanism is the digits after the last '-'.
         // Unparseable values leave the chunk field unset rather than claiming mechanism 0.
-        zval *dm = zend_hash_str_find_deref(attributes, ZEND_STRL("_dd.p.dm"));
+        // Only the root's dm is current; the inferred span's is the stale incoming copy.
+        zval *dm = is_root_span ? zend_hash_str_find_deref(attributes, ZEND_STRL("_dd.p.dm")) : NULL;
         if (dm && Z_TYPE_P(dm) == IS_STRING) {
             const char *dash = zend_memrchr(Z_STRVAL_P(dm), '-', Z_STRLEN_P(dm));
             const char *p = dash ? dash + 1 : Z_STRVAL_P(dm);
