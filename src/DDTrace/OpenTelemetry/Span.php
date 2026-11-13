@@ -367,6 +367,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             } else {
                 $span->attributes[Tag::HTTP_STATUS_CODE] = $statusCode;
             }
+        } elseif ($key === 'http.response.status_code' && \is_string($value)) {
+            // A string status code is a plain attribute: drop the numeric override it replaces first.
+            self::_setAttribute($span, $key, null);
+            $span->attributes[$key] = $value;
         } elseif ($value === null) {
             unset($span->attributes[$key]);
             if ($key === Tag::COMPONENT) {

@@ -913,13 +913,17 @@ static void dd_span_links_to_rust(zend_array *links, ddog_SpanBytes *span) {
         ddog_SpanLinkBytes *rust_link = ddog_new_link(span);
 
         zval *tid = &link->property_trace_id;
+        ZVAL_DEREF(tid);
         if (Z_TYPE_P(tid) == IS_STRING) {
             datadog_trace_id id = ddtrace_parse_hex_trace_id(Z_STRVAL_P(tid), Z_STRLEN_P(tid));
             ddog_link_set_trace_id(rust_link, id.high, id.low);
         }
-        ddog_link_set_span_id(rust_link, ddtrace_parse_hex_span_id(&link->property_span_id));
+        zval *sid = &link->property_span_id;
+        ZVAL_DEREF(sid);
+        ddog_link_set_span_id(rust_link, ddtrace_parse_hex_span_id(sid));
 
         zval *ts = &link->property_trace_state;
+        ZVAL_DEREF(ts);
         if (Z_TYPE_P(ts) == IS_STRING && Z_STRLEN_P(ts) > 0) {
             ddog_link_set_tracestate(rust_link, dd_zend_string_to_CharSlice(Z_STR_P(ts)));
         }
@@ -953,6 +957,7 @@ static void dd_span_events_to_rust(zend_array *events, ddog_SpanBytes *span) {
         ddog_Attributes *event_attrs = ddog_event_get_attributes(rust_event);
 
         zval *name = &event->property_name;
+        ZVAL_DEREF(name);
         if (Z_TYPE_P(name) == IS_STRING) {
             ddog_event_set_name(rust_event, dd_zend_string_to_CharSlice(Z_STR_P(name)));
         }
@@ -965,6 +970,7 @@ static void dd_span_events_to_rust(zend_array *events, ddog_SpanBytes *span) {
         if (instanceof_function(event->std.ce, ddtrace_ce_exception_span_event)) {
             ddtrace_exception_span_event *exc_event = (ddtrace_exception_span_event *)event;
             zval *exception = &exc_event->property_exception;
+            ZVAL_DEREF(exception);
             if (Z_TYPE_P(exception) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception), zend_ce_throwable)) {
                 zend_string *message = zai_exception_message(Z_OBJ_P(exception));
                 if (ZSTR_LEN(message)) {

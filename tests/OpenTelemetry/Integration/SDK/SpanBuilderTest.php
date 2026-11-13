@@ -336,6 +336,19 @@ class SpanBuilderTest extends MockeryTestCase
         $span->end();
     }
 
+    public function test_string_http_response_status_code_replaces_the_numeric_one(): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->setAttribute('http.response.status_code', 500);
+        $span->setAttribute('http.response.status_code', '201');
+
+        $this->assertSame('201', $span->getAttribute('http.response.status_code'));
+        $this->assertSame('201', $span->toSpanData()->getAttributes()->get('http.response.status_code'));
+
+        $span->end();
+    }
+
     public function test_custom_span_kind_replaces_the_canonical_one(): void
     {
         /** @var Span $span */

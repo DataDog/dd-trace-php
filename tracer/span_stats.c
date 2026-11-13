@@ -140,7 +140,12 @@ bool ddtrace_alter_stats_additional_tags(zval *old_value, zval *new_value, zend_
 }
 
 bool ddtrace_span_service_differs_from_parent(ddtrace_span_data *span, zend_string *service) {
-    zval *parent_service = &span->parent->property_service;
+    // Compare with the nearest non-dropped ancestor, the parent the serializer emits.
+    ddtrace_span_data *parent_span = SPANDATA(span->parent);
+    while (parent_span->parent && ddtrace_span_is_dropped(parent_span)) {
+        parent_span = SPANDATA(parent_span->parent);
+    }
+    zval *parent_service = &parent_span->property_service;
     ZVAL_DEREF(parent_service);
     if (Z_TYPE_P(parent_service) <= IS_NULL || !service) {
         return (Z_TYPE_P(parent_service) > IS_NULL) != (service != NULL);

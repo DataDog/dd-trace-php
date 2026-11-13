@@ -393,6 +393,14 @@ final class TracerTest extends BaseTestCase
                 [['http.response.status_code', 300], ['http.status_code', 404], ['http.status_code', null]],
                 ['http.status_code' => '300'],
             ],
+            'a string status code replaces the numeric one' => [
+                [['http.response.status_code', 500], ['http.response.status_code', '201']],
+                ['http.response.status_code' => '201'],
+            ],
+            'a string status code restores the overridden http.status_code' => [
+                [['http.status_code', 302], ['http.response.status_code', 500], ['http.response.status_code', '201']],
+                ['http.status_code' => '302', 'http.response.status_code' => '201'],
+            ],
         ];
     }
 
