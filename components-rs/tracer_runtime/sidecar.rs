@@ -361,6 +361,57 @@ pub extern "C" fn ddog_sidecar_transport_raw_fd(transport: &Box<SidecarTransport
     transport.as_raw_fd()
 }
 
+/// Mark a notified process death and recover only while the reconnect callback is enabled.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_check_liveness(
+    transport: &mut Box<SidecarTransport>,
+    process_died: bool,
+) {
+    if process_died {
+        transport.inner.channel.0.mark_closed();
+    }
+    transport.ensure_alive();
+}
+
+/// Arm a quiet death notification before transferring its writer to the sidecar.
+/// The caller owns the returned reader; neither the transport nor its replay state retains
+/// a writer. Closing the reader also releases the sidecar's process watch.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_watch_process(
+    transport: &mut Box<SidecarTransport>,
+    reader_fd: &mut i32,
+) -> MaybeError {
+    use datadog_sidecar::service::sidecar_interface::SidecarInterfaceRequest;
+    use libdd_ipc::platform::PlatformHandle;
+    use std::os::fd::{AsRawFd, IntoRawFd};
+
+    // Linux UAPI F_SETSIG (asm-generic/fcntl.h), not exposed by the libc crate.
+    const F_SETSIG: libc::c_int = 10;
+    let (reader, writer) = try_c!(std::io::pipe());
+    let fd = reader.as_raw_fd();
+    // SAFETY: the pipe descriptors remain owned here until after registration and transfer.
+    for (fd, command, value) in [
+        (fd, libc::F_SETOWN, unsafe { libc::getpid() }),
+        (fd, F_SETSIG, libc::SIGVTALRM),
+        (fd, libc::F_SETFL, libc::O_NONBLOCK | libc::O_ASYNC),
+        (writer.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK),
+    ] {
+        if unsafe { libc::fcntl(fd, command, value) } < 0 {
+            return MaybeError::Some(std::io::Error::last_os_error().to_string().into());
+        }
+    }
+    let request = SidecarInterfaceRequest::RegisterLiveness {
+        writer: PlatformHandle::from(writer),
+    };
+    try_c!(transport.inner.channel.send_request_blocking(&request));
+    // Drop every local writer reference now, including the serialized request's handle.
+    drop(request);
+    *reader_fd = reader.into_raw_fd();
+    MaybeError::None
+}
+
 const SHM_LIMITER_GRANULARITY: Duration = Duration::from_secs(1);
 
 pub struct MaybeShmLimiter(Option<Limiter>);
