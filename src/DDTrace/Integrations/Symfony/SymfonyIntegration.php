@@ -444,18 +444,31 @@ class SymfonyIntegration extends Integration
 
                 /** @var ContainerInterface $container */
                 $container = self::$kernel->getContainer();
-                $path = EndpointCatalog::pathForRoute($route_name, $container);
+                $locale = $request->attributes->get('_locale');
+                $apiSecurity = function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                    && dd_trace_env_config("DD_API_SECURITY_ENABLED");
 
-                // Try with locale suffix (Symfony i18n routing convention)
-                if ($path === null) {
-                    $locale = $request->attributes->get('_locale');
-                    if ($locale !== null) {
-                        $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
+                // The entry holds http.route, and the normalization once API
+                // Security needs it (see EndpointCatalog::routeCacheEntry()).
+                $cacheKey = EndpointCatalog::normalizationCacheKey($route_name, $locale, $container);
+                $entry = $cacheKey === null ? false : \DDTrace\routing_cache_get($cacheKey);
+                if ($entry === false || ($apiSecurity && strpos($entry, "\0") === false)) {
+                    $entry = EndpointCatalog::routeCacheEntry($route_name, $locale, $container, $apiSecurity);
+                    if ($entry === null) {
+                        return;
+                    }
+                    if ($cacheKey !== null) {
+                        \DDTrace\routing_cache_set($cacheKey, $entry);
                     }
                 }
 
-                if ($path !== null) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
+                $separator = strpos($entry, "\0");
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $separator === false ? $entry : substr($entry, 0, $separator);
+                if ($apiSecurity) {
+                    $normalizedRoute = EndpointCatalog::normalizedRouteFromCacheEntry($entry, $request->getPathInfo());
+                    if ($normalizedRoute !== null) {
+                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                    }
                 }
             };
         } else {
@@ -769,4 +782,5 @@ class SymfonyIntegration extends Integration
 
         return true;
     }
+
 }

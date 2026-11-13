@@ -110,6 +110,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::ERROR_STACK, 'error.stack'],
             [Tag::HTTP_METHOD, 'http.method'],
             [Tag::HTTP_ROUTE, 'http.route'],
+            [Tag::APPSEC_NORMALIZED_ROUTE, '_dd.appsec.normalized_route'],
             [Tag::HTTP_STATUS_CODE, 'http.status_code'],
             [Tag::HTTP_URL, 'http.url'],
             [Tag::HTTP_VERSION, 'http.version'],
