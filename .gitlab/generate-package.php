@@ -1241,7 +1241,9 @@ endforeach;
         sleep 1
       done
   script:
-    - make -C dockerfiles/verify_packages test_installer
+    # Each test is an independent `docker run --rm` container, so run a few at once.
+    # -O keeps each test's output together in the job log.
+    - make -C dockerfiles/verify_packages -j4 -O test_installer
   after_script:
     - docker rm --force "$INSTALLER_ARTIFACT_SERVER" || true
     - docker network rm "$INSTALLER_DOCKER_NETWORK" || true
