@@ -111,7 +111,7 @@ case "$php_version" in
     8.3) php_api="20230831" ;;
     8.4) php_api="20240924" ;;
     8.5) php_api="20250925" ;;
-    8.6) php_api="20260924" ;;
+    8.6) php_api="20261112" ;;
     *)   echo "Error: unknown PHP version '$php_version'. Supported: 7.0–8.6." >&2; exit 1 ;;
 esac
 

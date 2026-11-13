@@ -7,8 +7,9 @@ unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
 # Helper to parse version strings for comparison
 function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
 
-# Remove extensions whose mere presence pollutes test output or output
-# ordering:
+# Remove extensions whose mere presence changes PHP language test behavior:
+#  - memcache initializes $_SERVER during RINIT, breaking tests that need it
+#    uninitialized (e.g. ext/phar/tests/webphar_cgi_no_path_info.phpt)
 #  - rdkafka emits CONFWARN lines, breaking Zend/tests/instantiate_all_classes.phpt
 #  - parallel (ZTS-only) defers 'PHP Startup' diagnostics until after the
 #    script's first output, breaking ~56 deprecation/warning-ordering tests
@@ -16,6 +17,7 @@ function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4
 # variant (debug for the tracer job, nts/zts for the profiler job) instead
 # of hardcoding the debug path.
 scan_dir="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')"
+sudo rm -f "${scan_dir}/memcache.ini"
 sudo rm -f "${scan_dir}/memcached.ini"
 sudo rm -f "${scan_dir}/rdkafka.ini"
 sudo rm -f "${scan_dir}/parallel.ini"
@@ -32,6 +34,16 @@ mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
 # replace all hardcoded object ids in tests by %d as ddtrace creates its own objects
 php <<'PHP'
 <?php
+// zend_mem_block_size() returns 0 for custom allocators, including the profiler.
+// Keep this bin-inspection test running, but without allocation profiling hooks.
+$realloc_boundary_test = 'Zend/tests/zend_alloc_realloc_shrink_boundary.phpt';
+if (is_file($realloc_boundary_test)) {
+    $contents = file_get_contents($realloc_boundary_test);
+    if (!preg_match('/^--INI--\r?$/m', $contents)) {
+        file_put_contents($realloc_boundary_test, str_replace('--FILE--', "--INI--\ndatadog.profiling.allocation_enabled=0\n--FILE--", $contents));
+    }
+}
+
 // This hard-timeout test depends on timing; retry it on newer PHP runners.
 // PHP <= 8.2 excludes it through the version-specific xfail lists.
 $hard_timeout_test = 'Zend/tests/bug74093.phpt';

@@ -1201,7 +1201,7 @@ endforeach;
           - alpine:3.21
           - alpine:3.24
       # Pre-GA versions only exist as -rc tags on Docker Hub.
-      - IMAGE: <?= json_encode(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "php:$v-rc-fpm-alpine" : "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      - IMAGE: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*"php:$v-rc-fpm-alpine"*/ : "php:$v-fpm-alpine"; }, $all_minor_major_targets))), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1292,7 +1292,7 @@ endforeach;
     INSTALL_MODE: sury
   parallel:
     matrix:
-      - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
+      - PHP_VERSION: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*broken for PHP 8.6 currently*/ : $v; }, $all_minor_major_targets))), "\n" ?>
         IMAGE:
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
