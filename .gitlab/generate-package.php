@@ -375,20 +375,53 @@ foreach ($build_platforms as $platform) {
     # Load the function in this shell too, not just the build-tracing subprocess.
     - source "$BASH_ENV"
 <?php endif; ?>
-    # Replace the PHP 7.0 NTS/ZTS release extensions on both libc targets;
+    # Replace the PHP 7.0 NTS release extension on both libc targets;
     # Alpine's common archive now contains LLVM bitcode too. Debug stays non-LTO.
+    # The ZTS release extension is built by the parallel "zts lto" job below.
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
-    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
-    - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
   artifacts:
     paths:
       - "extensions_*"
       - "standalone_*"
       - "ddtrace_*-fat.ldflags"
       - "ddtrace_*-fat.sym"
+
+# PHP 7.0 ZTS ThinLTO release extension. It shares no build state with the
+# NTS build above, so it runs as a parallel job (like "compile combined
+# extension" does for NTS/ZTS) instead of serially after it.
+"compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts lto]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+<?php if ($platform['host_os'] === 'linux-musl'): ?>
+    # Alpine exposes switch_php as a function; switch-php is only an alias,
+    # which the non-interactive runner shell does not expand.
+    - echo "" >> "$BASH_ENV"
+    - source "$BASH_ENV"
+<?php endif; ?>
+    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
+    - make -s xlang-lto
+    - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+  artifacts:
+    paths:
+      - "extensions_*"
 
 <?php
     }
@@ -550,6 +583,8 @@ foreach ($build_platforms as $platform) {
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing extension: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: "compile tracing extension: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts lto]"
       artifacts: true
 <?php
 foreach ($profiler_minor_major_targets as $major_minor) {
