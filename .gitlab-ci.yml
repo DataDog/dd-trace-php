@@ -137,7 +137,7 @@ profiling tests:
       IMAGE_SUFFIX:
       - _centos-7-3
       CARGO_CRATE_TYPE:
-      - staticlib
+      - staticlib,rlib
       - staticlib,cdylib,rlib
       RUN:
       - '1'
@@ -152,7 +152,7 @@ profiling tests:
       IMAGE_SUFFIX:
       - ''
       CARGO_CRATE_TYPE:
-      - staticlib
+      - staticlib,rlib
       - staticlib,cdylib,rlib
       RUN:
       - '1'
@@ -167,7 +167,7 @@ profiling tests:
       IMAGE_SUFFIX:
       - ''
       CARGO_CRATE_TYPE:
-      - staticlib
+      - staticlib,rlib
       - staticlib,cdylib,rlib
       RUN:
       - '1'
@@ -258,7 +258,7 @@ standalone build comparison:
       FLAVOUR:
       - nts
       CARGO_CRATE_TYPE:
-      - staticlib
+      - staticlib,rlib
       - staticlib,cdylib,rlib
       RUN:
       - '1'
