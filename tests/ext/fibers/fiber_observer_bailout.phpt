@@ -3,7 +3,6 @@ Test fiber observing with bailout
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80100) die("skip: Fibers are a PHP 8.1+ feature"); ?>
 --INI--
-memory_limit=100M
 fatal_error_backtraces=0
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
@@ -22,7 +21,7 @@ function outer($fiber) {
 
 function inFiber() {
     Fiber::suspend();
-    str_repeat("\0", 1 << 31);
+    DDTrace\Testing\trigger_error("Fatal error in fiber", E_ERROR);
 }
 
 DDTrace\trace_function("outer", function() {});
@@ -42,22 +41,22 @@ outer($fiber); // make something on the main stack the current observed frame
 
 ?>
 --EXPECTF--
-Fatal error: Allowed memory size of %d bytes exhausted %s in %s on line %d
+Fatal error: Fatal error in fiber in %s on line %d
 inFiber posthook
 spans(\DDTrace\SpanData) (1) {
-  fiber_observer_bailout.php (fiber_observer_bailout.php, fiber_observer_bailout.php, cli) (error: Allowed memory size of %d bytes exhausted %s)
+  fiber_observer_bailout.php (fiber_observer_bailout.php, fiber_observer_bailout.php, cli) (error: Fatal error in fiber)
     _dd.p.dm => -0
     _dd.p.tid => %s
-    error.message => Allowed memory size of %d bytes exhausted %s
-    error.stack => #0 %s(%d): str_repeat()
+    error.message => Fatal error in fiber
+    error.stack => #0 %s(%d): DDTrace\Testing\trigger_error()
 #1 [internal function]: inFiber()
 #2 %s(%d): Fiber->resume()
 #3 %s(%d): outer()
 #4 {main}
     error.type => E_ERROR
-    inFiber (fiber_observer_bailout.php, inFiber, cli) (error: Allowed memory size of %d bytes exhausted %s)
-      error.message => Allowed memory size of %d bytes exhausted %s
-      error.stack => #0 %s(%d): str_repeat()
+    inFiber (fiber_observer_bailout.php, inFiber, cli) (error: Fatal error in fiber)
+      error.message => Fatal error in fiber
+      error.stack => #0 %s(%d): DDTrace\Testing\trigger_error()
 #1 [internal function]: inFiber()
 #2 %s(%d): Fiber->resume()
 #3 %s(%d): outer()

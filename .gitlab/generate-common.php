@@ -14,7 +14,7 @@ $php_versions_to_abi = [
     "8.3" => "20230831",
     "8.4" => "20240924",
     "8.5" => "20250925",
-    "8.6" => "20260924",
+    "8.6" => "20261112",
 ];
 
 $all_minor_major_targets = array_keys($php_versions_to_abi);
