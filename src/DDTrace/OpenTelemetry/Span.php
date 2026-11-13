@@ -190,10 +190,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $isRemapped
         );
 
-        // operation.name wins over the default operation name set by the constructor, restored on its removal
-        if (isset($attributes['operation.name'])) {
+        // operation.name (the resource one first) wins over the constructor's default name, restored on its removal
+        $operationName = $resourceAttributes['operation.name'] ?? $attributes['operation.name'] ?? null;
+        if ($operationName !== null) {
             ObjectKVStore::put($span, 'operation.name', null);
-            self::_setAttribute($span, 'operation.name', $attributes['operation.name']);
+            self::_setAttribute($span, 'operation.name', $operationName);
         }
 
         ObjectKVStore::put($span, 'otel_span', $OTelSpan);

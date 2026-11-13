@@ -139,9 +139,8 @@ bool ddtrace_alter_stats_additional_tags(zval *old_value, zval *new_value, zend_
     return true;
 }
 
-bool ddtrace_span_service_differs_from_parent(ddtrace_span_data *span, zend_string *service) {
+bool ddtrace_span_service_differs_from_parent(ddtrace_span_data *parent_span, zend_string *service) {
     // Compare with the nearest non-dropped ancestor, the parent the serializer emits.
-    ddtrace_span_data *parent_span = SPANDATA(span->parent);
     while (parent_span->parent && ddtrace_span_is_dropped(parent_span)) {
         parent_span = SPANDATA(parent_span->parent);
     }
@@ -217,7 +216,11 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
 
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
-    pre->has_top_level = ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0) || (span->parent && ddtrace_span_service_differs_from_parent(span, pre->service));
+    // A root's parent is its inferred span, if any, as the serializer emits it.
+    ddtrace_span_data *parent = span->parent ? SPANDATA(span->parent)
+        : span->std.ce == ddtrace_ce_root_span_data ? ddtrace_get_inferred_span(ROOTSPANDATA(&span->std)) : NULL;
+    pre->has_top_level = parent ? ddtrace_span_service_differs_from_parent(parent, pre->service)
+        : ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0);
     zval *is_measured = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.measured"));
     pre->is_measured = is_measured && zval_get_double(is_measured) != 0.0;
     pre->is_partial_snapshot = false;

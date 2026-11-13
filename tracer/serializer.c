@@ -783,7 +783,7 @@ static inline bool dd_native_is_list(zval *value) {
 static inline ddog_CharSlice dd_native_member_key(zend_string *str_key, zend_ulong num_key, char numbuf[24]) {
     return str_key
         ? dd_zend_string_to_CharSlice(str_key)
-        : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, 24, ZEND_ULONG_FMT, num_key) };
+        : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, 24, ZEND_LONG_FMT, (zend_long)num_key) };
 }
 
 // Protected and private object members are mangled with a leading NUL byte.
@@ -1822,7 +1822,9 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
 
     // Top-level as the agent defines it: a local root, or a span whose (mapped) service differs from its parent's.
     if (ctx->mark_top_level || (DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && !is_inferred_span)) {
-        if (!span->parent || ddtrace_span_service_differs_from_parent(span, pre.service)) {
+        // A root's emitted parent is its inferred span, if any.
+        ddtrace_span_data *top_level_parent = span->parent ? SPANDATA(span->parent) : inferred_span;
+        if (!top_level_parent || ddtrace_span_service_differs_from_parent(top_level_parent, pre.service)) {
             ddog_attributes_add_double_lit(rattrs, "_dd.top_level", 1);
         }
     }

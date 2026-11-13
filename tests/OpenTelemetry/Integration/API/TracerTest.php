@@ -18,7 +18,9 @@ use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\Context\ContextStorage;
+use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesInterface;
+use OpenTelemetry\SDK\Resource\ResourceInfo;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOffSampler;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
@@ -457,6 +459,24 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('server.request', $traces[0]['spans'][0]['name']);
+    }
+
+    public function testResourceOperationNameBecomesTheSpanName()
+    {
+        $traces = $this->isolateTracer(function () {
+            $resource = ResourceInfo::create(Attributes::create(['operation.name' => 'Resource.Op']));
+            $tracer = (new TracerProvider([], new AlwaysOnSampler(), $resource))->getTracer('OpenTelemetry.TracerTest');
+            $tracer->spanBuilder('only.resource')->startSpan()->end();
+            $tracer->spanBuilder('both')->setAttribute('operation.name', 'span.op')->startSpan()->end();
+        });
+
+        $names = [];
+        foreach ($traces as $trace) {
+            $names[$trace['spans'][0]['resource']] = $trace['spans'][0]['name'];
+        }
+        ksort($names);
+        // The resource attribute wins over the span one
+        $this->assertSame(['both' => 'resource.op', 'only.resource' => 'resource.op'], $names);
     }
 
     public function testCustomSpanKindReplacesTheCanonicalOne()

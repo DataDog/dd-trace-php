@@ -38,8 +38,10 @@ abstract class Span implements SpanInterface
     {
         if ($name == "operationName") {
             $name = "name";
-        } elseif ($name == "tags") {
-            $name = "meta";
+        } elseif ($name == "tags" || $name == "metrics") {
+            // A by-value read yields an array; the by-ref fetch below would yield the SpanTagsView.
+            $tags = $name == "tags" ? $this->internalSpan->meta : $this->internalSpan->metrics;
+            return $tags;
         } elseif ($name == "duration") {
             $duration = $this->internalSpan->getDuration();
             return $duration;
