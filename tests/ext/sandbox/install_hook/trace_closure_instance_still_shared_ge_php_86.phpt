@@ -3,8 +3,8 @@ HOOK_INSTANCE caching boundaries for PHP 8.6 static closures
 --DESCRIPTION--
 Pins the PHP 8.6 closure caching boundaries: evaluations obtained before the install stay shared,
 while indexed declarations in inactive closures and property hooks produce fresh closures after it.
-Also pins php-src#23911: an evaluation through a second subclass is the closure cached for the first
-one, with its static::.
+Also pins the php-src#23911 fix (8.6.0RC5): the cache is keyed by called scope, so an evaluation through a
+second subclass is a fresh closure with its own static::, while the first subclass still hits the cache.
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80600) die('skip: static closure caching is PHP 8.6+'); ?>
 --INI--
@@ -44,6 +44,8 @@ class B extends P {}
 $a = A::make();
 $b = B::make();
 echo "second subclass: ", var_export($a === $b, true), " ", $b(), "\n";
+$a2 = A::make();
+echo "first subclass again: ", var_export($a === $a2, true), " ", $a2(), "\n";
 
 ?>
 --EXPECT--
@@ -56,4 +58,5 @@ nested iteration 1
 nested hook 1
 property hook: false
 property hook: traced
-second subclass: true A
+second subclass: false B
+first subclass again: true A

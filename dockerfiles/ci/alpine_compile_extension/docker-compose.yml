@@ -168,9 +168,9 @@ services:
       x-bake: *bake
       args:
         <<: *build-base
-        phpVersion: 8.6.0RC3
-        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC3.tar.gz
-        phpSha256Hash: "a40085cef8bfb560ed3649cd83879e768ab22fe4cee467aa56b1b795c92e057d"
-        phpApi: 20260924
+        phpVersion: 8.6.0RC7
+        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC7.tar.gz
+        phpSha256Hash: "68b753e1d45e1417c6874008500de66102963cf0791e8c541211e9386318722e"
+        phpApi: 20261112
     volumes:
       - ../../:/app

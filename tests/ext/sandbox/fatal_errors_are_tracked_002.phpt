@@ -2,6 +2,7 @@
 E_ERROR fatal errors are tracked from hitting the memory limit
 --SKIPIF--
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
+<?php if (PHP_VERSION_ID >= 80600) die('skip: OOM-fatal errors no longer exist on PHP 8.6+'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
