@@ -1002,7 +1002,7 @@ static int ddloader_api_no_check(int api_no) {
         zend_register_ini_entries(module_api_no <= PHP_72_VERSION ? (zend_ini_entry_def *) ini_entries_7_0_to_2 : ini_entries, mod->module_number);
     }
 
-    if (api_no > MAX_API_VERSION || api_no == 20260924 /* early PHP 8.6 RCs */) {
+    if (api_no > MAX_API_VERSION || module_api_no == 20260924 /* early PHP 8.6 RCs */) {
         if (!force_load) {
             TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, NULL, NULL, "Found incompatible runtime (api no: %d). Supported runtimes: PHP " MIN_PHP_VERSION " to " MAX_PHP_VERSION, api_no);
             return SUCCESS;
