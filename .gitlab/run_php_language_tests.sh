@@ -92,10 +92,33 @@ foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))
 }
 PHP
 
-# -j flag is only available in PHP 7.4+
+# -j flag is only available in PHP 7.4+.
 extra_args=""
+parallelize=()
+test_paths=()
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) ]]; then
   extra_args="-j$(nproc)"
+elif [[ ${PHP_MAJOR_MINOR} =~ ^7\.[123]$ && $(nproc) -gt 1 ]]; then
+  parallelize=("${CI_PROJECT_DIR}/tooling/parallelize-run-tests.sh" "-j$(nproc)")
+  # Old suites share files and ports across directories; keep them in one ordered batch.
+  for suite in tests/{basic,security} sapi/cli/tests \
+      ext/standard/tests/{http,network,streams,url,file,dir} \
+      ext/{session,curl,openssl,sockets,opcache,soap,phar,spl}/tests; do
+    while IFS= read -r -d '' dir; do
+      printf 'legacy-shared\n' > "$dir/CONFLICTS"
+    done < <(find "$suite" -type f -name '*.phpt' -printf '%h\0' | sort -zu)
+  done
+  # Match run-tests.php's default discovery: core tests and loaded extensions.
+  mapfile -t test_paths < <(php -r '
+    $extensions = array_map("strtolower", get_loaded_extensions());
+    $extensions = str_replace("zend opcache", "opcache", $extensions);
+    foreach (["tests", "Zend", "sapi"] as $dir) {
+        if (is_dir($dir)) echo $dir, "\n";
+    }
+    foreach (glob("ext/*", GLOB_ONLYDIR) as $dir) {
+        if (in_array(strtolower(basename($dir)), $extensions, true)) echo $dir, "\n";
+    }
+  ')
 fi
 
 # PHP < 8.2 already hides progress when -g filters the displayed results.
@@ -108,9 +131,9 @@ if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.1) 
   sed -i "/flaky_functions = /a 'socket_create','stream_context_create'," run-tests.php
 fi
 
-php run-tests.php -q \
+"${parallelize[@]}" php run-tests.php -q \
   -p /usr/local/bin/php \
   --show-diff \
   -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK \
   -d datadog.trace.sources_path=/home/circleci/datadog/src \
-  $extra_args
+  $extra_args "${test_paths[@]}"
