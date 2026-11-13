@@ -12,6 +12,8 @@ cd "$root"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/tmp/ssi-common/target}"
 export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
 export CARGO_FEATURES='--no-default-features --features tracer-runtime'
+# The sidecar job also needs the archive for the legacy PHP 7.0 debug link.
+export CARGO_CRATE_TYPE=staticlib,cdylib
 export SHARED=1 PROFILE=tracer-release host_os="${HOST_OS:-linux-gnu}"
 if [[ -n ${DDTRACE_PROFILING_TARGET:-} ]]; then
     ./compile_rust.sh --quiet ${DDTRACE_PROFILING_CARGO_BUILD_FLAGS:-} --target "$DDTRACE_PROFILING_TARGET"

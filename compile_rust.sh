@@ -71,19 +71,12 @@ EOF
   export CC="$asan_cc"
 fi
 
-cargo_command=build
-case "${host_os}:${RUSTFLAGS}" in
-  darwin*:*linker-plugin-lto*)
-    # Apple's ld rejects Rust's -plugin-opt arguments when Cargo also links the
-    # crate's cdylib. The PHP extension needs only the Rust staticlib here.
-    cargo_command=rustc
-    set -- --lib --crate-type staticlib "$@"
-    ;;
-esac
+# PHP extensions link the archive; only the SSI common build also needs a DSO.
+set -- --lib --crate-type "${CARGO_CRATE_TYPE:-staticlib}" "$@"
 if test "${PROFILE:-debug}" = "debug"; then
-  set -- "$cargo_command" ${CARGO_FEATURES:---features tracer,tracer-runtime} "$@"
+  set -- rustc ${CARGO_FEATURES:---features tracer,tracer-runtime} "$@"
 else
-  set -- "$cargo_command" ${CARGO_FEATURES:---features tracer,tracer-runtime} --profile "$PROFILE" "$@"
+  set -- rustc ${CARGO_FEATURES:---features tracer,tracer-runtime} --profile "$PROFILE" "$@"
 fi
 
 case "${host_os}" in
