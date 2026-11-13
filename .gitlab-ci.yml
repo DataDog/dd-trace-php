@@ -1,216 +1,112 @@
 stages:
-  - build
-  - tests
-  - deploy
-  - ci-build
-  - ci-publish
-  - merge-gate
-
+- test
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: 'true'
+  FF_USE_NEW_BASH_EVAL_STRATEGY: 'true'
   GIT_SUBMODULE_STRATEGY: recursive
-  GITHUB_RELEASES_MIRROR: "https://depot-read-api-github-releases.us1.ddbuild.io/internal/mirror/github-releases"
-  # Only clone submodules required by default test jobs
-  # libddwaf-rust is needed because the root Cargo workspace includes
-  # appsec/helper-rust, which depends on it (see 3f893e263)
   GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
-  RELIABILITY_ENV_BRANCH:
-    value: "master"
-    description: "Run a specific datadog-reliability-env branch downstream"
-  SYSTEM_TESTS_LIBRARY: php
-
-generate-templates:
-  stage: build
-  # The generators only need php-cli: no git history, no submodules.
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli-alpine
-  tags: [ "arch:amd64" ]
-  needs: []
-  script:
-    - |
-      touch libdatadog.env  # always present so dotenv artifact never errors
-      # On libdatadog CI schedule: fetch the latest SHA from GitHub, export it so
-      # generate-common.php can embed it directly in compilation job before_scripts.
-      if [ "${SCHEDULED_LIBDATADOG_LATEST:-}" = "true" ]; then
-        set -x
-        apk add --no-cache git
-        LIBDATADOG_PINNED_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
-        LIBDATADOG_OVERRIDE_SHA=$(git ls-remote https://github.com/DataDog/libdatadog main | cut -f1)
-        export LIBDATADOG_OVERRIDE_SHA LIBDATADOG_PINNED_SHA
-        printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_PINNED_SHA=%s\n' "$LIBDATADOG_OVERRIDE_SHA" "$LIBDATADOG_PINNED_SHA" >> libdatadog.env
-        if [ "$LIBDATADOG_OVERRIDE_SHA" = "$LIBDATADOG_PINNED_SHA" ]; then
-          echo 'LIBDATADOG_NO_CHANGES=true'  >> libdatadog.env
-        else
-          echo 'LIBDATADOG_NO_CHANGES=false' >> libdatadog.env
-        fi
-      elif [ "${CI_COMMIT_BRANCH:-}" = "bot/libdatadog-latest" ]; then
-        # Feedback run after a bot commit: the submodule already points to the tested SHA.
-        # Don't export — generate-common.php must not inject fetch/checkout (no-op anyway).
-        set -x
-        apk add --no-cache git
-        LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
-        printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
-      fi
-    - php ./.gitlab/generate-package.php  | tee .gitlab/package-gen.yml
-    - php ./.gitlab/generate-tracer.php   | tee .gitlab/tracer-gen.yml
-    - php ./.gitlab/generate-appsec.php   | tee .gitlab/appsec-gen.yml
-    - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
-    - php ./.gitlab/generate-shared.php   | tee .gitlab/shared-gen.yml
-    - php ./.gitlab/generate-ci-images.php | tee .gitlab/ci-images-gen.yml
+  GITHUB_RELEASES_MIRROR: https://depot-read-api-github-releases.us1.ddbuild.io/internal/mirror/github-releases
+default:
+  retry:
+    max: 2
+    when:
+    - unknown_failure
+    - data_integrity_failure
+    - runner_system_failure
+    - scheduler_failure
+    - api_failure
+    - stuck_or_timeout_failure
+    - job_execution_timeout
+    exit_codes:
+    - 75
+    - 128
+PHP language tests:
+  stage: test
+  tags:
+  - arch:${ARCH}
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  interruptible: true
+  rules:
+  - if: $CI_COMMIT_BRANCH == "master"
+    interruptible: false
+  - when: on_success
   variables:
-    GIT_SUBMODULE_STRATEGY: none
-    GIT_DEPTH: "1"
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_LIMIT: 3Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    CARGO_TARGET_DIR: /tmp/cargo
+    SKIP_ONLINE_TESTS: '1'
+    REPORT_EXIT_STATUS: '1'
+    TEST_PHP_JUNIT: ${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml
+    DD_PROFILING_OUTPUT_PPROF: /tmp/
+    XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
+  parallel:
+    matrix:
+    - PHP_MAJOR_MINOR:
+      - '7.1'
+      - '7.2'
+      - '7.3'
+      ARCH:
+      - amd64
+      FLAVOUR:
+      - nts
+      - zts
+      RUN:
+      - '1'
+      - '2'
+      - '3'
+  script:
+  - unset DD_SERVICE; unset DD_ENV
+  - command -v switch-php && switch-php "${FLAVOUR}"
+  - php -r 'exit((int) ((bool) PHP_ZTS !== (getenv("FLAVOUR") === "zts")));' || { echo "ERROR expected ${FLAVOUR} PHP"; exit
+    1; }
+  - phpize
+  - ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+  - make -j$(nproc)
+  - echo "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
+  - php -v
+  - php -r 'exit((int) !extension_loaded("datadog-profiling"));' || { echo 'ERROR datadog-profiling extension is not loaded';
+    exit 1; }
+  - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
+  - 'if php -r ''exit(PHP_VERSION_ID < 80400 ? 0 : 1);''; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list;
+    fi'
+  - "if php -r 'exit((version_compare(PHP_VERSION, \"8.4.28\", \"<\") || (PHP_VERSION_ID >= 80500 && version_compare(PHP_VERSION,\
+    \ \"8.5.13\", \"<\"))) ? 0 : 1);'; then\n  echo 'ext/opcache/tests/jit' >> /tmp/profiler-php-language-xfail.list\n  #\
+    \ Also exclude JIT-specific PHPTs outside the main JIT test directory.\n  (cd /usr/local/src/php && { grep -rlF --include='*.phpt'\
+    \ 'opcache.jit' . || [ \"$?\" -eq 1 ]; }) >> /tmp/profiler-php-language-xfail.list\n  echo 'Skipping all JIT tests in\
+    \ the profiler PHP language suite until PHP 8.4.28 / 8.5.13'\nfi\n"
+  - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
+  - "php -r '\n$xfail_list = getenv(\"CI_PROJECT_DIR\") . \"/dockerfiles/ci/xfail_tests/\"\n    . PHP_MAJOR_VERSION . \".\"\
+    \ . PHP_MINOR_VERSION . \"-arm64.list\";\nif (php_uname(\"m\") === \"aarch64\" && is_file($xfail_list)) {\n    foreach\
+    \ (file($xfail_list, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $test) {\n        $test = \"/usr/local/src/php/\"\
+    \ . $test;\n        $contents = file_get_contents($test);\n        if (!preg_match(\"/^--XFAIL--\\r?$/m\", $contents))\
+    \ {\n            file_put_contents($test, str_replace(\"--FILE--\", \"--XFAIL--\\nKnown failure listed in \" . basename($xfail_list)\
+    \ . \"\\n--FILE--\", $contents));\n        }\n    }\n}\n'\n"
+  - ulimit -c unlimited
+  - .gitlab/run_php_language_tests.sh
+  after_script:
+  - "output=\"${CI_PROJECT_DIR}/artifacts/php-language-tests\"\nmkdir -p \"${output}\"\n\n# Core files are written relative\
+    \ to the crashing process's working\n# directory when core_pattern is not absolute. PHPT processes run from\n# their test\
+    \ directories, so looking only for /usr/local/src/php/core\n# misses crashes such as ext/pcntl/tests/core. The pattern\
+    \ may also add\n# the PID, producing core.<pid>.\ncore_pattern=$(cat /proc/sys/kernel/core_pattern 2>&1)\n{\n  echo \"\
+    core_pattern: ${core_pattern}\"\n  echo \"core ulimit: $(ulimit -c)\"\n} | tee \"${output}/core-diagnostics.txt\"\n\n\
+    search_roots=(/usr/local/src/php \"${CI_PROJECT_DIR}\")\nif [[ \"${core_pattern}\" == /* ]]; then\n  search_roots+=(\"\
+    $(dirname \"${core_pattern}\")\")\nfi\n\n# Accommodate patterns such as core, core.%p, and core.%e.%p. Filtering\n# with\
+    \ file avoids mistaking source files whose names begin with \"core\"\n# for process core dumps.\nmapfile -d '' cores <\
+    \ <(\n  while IFS= read -r -d '' candidate; do\n    if file -b \"${candidate}\" 2>/dev/null | grep -q 'core file'; then\n\
+    \      printf '%s\\0' \"${candidate}\"\n    fi\n  done < <(find \"${search_roots[@]}\" -type f -name 'core*' -print0 2>/dev/null)\n\
+    )\necho \"core files found: ${#cores[@]}\" | tee -a \"${output}/core-diagnostics.txt\"\n\nfor i in \"${!cores[@]}\"; do\n\
+    \  core=\"${cores[$i]}\"\n  echo \"core ${i}: ${core}\" | tee -a \"${output}/core-diagnostics.txt\"\n  gdb --batch \\\n\
+    \    -ex \"set pagination off\" \\\n    -ex \"info threads\" \\\n    -ex \"thread apply all bt full\" \\\n    -ex \"thread\
+    \ apply all info registers\" \\\n    -ex \"info sharedlibrary\" \\\n    /usr/local/bin/php \"${core}\" > \"${output}/gdb-backtrace-${i}.txt\"\
+    \ 2>&1 || true\n  mv \"${core}\" \"${output}/core-${i}\"\ndone\n"
+  - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
   artifacts:
+    when: on_failure
     paths:
-      - .gitlab/*-gen.yml
-      # merge-gate runs these without a checkout.
-      - .gitlab/merge-gate.sh
-      - .gitlab/flaky-jobs.txt
-    reports:
-      dotenv: libdatadog.env
-
-# Builds against libdatadog main, not the pinned submodule: keep it out of Green CI.
-# Child pipelines get the same job from .gitlab/green-ci-exclude-job.yml.
-green-ci-exclude:
-  stage: build
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
-  tags: [ "arch:amd64" ]
-  needs: []
-  rules:
-    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
-  timeout: 10 minutes
-  allow_failure: true
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
-    GIT_DEPTH: "1"
-    GREEN_CI_EXCLUDE_STRICT: "true"
-  script:
-    - .gitlab/tag-pipeline-green-ci-excluded.sh
-
-tracer-trigger:
-  stage: tests
-  needs: [ "generate-templates" ]
-  trigger:
-    include:
-      - artifact: .gitlab/tracer-gen.yml
-        job: "generate-templates"
-    strategy: depend
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
-
-appsec-trigger:
-  stage: tests
-  needs: [ "generate-templates" ]
-  trigger:
-    include:
-      - artifact: .gitlab/appsec-gen.yml
-        job: "generate-templates"
-    strategy: depend
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
-
-# Manual maintenance pipeline that (re)builds the CI Docker images. Generated
-# from dockerfiles/ci/*/docker-compose.yml + .env so versions live in one place.
-# No strategy: depend — the parent must not wait on these manual jobs.
-ci-images:
-  stage: ci-build
-  rules:
-    - when: manual
-      allow_failure: true
-  needs:
-    - job: generate-templates
-      artifacts: true
-  trigger:
-    include:
-      - artifact: .gitlab/ci-images-gen.yml
-        job: generate-templates
-
-profiler-trigger:
-  stage: tests
-  needs: [ "generate-templates" ]
-  trigger:
-    include:
-      - artifact: .gitlab/profiler-gen.yml
-        job: "generate-templates"
-    strategy: depend
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-
-shared-trigger:
-  stage: tests
-  needs: [ "generate-templates" ]
-  trigger:
-    include:
-      - artifact: .gitlab/shared-gen.yml
-        job: "generate-templates"
-    strategy: depend
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-
-merge-gate:
-  stage: merge-gate
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
-  tags: [ "arch:amd64" ]
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-      when: never
-    - when: always
-  # No clone: merge-gate.sh and flaky-jobs.txt come from this commit's generate-templates artifacts.
-  dependencies: [ generate-templates ]
-  variables:
-    GIT_STRATEGY: none
-  script:
-    - test -f .gitlab/merge-gate.sh || { echo "generate-templates artifacts missing (expired after 14 days?)"; exit 1; }
-    - bash .gitlab/merge-gate.sh
-
-package-trigger:
-  stage: build
-  needs: [ "generate-templates" ]
-  inherit:
-    variables: false
-  trigger:
-    include:
-      - artifact: .gitlab/package-gen.yml
-        job: "generate-templates"
-      - local: .gitlab/benchmarks.yml
-    strategy: depend
-    forward:
-      pipeline_variables: true
-  variables:
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    NIGHTLY_BUILD: $NIGHTLY_BUILD
-    # CI_PARENT_PIPELINE_SOURCE is set to $CI_PIPELINE_SOURCE so benchmarks defined on
-    # .gitlab/benchmarks.yml can use rules based on the original pipeline source, instead of the
-    # default source "parent_pipeline", automatically set on any children pipeline.
-    CI_PARENT_PIPELINE_SOURCE: $CI_PIPELINE_SOURCE
-
-# Runs after the full CI completes.  Triggered in two situations:
-#   1. Scheduled libdatadog CI run (SCHEDULED_LIBDATADOG_LATEST=true)
-#   2. Push to bot/libdatadog-latest by the bot — feeds CI results back so we can verify whether Claude's fixes actually worked.  The [no-ci-feedback] marker in bot commits prevents triggering a third run.
-analyze-and-create-pr:
-  stage: deploy
-  rules:
-    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
-      when: always
-    - if: '$CI_COMMIT_BRANCH == "bot/libdatadog-latest" && $CI_COMMIT_AUTHOR =~ /github-actions\[bot\]/ && $CI_COMMIT_MESSAGE !~ /\[no-ci-feedback\]/'
-      when: always
-    - when: never
-  needs:
-    - job: generate-templates
-      artifacts: true
-    - tracer-trigger
-    - appsec-trigger
-    - profiler-trigger
-    - shared-trigger
-    - package-trigger
-  trigger:
-    include:
-      - local: .gitlab/libdatadog-latest.yml
-    strategy: depend
-  variables:
-    LIBDATADOG_OVERRIDE_SHA: $LIBDATADOG_OVERRIDE_SHA
-    LIBDATADOG_PINNED_SHA: $LIBDATADOG_PINNED_SHA
-    LIBDATADOG_NO_CHANGES: $LIBDATADOG_NO_CHANGES
-    LIBDATADOG_FEEDBACK_RUN: $LIBDATADOG_FEEDBACK_RUN
-    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    - artifacts/php-language-tests/

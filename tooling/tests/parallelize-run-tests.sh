@@ -44,11 +44,35 @@ grep -Eq 'Number of tests : +3 \(3 run\)' "$tmp/output"
 grep -Eq 'Tests passed +: +3' "$tmp/output"
 php -n -r '$xml = file_get_contents($argv[1]); exit(substr_count($xml, "<testcase ") === 3 ? 0 : 1);' "$tmp/results.xml"
 
+# Conflict keys must serialize shared resources across different directories.
+for dir in tests/curl tests/cli; do
+  mkdir "$dir"
+  printf 'network\n' > "$dir/CONFLICTS"
+  cat > "$dir/shared.phpt" <<'EOF'
+--TEST--
+Shared network fixture
+--FILE--
+<?php
+$path = dirname(__DIR__) . '/shared';
+$lock = fopen($path, 'x');
+if (!$lock) { die("overlap\n"); }
+usleep(200000);
+fclose($lock);
+unlink($path);
+echo "ok\n";
+?>
+--EXPECT--
+ok
+EOF
+done
+run
+grep -Eq 'Tests passed +: +5' "$tmp/output"
+
 # A failure in an expanded test must fail the whole invocation.
 printf '\nwrong\n' >> redirected/second.phpt
 status=0
 run || status=$?
 [[ $status == 1 ]]
-grep -Eq 'Number of tests : +3 \(3 run\)' "$tmp/output"
+grep -Eq 'Number of tests : +5 \(5 run\)' "$tmp/output"
 grep -Eq 'Tests failed +: +1' "$tmp/output"
-echo 'Parallel runner redirect and failure checks passed.'
+echo 'Parallel runner redirect, conflict and failure checks passed.'
