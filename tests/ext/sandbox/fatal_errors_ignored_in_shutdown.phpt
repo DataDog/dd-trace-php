@@ -2,10 +2,6 @@
 Fatal errors are ignored in shutdown handler
 --DESCRIPTION--
 This is how the tracer sandboxes the flushing functionality in userland
---SKIPIF--
-<?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
---INI--
-memory_limit=2M
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
@@ -43,8 +39,7 @@ DDTrace\trace_function('flushTracer', function () {
     array_map(function($span) {
         echo $span['name'] . PHP_EOL;
     }, dd_trace_serialize_closed_spans());
-    // Trigger a fatal error (hit the memory limit)
-    $a = str_repeat('.', 1024 * 1024 * 3); // 3MB
+    DDTrace\Testing\trigger_error('Fatal error while flushing', E_ERROR);
     echo 'You should not see this.' . PHP_EOL;
     var_dump(error_get_last());
 });
@@ -69,5 +64,5 @@ array_sum
 array_sum
 array_sum
 array_sum
-[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %s:%d for flushTracer(): Allowed memory size of 2097152 bytes exhausted %s in %s on line %d
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %s:%d for flushTracer(): Fatal error while flushing in %s on line %d
 [ddtrace] [info] [%d] No finished traces to be sent to the agent
