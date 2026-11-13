@@ -192,6 +192,16 @@ Disabled on versions: `8.6` (new in 8.6.0RC4/RC5, not yet in the 8.4/8.5 release
 
 The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
 
+## `ext/phar/tests/webphar_cgi_no_path_info.phpt`
+
+Disabled on versions: `8.6` (the test is new in 8.6.0RC4).
+
+The test runs with `variables_order=EGPC`, so `$_SERVER` is not built unless something requests it, and then
+it is an empty array. `Phar::webPhar()` reads `SCRIPT_NAME` from `$_SERVER` whenever it exists and only falls
+back to `sapi_getenv()` otherwise. ddtrace materializes `$_SERVER` in RINIT for the root span, so `webPhar()`
+finds no `SCRIPT_NAME` and returns without the expected redirect. Plain PHP fails the same way with
+`auto_globals_jit=0`, or with `memcache.so` loaded.
+
 ## `ext/standard/tests/filters/stream_filter_register_*.phpt` (the 5 listed in `8.6.list`)
 
 Disabled on versions: `8.6` (the tests are new in 8.6).
