@@ -1099,7 +1099,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - .gitlab/run-with-retryable-download.sh apt-get update
     - .gitlab/run-with-retryable-download.sh apt install -y php git make curl
-    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
+    - .gitlab/download-file.sh "${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME}" /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - docker network create randomized_tests_baseservices
@@ -1317,7 +1317,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - apt-get update
     - apt install -y make curl
-    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+    - .gitlab/download-file.sh "${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64" /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
@@ -2146,10 +2146,13 @@ foreach ($arch_targets as $arch) {
 
     apt-get update -qq && apt-get install -y -qq curl jq > /dev/null
 
-    STATUS=$(curl -s -o /tmp/pulls.json -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open")
+    STATUS=$(curl -s --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/pulls.json -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open") || true
+    # `|| true`: with no response, curl exits non-zero and writes 000, which must reach the retry mapping below (set -e)
     if [ "${STATUS}" != "200" ]; then
-      echo "ERROR: failed to check for an open PR on branch ${CI_COMMIT_BRANCH} (HTTP ${STATUS}):"; cat /tmp/pulls.json
+      echo "ERROR: failed to check for an open PR on branch ${CI_COMMIT_BRANCH} (HTTP ${STATUS}):"; cat /tmp/pulls.json || true
+      # 000 (no response after curl's retries) and 5xx are transient: exit 75 for GitLab's job retry
+      case "${STATUS}" in 000|5??) exit 75 ;; esac
       exit 1
     fi
     PR_COUNT=$(jq 'length' /tmp/pulls.json)
@@ -2162,7 +2165,7 @@ foreach ($arch_targets as $arch) {
     docker login ghcr.io -u DataDog --password-stdin < github_token_system_tests.txt
     echo "Docker login to ghcr.io succeeded"
 
-    gh_api() { curl -s -o /tmp/resp.json -w "%{http_code}" -X "$1" \
+    gh_api() { curl -s --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/resp.json -w "%{http_code}" -X "$1" \
         -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "$2"; }
 
     # delete any pre-existing image with the same tag so pushing with the same tag doesn't pile up untagged versions.
@@ -2290,7 +2293,7 @@ deploy_to_reliability_env:
     - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-publish-release > github_token.txt
     # Verify token works
     - export GITHUB_TOKEN=$(cat github_token.txt)
-    - 'curl -f -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/DataDog/dd-trace-php | jq -r .name'
+    - 'curl -f --retry 5 --retry-delay 2 --retry-connrefused -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/DataDog/dd-trace-php | jq -r .name'
     - echo "Token generated and verified successfully"
   artifacts:
     paths:

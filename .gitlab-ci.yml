@@ -156,6 +156,11 @@ merge-gate:
     - if: $CI_COMMIT_BRANCH == "master"
       when: never
     - when: always
+  # The parent pipeline has no default retry; merge-gate.sh exits 75 on GitLab/Vault API failures.
+  retry:
+    max: 2
+    exit_codes:
+      - 75
   # No clone: merge-gate.sh and flaky-jobs.txt come from this commit's generate-templates artifacts.
   dependencies: [ generate-templates ]
   variables:

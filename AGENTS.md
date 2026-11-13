@@ -1,4 +1,4 @@
-# Datadog PHP tracer — Claude config
+# Datadog PHP tracer — agent config
 
 Always-loaded shared config (imported into context):
 
