@@ -54,6 +54,9 @@ typedef struct {
  */
 void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *pre);
 
+/** Fill only meta, has_exception and ignore_error, without resolving span strings. */
+void ddtrace_precompute_span_error(ddtrace_span_data *span, ddtrace_span_precomputed *pre);
+
 /** Release the owned strings inside *pre (does not free pre itself). */
 void ddtrace_free_span_precomputed(ddtrace_span_precomputed *pre);
 

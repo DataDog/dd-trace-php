@@ -1367,7 +1367,24 @@ void transfer_metrics_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, 
     }
 }
 
-bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, bool p0_trace, ddog_SpanBytes **serialized_span) {
+bool ddtrace_span_has_error(ddtrace_span_data *span) {
+    ddtrace_span_precomputed pre;
+    ddtrace_precompute_span_error(span, &pre);
+    if (dd_compute_span_is_error(&pre)) {
+        return true;
+    }
+    // Match the HTTP error enrichment performed by the serializer without allocating tags.
+    if (!pre.ignore_error && (ddtrace_span_is_entrypoint_root(span) || span->std.ce == ddtrace_ce_inferred_span_data)) {
+        int status = SG(sapi_headers).http_response_code;
+        if (datadog_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
+            status = pre.has_exception ? 500 : 200;
+        }
+        return status && dd_is_http_error(status);
+    }
+    return false;
+}
+
+bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, bool p0_trace, bool keep_error_chunk, ddog_SpanBytes **serialized_span) {
     if (serialized_span) {
         *serialized_span = NULL;
     }
@@ -1572,7 +1589,7 @@ bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceByte
     }
 
 
-    if (p0_trace && !span_sampling_applied && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+    if (p0_trace && !keep_error_chunk && !span_sampling_applied && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
         if (inferred_span) {
             // Inferred span won't be serialized, so feed it to the concentrator here.
             ddtrace_span_precomputed inferred_pre;
@@ -1918,7 +1935,7 @@ bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceByte
 
     if (inferred_span) {
         ddog_SpanBytes *serialized_inferred_span;
-        if (!ddtrace_serialize_span_to_rust_span(inferred_span, trace, p0_trace, &serialized_inferred_span)) {
+        if (!ddtrace_serialize_span_to_rust_span(inferred_span, trace, p0_trace, keep_error_chunk, &serialized_inferred_span)) {
             goto allocation_failed;
         }
         rust_span = ddog_get_span(trace, rust_span_index);

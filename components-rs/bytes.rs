@@ -6,6 +6,13 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
 
+#[no_mangle]
+pub extern "C" fn ddog_remove_empty_trace(traces: &mut datadog_sidecar_ffi::span::TracesBytes) {
+    if traces.last().is_some_and(Vec::is_empty) {
+        traces.pop();
+    }
+}
+
 /// cbindgen:no-export
 #[repr(C)]
 pub struct ZendString {

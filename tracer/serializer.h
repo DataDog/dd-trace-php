@@ -8,7 +8,8 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
 
 // Returns false on allocation failure. A filtered span succeeds with a NULL result.
 // serialized_span is optional; callers must stop serializing on failure.
-bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, bool p0_trace, ddog_SpanBytes **serialized_span);
+bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, bool p0_trace, bool keep_error_chunk, ddog_SpanBytes **serialized_span);
+bool ddtrace_span_has_error(ddtrace_span_data *span);
 zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces);
 
 void ddtrace_save_active_error_to_metadata(void);

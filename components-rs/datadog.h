@@ -74,6 +74,8 @@ void ddog_agent_info_json_free(char *ptr);
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
 
+void ddog_remove_empty_trace(ddog_TracesBytes *traces);
+
 void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),
                          ddog_OwnedZendString (*init_func)(ddog_CharSlice));
