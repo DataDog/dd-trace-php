@@ -781,6 +781,7 @@ void ddtrace_internal_handle_postfork(void) {
 void ddtrace_internal_handle_fork() {
     // The parent owns its already-recorded losses; the child starts fresh.
     memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
+    ddog_ffe_exposure_cache_reset();
 #ifdef __linux__
     ddtrace_otel_detach();
     ddtrace_otel_tid_fork_handler();

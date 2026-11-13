@@ -31,7 +31,7 @@ final class ResultMapperTest extends TestCase
         $this->assertSame('variant-a', $details->getVariant());
         $this->assertNull($details->getErrorCode());
         $this->assertFalse($details->isError());
-        $this->assertSame(array('owner' => 'ffe'), $details->getFlagMetadata());
+        $this->assertSame(array('owner' => 'ffe', '__dd_do_log' => true), $details->getFlagMetadata());
         $this->assertSame(array('allocationKey' => 'alloc-1', 'doLog' => true), $details->getExposureData());
         $this->assertSame(
             array('ready' => true, 'hasConfig' => true, 'configVersion' => 42),
@@ -267,6 +267,68 @@ final class ResultMapperTest extends TestCase
             array('allocationKey' => 'alloc-2', 'doLog' => true, 'serialId' => 7),
             $details->getExposureData()
         );
+    }
+
+    public function testWritesSplitFeaturesAndExposureDecisionIntoFlagMetadata()
+    {
+        $rawResult = array(
+            'value_json' => '"blue"',
+            'variant' => 'variant-a',
+            'allocation_key' => 'alloc-1',
+            'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+            'do_log' => true,
+            'serial_id' => 0,
+            'exposure_cache_hit' => true,
+            'features' => array(
+                array('key' => 'holdout.key', 'value' => 'h1', 'destinations' => array('HOOK', 'EXPOSURE')),
+                array('key' => 'weight', 'value' => 2.0, 'destinations' => array('EVALUATION')),
+            ),
+        );
+
+        foreach (array($rawResult, (object) $rawResult) as $result) {
+            $details = (new ResultMapper())->map($result, EvaluationType::STRING, 'red');
+            $this->assertSame(array(
+                '__dd_feature.holdout.key' => 'h1',
+                '__dd_exposure_feature.holdout.key' => 'h1',
+                '__dd_evaluation_feature.weight' => 2.0,
+                '__dd_do_log' => true,
+                '__dd_split_serial_id' => 0,
+                '__dd_exposure_cache_hit' => true,
+            ), $details->getFlagMetadata());
+        }
+    }
+
+    public function testSplitWithoutFeaturesAddsNoFeatureMetadata()
+    {
+        $details = (new ResultMapper())->map(array(
+            'value_json' => '"blue"',
+            'variant' => 'variant-a',
+            'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+            'do_log' => false,
+            'serial_id' => 5,
+            'features' => array(),
+            'exposureCacheHit' => null,
+        ), EvaluationType::STRING, 'red');
+
+        $this->assertSame(array(), $details->getFlagMetadata());
+    }
+
+    public function testFailedEvaluationCarriesNoFeatureOrExposureMetadata()
+    {
+        $details = (new ResultMapper())->map(array(
+            'value_json' => '"blue"',
+            'variant' => 'variant-a',
+            'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_TYPE_MISMATCH,
+            'do_log' => true,
+            'serial_id' => 3,
+            'exposure_cache_hit' => false,
+            'features' => array(array('key' => 'k', 'value' => 'v', 'destinations' => array('HOOK'))),
+        ), EvaluationType::STRING, 'red');
+
+        $this->assertSame(array(), $details->getFlagMetadata());
     }
 
     public function testOmitsSerialIdFromExposureDataWhenAbsent()

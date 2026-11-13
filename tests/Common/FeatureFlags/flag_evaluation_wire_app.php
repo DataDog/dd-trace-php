@@ -21,6 +21,17 @@ foreach (array('consented', 'protected', 'coerced', 'empty', 'missing', 'malform
         )),
     );
 }
+$config['flags']['featured'] = $config['flags']['consented'];
+$config['flags']['featured']['key'] = 'featured';
+$config['flags']['featured']['allocations'][0]['splits'][0]['features'] = array(
+    array('key' => 'holdout.key', 'value' => 'h1', 'destinations' => array('HOOK', 'EXPOSURE')),
+    array('key' => 'weight', 'value' => 2, 'destinations' => array('EVALUATION')),
+    array('key' => 'included', 'value' => false, 'destinations' => array('EXPOSURE', 'EVALUATION')),
+);
+// A rejected evaluation reports the runtime default, without the split's features.
+$config['flags']['hook-after-error']['allocations'][0]['splits'][0]['features'] = array(
+    array('key' => 'weight', 'value' => 1, 'destinations' => array('EVALUATION')),
+);
 \DDTrace\Testing\ffe_load_config(json_encode($config));
 $client = new \DDTrace\FeatureFlags\Client();
 $context = array('targetingKey' => 'subject', 'attributes' => array('plan' => 'pro'));
@@ -36,6 +47,9 @@ for ($i = 0; $i < 2; ++$i) {
     if ($client->getStringValue('consented', 'fallback', $context) !== 'blue') {
         throw new RuntimeException('assignment failed');
     }
+}
+if ($client->getStringValue('featured', 'fallback', $context) !== 'blue') {
+    throw new RuntimeException('assignment failed');
 }
 $config['observeFullEvaluationData'] = false;
 \DDTrace\Testing\ffe_load_config(json_encode($config));

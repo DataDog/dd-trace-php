@@ -32,9 +32,10 @@ bool ddtrace_ffe_flush_evaluation_metrics(void);
 bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
     zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,
     zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data,
-    int64_t evaluation_timestamp_ms, bool targeting_key_invalid);
+    int64_t evaluation_timestamp_ms, bool targeting_key_invalid, zend_string *features_json);
 
-void ddtrace_ffe_record_exposure(zend_string *flag_key, zend_string *targeting_key, zend_string *subject_attributes_json, zend_string *allocation_key, zend_string *variant, int32_t serial_id, bool has_serial_id);
+// Returns 1 for a new or changed exposure, 0 for a repeat and -1 when nothing is recorded.
+int ddtrace_ffe_record_exposure(zend_string *flag_key, zend_string *targeting_key, zend_string *subject_attributes_json, zend_string *allocation_key, zend_string *variant, int32_t serial_id, bool has_serial_id, zend_string *features_json);
 bool ddtrace_ffe_flush_exposures(void);
 
 #endif // DDTRACE_FFE_H

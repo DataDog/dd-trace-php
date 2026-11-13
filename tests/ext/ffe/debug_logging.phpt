@@ -29,8 +29,9 @@ var_dump(DDTrace\Testing\ffe_load_config($config));
 $version = DDTrace\ffe_config_version();
 var_dump(DDTrace\Testing\ffe_load_config('{"secret-invalid-config":'));
 var_dump(DDTrace\ffe_config_version() === $version);
+// Distinct subjects, since the exposure cache queues a repeat only once.
 for ($i = 0; $i < 1001; ++$i) {
-    DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'secret-user', array('email' => 'secret-email'));
+    DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, $i ? "user-$i" : 'secret-user', array('email' => 'secret-email'));
 }
 DDTrace\ffe_evaluate('missing', DDTrace\FFE_STRING, 'secret-user', array());
 var_dump(DDTrace\Testing\flush_ffe_exposures());
