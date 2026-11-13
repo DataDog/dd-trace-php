@@ -104,8 +104,10 @@ try {
                 throw new RuntimeException('incorrect evaluation context: ' . json_encode($payload['context']));
             }
             foreach ($payload['flagEvaluations'] as $row) {
+                // Environment and application version belong only on the batch.
                 $evaluationRowService = $evaluationRowService
-                    && isset($row['context']['dd']['service']) && $row['context']['dd']['service'] === 'php-ffe-wire';
+                    && isset($row['context']['dd'])
+                    && $row['context']['dd'] === array('service' => 'php-ffe-wire');
                 $key = $row['flag']['key'];
                 if (isset($rows[$key])) {
                     $rows[$key]['evaluation_count'] += $row['evaluation_count'];
