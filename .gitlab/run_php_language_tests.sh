@@ -32,6 +32,16 @@ mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
 # replace all hardcoded object ids in tests by %d as ddtrace creates its own objects
 php <<'PHP'
 <?php
+// zend_mem_block_size() returns 0 for custom allocators, including the profiler.
+// Keep this bin-inspection test running, but without allocation profiling hooks.
+$realloc_boundary_test = 'Zend/tests/zend_alloc_realloc_shrink_boundary.phpt';
+if (is_file($realloc_boundary_test)) {
+    $contents = file_get_contents($realloc_boundary_test);
+    if (!preg_match('/^--INI--\r?$/m', $contents)) {
+        file_put_contents($realloc_boundary_test, str_replace('--FILE--', "--INI--\ndatadog.profiling.allocation_enabled=0\n--FILE--", $contents));
+    }
+}
+
 // This hard-timeout test depends on timing; retry it on newer PHP runners.
 // PHP <= 8.2 excludes it through the version-specific xfail lists.
 $hard_timeout_test = 'Zend/tests/bug74093.phpt';
