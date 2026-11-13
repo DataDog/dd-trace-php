@@ -38,6 +38,7 @@ void datadog_sidecar_setup(ddog_RemoteConfigFlags flags);
 void datadog_sidecar_handle_fork(void);
 bool datadog_sidecar_should_enable(ddog_RemoteConfigFlags *flags);
 void datadog_sidecar_ensure_active(void);
+void datadog_sidecar_check_liveness(void);
 void datadog_sidecar_update_process_tags(void);
 void datadog_sidecar_refresh_user_service_defined(void);
 void datadog_sidecar_finalize(bool clear_application);

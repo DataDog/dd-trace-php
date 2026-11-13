@@ -24,6 +24,9 @@
 #ifndef _WIN32
 #include <tracer/coms.h>
 #endif
+#ifdef __linux__
+#include <poll.h>
+#endif
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
@@ -42,6 +45,66 @@ DATADOG_PUBLIC _Atomic(int) datadog_sidecar_crash_fd = -1;
 // Connection mode tracking
 dd_sidecar_active_mode_t datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_NONE;
 int32_t datadog_sidecar_master_pid = 0;
+
+#ifdef __linux__
+// One quiet death notification per PHP process, shared by all of its thread connections.
+// Publish the fd and its generation in one 64-bit CAS, including when fd numbers are reused.
+typedef struct {
+    int32_t fd;
+    uint32_t generation;
+} dd_sidecar_liveness_t;
+_Static_assert(sizeof(dd_sidecar_liveness_t) == sizeof(uint64_t), "Sidecar watch must fit in 64 bits");
+static _Atomic(dd_sidecar_liveness_t) dd_sidecar_liveness = (dd_sidecar_liveness_t){.fd = -1};
+ZEND_TLS uint32_t dd_sidecar_transport_generation;
+
+static int dd_sidecar_poll_liveness(int fd) {
+    struct pollfd watched = {.fd = fd, .events = 0};
+    return poll(&watched, 1, 0);
+}
+
+static bool dd_sidecar_process_died(void) {
+    if (!dd_sidecar_transport_generation) {
+        return false;
+    }
+    dd_sidecar_liveness_t watch = atomic_load(&dd_sidecar_liveness);
+    if (watch.generation != dd_sidecar_transport_generation) {
+        return true;
+    }
+    bool died = dd_sidecar_poll_liveness(watch.fd) > 0;
+    // A concurrent replacement may have closed and reused the fd while poll ran.
+    dd_sidecar_liveness_t current = atomic_load(&dd_sidecar_liveness);
+    return died || current.generation != watch.generation;
+}
+
+static void dd_sidecar_watch_transport(ddog_SidecarTransport *transport) {
+    dd_sidecar_liveness_t watch = atomic_load(&dd_sidecar_liveness);
+    // All connections use the same sidecar. Replace the watch only on confirmed hangup.
+    if (watch.fd >= 0 && dd_sidecar_poll_liveness(watch.fd) <= 0) {
+        dd_sidecar_transport_generation = watch.generation;
+        return;
+    }
+
+    int fd = -1;
+    if (!datadog_ffi_try("Failed watching sidecar process", ddog_sidecar_watch_process(&transport, &fd))) {
+        dd_sidecar_transport_generation = 0;
+        return;
+    }
+    uint32_t generation = watch.generation + 1;
+    dd_sidecar_liveness_t replacement = {.fd = fd, .generation = generation ? generation : 1};
+    int previous_fd = watch.fd;
+    if (atomic_compare_exchange_strong(&dd_sidecar_liveness, &watch, replacement)) {
+        // Create and publish the replacement before releasing the old fd.
+        if (previous_fd >= 0) {
+            close(previous_fd);
+        }
+        watch = replacement;
+    } else {
+        // Another connection installed a watch first. CAS supplied its state in watch.
+        close(fd);
+    }
+    dd_sidecar_transport_generation = watch.generation;
+}
+#endif
 
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
     if (zai_config_is_initialized()) {
@@ -292,6 +355,9 @@ static ddog_SidecarTransport *datadog_sidecar_connect_callback(void);
 
 // Called by the subprocess mode transport with each new connection replacing a broken one.
 static void dd_sidecar_reconnected(ddog_SidecarTransport *transport) {
+#ifdef __linux__
+    dd_sidecar_watch_transport(transport);
+#endif
     dd_sidecar_on_connect(&transport);
     // Reconnect callbacks run before the new connection replaces the one of DATADOG_G(sidecar).
     dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), transport, true);
@@ -362,6 +428,9 @@ static ddog_SidecarTransport *dd_sidecar_connect_transport(bool as_worker) {
             return NULL;
         }
         datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_SUBPROCESS;
+#ifdef __linux__
+        dd_sidecar_watch_transport(sidecar_transport);
+#endif
     }
 
     dd_sidecar_on_connect(&sidecar_transport);
@@ -641,6 +710,13 @@ static ddog_SidecarTransport *dd_sidecar_connect_after_fork(void) {
 void datadog_sidecar_handle_fork(void) {
 #ifndef _WIN32
 #ifdef __linux__
+    // Do not change O_ASYNC/F_SETOWN on the inherited reader: its open file description
+    // still belongs to the parent.
+    dd_sidecar_liveness_t watch = atomic_exchange(&dd_sidecar_liveness, ((dd_sidecar_liveness_t){.fd = -1}));
+    if (watch.fd >= 0) {
+        close(watch.fd);
+    }
+    dd_sidecar_transport_generation = 0;
     datadog_signals_reset_sidecar_flush_after_fork();
 #endif
     atomic_store(&dd_sidecar_signal_owner, 0);
@@ -688,7 +764,14 @@ void datadog_sidecar_ensure_active(void) {
         // Restore reconnect_fn cleared during the previous RSHUTDOWN so that automatic
         // reconnects work again for this request.
         datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
-        datadog_sidecar_reconnect(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
+#ifdef __linux__
+        if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
+            ddog_sidecar_check_liveness(&DATADOG_G(sidecar), dd_sidecar_process_died());
+        } else
+#endif
+        {
+            datadog_sidecar_reconnect(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
+        }
     } else if (datadog_endpoint) {
         // First RINIT on this thread: the process-level setup already ran (endpoint is
         // set), so establish this thread's own connection now.
@@ -696,6 +779,17 @@ void datadog_sidecar_ensure_active(void) {
     }
     // Takes over if the previous owner thread is gone.
     dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), DATADOG_G(sidecar), false);
+}
+
+void datadog_sidecar_check_liveness(void) {
+#ifdef __linux__
+    if (DATADOG_G(request_initialized) && DATADOG_G(sidecar)
+        && datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
+        // Pipe EOF can precede socket EOF during process exit. Other threads still need
+        // to recover after the first thread replaces the watch with a healthy generation.
+        ddog_sidecar_check_liveness(&DATADOG_G(sidecar), dd_sidecar_process_died());
+    }
+#endif
 }
 
 void datadog_sidecar_finalize(bool clear_application) {
@@ -718,6 +812,13 @@ void datadog_sidecar_finalize(bool clear_application) {
 }
 
 void datadog_sidecar_shutdown(void) {
+#ifdef __linux__
+    dd_sidecar_liveness_t watch = atomic_exchange(&dd_sidecar_liveness, ((dd_sidecar_liveness_t){.fd = -1}));
+    if (watch.fd >= 0) {
+        close(watch.fd);
+    }
+    dd_sidecar_transport_generation = 0;
+#endif
     // Prevent reconnect from firing during shutdown-phase sidecar calls.
     if (DATADOG_G(sidecar)) {
         datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));

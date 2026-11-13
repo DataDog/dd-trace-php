@@ -481,6 +481,23 @@ void ddog_sidecar_reconnect_readers(const struct ddog_ShmCacheMap *telemetry,
  */
 int32_t ddog_sidecar_transport_raw_fd(struct ddog_SidecarTransport *const *transport);
 
+#if defined(__linux__)
+/**
+ * Mark a notified process death and recover only while the reconnect callback is enabled.
+ */
+void ddog_sidecar_check_liveness(struct ddog_SidecarTransport **transport, bool process_died);
+#endif
+
+#if defined(__linux__)
+/**
+ * Arm a quiet death notification before transferring its writer to the sidecar.
+ * The caller owns the returned reader; neither the transport nor its replay state retains
+ * a writer. Closing the reader also releases the sidecar's process watch.
+ */
+ddog_MaybeError ddog_sidecar_watch_process(struct ddog_SidecarTransport **transport,
+                                           int32_t *reader_fd);
+#endif
+
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
