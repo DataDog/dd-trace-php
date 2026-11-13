@@ -17,96 +17,15 @@ DD_SERVICE=php-ffe-transport
 DD_FLAGGING_EVALUATION_COUNTS_ENABLED=1
 --FILE--
 <?php
-require __DIR__ . '/stubs/ffe_process.inc';
-require __DIR__ . '/stubs/ffe_http_server.inc';
-foreach (array('agentless', 'no-key', 'invalid-site', 'remote-config') as $mode) {
-    $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
-    if (!$server) throw new RuntimeException($error);
-    $environment = getenv();
-    $environment['DD_FEATURE_FLAGS_ENABLED'] = 'true';
-    $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE'] = $mode === 'remote-config' ? 'remote_config' : 'agentless';
-    $environment['DD_TRACE_AGENTLESS'] = 'false';
-    $environment['DD_TRACE_SIDECAR_CONNECTION_MODE'] = 'subprocess';
-    $environment['_DD_DEBUG_SIDECAR_IPC_MODE'] = 'instance_per_process';
-    $environment['_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS'] = '1';
-    $environment['DD_TRACE_AGENT_URL'] = 'http://' . stream_socket_get_name($server, false);
-    $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL'] = $environment['DD_TRACE_AGENT_URL'] . '/configuration';
-    $environment['DD_API_KEY'] = $mode === 'no-key' ? '' : 'must-not-reach-local-proxy';
-    $environment['DD_SITE'] = $mode === 'invalid-site' ? 'bad/site' : 'datadoghq.com';
-    $environment['NO_PROXY'] = '127.0.0.1,localhost';
-    $process = ffeTestProcess(__DIR__ . '/stubs/agentless_evp_app.php', $pipes, $environment);
-    $events = array();
-    $clients = array();
-    $exitCode = null;
-    $exitedAt = null;
-    $lastCaptureAt = 0;
-    $prefix = $mode === 'remote-config' ? '/evp_proxy/v2/api/v2/' : '/evp_proxy/v4/api/v2/';
-    try {
-        $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
-        do {
-            if ($request = ffeTestHttpRequest($server, $clients)) {
-                list($connection, $path, $headers, $body) = $request;
-                try {
-                    if (isset($headers['dd-api-key'])) throw new RuntimeException('credentials reached local proxy or custom CDN');
-                    $response = '{}';
-                    if ($path === '/info') {
-                        $response = json_encode(array('endpoints' => array('/evp_proxy/v2', '/evp_proxy/v4'),
-                            'evp_proxy_allowed_headers' => array('DD-EVP-ORIGIN', 'DD-EVP-ORIGIN-VERSION')));
-                    } elseif ($path === '/configuration') {
-                        $response = json_encode(array('data' => array('type' => 'universal-flag-configuration',
-                            'attributes' => json_decode(file_get_contents(__DIR__ . '/stubs/agentless_evp_config.json'), true))));
-                    } elseif (strpos($path, '/evp_proxy/') === 0) {
-                        if (strpos($path, $prefix) !== 0) throw new RuntimeException('wrong EVP route: ' . $path);
-                        if ($headers['dd-evp-origin'] !== 'dd-trace-php' || $headers['dd-evp-origin-version'] !== phpversion('ddtrace')) {
-                            throw new RuntimeException('wrong producer identity');
-                        }
-                        $kind = substr($path, strlen($prefix));
-                        $payload = json_decode($body, true);
-                        $field = $kind === 'exposures' ? 'exposures' : 'flagEvaluations';
-                        if (!isset($payload[$field]) || count($payload[$field]) !== 1
-                            || $payload[$field][0]['flag']['key'] !== 'transport-flag') {
-                            throw new RuntimeException('unexpected event payload: ' . $body);
-                        }
-                        if (isset($events[$kind])) throw new RuntimeException('duplicate event batch');
-                        $events[$kind] = true;
-                        $lastCaptureAt = microtime(true);
-                    }
-                    fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
-                        . strlen($response) . "\r\nConnection: close\r\n\r\n" . $response);
-                } finally {
-                    fclose($connection);
-                }
-            }
-            if ($exitedAt === null) {
-                $status = proc_get_status($process);
-                if (!$status['running']) {
-                    $exitCode = $status['exitcode'];
-                    $exitedAt = microtime(true);
-                }
-            }
-            if ($exitCode !== null && $exitCode !== 0) break;
-            // The sidecar can finish delivery after PHP exits. Keep receiving
-            // both streams, then observe a short quiet period for duplicates.
-            if ($exitedAt !== null && isset($events['exposures'], $events['flagevaluation'])
-                && microtime(true) - max($exitedAt, $lastCaptureAt) > 0.5) break;
-        } while (microtime(true) < $deadline);
-        if ($exitCode !== 0) throw new RuntimeException('child failed: ' . ffeTestProcessRead($pipes[2]));
-        if (!isset($events['exposures'], $events['flagevaluation'])) {
-            throw new RuntimeException($mode . ': missing event stream; received ' . implode(', ', array_keys($events))
-                . '; child output: ' . ffeTestProcessRead($pipes[1]) . ffeTestProcessRead($pipes[2]));
-        }
-        echo $mode, ': both streams delivered with PHP identity and no API key', "\n";
-    } finally {
-        if ($exitCode === null) proc_terminate($process);
-        foreach ($pipes as $pipe) fclose($pipe);
-        proc_close($process);
-        foreach ($clients as $client) fclose($client['stream']);
-        fclose($server);
-    }
-}
+$modes = array('agentless', 'no-key', 'invalid-site', 'remote-config');
+require __DIR__ . '/stubs/agentless_evp_transport.inc';
 ?>
 --EXPECT--
-agentless: both streams delivered with PHP identity and no API key
-no-key: both streams delivered with PHP identity and no API key
-invalid-site: both streams delivered with PHP identity and no API key
-remote-config: both streams delivered with PHP identity and no API key
+agentless/false: expected streams delivered with PHP identity, token and no API key
+agentless/true: expected streams delivered with PHP identity, token and no API key
+no-key/false: expected streams delivered with PHP identity, token and no API key
+no-key/true: expected streams delivered with PHP identity, token and no API key
+invalid-site/false: expected streams delivered with PHP identity, token and no API key
+invalid-site/true: expected streams delivered with PHP identity, token and no API key
+remote-config/false: expected streams delivered with PHP identity, token and no API key
+remote-config/true: expected streams delivered with PHP identity, token and no API key
