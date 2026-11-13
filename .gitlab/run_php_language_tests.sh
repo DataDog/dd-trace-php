@@ -90,7 +90,8 @@ elif [[ $(nproc) -gt 1 ]]; then
   parallelize=("${CI_PROJECT_DIR}/tooling/parallelize-run-tests.sh" "-j$(nproc)")
   # Old session tests share files; network suites reuse fixed ports across directories.
   for suite in ext/session/tests ext/curl/tests sapi/cli/tests \
-      ext/standard/tests/streams ext/openssl/tests ext/sockets/tests; do
+      ext/standard/tests/{http,network,streams} \
+      ext/{openssl,sockets,opcache,soap}/tests; do
     conflict=network
     [[ $suite == ext/session/tests ]] && conflict=session
     while IFS= read -r -d '' dir; do
