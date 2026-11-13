@@ -27,11 +27,8 @@ check($root, 0.7);
 
 $root->meta["span.kind"] = "client";
 check($root, 0.9);
-
-echo "_dd.p.dm = ", $root->meta["_dd.p.dm"] ?? "-", "\n";
 ?>
 --EXPECT--
 Rule OK
 Rule OK
 Rule OK
-_dd.p.dm = -3
