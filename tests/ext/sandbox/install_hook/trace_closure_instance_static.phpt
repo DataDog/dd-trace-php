@@ -65,8 +65,8 @@ DDTrace\install_hook('Hooked::method', function (DDTrace\HookData $hook) {
 });
 (new Hooked)->method();
 
-// Declared in a parent method, evaluated through two subclasses: PHP 8.6.0 hands B the closure cached
-// for A (php-src#23911). Its fix changes that path, so B::make() must still be fresh after the install.
+// Declared in a parent method, evaluated through two subclasses: since the php-src#23911 fix (8.6.0RC5)
+// the cache is keyed by called scope. B::make() must still be fresh after the install.
 class P { static function make() { return static function () { return static::class; }; } }
 class A extends P {}
 class B extends P {}
