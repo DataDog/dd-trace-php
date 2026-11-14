@@ -89,6 +89,44 @@ function system_tests_run_scenarios(string $scenarios): void
 <?php
 }
 
+// Files a PR branch changed since its merge-base with master, listed by generate-templates.
+// No list (master, releases, tags, schedules, web/api runs, or a git failure) means every job runs.
+$branch_changed_files = array_filter(explode("\n", (string)@file_get_contents(__DIR__ . "/changed-files.txt")));
+
+// A PR branch runs these job families only when it changes one of their paths; master and the rest run them always.
+// Generic build inputs (sources, config.m4, shared build scripts) stay out: the always-on compile and test jobs cover them.
+$generator_paths = [".gitlab/generate-package.php", ".gitlab/generate-common.php"];
+$ssi_test_paths = array_merge($generator_paths, ["libdatadog", "loader/*", ".gitlab/build-loader.sh", ".gitlab/build-sidecar.sh",
+    ".gitlab/build-ssi-combined-alpine.sh", "tooling/bin/build-ssi-common", "tooling/bin/build-xlang-lto",
+    "tooling/bin/build-ddtrace-php-abi-archive", "tooling/bin/generate-ssi-package.sh", ".gitlab/one-pipeline.locked.yml",
+    ".gitlab/prepare-oci-package.sh", "Cargo.lock"]);
+$installer_test_paths = array_merge($generator_paths, ["datadog-setup.php", "dockerfiles/verify_packages/*", "tooling/bin/*"]);
+$verify_paths = array_merge($installer_test_paths, ["package/*", "dockerfiles/packaging/*", ".gitlab/package-extension.sh", ".gitlab/link-tracing-extension.sh", ".gitlab/build-*.sh", ".gitlab/compile_extension.sh", "config.m4", "Makefile", "compile_rust.sh", "*.sym", "rust-toolchain*"]);
+
+/**
+ * Rules making a job manual on a PR branch that changes none of $globs (`*` also matches `/`).
+ * Empty without a changed-file list, so the job runs as before.
+ *
+ * @param string[] $never_if Conditions of the job's own `when: never` rules, kept ahead of the manual one.
+ */
+function manual_unless_changed(array $globs, array $never_if = []): string
+{
+    global $branch_changed_files;
+    if (!$branch_changed_files) {
+        return "";
+    }
+    foreach ($globs as $glob) {
+        if (preg_grep('(^' . str_replace('\*', '.*', preg_quote($glob)) . '$)', $branch_changed_files)) {
+            return "";
+        }
+    }
+    $rules = "  rules:\n";
+    foreach ($never_if as $condition) {
+        $rules .= "    - if: $condition\n      when: never\n";
+    }
+    return $rules . "    - when: manual\n      allow_failure: true\n";
+}
+
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
@@ -192,6 +230,13 @@ configure_system_tests:
   # system-tests generates its own child pipeline, so generate-common.php can't tag it.
   after_script:
     - test -f system_tests_pipeline.yml && cat .gitlab/green-ci-exclude-job.yml >> system_tests_pipeline.yml
+<?php endif; ?>
+<?php $ssi_test_rules = manual_unless_changed($ssi_test_paths, ['$SKIP_SHARED_PIPELINE == "true"', '$DANGEROUSLY_SKIP_SHARED_PIPELINE_TESTS == "true"']); ?>
+<?= $ssi_test_rules ?>
+<?php if ($ssi_test_rules): ?>
+
+system_tests:
+<?= $ssi_test_rules ?>
 <?php endif; ?>
 
 package-oci:
@@ -1215,6 +1260,7 @@ endforeach;
   stage: verify
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
+<?= manual_unless_changed($installer_test_paths) ?>
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -1376,6 +1422,7 @@ endforeach;
   stage: verify
   image: "registry.ddbuild.io/images/mirror/$IMAGE"
   tags: [ "arch:amd64" ]
+<?= manual_unless_changed($verify_paths) ?>
   services:
     - !reference [.services, request-replayer]
   variables:
@@ -1573,6 +1620,7 @@ endforeach;
   stage: verify
   image: registry.ddbuild.io/images/mirror/debian:bookworm-slim
   tags: [ "arch:<?= $arch ?>" ]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
@@ -1595,6 +1643,7 @@ endforeach;
   stage: verify
   image: registry.ddbuild.io/images/mirror/alpine:3.12
   tags: [ "arch:amd64" ]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
@@ -1609,6 +1658,7 @@ endforeach;
 "verify windows":
   stage: verify
   tags: [ "windows-v2:2019"]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     GIT_STRATEGY: none
   needs:
