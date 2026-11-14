@@ -198,12 +198,14 @@ pub enum FfeCdnConfigError {
 /// A non-empty `base_url` is fetched as given and never receives the API key.
 /// Otherwise the managed endpoint of `site` is used, filtered to `env`.
 /// The intervals must already be within the ranges accepted by the sidecar.
+/// `service` is the service of the root spans. Requests send it in `DD-Service`.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_cdn_config_new(
     base_url: CharSlice,
     site: CharSlice,
     env: CharSlice,
     api_key: CharSlice,
+    service: CharSlice,
     poll_interval_secs: u32,
     request_timeout_secs: u32,
     error: &mut FfeCdnConfigError,
@@ -231,6 +233,7 @@ pub extern "C" fn ddog_ffe_cdn_config_new(
         request_timeout: Duration::from_secs(request_timeout_secs.into()),
         language: "php".to_string(),
         version: include_str!("../../VERSION").trim().into(),
+        service: Some(service.to_utf8_lossy().into_owned()).filter(|s| !s.is_empty()),
     })))
 }
 
