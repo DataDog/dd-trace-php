@@ -160,6 +160,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRate);
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingMulticonfig);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingDataStreamsEnabled);
 
     DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
     DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
@@ -489,12 +490,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         RemoteConfigProduct::ApmTracing => {
                             if let Some(config_data) = data.downcast::<DynamicConfigFile>() {
                                 let priority = config_data.priority();
-                                // DD_DATA_STREAMS_ENABLED decides at process level whether the
-                                // sidecar is started, so it cannot be toggled per request, and
-                                // the ApmTracingDataStreamsEnabled capability is not advertised.
-                                let mut configs: Vec<Configs> =
-                                    config_data.lib_config.clone().into();
-                                configs.retain(|c| !matches!(c, Configs::DataStreamsEnabled(_)));
+                                let configs = config_data.configs();
                                 if !configs.is_empty() {
                                     remote_config.dynamic_config.active_configs.insert(
                                         value.path.config_id().to_string(),
