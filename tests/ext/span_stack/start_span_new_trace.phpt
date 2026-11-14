@@ -61,8 +61,10 @@ After closing the trace root, we swap back to the previously active stack: bool(
 With the trace root also accordingly updated: bool(true)
 spans(\DDTrace\SpanData) (2) {
   start_span_new_trace.php (start_span_new_trace.php, start_span_new_trace.php, cli)
+    _dd.top_level => 1
      (start_span_new_trace.php, cli)
        (start_span_new_trace.php, cli)
   other root (start_span_new_trace.php, other root, cli)
+    _dd.top_level => 1
      (start_span_new_trace.php, cli)
 }

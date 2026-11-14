@@ -61,7 +61,7 @@ array(2) {
           ["type"]=>
           string(3) "cli"
           ["attributes"]=>
-          array(8) {
+          array(9) {
             ["runtime-id"]=>
             string(%d) "%s"
             ["process_id"]=>
@@ -71,6 +71,8 @@ array(2) {
             ["git.repository_url"]=>
             string(24) "github.com/user/env_repo"
             ["_dd.agent_psr"]=>
+            float(1)
+            ["_dd.top_level"]=>
             float(1)
             ["php.compilation.total_time_ms"]=>
             float(%f)

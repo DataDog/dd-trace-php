@@ -45,7 +45,7 @@ array(1) {
     ["error"]=>
     bool(true)
     ["attributes"]=>
-    array(7) {
+    array(8) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
@@ -53,6 +53,8 @@ array(1) {
       ["error.message"]=>
       string(9) "Foo error"
       ["_dd.agent_psr"]=>
+      float(1)
+      ["_dd.top_level"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)

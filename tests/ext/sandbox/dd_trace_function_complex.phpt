@@ -112,7 +112,7 @@ array(5) {
     ["type"]=>
     string(7) "BarType"
     ["attributes"]=>
-    array(13) {
+    array(14) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
@@ -132,6 +132,8 @@ array(5) {
       ["bar"]=>
       float(25)
       ["_dd.agent_psr"]=>
+      float(1)
+      ["_dd.top_level"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
@@ -160,9 +162,11 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["attributes"]=>
-    array(1) {
+    array(2) {
       ["_dd.base_service"]=>
       string(10) "BarService"
+      ["_dd.top_level"]=>
+      float(1)
     }
   }
   [2]=>
@@ -184,9 +188,11 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["attributes"]=>
-    array(1) {
+    array(2) {
       ["_dd.base_service"]=>
       string(10) "BarService"
+      ["_dd.top_level"]=>
+      float(1)
     }
   }
   [3]=>
@@ -206,12 +212,14 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["attributes"]=>
-    array(6) {
+    array(7) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
       int(%d)
       ["_dd.agent_psr"]=>
+      float(1)
+      ["_dd.top_level"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
@@ -238,12 +246,14 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["attributes"]=>
-    array(6) {
+    array(7) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
       int(%d)
       ["_dd.agent_psr"]=>
+      float(1)
+      ["_dd.top_level"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)

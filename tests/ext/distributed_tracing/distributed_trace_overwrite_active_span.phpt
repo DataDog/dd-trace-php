@@ -112,7 +112,7 @@ Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 
 Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 bool(true)
-parent: 321, trace: 123, origin: foo, meta: {"a":"b"}
+parent: 321, trace: 123, origin: foo, meta: {"a":"b","_dd.top_level":1}
 parent: %d, trace: 123, origin: foo, meta: []
 bool(true)
 
@@ -134,6 +134,6 @@ array(5) {
 Deprecated: Function DDTrace\trace_id() is deprecated in %s on line %d
 bool(true)
 bool(true)
-parent: 0, trace: %d, origin: , meta: []
+parent: 0, trace: %d, origin: , meta: {"_dd.top_level":1}
 parent: %d, trace: %d, origin: , meta: []
 all spans trace_id updated: bool(true)

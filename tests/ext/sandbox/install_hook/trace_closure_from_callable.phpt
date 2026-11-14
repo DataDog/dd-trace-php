@@ -38,11 +38,15 @@ include __DIR__ . '/../dd_dumper.inc';
 spans(\DDTrace\SpanData) (4) {
   foo (trace_closure_from_callable.php, foo, cli)
     global => 1
+    _dd.top_level => 1
   foo (trace_closure_from_callable.php, foo, cli)
     global => 1
     fake => 1
+    _dd.top_level => 1
   foo (trace_closure_from_callable.php, foo, cli)
     global => 1
+    _dd.top_level => 1
   foo (trace_closure_from_callable.php, foo, cli)
     global => 1
+    _dd.top_level => 1
 }

@@ -42,6 +42,7 @@ spans(\DDTrace\SpanData) (1) {
     _dd.code_origin.frames.0.method => main
     _dd.code_origin.frames.1.file => %sdefault_span_properties.php
     _dd.code_origin.frames.1.line => 21
+    _dd.top_level => 1
     MyRange (default_span_properties.php, MyRange, cli)
     array_sum (default_span_properties.php, array_sum, cli)
       retval => 21

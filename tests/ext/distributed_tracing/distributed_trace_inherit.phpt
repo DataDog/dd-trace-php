@@ -65,7 +65,7 @@ array(2) {
           ["type"]=>
           string(3) "cli"
           ["attributes"]=>
-          array(8) {
+          array(9) {
             ["_dd.p.custom_tag"]=>
             string(9) "inherited"
             ["_dd.propagation_error"]=>
@@ -76,6 +76,8 @@ array(2) {
             string(36) "%s"
             ["process_id"]=>
             int(%d)
+            ["_dd.top_level"]=>
+            float(1)
             ["php.compilation.total_time_ms"]=>
             float(%f)
             ["php.memory.peak_usage_bytes"]=>

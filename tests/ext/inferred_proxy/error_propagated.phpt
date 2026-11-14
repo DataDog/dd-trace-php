@@ -73,6 +73,7 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
             "error.type": "Exception",
             "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
             "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}",
+            "_dd.top_level": 1,
             "php.compilation.total_time_ms": %f,
             "php.memory.peak_usage_bytes": %d,
             "php.memory.peak_real_usage_bytes": %d

@@ -1,7 +1,6 @@
 --TEST--
-Client-side stats: _dd.top_level metric is set on top-level spans
+Client-side stats: _dd.top_level metric is set on top-level spans by default
 --ENV--
-DD_TRACE_STATS_COMPUTATION_ENABLED=true
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0

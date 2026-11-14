@@ -30,5 +30,6 @@ dd_dump_spans();
 --EXPECTF--
 spans(\DDTrace\SpanData) (1) {
   root span (nested_dropped_spans.php, root span, cli)
+    _dd.top_level => 1
     inner span (nested_dropped_spans.php, inner span, cli)
 }

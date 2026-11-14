@@ -36,11 +36,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["attributes"]=>
-    array(2) {
+    array(3) {
       ["_dd.svc_src"]=>
       string(1) "m"
       ["_dd.base_service"]=>
       string(16) "base_service.php"
+      ["_dd.top_level"]=>
+      float(1)
     }
   }
 }

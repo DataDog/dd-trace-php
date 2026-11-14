@@ -151,7 +151,7 @@
     CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
-    CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "false")                                                  \
+    CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "true")                                                   \
     CONFIG(BOOL, DD_DATA_STREAMS_ENABLED, "false")                                                             \
     CONFIG(SET, DD_TRACE_STATS_ADDITIONAL_TAGS, "", .ini_change = ddtrace_alter_stats_additional_tags)          \
     CONFIG(INT, DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT, "100", .ini_change = ddtrace_alter_stats_additional_tags) \

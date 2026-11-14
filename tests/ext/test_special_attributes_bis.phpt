@@ -51,11 +51,13 @@ array(1) {
     ["type"]=>
     string(8) "new.type"
     ["attributes"]=>
-    array(2) {
+    array(3) {
       ["_dd.svc_src"]=>
       string(1) "m"
       ["_dd.base_service"]=>
       string(31) "test_special_attributes_bis.php"
+      ["_dd.top_level"]=>
+      float(1)
     }
   }
 }

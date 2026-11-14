@@ -1,5 +1,5 @@
 --TEST--
-Client-side SHM span stats are computed and flushed to the agent on trace flush
+Client-side SHM span stats are computed by default and flushed to the agent on trace flush
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php
@@ -26,7 +26,6 @@ DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=1
-DD_TRACE_STATS_COMPUTATION_ENABLED=1
 --INI--
 datadog.env=test-env
 datadog.version=1.2.3-basic

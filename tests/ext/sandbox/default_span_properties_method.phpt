@@ -44,6 +44,7 @@ dd_dump_spans();
 spans(\DDTrace\SpanData) (1) {
   Foo.main (default_span_properties_method.php, Foo.main, cli)
     year => 2020
+    _dd.top_level => 1
     DateTime.__construct (default_span_properties_method.php, DateTime.__construct, cli)
       date => 2020-06-15
     MyDateTimeFormat (default_span_properties_method.php, MyDateTimeFormat, cli)

@@ -36,5 +36,6 @@ We are back on our primary stack: bool(true)
 Having lost all references to the that span stacks objects, it is autoclosed: bool(true)
 spans(\DDTrace\SpanData) (1) {
   span_trace_stack_autoclose.php (span_trace_stack_autoclose.php, span_trace_stack_autoclose.php, cli)
+    _dd.top_level => 1
      (span_trace_stack_autoclose.php, cli)
 }

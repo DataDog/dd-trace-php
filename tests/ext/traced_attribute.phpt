@@ -65,6 +65,7 @@ spans(\DDTrace\SpanData) (3) {
     _dd.code_origin.frames.0.method => bar
     _dd.code_origin.frames.1.file => %s
     _dd.code_origin.frames.1.line => 40
+    _dd.top_level => 1
     simplename (test, rsrc, typeee)
       _dd.svc_src => m
       a => b
@@ -81,6 +82,7 @@ spans(\DDTrace\SpanData) (3) {
       _dd.code_origin.frames.2.file => %s
       _dd.code_origin.frames.2.line => 40
       _dd.base_service => traced_attribute.php
+      _dd.top_level => 1
   recursion (traced_attribute.php, recursion, cli)
     _dd.code_origin.type => entry
     _dd.code_origin.frames.0.file => %s
@@ -88,6 +90,7 @@ spans(\DDTrace\SpanData) (3) {
     _dd.code_origin.frames.0.method => recursion
     _dd.code_origin.frames.1.file => %s
     _dd.code_origin.frames.1.line => 45
+    _dd.top_level => 1
     recursion (traced_attribute.php, recursion, cli)
       recursion (traced_attribute.php, recursion, cli)
   noRecursion (traced_attribute.php, noRecursion, cli)
@@ -97,4 +100,5 @@ spans(\DDTrace\SpanData) (3) {
     _dd.code_origin.frames.0.method => noRecursion
     _dd.code_origin.frames.1.file => %s
     _dd.code_origin.frames.1.line => 46
+    _dd.top_level => 1
 }

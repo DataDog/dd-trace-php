@@ -66,7 +66,7 @@ array(2) {
           ["type"]=>
           string(3) "cli"
           ["attributes"]=>
-          array(7) {
+          array(8) {
             ["_dd.p.ts"]=>
             string(2) "02"
             ["runtime-id"]=>
@@ -75,6 +75,8 @@ array(2) {
             int(%d)
             ["_dd.apm.enabled"]=>
             float(0)
+            ["_dd.top_level"]=>
+            float(1)
             ["php.compilation.total_time_ms"]=>
             float(%f)
             ["php.memory.peak_usage_bytes"]=>
