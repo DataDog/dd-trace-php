@@ -28,6 +28,26 @@ foreach ($modes as $mode) {
     $environment['DD_API_KEY'] = in_array($mode, array('no-key', 'managed-no-key'), true) ? '' : 'must-not-reach-local-proxy';
     $environment['DD_SITE'] = ($mode !== 'agentless' && $mode !== 'remote-config' && $mode !== 'no-key' && $mode !== 'managed-no-key') ? 'bad/site' : 'datadoghq.com';
     $environment['NO_PROXY'] = '127.0.0.1,localhost';
+    // Under valgrind the sidecar builds its TLS root store inside the first
+    // timed request, which alone can exceed the default 5s agent timeout.
+    if (getenv('USE_ZEND_ALLOC') === '0') $environment['DD_TRACE_AGENT_TIMEOUT'] = '30000';
+    if (PHP_OS === 'WINNT') {
+        // Windows spawns every sidecar from %TEMP%\datadog-ipc-helper-<session>,
+        // keeping one ".old" slot for a still-running predecessor. This test's
+        // own shared sidecar and the previous child's lingering one fill both
+        // slots, so give each child a private temp directory.
+        $temp = sys_get_temp_dir() . '\\ffe-evp-' . getmypid() . '-' . $mode . '-' . $sender;
+        if (!is_dir($temp) && !mkdir($temp)) throw new RuntimeException('cannot create child temp directory');
+        // Best effort: a sidecar that is still lingering keeps its executable.
+        register_shutdown_function(function () use ($temp) {
+            foreach (glob($temp . '\\*') ?: array() as $file) @unlink($file);
+            @rmdir($temp);
+        });
+        foreach (array_keys($environment) as $key) {
+            if (in_array(strtoupper($key), array('TMP', 'TEMP'), true)) unset($environment[$key]);
+        }
+        $environment['TMP'] = $environment['TEMP'] = $temp;
+    }
     $process = ffeTestProcess(__DIR__ . '/agentless_evp_app.php', $pipes, $environment);
     $events = array();
     $expected = strpos($mode, 'managed-') === 0 ? array('flagevaluation') : array('exposures', 'flagevaluation');
