@@ -7,7 +7,9 @@ use std::os::raw::c_char;
 use std::ptr::NonNull;
 
 #[no_mangle]
-pub extern "C" fn ddog_remove_empty_trace(traces: &mut datadog_sidecar_ffi::span::TracesBytes) {
+pub extern "C" fn ddog_remove_empty_trace(
+    traces: &mut datadog_sidecar_ffi::span_v04::TracesBytes,
+) {
     if traces.last().is_some_and(Vec::is_empty) {
         traces.pop();
     }
