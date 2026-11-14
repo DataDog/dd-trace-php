@@ -237,6 +237,46 @@ pub extern "C" fn ddog_ffe_cdn_config_new(
 #[no_mangle]
 pub extern "C" fn ddog_ffe_cdn_config_drop(_: Box<FfeCdnConfig>) {}
 
+/// Build the authenticated EVP intake independently of any custom CDN URL.
+/// Missing credentials or an invalid destination leave local EVP discovery available.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_evp_endpoint_new(
+    site: CharSlice,
+    api_key: CharSlice,
+) -> Option<Box<libdd_common::Endpoint>> {
+    let site = site.try_to_utf8().ok()?.trim();
+    let site = if site.is_empty() {
+        "datadoghq.com"
+    } else {
+        site
+    };
+    // Validate the input before URI parsing, which can discard a fragment.
+    if !site
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'))
+    {
+        return None;
+    }
+    let endpoint = libdd_common::Endpoint {
+        url: format!(
+            "https://event-platform-intake.{}/",
+            site.to_ascii_lowercase()
+        )
+        .parse()
+        .ok()?,
+        api_key: Some(api_key.try_to_utf8().ok()?.to_owned().into()),
+        ..Default::default()
+    };
+    datadog_sidecar::service::EvpTransportConfig::prefer_local_then_direct(
+        libdd_common::Endpoint::default(),
+        Some(endpoint.clone()),
+        "event-platform-intake",
+    )
+    .validate()
+    .ok()?;
+    Some(Box::new(endpoint))
+}
+
 const REASON_STATIC: i32 = 0;
 const REASON_DEFAULT: i32 = 1;
 const REASON_TARGETING_MATCH: i32 = 2;
@@ -511,6 +551,48 @@ mod tests {
     use std::sync::Once;
 
     static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
+
+    #[test]
+    fn evp_endpoint_uses_canonical_https_intake() {
+        for (site, host) in [
+            ("datadoghq.eu", "event-platform-intake.datadoghq.eu"),
+            (
+                " US3.Datadoghq.com ",
+                "event-platform-intake.us3.datadoghq.com",
+            ),
+            ("", "event-platform-intake.datadoghq.com"),
+        ] {
+            let endpoint = ddog_ffe_evp_endpoint_new(site.into(), "test-key".into()).unwrap();
+            assert_eq!(endpoint.url.scheme_str(), Some("https"));
+            assert_eq!(endpoint.url.host(), Some(host));
+            assert_eq!(endpoint.url.path(), "/");
+            assert_eq!(endpoint.api_key.as_deref(), Some("test-key"));
+        }
+    }
+
+    #[test]
+    fn evp_endpoint_rejects_invalid_destinations_and_credentials() {
+        for site in [
+            "https://datadoghq.com",
+            "datadoghq.com:443",
+            "datadoghq.com/path",
+            "datadoghq.com?query",
+            "datadoghq.com#fragment",
+            "datadoghq.com@other.invalid",
+            "bad site",
+            "a..invalid",
+            "-bad.invalid",
+            "\u{212a}.com",
+        ] {
+            assert!(
+                ddog_ffe_evp_endpoint_new(site.into(), "test-key".into()).is_none(),
+                "{site}"
+            );
+        }
+        for key in ["", "key\r\nInjected: value"] {
+            assert!(ddog_ffe_evp_endpoint_new("datadoghq.com".into(), key.into()).is_none());
+        }
+    }
 
     fn setup_zend_string_functions() {
         INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {
