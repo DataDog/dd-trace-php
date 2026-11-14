@@ -113,6 +113,8 @@ Toolchain is pinned — see `Cargo.toml` (`rust-version`) and
 - Reproducing CI jobs locally: [../ci/index.md](../ci/index.md)
 - Debugging (gdb, appsec integration, system tests):
   [../debugging/index.md](../debugging/index.md)
+- Per-lens rules for planning changes and for code review:
+  [../skills/sdk-review/coding-requirements/](../skills/sdk-review/coding-requirements/)
 - Component design + background sender + PHP-version code:
   [../../architecture.md](../../architecture.md)
 - Contributor setup / linting / local testing:
