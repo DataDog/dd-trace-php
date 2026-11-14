@@ -246,6 +246,10 @@ class KafkaIntegration extends Integration
      * callback, and the offsets a consumer group commits - automatically or not - only to an
      * offset commit callback. The integration wraps the application's callbacks, and installs
      * its own where there are none, to record these as Data Streams Monitoring backlogs.
+     *
+     * Known limit: this happens only if DSM is on when the Conf is set up. When Remote Config
+     * turns DSM on later, checkpoints work at once, but clients created before that have no
+     * backlog offsets until they are recreated.
      */
     private static function installDataStreamsCallbackHooks()
     {

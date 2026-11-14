@@ -219,6 +219,8 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Channel\AMQPChannel::basic_consume',
             static function (HookData $hook) {
                 $hook->span();
+                // Known limit: callbacks registered while DSM is off stay unwrapped, so when Remote
+                // Config turns DSM on later, they get no consume checkpoint until re-registered.
                 if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
                         || !isset($hook->args[6]) || !is_callable($hook->args[6])) {
                     return;
