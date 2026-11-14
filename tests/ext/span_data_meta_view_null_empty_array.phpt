@@ -25,8 +25,8 @@ echo "-- read-back (an array is a meta entry, null is in neither view)\n";
 $meta = $span->meta;
 $metrics = $span->metrics;
 foreach ($keys as $key) {
-    echo $key, ': meta=', array_key_exists($key, $meta) ? json_encode($meta[$key]) : 'absent',
-        ' metrics=', array_key_exists($key, $metrics) ? json_encode($metrics[$key]) : 'absent', "\n";
+    echo $key, ': meta=', isset($meta[$key]) ? json_encode($meta[$key]) : 'absent',
+        ' metrics=', isset($metrics[$key]) ? json_encode($metrics[$key]) : 'absent', "\n";
 }
 \DDTrace\close_span();
 

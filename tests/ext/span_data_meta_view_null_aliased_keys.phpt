@@ -23,7 +23,7 @@ $span->meta['error.ignored'] = null;
 $span->meta = ['version' => null] + $span->meta;
 
 var_dump($span->env, $span->version, $span->component, $span->spanKind, $span->ignoreError);
-var_dump(array_intersect_key($span->meta, $keys), array_intersect_key($span->attributes, $keys));
+var_dump(array_intersect_key((array) $span->meta, $keys), array_intersect_key($span->attributes, $keys));
 \DDTrace\close_span();
 
 $serialized = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0];

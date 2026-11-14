@@ -8,7 +8,7 @@ $emptyLogin = "";
   false
 );
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump((array) $root->meta);
 
 ?>
 --EXPECTF--

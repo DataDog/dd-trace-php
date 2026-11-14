@@ -12,7 +12,7 @@ DDTrace\consume_distributed_tracing_headers(function ($header) {
             "baggage" => "user.id=123,session.id=abc,region=us-east1"
         ][$header] ?? null;
 });
-var_dump(DDTrace\start_span()->meta);
+var_dump((array) DDTrace\start_span()->meta);
 
 ?>
 --EXPECTF--

@@ -4,7 +4,7 @@ Test \DDTrace\set_user with metadata
 <?php
 DDTrace\set_user("admin", ["policy" => "none", "permissions" => "777"]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump((array) $root->meta);
 
 ?>
 --EXPECTF--

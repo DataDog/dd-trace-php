@@ -30,9 +30,9 @@ var_dump($span->attributes['num'], $span->attributes['m']);
 var_dump(isset($span->meta['m']), isset($span->metrics['m']), isset($span->metrics['num']));
 var_dump($span->meta['missing'] ?? 'default', empty($span->meta['num']));
 
-echo "-- array functions on a read\n";
-var_dump(is_array($span->meta), array_key_exists('num', $span->meta), array_key_exists('m', $span->meta));
-$merged = array_merge($span->meta, ['x' => 'y']);
+echo "-- array functions on an explicit cast\n";
+var_dump($span->meta instanceof DDTrace\SpanTagsView, array_key_exists('num', (array) $span->meta), array_key_exists('m', (array) $span->meta));
+$merged = array_merge((array) $span->meta, ['x' => 'y']);
 var_dump($merged['num'], $merged['x']);
 $span->meta += ['added' => 'yes'];
 var_dump($span->attributes['added']);
@@ -43,7 +43,7 @@ var_dump($span->attributes['nested']);
 
 echo "-- whole-array assignment replaces the bucket\n";
 $span->meta = ['only' => 'this'];
-var_dump($span->meta, $span->metrics['m'], isset($span->attributes['team']));
+var_dump((array) $span->meta, $span->metrics['m'], isset($span->attributes['team']));
 
 echo "-- iteration and the view object\n";
 $span->meta['k2'] = 'v2';
@@ -58,7 +58,7 @@ var_dump($span->attributes['via_ref']);
 
 echo "-- isset/?? contexts and writes through attributes\n";
 $x = $span->meta ?? [];
-var_dump(is_array($x), array_merge($x, ['extra' => 'e'])['extra']);
+var_dump($x instanceof DDTrace\SpanTagsView, array_merge((array) $x, ['extra' => 'e'])['extra']);
 $span->attributes['via_attrs'] = 'a';
 var_dump(isset($span->meta['via_attrs']), isset($span->metrics['via_attrs']));
 \DDTrace\close_span();
@@ -94,7 +94,7 @@ bool(true)
 bool(false)
 string(7) "default"
 bool(false)
--- array functions on a read
+-- array functions on an explicit cast
 bool(true)
 bool(true)
 bool(false)

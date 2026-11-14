@@ -732,8 +732,8 @@ namespace DDTrace\Data {
      * @property string $type
      * @property int $startTime
      * @property int $duration
-     * @property array $tags
-     * @property array $metrics
+     * @property \DDTrace\SpanTagsView $tags Cast to array to take a snapshot.
+     * @property \DDTrace\SpanTagsView $metrics Cast to array to take a snapshot.
      * @property array $baggage
      */
     abstract class Span implements \DDTrace\Contracts\Span

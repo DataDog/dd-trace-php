@@ -6,7 +6,7 @@ DD_TRACE_PROPAGATE_USER_ID_DEFAULT=true
 <?php
 DDTrace\set_user("admin", ["policy" => "none", "permissions" => "777"]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump((array) $root->meta);
 
 ?>
 --EXPECTF--

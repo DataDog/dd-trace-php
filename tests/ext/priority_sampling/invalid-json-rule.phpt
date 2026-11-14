@@ -18,7 +18,7 @@ $root = \DDTrace\root_span();
 if (($root->metrics["_dd.rule_psr"] ?? 0) != 0.3 && $root->metrics["_dd.agent_psr"] == 1) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 
 ?>

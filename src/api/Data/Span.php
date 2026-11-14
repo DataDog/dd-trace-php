@@ -13,8 +13,8 @@ use DDTrace\Contracts\Span as SpanInterface;
  * @property string $type
  * @property int $startTime
  * @property int $duration
- * @property array $tags
- * @property array $metrics
+ * @property \DDTrace\SpanTagsView $tags Cast to array to take a snapshot.
+ * @property \DDTrace\SpanTagsView $metrics Cast to array to take a snapshot.
  * @property array $baggage
  */
 abstract class Span implements SpanInterface
@@ -38,10 +38,8 @@ abstract class Span implements SpanInterface
     {
         if ($name == "operationName") {
             $name = "name";
-        } elseif ($name == "tags" || $name == "metrics") {
-            // A by-value read yields an array; the by-ref fetch below would yield the SpanTagsView.
-            $tags = $name == "tags" ? $this->internalSpan->meta : $this->internalSpan->metrics;
-            return $tags;
+        } elseif ($name == "tags") {
+            $name = "meta";
         } elseif ($name == "duration") {
             $duration = $this->internalSpan->getDuration();
             return $duration;

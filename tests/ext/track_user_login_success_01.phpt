@@ -10,7 +10,7 @@ Test \datadog\appsec\v2\track_user_login_success when user is string
     "metakey2" => "metavalue02",
 ]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump((array) $root->meta);
 
 ?>
 --EXPECTF--

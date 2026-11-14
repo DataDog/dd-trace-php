@@ -64,11 +64,13 @@ component: isset=true read='c1' view='c1' listed='c1'
 span.kind: isset=true read='client' view='client' listed='client'
 error.ignored: isset=true read='true' view='true' listed='true'
 count matches: true
-array(2) {
+array(3) {
   ["runtime-id"]=>
   string(36) "%s"
   ["process_id"]=>
   int(%d)
+  ["_dd.svc_src"]=>
+  string(1) "m"
 }
 -- the property wins over a same-named attribute
 string(2) "c2"

@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: 6e67d845bf7d0501fe196294723b172b423a9538 */
+ * Stub hash: b741b723e7554234ab3d63328800d8f79eeb236d */
 
 #include "zend_constants.h"
 

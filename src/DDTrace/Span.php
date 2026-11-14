@@ -209,8 +209,9 @@ class Span extends DataSpan
      */
     public function getTag($key)
     {
-        if (isset($this->internalSpan->meta) && array_key_exists($key, $this->internalSpan->meta)) {
-            return $this->internalSpan->meta[$key];
+        $value = $this->internalSpan->meta[$key] ?? null;
+        if ($value !== null) {
+            return $value;
         } elseif ($key === "env") {
             return $this->internalSpan->env;
         } elseif ($key === "version") {
@@ -225,7 +226,7 @@ class Span extends DataSpan
      */
     public function getAllTags()
     {
-        return isset($this->internalSpan->meta) ? $this->internalSpan->meta : [];
+        return (array) $this->internalSpan->meta;
     }
 
     /**
@@ -233,7 +234,7 @@ class Span extends DataSpan
      */
     public function hasTag($name)
     {
-        return array_key_exists($name, $this->getAllTags());
+        return isset($this->internalSpan->meta[$name]);
     }
 
     /**
@@ -258,7 +259,7 @@ class Span extends DataSpan
      */
     public function getMetrics()
     {
-        return isset($this->internalSpan->metrics) ? $this->internalSpan->metrics : [];
+        return (array) $this->internalSpan->metrics;
     }
 
     /**

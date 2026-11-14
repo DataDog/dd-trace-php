@@ -224,7 +224,8 @@ namespace DDTrace {
         public string|null $type = "";
 
         /**
-         * @var string[] $meta A view onto the non-numeric entries of $attributes; values are stored as strings.
+         * @var SpanTagsView $meta A live view onto the non-numeric entries of $attributes; writes store strings.
+         * Cast to array for a snapshot or to use array functions. Assigning an array replaces the entries.
          * Writing service.name, resource.name, operation.name, span.type, env, version, component, span.kind or
          * error.ignored sets the matching property instead, and reading them returns that property.
          * @deprecated Use $attributes. Setting meta['error.ignored'] is deprecated too: use $ignoreError.
@@ -232,7 +233,8 @@ namespace DDTrace {
         public $meta = [];
 
         /**
-         * @var float[] $metrics A view onto the numeric entries of $attributes; values are stored as floats.
+         * @var SpanTagsView $metrics A live view onto the numeric entries of $attributes; writes store floats.
+         * Cast to array for a snapshot or to use array functions. Assigning an array replaces the entries.
          * @deprecated Use $attributes.
          */
         public $metrics = [];

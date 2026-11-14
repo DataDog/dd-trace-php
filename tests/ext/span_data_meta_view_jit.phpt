@@ -31,9 +31,9 @@ $total = 0;
 for ($i = 0; $i < 200; $i++) {
     $total += tag($span, $i);
 }
-$meta = $span->meta;
+$meta = (array) $span->meta;
 var_dump($total > 0, array_values(preg_grep('/^k/', array_keys($meta))), $span->attributes['k199']);
-var_dump(count(preg_grep('/^m\d+$/', array_keys($span->metrics))), $span->metrics['m199']);
+var_dump(count(preg_grep('/^m\d+$/', array_keys((array) $span->metrics))), $span->metrics['m199']);
 \DDTrace\close_span();
 \DDTrace\close_span();
 ?>

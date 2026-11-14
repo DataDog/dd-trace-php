@@ -6,7 +6,7 @@ Test \datadog\appsec\v2\track_user_login_success no user id given
   'metakey1' => 'meta value'
 ]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump((array) $root->meta);
 
 ?>
 --EXPECTF--

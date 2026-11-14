@@ -1,5 +1,5 @@
 --TEST--
-Legacy DDTrace\Data\Span $tags and $metrics read as arrays
+Legacy DDTrace\Data\Span $tags and $metrics support explicit array casts
 --SKIPIF--
 <?php if (!is_file(__DIR__ . '/../../../../src/DDTrace/Tracer.php')) die('skip: needs the src/ tree of the build checkout'); ?>
 --ENV--
@@ -18,9 +18,9 @@ $span = $scope->getSpan();
 $span->setTag('foo', 'bar');
 $span->setMetric('m', 2);
 
-var_dump($span instanceof \DDTrace\Data\Span, is_array($span->tags), is_array($span->metrics));
-$merged = array_merge($span->tags, array('extra' => 'x'));
-var_dump($merged['foo'], $merged['extra'], in_array('foo', array_keys($span->tags), true));
+var_dump($span instanceof \DDTrace\Data\Span, is_array((array) $span->tags), is_array((array) $span->metrics));
+$merged = array_merge((array) $span->tags, array('extra' => 'x'));
+var_dump($merged['foo'], $merged['extra'], in_array('foo', array_keys((array) $span->tags), true));
 echo json_encode($span->metrics), "\n";
 var_dump(empty($span->metrics), isset($span->tags));
 
