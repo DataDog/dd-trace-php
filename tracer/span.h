@@ -128,7 +128,7 @@ struct ddtrace_span_data {
     uint32_t active_child_spans;
     struct ddtrace_span_data *next;
     struct ddtrace_root_span_data *root;
-    zend_object *tags_views[2];  // cached $meta / $metrics views (span_tags_view.c)
+    zval tags_views[2];  // cached $meta / $metrics views, exposed through get_gc (span_tags_view.c)
 
     union {
         ddtrace_span_properties;

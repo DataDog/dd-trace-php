@@ -488,24 +488,26 @@ static zend_object *dd_tags_view_create(zend_class_entry *ce) {
 
 // The span keeps the cached view alive; the view only points back weakly.
 static zend_object *dd_span_tags_view_get(ddtrace_span_data *span, int bucket) {
-    zend_object *obj = span->tags_views[bucket];
-    if (!obj) {
-        obj = dd_tags_view_create(ddtrace_ce_span_tags_view);
+    zval *cached = &span->tags_views[bucket];
+    if (Z_ISUNDEF_P(cached)) {
+        zend_object *obj = dd_tags_view_create(ddtrace_ce_span_tags_view);
         dd_span_tags_view *view = dd_tags_view_from_obj(obj);
         view->span = span;
         view->metrics = bucket == 1;
-        span->tags_views[bucket] = obj;
+        ZVAL_OBJ(cached, obj);
     }
+    zend_object *obj = Z_OBJ_P(cached);
     GC_ADDREF(obj);
     return obj;
 }
 
 void ddtrace_span_tags_views_release(ddtrace_span_data *span) {
     for (int i = 0; i < 2; ++i) {
-        zend_object *obj = span->tags_views[i];
-        if (obj) {
+        zval *cached = &span->tags_views[i];
+        if (!Z_ISUNDEF_P(cached)) {
+            zend_object *obj = Z_OBJ_P(cached);
             dd_tags_view_from_obj(obj)->span = NULL;
-            span->tags_views[i] = NULL;
+            ZVAL_UNDEF(cached);
             OBJ_RELEASE(obj);
         }
     }
@@ -744,6 +746,31 @@ void ddtrace_register_span_tags_view(void) {
 
 /* SpanData property handlers for $meta / $metrics */
 
+static HashTable *dd_span_get_gc(DD_OBJ_ARG, zval **table, int *n) {
+    ddtrace_span_data *span = OBJ_SPANDATA(DD_OBJ);
+    if (Z_ISUNDEF(span->tags_views[0]) && Z_ISUNDEF(span->tags_views[1])) {
+        return std_object_handlers.get_gc(object, table, n);
+    }
+    // A pre-7.4 view's cached cast snapshot can reference its owning span. Report
+    // the span's ownership of both views as well as its ordinary properties.
+#if PHP_VERSION_ID >= 80000
+    // Preserve the standard handler's inline property storage on newer engines.
+    HashTable *props = std_object_handlers.get_gc(object, table, n);
+    zend_get_gc_buffer *buffer = zend_get_gc_buffer_create();
+    for (int i = 0; i < *n; ++i) {
+        zend_get_gc_buffer_add_zval(buffer, &(*table)[i]);
+    }
+    zend_get_gc_buffer_add_zval(buffer, &span->tags_views[0]);
+    zend_get_gc_buffer_add_zval(buffer, &span->tags_views[1]);
+    zend_get_gc_buffer_use(buffer, table, n);
+    return props;
+#else
+    *table = span->tags_views;
+    *n = 2;
+    return zend_std_get_properties(object);
+#endif
+}
+
 // Reads and writes share the live view. Materialize arrays only for casts, iteration, or union.
 static zval *dd_span_read_property(DD_OBJ_ARG, DD_MEMBER_ARG, int type, void **cache_slot, zval *rv) {
     int bucket = dd_tags_bucket_of(DD_MEMBER);
@@ -843,6 +870,7 @@ static HashTable *dd_span_get_debug_info(zval *object, int *is_temp) {
 #endif
 
 void ddtrace_span_tags_view_install(zend_object_handlers *handlers) {
+    handlers->get_gc = dd_span_get_gc;
     handlers->read_property = dd_span_read_property;
     handlers->get_property_ptr_ptr = dd_span_get_property_ptr_ptr;
     handlers->has_property = dd_span_has_property;
