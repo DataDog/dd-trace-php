@@ -23,11 +23,15 @@ $metrics = $span->metrics;
 $snapshot = (array) $meta;
 $attributes = $span->attributes;
 $rhs = ['kept' => 'right', 7 => 'replaced', 11 => 'eleven', 'added' => 42];
+$rhsCopy = $rhs;
 
 $ref = &$meta['kept'];
 $union = $meta + $rhs;
 check('view + array', $union, $snapshot + $rhs);
 check('array + view', $rhs + $meta, $rhs + $snapshot);
+check('array + view leaves its array operand unchanged', $rhs, ['kept' => 'right', 7 => 'replaced', 11 => 'eleven', 'added' => 42]);
+check('array + view leaves shared copies unchanged', $rhsCopy, ['kept' => 'right', 7 => 'replaced', 11 => 'eleven', 'added' => 42]);
+check('empty array + view', [] + $meta, $snapshot);
 check('view + view', $meta + $metrics, $snapshot + ['metric' => 1]);
 check('view + itself', $meta + $meta, $snapshot);
 check('plain unions leave attributes unchanged', $span->attributes, $attributes);
@@ -55,9 +59,11 @@ $local += ['local' => 'only'];
 check('local view += returns an array', $local, $snapshot + ['local' => 'only']);
 check('local view += leaves the span unchanged', isset($meta['local']), false);
 $local = ['kept' => 'array-left', 7 => 'array-seven'];
+$localCopy = $local;
 $expected = $local + $snapshot;
 $local += $meta;
 check('local array += view', $local, $expected);
+check('local array += view leaves shared copies unchanged', $localCopy, ['kept' => 'array-left', 7 => 'array-seven']);
 $local = $meta;
 $local += $local;
 check('local view += itself', $local, $snapshot);
@@ -67,6 +73,9 @@ DDTrace\close_span();
 --EXPECT--
 view + array: ok
 array + view: ok
+array + view leaves its array operand unchanged: ok
+array + view leaves shared copies unchanged: ok
+empty array + view: ok
 view + view: ok
 view + itself: ok
 plain unions leave attributes unchanged: ok
@@ -82,4 +91,5 @@ retained views remain live: ok
 local view += returns an array: ok
 local view += leaves the span unchanged: ok
 local array += view: ok
+local array += view leaves shared copies unchanged: ok
 local view += itself: ok

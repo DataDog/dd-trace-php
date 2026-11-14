@@ -562,7 +562,8 @@ static int dd_tags_view_do_operation(zend_uchar opcode, zval *result, zval *op1,
 
     zval left, right;
     if (Z_TYPE_P(op1) == IS_ARRAY) {
-        ZVAL_COPY(&left, op1);
+        // Before PHP 7.3, add_function() assumes an in-place array result is already separated.
+        ZVAL_DUP(&left, op1);
     } else {
         ZVAL_ARR(&left, dd_tags_view_snapshot_ht(Z_OBJ_P(op1)));
     }
@@ -572,7 +573,7 @@ static int dd_tags_view_do_operation(zend_uchar opcode, zval *result, zval *op1,
         ZVAL_ARR(&right, dd_tags_view_snapshot_ht(Z_OBJ_P(op2)));
     }
 
-    // Both operands are arrays. Zend preserves left-hand keys and separates shared arrays.
+    // Both operands are arrays and the left one is private. Zend preserves left-hand keys.
     // Return an array so plain + is independent; property += writes it through the span's setter.
     add_function(&left, &left, &right);
     zval_ptr_dtor(&right);
