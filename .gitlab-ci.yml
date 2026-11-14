@@ -153,9 +153,8 @@ merge-gate:
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-      when: never
-    - when: always
+    - if: $CI_COMMIT_BRANCH != "master"
+      when: always
   # No clone: merge-gate.sh and flaky-jobs.txt come from this commit's generate-templates artifacts.
   dependencies: [ generate-templates ]
   variables:
