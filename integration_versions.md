@@ -3,7 +3,7 @@
 | cakephp/cakephp             | 3.10.5                 | 5.2.8                  |
 | drupal/drupal               | 8.9.21                 | 10.1.3                 |
 | elasticsearch/elasticsearch | 1.2.2                  | 9.1.0                  |
-| ext-PDO                     | 7.0.33                 | 8.5.10                 |
+| ext-PDO                     | 7.0.33                 | 8.6.0                  |
 | ext-curl                    | 7.0.33                 | 8.6.0                  |
 | ext-memcache                | 4.0.5                  | 8.2                    |
 | ext-memcached               | 3.4.0                  | 3.4.1                  |
