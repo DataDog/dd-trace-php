@@ -43,6 +43,8 @@ pub struct HelperRequest {
 pub enum HelperResponse {
     /// Normal response: forward these bytes to the extension and continue.
     Data(Vec<u8>),
+    /// Goodbye acknowledgment: forward these bytes and forget the client.
+    ClientShutdown(Vec<u8>),
     /// Error/shutdown response: forward these bytes (if any) then have the
     /// extension redo client init on next request.
     Reinitialize(Vec<u8>),
@@ -66,6 +68,13 @@ pub async fn on_message(
             data,
             disconnect: false,
         },
+        Ok(HelperResponse::ClientShutdown(data)) => {
+            forget_client(connection);
+            MessageResponse {
+                data,
+                disconnect: false,
+            }
+        }
         Ok(HelperResponse::Reinitialize(data)) => {
             // Reinitialize is only produced on fatal paths that make the client task return.
             forget_client(connection);
@@ -210,11 +219,7 @@ fn client_for_message(
 // the client channel
 fn forget_client(connection: &mut AppSecConnection) {
     if connection.client.take().is_some() {
-        debug!(
-            "Client of session {} forgotten, \
-             if it is still running it will trigger a ForcefulDisconnect and exit",
-            session_id(connection)
-        );
+        debug!("Client of session {} forgotten", session_id(connection));
     }
 }
 
@@ -471,7 +476,9 @@ mod tests {
             .expect("message should succeed");
         match response {
             HelperResponse::Data(bytes) => assert_eq!(bytes, vec![1, 2, 3]),
-            HelperResponse::Reinitialize(_) => panic!("expected normal data response"),
+            HelperResponse::ClientShutdown(_) | HelperResponse::Reinitialize(_) => {
+                panic!("expected normal data response")
+            }
         }
 
         stop_accepting_messages();
@@ -578,29 +585,36 @@ mod tests {
 
     #[test]
     #[serial]
-    fn on_message_success_reinitialize_sets_disconnect_true() {
+    fn on_message_forgets_client_after_goodbye_or_failure() {
         stop_accepting_messages();
 
-        let rt = test_runtime().handle().clone();
-        start_accepting_messages(Box::new(move |_session| {
-            let (tx, mut rx) = mpsc::channel::<HelperRequest>(1);
-            rt.spawn(async move {
-                if let Some(req) = rx.recv().await {
-                    let _ = req.response_tx.send(HelperResponse::Reinitialize(vec![9]));
-                }
-            });
-            tx
-        }));
+        for disconnect in [false, true] {
+            let rt = test_runtime().handle().clone();
+            start_accepting_messages(Box::new(move |_session| {
+                let (tx, mut rx) = mpsc::channel::<HelperRequest>(1);
+                rt.spawn(async move {
+                    if let Some(req) = rx.recv().await {
+                        let response = if disconnect {
+                            HelperResponse::Reinitialize(vec![9])
+                        } else {
+                            HelperResponse::ClientShutdown(vec![9])
+                        };
+                        let _ = req.response_tx.send(response);
+                    }
+                });
+                tx
+            }));
 
-        let mut connection = connection();
-        let resp = test_runtime().block_on(on_message(&mut connection, client_init(), true));
-        assert!(resp.disconnect);
-        assert_eq!(resp.data, vec![9]);
-        // The connection has to start over with client_init.
-        assert!(matches!(
-            client_for_message(&mut connection, false),
-            Err(OnMessageError::NoClient)
-        ));
+            let mut connection = connection();
+            let resp = test_runtime().block_on(on_message(&mut connection, client_init(), true));
+            assert_eq!(resp.disconnect, disconnect);
+            assert_eq!(resp.data, vec![9]);
+            // Both responses retire the client; only a failure requests disconnect.
+            assert!(matches!(
+                client_for_message(&mut connection, false),
+                Err(OnMessageError::NoClient)
+            ));
+        }
 
         stop_accepting_messages();
     }
