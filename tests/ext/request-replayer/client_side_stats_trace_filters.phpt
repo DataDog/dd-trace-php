@@ -12,7 +12,7 @@ if (PHP_VERSION_ID >= 80100) {
 //
 // Filters configured:
 //   filter_tags.require:        filter_required:yes
-//   filter_tags.reject:         filter_reject:yes
+//   filter_tags.reject:         filter_reject:yes, reject_struct (key presence)
 //   filter_tags_regex.require:  http.method matching G.* (GET passes, DELETE fails)
 //   filter_tags_regex.reject:   http.url matching .*\.internal\..*
 //   ignore_resources:           GET /healthcheck  (exact resource match)
@@ -28,7 +28,7 @@ $ctx = stream_context_create([
             'client_drop_p0s' => true,
             'filter_tags' => [
                 'require' => ['filter_required:yes', 'env:test-env', 'version:1.2.3-filters', 'span.kind:server', 'component:filter-test'],
-                'reject'  => ['filter_reject:yes'],
+                'reject'  => ['filter_reject:yes', 'reject_struct'],
             ],
             'filter_tags_regex' => [
                 'require' => ['http.method:G.*'],
@@ -142,6 +142,13 @@ makeSpan('op.blocked.span_kind', 'GET /other7', [
 ]);
 makeSpan('op.blocked.component', 'GET /other8', [
     'filter_required' => 'yes', 'http.method' => 'GET', 'component' => 'other-component',
+]);
+
+// 8. BLOCKED by filter_tags.reject — a composite attribute matches the key-only "reject_struct" by presence.
+makeSpan('op.blocked.reject_struct', 'GET /other9', [
+    'filter_required' => 'yes',
+    'http.method'     => 'GET',
+    'reject_struct'   => ['exploit' => [['id' => 1]]],
 ]);
 
 // Submit all cases together so a filtered span cannot arrive in a later batch

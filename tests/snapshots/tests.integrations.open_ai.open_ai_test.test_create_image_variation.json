@@ -15,9 +15,9 @@
       "openai.organization.name": "org-1234",
       "openai.request.endpoint": "/v1/images/variations",
       "openai.request.method": "POST",
-      "openai.request.n": "1",
       "openai.request.response_format": "url",
       "openai.request.size": "256x256",
+      "openai.response.id": "42",
       "openai.response.images.0.url": "https://openai.com/image.png",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.user.api_key": "sk-...9d5d",
@@ -29,8 +29,8 @@
       "_dd.agent_psr": 1,
       "_dd.measured": 1,
       "_sampling_priority_v1": 1,
+      "openai.request.n": 1,
       "openai.response.created": 1664136088,
-      "openai.response.id": 42,
       "openai.response.images_count": 1
     }
   },

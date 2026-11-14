@@ -48,7 +48,7 @@ verify(DDTrace\active_span() === $parent, 'explicit parent stack remains intact'
 DDTrace\close_span();
 DDTrace\switch_stack($rootStack);
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === 14, 'all generator spans serialized');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === 14, 'all generator spans serialized');
 echo "OK\n";
 ?>
 --EXPECT--

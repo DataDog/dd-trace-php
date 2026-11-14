@@ -19,6 +19,7 @@
     },
     "metrics": {
       "_dd.inferred_span": 1,
+      "_dd.top_level": 1,
       "_sampling_priority_v1": 1
     }
   },
@@ -45,5 +46,8 @@
          "runtime-id": "fd6e51db-bf2d-40fe-aa43-ae7c29474411",
          "span.kind": "server",
          "version": "1.0"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      }]]

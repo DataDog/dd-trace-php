@@ -291,6 +291,7 @@ fn map_config_name(config: &Configs) -> &'static str {
         Configs::DynamicInstrumentationEnabled(_) => "datadog.dynamic_instrumentation.enabled",
         Configs::ExceptionReplayEnabled(_) => "datadog.exception_replay_enabled",
         Configs::CodeOriginEnabled(_) => "datadog.code_origin_for_spans_enabled",
+        Configs::DataStreamsEnabled(_) => "datadog.data_streams_enabled",
     }
 }
 
@@ -322,6 +323,7 @@ fn map_config_value(config: &Configs) -> Cow<'_, str> {
         Configs::DynamicInstrumentationEnabled(enabled) => bool_config(enabled),
         Configs::ExceptionReplayEnabled(enabled) => bool_config(enabled),
         Configs::CodeOriginEnabled(enabled) => bool_config(enabled),
+        Configs::DataStreamsEnabled(enabled) => bool_config(enabled),
     }
 }
 
@@ -487,7 +489,12 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         RemoteConfigProduct::ApmTracing => {
                             if let Some(config_data) = data.downcast::<DynamicConfigFile>() {
                                 let priority = config_data.priority();
-                                let configs: Vec<Configs> = config_data.lib_config.clone().into();
+                                // DD_DATA_STREAMS_ENABLED decides at process level whether the
+                                // sidecar is started, so it cannot be toggled per request, and
+                                // the ApmTracingDataStreamsEnabled capability is not advertised.
+                                let mut configs: Vec<Configs> =
+                                    config_data.lib_config.clone().into();
+                                configs.retain(|c| !matches!(c, Configs::DataStreamsEnabled(_)));
                                 if !configs.is_empty() {
                                     remote_config.dynamic_config.active_configs.insert(
                                         value.path.config_id().to_string(),

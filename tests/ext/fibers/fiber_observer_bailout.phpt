@@ -45,22 +45,20 @@ Fatal error: Fatal error in fiber in %s on line %d
 inFiber posthook
 spans(\DDTrace\SpanData) (1) {
   fiber_observer_bailout.php (fiber_observer_bailout.php, fiber_observer_bailout.php, cli) (error: Fatal error in fiber)
-    _dd.p.dm => -0
-    _dd.p.tid => %s
+    error.type => E_ERROR
     error.message => Fatal error in fiber
     error.stack => #0 %s(%d): DDTrace\Testing\trigger_error()
 #1 [internal function]: inFiber()
 #2 %s(%d): Fiber->resume()
 #3 %s(%d): outer()
 #4 {main}
-    error.type => E_ERROR
     inFiber (fiber_observer_bailout.php, inFiber, cli) (error: Fatal error in fiber)
+      error.type => E_ERROR
       error.message => Fatal error in fiber
       error.stack => #0 %s(%d): DDTrace\Testing\trigger_error()
 #1 [internal function]: inFiber()
 #2 %s(%d): Fiber->resume()
 #3 %s(%d): outer()
 #4 {main}
-      error.type => E_ERROR
     outer (fiber_observer_bailout.php, outer, cli)
 }

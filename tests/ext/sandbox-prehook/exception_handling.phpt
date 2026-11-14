@@ -19,20 +19,20 @@ DDTrace\trace_function("inner", ['prehook' => function() {}]);
 try {
     outer();
 } catch (Exception $e) {
-    $stack = dd_trace_serialize_closed_spans();
+    $stack = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     echo "Stack size: ", count($stack), "\n";
 
     $span = $stack[0];
     echo "error: ", $span['error'], "\n";
-    echo "Exception type: ", $span['meta']['error.type'], "\n";
-    echo "Exception msg: ", $span['meta']['error.message'], "\n";
-    echo "Exception stack:\n", $span['meta']['error.stack'], "\n";
+    echo "Exception type: ", $span['attributes']['error.type'], "\n";
+    echo "Exception msg: ", $span['attributes']['error.message'], "\n";
+    echo "Exception stack:\n", $span['attributes']['error.stack'], "\n";
 
     $span = $stack[1];
     echo "error: ", $span['error'], "\n";
-    echo "Exception type: ", $span['meta']['error.type'], "\n";
-    echo "Exception msg: ", $span['meta']['error.message'], "\n";
-    echo "Exception stack:\n", $span['meta']['error.stack'], "\n";
+    echo "Exception type: ", $span['attributes']['error.type'], "\n";
+    echo "Exception msg: ", $span['attributes']['error.message'], "\n";
+    echo "Exception stack:\n", $span['attributes']['error.stack'], "\n";
 }
 
 ?>

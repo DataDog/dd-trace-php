@@ -14,7 +14,7 @@ namespace DDTrace\FeatureFlags;
  *
  * Lifecycle: one instance per root span. SpanEnrichmentRegistry::record()
  * lazily attaches it to the root span (via ObjectKVStore) on first evaluation
- * and encodes its state onto the root span's meta; it is released with the span.
+ * and encodes its state onto the root span's attributes; it is released with the span.
  */
 final class SpanEnrichmentAccumulator
 {

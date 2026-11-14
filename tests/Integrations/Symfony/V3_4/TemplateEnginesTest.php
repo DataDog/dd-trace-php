@@ -26,7 +26,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                 'symfony',
                 'web',
                 'alternate_templating'
-            )->withExactTags([
+            )->withExactAttributes([
                 'symfony.route.action' => 'AppBundle\Controller\HomeController@indexAction',
                 'symfony.route.name' => 'alternate_templating',
 
@@ -50,7 +50,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                             'symfony',
                             'web',
                             'AppBundle\Controller\HomeController::indexAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'symfony',
                             '_dd.svc_src' => 'symfony',
                         ])->withChildren([
@@ -59,7 +59,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                                 'symfony',
                                 'web',
                                 'Symfony\Component\Templating\PhpEngine php_template.template.php'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => 'symfony',
                                 '_dd.svc_src' => 'symfony',
                             ]),

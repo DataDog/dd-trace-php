@@ -13,6 +13,39 @@ if ('cli-server' !== PHP_SAPI) {
     exit;
 }
 
+/**
+ * A v0.4 meta_struct value is msgpack inside a bin: decode it. Anything which isn't exactly one
+ * msgpack value is kept as ['bytes' => base64], like v1 Bytes attributes.
+ */
+function decodeMetaStructValue($bin)
+{
+    if (!is_string($bin)) {
+        return $bin;
+    }
+    try {
+        $unpacker = new BufferUnpacker($bin, UnpackOptions::BIGINT_AS_STR);
+        $value = $unpacker->unpack();
+        if ($unpacker->hasRemaining()) {
+            return ['bytes' => base64_encode($bin)];
+        }
+    } catch (\Throwable $e) {
+        return ['bytes' => base64_encode($bin)];
+    }
+    return jsonSafeStrings($value);
+}
+
+/** Strings which aren't valid UTF-8 (nested bin values) become ['bytes' => base64], as json_encode() rejects them. */
+function jsonSafeStrings($value)
+{
+    if (is_string($value)) {
+        return preg_match('//u', $value) ? $value : ['bytes' => base64_encode($value)];
+    }
+    if (is_array($value)) {
+        return array_map('jsonSafeStrings', $value);
+    }
+    return $value;
+}
+
 function decodeDogStatsDMetrics($metrics)
 {
     $metrics = array_filter($metrics);
@@ -47,6 +80,9 @@ function decodeDogStatsDMetrics($metrics)
     }
     return $decodedMetrics;
 }
+
+// v1 (`/v1.0/traces`) msgpack decoder, producing a JSON view of the v1 payload.
+require __DIR__ . '/msgpack_v1_decoder.php';
 
 $uri = explode("?", $_SERVER['REQUEST_URI'])[0];
 
@@ -337,8 +373,22 @@ switch ($uri) {
         });
         break;
     case '/info':
-        $file = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
-            return @file_get_contents(REQUEST_AGENT_INFO_FILE) ?: "{}";
+        // Default advertises /v1.0/traces so both senders negotiate the v1 wire. Tests needing a
+        // specific /info override it via /set-agent-info (that file is served verbatim).
+        $default_info = json_encode([
+            "endpoints" => [
+                "/v0.4/traces",
+                "/v0.6/stats",
+                "/v0.7/config",
+                "/v1.0/traces",
+                "/telemetry/proxy/",
+                "/evp_proxy/v2/",
+            ],
+            "client_drop_p0s" => false,
+            "version" => "7.66.0",
+        ], JSON_UNESCAPED_SLASHES);
+        $file = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($default_info) {
+            return @file_get_contents(REQUEST_AGENT_INFO_FILE) ?: $default_info;
         });
         logRequest('Requested /info endpoint, returning ' . $file);
         header("datadog-agent-state: " . sha1($file));
@@ -394,8 +444,14 @@ switch ($uri) {
             }
         } else {
             $raw = file_get_contents('php://input');
-            if ((isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack')
-                || (isset($headers['content-type']) && $headers['content-type'] === 'application/msgpack')) {
+            $isMsgpack = (isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack')
+                || (isset($headers['content-type']) && $headers['content-type'] === 'application/msgpack');
+            if ($isMsgpack && substr($uri, -strlen('/v1.0/traces')) === '/v1.0/traces') {
+                // v1 (`/v1.0/traces`) wire: integer keys, streaming string table, typed AnyValue.
+                // Store a JSON view of it; keep float zero fractions so typed values survive.
+                $decoder = new V1TraceDecoder($raw);
+                $body = json_encode($decoder->decode(), JSON_PRESERVE_ZERO_FRACTION);
+            } elseif ($isMsgpack) {
                 // We unpack in two phases:
                 //  1) using UnpackOptions::BIGINT_AS_GMP and only asserting that trace_id, span_id and parent_id are either
                 //     integers (when <= PHP_INT_MAX) or GMP (when > PHP_INT_MAX);
@@ -432,6 +488,9 @@ switch ($uri) {
                             }
 
                             $span[$field] = (string)$span[$field];
+                        }
+                        if (isset($span['meta_struct']) && is_array($span['meta_struct'])) {
+                            $span['meta_struct'] = array_map('decodeMetaStructValue', $span['meta_struct']);
                         }
                     }
                 }

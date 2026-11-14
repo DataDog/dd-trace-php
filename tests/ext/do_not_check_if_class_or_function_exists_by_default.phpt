@@ -1,7 +1,5 @@
 --TEST--
 Do not throw exceptions when veryfying if class/method and function exists.
---ENV--
-DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 

@@ -79,6 +79,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_TRACER_SOURCES += " serializer.c";
 	DDTRACE_TRACER_SOURCES += " span.c";
 	DDTRACE_TRACER_SOURCES += " span_stats.c";
+	DDTRACE_TRACER_SOURCES += " span_tags_view.c";
 	DDTRACE_TRACER_SOURCES += " standalone_limiter.c";
 	DDTRACE_TRACER_SOURCES += " trace_filter.c";
 	DDTRACE_TRACER_SOURCES += " trace_source.c";
@@ -146,7 +147,6 @@ if (PHP_DDTRACE != 'no') {
 		ADD_SOURCES(zai_dirname + "/interceptor/php8", "interceptor.c resolver" + (version < 802 ? "_pre-8_2" : "") + ".c", "ddtrace");
 	}
 
-	ADD_SOURCES(configure_module_dirname + "/tracer/vendor/mpack", "mpack.c", "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/tracer/vendor/mt19937", "mt19937-64.c", "ddtrace");
 	// ADD_SOURCES(configure_module_dirname + "/src/dogstatsd", "client.c", "ddtrace");
 

@@ -50,8 +50,16 @@ fn main() {
 
     #[cfg(feature = "appsec")]
     if std::env::var("CARGO_CFG_TARGET_FAMILY").as_deref() == Ok("unix") {
-        let source =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("components-rs/appsec_body");
+        // Both Cargo packages use this build script, from different manifest directories.
+        let parser_path = if env!("CARGO_PKG_NAME") == "datadog-php-common" {
+            "../appsec_body"
+        } else {
+            "components-rs/appsec_body"
+        };
+        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join(parser_path)
+            .canonicalize()
+            .unwrap();
         for entry in std::fs::read_dir(&source).unwrap() {
             let path = entry.unwrap().path();
             if path.is_file() {

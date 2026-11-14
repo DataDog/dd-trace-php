@@ -17,9 +17,9 @@ $child->name = 'child';
 \DDTrace\close_span();
 
 $byName = [];
-foreach (dd_trace_serialize_closed_spans() as $s) { $byName[$s['name']] = $s; }
-echo "root svc_src: " . ($byName['root']['meta']['_dd.svc_src'] ?? '(unset)') . "\n";
-echo "child svc_src: " . ($byName['child']['meta']['_dd.svc_src'] ?? '(unset)') . "\n";
+foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] as $s) { $byName[$s['name']] = $s; }
+echo "root svc_src: " . ($byName['root']['attributes']['_dd.svc_src'] ?? '(unset)') . "\n";
+echo "child svc_src: " . ($byName['child']['attributes']['_dd.svc_src'] ?? '(unset)') . "\n";
 ?>
 --EXPECT--
 root svc_src: redis
