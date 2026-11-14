@@ -52,6 +52,7 @@ spans(\DDTrace\SpanData) (1) {
 #2 %s(%d): Fiber->resume()
 #3 %s(%d): outer()
 #4 {main}
+    _dd.top_level => 1
     inFiber (fiber_observer_bailout.php, inFiber, cli) (error: Fatal error in fiber)
       error.type => E_ERROR
       error.message => Fatal error in fiber

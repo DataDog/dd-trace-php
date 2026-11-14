@@ -65,6 +65,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
                         "process_id": %d,
                         "_dd.p.ksr": "0.3",
                         "http.status_code": "200",
+                        "_dd.top_level": 1,
                         "php.compilation.total_time_ms": %f,
                         "php.memory.peak_usage_bytes": %d,
                         "php.memory.peak_real_usage_bytes": %d

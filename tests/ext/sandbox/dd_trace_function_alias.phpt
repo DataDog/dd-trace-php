@@ -31,4 +31,5 @@ bar(hello)
 spans(\DDTrace\SpanData) (1) {
   bar (alias, bar, cli)
     _dd.svc_src => m
+    _dd.top_level => 1
 }
