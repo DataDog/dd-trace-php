@@ -291,6 +291,7 @@ fn map_config_name(config: &Configs) -> &'static str {
         Configs::DynamicInstrumentationEnabled(_) => "datadog.dynamic_instrumentation.enabled",
         Configs::ExceptionReplayEnabled(_) => "datadog.exception_replay_enabled",
         Configs::CodeOriginEnabled(_) => "datadog.code_origin_for_spans_enabled",
+        Configs::DataStreamsEnabled(_) => "datadog.data_streams_enabled",
     }
 }
 
@@ -322,6 +323,7 @@ fn map_config_value(config: &Configs) -> Cow<'_, str> {
         Configs::DynamicInstrumentationEnabled(enabled) => bool_config(enabled),
         Configs::ExceptionReplayEnabled(enabled) => bool_config(enabled),
         Configs::CodeOriginEnabled(enabled) => bool_config(enabled),
+        Configs::DataStreamsEnabled(enabled) => bool_config(enabled),
     }
 }
 
