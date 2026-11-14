@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Frankenphp;
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\SpanStack;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -18,14 +19,6 @@ class FrankenphpIntegration extends Integration
     const NAME = 'frankenphp';
 
     public static $is_hooked;
-
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
 
     public static function init(): int
     {
@@ -50,13 +43,12 @@ class FrankenphpIntegration extends Integration
                     $blockingException = null;
                     $rootSpan = $hook->span(new SpanStack());
                     $rootSpan->name = "web.request";
-                    $rootSpan->service = \ddtrace_config_app_name('frankenphp');
+                    $rootSpan->service = \dd_trace_env_config('DD_SERVICE') ?: 'frankenphp';
                     Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                     $rootSpan->type = Type::WEB_SERVLET;
-                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
-                    $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
-                    unset($rootSpan->meta["closure.declaration"]);
-                    self::addTraceAnalyticsIfEnabled($rootSpan);
+                    $rootSpan->component = self::NAME;
+                    $rootSpan->spanKind = SpanKind::SERVER;
+                    unset($rootSpan->attributes["closure.declaration"]);
 
                     consume_distributed_tracing_headers(null);
 

@@ -1,6 +1,6 @@
 <?php
 
-dd_trace_function('myWebsite', function($span) {
+\DDTrace\trace_function('myWebsite', function($span) {
     $span->name = $span->resource = 'myWebsite';
     $span->type = 'web';
     $span->service = 'foo_service';

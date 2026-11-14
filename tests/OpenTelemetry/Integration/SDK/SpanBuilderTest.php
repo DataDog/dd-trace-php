@@ -276,6 +276,108 @@ class SpanBuilderTest extends MockeryTestCase
         $this->assertNull($attributes->get('nil'));
     }
 
+    public static function propertyAttributes(): array
+    {
+        return [
+            'resource.name' => ['resource.name', 'my-resource'],
+            'operation.name' => ['operation.name', 'my.operation'],
+            'span.type' => ['span.type', 'web'],
+            'component' => ['component', 'my-component'],
+            'span.kind' => ['span.kind', 'producer'],
+        ];
+    }
+
+    /**
+     * @dataProvider propertyAttributes
+     */
+    public function test_property_attribute_is_readable(string $key, string $value): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->setAttribute($key, $value);
+
+        $this->assertSame($value, $span->getAttribute($key));
+        $this->assertSame($value, $span->toSpanData()->getAttributes()->get($key));
+
+        $span->end();
+    }
+
+    /**
+     * @dataProvider propertyAttributes
+     */
+    public function test_property_attribute_is_removable(string $key, string $value): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->setAttribute($key, $value);
+        $span->setAttribute($key, null);
+
+        $this->assertNull($span->getAttribute($key));
+        $this->assertFalse($span->toSpanData()->getAttributes()->has($key));
+        $this->assertSame(self::SPAN_NAME, $span->getName());
+
+        $span->end();
+    }
+
+    public function test_numeric_http_response_status_code_is_readable_until_removed(): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->setAttribute('http.response.status_code', 300);
+
+        $this->assertSame(300, $span->getAttribute('http.response.status_code'));
+        $this->assertSame(300, $span->toSpanData()->getAttributes()->get('http.response.status_code'));
+
+        $span->setAttribute('http.response.status_code', null);
+
+        $this->assertNull($span->getAttribute('http.response.status_code'));
+        $this->assertFalse($span->toSpanData()->getAttributes()->has('http.response.status_code'));
+
+        $span->end();
+    }
+
+    public function test_string_http_response_status_code_replaces_the_numeric_one(): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->setAttribute('http.response.status_code', 500);
+        $span->setAttribute('http.response.status_code', '201');
+
+        $this->assertSame('201', $span->getAttribute('http.response.status_code'));
+        $this->assertSame('201', $span->toSpanData()->getAttributes()->get('http.response.status_code'));
+
+        $span->end();
+    }
+
+    public function test_custom_span_kind_replaces_the_canonical_one(): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->setAttribute('span.kind', 'process');
+
+        $this->assertSame('process', $span->getAttribute('span.kind'));
+        $this->assertSame('process', $span->toSpanData()->getAttributes()->get('span.kind'));
+
+        $span->setAttribute('span.kind', 'client');
+
+        $this->assertSame('client', $span->getAttribute('span.kind'));
+
+        $span->end();
+    }
+
+    public function test_property_attributes_are_not_exposed_unless_set(): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->end();
+
+        $attributes = $span->toSpanData()->getAttributes();
+        $this->assertFalse($attributes->has('operation.name'));
+        $this->assertFalse($attributes->has('resource.name'));
+        $this->assertFalse($attributes->has('span.type'));
+        $this->assertNull($span->getAttribute('operation.name'));
+    }
+
     /**
      * @group trace-compliance
      */

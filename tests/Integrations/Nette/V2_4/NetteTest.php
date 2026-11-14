@@ -52,7 +52,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette_test_app',
                         'web',
                         'GET /simple'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simple',
                         'http.method' => 'GET',
@@ -66,7 +66,7 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette_test_app',
                             Type::WEB_SERVLET,
                             'nette.configurator.createRobotLoader'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'nette',
                         ]),
                         SpanAssertion::build(
@@ -74,7 +74,7 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette_test_app',
                             Type::WEB_SERVLET,
                             'nette.application.run'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'nette',
                         ])->withChildren([
                             SpanAssertion::build(
@@ -82,7 +82,7 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
                                 'nette.presenter.run'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => 'nette',
                             ]),
                         ])
@@ -94,7 +94,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette_test_app',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simpleView',
                         'http.method' => 'GET',
@@ -108,7 +108,7 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette_test_app',
                             Type::WEB_SERVLET,
                             'nette.configurator.createRobotLoader'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'nette',
                         ]),
                         SpanAssertion::build(
@@ -116,7 +116,7 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette_test_app',
                             Type::WEB_SERVLET,
                             'nette.application.run'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'nette',
                         ])->withChildren([
                             SpanAssertion::build(
@@ -124,7 +124,7 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
                                 'nette.presenter.run'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => 'nette',
                             ]),
                             SpanAssertion::build(
@@ -132,7 +132,7 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
                                 'nette.latte.render'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 'nette.latte.templateName' => '%s',
                                 Tag::COMPONENT => 'nette',
                             ])->withChildren([
@@ -148,7 +148,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'errorView',
                         'http.method' => 'GET',
@@ -164,7 +164,7 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
                                 'nette.configurator.createRobotLoader'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => 'nette',
                             ]),
                             SpanAssertion::build(
@@ -172,7 +172,7 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
                                 'nette.application.run'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => 'nette',
                             ])->withChildren([
                                 SpanAssertion::build(
@@ -180,11 +180,11 @@ final class NetteTest extends WebFrameworkTestCase
                                     'nette_test_app',
                                     Type::WEB_SERVLET,
                                     'nette.presenter.run'
-                                )->withExactTags([
+                                )->withExactAttributes([
                                     Tag::COMPONENT => 'nette',
                                 ])
                                     ->setError('Exception', 'An exception occurred')
-                                    ->withExistingTagsNames(['error.stack']),
+                                    ->withExistingAttributeNames(['error.stack']),
                             ])
                         ])
                 ],

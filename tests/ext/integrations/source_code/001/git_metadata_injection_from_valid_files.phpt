@@ -25,20 +25,17 @@ function makeRequest() {
     \DDTrace\close_span();
     \DDTrace\close_span();
 
-    $closedSpans = dd_trace_serialize_closed_spans();
-
-    $rootMeta = $closedSpans[0]['meta'];
-    echo $rootMeta['_dd.git.repository_url'] . PHP_EOL;
-    echo $rootMeta['_dd.git.commit.sha'] . PHP_EOL;
+    $payloadAttributes = dd_trace_serialize_closed_spans()['attributes'];
+    echo $payloadAttributes['_dd.git.repository_url'] . PHP_EOL;
+    echo $payloadAttributes['_dd.git.commit.sha'] . PHP_EOL;
 
     \DDTrace\start_span();
     \DDTrace\close_span();
 
-    $closedRoot = dd_trace_serialize_closed_spans();
-    $rootMeta2 = $closedRoot[0]['meta'];
+    $payloadAttributes2 = dd_trace_serialize_closed_spans()['attributes'];
 
-    echo $rootMeta2['_dd.git.repository_url'] . PHP_EOL;
-    echo $rootMeta2['_dd.git.commit.sha'] . PHP_EOL;
+    echo $payloadAttributes2['_dd.git.repository_url'] . PHP_EOL;
+    echo $payloadAttributes2['_dd.git.commit.sha'] . PHP_EOL;
 }
 
 makeRequest();

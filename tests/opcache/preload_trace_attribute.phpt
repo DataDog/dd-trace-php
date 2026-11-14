@@ -32,7 +32,12 @@ final class TraitUser
 (new TraitUser())->viaTrait();
 (new TraitUser())->viaTrait();
 
-$names = array_column(dd_trace_serialize_closed_spans(), 'name');
+$names = [];
+foreach (dd_trace_serialize_closed_spans()['chunks'] as $chunk) {
+    foreach ($chunk['spans'] as $span) {
+        $names[] = $span['name'];
+    }
+}
 sort($names);
 echo implode("\n", $names), "\n";
 ?>

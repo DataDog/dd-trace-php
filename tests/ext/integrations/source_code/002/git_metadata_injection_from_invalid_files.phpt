@@ -11,8 +11,6 @@ if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: The pecl run-tests path is n
 ?>
 --FILE--
 <?php
-include __DIR__ . '/../../../sandbox/dd_dumper.inc';
-
 require __DIR__ . '/../../../includes/git_functions.inc';
 
 ini_set('datadog.trace.git_metadata_enabled', 1);
@@ -27,16 +25,12 @@ function makeRequest() {
     \DDTrace\close_span();
     \DDTrace\close_span();
 
-    $closedSpans = dd_clean_spans();
-    $rootMeta = $closedSpans[0]['meta'];
-    var_dump($rootMeta);
+    var_dump(dd_trace_serialize_closed_spans()['attributes']);
 
     \DDTrace\start_span();
     \DDTrace\close_span();
 
-    $closedRoot = dd_clean_spans();
-    $rootMeta2 = $closedRoot[0]['meta'];
-    var_dump($rootMeta2);
+    var_dump(dd_trace_serialize_closed_spans()['attributes']);
 }
 
 makeRequest();
@@ -55,43 +49,35 @@ function rm_rf($dir) {
 rm_rf(__DIR__ . '/.git');
 ?>
 --EXPECTF--
-array(4) {
+array(3) {
+  ["_dd.sdk.otlp_export"]=>
+  string(5) "false"
+  ["_dd.tags.process"]=>
+  string(%d) "%s"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-  ["runtime-id"]=>
-  string(%d) "%s"
 }
-array(4) {
+array(3) {
+  ["_dd.sdk.otlp_export"]=>
+  string(5) "false"
+  ["_dd.tags.process"]=>
+  string(%d) "%s"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-  ["runtime-id"]=>
-  string(%d) "%s"
 }
-array(4) {
+array(3) {
+  ["_dd.sdk.otlp_export"]=>
+  string(5) "false"
+  ["_dd.tags.process"]=>
+  string(%d) "%s"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-  ["runtime-id"]=>
-  string(%d) "%s"
 }
-array(4) {
+array(3) {
+  ["_dd.sdk.otlp_export"]=>
+  string(5) "false"
+  ["_dd.tags.process"]=>
+  string(%d) "%s"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-  ["runtime-id"]=>
-  string(%d) "%s"
 }

@@ -19,4 +19,4 @@ echo "Request start" . PHP_EOL;
 Throwing an exception...
 [ddtrace] [warning] [%d] Exception thrown in autoloaded file %sRaisesException.php: Oops!
 Request start
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s

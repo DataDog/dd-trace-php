@@ -23,20 +23,20 @@ if (!dd_trace_internal_fn("await_agent_info")) {
 }
 
 function &foo($arg) {
-    $meta = &\DDTrace\active_span()->meta;
+    $meta = &\DDTrace\active_span()->attributes;
     unset($meta["runtime-id"]);
     return $meta;
 }
 
 function &root($arg) {
-    $meta = &\DDTrace\root_span()->meta;
-    unset($meta["runtime-id"]);
+    $meta = &\DDTrace\root_span()->attributes;
+    unset($meta["runtime-id"], $meta["process_id"]);
     return $arg;
 }
 
 await_probe_installation(function() {
     build_span_decoration_probe(["where" => ["methodName" => "foo"], "inBodyLocation" => "START", "decorations" => [
-        ["tags" => [["name" => "bare", "value" => ["segments" => [["str" => "raw"]]]]]],
+        ["tags" => [["name" => "bare", "value" => ["segments" => [["str" => "raw"]]]], ["name" => "resource.name", "value" => ["segments" => [["str" => "decorated"]]]]]],
         ["tags" => [["name" => "arg", "value" => ["segments" => [["json" => ["ref" => "arg"]]]]]], "when" => ["json" => ["instanceof" => [["index" => [["ref" => "arg"], "foo"]], "object"]]]],
     ]]);
     build_span_decoration_probe(["where" => ["methodName" => "foo"], "decorations" => [
@@ -53,13 +53,14 @@ await_probe_installation(function() {
 
 \DDTrace\start_span();
 var_dump(foo(["foo" => (object)["var" => 1, "val" => "test"], "val" => 123]));
-\DDTrace\active_span()->meta = [];
+var_dump(\DDTrace\active_span()->resource);
+\DDTrace\active_span()->attributes = [];
 $meta = foo(["foo" => (object)["var" => 2]]);
 ksort($meta);
 var_dump($meta);
 
 root(1);
-var_dump(\DDTrace\root_span()->meta);
+var_dump(\DDTrace\root_span()->attributes);
 
 $dlr = new DebuggerLogReplayer;
 $log = $dlr->waitForDebuggerDataAndReplay();
@@ -73,20 +74,25 @@ require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
   ["bare"]=>
   string(3) "raw"
   ["_dd.di.bare.probe_id"]=>
+  string(1) "1"
+  ["_dd.di.resource.name.probe_id"]=>
   string(1) "1"
   ["arg"]=>
   string(50) "[foo => (stdClass){val: test, var: 1}, val => 123]"
   ["_dd.di.arg.probe_id"]=>
   string(1) "1"
 }
-array(6) {
+string(9) "decorated"
+array(7) {
   ["_dd.di.arg.probe_id"]=>
   string(1) "1"
   ["_dd.di.bare.probe_id"]=>
+  string(1) "1"
+  ["_dd.di.resource.name.probe_id"]=>
   string(1) "1"
   ["_dd.di.valid.probe_id"]=>
   string(1) "2"

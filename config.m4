@@ -164,7 +164,6 @@ if test "$PHP_DDTRACE" != "no"; then
   esac
 
   DD_TRACE_VENDOR_SOURCES="\
-    tracer/vendor/mpack/mpack.c \
     tracer/vendor/mt19937/mt19937-64.c \
     src/dogstatsd/client.c \
   "
@@ -313,6 +312,7 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/standalone_limiter.c \
     tracer/span.c \
     tracer/span_stats.c \
+    tracer/span_tags_view.c \
     tracer/trace_filter.c \
     tracer/trace_source.c \
     tracer/tracer_startup_logging.c \
@@ -355,6 +355,7 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/test_mock_transport.c \
     appsec/src/extension/tracer_bridge.c \
     appsec/src/extension/user_tracking.c \
+    tracer/vendor/mpack/mpack.c \
   "
 
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \

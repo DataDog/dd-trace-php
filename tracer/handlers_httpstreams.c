@@ -69,17 +69,15 @@ static php_stream *dd_stream_opener(
         if (span) {
             ddtrace_set_global_span_properties(span);
 
-            zend_array *meta = ddtrace_property_array(&span->property_meta);
+            zend_array *attributes = ddtrace_property_array(&span->property_attributes);
             zval zv;
 
-            ZVAL_STRING(&zv, "php.stream");
-            zend_hash_str_update(meta, ZEND_STRL("component"), &zv);
-
-            ZVAL_STRING(&zv, "client");
-            zend_hash_str_update(meta, ZEND_STRL("span.kind"), &zv);
+            zval_ptr_dtor(&span->property_component);
+            ZVAL_STRING(&span->property_component, "php.stream");
+            ZVAL_LONG(&span->property_span_kind, DDTRACE_SPAN_KIND_CLIENT);
 
             ZVAL_STRING(&zv, filename);
-            zend_hash_str_update(meta, ZEND_STRL("http.url"), &zv);
+            zend_hash_str_update(attributes, ZEND_STRL("http.url"), &zv);
 
             // Stream context options store HTTP wrapper options under the "http" subarray, e.g.
             // stream_context_create(['http' => ['method' => 'GET', ...]]).
@@ -91,10 +89,10 @@ static php_stream *dd_stream_opener(
                 if (method_zv && Z_TYPE_P(method_zv) == IS_STRING) {
                     // `zend_hash_str_update()` moves the zval payload into the hashtable without adding a ref.
                     // `method_zv` is owned by the stream context options array, so we must add a ref (via ZVAL_COPY)
-                    // to avoid leaving span meta with a dangling zend_string once the options array is destroyed.
+                    // to avoid leaving span attributes with a dangling zend_string once the options array is destroyed.
                     zval method_copy;
                     ZVAL_COPY(&method_copy, method_zv);
-                    zend_hash_str_update(meta, ZEND_STRL("http.method"), &method_copy);
+                    zend_hash_str_update(attributes, ZEND_STRL("http.method"), &method_copy);
                 }
             }
 
@@ -104,7 +102,7 @@ static php_stream *dd_stream_opener(
                 const char *host_end = strchr(host_start, '/');
                 size_t host_len = host_end ? (size_t)(host_end - host_start) : strlen(host_start);
                 ZVAL_STRINGL(&zv, host_start, host_len);
-                zend_hash_str_update(meta, ZEND_STRL("network.destination.name"), &zv);
+                zend_hash_str_update(attributes, ZEND_STRL("network.destination.name"), &zv);
             }
         }
     }

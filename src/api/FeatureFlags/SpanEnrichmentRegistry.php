@@ -17,7 +17,7 @@ use DDTrace\Util\ObjectKVStore;
  * accumulator, concurrently-open roots each keep their own, and everything is
  * released with the span -- no manual root-id tracking or reset lifecycle.
  *
- * The encoded ffe_* tags are written directly onto the root span's meta (the
+ * The encoded ffe_* tags are written directly onto the root span's attributes (the
  * same mechanism the rest of the tracer uses to set tags); there is no native
  * staging layer.
  *
@@ -50,7 +50,7 @@ final class SpanEnrichmentRegistry
 
     /**
      * Record one evaluation's enrichment onto the current root span, then write
-     * the encoded ffe_* tags onto the root's meta. No-op when the gate is off or
+     * the encoded ffe_* tags onto the root's attributes. No-op when the gate is off or
      * there is no active root span. Never throws into flag evaluation.
      *
      * Mirrors the frozen Node reference branch: a present serial id is recorded
@@ -100,10 +100,10 @@ final class SpanEnrichmentRegistry
 
             // Only re-encode + rewrite the tags when this evaluation actually
             // changed the accumulated state; a repeated/duplicate evaluation adds
-            // nothing new and the meta already holds the current union.
+            // nothing new and the attributes already hold the current union.
             if ($accumulator->consumeDirty()) {
                 foreach ($accumulator->toSpanTags() as $key => $value) {
-                    $root->meta[$key] = $value;
+                    $root->attributes[$key] = $value;
                 }
             }
         } catch (\Throwable $e) {

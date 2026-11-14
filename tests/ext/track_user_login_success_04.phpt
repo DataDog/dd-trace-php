@@ -12,11 +12,11 @@ Test \datadog\appsec\v2\track_user_login_success id is not mandatory on user obj
     "metakey2" => "metavalue02",
 ]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump((array) $root->meta);
 
 ?>
 --EXPECTF--
-array(7) {
+array(10) {
   ["runtime-id"]=>
   string(%s) %s
   ["appsec.events.users.login.success.usr.some_key"]=>
@@ -31,4 +31,10 @@ array(7) {
   string(9) "metavalue"
   ["appsec.events.users.login.success.metakey2"]=>
   string(11) "metavalue02"
+  ["service.name"]=>
+  string(31) "track_user_login_success_04.php"
+  ["operation.name"]=>
+  string(31) "track_user_login_success_04.php"
+  ["span.type"]=>
+  string(3) "cli"
 }

@@ -182,13 +182,13 @@ final class TracerTest extends BaseTestCase
         $span = $tracer->startRootSpan(self::OPERATION_NAME, [
             'child_of' => $distributedTracingContext,
         ])->getSpan();
-        $context = \DDTrace\current_context();
+        $rootSpan = \DDTrace\root_span();
         $this->assertSame("1234", $span->getTraceId());
         $this->assertSame("4321", $span->getParentId());
         $this->assertSame("datadog", $span->getContext()->origin);
-        $this->assertSame("1234", $context["trace_id"]);
-        $this->assertSame("4321", $context["distributed_tracing_parent_id"]);
-        $this->assertSame("datadog", $context["distributed_tracing_origin"]);
+        $this->assertSame(str_pad(dechex(1234), 32, "0", STR_PAD_LEFT), $rootSpan->traceId);
+        $this->assertSame("4321", $rootSpan->parentId);
+        $this->assertSame("datadog", $rootSpan->origin);
 
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
@@ -204,14 +204,16 @@ final class TracerTest extends BaseTestCase
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
 
-    public function testFlushAddsHostnameToRootSpanWhenEnabled()
+    public function testFlushAddsHostnameToThePayloadWhenEnabled()
     {
         self::putenv('DD_TRACE_REPORT_HOSTNAME=true');
 
         \dd_trace_serialize_closed_spans();
         $tracer = new Tracer(new NoopTransport());
-        $scope = $tracer->startRootSpan(self::OPERATION_NAME);
-        $this->assertEquals(gethostname(), $tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
+        $tracer->startRootSpan(self::OPERATION_NAME)->close();
+        $payload = \dd_trace_serialize_closed_spans();
+        $this->assertEquals(gethostname(), $payload['hostname']);
+        $this->assertArrayNotHasKey(Tag::HOSTNAME, $payload['chunks'][0]['spans'][0]['attributes']);
     }
 
     public function testIfNoRootScopeExistsItWillBeNull()

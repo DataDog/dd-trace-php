@@ -6,8 +6,10 @@ use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Propagator;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
+use DDTrace\Util\BaseConverter;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPDecimal;
 use PhpAmqpLib\Wire\AMQPTable;
@@ -27,36 +29,6 @@ class AMQPIntegration extends Integration
     const DSM_CONTEXT_HEADER = 'dd-pathway-ctx-base64';
 
     public static $protocolVersion = "";
-
-    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
-    public static function largeBaseConvert($numString, $fromBase, $toBase)
-    {
-        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
-        $toString = substr($chars, 0, $toBase);
-
-        $length = strlen($numString);
-        $result = '';
-        for ($i = 0; $i < $length; $i++) {
-            $number[$i] = strpos($chars, $numString[$i]);
-        }
-        do {
-            $divide = 0;
-            $newLen = 0;
-            for ($i = 0; $i < $length; $i++) {
-                $divide = $divide * $fromBase + $number[$i];
-                if ($divide >= $toBase) {
-                    $number[$newLen++] = (int)($divide / $toBase);
-                    $divide = $divide % $toBase;
-                } elseif ($newLen > 0) {
-                    $number[$newLen++] = 0;
-                }
-            }
-            $length = $newLen;
-            $result = $toString[$divide] . $result;
-        } while ($newLen != 0);
-
-        return $result;
-    }
 
     /**
      * Add instrumentation to AMQP requests
@@ -95,14 +67,14 @@ class AMQPIntegration extends Integration
                     self::setGenericTags(
                         $span,
                         'basic.deliver',
-                        'consumer',
+                        SpanKind::CONSUMER,
                         "$exchangeDisplayName -> $routingKeyDisplayName"
                     );
-                    $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
-                    $span->meta[Tag::MQ_OPERATION] = 'receive';
-                    $span->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
-                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
-                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $span->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                    $span->attributes[Tag::MQ_OPERATION] = 'receive';
+                    $span->attributes[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
+                    $span->attributes[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                    $span->attributes[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
 
                     self::setOptionalMessageTags($span, $message);
 
@@ -111,14 +83,14 @@ class AMQPIntegration extends Integration
                         self::setGenericTags(
                             $newTrace,
                             'basic.deliver',
-                            'consumer',
+                            SpanKind::CONSUMER,
                             "$exchangeDisplayName -> $routingKeyDisplayName"
                         );
-                        $newTrace->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
-                        $newTrace->meta[Tag::MQ_OPERATION] = 'receive';
-                        $newTrace->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
-                        $newTrace->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
-                        $newTrace->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                        $newTrace->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                        $newTrace->attributes[Tag::MQ_OPERATION] = 'receive';
+                        $newTrace->attributes[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
+                        $newTrace->attributes[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                        $newTrace->attributes[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
                         self::setOptionalMessageTags($newTrace, $message);
 
                         // Close the created root span in the prehook
@@ -153,17 +125,17 @@ class AMQPIntegration extends Integration
                     self::setGenericTags(
                         $span,
                         'basic.publish',
-                        'producer',
+                        SpanKind::PRODUCER,
                         "$exchangeDisplayName -> $routingKeyDisplayName",
                         $exception
                     );
-                    $span->meta[Tag::MQ_OPERATION] = 'send';
+                    $span->attributes[Tag::MQ_OPERATION] = 'send';
 
-                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
-                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                    $span->attributes[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $span->attributes[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
 
                     if (!is_null($message)) {
-                        $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
+                        $span->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
                         self::setOptionalMessageTags($span, $message);
                     }
                 }
@@ -208,16 +180,16 @@ class AMQPIntegration extends Integration
                     self::setGenericTags(
                         $span,
                         'batch_basic.add',
-                        'producer',
+                        SpanKind::PRODUCER,
                         "$exchangeDisplayName -> $routingKeyDisplayName",
                         $exception
                     );
 
-                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
-                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                    $span->attributes[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $span->attributes[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
 
                     if (!is_null($message)) {
-                        $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
+                        $span->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
                         self::setOptionalMessageTags($span, $message);
                     }
                 }
@@ -231,11 +203,11 @@ class AMQPIntegration extends Integration
                 self::setGenericTags(
                     $span,
                     'publish_batch',
-                    'producer',
+                    SpanKind::PRODUCER,
                     null,
                     $exception
                 );
-                $span->meta[Tag::MQ_OPERATION] = 'send';
+                $span->attributes[Tag::MQ_OPERATION] = 'send';
             }
         );
 
@@ -288,13 +260,13 @@ class AMQPIntegration extends Integration
                 self::setGenericTags(
                     $span,
                     'basic.consume',
-                    'client',
+                    SpanKind::CLIENT,
                     $queueDisplayName,
                     $hook->exception
                 );
-                $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
-                $span->meta[Tag::MQ_OPERATION] = 'receive';
-                $span->meta[Tag::MQ_CONSUMER_ID] = $hook->returned ?? $consumerTag;
+                $span->attributes[Tag::MQ_DESTINATION] = $queueDisplayName;
+                $span->attributes[Tag::MQ_OPERATION] = 'receive';
+                $span->attributes[Tag::MQ_CONSUMER_ID] = $hook->returned ?? $consumerTag;
             }
         );
 
@@ -310,11 +282,11 @@ class AMQPIntegration extends Integration
                 self::setGenericTags(
                     $span,
                     'exchange.declare',
-                    'client',
+                    SpanKind::CLIENT,
                     $exchangeDisplayName,
                     $exception
                 );
-                $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                $span->attributes[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
             }
         );
 
@@ -333,11 +305,11 @@ class AMQPIntegration extends Integration
                 self::setGenericTags(
                     $span,
                     'queue.declare',
-                    'client',
+                    SpanKind::CLIENT,
                     $queueDisplayName,
                     $exception
                 );
-                $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
+                $span->attributes[Tag::MQ_DESTINATION] = $queueDisplayName;
             }
         );
 
@@ -360,14 +332,14 @@ class AMQPIntegration extends Integration
                 self::setGenericTags(
                     $span,
                     'queue.bind',
-                    'client',
+                    SpanKind::CLIENT,
                     "$queueDisplayName $exchangeDisplayName -> $routingKeyDisplayName",
                     $exception
                 );
-                $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
+                $span->attributes[Tag::MQ_DESTINATION] = $queueDisplayName;
 
-                $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
-                $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                $span->attributes[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                $span->attributes[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
             }
         );
 
@@ -375,9 +347,9 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_consume_ok',
             static function (SpanData $span) {
-                self::setGenericTags($span, 'basic.consume_ok', 'server');
+                self::setGenericTags($span, 'basic.consume_ok', SpanKind::SERVER);
 
-                $span->meta[Tag::MQ_OPERATION] = 'process';
+                $span->attributes[Tag::MQ_OPERATION] = 'process';
             }
         );
 
@@ -391,11 +363,11 @@ class AMQPIntegration extends Integration
                 self::setGenericTags(
                     $span,
                     'basic.cancel',
-                    'client',
+                    SpanKind::CLIENT,
                     $consumerTag,
                     $exception
                 );
-                $span->meta[Tag::MQ_CONSUMER_ID] = $consumerTag;
+                $span->attributes[Tag::MQ_CONSUMER_ID] = $consumerTag;
             }
         );
 
@@ -403,7 +375,7 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_cancel_ok',
             static function (SpanData $span, $args, $retval, $exception) {
-                self::setGenericTags($span, 'basic.cancel_ok', 'server', null, $exception);
+                self::setGenericTags($span, 'basic.cancel_ok', SpanKind::SERVER, null, $exception);
             }
         );
 
@@ -411,7 +383,7 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Connection\AbstractConnection',
             'connect',
             static function (SpanData $span, $args, $retval, $exception) {
-                self::setGenericTags($span, 'connect', 'client', null, $exception);
+                self::setGenericTags($span, 'connect', SpanKind::CLIENT, null, $exception);
             }
         );
 
@@ -419,7 +391,7 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Connection\AbstractConnection',
             'reconnect',
             static function (SpanData $span, $args, $retval, $exception) {
-                self::setGenericTags($span, 'reconnect', 'client', null, $exception);
+                self::setGenericTags($span, 'reconnect', SpanKind::CLIENT, null, $exception);
             }
         );
 
@@ -430,7 +402,8 @@ class AMQPIntegration extends Integration
                 /** @var int $deliveryTag */
                 $deliveryTag = $args[0];
 
-                self::setGenericTags($span, 'basic.ack', 'process', $deliveryTag, $exception);
+                self::setGenericTags($span, 'basic.ack', SpanKind::UNSPECIFIED, $deliveryTag, $exception);
+                $span->attributes[Tag::SPAN_KIND] = 'process'; // not a canonical span kind, kept as an attribute
             }
         );
 
@@ -441,7 +414,8 @@ class AMQPIntegration extends Integration
                 /** @var int $deliveryTag */
                 $deliveryTag = $args[0];
 
-                self::setGenericTags($span, 'basic.nack', 'process', $deliveryTag, $exception);
+                self::setGenericTags($span, 'basic.nack', SpanKind::UNSPECIFIED, $deliveryTag, $exception);
+                $span->attributes[Tag::SPAN_KIND] = 'process'; // not a canonical span kind, kept as an attribute
             }
         );
 
@@ -457,12 +431,12 @@ class AMQPIntegration extends Integration
                 self::setGenericTags(
                     $span,
                     'basic.get',
-                    'consumer',
+                    SpanKind::CONSUMER,
                     $queueDisplayName,
                     $exception
                 );
-                $span->meta[Tag::MQ_OPERATION] = 'receive';
-                $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
+                $span->attributes[Tag::MQ_OPERATION] = 'receive';
+                $span->attributes[Tag::MQ_DESTINATION] = $queueDisplayName;
 
                 if (!is_null($message)) {
                     /** @var AMQPMessage $message */
@@ -472,10 +446,10 @@ class AMQPIntegration extends Integration
                     $exchangeDisplayName = self::formatExchangeName($exchange);
                     $routingKeyDisplayName = self::formatRoutingKey($routingKey);
 
-                    $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                    $span->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
 
-                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
-                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                    $span->attributes[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $span->attributes[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
 
                     self::setOptionalMessageTags($span, $message);
 
@@ -490,14 +464,14 @@ class AMQPIntegration extends Integration
                             if (preg_match('/^[a-fA-F0-9]{32}$/', $traceId)) {
                                 $traceId = strtolower($traceId);
                             } else {
-                                $traceId = self::largeBaseConvert($traceId, 10, 16);
+                                $traceId = BaseConverter::convert($traceId, 10, 16);
                                 $traceId = str_pad(strtolower($traceId), 32, '0', STR_PAD_LEFT);
                             }
 
                             if (preg_match('/^[a-fA-F0-9]{16}$/', $parentId)) {
                                 $parentId = strtolower($parentId);
                             } else {
-                                $parentId = self::largeBaseConvert($parentId, 10, 16);
+                                $parentId = BaseConverter::convert($parentId, 10, 16);
                                 $parentId = str_pad(strtolower($parentId), 16, '0', STR_PAD_LEFT);
                             }
 
@@ -548,22 +522,22 @@ class AMQPIntegration extends Integration
     public static function setGenericTags(
         SpanData $span,
         string $name,
-        string $spanKind,
+        int $spanKind,
         $resourceDetail = null,
         $exception = null
     ) {
         $span->name = "amqp.$name";
         $span->resource = "$name" . ($resourceDetail === null ? "" : " $resourceDetail");
-        $span->meta[Tag::SPAN_KIND] = $spanKind;
+        $span->spanKind = $spanKind;
         $span->type = 'queue';
         $span->service = 'amqp';
-        $span->meta['_dd.svc_src'] = AMQPIntegration::NAME;
-        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->attributes['_dd.svc_src'] = AMQPIntegration::NAME;
+        $span->component = self::NAME;
 
-        $span->meta[Tag::MQ_SYSTEM] = self::SYSTEM;
-        $span->meta[Tag::MQ_DESTINATION_KIND] = 'queue';
-        $span->meta[Tag::MQ_PROTOCOL] = 'AMQP';
-        $span->meta[Tag::MQ_PROTOCOL_VERSION] = self::$protocolVersion;
+        $span->attributes[Tag::MQ_SYSTEM] = self::SYSTEM;
+        $span->attributes[Tag::MQ_DESTINATION_KIND] = 'queue';
+        $span->attributes[Tag::MQ_PROTOCOL] = 'AMQP';
+        $span->attributes[Tag::MQ_PROTOCOL_VERSION] = self::$protocolVersion;
 
         if ($exception) {
             $span->exception = $exception;
@@ -573,19 +547,19 @@ class AMQPIntegration extends Integration
     public static function setOptionalMessageTags(SpanData $span, AMQPMessage $message)
     {
         if ($message->has('delivery_mode')) {
-            $span->meta[Tag::RABBITMQ_DELIVERY_MODE] = $message->get('delivery_mode');
+            $span->attributes[Tag::RABBITMQ_DELIVERY_MODE] = $message->get('delivery_mode');
         }
         if ($message->has('message_id')) {
-            $span->meta[Tag::MQ_MESSAGE_ID] = $message->get('message_id');
+            $span->attributes[Tag::MQ_MESSAGE_ID] = $message->get('message_id');
         }
         if ($message->has('correlation_id')) {
-            $span->meta[Tag::MQ_CONVERSATION_ID] = $message->get('correlation_id');
+            $span->attributes[Tag::MQ_CONVERSATION_ID] = $message->get('correlation_id');
         }
     }
 
     public static function injectContext(AMQPMessage $message)
     {
-        if (\ddtrace_config_distributed_tracing_enabled() === false) {
+        if (\dd_trace_env_config('DD_DISTRIBUTED_TRACING') === false) {
             return;
         }
 

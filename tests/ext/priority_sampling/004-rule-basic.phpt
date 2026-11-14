@@ -12,7 +12,7 @@ $root = \DDTrace\root_span();
 if ($root->metrics["_dd.rule_psr"] == 0.3) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
 ?>

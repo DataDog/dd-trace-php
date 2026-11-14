@@ -15,7 +15,7 @@ class MongoDBTest extends IntegrationTestCase
     protected static $lockedResource = "mongodb";
 
     const HOST = 'mongodb-integration';
-    const PORT = '27017';
+    const PORT = 27017;
     const USER = 'test';
     const PASSWORD = 'test';
     const DATABASE = 'test';
@@ -52,7 +52,7 @@ class MongoDBTest extends IntegrationTestCase
     {
         $expected = [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test cars {"brand":"?"}')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '{"brand":"?"}',
@@ -97,7 +97,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'aggregate test cars [{"$group":{"_id":"?","count":{"$sum":"?"}}},{"$sort":{"count":"?"}},{"$limit":"?"}]'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
                 'mongodb.query' => '[{"$group":{"_id":"?","count":{"$sum":"?"}}},{"$sort":{"count":"?"}},{"$limit":"?"}]',
@@ -157,7 +157,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'bulkWrite test cars'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
                 'span.kind' => 'client',
@@ -201,9 +201,9 @@ class MongoDBTest extends IntegrationTestCase
         }
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test cars "?"')
-                ->withExactTags($tags)
+                ->withExactAttributes($tags)
                 ->setError($errorType)
-                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+                ->withExistingAttributeNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
     }
 
@@ -214,7 +214,7 @@ class MongoDBTest extends IntegrationTestCase
     {
         $expected = [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test cars {\"brand\":\"?\"}")
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '{"brand":"?"}',
@@ -297,7 +297,7 @@ class MongoDBTest extends IntegrationTestCase
     {
         $expected = [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test cars")
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
                     'span.kind' => 'client',
@@ -396,9 +396,9 @@ class MongoDBTest extends IntegrationTestCase
         });
 
         if (null === $expected) {
-            $this->assertArrayNotHasKey('mongodb.query', $traces[0][0]['meta']);
+            $this->assertArrayNotHasKey('mongodb.query', $traces[0]['spans'][0]['attributes']);
         } else {
-            $this->assertSame($expected, $traces[0][0]['meta']['mongodb.query']);
+            $this->assertSame($expected, $traces[0]['spans'][0]['attributes']['mongodb.query']);
         }
     }
 
@@ -441,7 +441,7 @@ class MongoDBTest extends IntegrationTestCase
     {
         $expected = [
             SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test cars {"brand":"?"}')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '{"brand":"?"}',
@@ -486,7 +486,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeCommand test ' . $collectionName . ' create'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => $collectionName,
                 'span.kind' => 'client',
@@ -531,7 +531,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeReadCommand test cars find'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
                 'span.kind' => 'client',
@@ -588,7 +588,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeWriteCommand test cars insert'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
                 'span.kind' => 'client',
@@ -645,7 +645,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeReadWriteCommand test cars insert'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
                 'span.kind' => 'client',
@@ -713,7 +713,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeBulkWrite test cars'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
                 'span.kind' => 'client',
@@ -750,7 +750,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeWriteCommand test insert'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
@@ -759,7 +759,7 @@ class MongoDBTest extends IntegrationTestCase
                 '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ])->setError()
-                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+                ->withExistingAttributeNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
     }
 
@@ -770,7 +770,7 @@ class MongoDBTest extends IntegrationTestCase
 
         $expected = [
             SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test cars {"brand":"?"}')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '{"brand":"?"}',
@@ -814,7 +814,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeBulkWrite test cars'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
                 'span.kind' => 'client',
@@ -844,7 +844,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeCommand test ' . $collectionName . ' create'
-            )->withExactTags([
+            )->withExactAttributes([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => $collectionName,
                 'span.kind' => 'client',
@@ -873,7 +873,7 @@ class MongoDBTest extends IntegrationTestCase
 
         $expected = [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "count test cars {\"brand\":\"?\"}")
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '{"brand":"?"}',
@@ -915,7 +915,7 @@ class MongoDBTest extends IntegrationTestCase
         $this->assertFlameGraph(
             $traces,
             [SpanAssertion::build('mongodb.cmd', 'configured_service', 'mongodb', 'find test cars {"brand":"?"}')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '{"brand":"?"}',

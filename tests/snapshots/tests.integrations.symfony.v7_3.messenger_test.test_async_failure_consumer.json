@@ -10,7 +10,6 @@
     "error": 1,
     "meta": {
       "_dd.code_origin.frames.11.file": "{path}/tests/Frameworks/Symfony/Version_7_3/bin/console",
-      "_dd.code_origin.frames.11.line": "11",
       "_dd.code_origin.type": "exit",
       "_dd.p.dm": "0",
       "_dd.p.tid": "68bedce700000000",
@@ -29,6 +28,7 @@
       "span.kind": "consumer"
     },
     "metrics": {
+      "_dd.code_origin.frames.11.line": 11,
       "_sampling_priority_v1": 1
     }
   },
@@ -317,7 +317,6 @@
              "meta": {
                "_dd.base_service": "symfony_messenger_test",
                "_dd.code_origin.frames.28.file": "{path}/tests/Frameworks/Symfony/Version_7_3/bin/console",
-               "_dd.code_origin.frames.28.line": "11",
                "_dd.code_origin.type": "exit",
                "component": "pdo",
                "db.charset": "utf8mb4",
@@ -327,8 +326,11 @@
                "db.type": "mysql",
                "db.user": "test",
                "out.host": "mysql-integration",
-               "out.port": "3306",
                "span.kind": "client"
+             },
+             "metrics": {
+               "_dd.code_origin.frames.28.line": 11,
+               "out.port": 3306
              }
            },
            {
@@ -342,7 +344,6 @@
              "meta": {
                "_dd.base_service": "symfony_messenger_test",
                "_dd.code_origin.frames.28.file": "{path}/tests/Frameworks/Symfony/Version_7_3/bin/console",
-               "_dd.code_origin.frames.28.line": "11",
                "_dd.code_origin.type": "exit",
                "component": "pdo",
                "db.charset": "utf8mb4",
@@ -352,11 +353,12 @@
                "db.type": "mysql",
                "db.user": "test",
                "out.host": "mysql-integration",
-               "out.port": "3306",
                "span.kind": "client"
              },
              "metrics": {
-               "db.row_count": 1
+               "_dd.code_origin.frames.28.line": 11,
+               "db.row_count": 1,
+               "out.port": 3306
              }
            },
            {
@@ -370,7 +372,6 @@
              "meta": {
                "_dd.base_service": "symfony_messenger_test",
                "_dd.code_origin.frames.29.file": "{path}/tests/Frameworks/Symfony/Version_7_3/bin/console",
-               "_dd.code_origin.frames.29.line": "11",
                "_dd.code_origin.type": "exit",
                "component": "pdo",
                "db.charset": "utf8mb4",
@@ -380,8 +381,11 @@
                "db.type": "mysql",
                "db.user": "test",
                "out.host": "mysql-integration",
-               "out.port": "3306",
                "span.kind": "client"
+             },
+             "metrics": {
+               "_dd.code_origin.frames.29.line": 11,
+               "out.port": 3306
              }
            },
      {
@@ -395,7 +399,6 @@
        "meta": {
          "_dd.base_service": "symfony_messenger_test",
          "_dd.code_origin.frames.25.file": "{path}/tests/Frameworks/Symfony/Version_7_3/bin/console",
-         "_dd.code_origin.frames.25.line": "11",
          "_dd.code_origin.type": "exit",
          "component": "pdo",
          "db.charset": "utf8mb4",
@@ -405,8 +408,11 @@
          "db.type": "mysql",
          "db.user": "test",
          "out.host": "mysql-integration",
-         "out.port": "3306",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.code_origin.frames.25.line": 11,
+         "out.port": 3306
        }
      },
      {
@@ -420,7 +426,6 @@
        "meta": {
          "_dd.base_service": "symfony_messenger_test",
          "_dd.code_origin.frames.25.file": "{path}/tests/Frameworks/Symfony/Version_7_3/bin/console",
-         "_dd.code_origin.frames.25.line": "11",
          "_dd.code_origin.type": "exit",
          "component": "pdo",
          "db.charset": "utf8mb4",
@@ -430,10 +435,11 @@
          "db.type": "mysql",
          "db.user": "test",
          "out.host": "mysql-integration",
-         "out.port": "3306",
          "span.kind": "client"
        },
        "metrics": {
-         "db.row_count": 1
+         "_dd.code_origin.frames.25.line": 11,
+         "db.row_count": 1,
+         "out.port": 3306
        }
      }]]

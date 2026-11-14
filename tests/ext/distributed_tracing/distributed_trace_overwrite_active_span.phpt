@@ -6,6 +6,8 @@ HTTP_X_DATADOG_TAGS=custom_tag=inherited
 HTTP_X_DATADOG_ORIGIN=datadog
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 
@@ -40,11 +42,18 @@ function largeBaseConvert($numString, $fromBase, $toBase)
 }
 
 function dump_spans() {
-    foreach (dd_trace_serialize_closed_spans() as $span) {
-        unset($span["meta"]["process_id"], $span["meta"]["runtime-id"], $span["meta"]["_dd.p.dm"], $span["meta"]["_dd.tags.process"], $span["meta"]["_dd.sdk.otlp_export"]);
-        echo "parent: ", $span["parent_id"] ?? 0, ", trace: {$span["trace_id"]}, meta: " . json_encode($span["meta"] ?? []) . "\n";
+    $chunk = dd_trace_serialize_closed_spans()['chunks'][0];
+    $traceId = largeBaseConvert(ltrim(substr($chunk["trace_id"], 16), "0"), 16, 10);
+    foreach ($chunk['spans'] as $span) {
+        $meta = $span["attributes"] ?? [];
+        unset(
+            $meta["process_id"], $meta["runtime-id"], $meta["_dd.p.dm"], $meta["_dd.tags.process"], $meta["_dd.sdk.otlp_export"],
+            $meta["_dd.agent_psr"], $meta["php.compilation.total_time_ms"],
+            $meta["php.memory.peak_usage_bytes"], $meta["php.memory.peak_real_usage_bytes"]
+        );
+        echo "parent: ", $span["parent_id"] ?? 0, ", trace: $traceId, origin: ", $chunk["origin"] ?? "", ", meta: " . json_encode($meta) . "\n";
     }
-    return $span;
+    return $traceId;
 }
 
 DDTrace\start_span();
@@ -71,12 +80,14 @@ $id = DDTrace\root_span()->id;
 DDTrace\close_span();
 DDTrace\close_span();
 
-$span = dump_spans();
-echo "all spans trace_id updated: "; var_dump($span["trace_id"] == $id);
+$traceId = dump_spans();
+echo "all spans trace_id updated: "; var_dump($traceId == $id);
 
 ?>
 --EXPECTF--
 bool(true)
+
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 array(7) {
   ["trace_id"]=>
   string(3) "123"
@@ -96,10 +107,16 @@ array(7) {
     string(1) "b"
   }
 }
+
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
+
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 bool(true)
-parent: 321, trace: 123, meta: {"_dd.origin":"foo","a":"b"}
-parent: %d, trace: 123, meta: {"_dd.origin":"foo"}
+parent: 321, trace: 123, origin: foo, meta: {"a":"b"}
+parent: %d, trace: 123, origin: foo, meta: []
 bool(true)
+
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 array(5) {
   ["trace_id"]=>
   string(%d) "%d"
@@ -113,8 +130,10 @@ array(5) {
   array(0) {
   }
 }
+
+Deprecated: Function DDTrace\trace_id() is deprecated in %s on line %d
 bool(true)
 bool(true)
-parent: 0, trace: %d, meta: {"_dd.p.tid":"%s"}
-parent: %d, trace: %d, meta: []
+parent: 0, trace: %d, origin: , meta: []
+parent: %d, trace: %d, origin: , meta: []
 all spans trace_id updated: bool(true)

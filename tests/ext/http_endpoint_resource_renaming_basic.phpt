@@ -19,12 +19,12 @@ function test_endpoint($path) {
 
     DDTrace\close_span();
 
-    $spans = dd_trace_serialize_closed_spans();
+    $spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     if (count($spans) > 0) {
         $span_data = $spans[0];
         echo "Path: $path\n";
-        if (isset($span_data['meta']['http.endpoint'])) {
-            echo "Endpoint: " . $span_data['meta']['http.endpoint'] . "\n";
+        if (isset($span_data['attributes']['http.endpoint'])) {
+            echo "Endpoint: " . $span_data['attributes']['http.endpoint'] . "\n";
         } else {
             echo "Endpoint: (not set)\n";
         }
@@ -32,7 +32,6 @@ function test_endpoint($path) {
     } else {
         echo "Path: $path - No spans\n\n";
     }
-    dd_trace_reset();
 }
 
 // Test invalid inputs and root
@@ -91,12 +90,12 @@ function test_endpoint_with_route($path, $route) {
 
     DDTrace\close_span();
 
-    $spans = dd_trace_serialize_closed_spans();
+    $spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     if (count($spans) > 0) {
         $span_data = $spans[0];
         echo "Path: $path, Route: $route\n";
-        if (isset($span_data['meta']['http.endpoint'])) {
-            echo "Endpoint: " . $span_data['meta']['http.endpoint'] . "\n";
+        if (isset($span_data['attributes']['http.endpoint'])) {
+            echo "Endpoint: " . $span_data['attributes']['http.endpoint'] . "\n";
         } else {
             echo "Endpoint: (not set)\n";
         }

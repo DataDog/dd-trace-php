@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Integrations\Predis\Latest;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanChecker;
 use Predis\Configuration\Options;
 
 class PredisTest extends IntegrationTestCase
@@ -12,7 +13,7 @@ class PredisTest extends IntegrationTestCase
     protected static $lockedResource = "redis";
 
     protected $host = 'redis-integration';
-    private $port = '6379';
+    private $port = 6379;
 
     public static function ddSetUpBeforeClass()
     {
@@ -51,9 +52,7 @@ class PredisTest extends IntegrationTestCase
         });
 
         $this->assertCount(1, $traces);
-        $trace = $traces[0];
-
-        $this->assertGreaterThan(2, count($trace)); # two Redis operations -> at least 2 spans
+        $this->assertGreaterThan(2, count($traces[0]['spans'])); # two Redis operations -> at least 2 spans
     }
 
     /**
@@ -69,9 +68,9 @@ class PredisTest extends IntegrationTestCase
                 new \Predis\Client($firstArgument);
             }
         });
-        $span = $traces[0][0];
-        $this->assertSame($host, $span['meta']['out.host']);
-        $this->assertSame("$port", $span['meta']['out.port']);
+        $span = $traces[0]['spans'][0];
+        $this->assertSame($host, $span['attributes']['out.host']);
+        $this->assertSame($port, $span['attributes']['out.port']);
         $this->assertSame('redis', $span['service']);
 
         // With split by domain
@@ -83,9 +82,9 @@ class PredisTest extends IntegrationTestCase
                 new \Predis\Client($firstArgument);
             }
         });
-        $span = $traces[0][0];
-        $this->assertSame($host, $span['meta']['out.host']);
-        $this->assertSame("$port", $span['meta']['out.port']);
+        $span = $traces[0]['spans'][0];
+        $this->assertSame($host, $span['attributes']['out.host']);
+        $this->assertSame($port, $span['attributes']['out.port']);
         $this->assertSame($service, $span['service']);
     }
 
@@ -135,7 +134,7 @@ class PredisTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'redis', 'Predis.Client.__construct')
-                ->withExactTags($this->baseTags()),
+                ->withExactAttributes($this->baseTags()),
         ]);
     }
 
@@ -151,7 +150,7 @@ class PredisTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'redis', 'Predis.Client.__construct')
-                ->withExactTags($this->baseTags()),
+                ->withExactAttributes($this->baseTags()),
         ]);
     }
 
@@ -165,7 +164,7 @@ class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'redis', 'redis', 'Predis.Client.connect')
-                ->withExactTags($this->baseTags()),
+                ->withExactAttributes($this->baseTags()),
         ]);
     }
 
@@ -181,7 +180,7 @@ class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'redis', 'redis', 'Predis.Client.connect')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'predis',
                     '_dd.svc_src' => 'redis',
@@ -201,9 +200,9 @@ class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'redis', 'SET foo value')
-                ->withExactTags(array_merge([], $this->baseTags(), [
+                ->withExactAttributes(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'SET foo value',
-                    'redis.args_length' => '3',
+                    'redis.args_length' => 3,
                 ])),
         ]);
     }
@@ -220,9 +219,9 @@ class PredisTest extends IntegrationTestCase
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::exists('Predis.Client.executeCommand'),
             SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'redis', 'GET key')
-                ->withExactTags(array_merge([], $this->baseTags(), [
+                ->withExactAttributes(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'GET key',
-                    'redis.args_length' => '2',
+                    'redis.args_length' => 2,
                 ])),
         ]);
     }
@@ -237,9 +236,9 @@ class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.executeRaw', 'redis', 'redis', 'SET key value')
-                ->withExactTags(array_merge([], $this->baseTags(), [
+                ->withExactAttributes(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'SET key value',
-                    'redis.args_length' => '3',
+                    'redis.args_length' => 3,
                 ])),
         ]);
     }
@@ -256,12 +255,12 @@ class PredisTest extends IntegrationTestCase
             $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
         });
 
-        $exactTags = [
+        $exactAttributes = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'predis',
             '_dd.svc_src' => 'redis',
             Tag::DB_SYSTEM => 'redis',
-            'redis.pipeline_length' => '2',
+            'redis.pipeline_length' => 2,
             Tag::TARGET_HOST => $this->host,
             Tag::TARGET_PORT => $this->port,
         ];
@@ -269,7 +268,7 @@ class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Pipeline.executePipeline', 'redis', 'redis', 'Predis.Pipeline.executePipeline')
-                ->withExactTags($exactTags),
+                ->withExactAttributes($exactAttributes),
         ]);
     }
 
@@ -318,9 +317,10 @@ class PredisTest extends IntegrationTestCase
             $this->assertSame('value', $client->get('key'));
         });
 
-        $this->assertSame('redis-redis-integration', $traces[0][0]['service']);
-        $this->assertSame('redis-redis-integration', $traces[0][1]['service']);
-        $this->assertSame('redis-redis-integration', $traces[0][2]['service']);
+        $spans = (new SpanChecker())->flattenTraces($traces);
+        $this->assertSame('redis-redis-integration', $spans[0]['service']);
+        $this->assertSame('redis-redis-integration', $spans[1]['service']);
+        $this->assertSame('redis-redis-integration', $spans[2]['service']);
     }
 
     public function testSplitByHostForErrorSpans()
@@ -335,8 +335,9 @@ class PredisTest extends IntegrationTestCase
             }
         });
 
-        $this->assertSame('redis-non_existing', $traces[0][0]['service']);
-        $this->assertSame('redis-non_existing', $traces[0][1]['service']);
+        $spans = (new SpanChecker())->flattenTraces($traces);
+        $this->assertSame('redis-non_existing', $spans[0]['service']);
+        $this->assertSame('redis-non_existing', $spans[1]['service']);
     }
 
     public function testOrphansRemoval()
@@ -349,8 +350,7 @@ class PredisTest extends IntegrationTestCase
             new \Predis\Client(["host" => $this->host]);
         });
 
-        $span = $traces[0][0];
-        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(0, $traces[0]['priority']);
     }
 
     public function testOrphansRemoval64bit()
@@ -364,8 +364,7 @@ class PredisTest extends IntegrationTestCase
             new \Predis\Client(["host" => $this->host]);
         });
 
-        $span = $traces[0][0];
-        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(0, $traces[0]['priority']);
     }
 
     public function testNoFakeServices()
@@ -383,7 +382,7 @@ class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'configured_service', 'redis', 'Predis.Client.connect')
-                ->withExactTags($this->baseTags(null)),
+                ->withExactAttributes($this->baseTags(null)),
         ]);
     }
 

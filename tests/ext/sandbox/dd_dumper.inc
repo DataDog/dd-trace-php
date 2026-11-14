@@ -2,9 +2,8 @@
 
 function dd_dump_spans($skipMeta = false)
 {
-    $spans = dd_trace_serialize_closed_spans();
     $roots = $children = [];
-    foreach ($spans as $span) {
+    foreach (dd_clean_spans() as $span) {
         if (isset($span["parent_id"])) {
             $children[$span["parent_id"]][] = $span;
         } else {
@@ -31,19 +30,22 @@ function dd_dump_spans($skipMeta = false)
         if (!empty($values)) {
             echo ' (' . implode(', ', $values) . ')';
         }
-        if (isset($span['meta']['error.message'])) {
-            echo ' (error: ' . $span['meta']['error.message'] . ')';
+        if (isset($span['attributes']['error.message'])) {
+            echo ' (error: ' . $span['attributes']['error.message'] . ')';
         }
-        if (isset($span['meta'])) {
+        if (isset($span['attributes'])) {
             if ($skipMeta) {
-                unset($span['meta']['_dd.p.dm']);
+                unset($span['attributes']['_dd.p.dm']);
             }
             echo PHP_EOL;
-            unset($span["meta"]["runtime-id"]);
-            unset($span["meta"]["_dd.tags.process"]);
-            unset($span["meta"]["_dd.sdk.otlp_export"]);
-            foreach ($span['meta'] as $k => $v) {
-                echo str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . PHP_EOL;
+            unset($span["attributes"]["runtime-id"]);
+            unset($span["attributes"]["_dd.tags.process"]);
+            unset($span["attributes"]["_dd.sdk.otlp_export"]);
+            foreach (['process_id', '_dd.agent_psr', 'php.compilation.total_time_ms', 'php.memory.peak_usage_bytes', 'php.memory.peak_real_usage_bytes'] as $volatile) {
+                unset($span['attributes'][$volatile]);
+            }
+            foreach ($span['attributes'] as $k => $v) {
+                echo str_repeat(' ', $indent) . '  ' . $k . ' => ' . (is_string($v) ? $v : json_encode($v)) . PHP_EOL;
             }
         } else {
             echo PHP_EOL;
@@ -78,16 +80,7 @@ function dd_dump_spans($skipMeta = false)
     echo '}' . PHP_EOL;
 }
 
+// The spans of all chunks, in order.
 function dd_clean_spans() {
-    $spans = dd_trace_serialize_closed_spans();
-    foreach ($spans as &$span) {
-        if (isset($span['meta'])) {
-            unset($span['meta']['_dd.tags.process']);
-            unset($span['meta']['_dd.sdk.otlp_export']);
-            if (empty($span['meta'])) {
-                unset($span['meta']);
-            }
-        }
-    }
-    return $spans;
+    return array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'));
 }

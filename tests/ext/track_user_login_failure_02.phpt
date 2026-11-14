@@ -7,11 +7,11 @@ Test \datadog\appsec\v2\track_user_login_failure without metadata
   false
 );
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump((array) $root->meta);
 
 ?>
 --EXPECTF--
-array(5) {
+array(8) {
   ["runtime-id"]=>
   string(%d) %s
   ["appsec.events.users.login.failure.usr.login"]=>
@@ -22,4 +22,10 @@ array(5) {
   string(%d) "true"
   ["_dd.appsec.events.users.login.failure.sdk"]=>
   string(%d) "true"
+  ["service.name"]=>
+  string(31) "track_user_login_failure_02.php"
+  ["operation.name"]=>
+  string(31) "track_user_login_failure_02.php"
+  ["span.type"]=>
+  string(3) "cli"
 }

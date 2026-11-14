@@ -60,7 +60,7 @@ class ExecIntegration extends Integration
                 if ($hook->exception) {
                     $span->exception = $hook->exception;
                 } elseif (!is_resource($hook->returned)) {
-                    $span->meta[Tag::ERROR_MSG] = 'popen() did not return a resource';
+                    $span->attributes[Tag::ERROR_MSG] = 'popen() did not return a resource';
                 } else {
                     register_stream($hook->returned, $span);
                 }
@@ -121,7 +121,7 @@ class ExecIntegration extends Integration
                 if ($hook->exception) {
                     $span->exception = $hook->exception;
                 } elseif (!is_resource($hook->returned)) {
-                    $span->meta[Tag::ERROR_MSG] = 'proc_open() did not return a resource';
+                    $span->attributes[Tag::ERROR_MSG] = 'proc_open() did not return a resource';
                 } else {
                     proc_assoc_span($hook->returned, $span);
                 }
@@ -155,10 +155,10 @@ class ExecIntegration extends Integration
                 }
 
                 if ($hook->returned['signaled']) {
-                    $span->meta[Tag::ERROR_MSG] = 'The process was terminated by a signal';
-                    $span->meta[Tag::EXEC_EXIT_CODE] = $hook->returned['termsig'];
+                    $span->attributes[Tag::ERROR_MSG] = 'The process was terminated by a signal';
+                    $span->attributes[Tag::EXEC_EXIT_CODE] = $hook->returned['termsig'];
                 } else {
-                    $span->meta[Tag::EXEC_EXIT_CODE] = $hook->returned['exitcode'];
+                    $span->attributes[Tag::EXEC_EXIT_CODE] = $hook->returned['exitcode'];
                 }
 
                 self::finishSpanRestoreStack($span);
@@ -195,8 +195,9 @@ class ExecIntegration extends Integration
                     return;
                 }
 
-                if ($hook->returned === -1 && isset($span->meta[Tag::EXEC_EXIT_CODE])) {
-                    $hook->overrideReturnValue($span->meta[Tag::EXEC_EXIT_CODE]);
+                $exitCode = $span->attributes[Tag::EXEC_EXIT_CODE] ?? null;
+                if ($hook->returned === -1 && $exitCode !== null) {
+                    $hook->overrideReturnValue($exitCode);
                 }
             }
         );
@@ -259,13 +260,13 @@ class ExecIntegration extends Integration
             if ($hook->exception) {
                 $span->exception = $hook->exception;
             } elseif ($hook->returned === false) {
-                $span->meta[Tag::ERROR_MSG] = "$variant() returned false";
+                $span->attributes[Tag::ERROR_MSG] = "$variant() returned false";
             } elseif (
                 !empty($retCodeArg) &&
                 isset($hook->args[$retCodeArg]) &&
                 $hook->args[$retCodeArg] !== null
             ) {
-                $span->meta[Tag::EXEC_EXIT_CODE] = $hook->args[$retCodeArg];
+                $span->attributes[Tag::EXEC_EXIT_CODE] = $hook->args[$retCodeArg];
             }
 
             self::finishSpanRestoreStack($span);
@@ -277,7 +278,8 @@ class ExecIntegration extends Integration
         create_stack();
         $span = start_span();
         $span->name = 'command_execution';
-        $span->meta = $tags;
+        $span->attributes = $tags + $span->attributes;
+        $span->component = 'subprocess';
         $span->type = Type::SYSTEM;
         $span->resource = $resource;
         \DDTrace\collect_code_origins(2); // manually collect origin, otherwise the top frame will be this integration
@@ -306,7 +308,6 @@ class ExecIntegration extends Integration
 
         $ret = [
             Tag::EXEC_CMDLINE_SHELL => $cmd,
-            Tag::COMPONENT => 'subprocess',
         ];
         if ($truncated) {
             $ret[Tag::EXEC_TRUNCATED] = true;
@@ -340,7 +341,6 @@ class ExecIntegration extends Integration
 
         $ret = [
             Tag::EXEC_CMDLINE_EXEC => self::encodeArray($cmd),
-            Tag::COMPONENT => 'subprocess',
         ];
         if ($truncated) {
             $ret[Tag::EXEC_TRUNCATED] = true;

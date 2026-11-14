@@ -303,6 +303,7 @@ lru = { version = "0.16.3", default-features = false }
 manual_future = { version = "0.1.1", default-features = false }
 maplit = { version = "1.0", default-features = false }
 md5 = { version = "0.7.0", default-features = false }
+memchr = { version = "2.7", default-features = false }
 memfd = { version = "0.6", default-features = false }
 memory-stats = { version = "1.2.0", default-features = false }
 mime = { version = "0.3.16", default-features = false }

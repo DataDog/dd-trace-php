@@ -119,11 +119,9 @@
                 "type": "queue",
                 "meta": {
                   "_dd.code_origin.frames.1.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                  "_dd.code_origin.frames.1.line": "25",
                   "_dd.code_origin.frames.1.method": "fail",
                   "_dd.code_origin.frames.1.type": "App\\Controller\\LuckyController",
                   "_dd.code_origin.frames.5.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                  "_dd.code_origin.frames.5.line": "20",
                   "_dd.code_origin.type": "exit",
                   "component": "symfonymessenger",
                   "messaging.destination": "async",
@@ -135,6 +133,8 @@
                   "messaging.system": "symfony"
                 },
                 "metrics": {
+                  "_dd.code_origin.frames.1.line": 25,
+                  "_dd.code_origin.frames.5.line": 20,
                   "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
                   "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
                   "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializerStamp": 2.0,
@@ -151,16 +151,18 @@
                    "type": "queue",
                    "meta": {
                      "_dd.code_origin.frames.2.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                     "_dd.code_origin.frames.2.line": "25",
                      "_dd.code_origin.frames.2.method": "fail",
                      "_dd.code_origin.frames.2.type": "App\\Controller\\LuckyController",
                      "_dd.code_origin.frames.6.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                     "_dd.code_origin.frames.6.line": "20",
                      "_dd.code_origin.type": "exit",
                      "component": "symfonymessenger",
                      "messaging.destination_kind": "queue",
                      "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                      "messaging.system": "symfony"
+                   },
+                   "metrics": {
+                     "_dd.code_origin.frames.2.line": 25,
+                     "_dd.code_origin.frames.6.line": 20
                    }
                  },
                     {
@@ -173,16 +175,18 @@
                       "type": "queue",
                       "meta": {
                         "_dd.code_origin.frames.3.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                        "_dd.code_origin.frames.3.line": "25",
                         "_dd.code_origin.frames.3.method": "fail",
                         "_dd.code_origin.frames.3.type": "App\\Controller\\LuckyController",
                         "_dd.code_origin.frames.7.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                        "_dd.code_origin.frames.7.line": "20",
                         "_dd.code_origin.type": "exit",
                         "component": "symfonymessenger",
                         "messaging.destination_kind": "queue",
                         "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                         "messaging.system": "symfony"
+                      },
+                      "metrics": {
+                        "_dd.code_origin.frames.3.line": 25,
+                        "_dd.code_origin.frames.7.line": 20
                       }
                     },
                        {
@@ -195,17 +199,19 @@
                          "type": "queue",
                          "meta": {
                            "_dd.code_origin.frames.4.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                           "_dd.code_origin.frames.4.line": "25",
                            "_dd.code_origin.frames.4.method": "fail",
                            "_dd.code_origin.frames.4.type": "App\\Controller\\LuckyController",
                            "_dd.code_origin.frames.8.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                           "_dd.code_origin.frames.8.line": "20",
                            "_dd.code_origin.type": "exit",
                            "component": "symfonymessenger",
                            "messaging.destination_kind": "queue",
                            "messaging.symfony.bus": "messenger.bus.default",
                            "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                            "messaging.system": "symfony"
+                         },
+                         "metrics": {
+                           "_dd.code_origin.frames.4.line": 25,
+                           "_dd.code_origin.frames.8.line": 20
                          }
                        },
                           {
@@ -218,17 +224,19 @@
                             "type": "queue",
                             "meta": {
                               "_dd.code_origin.frames.5.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                              "_dd.code_origin.frames.5.line": "25",
                               "_dd.code_origin.frames.5.method": "fail",
                               "_dd.code_origin.frames.5.type": "App\\Controller\\LuckyController",
                               "_dd.code_origin.frames.9.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                              "_dd.code_origin.frames.9.line": "20",
                               "_dd.code_origin.type": "exit",
                               "component": "symfonymessenger",
                               "messaging.destination_kind": "queue",
                               "messaging.symfony.bus": "messenger.bus.default",
                               "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                               "messaging.system": "symfony"
+                            },
+                            "metrics": {
+                              "_dd.code_origin.frames.5.line": 25,
+                              "_dd.code_origin.frames.9.line": 20
                             }
                           },
                              {
@@ -241,9 +249,7 @@
                                "type": "queue",
                                "meta": {
                                  "_dd.code_origin.frames.10.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                                 "_dd.code_origin.frames.10.line": "20",
                                  "_dd.code_origin.frames.6.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                                 "_dd.code_origin.frames.6.line": "25",
                                  "_dd.code_origin.frames.6.method": "fail",
                                  "_dd.code_origin.frames.6.type": "App\\Controller\\LuckyController",
                                  "_dd.code_origin.type": "exit",
@@ -252,6 +258,10 @@
                                  "messaging.symfony.bus": "messenger.bus.default",
                                  "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                                  "messaging.system": "symfony"
+                               },
+                               "metrics": {
+                                 "_dd.code_origin.frames.10.line": 20,
+                                 "_dd.code_origin.frames.6.line": 25
                                }
                              },
                                 {
@@ -264,9 +274,7 @@
                                   "type": "queue",
                                   "meta": {
                                     "_dd.code_origin.frames.11.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                                    "_dd.code_origin.frames.11.line": "20",
                                     "_dd.code_origin.frames.7.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                                    "_dd.code_origin.frames.7.line": "25",
                                     "_dd.code_origin.frames.7.method": "fail",
                                     "_dd.code_origin.frames.7.type": "App\\Controller\\LuckyController",
                                     "_dd.code_origin.type": "exit",
@@ -275,6 +283,10 @@
                                     "messaging.symfony.bus": "messenger.bus.default",
                                     "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                                     "messaging.system": "symfony"
+                                  },
+                                  "metrics": {
+                                    "_dd.code_origin.frames.11.line": 20,
+                                    "_dd.code_origin.frames.7.line": 25
                                   }
                                 },
                                    {
@@ -299,9 +311,7 @@
                                      "type": "queue",
                                      "meta": {
                                        "_dd.code_origin.frames.12.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                                       "_dd.code_origin.frames.12.line": "20",
                                        "_dd.code_origin.frames.8.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                                       "_dd.code_origin.frames.8.line": "25",
                                        "_dd.code_origin.frames.8.method": "fail",
                                        "_dd.code_origin.frames.8.type": "App\\Controller\\LuckyController",
                                        "_dd.code_origin.type": "entry",
@@ -317,6 +327,8 @@
                                        "span.kind": "producer"
                                      },
                                      "metrics": {
+                                       "_dd.code_origin.frames.12.line": 20,
+                                       "_dd.code_origin.frames.8.line": 25,
                                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
                                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
                                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializerStamp": 2.0,
@@ -334,11 +346,9 @@
                                         "meta": {
                                           "_dd.base_service": "symfony_messenger_test",
                                           "_dd.code_origin.frames.20.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                                          "_dd.code_origin.frames.20.line": "25",
                                           "_dd.code_origin.frames.20.method": "fail",
                                           "_dd.code_origin.frames.20.type": "App\\Controller\\LuckyController",
                                           "_dd.code_origin.frames.24.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                                          "_dd.code_origin.frames.24.line": "20",
                                           "_dd.code_origin.type": "exit",
                                           "component": "pdo",
                                           "db.charset": "utf8mb4",
@@ -348,8 +358,12 @@
                                           "db.type": "mysql",
                                           "db.user": "test",
                                           "out.host": "mysql-integration",
-                                          "out.port": "3306",
                                           "span.kind": "client"
+                                        },
+                                        "metrics": {
+                                          "_dd.code_origin.frames.20.line": 25,
+                                          "_dd.code_origin.frames.24.line": 20,
+                                          "out.port": 3306
                                         }
                                       },
                                       {
@@ -363,11 +377,9 @@
                                         "meta": {
                                           "_dd.base_service": "symfony_messenger_test",
                                           "_dd.code_origin.frames.18.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                                          "_dd.code_origin.frames.18.line": "25",
                                           "_dd.code_origin.frames.18.method": "fail",
                                           "_dd.code_origin.frames.18.type": "App\\Controller\\LuckyController",
                                           "_dd.code_origin.frames.22.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                                          "_dd.code_origin.frames.22.line": "20",
                                           "_dd.code_origin.type": "exit",
                                           "component": "pdo",
                                           "db.charset": "utf8mb4",
@@ -377,8 +389,12 @@
                                           "db.type": "mysql",
                                           "db.user": "test",
                                           "out.host": "mysql-integration",
-                                          "out.port": "3306",
                                           "span.kind": "client"
+                                        },
+                                        "metrics": {
+                                          "_dd.code_origin.frames.18.line": 25,
+                                          "_dd.code_origin.frames.22.line": 20,
+                                          "out.port": 3306
                                         }
                                       },
                                       {
@@ -392,11 +408,9 @@
                                         "meta": {
                                           "_dd.base_service": "symfony_messenger_test",
                                           "_dd.code_origin.frames.18.file": "{path}/tests/Frameworks/Symfony/Version_6_2/src/Controller/LuckyController.php",
-                                          "_dd.code_origin.frames.18.line": "25",
                                           "_dd.code_origin.frames.18.method": "fail",
                                           "_dd.code_origin.frames.18.type": "App\\Controller\\LuckyController",
                                           "_dd.code_origin.frames.22.file": "{path}/tests/Frameworks/Symfony/Version_6_2/public/index.php",
-                                          "_dd.code_origin.frames.22.line": "20",
                                           "_dd.code_origin.type": "exit",
                                           "component": "pdo",
                                           "db.charset": "utf8mb4",
@@ -406,11 +420,13 @@
                                           "db.type": "mysql",
                                           "db.user": "test",
                                           "out.host": "mysql-integration",
-                                          "out.port": "3306",
                                           "span.kind": "client"
                                         },
                                         "metrics": {
-                                          "db.row_count": 1.0
+                                          "_dd.code_origin.frames.18.line": 25,
+                                          "_dd.code_origin.frames.22.line": 20,
+                                          "db.row_count": 1.0,
+                                          "out.port": 3306
                                         }
                                       },
            {

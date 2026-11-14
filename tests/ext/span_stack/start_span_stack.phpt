@@ -24,7 +24,7 @@ print 'And updates DDTrace\active_stack(): '; var_dump($new_stack == DDTrace\act
 print 'Also updates the active span of the stack: '; var_dump($new_stack->active == $stack_span);
 print 'Which is also reflected in the globally active span: '; var_dump(DDTrace\active_span() == $stack_span);
 print 'That new span on the span stack has the same parent: '; var_dump($stack_span->parent == $primary_active);
-print 'That new span stack does not touch trace id: '; var_dump($stack_span->id != DDTrace\trace_id());
+print 'That new span stack does not touch trace id: '; var_dump($stack_span->hexId() != substr(DDTrace\root_span()->traceId, 16));
 
 DDTrace\close_span();
 echo 'Verify the stack_span stays if spans on that stack are closed: '; var_dump($new_stack == DDTrace\active_stack());
@@ -55,8 +55,6 @@ Active stack is swapped back when a span below the current span stack is closed:
 The stack still retains its direct parent as active: bool(true)
 spans(\DDTrace\SpanData) (1) {
   start_span_stack.php (start_span_stack.php, start_span_stack.php, cli)
-    _dd.p.dm => -0
-    _dd.p.tid => %s
      (start_span_stack.php, cli)
        (start_span_stack.php, cli)
 }

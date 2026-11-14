@@ -7,6 +7,7 @@ use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Trace\NonRecordingSpan;
 use OpenTelemetry\API\Trace\SpanContext;
@@ -17,7 +18,9 @@ use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\Context\ContextStorage;
+use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesInterface;
+use OpenTelemetry\SDK\Resource\ResourceInfo;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOffSampler;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
@@ -72,7 +75,7 @@ final class TracerTest extends BaseTestCase
             $errorSpan->end();
         });
 
-        $this->assertSame('error_desc', $traces[0][0]['meta']['error.message']);
+        $this->assertSame('error_desc', $traces[0]['spans'][0]['attributes']['error.message']);
     }
 
     public function testUnorderedOtelSpanActivation()
@@ -112,13 +115,12 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
-        $this->assertNotEmpty($span['trace_id']);
-        $this->assertSame($span['trace_id'], $span['span_id']);
+        $span = $traces[0]['spans'][0];
+        $this->assertSame(SpanChecker::traceIdLow($traces[0]), $span['span_id']);
         $this->assertNotEquals(0, $span['duration']);
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $traces[0]['priority']);
     }
 
     public function testManuallyCreatedSpanWithCustomTags()
@@ -134,15 +136,14 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
-        $this->assertNotEmpty($span['trace_id']);
-        $this->assertSame($span['trace_id'], $span['span_id']);
+        $span = $traces[0]['spans'][0];
+        $this->assertSame(SpanChecker::traceIdLow($traces[0]), $span['span_id']);
         $this->assertNotEquals(0, $span['duration']);
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
-        $this->assertSame('bar', $span['meta']['foo']);
-        $this->assertSame('baz', $span['meta']['bar']);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $traces[0]['priority']);
+        $this->assertSame('bar', $span['attributes']['foo']);
+        $this->assertSame('baz', $span['attributes']['bar']);
     }
 
     public function testManuallyCreatedSpanWithNestedAttributes()
@@ -158,18 +159,17 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
-        $this->assertNotEmpty($span['trace_id']);
-        $this->assertSame($span['trace_id'], $span['span_id']);
+        $span = $traces[0]['spans'][0];
+        $this->assertSame(SpanChecker::traceIdLow($traces[0]), $span['span_id']);
         $this->assertNotEquals(0, $span['duration']);
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
-        $this->assertSame('bar', $span['meta']['foo']);
-        $this->assertSame('baz', $span['meta']['bar']);
-        $this->assertSame('bar', $span['meta']['nested.foo']);
-        $this->assertSame('baz', $span['meta']['nested.bar']);
-        $this->assertSame('alone', $span['meta']['nested.0']);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $traces[0]['priority']);
+        $this->assertSame('bar', $span['attributes']['foo']);
+        $this->assertSame('baz', $span['attributes']['bar']);
+        $this->assertSame('bar', $span['attributes']['nested']['foo']);
+        $this->assertSame('baz', $span['attributes']['nested']['bar']);
+        $this->assertSame('alone', $span['attributes']['nested'][0]);
     }
 
     public function testManuallyCreatedNestedSpansBasic()
@@ -188,14 +188,11 @@ final class TracerTest extends BaseTestCase
             }
         });
 
-        $spans = $traces[0];
-        list($parentSpan, $childSpan) = $spans;
-        $this->assertNotEmpty($parentSpan['trace_id']);
-        $this->assertSame($parentSpan['trace_id'], $parentSpan['span_id']);
-        $this->assertSame($parentSpan['trace_id'], $childSpan['trace_id']);
-        $this->assertSame($parentSpan['span_id'], $childSpan['trace_id']);
+        list($parentSpan, $childSpan) = (new SpanChecker())->flattenTraces($traces);
+        foreach ($traces as $trace) {
+            $this->assertSame(SpanChecker::traceIdLow($trace), $parentSpan['span_id']);
+        }
         $this->assertNotSame($parentSpan['span_id'], $childSpan['span_id']);
-        $this->assertNotSame($childSpan['trace_id'], $childSpan['span_id']);
     }
 
     public function testCreateSpanWithParentContext()
@@ -211,14 +208,11 @@ final class TracerTest extends BaseTestCase
             $parent->end();
         });
 
-        $spans = $traces[0];
-        list($parentSpan, $childSpan) = $spans;
-        $this->assertNotEmpty($parentSpan['trace_id']);
-        $this->assertSame($parentSpan['trace_id'], $parentSpan['span_id']);
-        $this->assertSame($parentSpan['trace_id'], $childSpan['trace_id']);
-        $this->assertSame($parentSpan['span_id'], $childSpan['trace_id']);
+        list($parentSpan, $childSpan) = (new SpanChecker())->flattenTraces($traces);
+        foreach ($traces as $trace) {
+            $this->assertSame(SpanChecker::traceIdLow($trace), $parentSpan['span_id']);
+        }
         $this->assertNotSame($parentSpan['span_id'], $childSpan['span_id']);
-        $this->assertNotSame($childSpan['trace_id'], $childSpan['span_id']);
     }
 
     public function testCreateSpanInvalidParent()
@@ -231,11 +225,10 @@ final class TracerTest extends BaseTestCase
             $child->end();
         });
 
-        $span = $traces[0][0];
-        $this->assertNotEmpty($span['trace_id']);
-        $this->assertSame($span['trace_id'], $span['span_id']);
+        $span = $traces[0]['spans'][0];
+        $this->assertSame(SpanChecker::traceIdLow($traces[0]), $span['span_id']);
         $this->assertArrayNotHasKey('parent_id', $span);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $traces[0]['priority']);
     }
 
     public function testCreateANewTraceInTheSameProcess()
@@ -263,17 +256,14 @@ final class TracerTest extends BaseTestCase
             $scope->detach();
         });
 
-        $spans = $traces[0];
-        list($span, $rootSpan, $childSpan) = $spans;
-
-        $this->assertNotEmpty($rootSpan['trace_id']);
-        $this->assertSame($rootSpan['trace_id'], $rootSpan['span_id']);
-        $this->assertSame($rootSpan['trace_id'], $childSpan['trace_id']);
+        list($span, $rootSpan, $childSpan) = (new SpanChecker())->flattenTraces($traces);
         $this->assertSame($rootSpan['span_id'], $childSpan['parent_id']);
 
-        $this->assertNotEmpty($span['trace_id']);
-        $this->assertSame($span['trace_id'], $span['span_id']);
-        $this->assertNotSame($rootSpan['trace_id'], $span['trace_id']);
+        // Both root spans start their own trace, so their span ids are the two trace ids.
+        $traceIds = array_map([SpanChecker::class, 'traceIdLow'], $traces);
+        $this->assertContains($rootSpan['span_id'], $traceIds);
+        $this->assertContains($span['span_id'], $traceIds);
+        $this->assertCount(2, array_unique(array_column($traces, 'trace_id')));
     }
 
     public function testSpanAttributes()
@@ -297,22 +287,21 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $meta = $traces[0][0]['meta'];
-        $metrics = $traces[0][0]['metrics'];
-        $this->assertSame("a", $meta['string']);
-        $this->assertArrayNotHasKey("null-string", $meta);
-        $this->assertSame("", $meta['empty_string']);
-        $this->assertEquals(1, $metrics['number']);
-        $this->assertSame("true", $meta['boolean']);
-        $this->assertSame("a", $meta['string-array.0']);
-        $this->assertSame("b", $meta['string-array.1']);
-        $this->assertSame("c", $meta['string-array.2']);
-        $this->assertSame("true", $meta['boolean-array.0']);
-        $this->assertSame("false", $meta['boolean-array.1']);
-        $this->assertEquals("1.1", $metrics['float-array.0']);
-        $this->assertEquals("2.2", $metrics['float-array.1']);
-        $this->assertEquals("3.3", $metrics['float-array.2']);
-        $this->assertSame("", $meta['empty-array']);
+        $attributes = $traces[0]['spans'][0]['attributes'];
+        $this->assertSame("a", $attributes['string']);
+        $this->assertArrayNotHasKey("null-string", $attributes);
+        $this->assertSame("", $attributes['empty_string']);
+        $this->assertEquals(1, $attributes['number']);
+        $this->assertTrue($attributes['boolean']);
+        $this->assertSame("a", $attributes['string-array'][0]);
+        $this->assertSame("b", $attributes['string-array'][1]);
+        $this->assertSame("c", $attributes['string-array'][2]);
+        $this->assertTrue($attributes['boolean-array'][0]);
+        $this->assertFalse($attributes['boolean-array'][1]);
+        $this->assertEquals("1.1", $attributes['float-array'][0]);
+        $this->assertEquals("2.2", $attributes['float-array'][1]);
+        $this->assertEquals("3.3", $attributes['float-array'][2]);
+        $this->assertSame([], $attributes['empty-array']);
     }
 
     /**
@@ -328,65 +317,180 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
-        $this->assertSame($tagSpanKind, $span['meta']['span.kind']);
+        $span = $traces[0]['spans'][0];
+        $this->assertSame($tagSpanKind, $span['span_kind']);
     }
 
     public function providerSpanKind()
     {
+        // V1 introspection promotes span.kind to the int enum: Internal=1,Server=2,Client=3,Producer=4,Consumer=5
         return [
-            [SpanKind::KIND_CLIENT, Tag::SPAN_KIND_VALUE_CLIENT],
-            [SpanKind::KIND_SERVER, Tag::SPAN_KIND_VALUE_SERVER],
-            [SpanKind::KIND_PRODUCER, Tag::SPAN_KIND_VALUE_PRODUCER],
-            [SpanKind::KIND_CONSUMER, Tag::SPAN_KIND_VALUE_CONSUMER],
-            [SpanKind::KIND_INTERNAL, Tag::SPAN_KIND_VALUE_INTERNAL],
+            [SpanKind::KIND_CLIENT, 3],
+            [SpanKind::KIND_SERVER, 2],
+            [SpanKind::KIND_PRODUCER, 4],
+            [SpanKind::KIND_CONSUMER, 5],
+            [SpanKind::KIND_INTERNAL, 1],
         ];
     }
 
-    public function providerAnalyticsEvent()
+    public function providerHttpStatusCode()
     {
         return [
-            ["true", 1],
-            ["TRUE", 1],
-            ["True", 1],
-            ["false", 0],
-            ["False", 0],
-            ["FALSE", 0],
-            ["something-else", null],
-            [True, 1],
-            [False, 0],
-            ['t', 1],
-            ['T', 1],
-            ['f', 0],
-            ['F', 0],
-            ['1', 1],
-            ['0', 0],
-            ['fAlse', null],
-            ['trUe', null]
+            'numeric http.status_code' => [['http.status_code' => 200], ['http.status_code' => '200']],
+            'string http.status_code' => [['http.status_code' => '201'], ['http.status_code' => '201']],
+            'numeric http.response.status_code' => [['http.response.status_code' => 300], ['http.status_code' => '300']],
+            // Only the numeric (semconv) form is remapped
+            'string http.response.status_code' => [['http.response.status_code' => '300'], ['http.response.status_code' => '300']],
+            'response status code set first wins' => [
+                ['http.response.status_code' => 300, 'http.status_code' => 302],
+                ['http.status_code' => '300'],
+            ],
+            'response status code set last wins' => [
+                ['http.status_code' => 302, 'http.response.status_code' => 300],
+                ['http.status_code' => '300'],
+            ],
         ];
     }
 
     /**
-     * @dataProvider providerAnalyticsEvent
+     * @dataProvider providerHttpStatusCode
      */
-    public function testReservedAttributesOverridesAnalyticsEvent($analyticsEventValue, $expectedMetricValue)
+    public function testHttpStatusCodeRemapping($attributes, $expected)
     {
-        $traces = $this->isolateTracer(function () use ($analyticsEventValue) {
-            $tracer = self::getTracer();
-            $span = $tracer->spanBuilder('operation')
-                ->setSpanKind(SpanKind::KIND_SERVER)
-                ->startSpan();
-            $span->setAttribute('analytics.event', $analyticsEventValue);
+        $traces = $this->isolateTracer(function () use ($attributes) {
+            $span = self::getTracer()->spanBuilder('test.span')->startSpan();
+            foreach ($attributes as $key => $value) {
+                $span->setAttribute($key, $value);
+            }
             $span->end();
         });
 
-        $span = $traces[0][0];
-        if ($expectedMetricValue !== null) {
-            $actualMetricValue = $span['metrics']['_dd1.sr.eausr'];
-            $this->assertEquals($expectedMetricValue, $actualMetricValue);
-        } else {
-            $this->assertArrayNotHasKey('_dd1.sr.eausr', $span['metrics']);
+        $actual = array_intersect_key(
+            $traces[0]['spans'][0]['attributes'],
+            ['http.status_code' => true, 'http.response.status_code' => true]
+        );
+        $this->assertSame($expected, $actual);
+    }
+
+    public function providerHttpStatusCodeRemoval()
+    {
+        return [
+            'removal leaves no status code' => [
+                [['http.response.status_code', 300], ['http.response.status_code', null]],
+                [],
+            ],
+            'removal restores the overridden http.status_code' => [
+                [['http.status_code', 302], ['http.response.status_code', 300], ['http.response.status_code', null]],
+                ['http.status_code' => '302'],
+            ],
+            'removal restores the http.status_code set while overridden' => [
+                [['http.response.status_code', 300], ['http.status_code', 404], ['http.response.status_code', null]],
+                ['http.status_code' => '404'],
+            ],
+            'http.status_code set after removal applies' => [
+                [['http.response.status_code', 300], ['http.response.status_code', null], ['http.status_code', 404]],
+                ['http.status_code' => '404'],
+            ],
+            'removing http.status_code keeps the response status code' => [
+                [['http.response.status_code', 300], ['http.status_code', 404], ['http.status_code', null]],
+                ['http.status_code' => '300'],
+            ],
+            'a string status code replaces the numeric one' => [
+                [['http.response.status_code', 500], ['http.response.status_code', '201']],
+                ['http.response.status_code' => '201'],
+            ],
+            'a string status code restores the overridden http.status_code' => [
+                [['http.status_code', 302], ['http.response.status_code', 500], ['http.response.status_code', '201']],
+                ['http.status_code' => '302', 'http.response.status_code' => '201'],
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider providerHttpStatusCodeRemoval
+     */
+    public function testHttpStatusCodeRemoval($attributes, $expected)
+    {
+        $traces = $this->isolateTracer(function () use ($attributes) {
+            $span = self::getTracer()->spanBuilder('test.span')->startSpan();
+            foreach ($attributes as [$key, $value]) {
+                $span->setAttribute($key, $value);
+            }
+            $span->end();
+        });
+
+        $actual = array_intersect_key(
+            $traces[0]['spans'][0]['attributes'] ?? [],
+            ['http.status_code' => true, 'http.response.status_code' => true]
+        );
+        $this->assertSame($expected, $actual);
+    }
+
+    public function testRemovedPropertyAttributesRestoreTheSpanFields()
+    {
+        $reference = $this->isolateTracer(function () {
+            self::getTracer()->spanBuilder('test.span')->setSpanKind(SpanKind::KIND_CLIENT)->startSpan()->end();
+        })[0]['spans'][0];
+        $traces = $this->isolateTracer(function () {
+            $span = self::getTracer()->spanBuilder('test.span')->setSpanKind(SpanKind::KIND_CLIENT)->startSpan();
+            $span->setAttributes(['resource.name' => 'new.name', 'operation.name' => 'new.name', 'span.type' => 'new.type']);
+            $span->setAttributes(['resource.name' => null, 'operation.name' => null, 'span.type' => null]);
+            // The operation name convention applies again
+            $span->setAttribute('db.system', 'MySQL');
+            $span->end();
+        });
+
+        $span = $traces[0]['spans'][0];
+        $this->assertSame('mysql.query', $span['name']);
+        $this->assertSame('test.span', $span['resource']);
+        $this->assertSame($reference['type'] ?? null, $span['type'] ?? null);
+    }
+
+    public function testRemovedOperationNameSetAtStartRestoresTheConvention()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = self::getTracer()->spanBuilder('test.span')
+                ->setSpanKind(SpanKind::KIND_SERVER)
+                ->setAttribute('operation.name', 'new.name')
+                ->startSpan();
+            $this->assertSame('new.name', $span->getAttribute('operation.name'));
+            $span->setAttribute('operation.name', null);
+            $span->end();
+        });
+
+        $this->assertSame('server.request', $traces[0]['spans'][0]['name']);
+    }
+
+    public function testResourceOperationNameBecomesTheSpanName()
+    {
+        $traces = $this->isolateTracer(function () {
+            $resource = ResourceInfo::create(Attributes::create(['operation.name' => 'Resource.Op']));
+            $tracer = (new TracerProvider([], new AlwaysOnSampler(), $resource))->getTracer('OpenTelemetry.TracerTest');
+            $tracer->spanBuilder('only.resource')->startSpan()->end();
+            $tracer->spanBuilder('both')->setAttribute('operation.name', 'span.op')->startSpan()->end();
+        });
+
+        $names = [];
+        foreach ($traces as $trace) {
+            $names[$trace['spans'][0]['resource']] = $trace['spans'][0]['name'];
         }
+        ksort($names);
+        // The resource attribute wins over the span one
+        $this->assertSame(['both' => 'resource.op', 'only.resource' => 'resource.op'], $names);
+    }
+
+    public function testCustomSpanKindReplacesTheCanonicalOne()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = self::getTracer()->spanBuilder('test.span')->startSpan();
+            $span->setAttribute('span.kind', 'process');
+            $span->end();
+        });
+
+        $span = $traces[0]['spans'][0];
+        $this->assertSame('process', $span['name']);
+        $this->assertSame('process', $span['attributes']['span.kind']);
+        $this->assertSame(0, $span['span_kind'] ?? 0);
     }
 
     public function testSpanErrorStatus()
@@ -398,11 +502,11 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertSame('error message', $span['meta']['error.message']);
-        $this->assertEquals(1, $span['error']);
+        $this->assertSame('error message', $span['attributes']['error.message']);
+        $this->assertTrue($span['error']);
     }
 
     public function testSpanStatusTransition()
@@ -421,9 +525,9 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertArrayNotHasKey("error", $span);
-        $this->assertArrayNotHasKey("error.message", $span['meta']);
+        $this->assertArrayNotHasKey("error.message", $span['attributes']);
         $this->assertSame("internal", $span['name']);
         $this->assertSame("test.span", $span['resource']);
     }
@@ -437,10 +541,10 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertNotEmpty($span['meta'][Tag::ERROR_STACK]);
+        $this->assertNotEmpty($span['attributes'][Tag::ERROR_STACK]);
     }
 
     public function testSpanNameUpdate()
@@ -452,7 +556,7 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame('new.name', $span['resource']);
     }
 
@@ -473,12 +577,12 @@ final class TracerTest extends BaseTestCase
             ]);
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertSame('error message', $span['meta']['error.message']);
-        $this->assertEquals(1, $span['error']);
-        $this->assertSame('bar', $span['meta']['foo']);
+        $this->assertSame('error message', $span['attributes']['error.message']);
+        $this->assertTrue($span['error']);
+        $this->assertSame('bar', $span['attributes']['foo']);
     }
 
     public function testConcurrentSpans()
@@ -514,25 +618,23 @@ final class TracerTest extends BaseTestCase
             }
         });
 
-        $spans = $traces[0];
+        $spans = (new SpanChecker())->flattenTraces($traces);
         $rootSpan = $spans[0];
         $httpSpans = [$spans[3], $spans[2], $spans[1]];
         $this->assertCount(4, $spans);
 
-        $traceId = $rootSpan['trace_id'];
-        $this->assertNotEmpty($traceId);
-
-        $this->assertSame($traceId, $rootSpan['span_id']);
+        foreach ($traces as $trace) {
+            $this->assertSame(SpanChecker::traceIdLow($trace), $rootSpan['span_id']);
+        }
         for ($i = 1; $i <= 3; $i++) {
             $httpSpan = $httpSpans[$i - 1];
-            $this->assertSame($traceId, $httpSpan['trace_id']);
             $this->assertSame($rootSpan['span_id'], $httpSpan['parent_id']);
 
             $this->assertSame("http-$i", $httpSpan['resource']);
-            $this->assertSame("GET", $httpSpan['meta']['http.method']);
-            $this->assertSame("example.com/$i", $httpSpan['meta']['http.url']);
-            $this->assertSame('200', $httpSpan['meta']['http.status_code']);
-            $this->assertSame('1024', $httpSpan['meta']['http.response_content_length']);
+            $this->assertSame("GET", $httpSpan['attributes']['http.method']);
+            $this->assertSame("example.com/$i", $httpSpan['attributes']['http.url']);
+            $this->assertSame('200', $httpSpan['attributes']['http.status_code']);
+            $this->assertSame('1024', $httpSpan['attributes']['http.response_content_length']);
         }
     }
 
@@ -550,9 +652,9 @@ final class TracerTest extends BaseTestCase
             $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};t.congo:t61rcWkgMzE;t.some_val:tehehe;t.dm:-0,ot=rv:[0-9a-f]{14};th:0$/', (string)$span->getContext()->getTraceState());
         });
 
-        $span = $traces[0][0];
-        $this->assertSame('t61rcWkgMzE', $span['meta']['_dd.p.congo']);
-        $this->assertSame('tehehe', $span['meta']['_dd.p.some_val']);
+        $span = $traces[0]['spans'][0];
+        $this->assertSame('t61rcWkgMzE', $span['attributes']['_dd.p.congo']);
+        $this->assertSame('tehehe', $span['attributes']['_dd.p.some_val']);
     }
 
     /**
@@ -560,12 +662,9 @@ final class TracerTest extends BaseTestCase
      */
     public function testGetSpanContextWithRemoteParent(int $traceFlags, ?TraceState $traceState)
     {
-        // 128-bit trace id = low-64 trace_id (as decimal) + high-64 _dd.p.tid (as hex) * 2^64
-        $low = "11803532876627986230";
-        $high = "4bf92f3577b34da6";
         $decSpanId = "67667974448284343";
 
-        $traces = $this->isolateTracer(function () use ($traceFlags, $traceState, $low, $decSpanId) {
+        $traces = $this->isolateTracer(function () use ($traceFlags, $traceState, $decSpanId) {
             $remoteContext =  SpanContext::createFromRemoteParent(
                 '4bf92f3577b34da6a3ce929d0e0e4736',
                 '00f067aa0ba902b7',
@@ -594,10 +693,8 @@ final class TracerTest extends BaseTestCase
             $this->assertSame("dd=p:" . $child->getContext()->getSpanID() . ";t.dm:-0" . ($traceState ? ",$traceState" : ""), (string)$childContext->getTraceState());
         });
 
-        $span = $traces[0][0];
-        $this->assertSame($low, $span['trace_id']);
-        $this->assertSame($high, $span['meta']['_dd.p.tid']);
-        $this->assertSame($decSpanId, $span['parent_id']);
+        $this->assertSame('4bf92f3577b34da6a3ce929d0e0e4736', $traces[0]['trace_id']);
+        $this->assertSame($decSpanId, $traces[0]['spans'][0]['parent_id']);
     }
 
     public function providerRemoteParent()
@@ -705,14 +802,11 @@ final class TracerTest extends BaseTestCase
             }
         });
 
-        $spans = $traces[0];
-        list($parentSpan, $childSpan) = $spans;
-        $this->assertNotEmpty($parentSpan['trace_id']);
-        $this->assertSame($parentSpan['trace_id'], $parentSpan['span_id']);
-        $this->assertSame($parentSpan['trace_id'], $childSpan['trace_id']);
-        $this->assertSame($parentSpan['span_id'], $childSpan['trace_id']);
+        list($parentSpan, $childSpan) = (new SpanChecker())->flattenTraces($traces);
+        foreach ($traces as $trace) {
+            $this->assertSame(SpanChecker::traceIdLow($trace), $parentSpan['span_id']);
+        }
         $this->assertNotSame($parentSpan['span_id'], $childSpan['span_id']);
-        $this->assertNotSame($childSpan['trace_id'], $childSpan['span_id']);
     }
 
     public function testMultipleTraceStateRemote()
@@ -838,11 +932,8 @@ final class TracerTest extends BaseTestCase
             }
         });
 
-        $spans = $traces[0];
-        list($childSpan) = $spans;
-        $this->assertSame("11803532876627986230", $childSpan['trace_id']);
-        $this->assertSame("4bf92f3577b34da6", $childSpan['meta']['_dd.p.tid']);
-        $this->assertSame("67667974448284343", $childSpan['parent_id']);
+        $this->assertSame("4bf92f3577b34da6a3ce929d0e0e4736", $traces[0]['trace_id']);
+        $this->assertSame("67667974448284343", $traces[0]['spans'][0]['parent_id']);
     }
 
     public function testAddItemToTracestate()
@@ -878,13 +969,13 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0];
-        list($childSpan, $span) = $span;
+        list($childSpan, $span) = (new SpanChecker())->flattenTraces($traces);
 
-        $this->assertSame('t61rcWkgMzE', $span['meta']['_dd.p.congo']);
-        $this->assertSame('t61rcWkgMzE', $childSpan['meta']['_dd.p.congo']);
-        $this->assertSame('-0', $span['meta']['_dd.p.dm']);
-        $this->assertSame('-0', $childSpan['meta']['_dd.p.dm']);
+        $this->assertSame('t61rcWkgMzE', $span['attributes']['_dd.p.congo']);
+        $this->assertSame('t61rcWkgMzE', $childSpan['attributes']['_dd.p.congo']);
+        foreach ($traces as $trace) {
+            $this->assertSame(0, $trace['sampling_mechanism']); // _dd.p.dm '-0' is sampling_mechanism 0
+        }
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('internal', 'test.span')
@@ -917,7 +1008,7 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame('kafka.receive', $span['name']);
         $this->assertSame('operation', $span['resource']);
     }
@@ -940,15 +1031,16 @@ final class TracerTest extends BaseTestCase
             $this->assertNull(active_span());
         });
 
-        $spans = array_merge(...$traces);
+        $spans = (new SpanChecker())->flattenTraces($traces);
         $this->assertCount(2, $spans);
         $spans = array_column($spans, null, 'resource');
         $this->assertSame('dd.root', $spans['dd.root']['name']);
         $this->assertSame('internal', $spans['otel.child']['name']);
         $this->assertSame($spans['dd.root']['span_id'], $spans['otel.child']['parent_id']);
         $this->assertNotEquals(0, $spans['otel.child']['duration']);
-        $this->assertEquals(PrioritySampling::USER_REJECT, $spans['dd.root']['metrics']['_sampling_priority_v1']);
-        $this->assertEquals(PrioritySampling::USER_REJECT, $spans['otel.child']['metrics']['_sampling_priority_v1']);
+        foreach ($traces as $trace) {
+            $this->assertEquals(PrioritySampling::USER_REJECT, $trace['priority']);
+        }
     }
 
     public function testCustomSamplerDecidesTraceSampling()
@@ -961,10 +1053,10 @@ final class TracerTest extends BaseTestCase
                 $this->assertNull(active_span());
             });
 
-            $span = $traces[0][0];
+            $span = $traces[0]['spans'][0];
             $this->assertSame('otel.root', $span['resource']);
             $this->assertNotEquals(0, $span['duration']);
-            $this->assertEquals($priority, $span['metrics']['_sampling_priority_v1']);
+            $this->assertEquals($priority, $traces[0]['priority']);
         }
     }
 
@@ -985,8 +1077,8 @@ final class TracerTest extends BaseTestCase
             putenv('OTEL_TRACES_SAMPLER_ARG');
         }
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame('otel.root', $span['resource']);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $traces[0]['priority']);
     }
 }

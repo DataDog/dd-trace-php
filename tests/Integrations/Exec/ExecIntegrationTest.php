@@ -38,11 +38,11 @@ class ExecIntegrationTest extends IntegrationTestCase
             'component' => 'subprocess',
         ];
         if ($sf != 'shell_exec') {
-            $expectedTags['cmd.exit_code'] = '33';
+            $expectedTags['cmd.exit_code'] = 33;
         }
         $this->assertSpans($traces, [
-            SpanAssertion::build('command_execution', $traces[0][0]['service'], 'system', 'sh')
-                ->withExactTags($expectedTags)
+            SpanAssertion::build('command_execution', $traces[0]['spans'][0]['service'], 'system', 'sh')
+                ->withExactAttributes($expectedTags)
         ]);
     }
 
@@ -65,11 +65,11 @@ class ExecIntegrationTest extends IntegrationTestCase
         $expectedTags = [
             'cmd.shell' => 'echo -n foo; exit 33',
             'component' => 'subprocess',
-            'cmd.exit_code' => '33',
+            'cmd.exit_code' => 33,
         ];
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'sh',
             $expectedTags
@@ -95,11 +95,11 @@ class ExecIntegrationTest extends IntegrationTestCase
         $expectedTags = [
             'cmd.shell' => 'echo -n foo; exit 33',
             'component' => 'subprocess',
-            'cmd.exit_code' => '33'
+            'cmd.exit_code' => 33
         ];
         $this->assertSpans($traces, [
-            SpanAssertion::build('command_execution', $traces[0][0]['service'], 'system', 'sh')
-                ->withExactTags($expectedTags)
+            SpanAssertion::build('command_execution', $traces[0]['spans'][0]['service'], 'system', 'sh')
+                ->withExactAttributes($expectedTags)
         ]);
     }
 
@@ -127,14 +127,14 @@ class ExecIntegrationTest extends IntegrationTestCase
             'component' => 'subprocess',
         ];
         if ($sf != 'shell_exec') {
-            $expectedTags['cmd.exit_code'] = '9';
+            $expectedTags['cmd.exit_code'] = 9;
         }
         if ($sf == 'proc_open') {
             $expectedTags['error.message'] = 'The process was terminated by a signal';
         }
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'sh',
             $expectedTags,
@@ -167,7 +167,7 @@ class ExecIntegrationTest extends IntegrationTestCase
         ];
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'sh',
             $expectedTags
@@ -218,13 +218,13 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'sh',
             [
                 'cmd.shell' => 'exit 33',
                 'component' => 'subprocess',
-                'cmd.exit_code' => '33',
+                'cmd.exit_code' => 33,
             ]
         );
 
@@ -247,13 +247,13 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'sh',
             [
                 'cmd.shell' => 'exit 33',
                 'component' => 'subprocess',
-                'cmd.exit_code' => '33',
+                'cmd.exit_code' => 33,
             ]
         );
 
@@ -273,13 +273,13 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'sh',
             [
                 'cmd.shell' => 'exit 33',
                 'component' => 'subprocess',
-                'cmd.exit_code' => '33',
+                'cmd.exit_code' => 33,
             ]
         );
 
@@ -300,13 +300,13 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'sh',
             [
                 'cmd.shell' => 'kill -9 $$',
                 'component' => 'subprocess',
-                'cmd.exit_code' => '9',
+                'cmd.exit_code' => 9,
                 'error.message' => 'The process was terminated by a signal',
             ],
             null,
@@ -340,13 +340,13 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'exit_33.sh',
             [
                 'cmd.exec' => '["' . __DIR__ . '/exit_33.sh","foo$","bar"]',
                 'component' => 'subprocess',
-                'cmd.exit_code' => '33',
+                'cmd.exit_code' => 33,
             ]
         );
 
@@ -372,13 +372,13 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'exit_33.sh',
             [
                 'cmd.exec' => '["' . __DIR__ . '/exit_33.sh","--password=?","-pass","?"]',
                 'component' => 'subprocess',
-                'cmd.exit_code' => '33',
+                'cmd.exit_code' => 33,
             ]
         );
 
@@ -436,7 +436,7 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $spanAssertion = SpanAssertion::build(
             'command_execution',
-            $traces[0][0]['service'],
+            $traces[0]['spans'][0]['service'],
             'system',
             'sh',
             [
@@ -446,7 +446,7 @@ class ExecIntegrationTest extends IntegrationTestCase
             null,
             true
         );
-        $spanAssertion->withExistingTagsNames(['error.message', 'error.type', 'error.stack']);
+        $spanAssertion->withExistingAttributeNames(['error.message', 'error.type', 'error.stack']);
 
         $this->assertSpans($traces, [$spanAssertion]);
     }
@@ -480,7 +480,7 @@ class ExecIntegrationTest extends IntegrationTestCase
         } else {
             $spanAssertion = SpanAssertion::build(
                 'command_execution',
-                $traces[0][0]['service'],
+                $traces[0]['spans'][0]['service'],
                 'system',
                 'sh',
                 [
@@ -490,7 +490,7 @@ class ExecIntegrationTest extends IntegrationTestCase
                 null,
                 true
             );
-            $spanAssertion->withExistingTagsNames(['error.message', 'error.type', 'error.stack']);
+            $spanAssertion->withExistingAttributeNames(['error.message', 'error.type', 'error.stack']);
 
             $this->assertSpans($traces, [$spanAssertion]);
         }
@@ -514,8 +514,8 @@ class ExecIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('command_execution', $traces[0][0]['service'], 'system', 'sh')
-                ->withExactTags([
+            SpanAssertion::build('command_execution', $traces[0]['spans'][0]['service'], 'system', 'sh')
+                ->withExactAttributes([
                     'cmd.shell' => 'true',
                     'component' => 'subprocess',
                 ])
@@ -537,7 +537,7 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $this->assertEquals(
             "md5(){ return; }; FOO=? BAR=? echo foo -- --password=? -pass ?; md5 ? ?",
-            $traces[0][0]['meta']['cmd.shell']
+            $traces[0]['spans'][0]['attributes']['cmd.shell']
         );
     }
 
@@ -554,8 +554,9 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $this->assertEquals(
             4 * 1024,
-            strlen($traces[0][0]['meta']['cmd.shell'])
+            strlen($traces[0]['spans'][0]['attributes']['cmd.shell'])
         );
+        $this->assertTrue($traces[0]['spans'][0]['attributes']['cmd.truncated']);
     }
 
     /**
@@ -582,8 +583,9 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $this->assertEquals(
             '["echo","' . str_repeat('a', 4092) . '",""]',
-            $traces[0][0]['meta']['cmd.exec']
+            $traces[0]['spans'][0]['attributes']['cmd.exec']
         );
+        $this->assertTrue($traces[0]['spans'][0]['attributes']['cmd.truncated']);
     }
 
     public function testProcOpenInjectsSessionIds()

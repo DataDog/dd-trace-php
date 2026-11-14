@@ -22,7 +22,7 @@ function test_endpoint_with_route($path, $route) {
 
     DDTrace\close_span();
 
-    $spans = dd_trace_serialize_closed_spans();
+    $spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     if (count($spans) > 0) {
         $span_data = $spans[0];
         if ($route !== null) {
@@ -30,13 +30,13 @@ function test_endpoint_with_route($path, $route) {
         } else {
             echo "Path: ", $path, ", No Route\n";
         }
-        if (isset($span_data['meta']['http.endpoint'])) {
-            echo "Endpoint: ", $span_data['meta']['http.endpoint'], "\n";
+        if (isset($span_data['attributes']['http.endpoint'])) {
+            echo "Endpoint: ", $span_data['attributes']['http.endpoint'], "\n";
         } else {
             echo "Endpoint: (not set)\n";
         }
-        if (isset($span_data['meta']['http.route'])) {
-            echo "Route: ", $span_data['meta']['http.route'], "\n";
+        if (isset($span_data['attributes']['http.route'])) {
+            echo "Route: ", $span_data['attributes']['http.route'], "\n";
         } else {
             echo "Route: (not set)\n";
         }

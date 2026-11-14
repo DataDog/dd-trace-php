@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Drupal;
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
@@ -20,14 +21,6 @@ class DrupalIntegration extends Integration
 {
     const NAME = 'drupal';
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function init(): int
     {
         ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
@@ -39,21 +32,21 @@ class DrupalIntegration extends Integration
                 'prehook' => static function (SpanData $span) {
                     // A pre-hook is used here to ensure that the root span name is set before the symfony integration
                     // checks for it.
-                    $service = \ddtrace_config_app_name('drupal');
+                    $service = \dd_trace_env_config('DD_SERVICE') ?: 'drupal';
 
                     $rootSpan = \DDTrace\root_span();
                     $rootSpan->name = 'drupal.request';
                     $rootSpan->service = $service;
                     Integration::tagFrameworkServiceSource($rootSpan, 'drupal');
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
+                    $rootSpan->spanKind = SpanKind::SERVER;
+                    $rootSpan->component = self::NAME;
 
                     $span->name = 'drupal.kernel.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     Integration::tagFrameworkServiceSource($span, 'drupal');
-                    $span->meta[Tag::SPAN_KIND] = 'server';
-                    $span->meta[Tag::COMPONENT] = self::NAME;
+                    $span->spanKind = SpanKind::SERVER;
+                    $span->component = self::NAME;
                 }
             ]
         );
@@ -125,9 +118,9 @@ class DrupalIntegration extends Integration
                                 $span->type = Type::WEB_SERVLET;
                                 Integration::setComponentMetadata($span, 'drupal');
 
-                                $span->meta['drupal.hook'] = $hook;
-                                $span->meta['drupal.module'] = $module;
-                                $span->meta['drupal.function'] = $functionName;
+                                $span->attributes['drupal.hook'] = $hook;
+                                $span->attributes['drupal.module'] = $module;
+                                $span->attributes['drupal.function'] = $functionName;
 
                                 remove_hook($fnHookData->id);
                             }
@@ -166,9 +159,9 @@ class DrupalIntegration extends Integration
                                     Integration::setComponentMetadata($span, 'drupal');
                                     $span->resource = $functionName;
 
-                                    $span->meta['drupal.hook'] = $hook;
-                                    $span->meta['drupal.module'] = $module;
-                                    $span->meta['drupal.function'] = $functionName;
+                                    $span->attributes['drupal.hook'] = $hook;
+                                    $span->attributes['drupal.module'] = $module;
+                                    $span->attributes['drupal.function'] = $functionName;
 
                                     remove_hook($fnHookData->id);
                                 }
@@ -200,7 +193,7 @@ class DrupalIntegration extends Integration
                 if (method_exists($storage, 'label')) {
                     $label = $storage->label();
                     if (is_string($label)) {
-                        $span->meta['drupal.view'] = $label;
+                        $span->attributes['drupal.view'] = $label;
                     }
                 }
             }
@@ -233,7 +226,7 @@ class DrupalIntegration extends Integration
 
         $tagTemplateFile = static function ($file) use (&$renderSpan) {
             if ($renderSpan) {
-                $renderSpan->meta['drupal.template.file'] = $file;
+                $renderSpan->attributes['drupal.template.file'] = $file;
             }
         };
 
@@ -273,10 +266,10 @@ class DrupalIntegration extends Integration
                 $renderSpan = $span;
 
                 $span->name = 'drupal.theme.render';
-                $span->service = \ddtrace_config_app_name('drupal');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'drupal';
                 Integration::tagFrameworkServiceSource($span, 'drupal');
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                $span->component = DrupalIntegration::NAME;
 
                 /** @var \Drupal\Core\Theme\ThemeManager $this */
                 $activeTheme = $this->getActiveTheme();
@@ -284,13 +277,13 @@ class DrupalIntegration extends Integration
                 $themeEngine = $activeTheme->getEngine();
 
                 if (!empty($themeName)) {
-                    $span->meta['drupal.render.theme'] = $themeName;
+                    $span->attributes['drupal.render.theme'] = $themeName;
                 }
 
                 if (empty($themeEngine)) {
                     return;
                 }
-                $span->meta['drupal.render.engine'] = $themeEngine;
+                $span->attributes['drupal.render.engine'] = $themeEngine;
 
                 // Drupal <= 11.2 renders through the {engine}_render_template() global. One hook per
                 // engine name for the whole request; $renderSpan does the attribution.
@@ -340,31 +333,31 @@ class DrupalIntegration extends Integration
                 }
 
                 if (!$runtimeThemeRegistry->has($hook)) {
-                    $span->meta['drupal.render.hook'] = $span->resource = $originalHook;
+                    $span->attributes['drupal.render.hook'] = $span->resource = $originalHook;
                     return;
                 }
 
-                $span->meta['drupal.render.hook'] = $span->resource = $hook;
+                $span->attributes['drupal.render.hook'] = $span->resource = $hook;
                 $info = $runtimeThemeRegistry->get($hook);
 
                 if (isset($info['base hook'])) {
-                    $span->meta['drupal.render.base_hook'] = $info['base hook'];
+                    $span->attributes['drupal.render.base_hook'] = $info['base hook'];
                 }
 
                 if (isset($info['type'])) {
-                    $span->meta['drupal.render.type'] = $info['type'];
+                    $span->attributes['drupal.render.type'] = $info['type'];
                 }
 
                 if (isset($info['render element'])) {
-                    $span->meta['drupal.render.element'] = $info['render element'];
+                    $span->attributes['drupal.render.element'] = $info['render element'];
                 }
 
                 if (isset($info['template'])) {
-                    $span->meta['drupal.template.template'] = $info['template'];
+                    $span->attributes['drupal.template.template'] = $info['template'];
                 }
 
                 if (isset($info['function'])) {
-                    $span->meta['drupal.render.theme_function'] = $info['function'];
+                    $span->attributes['drupal.render.theme_function'] = $info['function'];
                 }
 
                 if (isset($info['path'])) {
@@ -375,7 +368,7 @@ class DrupalIntegration extends Integration
                     if ($themePathStart !== false) {
                         $themePath = substr($path,  $themePathStart + 8); // Between '/themes/', 8 = strlen('/themes/')
                         $themePath = substr($themePath, 0, strpos($themePath, '/')); // Until the next '/'
-                        $span->meta['drupal.template.theme'] = $themePath;
+                        $span->attributes['drupal.template.theme'] = $themePath;
                     }
                 }
             }
@@ -435,10 +428,10 @@ class DrupalIntegration extends Integration
             'send',
             static function (SpanData $span) {
                 $span->name = 'symfony.response.send';
-                $span->service = \ddtrace_config_app_name('drupal');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'drupal';
                 Integration::tagFrameworkServiceSource($span, 'drupal');
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
             }
         );
 

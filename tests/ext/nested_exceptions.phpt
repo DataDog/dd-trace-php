@@ -18,9 +18,7 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(1) {
   [0]=>
-  array(11) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(10) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -38,11 +36,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["error"]=>
-    int(1)
-    ["meta"]=>
+    bool(true)
+    ["attributes"]=>
     array(3) {
       ["error.message"]=>
       string(%d) "Thrown RuntimeException: Some kind of message in %s:%d"
+      ["error.type"]=>
+      string(16) "RuntimeException"
       ["error.stack"]=>
       string(%d) "#0 {main}
 
@@ -53,8 +53,6 @@ Stack trace:
 Next Exception: This is a generic exception message in %s:%d
 Stack trace:
 #0 {main}"
-      ["error.type"]=>
-      string(16) "RuntimeException"
     }
   }
 }

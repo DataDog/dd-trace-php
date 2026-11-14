@@ -26,13 +26,13 @@ static ddtrace_distributed_tracing_result dd_init_empty_result(void) {
     result.priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     zend_hash_init(&result.tracestate_unknown_dd_keys, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.propagated_tags, 8, unused, ZVAL_PTR_DTOR, 0);
-    zend_hash_init(&result.meta_tags, 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&result.attributes, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.baggage, 8, unused, ZVAL_PTR_DTOR, 0);
     return result;
 }
 
 static void dd_check_tid(ddtrace_distributed_tracing_result *result) {
-    zval *tidzv = zend_hash_str_find(&result->meta_tags, ZEND_STRL("_dd.p.tid"));
+    zval *tidzv = zend_hash_str_find(&result->attributes, ZEND_STRL("_dd.p.tid"));
     if (tidzv && result->trace_id.low) {
         uint64_t tid = ddtrace_parse_hex_span_id(tidzv);
         uint64_t cur_high = result->trace_id.high;
@@ -42,14 +42,14 @@ static void dd_check_tid(ddtrace_distributed_tracing_result *result) {
             } else {
                 zval error;
                 ZVAL_STR(&error, zend_strpprintf(0, "inconsistent_tid %s", Z_STRVAL_P(tidzv)));
-                zend_hash_str_update(&result->meta_tags, ZEND_STRL("_dd.propagation_error"), &error);
+                zend_hash_str_update(&result->attributes, ZEND_STRL("_dd.propagation_error"), &error);
             }
         } else if (Z_TYPE_P(tidzv) == IS_STRING && strcmp(Z_STRVAL_P(tidzv), "0") != 0) {
             zval error;
             ZVAL_STR(&error, zend_strpprintf(0, "malformed_tid %s", Z_STRVAL_P(tidzv)));
-            zend_hash_str_update(&result->meta_tags, ZEND_STRL("_dd.propagation_error"), &error);
+            zend_hash_str_update(&result->attributes, ZEND_STRL("_dd.propagation_error"), &error);
         }
-        zend_hash_str_del(&result->meta_tags, ZEND_STRL("_dd.p.tid"));
+        zend_hash_str_del(&result->attributes, ZEND_STRL("_dd.p.tid"));
         zend_hash_str_del(&result->propagated_tags, ZEND_STRL("_dd.p.tid"));
     }
 }
@@ -91,7 +91,7 @@ static void ddtrace_parse_datadog_tracestate_member(ddtrace_distributed_tracing_
             if (*span_parent_key) {
                 zval zv;
                 ZVAL_STRINGL(&zv, valuestart, valuelen);
-                zend_hash_update(&result->meta_tags, *span_parent_key, &zv);
+                zend_hash_update(&result->attributes, *span_parent_key, &zv);
                 zend_string_release(*span_parent_key);
                 *span_parent_key = NULL;
             }
@@ -123,13 +123,13 @@ static void ddtrace_parse_datadog_tracestate_member(ddtrace_distributed_tracing_
                         *valptr = '=';
                     }
                 }
-                zend_hash_update(&result->meta_tags, tag_name, &zv);
+                zend_hash_update(&result->attributes, tag_name, &zv);
                 zend_hash_add_empty_element(&result->propagated_tags, tag_name);
                 zend_string_release(tag_name);
             } else {
                 zval error_zv;
                 ZVAL_STRING(&error_zv, "extract_max_size");
-                zend_hash_str_update(&result->meta_tags, ZEND_STRL("_dd.propagation_error"), &error_zv);
+                zend_hash_str_update(&result->attributes, ZEND_STRL("_dd.propagation_error"), &error_zv);
             }
         } else if (zend_hash_num_elements(&result->tracestate_unknown_dd_keys) < 100) {
             zval zv;
@@ -295,7 +295,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_d
     }
 
     if (read_header((zai_str)ZAI_STRL("X_DATADOG_TAGS"), "x-datadog-tags", &propagated_tags, data)) {
-        ddtrace_add_tracer_tags_from_header(propagated_tags, &result.meta_tags, &result.propagated_tags);
+        ddtrace_add_tracer_tags_from_header(propagated_tags, &result.attributes, &result.propagated_tags);
         zend_string_release(propagated_tags);
 
         dd_check_tid(&result);
@@ -511,7 +511,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
         if (span_parent_key) {
             zval zv;
             ZVAL_STRING(&zv, "0000000000000000");
-            zend_hash_update(&result.meta_tags, span_parent_key, &zv);
+            zend_hash_update(&result.attributes, span_parent_key, &zv);
             zend_string_release(span_parent_key);
         }
 
@@ -549,8 +549,8 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
         if (!has_trace) {
             zend_string *existing_origin = result.origin;
 
-            if (result.meta_tags.arData) {
-                zend_hash_destroy(&result.meta_tags);
+            if (result.attributes.arData) {
+                zend_hash_destroy(&result.attributes);
             }
             if (result.propagated_tags.arData) {
                 zend_hash_destroy(&result.propagated_tags);
@@ -592,15 +592,15 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 }
                 if (result.parent_id != new_result.parent_id) {
                     // set last datadog span_id tag
-                    zval *lp_id = zend_hash_str_find(&new_result.meta_tags, ZEND_STRL("_dd.parent_id"));
+                    zval *lp_id = zend_hash_str_find(&new_result.attributes, ZEND_STRL("_dd.parent_id"));
                     if (lp_id && !zend_string_equals_literal(Z_STR_P(lp_id), "0000000000000000")) {
                         Z_TRY_ADDREF_P(lp_id);
-                        zend_hash_str_update(&result.meta_tags, ZEND_STRL("_dd.parent_id"), lp_id);
+                        zend_hash_str_update(&result.attributes, ZEND_STRL("_dd.parent_id"), lp_id);
                     } else if (result.parent_id != 0) {
                         zval parent_id_zval;
                         ZVAL_STR(&parent_id_zval, zend_string_alloc(16, 0));
                         sprintf(Z_STRVAL_P(&parent_id_zval), "%016" PRIx64, result.parent_id);
-                        zend_hash_str_update(&result.meta_tags, ZEND_STRL("_dd.parent_id"), &parent_id_zval);
+                        zend_hash_str_update(&result.attributes, ZEND_STRL("_dd.parent_id"), &parent_id_zval);
                     }
                     result.parent_id = new_result.parent_id;
                 }
@@ -613,7 +613,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 zend_string_release(new_result.origin);
             }
 
-            zend_hash_destroy(&new_result.meta_tags);
+            zend_hash_destroy(&new_result.attributes);
             zend_hash_destroy(&new_result.propagated_tags);
             zend_hash_destroy(&new_result.tracestate_unknown_dd_keys);
             ddtrace_otel_sampling_clear(&new_result.otel_sampling);
@@ -644,7 +644,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
     return result;
 }
 
-void apply_baggage_span_tags(zend_string *key, zval *val, zend_array *meta) {
+void apply_baggage_span_tags(zend_string *key, zval *val, zend_array *attributes) {
     if (!zend_hash_exists(get_DD_TRACE_BAGGAGE_TAG_KEYS(), key)) {
         if (zend_hash_num_elements(get_DD_TRACE_BAGGAGE_TAG_KEYS()) != 1) {
             return;
@@ -657,7 +657,7 @@ void apply_baggage_span_tags(zend_string *key, zval *val, zend_array *meta) {
     }
 
     key = zend_strpprintf(0, "baggage.%s", ZSTR_VAL(key));
-    zend_hash_update(meta, key, val);
+    zend_hash_update(attributes, key, val);
     zend_string_release(key);
     Z_TRY_ADDREF_P(val);
 }
@@ -669,7 +669,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
     // behavior=ignore: drop all extracted context including baggage
     case DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_IGNORE:
         zend_hash_destroy(&result->propagated_tags);
-        zend_hash_destroy(&result->meta_tags);
+        zend_hash_destroy(&result->attributes);
         zend_hash_destroy(&result->tracestate_unknown_dd_keys);
         zend_hash_destroy(&result->baggage);
         if (result->origin) { zend_string_release(result->origin); }
@@ -709,7 +709,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
                 ZVAL_COPY_VALUE(&DDTRACE_G(pending_upstream_span_link), &link_zv);
             }
 
-            zend_hash_clean(&result->meta_tags);
+            zend_hash_clean(&result->attributes);
             zend_hash_clean(&result->propagated_tags);
             zend_hash_clean(&result->tracestate_unknown_dd_keys);
             if (result->origin) {
@@ -731,22 +731,19 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         break;
     }
 
-    zend_array *root_meta = span ? ddtrace_property_array(&span->property_meta) : &DDTRACE_G(root_span_tags_preset);
+    zend_array *root_attributes = span ? ddtrace_property_array(&span->property_attributes) : &DDTRACE_G(root_span_tags_preset);
     if (span) {
-        zend_string *tagname;
-        ZEND_HASH_FOREACH_STR_KEY(ddtrace_property_array(&span->property_propagated_tags), tagname) {
-            zend_hash_del(root_meta, tagname);
-        } ZEND_HASH_FOREACH_END();
+        ddtrace_drop_propagated_tags(root_attributes, ddtrace_property_array(&span->property_propagated_tags));
 
         ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
         *Z_ARR(zv) = result->propagated_tags;
         datadog_assign_variable(&span->property_propagated_tags, &zv);
 
-        zend_hash_copy(root_meta, &result->meta_tags, NULL);
+        zend_hash_copy(root_attributes, &result->attributes, NULL);
         ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(span);
         if (inferred_span) {
-            zend_array *inferred_meta = ddtrace_property_array(&inferred_span->property_meta);
-            zend_hash_copy(inferred_meta, &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
+            zend_array *inferred_attributes = ddtrace_property_array(&inferred_span->property_attributes);
+            zend_hash_copy(inferred_attributes, &result->attributes, (copy_ctor_func_t)zval_add_ref);
         }
 
         if (result->origin) {
@@ -771,7 +768,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         ZEND_HASH_FOREACH_KEY_VAL(&result->baggage, key_i, key, val) {
             if (key) {
                 zend_hash_update(existing_baggage, key, val);
-                apply_baggage_span_tags(key, val, root_meta);
+                apply_baggage_span_tags(key, val, root_attributes);
             } else {
                 zend_hash_index_update(existing_baggage, key_i, val);
             }
@@ -793,7 +790,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         DDTRACE_G(propagated_root_span_tags) = result->propagated_tags;
         zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
         DDTRACE_G(tracestate_unknown_dd_keys) = result->tracestate_unknown_dd_keys;
-        zend_hash_copy(&DDTRACE_G(root_span_tags_preset), &result->meta_tags, NULL);
+        zend_hash_copy(&DDTRACE_G(root_span_tags_preset), &result->attributes, NULL);
         if (DDTRACE_G(dd_origin)) {
             zend_string_release(DDTRACE_G(dd_origin));
         }
@@ -821,8 +818,8 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
     }
 
     ddtrace_otel_sampling_clear(&result->otel_sampling);
-    result->meta_tags.pDestructor = NULL; // we moved values directly
-    zend_hash_destroy(&result->meta_tags);
+    result->attributes.pDestructor = NULL; // we moved values directly
+    zend_hash_destroy(&result->attributes);
 
     if (result->trace_id.low || result->trace_id.high || result->priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         if (span) {
@@ -834,14 +831,14 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
     }
 
     if (result->priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
-        bool reset_decision_maker = result->conflicting_sampling_priority || !zend_hash_str_exists(root_meta, ZEND_STRL("_dd.p.dm"));
+        bool reset_decision_maker = result->conflicting_sampling_priority || !zend_hash_str_exists(root_attributes, ZEND_STRL("_dd.p.dm"));
         if (reset_decision_maker) {
             if (result->priority_sampling > 0) {
                 ZVAL_STRINGL(&zv, "-0", 2);
-                zend_hash_str_update(root_meta, ZEND_STRL("_dd.p.dm"), &zv);
+                zend_hash_str_update(root_attributes, ZEND_STRL("_dd.p.dm"), &zv);
                 zend_hash_str_add_empty_element(span ? ddtrace_property_array(&span->property_propagated_tags) : &DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.dm"));
             } else {
-                zend_hash_str_del(root_meta, ZEND_STRL("_dd.p.dm"));
+                zend_hash_str_del(root_attributes, ZEND_STRL("_dd.p.dm"));
             }
         }
         if (!span) {

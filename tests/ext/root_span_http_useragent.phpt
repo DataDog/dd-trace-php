@@ -8,8 +8,8 @@ HTTP_USER_AGENT=dd_trace_user_agent
 <?php
 DDTrace\start_span();
 DDTrace\close_span(0);
-$span = dd_trace_serialize_closed_spans();
-var_dump($span[0]["meta"]["http.useragent"]);
+$span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+var_dump($span[0]["attributes"]["http.useragent"]);
 ?>
 --EXPECTF--
 string(19) "dd_trace_user_agent"

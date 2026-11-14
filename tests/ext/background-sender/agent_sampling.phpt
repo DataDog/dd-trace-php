@@ -2,6 +2,7 @@
 The background sender informs about changes to the agent sample rate
 --SKIPIF--
 <?php
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no background sender on Windows');
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
 ?>
@@ -24,11 +25,10 @@ $rr = new RequestReplayer();
 
 $get_sampling = function() use ($rr) {
     $root = json_decode($rr->waitForDataAndReplay()["body"], true);
-    $spans = $root["chunks"][0]["spans"] ?? $root[0];
     // Ensure the BGS has finished processing the HTTP response (writing agent rates to SHM)
     // before the caller changes the mock response.
     dd_trace_internal_fn("synchronous_flush");
-    return $spans[0]["metrics"]["_sampling_priority_v1"];
+    return RequestReplayer::chunkPriority($root);
 };
 
 $rr->setResponse(["rate_by_service" => ["service:,env:" => 0]]);
@@ -59,10 +59,10 @@ echo "Specific sampling: {$get_sampling()}\n";
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
 Initial sampling: 1
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
 Generic sampling: 0
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
 Specific sampling: 1
 [ddtrace] [info] [%d] No finished traces to be sent to the agent

@@ -40,15 +40,15 @@ class CakePHPIntegrationLoader
                         $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->getParam('action');
                 }
 
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = Router::url($request->getAttribute('here'), true)
+                if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                    $rootSpan->attributes[Tag::HTTP_URL] = Router::url($request->getAttribute('here'), true)
                         . Normalizer::sanitizedQueryString();
                 }
-                $rootSpan->meta['cakephp.route.controller'] = $request->getParam('controller');
-                $rootSpan->meta['cakephp.route.action'] = $request->getParam('action');
+                $rootSpan->attributes['cakephp.route.controller'] = $request->getParam('controller');
+                $rootSpan->attributes['cakephp.route.action'] = $request->getParam('action');
                 $plugin = $request->getParam('plugin');
                 if ($plugin) {
-                    $rootSpan->meta['cakephp.plugin'] = $plugin;
+                    $rootSpan->attributes['cakephp.plugin'] = $plugin;
                 }
             }
         );
@@ -97,16 +97,16 @@ class CakePHPIntegrationLoader
                 /** @var \Cake\View\View $this */
                 $file = $this->getTemplatePath() . '/' . $this->getTemplate() . $fileExtension;
                 $span->resource = $file;
-                $span->meta['cakephp.view'] = $file;
+                $span->attributes['cakephp.view'] = $file;
 
                 $plugin = $this->getPlugin();
                 if ($plugin) {
-                    $span->meta['cakephp.plugin'] = $plugin;
+                    $span->attributes['cakephp.plugin'] = $plugin;
                 }
 
                 $theme = $this->getTheme();
                 if ($theme) {
-                    $span->meta['cakephp.theme'] = $theme;
+                    $span->attributes['cakephp.theme'] = $theme;
                 }
         });
 

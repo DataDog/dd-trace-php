@@ -24,7 +24,7 @@ namespace DDTrace\Test
     {
         static function init(): int
         {
-            dd_trace_method("Test", "public_static_method", function() {
+            \DDTrace\trace_method("Test", "public_static_method", function() {
                 echo "test_access hook" . PHP_EOL;
             });
             return self::LOADED;

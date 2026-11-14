@@ -38,7 +38,7 @@ DDTrace\trace_function('flushTracer', function () {
     echo 'Flushing...' . PHP_EOL;
     array_map(function($span) {
         echo $span['name'] . PHP_EOL;
-    }, dd_trace_serialize_closed_spans());
+    }, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
     DDTrace\Testing\trigger_error('Fatal error while flushing', E_ERROR);
     echo 'You should not see this.' . PHP_EOL;
     var_dump(error_get_last());

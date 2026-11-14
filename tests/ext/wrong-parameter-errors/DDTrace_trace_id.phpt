@@ -1,5 +1,7 @@
 --TEST--
 DDTrace_trace_id is passed wrong parameters
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 
@@ -21,5 +23,6 @@ if (PHP_VERSION_ID < 70100) {
 
 
 ?>
---EXPECT--
+--EXPECTF--
+Deprecated: Function DDTrace\trace_id() is deprecated in %s on line %d
 OK

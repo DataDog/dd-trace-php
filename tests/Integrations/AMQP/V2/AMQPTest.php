@@ -46,7 +46,7 @@ class AMQPTest extends IntegrationTestCase
                     'PhpAmqpLib\Exception\AMQPIOException',
                     'Connection refused',
                     true
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND                  => 'client',
                     Tag::COMPONENT                  => 'amqp',
                     '_dd.svc_src' => 'amqp',
@@ -94,7 +94,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -108,7 +108,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -123,7 +123,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'basic.consume hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -133,7 +133,7 @@ class AMQPTest extends IntegrationTestCase
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
                 Tag::MQ_OPERATION               => 'receive',
                 Tag::MQ_DESTINATION             => 'hello',
-            ])->withExistingTagsNames([
+            ])->withExistingAttributeNames([
                 Tag::MQ_CONSUMER_ID
             ])->withChildren([
                 SpanAssertion::build(
@@ -141,7 +141,7 @@ class AMQPTest extends IntegrationTestCase
                     'amqp',
                     'queue',
                     'basic.consume_ok'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND                  => 'server',
                     Tag::COMPONENT                  => 'amqp',
                     '_dd.svc_src' => 'amqp',
@@ -157,7 +157,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -171,7 +171,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -186,7 +186,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'basic.publish <default> -> hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -204,7 +204,7 @@ class AMQPTest extends IntegrationTestCase
                     'amqp',
                     'queue',
                     'basic.deliver <default> -> hello'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND                  => 'consumer',
                     Tag::COMPONENT                  => 'amqp',
                     '_dd.svc_src' => 'amqp',
@@ -216,18 +216,16 @@ class AMQPTest extends IntegrationTestCase
                     Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
                     Tag::MQ_OPERATION               => 'receive',
                     Tag::RABBITMQ_EXCHANGE          => '<default>',
-                ])->withExistingTagsNames([
+                ])->withExistingAttributeNames([
                     Tag::MQ_CONSUMER_ID,
-                    '_dd.span_links',
-                    '_dd.p.tid'
-                ])
+                ])->withSpanLinks()
             ]),
             SpanAssertion::build(
                 'amqp.basic.deliver',
                 'amqp',
                 'queue',
                 'basic.deliver <default> -> hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'consumer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -239,10 +237,9 @@ class AMQPTest extends IntegrationTestCase
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
                 Tag::MQ_OPERATION               => 'receive',
                 Tag::RABBITMQ_EXCHANGE          => '<default>',
-            ])->withExistingTagsNames([
+            ])->withExistingAttributeNames([
                 Tag::MQ_CONSUMER_ID,
-                '_dd.span_links'
-            ])
+            ])->withSpanLinks()
         ]);
 
         $this->assertTrue($receivedMessage);
@@ -298,7 +295,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -312,7 +309,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'exchange.declare direct_logs'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -327,7 +324,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare <generated>'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -342,7 +339,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.bind <generated> direct_logs -> info'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -359,7 +356,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.bind <generated> direct_logs -> warning'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -376,7 +373,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.bind <generated> direct_logs -> error'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -393,7 +390,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'basic.consume <generated>'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -403,7 +400,7 @@ class AMQPTest extends IntegrationTestCase
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
                 Tag::MQ_DESTINATION             => '<generated>',
                 Tag::MQ_OPERATION               => 'receive',
-            ])->withExistingTagsNames([
+            ])->withExistingAttributeNames([
                 Tag::MQ_CONSUMER_ID
             ])->withChildren([
                 SpanAssertion::build(
@@ -411,7 +408,7 @@ class AMQPTest extends IntegrationTestCase
                     'amqp',
                     'queue',
                     'basic.consume_ok'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
                     '_dd.svc_src' => 'amqp',
@@ -427,7 +424,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -441,7 +438,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'exchange.declare direct_logs'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -456,7 +453,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'basic.publish direct_logs -> error'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -474,7 +471,7 @@ class AMQPTest extends IntegrationTestCase
                     'amqp',
                     'queue',
                     'basic.deliver direct_logs -> error'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND                  => 'consumer',
                     Tag::COMPONENT                  => 'amqp',
                     '_dd.svc_src' => 'amqp',
@@ -486,18 +483,16 @@ class AMQPTest extends IntegrationTestCase
                     Tag::RABBITMQ_ROUTING_KEY       => 'error',
                     Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 29,
                     Tag::MQ_OPERATION               => 'receive',
-                ])->withExistingTagsNames([
+                ])->withExistingAttributeNames([
                     Tag::MQ_CONSUMER_ID,
-                    '_dd.span_links',
-                    '_dd.p.tid'
-                ])
+                ])->withSpanLinks()
             ]),
             SpanAssertion::build(
                 'amqp.basic.deliver',
                 'amqp',
                 'queue',
                 'basic.deliver direct_logs -> error'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'consumer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -509,10 +504,9 @@ class AMQPTest extends IntegrationTestCase
                 Tag::RABBITMQ_ROUTING_KEY       => 'error',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 29,
                 Tag::MQ_OPERATION               => 'receive',
-            ])->withExistingTagsNames([
+            ])->withExistingAttributeNames([
                 Tag::MQ_CONSUMER_ID,
-                '_dd.span_links'
-            ])
+            ])->withSpanLinks()
         ]);
 
         $this->assertTrue($receivedMessage);
@@ -543,7 +537,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -557,7 +551,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -572,7 +566,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'basic.consume hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -582,7 +576,7 @@ class AMQPTest extends IntegrationTestCase
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
                 Tag::MQ_DESTINATION             => 'hello',
                 Tag::MQ_OPERATION               => 'receive',
-            ])->withExistingTagsNames([
+            ])->withExistingAttributeNames([
                 Tag::MQ_CONSUMER_ID
             ])->withChildren([
                 SpanAssertion::build(
@@ -590,7 +584,7 @@ class AMQPTest extends IntegrationTestCase
                     'amqp',
                     'queue',
                     'basic.consume_ok'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
                     '_dd.svc_src' => 'amqp',
@@ -601,7 +595,7 @@ class AMQPTest extends IntegrationTestCase
                     Tag::MQ_OPERATION           => 'process',
                 ])
             ]),
-            SpanAssertion::exists('amqp.basic.cancel')->withExactTags([
+            SpanAssertion::exists('amqp.basic.cancel')->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -616,7 +610,7 @@ class AMQPTest extends IntegrationTestCase
                     'amqp',
                     'queue',
                     'basic.cancel_ok'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
                     '_dd.svc_src' => 'amqp',
@@ -654,7 +648,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -668,7 +662,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -683,7 +677,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'basic.publish <default> -> hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -698,7 +692,7 @@ class AMQPTest extends IntegrationTestCase
             ])->setError(
                 'PhpAmqpLib\Exception\AMQPChannelClosedException',
                 'Channel connection is closed'
-            )->withExistingTagsNames([
+            )->withExistingAttributeNames([
                 Tag::ERROR_STACK
             ])
         ]);
@@ -723,7 +717,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -737,7 +731,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare hello'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -752,7 +746,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'reconnect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -766,7 +760,7 @@ class AMQPTest extends IntegrationTestCase
                     'amqp',
                     'queue',
                     'connect'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND                  => 'client',
                     Tag::COMPONENT                  => 'amqp',
                     '_dd.svc_src' => 'amqp',
@@ -807,7 +801,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -821,7 +815,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare basic_get_queue'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -836,7 +830,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'exchange.declare basic_get_test'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -851,7 +845,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.bind basic_get_queue basic_get_test -> <all>'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -868,7 +862,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'basic.publish basic_get_test -> <all>'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -880,14 +874,14 @@ class AMQPTest extends IntegrationTestCase
                 Tag::MQ_OPERATION               => 'send',
                 Tag::RABBITMQ_ROUTING_KEY       => '<all>',
                 Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
-                Tag::RABBITMQ_DELIVERY_MODE     => '2'
+                Tag::RABBITMQ_DELIVERY_MODE     => 2
             ]),
             SpanAssertion::build(
                 'amqp.basic.get',
                 'amqp',
                 'queue',
                 'basic.get basic_get_queue'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'consumer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -900,16 +894,14 @@ class AMQPTest extends IntegrationTestCase
                 Tag::MQ_OPERATION               => 'receive',
                 Tag::RABBITMQ_ROUTING_KEY       => '<all>',
                 Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
-                Tag::RABBITMQ_DELIVERY_MODE     => '2'
-            ])->withExistingTagsNames([
-                '_dd.span_links'
-            ]),
+                Tag::RABBITMQ_DELIVERY_MODE     => 2
+            ])->withSpanLinks(),
             SpanAssertion::build(
                 'amqp.basic.ack',
                 'amqp',
                 'queue',
                 'basic.ack 1'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'process',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -954,20 +946,20 @@ class AMQPTest extends IntegrationTestCase
         // Assess that user headers weren't lost
         $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
 
-        $sendTraces = $sendTraces[0][0]; // There is a root span
+        $sendTrace = $sendTraces[0][0]; // There is a root span
         // Spans: send.php -> basic_publish -> queue_declare -> connect
-        $basicPublishSpan = $sendTraces[1];
+        $basicPublishSpan = $sendTrace['spans'][1];
 
         foreach ($receiveTraces as $receiveTrace) {
             // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
-            if ($receiveTrace[0]["name"] == "amqp.basic.deliver" && isset($receiveTrace[0]["parent_id"])) {
-                $basicDeliverSpan = $receiveTrace[0];
+            if ($receiveTrace['spans'][0]["name"] == "amqp.basic.deliver" && isset($receiveTrace['spans'][0]["parent_id"])) {
+                $basicDeliverTrace = $receiveTrace;
                 break;
             }
         }
 
-        $this->assertSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
-        $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
+        $this->assertSame($sendTrace['trace_id'], $basicDeliverTrace['trace_id']);
+        $this->assertSame($basicPublishSpan['span_id'], $basicDeliverTrace['spans'][0]['parent_id']);
     }
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
@@ -1001,15 +993,13 @@ class AMQPTest extends IntegrationTestCase
         // Assess that user headers weren't lost
         $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
 
-        $sendTraces = $sendTraces[0][0]; // There is a root span
-        // Spans: send.php -> basic_publish -> queue_declare -> connect
-        $basicPublishSpan = $sendTraces[1];
+        $sendTrace = $sendTraces[0][0]; // There is a root span
 
-        $receiveTraces = $receiveTraces[3]; // There isn't a root span
+        $receiveTrace = $receiveTraces[3]; // There isn't a root span
         // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
-        $basicDeliverSpan = $receiveTraces[0];
+        $basicDeliverSpan = $receiveTrace['spans'][0];
 
-        $this->assertNotSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
+        $this->assertNotSame($sendTrace['trace_id'], $receiveTrace['trace_id']);
         $this->assertArrayNotHasKey('parent_id', $basicDeliverSpan);
     }
 
@@ -1038,7 +1028,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'connect'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -1052,7 +1042,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare hello-1'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -1067,7 +1057,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'queue.declare hello-2'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -1082,7 +1072,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'batch_basic.add <default> -> hello-1'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -1099,7 +1089,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'batch_basic.add <default> -> hello-2'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',
@@ -1116,7 +1106,7 @@ class AMQPTest extends IntegrationTestCase
                 'amqp',
                 'queue',
                 'publish_batch'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
                 '_dd.svc_src' => 'amqp',

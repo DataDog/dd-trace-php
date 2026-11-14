@@ -7,6 +7,7 @@ if (version_compare(PHP_VERSION, '7.4.0', '>='))
 ?>
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 date_default_timezone_set('UTC');
@@ -47,7 +48,7 @@ foreach ($allTheTypes as $value) {
 $allTheTypes = array_reverse($allTheTypes);
 
 $i = 0;
-foreach (dd_trace_serialize_closed_spans() as $span) {
+foreach (dd_clean_spans() as $span) {
     var_dump($allTheTypes[$i]);
     foreach (['name', 'resource', 'service', 'type'] as $prop) {
         if (isset($span[$prop]) && $span[$prop] !== "") {

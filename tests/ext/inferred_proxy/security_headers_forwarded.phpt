@@ -22,7 +22,7 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 
 // The PHP service-entry span has a parent_id pointing to the inferred span;
 // the inferred span itself has no parent_id (it is the trace root).
@@ -37,11 +37,11 @@ foreach ($spans as $span) {
 }
 
 // Tags must be present on the PHP service-entry span
-var_dump($rootSpan['meta']['http.request.headers.x-datadog-endpoint-scan'] ?? 'NOT SET');
-var_dump($rootSpan['meta']['http.request.headers.x-datadog-security-test'] ?? 'NOT SET');
+var_dump($rootSpan['attributes']['http.request.headers.x-datadog-endpoint-scan'] ?? 'NOT SET');
+var_dump($rootSpan['attributes']['http.request.headers.x-datadog-security-test'] ?? 'NOT SET');
 // And forwarded to the inferred proxy span
-var_dump($inferredSpan['meta']['http.request.headers.x-datadog-endpoint-scan'] ?? 'NOT SET');
-var_dump($inferredSpan['meta']['http.request.headers.x-datadog-security-test'] ?? 'NOT SET');
+var_dump($inferredSpan['attributes']['http.request.headers.x-datadog-endpoint-scan'] ?? 'NOT SET');
+var_dump($inferredSpan['attributes']['http.request.headers.x-datadog-security-test'] ?? 'NOT SET');
 ?>
 --EXPECT--
 string(18) "endpoint-scan-uuid"

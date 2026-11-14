@@ -32,10 +32,8 @@ final class OrphansTest extends IntegrationTestCase
         ];
     }
 
-    static function getSampling($response) {
-        $root = json_decode($response[0]["body"], true);
-        $spans = $root["chunks"][0]["spans"] ?? $root[0];
-        return $spans[0]["metrics"]["_sampling_priority_v1"];
+    function getSampling($response) {
+        return $this->parseRawDumpedTraces(json_decode($response[0]["body"], true))[0]["priority"];
     }
 
     function testOrphansRemovalWithAgentSampling()
@@ -55,7 +53,7 @@ final class OrphansTest extends IntegrationTestCase
                 usleep(333 * 2 * 1000); // DD_TRACE_AGENT_FLUSH_INTERVAL * 2 * 1000
             }
             $response = $this->retrieveDumpedTraceData();
-            $this->assertEquals(0, self::getSampling($response));
+            $this->assertEquals(0, $this->getSampling($response));
 
             $this->setResponse(["rate_by_service" => ["service:,env:" => 0]]);
             self::foo();
@@ -65,7 +63,7 @@ final class OrphansTest extends IntegrationTestCase
                 usleep(333 * 2 * 1000); // DD_TRACE_AGENT_FLUSH_INTERVAL * 2 * 1000
             }
             $response = $this->retrieveDumpedTraceData();
-            $this->assertEquals(0, self::getSampling($response));
+            $this->assertEquals(0, $this->getSampling($response));
 
             $this->setResponse(["rate_by_service" => ["service:,env:" => 0.5]]);
             self::foo();
@@ -75,7 +73,7 @@ final class OrphansTest extends IntegrationTestCase
                 usleep(333 * 2 * 1000); // DD_TRACE_AGENT_FLUSH_INTERVAL * 2 * 1000
             }
             $response = $this->retrieveDumpedTraceData();
-            $this->assertEquals(0, self::getSampling($response));
+            $this->assertEquals(0, $this->getSampling($response));
         });
     }
 }

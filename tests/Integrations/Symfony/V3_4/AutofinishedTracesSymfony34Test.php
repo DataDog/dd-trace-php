@@ -33,7 +33,7 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                 'symfony',
                 'web',
                 'terminated_by_exit'
-            )->withExactTags([
+            )->withExactAttributes([
                 'symfony.route.action' => 'AppBundle\Controller\HomeController@actionBeingTerminatedByExit',
                 'symfony.route.name' => 'terminated_by_exit',
 
@@ -57,7 +57,7 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                             'symfony',
                             'web',
                             'AppBundle\Controller\HomeController::actionBeingTerminatedByExit'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'symfony',
                             '_dd.svc_src' => 'symfony',
                         ]),

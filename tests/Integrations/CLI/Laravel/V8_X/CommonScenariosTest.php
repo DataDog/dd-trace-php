@@ -38,7 +38,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'laravel',
                 '_dd.svc_src' => 'laravel',
             ])->withChildren([
@@ -77,7 +77,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan route:list'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'laravel',
                 '_dd.svc_src' => 'laravel',
             ])->withChildren([
@@ -116,10 +116,10 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan foo:error'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'laravel',
                 '_dd.svc_src' => 'laravel',
-            ])->withExistingTagsNames([
+            ])->withExistingAttributeNames([
                 Tag::ERROR_MSG,
                 'error.stack'
             ])->withChildren([

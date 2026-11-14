@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Swoole;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanKind;
 use DDTrace\SpanStack;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -19,14 +20,6 @@ class SwooleIntegration extends Integration
 {
     const NAME = 'swoole';
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function instrumentRequestStart(callable $callback, Server $server)
     {
         $scheme = $server->ssl ? 'https://' : 'http://';
@@ -36,12 +29,11 @@ class SwooleIntegration extends Integration
             static function (HookData $hook) use ($server, $scheme) {
                 $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
-                $rootSpan->service = \ddtrace_config_app_name('swoole');
+                $rootSpan->service = \dd_trace_env_config('DD_SERVICE') ?: 'swoole';
                 Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                 $rootSpan->type = Type::WEB_SERVLET;
-                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
-                $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
-                self::addTraceAnalyticsIfEnabled($rootSpan);
+                $rootSpan->component = self::NAME;
+                $rootSpan->spanKind = SpanKind::SERVER;
 
                 $args = $hook->args;
                 /** @var Request $request */
@@ -53,7 +45,7 @@ class SwooleIntegration extends Integration
                     $headers[strtolower($name)] = $value;
                     $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($name));
                     if (\array_key_exists($normalizedHeader, $allowedHeaders)) {
-                        $rootSpan->meta["http.request.headers.$normalizedHeader"] = $value;
+                        $rootSpan->attributes["http.request.headers.$normalizedHeader"] = $value;
                     }
                 }
                 consume_distributed_tracing_headers(static function ($key) use ($headers) {
@@ -62,11 +54,11 @@ class SwooleIntegration extends Integration
 
                 if (\dd_trace_env_config("DD_TRACE_CLIENT_IP_ENABLED")) {
                     $res = extract_ip_from_headers($headers + ['REMOTE_ADDR' => $request->server['remote_addr']]);
-                    $rootSpan->meta += $res;
+                    $rootSpan->attributes += $res;
                 }
 
                 if (isset($headers["user-agent"])) {
-                    $rootSpan->meta["http.useragent"] = $headers["user-agent"];
+                    $rootSpan->attributes["http.useragent"] = $headers["user-agent"];
                 }
 
                 if (!empty(\dd_trace_env_config('DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED'))) {
@@ -86,7 +78,7 @@ class SwooleIntegration extends Integration
                 if (!empty($postFields)) {
                     $postFields = Normalizer::sanitizePostFields($postFields);
                     foreach ($postFields as $key => $value) {
-                        $rootSpan->meta["http.request.post.$key"] = $value;
+                        $rootSpan->attributes["http.request.post.$key"] = $value;
                     }
                 }
 
@@ -96,15 +88,15 @@ class SwooleIntegration extends Integration
                     ?? '/'
                 );
                 $rootSpan->resource = $request->server['request_method'] . ' ' . $normalizedPath;
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->server['request_method'];
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $request->server['request_method'];
 
                 $host = $headers['host'] ?? ($request->server['remote_addr'] . ':' . $request->server['server_port']);
                 $path = $request->server['request_uri'] ?? $request->server['path_info'] ?? '';
                 $query = isset($request->server['query_string']) ? '?' . $request->server['query_string'] : '';
                 $url = $scheme . $host . $path . $query;
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($url);
+                $rootSpan->attributes[Tag::HTTP_URL] = Normalizer::urlSanitize($url);
 
-                unset($rootSpan->meta['closure.declaration']);
+                unset($rootSpan->attributes['closure.declaration']);
             }
         );
     }
@@ -173,7 +165,7 @@ class SwooleIntegration extends Integration
                 // Note: The response's body can be retrieved here, from the args
 
                 if (!$rootSpan->exception
-                    && ((int)$rootSpan->meta[Tag::HTTP_STATUS_CODE]) >= 500
+                    && (int)($rootSpan->attributes[Tag::HTTP_STATUS_CODE] ?? 0) >= 500
                     && $ex = \DDTrace\find_active_exception()
                 ) {
                     $rootSpan->exception = $ex;
@@ -196,7 +188,7 @@ class SwooleIntegration extends Integration
                 $allowedHeaders = \dd_trace_env_config("DD_TRACE_HEADER_TAGS");
                 $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($key));
                 if (\array_key_exists($normalizedHeader, $allowedHeaders)) {
-                    $rootSpan->meta["http.response.headers.$normalizedHeader"] = $value;
+                    $rootSpan->attributes["http.response.headers.$normalizedHeader"] = $value;
                 }
             }
         );
@@ -207,7 +199,7 @@ class SwooleIntegration extends Integration
             static function ($response, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan && \count($args) > 0) {
-                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $args[0];
+                    $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = (string)$args[0];
                 }
             }
         );

@@ -23,9 +23,9 @@ array_map(function($span) {
     printf(
         "%s with exception: %s\n",
         $span['name'],
-        $span['meta']['error.message']
+        $span['attributes']['error.message']
     );
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECTF--
 a()
