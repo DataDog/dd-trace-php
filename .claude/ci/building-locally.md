@@ -274,11 +274,15 @@ For Alpine, source `$BASH_ENV` and use the `switch_php` function before each
 `make xlang-lto`; destination filenames include `-alpine` before `-zts`.
 
 For a local SSI pair, select the desired NTS/ZTS SDK and run
-`make build-ssi-ddtrace` (which also runs `build-ssi-common`). Output is
-`tmp/release-variants/<arch>/php-<version>/<nts|zts>/ssi/{ddtrace.so,libdatadog_php.so}`.
-CI renames the extension to `ssi_<arch>/ddtrace-<API>[-alpine][-zts].so`
-and supplies the common DSO once per platform from the sidecar job. The common
-DSO is PHP-independent; the private PHP-ABI Rust archive is not shipped.
+`make build-ssi-ddtrace`. It builds common and the PHP-ABI archive in one Cargo
+invocation, then links the C extension. PHP 7.0 omits the archive and profiler.
+Output is `tmp/release-variants/<arch>/php-<version>/<nts|zts>/ssi/{ddtrace.so,libdatadog_php.so}`.
+`make build-ssi-common` builds only common, without PHP codegen.
+CI compares each complete common DSO against the sidecar job’s canonical copy
+before shipping that copy once per architecture/libc. Keep source, Cargo-home and
+Cargo-target paths consistent within each family; SSI defaults to the shared
+`tmp/ssi-rust-target` cache rather than a per-PHP path. The private archive is not
+shipped. PHP 7.1+ SSI extensions go into `ssi_<arch>/`; PHP 7.0 keeps `standalone_<arch>/`.
 See [compile-artifacts.md](compile-artifacts.md) for the job graph and SSI inputs.
 
 These examples build one PHP version, not all inputs needed by the full release
