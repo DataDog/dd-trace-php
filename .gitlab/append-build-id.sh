@@ -1,4 +1,4 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
 set -eo pipefail
 
 if [[ -n "${CI_COMMIT_TAG:-}" ]]; then
@@ -7,7 +7,7 @@ if [[ -n "${CI_COMMIT_TAG:-}" ]]; then
 fi
 
 githash="${CI_COMMIT_SHA?}"
-if [[ "x$CI_COMMIT_BRANCH" == "x" ]] ; then
+if [[ -z "$CI_COMMIT_BRANCH" ]] ; then
   echo "The environment variable CI_COMMIT_BRANCH was not set or was empty."
   exit 1
 fi
@@ -20,7 +20,7 @@ else
     version=${version%-*}
   else
     # otherwise increment minor version
-    parts=($(echo -n "$version" | tr '.' '\n'))
+    IFS=. read -r -a parts <<< "$version"
     parts[1]=$((parts[1]+1))
     parts[2]=0
     version=$(export IFS=.; (echo "${parts[*]}"))

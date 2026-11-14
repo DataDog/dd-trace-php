@@ -57,12 +57,12 @@ Matrix (`compile extension: debug-zts-asan`): PHP 7.4+ x {amd64, arm64}
 use the `composer:2.10.3` image, which ships Composer. The tracer pipeline
 `Prepare code` runs `composer update` + `make generate`, and lives in the
 `compile` stage. The package pipeline `prepare code` runs `append-build-id.sh`
-first (bumping VERSION to `{major}.{minor+1}.0+{CI_COMMIT_SHA}` on non-release
-branches; for pre-release versions like `1.2.3-beta1` it strips the suffix to
-produce `1.2.3+{CI_COMMIT_SHA}` instead; no-op on tags and `ddtrace-` release
-branches), then `composer update` + `make generate`, and lives in the `prepare`
-stage. `make generate` produces three files via `classpreloader`:
-`_generated_api.php`, `_generated_tracer.php`, and
+first (bumping VERSION to `{major}.{minor+1}.0+dev.{CI_COMMIT_SHA}` on
+non-release branches; for pre-release versions like `1.2.3-beta1` it strips the
+suffix to produce `1.2.3+dev.{CI_COMMIT_SHA}` instead; no-op on tags and
+`ddtrace-` release branches), then `composer update` + `make generate`, and
+lives in the `prepare` stage. `make generate` produces three files via
+`classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
 `_generated_opentelemetry.php`.
 
 ### Package pipeline (generate-package.php)
@@ -257,8 +257,10 @@ See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
 
 - **`CI_COMMIT_BRANCH` on detached HEAD.** When running on a detached
   HEAD (e.g., after `git checkout <sha>`), `git rev-parse --abbrev-ref HEAD`
-  returns the literal string `HEAD`. `append-build-id.sh` still works, but
-  the embedded version string will contain `HEAD` as the branch name.
+  returns the literal string `HEAD`. `append-build-id.sh` uses
+  `CI_COMMIT_BRANCH` only to recognize `ddtrace-` release branches, so with
+  `HEAD` a release-branch checkout gets the `+dev.{CI_COMMIT_SHA}` suffix of
+  a non-release branch.
 
 - **`devtoolset-7` on centos-7.** The ancient CentOS 7 base ships GCC 4.8;
   `build-tracing.sh` activates `devtoolset-7` (GCC 7) via `scl_source`.
