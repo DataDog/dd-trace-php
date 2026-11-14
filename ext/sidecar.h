@@ -51,6 +51,11 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
 
 void datadog_sidecar_activate(void);
 void datadog_sidecar_rinit(void);
+// Ensures the telemetry application (service/env) is registered on the sidecar
+// connection so a subsequent telemetry flush is not dropped. AppSec calls it
+// before an early flush that may precede datadog_sidecar_rinit(). See the
+// definition in sidecar.c.
+void datadog_sidecar_ensure_telemetry_application(void);
 void datadog_sidecar_rshutdown(void);
 void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals);
 

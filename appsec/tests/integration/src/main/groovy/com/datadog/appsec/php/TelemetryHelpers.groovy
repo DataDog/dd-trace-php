@@ -68,6 +68,42 @@ class TelemetryHelpers {
         series
     }
 
+    /**
+     * Drains telemetry until the {@code app-closing} of {@code service} arrives, and
+     * returns the {@code generate-metrics} series of that service received up to it,
+     * including those sent with it.
+     *
+     * <p>Ending an application's telemetry (for example with
+     * {@code dd_trace_internal_fn('finalize_telemetry')}) makes the sidecar send
+     * what it still holds for it in one batch that ends with {@code app-closing},
+     * so the series returned are all the points the application reported before
+     * that, with no need to wait for a heartbeat.
+     */
+    static List<Metric> metricSeriesUntilClosed(AppSecContainer container, String service,
+                                                long timeoutInMs = 15_000) {
+        long deadline = System.currentTimeMillis() + timeoutInMs
+        List<Metric> series = []
+        while (true) {
+            assert System.currentTimeMillis() < deadline : "no app-closing for ${service} within ${timeoutInMs} ms"
+            for (msg in container.drainTelemetry(500)) {
+                if (msg.application?.service_name != service) continue
+                for (GenerateMetrics metrics in filterMessages([msg], GenerateMetrics, false)) {
+                    series.addAll(metrics.series)
+                }
+                if (isAppClosing(msg as Map)) {
+                    return series
+                }
+            }
+        }
+    }
+
+    /** Whether {@code msg} is, or is a batch that contains, an {@code app-closing}. */
+    static boolean isAppClosing(Map msg) {
+        msg.request_type == 'app-closing' ||
+                (msg.request_type == 'message-batch' &&
+                        (msg.payload as List).any { (it as Map).request_type == 'app-closing' })
+    }
+
     static class GenerateMetrics {
         static names = ['generate-metrics']
         List<Metric> series

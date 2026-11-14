@@ -14,6 +14,7 @@
 #include <ext/sidecar.h>
 #include <ext/telemetry.h>
 #include <tracer/priority_sampling/priority_sampling.h>
+#include <tracer/span.h>
 #include <tracer/user_request.h>
 
 typedef zend_object root_span_t;
@@ -27,6 +28,21 @@ void dd_trace_root_span_changed(void);
 bool dd_trace_enabled(void);
 
 zend_object *nullable dd_trace_get_active_root_span(void);
+
+// Whether this request generates a root span and has one now.
+bool dd_trace_root_span_generation_enabled(void);
+
+// Add the span of a request whose startup failed as a trace of its own, sent by
+// this request's flush; false if this request cannot send it.
+bool dd_trace_add_startup_span(
+    const ddtrace_detached_request_span *nonnull req);
+
+// The size of a formatted runtime id, which has no terminating NUL.
+#define DD_TRACE_RUNTIME_ID_LEN 36
+
+// Write this process's runtime id, as the tracer reports it on root spans, to
+// `buf`. Allocates nothing.
+void dd_trace_format_runtime_id(char *nonnull buf);
 
 // increases the refcount of tag, but not value (like zval_hash_add)
 // however, it destroy value if the operation fails (unlike zval_hash_add)
@@ -83,4 +99,3 @@ struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void);
 
 zend_string *nullable dd_trace_guess_endpoint_from_url(
     const char *nonnull url, size_t url_len);
-

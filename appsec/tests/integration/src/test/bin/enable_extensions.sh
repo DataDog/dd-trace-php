@@ -60,6 +60,20 @@ if [[ $ENABLE_APPSEC == true ]]; then
   } >> /etc/php/php.ini
 fi
 
+if [[ -n $ENABLE_PROFILER ]]; then
+  # The profiler is part of ddtrace.so (built with --enable-ddtrace-profiling).
+  if ! php --ri ddtrace | grep -q '^Profiling Enabled'; then
+    echo "ENABLE_PROFILER is set, but ddtrace.so has no profiler" >&2
+    exit 1
+  fi
+  echo "Enabling the profiler" >&2
+  {
+    echo datadog.profiling.enabled=1
+    echo datadog.profiling.allocation_enabled=1
+    echo datadog.profiling.log_level=debug
+  } >> /etc/php/php.ini
+fi
+
 if [[ -n $XDEBUG ]]; then
   echo "Enabling Xdebug" >&2
   touch /tmp/logs/xdebug.log

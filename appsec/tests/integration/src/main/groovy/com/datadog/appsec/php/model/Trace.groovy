@@ -11,6 +11,14 @@ class Trace implements List<Span> {
         spans.first().traceId
     }
 
+    // The root span of a request's trace: the span whose parent is not in
+    // the trace.
+    Span getRootSpan() {
+        List<Span> roots = spans.findAll { !(it.parentId in spans*.spanId) }
+        assert roots.size() == 1
+        roots.first()
+    }
+
     @Delegate
     List<Span> spans
 

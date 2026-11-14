@@ -620,6 +620,8 @@ void ddtrace_update_root_id_properties(ddtrace_root_span_data *span) {
 struct superglob_equiv {
     zend_array *server;
     zend_array *post;
+    // The request method; NULL takes the current request's.
+    const char *method;
 };
 
 static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtrace_root_span_data *span) {
@@ -634,7 +636,7 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         }
     }
 
-    const char *method = SG(request_info).request_method;
+    const char *method = data->method ? data->method : SG(request_info).request_method;
     // run-tests.php sets the env var REQUEST_METHOD, which ends up in $_SERVER
     // To avoid having dozens of tests failing, ignore REQUEST_METHOD if such an env var exists
     static int has_env_req_method;
@@ -1246,6 +1248,24 @@ static void dd_set_http_error(zend_array *meta, int status, bool ignore_error) {
             }
         }
     }
+}
+
+void ddtrace_set_request_root_span_props(ddtrace_root_span_data *span, zend_array *server, const char *method) {
+    // $_POST is never read here: the request this array describes is not the current one.
+    struct superglob_equiv data = {.server = server, .post = NULL, .method = method};
+    // These are added with zend_hash_str_add_new(). A root span of a request
+    // gets them before the global span properties (DD_TAGS); this one already
+    // has those, which may name the same keys.
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_hash_str_del(meta, ZEND_STRL("http.url"));
+    zend_hash_str_del(meta, ZEND_STRL("http.method"));
+    zend_hash_str_del(meta, ZEND_STRL("http.useragent"));
+    zend_hash_str_del(meta, ZEND_STRL("http.referrer_hostname"));
+    dd_set_entrypoint_root_span_props(&data, span);
+}
+
+void ddtrace_set_root_span_http_status(ddtrace_root_span_data *span, int status) {
+    dd_set_http_error(ddtrace_property_array(&span->property_meta), status, false);
 }
 
 static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, struct iter *headers, bool ignore_error) {

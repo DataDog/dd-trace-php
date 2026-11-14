@@ -507,6 +507,12 @@ void _mlog_relay(dd_log_level_t level, const char *nonnull format,
     va_end(args);
 }
 
+bool dd_log_to_php(void)
+{
+    _ensure_init();
+    return _log_strategy == log_use_php_err_rep;
+}
+
 void dd_log_shutdown(void)
 {
     mlog(dd_log_debug, "Shutting down the file logging");

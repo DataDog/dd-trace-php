@@ -230,6 +230,22 @@ zend_object *nullable dd_trace_get_active_root_span(void)
     return ddtrace_get_root_span();
 }
 
+bool dd_trace_root_span_generation_enabled(void)
+{
+    return get_DD_TRACE_GENERATE_ROOT_SPAN() &&
+           dd_trace_get_active_root_span() != NULL;
+}
+
+bool dd_trace_add_startup_span(const ddtrace_detached_request_span *nonnull req)
+{
+    return ddtrace_add_detached_request_span(req);
+}
+
+void dd_trace_format_runtime_id(char *nonnull buf)
+{
+    datadog_format_runtime_id((uint8_t (*)[DD_TRACE_RUNTIME_ID_LEN])buf);
+}
+
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
 {
     return ddtrace_ip_extraction_find(server);

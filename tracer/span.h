@@ -140,6 +140,7 @@ struct ddtrace_root_span_data {
     uint8_t trace_flags;
     bool explicit_sampling_priority;
     bool asm_event_emitted;
+    bool detached_request; // added by ddtrace_add_detached_request_span()
     enum ddtrace_trace_limited trace_is_limited;
 
     union {
@@ -250,6 +251,41 @@ ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);
 void ddtrace_push_root_span(void);
+
+// A request that never reached RINIT (its startup failed), described by what
+// was saved of it.
+typedef struct {
+    zend_array *server;                       // $_SERVER-shaped; required
+    const char *name;                         // operation name; NULL: a request's default
+    const char *method;                       // NULL: REQUEST_METHOD from server
+    zend_string *service, *env, *version;     // NULL or empty: the defaults
+    uint64_t start_ns;                        // since the Unix epoch
+    uint64_t duration_ns;                     // at least 1 is used
+    int status_code;                          // 0: none
+    zend_string *error_type, *error_message;  // may be NULL
+    zend_array *meta;                         // extra string tags; may be NULL
+    bool asm_keep;                            // keep the trace for AppSec
+    // The process that handled the request, if not this one: its process id
+    // (0: this process's), its runtime id (NULL: this process's) and, with
+    // own_hostname, the hostname it reported (NULL or empty: none).
+    int64_t process_id;
+    zend_string *runtime_id;
+    bool own_hostname;
+    zend_string *hostname;
+} ddtrace_detached_request_span;
+
+// Sends a request that never reached RINIT as the root span of a trace of its
+// own: opens it in a new span stack under the active one (as
+// DDTrace\start_trace_span() does), closes it at once, and makes the caller's
+// stack active again. This request's next flush sends it, even if this request
+// runs no PHP code. Returns false, doing nothing, if tracing is off or this
+// request has no root span.
+bool ddtrace_add_detached_request_span(const ddtrace_detached_request_span *req);
+// Unlinks the closed traces of detached request spans from the closed traces,
+// returning them as a chain of their own (NULL if none).
+ddtrace_span_stack *ddtrace_unlink_detached_closed_stacks(void);
+// Links a chain returned by ddtrace_unlink_detached_closed_stacks() back.
+void ddtrace_link_closed_stacks(ddtrace_span_stack *chain);
 
 ddtrace_span_data *ddtrace_active_span(void);
 static inline ddtrace_span_properties *ddtrace_active_span_props(void) {

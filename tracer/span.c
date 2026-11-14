@@ -26,6 +26,9 @@
 #include "standalone_limiter.h"
 #include "code_origins.h"
 #include "endpoint_guessing.h"
+#include "asm_event.h"
+#include "distributed_tracing_headers.h"
+#include "git_metadata.h"
 #ifdef __linux__
 #include "otel_context.h"
 #endif
@@ -696,6 +699,246 @@ void ddtrace_push_root_span(void) {
     ddtrace_observe_opened_span(span);
 }
 
+static void dd_set_detached_root_identity(ddtrace_root_span_data *root, const ddtrace_detached_request_span *req);
+static void dd_add_detached_root_tags(ddtrace_root_span_data *root, const ddtrace_detached_request_span *req);
+
+bool ddtrace_add_detached_request_span(const ddtrace_detached_request_span *req) {
+    if (!get_DD_TRACE_ENABLED() || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
+        return false;
+    }
+
+    ddtrace_span_stack *caller_stack = DDTRACE_G(active_stack);
+    GC_ADDREF(&caller_stack->std);
+
+    ddtrace_span_stack *stack = ddtrace_init_root_span_stack();
+    ddtrace_switch_span_stack(stack);
+    // We don't hold a direct reference to the active stack
+    GC_DELREF(&stack->std);
+
+    // The current request's headers describe the current request: they must
+    // not give this span an inferred proxy span, and an upstream span link
+    // still queued belongs to a root span of the current request.
+    bool inferred_span_created = DDTRACE_G(inferred_span_created);
+    zval pending_upstream_span_link;
+    ZVAL_COPY_VALUE(&pending_upstream_span_link, &DDTRACE_G(pending_upstream_span_link));
+    ZVAL_NULL(&DDTRACE_G(pending_upstream_span_link));
+    DDTRACE_G(inferred_span_created) = true;
+    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_USER_SPAN);
+    DDTRACE_G(inferred_span_created) = inferred_span_created;
+    ZVAL_COPY_VALUE(&DDTRACE_G(pending_upstream_span_link), &pending_upstream_span_link);
+    // The stack manages the span; it stays alive until it is flushed.
+    GC_DELREF(&span->std);
+
+    ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+    // A generated 128-bit trace id carries the time its root span opened: use
+    // the start of the request this span describes. An incoming trace id
+    // replaces it below.
+    if (root->trace_id.time) {
+        root->trace_id.time = (uint32_t)(req->start_ns / ZEND_NANO_IN_SEC);
+        ddtrace_update_root_id_properties(root);
+#ifdef __linux__
+        ddtrace_otel_update_trace_id(root);
+#endif
+    }
+    dd_set_detached_root_identity(root, req);
+    const char *method = req->method;
+    if (!method) {
+        zval *method_zv = zend_hash_str_find(req->server, ZEND_STRL("REQUEST_METHOD"));
+        if (method_zv && Z_TYPE_P(method_zv) == IS_STRING) {
+            method = Z_STRVAL_P(method_zv);
+        }
+    }
+    ddtrace_set_request_root_span_props(root, req->server, method);
+
+    ddtrace_distributed_tracing_result result =
+        ddtrace_read_distributed_tracing_ids(ddtrace_read_server_array_header, req->server);
+    ddtrace_apply_distributed_tracing_result(&result, root);
+
+    dd_add_detached_root_tags(root, req);
+
+    if (req->asm_keep) {
+        // Acts on the root span of the active stack, which is this span's.
+        ddtrace_emit_asm_event();
+    }
+
+    span->start = req->start_ns;
+    span->duration = MAX(req->duration_ns, 1);
+    // Never one of the values that mark a dropped span.
+    if (ddtrace_span_is_dropped(span)) {
+        span->duration = DDTRACE_SILENTLY_DROPPED_SPAN - 1;
+    }
+
+    // The caller may still be in its request startup, where a flush discards
+    // the closed spans: the mark makes a flush keep and send this one, be it
+    // the auto flush of this close or the caller's own flush, even if the
+    // caller runs no PHP code (see ddtrace_flush_tracer). The flag is cleared
+    // even if the close bails out, or the standalone limiter would skip every
+    // later trace of the process.
+    root->detached_request = true;
+    DDTRACE_G(closing_detached_span) = true;
+    bool bailed_out = false;
+    zend_try {
+        ddtrace_close_span(span);
+    } zend_catch {
+        bailed_out = true;
+    } zend_end_try();
+    DDTRACE_G(closing_detached_span) = false;
+
+    // Closing a root span switches to the parent stack, which is the caller's;
+    // switch explicitly in case it did not.
+    if (DDTRACE_G(active_stack) != caller_stack) {
+        ddtrace_switch_span_stack(caller_stack);
+    }
+    OBJ_RELEASE(&caller_stack->std);
+
+    if (bailed_out) {
+        zend_bailout();
+    }
+    return true;
+}
+
+ddtrace_span_stack *ddtrace_unlink_detached_closed_stacks(void) {
+    ddtrace_span_stack *detached = NULL;
+    ddtrace_span_stack **link = &DDTRACE_G(top_closed_stack);
+    while (*link) {
+        ddtrace_span_stack *stack = *link;
+        // Its root span closed in its own stack, so it is a chain head. The
+        // stack no longer points to its closed root span; its spans do.
+        if (stack->closed_ring_flush && stack->closed_ring_flush->root && stack->closed_ring_flush->root->detached_request) {
+            *link = stack->next;
+            stack->next = detached;
+            detached = stack;
+        } else {
+            link = &stack->next;
+        }
+    }
+    return detached;
+}
+
+void ddtrace_link_closed_stacks(ddtrace_span_stack *chain) {
+    while (chain) {
+        ddtrace_span_stack *next = chain->next;
+        chain->next = DDTRACE_G(top_closed_stack);
+        DDTRACE_G(top_closed_stack) = chain;
+        chain = next;
+    }
+}
+
+static void dd_set_detached_root_identity(ddtrace_root_span_data *root, const ddtrace_detached_request_span *req) {
+    zend_array *meta = ddtrace_property_array(&root->property_meta);
+
+    // Opened under the current request's root span, this root span copied its
+    // incoming trace tags, service source, origin, baggage and OpenTelemetry
+    // sampling state. None of them belong to the request it describes, whose
+    // own come from its headers.
+    zend_string *key;
+    ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(root_span_tags_preset), key) {
+        if (key) {
+            zend_hash_del(meta, key);
+        }
+    } ZEND_HASH_FOREACH_END();
+    zend_hash_str_del(meta, ZEND_STRL("_dd.svc_src"));
+    zval_ptr_dtor(&root->property_origin);
+    ZVAL_NULL(&root->property_origin);
+    zval_ptr_dtor(&root->property_baggage);
+    array_init(&root->property_baggage);
+    ddtrace_otel_sampling_clear(&root->otel_sampling);
+
+    // As for the root span of a request (ddtrace_set_root_span_properties()),
+    // with that request's service, env and version, and the caller's
+    // operation name if it gives one.
+    zend_string *default_name = datadog_default_service_name();
+    zval *prop_name = &root->property_name;
+    zval_ptr_dtor(prop_name);
+    if (req->name) {
+        ZVAL_STR(prop_name, zend_string_init(req->name, strlen(req->name), 0));
+    } else {
+        ZVAL_STR_COPY(prop_name, default_name);
+    }
+
+    zval *prop_type = &root->property_type;
+    zval_ptr_dtor(prop_type);
+    if (strcmp(sapi_module.name, "cli") == 0) {
+        ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
+    } else {
+        ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("web"), 0));
+    }
+
+    zval *prop_service = &root->property_service;
+    zval_ptr_dtor(prop_service);
+    ZVAL_STR_COPY(prop_service, req->service && ZSTR_LEN(req->service) ? req->service : default_name);
+    zend_string_release(default_name);
+
+    zval *prop_env = &root->property_env;
+    zval_ptr_dtor(prop_env);
+    if (req->env && ZSTR_LEN(req->env)) {
+        ZVAL_STR_COPY(prop_env, req->env);
+    } else {
+        ZVAL_EMPTY_STRING(prop_env);
+    }
+
+    zval *prop_version = &root->property_version;
+    zval_ptr_dtor(prop_version);
+    if (req->version && ZSTR_LEN(req->version)) {
+        ZVAL_STR_COPY(prop_version, req->version);
+    } else {
+        ZVAL_EMPTY_STRING(prop_version);
+    }
+
+    if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
+        ddtrace_inject_git_metadata(&root->property_git_metadata);
+    }
+
+    // The process id, runtime id and hostname were this process's when the
+    // root span opened; the request may have run in another process, which
+    // may not have reported its hostname at all.
+    zval zv;
+    if (req->process_id) {
+        ZVAL_DOUBLE(&zv, (double)req->process_id);
+        zend_hash_str_update(ddtrace_property_array(&root->property_metrics), ZEND_STRL("process_id"), &zv);
+    }
+    if (req->runtime_id && ZSTR_LEN(req->runtime_id)) {
+        ZVAL_STR_COPY(&zv, req->runtime_id);
+        zend_hash_str_update(meta, ZEND_STRL("runtime-id"), &zv);
+    }
+    if (req->own_hostname) {
+        if (req->hostname && ZSTR_LEN(req->hostname)) {
+            ZVAL_STR_COPY(&zv, req->hostname);
+            zend_hash_str_update(meta, ZEND_STRL("_dd.hostname"), &zv);
+        } else {
+            zend_hash_str_del(meta, ZEND_STRL("_dd.hostname"));
+        }
+    }
+}
+
+static void dd_add_detached_root_tags(ddtrace_root_span_data *root, const ddtrace_detached_request_span *req) {
+    zend_array *meta = ddtrace_property_array(&root->property_meta);
+
+    if (req->meta) {
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(req->meta, key, value) {
+            if (key && Z_TYPE_P(value) == IS_STRING) {
+                Z_TRY_ADDREF_P(value);
+                zend_hash_update(meta, key, value);
+            }
+        } ZEND_HASH_FOREACH_END();
+    }
+
+    zval zv;
+    if (req->error_type) {
+        ZVAL_STR_COPY(&zv, req->error_type);
+        zend_hash_str_update(meta, ZEND_STRL("error.type"), &zv);
+    }
+    if (req->error_message) {
+        ZVAL_STR_COPY(&zv, req->error_message);
+        zend_hash_str_update(meta, ZEND_STRL("error.message"), &zv);
+    }
+
+    // After error.type: it adds an HttpError error.type only when none is set.
+    ddtrace_set_root_span_http_status(root, req->status_code);
+}
+
 zend_object *ddtrace_get_root_span()
 {
     if (!DDTRACE_G(active_stack)) {
@@ -836,7 +1079,9 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
 
                 // Root span is closed. Now it's the time to take an ASM sampling decision.
                 // This might get updated later with SpanStacks, but at that point it will be orphan spans. That's intentional.
-                if (!get_global_DD_APM_TRACING_ENABLED()) {
+                // A detached request span is kept by AppSec and is not this
+                // request's trace: it must not use up the limiter's allowance.
+                if (!get_global_DD_APM_TRACING_ENABLED() && !DDTRACE_G(closing_detached_span)) {
                     // Increment limiter, then force sampling priority if not an asm event
                     if (!ddtrace_standalone_limiter_allow() && !root_span->asm_event_emitted && !ddtrace_trace_source_is_meta_asm_sourced(ddtrace_property_array(&stack->root_span->property_meta))) {
                         zval priority;

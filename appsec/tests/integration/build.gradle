@@ -854,6 +854,120 @@ def buildLoaderTask = { String version, String variant ->
     )
 }
 
+// A ddtrace.so with the profiler built in (PHP 7.1+), for the tests that start
+// their container with the 'profiler' option (gradle -PwithProfiler). Unlike
+// buildTracer, it cannot reuse the PHP-independent portable Rust library: the
+// profiler's Rust code is compiled against the PHP headers, so config.m4 runs
+// compile_rust.sh with the tracer, tracer-runtime and profiling-embedded
+// features. The Rust code targets musl, as the portable library does, so that
+// the module needs no versioned glibc symbol.
+def buildTracerProfilerTask = { String version, String variant ->
+    buildRunInDockerTask(
+            baseName: 'buildTracerProfiler',
+            imageTag: 'php-buildonly-rust',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsBoostCache: false,
+            description: 'Build portable tracer extension with the profiler for PHP',
+            inputs: [
+                    dirs: [
+                            '../../../ext',
+                            '../../../m4',
+                            '../../src',
+                            '../../../src/dogstatsd',
+                            '../../../tracer',
+                            '../../../components',
+                            '../../../components-rs',
+                            '../../../zend_abstract_interface',
+                            '../../../libdatadog',
+                            '../../../profiling',
+                            '../../helper-rust',
+                            '../../../sidecar',
+                            '../../third_party/libddwaf-rust',
+                    ],
+                    files: [
+                            '../../../Cargo.lock',
+                            '../../../Cargo.toml',
+                            '../../../Makefile',
+                            '../../../VERSION',
+                            '../../../compile_rust.sh',
+                            '../../../config.m4',
+                            '../../../ddtrace-extension-linux.sym',
+                            '../../../ddtrace-extension.sym',
+                            '../../../rust-toolchain.toml',
+                            '../../recommended.json',
+                            'scripts/prepare-rust-libc-compat.sh',
+                    ],
+            ],
+            outputs: [
+                    volume: 'php-tracer-profiler',
+                    files: ['build_extension/modules/ddtrace.so'],
+            ],
+            volumes: [
+                    ("php-tracer-profiler-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+                    ("php-tracer-profiler-${version}-${variant}"): [
+                            mountPoint: '/tracer',
+                    ],
+                    'php-portable-libdatadog-php': [
+                            mountPoint: '/portable-rust',
+                            readonly: true,
+                            inputFiles: ['php_sidecar_mockgen'],
+                    ],
+            ],
+            taskDependencies: ['buildPortableLibdatadogPhp'],
+            command: [
+                    '-e', '-c',
+                    """
+                    cd /project
+
+                    RUST_TARGET="\$(uname -m)-unknown-linux-musl"
+                    CARGO_BUILD_FLAGS="--config target-applies-to-host=false"
+                    CARGO_BUILD_FLAGS+=" --config 'host.rustflags=[\\"-C\\", \\"target-feature=-crt-static\\"]'"
+                    CARGO_BUILD_FLAGS+=" -Zhost-config -Ztarget-applies-to-host -Zunstable-options"
+                    CARGO_BUILD_FLAGS+=" -Z build-std=std,panic_abort"
+                    CARGO_BUILD_FLAGS+=" -Z build-std-features=llvm-libunwind,backtrace"
+                    # musl's aarch64 pthread_attr_t is 56 bytes, glibc's 64:
+                    # build against a libc crate patched to glibc's layout.
+                    if [ "\$(uname -m)" = aarch64 ]; then
+                        LIBC_COMPAT_SOURCES="\$(appsec/tests/integration/scripts/prepare-rust-libc-compat.sh)"
+                        while IFS=\$'\\t' read -r LIBC_VERSION LIBC_COMPAT; do
+                            PATCH_NAME="libc_compat_\${LIBC_VERSION//./_}"
+                            CARGO_BUILD_FLAGS+=" --config 'patch.crates-io.\$PATCH_NAME.package=\\"libc\\"'"
+                            CARGO_BUILD_FLAGS+=" --config 'patch.crates-io.\$PATCH_NAME.path=\\"\$LIBC_COMPAT\\"'"
+                        done <<< "\$LIBC_COMPAT_SOURCES"
+                    fi
+                    RUSTFLAGS='-C target-feature=-crt-static -C linker=musl-clang'
+                    RUSTFLAGS+=' -C link-arg=/usr/lib/libunwind.a -C force-unwind-tables=yes'
+
+                    PHPRC= \\
+                        PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
+                        EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
+                        DDTRACE_PROFILING_TARGET="\$RUST_TARGET" \\
+                        DDTRACE_PROFILING_CARGO_BUILD_FLAGS="\$CARGO_BUILD_FLAGS" \\
+                        RUSTC_BOOTSTRAP=1 \\
+                        RUSTFLAGS="\$RUSTFLAGS" \\
+                        EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-appsec \\
+                            --enable-ddtrace-profiling \\
+                            --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
+                        make /project/tmp/build_extension/modules/ddtrace.so
+                    TRACER=/project/tmp/build_extension/modules/ddtrace.so
+                    versionInfo=\$(readelf --version-info "\$TRACER")
+                    if grep -q 'GLIBC_' <<< "\$versionInfo"; then
+                        echo 'ddtrace.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
+                    mkdir -p /tracer/build_extension/modules
+                    cp "\$TRACER" \\
+                        /tracer/build_extension/modules/ddtrace.so
+                    touch /tracer/build_extension/modules/ddtrace.so
+                    """
+            ]
+    )
+}
+
 def runUnitTestsTask = { String phpVersion, String variant ->
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     def env = ''
@@ -889,6 +1003,10 @@ def runUnitTestsTask = { String phpVersion, String variant ->
 
     task.configure {
         dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
+        if (project.hasProperty('withProfiler') && phpVersion != '7.0') {
+            systemProperty 'WITH_PROFILER', 'true'
+            dependsOn "buildTracerProfiler-$phpVersion-${portableBuildVariant(variant)}"
+        }
     }
 }
 
@@ -925,6 +1043,9 @@ def runMainTask = { String phpVersion, String variant ->
         buildTracerTask(phpVersion, variant)
         buildTracerCmakeTask(phpVersion, variant)
         runUnitTestsTask(phpVersion, variant)
+        if (phpVersion != '7.0') {
+            buildTracerProfilerTask(phpVersion, variant)
+        }
     }
     if (project.hasProperty('testClass')) {
         runMainTask(phpVersion, variant)
@@ -974,6 +1095,12 @@ def runMainTask = { String phpVersion, String variant ->
         dependsOn project.hasProperty('useCmake') ?
                 "buildTracerCmake-${phpVersion}-${artifactVariant}" :
                 "buildTracer-${phpVersion}-${artifactVariant}"
+        // Opt-in: building ddtrace.so with the profiler is slow and only tests
+        // that start their container with the 'profiler' option need it.
+        if (project.hasProperty('withProfiler') && phpVersion != '7.0') {
+            it.systemProperty 'WITH_PROFILER', 'true'
+            dependsOn "buildTracerProfiler-${phpVersion}-${artifactVariant}"
+        }
 
         if (phpVersion in ['7.0', '7.1']) {
             dependsOn downloadComposerOld

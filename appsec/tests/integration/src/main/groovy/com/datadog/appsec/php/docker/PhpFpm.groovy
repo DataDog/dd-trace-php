@@ -22,6 +22,7 @@ import org.testcontainers.containers.Container.ExecResult
 class PhpFpm {
     static final String FPM_CONF = '/etc/php-fpm.conf'
     static final String DEFAULT_INI = '/etc/php/php.ini'
+    static final String POOL_DIR = '/etc/php-fpm.d'
     static final String POOL_CONF = '/etc/php-fpm.d/www.conf'
 
     private final AppSecContainer container
@@ -35,19 +36,106 @@ class PhpFpm {
      *
      * @param env extra environment variables exported before launch
      * @param iniPath the php.ini to load (defaults to {@link #DEFAULT_INI})
+     * @param outputLog if set, the file the master's stdout and stderr are
+     *        appended to. Extensions that keep a copy of the stderr they saw at
+     *        MINIT (the profiler in ddtrace.so logs to one) write there, not to the FPM
+     *        error log
      */
-    ExecResult restart(Map<String, String> env = [:], String iniPath = DEFAULT_INI) {
+    ExecResult restart(Map<String, String> env = [:], String iniPath = DEFAULT_INI, String outputLog = null) {
         container.flushProfilingData()
         String exports = env.collect { k, v -> "export ${k}=${v};" }.join(' ')
+        String redirect = outputLog ? " >>${outputLog} 2>&1" : ''
+        // SIGKILL is asynchronous: wait (up to 5 s) until the old processes are
+        // gone, or the new master can find the old one still holding the
+        // listening sockets.
         ExecResult res = container.execInContainer('bash', '-c',
-                "kill -9 `pgrep php-fpm`; ${exports} php-fpm -y ${FPM_CONF} -c ${iniPath}".toString())
+                ("kill -9 `pgrep php-fpm`; for i in \$(seq 100); do pgrep php-fpm >/dev/null || break; sleep 0.05; done; " +
+                        "${exports} php-fpm -y ${FPM_CONF} -c ${iniPath}${redirect}").toString())
         assert res.exitCode == 0 : "php-fpm restart failed: ${res.stderr}"
         res
     }
 
-    /** Rewrite a single pool directive (e.g. {@code pm.max_children}) in place. */
+    /**
+     * Run {@code body} with the pool file {@code poolConf} (default {@link #POOL_CONF})
+     * changed and php-fpm restarted, then restore the file and restart php-fpm with
+     * the defaults, also when {@code body} fails.
+     *
+     * <p>Options: {@code values}, directives rewritten in place (see
+     * {@link #setPoolValue}); {@code lines}, appended (for directives the file does
+     * not have, such as {@code php_admin_value[...]} or {@code env[...]});
+     * {@code env}, {@code ini} and {@code outputLog}, as for {@link #restart}.
+     */
+    <T> T withPool(Map opts, Closure<T> body) {
+        String conf = (opts.poolConf ?: POOL_CONF) as String
+        String saved = "${conf}.withpool".toString()
+        container.execInContainer('cp', conf, saved)
+        try {
+            ((opts.values ?: [:]) as Map).each { k, v -> setPoolValue(k as String, v as String, conf) }
+            appendPoolLines((opts.lines ?: []) as List<String>, conf)
+            restart((opts.env ?: [:]) as Map<String, String>, (opts.ini ?: DEFAULT_INI) as String,
+                    opts.outputLog as String)
+            return body()
+        } finally {
+            container.execInContainer('mv', '-f', saved, conf)
+            restart()
+        }
+    }
+
+    /**
+     * Rewrite a single pool directive (e.g. {@code pm.max_children}) in place. The
+     * key is matched literally, so a bracketed one ({@code php_admin_value[...]})
+     * works too; a directive the file does not have is not added (see
+     * {@link #appendPoolLines}).
+     */
     void setPoolValue(String key, String value, String poolConf = POOL_CONF) {
-        container.execInContainer('sed', '-i', "s/${key} = .*/${key} = ${value}/".toString(), poolConf)
+        String k = key.replaceAll(/[\\\/.*\[\]^$]/) { "\\${it}" }
+        String v = value.replaceAll(/[\\\/&]/) { "\\${it}" }
+        container.execInContainer('sed', '-i', "s/${k} = .*/${k} = ${v}/".toString(), poolConf)
+    }
+
+    /** Append directives to the pool file. */
+    void appendPoolLines(List<String> lines, String poolConf = POOL_CONF) {
+        if (!lines) {
+            return
+        }
+        ExecResult res = container.execInContainer('bash', '-c',
+                "cat >> ${poolConf} <<'EOF'\n${lines.join('\n')}\nEOF".toString())
+        assert res.exitCode == 0 : "appending to ${poolConf} failed: ${res.stderr}"
+    }
+
+    /** The file of the extra pool {@code name}, in the directory php-fpm includes. */
+    static String poolConfOf(String name) {
+        "${POOL_DIR}/${name}.conf".toString()
+    }
+
+    /**
+     * Write an extra pool {@code name} with the configuration {@code conf} (a whole
+     * file, starting with its {@code [name]} section). It takes effect at the next
+     * {@link #restart}.
+     */
+    void addPool(String name, String conf) {
+        ExecResult res = container.execInContainer('bash', '-c',
+                "cat > ${poolConfOf(name)} <<'EOF'\n${conf}EOF".toString())
+        assert res.exitCode == 0 : "writing pool ${name} failed: ${res.stderr}"
+    }
+
+    /** Remove the extra pool {@code name}; it goes away at the next {@link #restart}. */
+    void removePool(String name) {
+        container.execInContainer('rm', '-f', poolConfOf(name))
+    }
+
+    /** The pid of the php-fpm master. */
+    String masterPid() {
+        String pid = container.execInContainer('pgrep', '-f', 'php-fpm: master').stdout.trim()
+        assert pid ==~ /\d+/ : "expected one php-fpm master; got '${pid}'"
+        pid
+    }
+
+    /** The pid of the only worker of {@code pool}. */
+    String workerPid(String pool) {
+        String pid = container.execInContainer('pgrep', '-f', "php-fpm: pool ${pool}( |\$)".toString()).stdout.trim()
+        assert pid ==~ /\d+/ : "expected one worker of pool ${pool}; got '${pid}'"
+        pid
     }
 
     /** Back up the pool config so {@link #restorePoolConfig} can revert any edits. */

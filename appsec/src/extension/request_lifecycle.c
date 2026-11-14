@@ -10,12 +10,14 @@
 #include "entity_body.h"
 #include "helper_process.h"
 #include "logging.h"
+#include "php2shell_mitigation.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
 #include "string_helpers.h"
 #include "tags.h"
 #include "telemetry.h"
+#include "test_mock_transport.h"
 #include "tracer_bridge.h"
 #include <ext/compatibility.h>
 
@@ -46,6 +48,7 @@ const zend_array *nonnull _get_server_equiv(
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     dd_api_sec_outcome *nonnull outcome);
 static void _register_testing_objects(void);
+static bool _testing_mock_lifecycle(void);
 
 static bool _enabled_user_req;
 static zend_string *_server_zstr;
@@ -111,7 +114,8 @@ void dd_req_lifecycle_rinit(bool force)
         return;
     }
 
-    if (get_global_DD_APPSEC_TESTING() && !force) {
+    if (get_global_DD_APPSEC_TESTING() && !force &&
+        !_testing_mock_lifecycle()) {
         mlog(dd_log_debug, "Skipping automatic request init in testing");
         if (!_enabled_user_req) {
             _set_cur_span(dd_trace_get_active_root_span());
@@ -249,6 +253,14 @@ retry:;
         dd_duration_waf_ext_account(&start);
     }
 
+    // Under remote config, let the PHP2Shell mitigation follow the latest
+    // config_features answer (from this config_sync, request_init or an
+    // earlier request). Until one has arrived, leave it unchanged.
+    if (DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG &&
+        !DDAPPSEC_G(to_be_configured)) {
+        dd_php2shell_set_allowed(DDAPPSEC_G(active));
+    }
+
     // we might have been disabled by request_init
 
     zend_array *spec = NULL;
@@ -292,7 +304,7 @@ cleanup:
     dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
     if (res == dd_oom) {
         _reset_globals();
-        zend_error_noreturn(E_ERROR,
+        dd_php2shell_raise_fatal(NULL,
             "Failed to allocate memory while parsing the AppSec request body");
     }
 
@@ -329,10 +341,11 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
     }
     zend_end_try();
 
-    if (!_restore_shutdown_memory_limit(orig_mem_limit)) {
-        mlog(
-            dd_log_error, "Failed to restore memory limit in request shutdown");
-    }
+    // No fatal when memory_limit no longer fits: before PHP 8.1 a bailout
+    // here would skip the RSHUTDOWN of later modules (one zend_try covers
+    // them all). User code can still run after it (session save handlers, in
+    // the session module's RSHUTDOWN), under the finite limit set instead.
+    (void)_restore_shutdown_memory_limit(orig_mem_limit);
 }
 
 static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
@@ -343,7 +356,8 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
         return;
     }
 
-    if (get_global_DD_APPSEC_TESTING() && !force) {
+    if (get_global_DD_APPSEC_TESTING() && !force &&
+        !_testing_mock_lifecycle()) {
         mlog_g(dd_log_debug, "Skipping automatic request shutdown in testing");
         _reset_globals();
         return;
@@ -468,12 +482,14 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     }
     zend_end_try();
 
+    // memory_limit no longer fits (after a deferred fatal): end the worker, as
+    // a fixed PHP does with its delayed OOM. The fallback bounds the rest.
     if (!_restore_shutdown_memory_limit(orig_mem_limit)) {
         if (result) {
             zend_array_destroy(result);
         }
         _reset_globals();
-        zend_error_noreturn(E_ERROR,
+        dd_php2shell_raise_fatal(NULL,
             "Failed to restore memory limit after AppSec request shutdown");
     }
     return result;
@@ -545,26 +561,13 @@ static zend_long _raise_shutdown_memory_limit(void)
     return orig_mem_limit;
 }
 
+// Returns whether the original limit was restored; if not, the engine gets a
+// finite fallback instead. Only the engine gets it: PG(memory_limit) outlives
+// the request unless the INI entry was changed at runtime.
 static bool _restore_shutdown_memory_limit(zend_long limit)
 {
     PG(memory_limit) = limit;
-#if PHP_VERSION_ID < 80100
-    // Older setters may accept a limit below current usage, letting the
-    // allocator's remaining-space subtraction wrap. Reclaim cached memory
-    // before checking whether the original limit fits.
-    if ((size_t)limit < zend_memory_usage(true)) {
-        zend_mm_gc(zend_mm_get_heap());
-        if ((size_t)limit < zend_memory_usage(true)) {
-            return false;
-        }
-    }
-#endif
-#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
-    zend_set_memory_limit(limit);
-    return true;
-#else
-    return zend_set_memory_limit(limit) == SUCCESS;
-#endif
+    return dd_php2shell_restore_limit(limit);
 }
 
 // Detach request-owned values before releasing them: user destructors can bail.
@@ -682,7 +685,13 @@ static zend_array *nullable _start_user_req(
     _set_cur_span(span);
     GC_TRY_ADDREF(super_global_equiv);
     _superglob_equiv = super_global_equiv;
-    return _do_request_begin_user_req(rbe_zv);
+    zend_array *spec = _do_request_begin_user_req(rbe_zv);
+    // In worker mode one PHP request spans every HTTP request, so the
+    // PHP2Shell request level follows this HTTP request's WAF decision
+    // (applied by request_init above) here, as the end of RINIT does
+    // otherwise.
+    dd_php2shell_user_req_begin();
+    return spec;
 }
 
 static zend_array *nullable _response_commit(
@@ -1283,4 +1292,15 @@ static void _register_testing_objects(void)
         return;
     }
     dd_phpobj_reg_funcs(functions);
+}
+
+// Whether the automatic request init and shutdown run in testing: only with
+// the mock helper's socket handed to the process (see test_mock_transport.h).
+static bool _testing_mock_lifecycle(void)
+{
+#ifdef TESTING
+    return dd_testing_mock_lifecycle;
+#else
+    return false;
+#endif
 }

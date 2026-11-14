@@ -874,3 +874,21 @@ bool ddtrace_read_array_header(zai_str zai_header, const char *lowercase_header,
     *header_value = zval_get_string(value);
     return true;
 }
+
+bool ddtrace_read_server_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+    UNUSED(lowercase_header);
+    // The names asked for are the fixed, short distributed tracing headers.
+    char key[128];
+    if (zai_header.len > sizeof(key) - sizeof("HTTP_")) {
+        return false;
+    }
+    memcpy(key, "HTTP_", sizeof("HTTP_") - 1);
+    memcpy(key + sizeof("HTTP_") - 1, zai_header.ptr, zai_header.len);
+    zval *value = zend_hash_str_find((zend_array *)data, key, sizeof("HTTP_") - 1 + zai_header.len);
+    if (!value || Z_TYPE_P(value) != IS_STRING) {
+        return false;
+    }
+
+    *header_value = zend_string_copy(Z_STR_P(value));
+    return true;
+}

@@ -23,23 +23,33 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 zend_result ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, bool fast_shutdown) {
     bool success = true;
 
+    // Prevent traces from requests not executing any PHP code:
+    // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
+    // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
+    // The traces of detached request spans describe other requests: they are sent anyway.
+    bool discard = !force_on_startup && PG(during_request_startup);
+    ddtrace_span_stack *detached = discard ? ddtrace_unlink_detached_closed_stacks() : NULL;
+
     ddog_TracesBytes *traces = ddog_get_traces();
     if (collect_cycles) {
         success = ddtrace_serialize_closed_spans_with_cycle(traces, fast_shutdown);
     } else {
         success = ddtrace_serialize_closed_spans(traces, fast_shutdown);
     }
+    if (success && discard) {
+        ddog_free_traces(traces);
+        if (!detached) {
+            return SUCCESS;
+        }
+        ddtrace_link_closed_stacks(detached);
+        detached = NULL;
+        traces = ddog_get_traces();
+        success = ddtrace_serialize_closed_spans(traces, fast_shutdown);
+    }
     if (!success) {
+        ddtrace_link_closed_stacks(detached);
         ddog_free_traces(traces);
         return FAILURE;
-    }
-
-    // Prevent traces from requests not executing any PHP code:
-    // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
-    // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
-    if (!force_on_startup && PG(during_request_startup)) {
-        ddog_free_traces(traces);
-        return SUCCESS;
     }
 
     if (!ddog_get_traces_size(traces)) {
