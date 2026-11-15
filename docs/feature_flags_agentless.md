@@ -86,9 +86,19 @@ A forked child that did not inherit a configuration gets its own wait.
 
 ## Telemetry
 
-Configuration delivery and telemetry delivery are independent. Exposure and
-evaluation telemetry still go through the sidecar to the Agent, or through
-OTLP.
+Configuration delivery and event delivery are independent. In agentless mode,
+the PHP sidecar sends exposures and evaluation-count events through a compatible
+local Datadog Agent EVP proxy when available. Otherwise, with a valid `DD_SITE`
+and `DD_API_KEY`, it sends them directly to
+`https://event-platform-intake.<DD_SITE>`. A custom CDN base URL does not change
+the event destination and never receives the API key.
+
+Both event streams share route discovery and fallback state. A definitively
+rejected proxy request (404/405 or a connection failure before sending) may be
+replayed directly. Ambiguous failures switch future traffic to direct intake
+without replaying the current batch. Without direct credentials, the sidecar
+can rediscover a local proxy after a cooldown. Remote Config mode keeps the
+fixed Agent EVP route. OTLP metric delivery is unchanged.
 
 ## Tests
 

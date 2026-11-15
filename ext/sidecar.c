@@ -18,6 +18,9 @@
 #include "target_metadata.h"
 #include "ffi_utils.h"
 #include <tracer/tracer_api.h>
+#ifdef TRACER
+#include <tracer/ffe.h>
+#endif
 #ifdef APPSEC
 #include <appsec/src/extension/ddappsec_api.h>
 #endif
@@ -176,16 +179,51 @@ static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
 }
 
 #ifdef TRACER
-static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport) {
+static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport, ddog_CharSlice test_token) {
     // Both FFE writers share this target. Replace it when the test token changes
-    // so new observations use the new session and queued ones keep the old one.
+    // so batches already handed to the sidecar keep their previous session.
+    // PHP-buffered exposures and deferred userland observations use the session
+    // active at handoff, not necessarily the one active during evaluation.
     const ddog_EvpProducerIdentity ffe_producer = {
         .origin = DDOG_CHARSLICE_C("dd-trace-php"),
         .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
     };
-    datadog_ffi_try("Failed configuring PHP FFE EVP transport",
-        ddog_sidecar_session_set_evp_transport(transport, DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
-            datadog_endpoint, NULL, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+    bool agentless = ddtrace_ffe_agentless_enabled();
+    ddog_Endpoint *direct_endpoint = agentless ? ddog_ffe_evp_endpoint_new(
+        dd_zend_string_to_CharSlice(get_global_DD_SITE()),
+        dd_zend_string_to_CharSlice(get_global_DD_API_KEY())) : NULL;
+    if (direct_endpoint) {
+        ddog_endpoint_set_test_token_if_changed(direct_endpoint, test_token);
+    }
+    // Trace-agentless mode uses an intake descriptor for datadog_endpoint.
+    // FFE agentless discovery still needs the configured local Agent URL.
+    ddog_Endpoint *local_endpoint = datadog_endpoint;
+    if (agentless) {
+        char *agent_url = datadog_agent_url();
+        local_endpoint = datadog_parse_agent_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
+        free(agent_url);
+        if (!local_endpoint) {
+            // The FFI requires a non-null local endpoint. A relative URI has
+            // no receiver: discovery fails locally, allowing direct fallback.
+            local_endpoint = ddog_endpoint_from_url(DDOG_CHARSLICE_C("/"));
+        }
+        if (local_endpoint) {
+            ddog_endpoint_set_test_token_if_changed(local_endpoint, test_token);
+            ddog_endpoint_set_timeout(local_endpoint, get_global_DD_TRACE_AGENT_TIMEOUT());
+        }
+    }
+    if (local_endpoint) {
+        datadog_ffi_try("Failed configuring PHP FFE EVP transport",
+            ddog_sidecar_session_set_evp_transport(transport,
+                agentless ? DDOG_EVP_TRANSPORT_MODE_PREFER_LOCAL_THEN_DIRECT : DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
+                local_endpoint, direct_endpoint, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+    }
+    if (agentless && local_endpoint) {
+        ddog_endpoint_drop(local_endpoint);
+    }
+    if (direct_endpoint) {
+        ddog_endpoint_drop(direct_endpoint);
+    }
 }
 #endif
 
@@ -259,7 +297,8 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
     // Configure during ordinary connection setup, including fork recovery.
     // The transport replays its configuration after reconnects.
     // Remote Config keeps the fixed Agent EVP v2 route.
-    dd_sidecar_configure_ffe_transport(transport);
+    dd_sidecar_configure_ffe_transport(transport, dd_zend_string_to_CharSlice(zai_config_is_initialized()
+        ? get_DD_TRACE_AGENT_TEST_SESSION_TOKEN() : get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
 #endif
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
@@ -1036,7 +1075,8 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
                         ddog_sidecar_set_test_session_token(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
 #ifdef TRACER
         if (token_changed) {
-            dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar));
+            // The INI callback runs before the new value is visible through the getter.
+            dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
         }
 #endif
     }
