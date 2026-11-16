@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: 809f37412cf568a5aa6432ca9aa3e0a0bdc78abd */
+ * Stub hash: 5b16715bd964c45f911771b929407c8aa3137058 */
 
 #include "zend_constants.h"
 
@@ -185,6 +185,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_ffe_evaluate, 0, 4, DDTra
 	ZEND_ARG_TYPE_INFO(0, attributes, IS_ARRAY, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, recordMetric, _IS_BOOL, 0, "true")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, recordExposure, _IS_BOOL, 0, "true")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, deferExposures, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_ffe_has_config arginfo_DDTrace_are_endpoints_collected
@@ -711,11 +712,23 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 	zend_declare_typed_property(class_entry, property_exposureCacheHit_name, &property_exposureCacheHit_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL|MAY_BE_NULL));
 	zend_string_release_ex(property_exposureCacheHit_name, true);
 
+	zval property_dependencyEvaluations_default_value;
+	ZVAL_EMPTY_ARRAY(&property_dependencyEvaluations_default_value);
+	zend_string *property_dependencyEvaluations_name = zend_string_init("dependencyEvaluations", sizeof("dependencyEvaluations") - 1, 1);
+	zend_declare_typed_property(class_entry, property_dependencyEvaluations_name, &property_dependencyEvaluations_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_dependencyEvaluations_name);
+
 	zval property_providerState_default_value;
 	ZVAL_EMPTY_ARRAY(&property_providerState_default_value);
 	zend_string *property_providerState_name = zend_string_init("providerState", sizeof("providerState") - 1, true);
 	zend_declare_typed_property(class_entry, property_providerState_name, &property_providerState_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release_ex(property_providerState_name, true);
+
+	zval property_exposureCandidates_default_value;
+	ZVAL_EMPTY_ARRAY(&property_exposureCandidates_default_value);
+	zend_string *property_exposureCandidates_name = zend_string_init("exposureCandidates", sizeof("exposureCandidates") - 1, 1);
+	zend_declare_typed_property(class_entry, property_exposureCandidates_name, &property_exposureCandidates_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_exposureCandidates_name);
 
 	zval property_errorMessage_default_value;
 	ZVAL_NULL(&property_errorMessage_default_value);

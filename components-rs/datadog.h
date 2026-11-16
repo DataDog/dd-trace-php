@@ -328,6 +328,14 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         const struct ddog_FfeAttribute *attributes,
                                         uintptr_t attributes_count);
 
+struct ddog_FfeResult ddog_ffe_evaluate_with_dependencies(ddog_CharSlice flag_key,
+                                                          int32_t expected_type,
+                                                          ddog_CharSlice targeting_key,
+                                                          const struct ddog_FfeAttribute *attributes,
+                                                          uintptr_t attributes_count,
+                                                          ddog_FfeDependencyCallback callback,
+                                                          void *callback_context);
+
 void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
