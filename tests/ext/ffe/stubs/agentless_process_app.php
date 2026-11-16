@@ -52,8 +52,10 @@ if ($scenario === 'restart') {
     if (fgets(STDIN) !== "sidecar_killed\n") throw new RuntimeException('fixture did not stop the sidecar');
     if ($client->getStringValue('flag', 'fallback') !== 'blue') throw new RuntimeException('sidecar loss dropped the configuration');
     echo "last_configuration_retained\n";
-    // Under valgrind (--trace-children), the replacement sidecar takes many seconds to start.
-    $deadline = microtime(true) + ($instrumented ? 90 : 12);
+    // Under valgrind the traced fixture serves the CDN re-registration
+    // slowly under the parallel instrumented workers, and the replacement
+    // sidecar starts slowly on the saturated machine.
+    $deadline = microtime(true) + ($instrumented ? 120 : 12);
     do {
         // Sidecar traffic detects the lost connection; reconnecting replays the CDN registration.
         \DDTrace\Internal\flush_ffe_evaluation_metrics();

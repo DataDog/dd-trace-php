@@ -6,6 +6,12 @@ $instrumented = getenv('USE_ZEND_ALLOC') === '0';
 if ($instrumented && in_array($scenario, array('recovery', 'shutdown'), true)) {
     putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=2000');
 }
+if ($instrumented && $scenario === 'isolation') {
+    // The traced fixture serves the first CDN fetch slowly under the parallel
+    // instrumented workers, so the evaluator's blocking initialization needs
+    // a wider budget to observe the delivered configuration.
+    putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=60000');
+}
 if ($scenario === 'swoole' && getenv('PHP_FFE_SWOOLE_COLD') === 'expired') {
     putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=1000');
 }
@@ -160,7 +166,7 @@ try {
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
-    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 150 : 20)));
+    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 210 : 20)));
     $stdout .= ffeTestProcessRead($pipes[1]);
     $stderr .= ffeTestProcessRead($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out (exit=' . $exitCode . ', signal=' . $status['termsig'] . '): ' . $stdout . ' ' . $stderr);
