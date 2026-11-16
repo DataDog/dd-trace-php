@@ -54,26 +54,30 @@ var_dump($info['version']         ?? 'missing');
 var_dump($info['client_drop_p0s'] ?? false);
 var_dump(in_array('db.instance', $info['peer_tags'] ?? []));
 
-$rr->setResponse(['rate_by_service' => [
+$marker = 'service:shm-data-' . bin2hex(random_bytes(8)) . ',env:test';
+$response = ['rate_by_service' => [
     'service:,env:'                  => 0.5,
     'service:shm_data_test,env:test' => 1.0,
-]]);
+    $marker                        => 1.0,
+]];
 
-\DDTrace\start_span();
-// Always send the bootstrap trace so the agent response can populate sampling rates.
-// Client-side stats can otherwise discard a P0 trace before any response is received.
-\DDTrace\set_priority_sampling(1);
-\DDTrace\close_span();
-dd_trace_internal_fn('synchronous_flush'); // ensure sidecar sends immediately
-$rr->waitForDataAndReplay();
-
+// The replayer's next response can be consumed by concentrator startup telemetry.
+// Resend until this invocation's rates are published, rather than accepting stale SHM data.
 for ($i = 0; $i < 50; $i++) {
+    $rr->setResponse($response);
+    \DDTrace\start_span();
+    \DDTrace\set_priority_sampling(1); // CSS must retain the bootstrap trace.
+    \DDTrace\close_span();
+    dd_trace_internal_fn('synchronous_flush');
+    $rr->waitForRequest(function ($request) {
+        return strpos($request['uri'], '/traces') !== false;
+    });
     $sampling = dd_trace_internal_fn('get_agent_sampling_config');
-    if (!empty($sampling)) { break; }
+    if (isset($sampling['rate_by_service'][$marker])) { break; }
     usleep(100000);
 }
 var_dump(is_array($sampling));
-var_dump(isset($sampling['rate_by_service']));
+var_dump(isset($sampling['rate_by_service'][$marker]));
 var_dump((float)($sampling['rate_by_service']['service:shm_data_test,env:test'] ?? -1));
 
 $apmPath = put_dynamic_config_file(['tracing_sampling_rate' => 0.5], 'shm_data_test', 'test');
