@@ -56,12 +56,25 @@ static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
     }
 }
 
+static ddog_Endpoint *dd_agentless_endpoint(void) {
+    ddog_CharSlice api_key = dd_zend_string_to_CharSlice(get_global_DD_API_KEY());
+    ddog_Endpoint *endpoint = NULL;
+    ddog_Error *err = ddog_endpoint_from_api_key_and_site(api_key, dd_zend_string_to_CharSlice(get_global_DD_SITE()), &endpoint);
+    if (err) {
+        ddog_CharSlice msg = ddog_Error_message(err);
+        LOG(ERROR, "Invalid DD_SITE %s, falling back to datadoghq.com: %.*s", ZSTR_VAL(get_global_DD_SITE()), (int) msg.len, msg.ptr);
+        ddog_Error_free(err); // frees the box too; ddog_Error_drop only clears the message
+        endpoint = ddog_endpoint_from_api_key(api_key);
+    }
+    return endpoint;
+}
+
 // Set the globals that stay unchanged in case of fork
 static void dd_set_non_resettable_sidecar_globals(void) {
     datadog_endpoint = datadog_sidecar_agent_endpoint();
 
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
-        dogstatsd_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+        dogstatsd_endpoint = dd_agentless_endpoint();
     } else {
         char *dogstatsd_url = datadog_dogstatsd_url();
         dogstatsd_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = dogstatsd_url, .len = strlen(dogstatsd_url)});
@@ -819,7 +832,7 @@ ddog_Endpoint *datadog_sidecar_agent_endpoint(void) {
     ddog_Endpoint *agent_endpoint;
 
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
-        agent_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+        agent_endpoint = dd_agentless_endpoint();
     } else {
         char *agent_url = datadog_agent_url();
         agent_endpoint = datadog_parse_agent_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
