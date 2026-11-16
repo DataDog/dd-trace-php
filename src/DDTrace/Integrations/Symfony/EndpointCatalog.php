@@ -121,7 +121,7 @@ class EndpointCatalog
         if ($plan['ambiguous']) {
             $regex = self::replayRegexFromGeneratorData($routeData);
             if ($regex !== null) {
-                $normalization = self::REPLAY_MARKER . $normalization . "\0" . $regex;
+                $normalization = self::replayNormalization($normalization, $plan['matchedParams'], $regex);
             }
         }
 
@@ -129,11 +129,24 @@ class EndpointCatalog
     }
 
     /**
+     * The normalization part of a cache entry for a route with optional
+     * variables: the fallback route, the names of the mandatory variables
+     * (Symfony variable names are word characters, so ',' separates them) and
+     * the route's matcher regex.
+     */
+    public static function replayNormalization(string $fallback, array $mandatoryParams, string $regex): string
+    {
+        return self::REPLAY_MARKER . $fallback . "\0" . implode(',', array_keys($mandatoryParams)) . "\0" . $regex;
+    }
+
+    /**
      * Resolves the normalization part of a routeCacheEntry() entry for the
      * current request. It is either the normalized route, empty when there is
      * none, or, for routes with optional path variables, the fallback route
-     * (mandatory variables only) and the route's matcher regex to replay on the
-     * request path.
+     * (mandatory variables only), the mandatory variables' names and the
+     * route's matcher regex to replay on the request path (see
+     * replayNormalization()). An optional variable the replay bound to an
+     * empty value is absent (RFC-1125).
      *
      * Symfony merges the defaults of optional variables into _route_params, so
      * their URL participation is not observable after routing. The replay runs
@@ -157,18 +170,26 @@ class EndpointCatalog
             return $normalization;
         }
 
-        $regexSeparator = strpos($normalization, "\0");
-        if ($regexSeparator === false) {
+        $parts = explode("\0", substr($normalization, 1), 3);
+        if (count($parts) !== 3) {
             return null;
         }
-        $fallback = substr($normalization, 1, $regexSeparator - 1);
-        $regex = substr($normalization, $regexSeparator + 1);
+        list($fallback, $mandatory, $regex) = $parts;
 
         // Optional variables are a tail of the path, so the last one ends it.
         $lastVariable = substr($path, strrpos($path, '{') + 1, -1);
-        $matchedParams = self::matchedParamsFromReplay($regex, $lastVariable, $pathInfo);
-        if ($matchedParams === null) {
+        $values = self::replayValues($regex, $lastVariable, $pathInfo);
+        if ($values === null) {
             return $fallback === '' ? null : $fallback;
+        }
+
+        // RFC-1125: an optional variable bound to an empty value is absent.
+        // A mandatory one is in the route whatever its value.
+        $matchedParams = $mandatory === '' ? [] : array_fill_keys(explode(',', $mandatory), true);
+        foreach ($values as $name => $value) {
+            if ($value !== '') {
+                $matchedParams[$name] = true;
+            }
         }
 
         return RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
@@ -184,6 +205,19 @@ class EndpointCatalog
      * @return array<string, bool>|null
      */
     public static function matchedParamsFromReplay(string $regex, string $lastVariable, string $pathInfo)
+    {
+        $values = self::replayValues($regex, $lastVariable, $pathInfo);
+
+        return $values === null ? null : array_fill_keys(array_keys($values), true);
+    }
+
+    /**
+     * matchedParamsFromReplay() with the value each participating variable
+     * was bound to.
+     *
+     * @return array<string, string>|null
+     */
+    private static function replayValues(string $regex, string $lastVariable, string $pathInfo)
     {
         $pathInfo = rawurldecode($pathInfo) ?: '/';
         $trimmedPathInfo = rtrim($pathInfo, '/') ?: '/';
@@ -202,14 +236,14 @@ class EndpointCatalog
         // Like doMatch(), a variable is present if it is set in the matches.
         // preg_match() leaves out trailing groups that did not participate,
         // and optional groups only precede groups nested inside them.
-        $matchedParams = [];
+        $values = [];
         foreach ($matches as $name => $value) {
             if (is_string($name)) {
-                $matchedParams[$name] = true;
+                $values[$name] = (string) $value;
             }
         }
 
-        return $matchedParams;
+        return $values;
     }
 
     /**

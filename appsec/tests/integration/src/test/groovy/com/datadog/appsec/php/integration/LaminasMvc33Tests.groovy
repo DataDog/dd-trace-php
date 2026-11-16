@@ -753,9 +753,10 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
     @Test
     @Order(40)
-    void 'Regex spec text the regex did not match omits the normalized route'() {
+    void 'Regex optional static text follows the match, not the spec'() {
         // The spec places /archive, which the regex holds in a non-capturing
-        // optional; it is not in this URL.
+        // optional; it is not in this URL. RFC-1125 builds a whole-route regex
+        // from what it matched, so the spec does not need to line up.
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-rx-archive/5').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -764,7 +765,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
         assert trace.first().meta.'laminas.route.name' == 'normalized_rx_archive'
         assert trace.first().meta.'http.route' == '/normalized-rx-archive/archive/%id%'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == null
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rx-archive/{id}'
 
         trace = container.traceFromRequest(
                 container.buildReq('/normalized-rx-archive/archive/5').GET().build(),
@@ -807,7 +808,8 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
     @Order(43)
     void 'Wildcard continuing a URL segment does not start a new one'() {
         // Wildcard accepts a remainder without a delimiter, so abc continues
-        // the segment of the Literal before it, which the catch-all then covers.
+        // the segment of the Literal before it, and the catch-all is placed
+        // there, after the Literal's text (RFC-1125: /api + /apix -> /api{param1}).
         Trace trace = container.traceFromRequest(
                 container.buildReq('/wildcard-keysabc').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -816,7 +818,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
         assert trace.first().meta.'laminas.route.name' == 'wildcard_keys/pairs'
         assert trace.first().meta.'http.route' == '/wildcard-keys/*'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == '/{param1}'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/wildcard-keys{param1}'
     }
 
     @Test
@@ -896,9 +898,10 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
     @Test
     @Order(47)
-    void 'Regex capture its spec does not place omits the normalized route'() {
-        // lang took part, but the spec has no placeholder for it, so where it
-        // sits in the route is unknown; its value must not become static text.
+    void 'Regex capture its spec does not place is still a parameter'() {
+        // lang took part, but the spec has no placeholder for it. The route is
+        // built from the regex match, where lang is a capture group, so its
+        // value never becomes static text.
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-rx-unplaced/en/about').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
@@ -907,6 +910,6 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
 
         assert trace.first().meta.'laminas.route.name' == 'normalized_rx_unplaced'
         assert trace.first().meta.'http.route' == '/normalized-rx-unplaced/en/about'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == null
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rx-unplaced/{lang}/about'
     }
 }

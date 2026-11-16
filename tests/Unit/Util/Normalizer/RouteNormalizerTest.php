@@ -26,6 +26,15 @@ class RouteNormalizerTest extends BaseTestCase
     {
         $this->assertSame('%2F', RouteNormalizer::encodeStaticSegment('%2F'));
         $this->assertSame('%2F', RouteNormalizer::encodeStaticSegment('%2f'));
+        $this->assertSame('%C3%A9', RouteNormalizer::encodeStaticSegment('%c3%a9'));
+    }
+
+    public function testEncodeStaticSegmentEncodesALiteralPercent()
+    {
+        // The framework treats '%' literally: never read as an escape.
+        $this->assertSame('%25c3%25a9', RouteNormalizer::encodeStaticSegment('%c3%a9', false));
+        $this->assertSame('100%25', RouteNormalizer::encodeStaticSegment('100%', false));
+        $this->assertSame('caf%C3%A9', RouteNormalizer::encodeStaticSegment("caf\xC3\xA9", false));
     }
 
     // encodeParamName
@@ -40,7 +49,10 @@ class RouteNormalizerTest extends BaseTestCase
     {
         $this->assertSame('foo_bar', RouteNormalizer::encodeParamName('foo+bar'));
         $this->assertSame('foo_bar', RouteNormalizer::encodeParamName('foo#bar'));
-        $this->assertSame('f__o', RouteNormalizer::encodeParamName("f\xC3\xB6o"));
+        // RFC-1125: one '_' per Unicode code point, not per byte.
+        $this->assertSame('f_o', RouteNormalizer::encodeParamName("f\xC3\xB6o"));
+        // Not valid UTF-8: replaced byte by byte.
+        $this->assertSame('f_o', RouteNormalizer::encodeParamName("f\xF6o"));
         $this->assertSame('Id_2', RouteNormalizer::encodeParamName('Id-2'));
         $this->assertSame('_', RouteNormalizer::encodeParamName(''));
     }
@@ -281,8 +293,9 @@ class RouteNormalizerTest extends BaseTestCase
     {
         // F-11: when an inner optional capture did not participate (empty string in captures),
         // it must not produce a phantom {paramN}.
+        // RFC-1125: an unnamed capture gets param<N>, the smallest N not used.
         $result = RouteNormalizer::normalizeFromWordPress('^(?:([^/]+)-)?([^/]+)$', 'x');
-        $this->assertSame('/{param2}', $result);
+        $this->assertSame('/{param1}', $result);
     }
 
     public function testWordPressBothCapturesPresentInOptionalGroup()
@@ -292,7 +305,7 @@ class RouteNormalizerTest extends BaseTestCase
     }
 
     // Rule-plan memo: the per-rule safety scan of
-    // hasOnlyCapturedWordPressDynamics runs once per rule while PHP statics
+    // regexHasOnlyCapturedDynamics runs once per rule while PHP statics
     // live (one request under FPM, mod_php and CGI).
 
     public function testWordPressRulePlanAcceptsSafeRule()
@@ -467,5 +480,136 @@ class RouteNormalizerTest extends BaseTestCase
         // separator included, is resolved away before normalization.
         $result = RouteNormalizer::normalizeElements([['static', '/posts/'], ['param', 'id']]);
         $this->assertSame('/posts/{id}', $result);
+    }
+
+    // RFC-1125 test cases
+
+    public function testRfcStaticTextIsPercentEncoded()
+    {
+        // Tests 9-11. Laravel and Symfony match the decoded path, so a '%' in
+        // their route is a literal character.
+        $this->assertSame('/caf%C3%A9', RouteNormalizer::normalizeFromSymfony("/caf\xC3\xA9", []));
+        $this->assertSame('/user%3Ame', RouteNormalizer::normalizeFromLaravel('/user:me'));
+        $this->assertSame('/a%2Bb/{id}', RouteNormalizer::normalizeFromLaravel('/a+b/{id}'));
+        $this->assertSame('/caf%25C3%25A9', RouteNormalizer::normalizeFromSymfony('/caf%C3%A9', []));
+        // Laminas and WordPress match the encoded path: the escape is kept.
+        $this->assertSame('/caf%C3%A9', RouteNormalizer::normalizeElements([['static', '/caf%c3%a9']]));
+    }
+
+    public function testRfcParameterNames()
+    {
+        // Tests 30-34.
+        $this->assertSame('/users/{user_id}', RouteNormalizer::normalizeFromLaravel('/users/{user-id}'));
+        $this->assertSame('/items/{item_id}', RouteNormalizer::normalizeFromSymfony('/items/{item.id}', ['item.id' => true]));
+        $this->assertSame('/a/{user_id_2}/{user_id}', RouteNormalizer::normalizeElements([
+            ['static', '/a/'], ['param', 'user-id'], ['static', '/'], ['param', 'user_id'],
+        ]));
+        $this->assertSame('/a/{x_y_3}/{x_y}/{x_y_2}', RouteNormalizer::normalizeElements([
+            ['static', '/a/'], ['param', 'x-y'], ['static', '/'], ['param', 'x_y'], ['static', '/'], ['param', 'x_y_2'],
+        ]));
+        $this->assertSame('/u/{f_o}', RouteNormalizer::normalizeElements([['static', '/u/'], ['param', "f\xC3\xB6o"]]));
+    }
+
+    public function testRfcReplacedNamesCollidingWithEachOtherAreSuffixedInPathOrder()
+    {
+        $this->assertSame('/a/{a_b}/{a_b_2}', RouteNormalizer::normalizeElements([
+            ['static', '/a/'], ['param', 'a-b'], ['static', '/'], ['param', 'a.b'],
+        ]));
+    }
+
+    public function testRfcUnnamedParametersGetTheSmallestUnusedNumber()
+    {
+        // Tests 36-38.
+        $this->assertSame('/static/{param1}', RouteNormalizer::normalizeElements([['static', '/static/'], ['tail']]));
+        $this->assertSame('/w/{param1}/{param2}', RouteNormalizer::normalizeElements([
+            ['static', '/w/'], ['param', 'param1'], ['static', '/'], ['tail'],
+        ]));
+        $this->assertSame('/a/{param1}/b', RouteNormalizer::normalizeElements([
+            ['static', '/a/'], ['tail'], ['static', '/b'],
+        ]));
+        $this->assertSame('/files/{param1}.txt', RouteNormalizer::normalizeElements([
+            ['static', '/files/'], ['unnamed'], ['static', '.txt'],
+        ]));
+    }
+
+    public function testRfcCatchAllContinuesTheSegmentBeforeIt()
+    {
+        // A prefix route without a trailing slash: PathPrefix("/api") hit with /apix.
+        $this->assertSame('/api{param1}', RouteNormalizer::normalizeElements([['static', '/api'], ['tail']]));
+        $this->assertSame('/api/{param1}', RouteNormalizer::normalizeElements([['static', '/api'], ['static', '/'], ['tail']]));
+    }
+
+    public function testWordPressRuleMatchedOnlyAfterDecoding()
+    {
+        // WP::parse_request() retries the rule on the URL-decoded subject;
+        // its '%' and other characters are then literal.
+        $this->assertSame(
+            '/caf%C3%A9/{param1}',
+            RouteNormalizer::normalizeFromWordPress("^caf\xC3\xA9/([^/]+)/?$", 'caf%C3%A9/x')
+        );
+    }
+
+    public function testWordPressRuleWithoutEndAnchorIsAPrefixRoute()
+    {
+        // WordPress matches "#^rule#": the rest of the path is the rule's
+        // implicit unnamed catch-all.
+        $this->assertSame('/blog/{param1}', RouteNormalizer::normalizeFromWordPress('^blog', 'blog/a/b'));
+        $this->assertSame('/blog{param1}', RouteNormalizer::normalizeFromWordPress('^blog', 'blogx'));
+        $this->assertSame('/blog', RouteNormalizer::normalizeFromWordPress('^blog', 'blog'));
+        $this->assertSame(
+            '/tag/{param1}/{param2}',
+            RouteNormalizer::normalizeFromWordPress('^tag/([^/]+)', 'tag/php/feed')
+        );
+    }
+
+    // Whole-route regexes (Laminas Regex)
+
+    public function testRegexMatchElementsFollowTheMatch()
+    {
+        $regex = '/normalized-rx-archive(?:/archive)?/(?<id>[0-9]+)';
+        $this->assertSame(1, preg_match('(^' . $regex . '$)', '/normalized-rx-archive/5', $m, PREG_OFFSET_CAPTURE));
+        $this->assertSame('/normalized-rx-archive/{id}', RouteNormalizer::normalizeElements(
+            RouteNormalizer::regexMatchElements($regex, '/normalized-rx-archive/5', 0, 24, $m)
+        ));
+    }
+
+    public function testUnnamedCaptureAroundANamedOneOnlyGroupsIt()
+    {
+        $regex = '/blog/(?<id>[0-9]+)(\.(?<format>[a-z]+))?';
+        $this->assertTrue(RouteNormalizer::regexHasOnlyCapturedDynamics($regex));
+        $this->assertSame(1, preg_match('(^' . $regex . '$)', '/blog/5.json', $m, PREG_OFFSET_CAPTURE));
+        $this->assertSame('/blog/{id}.{format}', RouteNormalizer::normalizeElements(
+            RouteNormalizer::regexMatchElements($regex, '/blog/5.json', 0, 12, $m)
+        ));
+        $this->assertSame('/blog/{id}', RouteNormalizer::normalizeElements(
+            RouteNormalizer::regexFallbackElements($regex)
+        ));
+        // Its other text is then outside any capture, so it must be literal.
+        $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics('/blog/([0-9]+-(?<id>[0-9]+))'));
+    }
+
+    public function testRegexFallbackKeepsLiteralTextAndMandatoryCaptures()
+    {
+        $cases = [
+            '/regex-year/(?P<year>\d{4})' => '/regex-year/{year}',
+            '/normalized-regex/(?P<id>[a-z]+)(?:\.(?P<format>[a-z]+))?' => '/normalized-regex/{id}',
+            '/normalized-rx-archive(?:/archive)?/(?<id>[0-9]+)' => '/normalized-rx-archive/{id}',
+            '/normalized-rx-dot/v1\.(?<x>[a-z]+)?' => '/normalized-rx-dot/v1.',
+            '/normalized-rx-unplaced/(?<lang>en|fr)/about' => '/normalized-rx-unplaced/{lang}/about',
+            '/a/?' => '/a',
+            '/files/([0-9]+)' => '/files/{param1}',
+        ];
+        foreach ($cases as $regex => $expected) {
+            $elements = RouteNormalizer::regexFallbackElements($regex);
+            $this->assertNotNull($elements, $regex);
+            $this->assertSame($expected, RouteNormalizer::normalizeElements($elements), $regex);
+        }
+    }
+
+    public function testRegexFallbackRejectsRegexesThatCannotBeExpressed()
+    {
+        foreach (['/a(?:b|c)/x', '/a.b', '/x(?=y)', '/a{2}', '/[a-z]+', '/a\d', '(*UTF8)/a', '/a{}'] as $regex) {
+            $this->assertNull(RouteNormalizer::regexFallbackElements($regex), $regex);
+        }
     }
 }

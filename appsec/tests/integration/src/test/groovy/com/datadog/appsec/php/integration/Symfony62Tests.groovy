@@ -293,9 +293,10 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
 
     @Test
     @Order(19)
-    void 'optional parameter matched as an empty string is present'() {
+    void 'optional parameter matched as an empty string is absent'() {
         // Symfony binds rest = '' because its optional group participated, so
-        // the default "none" is not used.
+        // the default "none" is not used. RFC-1125 counts an empty value as
+        // absent, and the '/' before it goes with the optional.
         HttpRequest req = container.buildReq('/normalized/catchall/').GET().build()
         Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 200
@@ -304,7 +305,7 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
 
         Span span = trace.first()
         assert span.meta.'http.route' == '/normalized/catchall/{rest}'
-        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/catchall/{rest}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/catchall'
     }
 
     @Test
