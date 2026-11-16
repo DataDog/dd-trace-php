@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\DistributedTracing;
 
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
@@ -43,8 +44,8 @@ class DistributedTraceTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertSame('1042', $traces[0][0]['trace_id']);
-        $this->assertSame('1000', $traces[0][0]['parent_id']);
+        $this->assertSame('1042', SpanChecker::traceIdLow($traces[0]));
+        $this->assertSame('1000', $traces[0]['spans'][0]['parent_id']);
     }
 
     public function testDistributedTraceUint64()
@@ -62,8 +63,8 @@ class DistributedTraceTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertSame('12222222222222222222', $traces[0][0]['trace_id']);
-        $this->assertSame('11133333333333333333', $traces[0][0]['parent_id']);
+        $this->assertSame('12222222222222222222', SpanChecker::traceIdLow($traces[0]));
+        $this->assertSame('11133333333333333333', $traces[0]['spans'][0]['parent_id']);
     }
 
     // Synthetics requests have "0" as the parent ID
@@ -82,8 +83,8 @@ class DistributedTraceTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertSame('6017420907356617206', $traces[0][0]['trace_id']);
-        $this->assertArrayNotHasKey('parent_id', $traces[0][0]);
+        $this->assertSame('6017420907356617206', SpanChecker::traceIdLow($traces[0]));
+        $this->assertArrayNotHasKey('parent_id', $traces[0]['spans'][0]);
     }
 
     public function testInvalidTraceId()
@@ -101,9 +102,9 @@ class DistributedTraceTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertNotSame('this-is-not-valid', $traces[0][0]['trace_id']);
-        $this->assertNotSame('0', $traces[0][0]['trace_id']);
-        $this->assertArrayNotHasKey('parent_id', $traces[0][0]);
+        $this->assertNotSame('this-is-not-valid', SpanChecker::traceIdLow($traces[0]));
+        $this->assertNotSame('0', SpanChecker::traceIdLow($traces[0]));
+        $this->assertArrayNotHasKey('parent_id', $traces[0]['spans'][0]);
     }
 
     public function testInvalidParentId()
@@ -121,7 +122,7 @@ class DistributedTraceTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertSame('42', $traces[0][0]['trace_id']);
-        $this->assertArrayNotHasKey('parent_id', $traces[0][0]);
+        $this->assertSame('42', SpanChecker::traceIdLow($traces[0]));
+        $this->assertArrayNotHasKey('parent_id', $traces[0]['spans'][0]);
     }
 }

@@ -21,20 +21,20 @@ DDTrace\close_span();
 DDTrace\close_span();
 
 // Get the spans and verify both
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 if (count($spans) >= 2) {
     var_dump([
         'span1' => [
             'name' => $spans[0]['name'],
             'service' => $spans[0]['service'],
-            'version' => $spans[0]['meta']['version'],
-            'env' => $spans[0]['meta']['env']
+            'version' => $spans[0]['version'],
+            'env' => $spans[0]['env']
         ],
         'span2' => [
             'name' => $spans[1]['name'],
             'service' => $spans[1]['service'],
-            'version' => $spans[1]['meta']['version'],
-            'env' => $spans[1]['meta']['env']
+            'version' => $spans[1]['version'],
+            'env' => $spans[1]['env']
         ]
     ]);
 }

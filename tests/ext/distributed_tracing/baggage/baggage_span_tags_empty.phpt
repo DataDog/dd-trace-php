@@ -12,11 +12,17 @@ DDTrace\consume_distributed_tracing_headers(function ($header) {
             "baggage" => "user.id=123,session.id=abc,region=us-east1,account.id=987"
         ][$header] ?? null;
 });
-var_dump(DDTrace\start_span()->meta);
+var_dump((array) DDTrace\start_span()->meta);
 
 ?>
 --EXPECTF--
-array(1) {
+array(4) {
   ["runtime-id"]=>
   string(36) "%s"
+  ["service.name"]=>
+  string(27) "baggage_span_tags_empty.php"
+  ["operation.name"]=>
+  string(27) "baggage_span_tags_empty.php"
+  ["span.type"]=>
+  string(3) "cli"
 }

@@ -12,14 +12,16 @@ final class SpanAssertion
 
     private $operationName;
     private $hasError;
-    /** @var string[] Tags the MUST match in both key and value */
-    private $exactTags = SpanAssertion::NOT_TESTED;
-    /** @var string[] Tags the MUST be present but with any value */
-    private $existingTags = ['process_id'];
-    /** @var string[] Ignore any tags that match these regexp patterns */
-    private $skipTagPatterns = [];
-    /** @var array Exact metrics set on the span */
-    private $exactMetrics = SpanAssertion::NOT_TESTED;
+    /** @var array Attributes that MUST match in both key and (typed) value */
+    private $exactAttributes = SpanAssertion::NOT_TESTED;
+    /** @var string[] Attributes that MUST be present but with any value */
+    private $existingAttributes = ['process_id'];
+    /** @var string[] Ignore any attributes that match these regexp patterns */
+    private $skipAttributePatterns = [];
+    /** @var array Fields of the span's chunk (priority, sampling_mechanism, origin) */
+    private $chunkFields = [];
+    /** @var bool Whether the span MUST have span links */
+    private $spanLinks = false;
     private $service = SpanAssertion::NOT_TESTED;
     private $type = SpanAssertion::NOT_TESTED;
     private $resource = SpanAssertion::NOT_TESTED;
@@ -79,10 +81,9 @@ final class SpanAssertion
      * @param string $service
      * @param string $type
      * @param string $resource
-     * @param array $exactTags
+     * @param array $exactAttributes
      * @param null $parent
      * @param bool $error
-     * @param array|string $extactMetrics
      * @return SpanAssertion
      */
     public static function build(
@@ -90,17 +91,15 @@ final class SpanAssertion
         $service,
         $type,
         $resource,
-        $exactTags = [],
+        $exactAttributes = [],
         $parent = null,
-        $error = false,
-        $extactMetrics = SpanAssertion::NOT_TESTED
+        $error = false
     ) {
         return SpanAssertion::forOperation($name, $error)
             ->service($service)
             ->resource($resource)
             ->type($type)
-            ->withExactTags($exactTags)
-            ->withExactMetrics($extactMetrics)
+            ->withExactAttributes($exactAttributes)
         ;
     }
 
@@ -124,24 +123,24 @@ final class SpanAssertion
     public function setError($errorType = null, $errorMessage = null, $exceptionThrown = false)
     {
         $this->hasError = true;
-        if (!is_array($this->exactTags)) {
-            $this->exactTags = [];
+        if (!is_array($this->exactAttributes)) {
+            $this->exactAttributes = [];
         }
-        if (isset($this->exactTags[Tag::ERROR_TYPE])) {
+        if (isset($this->exactAttributes[Tag::ERROR_TYPE])) {
             return $this;
         }
         if (null !== $errorType) {
-            $this->exactTags[Tag::ERROR_TYPE] = $errorType;
+            $this->exactAttributes[Tag::ERROR_TYPE] = $errorType;
         } else {
-            $this->existingTags[] = Tag::ERROR_TYPE;
+            $this->existingAttributes[] = Tag::ERROR_TYPE;
         }
         if (null !== $errorMessage) {
             // commonly contains file/line info, use global format
             // we do not want to test the specific formatting of exceptions here
-            $this->exactTags[Tag::ERROR_MSG] = "%S$errorMessage%S";
+            $this->exactAttributes[Tag::ERROR_MSG] = "%S$errorMessage%S";
         }
         if ($exceptionThrown) {
-            $this->existingTags[] = Tag::ERROR_STACK;
+            $this->existingAttributes[] = Tag::ERROR_STACK;
         }
         return $this;
     }
@@ -163,53 +162,44 @@ final class SpanAssertion
     }
 
     /**
-     * Mark all provided tags as mandatory. If multiple arrays are provided, they will be merged with the right-most
-     * ones taking precedence over the lest-most ones.
+     * The span's attributes (and env, version, component and span.kind) must be exactly these, compared
+     * with their type; string values are formats (see assertStringMatchesFormat). If multiple arrays are
+     * provided, they will be merged with the right-most ones taking precedence over the left-most ones.
      *
-     * @param array|string[]... $tags
+     * @param array... $attributes
      * @return $this
      */
-    public function withExactTags(...$tags)
+    public function withExactAttributes(...$attributes)
     {
-        if ($tags[0] === self::NOT_TESTED) {
-            $this->exactTags = self::NOT_TESTED;
+        if ($attributes[0] === self::NOT_TESTED) {
+            $this->exactAttributes = self::NOT_TESTED;
             return $this;
         }
 
-        foreach ($tags as $tag) {
-            if (!is_array($tag)) {
+        foreach ($attributes as $attribute) {
+            if (!is_array($attribute)) {
                 throw new Exception(
-                    'All arguments provided to ::withExactTags MUST be arrays: ' . \var_export($tag, true)
+                    'All arguments provided to ::withExactAttributes MUST be arrays: ' . \var_export($attribute, true)
                 );
             }
         }
 
-        $this->exactTags = array_merge(
-            \is_array($this->exactTags) ? $this->exactTags : [],
-            ...$tags
+        $this->exactAttributes = array_merge(
+            \is_array($this->exactAttributes) ? $this->exactAttributes : [],
+            ...$attributes
         );
 
         return $this;
     }
 
     /**
-     * @param array|string $metrics
+     * @param array $names
+     * @param bool $merge If true, the provided names are merged with the default ones
      * @return $this
      */
-    public function withExactMetrics($metrics)
+    public function withExistingAttributeNames(array $names, $merge = true)
     {
-        $this->exactMetrics = $metrics;
-        return $this;
-    }
-
-    /**
-     * @param array $tagNames
-     * @param bool $merge If true, the provided tags are nmerged with the default ones
-     * @return $this
-     */
-    public function withExistingTagsNames(array $tagNames, $merge = true)
-    {
-        $this->existingTags = $merge ? array_merge($tagNames, $this->existingTags) : $tagNames;
+        $this->existingAttributes = $merge ? array_merge($names, $this->existingAttributes) : $names;
         return $this;
     }
 
@@ -217,15 +207,72 @@ final class SpanAssertion
      * @param string $pattern regular expression
      * @return $this
      */
-    public function skipTagsLike($pattern)
+    public function skipAttributesLike($pattern)
     {
-        $this->skipTagPatterns[] = $pattern;
+        $this->skipAttributePatterns[] = $pattern;
         return $this;
     }
 
-    public function getSkippedTagPatterns()
+    public function getSkippedAttributePatterns()
     {
-        return $this->skipTagPatterns;
+        return $this->skipAttributePatterns;
+    }
+
+    /**
+     * The span MUST have span links.
+     *
+     * @return $this
+     */
+    public function withSpanLinks()
+    {
+        $this->spanLinks = true;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasSpanLinks()
+    {
+        return $this->spanLinks;
+    }
+
+    /**
+     * @param int $priority The chunk's sampling priority
+     * @return $this
+     */
+    public function samplingPriority($priority)
+    {
+        $this->chunkFields['priority'] = $priority;
+        return $this;
+    }
+
+    /**
+     * @param int $mechanism The chunk's sampling mechanism (the _dd.p.dm decision maker)
+     * @return $this
+     */
+    public function samplingMechanism($mechanism)
+    {
+        $this->chunkFields['sampling_mechanism'] = $mechanism;
+        return $this;
+    }
+
+    /**
+     * @param string $origin The chunk's origin
+     * @return $this
+     */
+    public function origin($origin)
+    {
+        $this->chunkFields['origin'] = $origin;
+        return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function getExactChunkFields()
+    {
+        return $this->chunkFields;
     }
 
     /**
@@ -283,25 +330,25 @@ final class SpanAssertion
     }
 
     /**
-     * @return string[]
+     * @return array|string
      */
-    public function getExactTags()
+    public function getExactAttributes()
     {
-        return $this->exactTags;
+        return $this->exactAttributes;
     }
 
     /**
      * @param bool $isChildSpan
      * @return string[]
      */
-    public function getExistingTagNames($isChildSpan = false)
+    public function getExistingAttributeNames($isChildSpan = false)
     {
         if ($isChildSpan) {
-            return array_filter($this->existingTags, function ($name) {
+            return array_filter($this->existingAttributes, function ($name) {
                 return $name !== 'process_id';
             });
         }
-        return $this->existingTags;
+        return $this->existingAttributes;
     }
 
     /**
@@ -342,14 +389,6 @@ final class SpanAssertion
     public function isOnlyCheckExistence()
     {
         return $this->onlyCheckExistence;
-    }
-
-    /**
-     * @return array
-     */
-    public function getExactMetrics()
-    {
-        return $this->exactMetrics;
     }
 
     /**

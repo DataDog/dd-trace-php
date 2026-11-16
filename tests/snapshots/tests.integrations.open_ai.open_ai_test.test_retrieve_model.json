@@ -16,6 +16,7 @@
       "openai.request.endpoint": "/v1/models/*",
       "openai.request.method": "GET",
       "openai.request.model": "da-vince",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.object": "model",
       "openai.response.owned_by": "openai",
@@ -28,8 +29,7 @@
       "_dd.agent_psr": 1,
       "_dd.measured": 1,
       "_sampling_priority_v1": 1,
-      "openai.response.created": 1642018370,
-      "openai.response.id": 42
+      "openai.response.created": 1642018370
     }
   },
      {

@@ -52,7 +52,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         'web',
                         'GET /simple'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost/simple?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
@@ -67,7 +67,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'yii2_test_app',
                             Type::WEB_SERVLET,
                             'yii\web\Application.run'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
@@ -75,7 +75,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'simple/index'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => "yii",
                             ])->withChildren([
                                 SpanAssertion::build(
@@ -83,7 +83,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'yii2_test_app',
                                     Type::WEB_SERVLET,
                                     'index'
-                                )->withExactTags([
+                                )->withExactAttributes([
                                     Tag::COMPONENT => "yii",
                                 ]),
                             ]),
@@ -96,7 +96,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
@@ -111,7 +111,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'yii2_test_app',
                             Type::WEB_SERVLET,
                             'yii\web\Application.run'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
@@ -119,7 +119,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'simple/view'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => "yii",
                             ])->withChildren([
                                 SpanAssertion::build(
@@ -127,7 +127,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'yii2_test_app',
                                     Type::WEB_SERVLET,
                                     'view'
-                                )->withExactTags([
+                                )->withExactAttributes([
                                     Tag::COMPONENT => "yii",
                                 ])->withChildren([
                                     SpanAssertion::exists('yii\web\View.renderFile'),
@@ -143,7 +143,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost/error?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '500',
@@ -164,7 +164,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'site/error'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => "yii",
                             ])->withChildren([
                                 SpanAssertion::build(
@@ -172,7 +172,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'yii2_test_app',
                                     Type::WEB_SERVLET,
                                     'error'
-                                )->withExactTags([
+                                )->withExactAttributes([
                                     Tag::COMPONENT => "yii",
                                 ])->withChildren([
                                     SpanAssertion::exists('yii\web\View.renderFile'),
@@ -184,7 +184,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'yii\web\Application.run'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => "yii",
                             ])->setError('Exception', 'datadog', true)
                                 ->withChildren([
@@ -193,7 +193,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'yii2_test_app',
                                     Type::WEB_SERVLET,
                                     'simple/error'
-                                )->withExactTags([
+                                )->withExactAttributes([
                                     Tag::COMPONENT => "yii",
                                 ])->setError('Exception', 'datadog', true)
                                     ->withChildren([
@@ -202,7 +202,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'yii2_test_app',
                                             Type::WEB_SERVLET,
                                             'error'
-                                        )->withExactTags([
+                                        )->withExactAttributes([
                                             Tag::COMPONENT => "yii",
                                         ])->setError('Exception', 'datadog', true),
                                     ]),
@@ -215,7 +215,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         'web',
                         'GET /parameterized/?'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost/parameterized/paramValue',
                         Tag::HTTP_STATUS_CODE => '200',
@@ -230,7 +230,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'yii2_test_app',
                             Type::WEB_SERVLET,
                             'yii\web\Application.run'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
@@ -238,7 +238,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'simple/parameterized'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => "yii",
                             ])->withChildren([
                                 SpanAssertion::build(
@@ -246,7 +246,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'yii2_test_app',
                                     Type::WEB_SERVLET,
                                     'parameterized'
-                                )->withExactTags([
+                                )->withExactAttributes([
                                     Tag::COMPONENT => "yii",
                                 ]),
                             ]),

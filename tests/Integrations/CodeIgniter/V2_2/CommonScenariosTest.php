@@ -48,7 +48,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         'web',
                         'GET /simple'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost/simple?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
@@ -62,7 +62,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple.index'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'codeigniter',
                         ])
                     ]),
@@ -73,7 +73,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
@@ -87,7 +87,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple_View.index'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'codeigniter',
                         ])->withChildren([
                             SpanAssertion::build(
@@ -95,7 +95,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'codeigniter_test_app',
                                 Type::WEB_SERVLET,
                                 'simple_view'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => 'codeigniter',
                             ]),
                         ])
@@ -107,7 +107,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost/error?key=value&<redacted>',
                         // CodeIgniter's error handler does not adjust the status code
@@ -118,14 +118,14 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_ROUTE => 'error'
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
-                    ->withExistingTagsNames(['error.stack'])
+                    ->withExistingAttributeNames(['error.stack'])
                     ->withChildren([
                         SpanAssertion::build(
                             'Error_.index',
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Error_.index'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'codeigniter',
                         ])->setError('Exception', 'datadog', true),
                     ]),
@@ -136,7 +136,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         'web',
                         'GET /parameterized/paramValue'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost/parameterized/paramValue',
                         Tag::HTTP_STATUS_CODE => '200',
@@ -150,7 +150,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Parameterized.customAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'codeigniter',
                         ])
                     ]),

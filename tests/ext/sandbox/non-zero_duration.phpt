@@ -17,7 +17,7 @@ function function1() {
 
 function1();
 
-$closedSpans = dd_trace_serialize_closed_spans();
+$closedSpans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 if (empty($closedSpans)) {
     die("No spans found; test is not set up as expected.\n");
 }

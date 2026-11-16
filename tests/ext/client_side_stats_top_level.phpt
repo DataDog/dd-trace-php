@@ -30,10 +30,10 @@ $child_diff->service = "other-service";
 
 \DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 
 foreach ($spans as $span) {
-    $has_top_level = isset($span["metrics"]["_dd.top_level"]);
+    $has_top_level = isset($span["attributes"]["_dd.top_level"]);
     echo $span["name"] . ": _dd.top_level=" . ($has_top_level ? "1" : "not set") . "\n";
 }
 

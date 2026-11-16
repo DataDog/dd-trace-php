@@ -24,7 +24,7 @@ verify($span && $inside === $span && $span->getDuration() > 0, 'first begin-only
 verify(DDTrace\active_span() === $root, 'bailout does not unwind the application frame');
 DDTrace\remove_hook($id);
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === 2, 'span survives callback bailout');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === 2, 'span survives callback bailout');
 echo "OK\n";
 ?>
 --EXPECT--

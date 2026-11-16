@@ -5,8 +5,8 @@ $case = $_GET['case'] ?? 'unknown';
 switch ($case) {
     case 'with_route':
         // Test case: http.route is present - should use it for sampling
-        $rootSpan->meta["http.route"] = "/users/{id}/profile";
-        $rootSpan->meta["http.method"] = "GET";
+        $rootSpan->attributes["http.route"] = "/users/{id}/profile";
+        $rootSpan->attributes["http.method"] = "GET";
 
         header("Content-Type: application/json");
         http_response_code(200);
@@ -21,8 +21,8 @@ switch ($case) {
     case 'with_endpoint':
         // Test case: http.route is absent, http.endpoint is present - should use http.endpoint for sampling
         // Do NOT set http.route
-        $rootSpan->meta["http.endpoint"] = "/api/products/{param:int}";
-        $rootSpan->meta["http.method"] = "GET";
+        $rootSpan->attributes["http.endpoint"] = "/api/products/{param:int}";
+        $rootSpan->attributes["http.method"] = "GET";
 
         header("Content-Type: application/json");
         http_response_code(200);
@@ -37,8 +37,8 @@ switch ($case) {
     case '404':
         // Test case: http.route is absent, http.endpoint is present, but status is 404 - should NOT sample
         // Do NOT set http.route
-        $rootSpan->meta["http.endpoint"] = "/api/notfound/{param:int}";
-        $rootSpan->meta["http.method"] = "GET";
+        $rootSpan->attributes["http.endpoint"] = "/api/notfound/{param:int}";
+        $rootSpan->attributes["http.method"] = "GET";
 
         header("Content-Type: application/json");
         http_response_code(404);
@@ -55,8 +55,8 @@ switch ($case) {
         // The endpoint should be computed but NOT added as a tag on the span
         // Do NOT set http.route or http.endpoint
         // Set http.url so endpoint can be computed
-        $rootSpan->meta["http.url"] = "http://localhost:8080/endpoint_fallback_computed/users/123/orders/456";
-        $rootSpan->meta["http.method"] = "GET";
+        $rootSpan->attributes["http.url"] = "http://localhost:8080/endpoint_fallback_computed/users/123/orders/456";
+        $rootSpan->attributes["http.method"] = "GET";
 
         header("Content-Type: application/json");
         http_response_code(200);
@@ -69,10 +69,10 @@ switch ($case) {
         break;
 
     case 'missing_route':
-        unset($rootSpan->meta["http.route"]);
-        unset($rootSpan->meta["http.endpoint"]);
-        unset($rootSpan->meta["http.url"]);
-        $rootSpan->meta["http.method"] = "GET";
+        unset($rootSpan->attributes["http.route"]);
+        unset($rootSpan->attributes["http.endpoint"]);
+        unset($rootSpan->attributes["http.url"]);
+        $rootSpan->attributes["http.method"] = "GET";
 
         header("Content-Type: application/json");
         http_response_code(200);

@@ -39,6 +39,9 @@ pub mod profiling;
 #[path = "../profiling/config_id.rs"]
 pub mod config;
 
+#[cfg(any(feature = "profiling", feature = "profiling-runtime"))]
+pub mod profiling_export;
+
 #[cfg(feature = "runtime")]
 pub mod runtime;
 #[cfg(feature = "runtime")]

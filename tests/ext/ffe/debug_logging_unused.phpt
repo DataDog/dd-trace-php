@@ -10,7 +10,7 @@ datadog.experimental_flagging_provider_enabled=0
 require __DIR__ . '/logging.inc';
 
 $file = __DIR__ . '/debug_logging_unused.log';
-$hint = 'Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; set DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true at startup (environment or php.ini) and restart';
+$hint = 'Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; check DD_FEATURE_FLAGS_ENABLED and DD_FEATURE_FLAGS_CONFIGURATION_SOURCE at startup (environment or php.ini) and restart';
 
 // Applications that never use feature flags must not get FFE startup noise.
 var_dump(strpos((string) @read_log_snapshot($file), 'Feature Flags:') === false);

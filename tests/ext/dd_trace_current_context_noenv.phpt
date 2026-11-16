@@ -1,5 +1,7 @@
 --TEST--
 Test the output of \DDTrace\current_context without env variables.
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 $context = \DDTrace\current_context();
@@ -15,6 +17,7 @@ if (strcmp($context['span_id'], strval(\dd_trace_peek_span_id())) !== 0) {
 
 ?>
 --EXPECTF--
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 array(5) {
   ["trace_id"]=>
   string(%d) "%d"
@@ -28,3 +31,5 @@ array(5) {
   array(0) {
   }
 }
+
+Deprecated: Function DDTrace\trace_id() is deprecated in %s on line %d

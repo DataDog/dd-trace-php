@@ -43,11 +43,9 @@ class SamplingPriorityTest extends WebFrameworkTestCase
                 'web.request',
                 'web',
                 'GET /index.php'
-            )->withExactTags(
+            )->withExactAttributes(
                 SpanAssertion::NOT_TESTED
-            )->withExactMetrics([
-                '_sampling_priority_v1' => 2,
-            ])
+            )->samplingPriority(2)
         );
     }
 
@@ -73,11 +71,9 @@ class SamplingPriorityTest extends WebFrameworkTestCase
                 'web.request',
                 'web',
                 'GET /index.php'
-            )->withExactTags(
+            )->withExactAttributes(
                 SpanAssertion::NOT_TESTED
-            )->withExactMetrics([
-                '_sampling_priority_v1' => 0,
-            ])
+            )->samplingPriority(0)
         );
     }
 }
