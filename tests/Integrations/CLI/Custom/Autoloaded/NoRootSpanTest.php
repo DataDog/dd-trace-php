@@ -36,14 +36,14 @@ final class NoRootSpanTest extends CLITestCase
                 'foo_service',
                 'custom',
                 'foo_resource'
-            )->withExactTags([
+            )->withExactAttributes([
                 'foo' => 'bar',
                 '_dd.code_origin.frames.0.method' => 'my_app',
                 '_dd.code_origin.type' => 'entry',
-                '_dd.code_origin.frames.1.line' => '30',
+                '_dd.code_origin.frames.1.line' => 30,
                 '_dd.code_origin.frames.1.file' => '%s',
                 '_dd.code_origin.frames.0.file' => '%s',
-                '_dd.code_origin.frames.0.line' => '6',
+                '_dd.code_origin.frames.0.line' => 6,
                 '_dd.svc_src' => 'm',
             ])->withChildren([
                 SpanAssertion::exists(

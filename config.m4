@@ -36,6 +36,9 @@ PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
 PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
   [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$( (if test x"$ext_shared" = x"yes"; then $GREP -q "ZEND_DEBUG 1" $("$PHP_CONFIG" --include-dir)/main/php_config.h; else test x"$PHP_DEBUG" = x"yes"; fi) && echo yes || echo no)]], [no])
 
+PHP_ARG_ENABLE(ddtrace-rust-build-std, whether to rebuild the private Rust standard library,
+  [  --enable-ddtrace-rust-build-std Rebuild the private Rust standard library (requires rust-src)], no, no)
+
 PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to keep the rust library separate from the extension,
   [  --enable-ddtrace-rust-library-split Do not build or statically link the rust code], no, no)
 
@@ -161,7 +164,6 @@ if test "$PHP_DDTRACE" != "no"; then
   esac
 
   DD_TRACE_VENDOR_SOURCES="\
-    tracer/vendor/mpack/mpack.c \
     tracer/vendor/mt19937/mt19937-64.c \
     src/dogstatsd/client.c \
   "
@@ -310,6 +312,7 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/standalone_limiter.c \
     tracer/span.c \
     tracer/span_stats.c \
+    tracer/span_tags_view.c \
     tracer/trace_filter.c \
     tracer/trace_source.c \
     tracer/tracer_startup_logging.c \
@@ -352,6 +355,7 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/test_mock_transport.c \
     appsec/src/extension/tracer_bridge.c \
     appsec/src/extension/user_tracking.c \
+    tracer/vendor/mpack/mpack.c \
   "
 
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
@@ -659,7 +663,7 @@ EOT
     fi
     if test "$PHP_DDTRACE_PROFILING" != "no"; then
       if test "$PHP_DDTRACE_TRACER" != "no"; then
-        ddtrace_profiler_feature=profiling-embedded
+        ddtrace_profiler_feature=profiling-embedded,profiling-runtime
       else
         dnl Standalone needs logging and UTF-8 validation, but no sidecar or
         dnl tracer services. The profiler reads OTel context; it does not publish it.
@@ -677,6 +681,7 @@ EOT
       ddtrace_cargo_features="--no-default-features"
     fi
     ddtrace_cargo_build_flags="${ddtrace_cargo_build_flags:-}"
+    ddtrace_rust_build_std=$(test "$PHP_DDTRACE_RUST_BUILD_STD" != "no" && echo 1 || echo 0)
 
     dnl `make` only reruns a rule when a listed prerequisite is newer than
     dnl the target; it has no idea that the recipe's own command-line
@@ -699,7 +704,7 @@ dnl (tracer+profiling) crate depends on -- the sidecar crate and the appsec
 dnl Rust helper are real workspace dependencies of `tracer-runtime` (see
 dnl Cargo.toml), so changes there must also trigger a relink here.
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/profiling" \( -name "*.rs" -o -name "*.c" -o -name "*.h" \); find "$ext_srcdir/zend_abstract_interface" \( -name "*.c" -o -name "*.h" \); find "$ext_srcdir/sidecar" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/appsec/helper-rust" -name "*.rs" -o -name "*.c" -o -name "Cargo.toml" -o -name "build.rs"; find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' ) $ext_srcdir/ext/configuration.h $ext_srcdir/ext/configuration_helpers.h $ext_srcdir/tracer/configuration.h $ext_builddir/Makefile
-	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $ddtrace_cxx_env $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet))
+	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" DD_RUST_BUILD_STD=$ddtrace_rust_build_std SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $ddtrace_cxx_env $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet))
 EOT
   fi
 

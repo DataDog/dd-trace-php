@@ -30,8 +30,8 @@ static double _elapsed_ns(const struct timespec *start)
 
 void dd_duration_flush_metrics(zend_object *nonnull span)
 {
-    zval *metrics_zv = dd_trace_span_get_metrics(span);
-    if (!metrics_zv) {
+    zval *attributes = dd_trace_span_get_attributes(span);
+    if (!attributes) {
         return;
     }
 
@@ -44,7 +44,7 @@ void dd_duration_flush_metrics(zend_object *nonnull span)
     if (_waf_ext_ns > 0.0) {
         // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
         ZVAL_DOUBLE(&zv, _waf_ext_ns / 1e3);
-        if (zend_hash_add(Z_ARRVAL_P(metrics_zv), _waf_ext_key, &zv) == NULL) {
+        if (zend_hash_add(Z_ARRVAL_P(attributes), _waf_ext_key, &zv) == NULL) {
             mlog(dd_log_warning, "Failed to add metric %.*s",
                 (int)ZSTR_LEN(_waf_ext_key), ZSTR_VAL(_waf_ext_key));
         }
@@ -54,7 +54,7 @@ void dd_duration_flush_metrics(zend_object *nonnull span)
     if (_rasp_ext_ns > 0.0) {
         // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
         ZVAL_DOUBLE(&zv, _rasp_ext_ns / 1e3);
-        if (zend_hash_add(Z_ARRVAL_P(metrics_zv), _rasp_ext_key, &zv) == NULL) {
+        if (zend_hash_add(Z_ARRVAL_P(attributes), _rasp_ext_key, &zv) == NULL) {
             mlog(dd_log_warning, "Failed to add metric %.*s",
                 (int)ZSTR_LEN(_rasp_ext_key), ZSTR_VAL(_rasp_ext_key));
         }

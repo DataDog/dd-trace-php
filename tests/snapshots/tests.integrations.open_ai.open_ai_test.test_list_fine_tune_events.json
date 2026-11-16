@@ -16,6 +16,7 @@
       "openai.request.endpoint": "/v1/fine-tunes/*/events",
       "openai.request.fine_tune_id": "ftjob-AF1WoRqd3aJAHsqc9NY7iL8F",
       "openai.request.method": "GET",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.object": "list",
       "openai.user.api_key": "sk-...9d5d",
@@ -27,8 +28,7 @@
       "_dd.agent_psr": 1,
       "_dd.measured": 1,
       "_sampling_priority_v1": 1,
-      "openai.response.count": 2,
-      "openai.response.id": 42
+      "openai.response.count": 2
     }
   },
      {

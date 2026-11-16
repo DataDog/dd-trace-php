@@ -12,7 +12,7 @@ $span->onClose[] = function($span) {
 };
 DDTrace\close_span();
 
-foreach (dd_trace_serialize_closed_spans() as $span) {
+foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? [] as $span) {
     echo $span["service"], "\n";
 }
 

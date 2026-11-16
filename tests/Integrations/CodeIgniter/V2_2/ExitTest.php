@@ -36,7 +36,7 @@ class ExitTest extends WebFrameworkTestCase
                     'codeigniter_test_app',
                     'web',
                     'GET /exits'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::HTTP_METHOD => 'GET',
                     Tag::HTTP_URL => 'http://localhost/exits',
                     Tag::HTTP_STATUS_CODE => '200',
@@ -50,7 +50,7 @@ class ExitTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
                         'Exits.index'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'codeigniter',
                     ])
                 ])

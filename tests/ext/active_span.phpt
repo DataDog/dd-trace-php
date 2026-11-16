@@ -28,31 +28,33 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (28) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
   string(0) ""
   ["service"]=>
   string(15) "active_span.php"
-  ["env"]=>
-  string(0) ""
-  ["version"]=>
-  string(0) ""
   ["meta_struct"]=>
   array(0) {
   }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(1) {
+  array(4) {
     ["runtime-id"]=>
     string(36) "%s"
+    ["service.name"]=>
+    string(15) "active_span.php"
+    ["operation.name"]=>
+    string(15) "active_span.php"
+    ["span.type"]=>
+    string(3) "cli"
   }
   ["metrics"]=>
   array(1) {
     ["process_id"]=>
-    float(%f)
+    int(%d)
   }
   ["exception"]=>
   NULL
@@ -92,7 +94,24 @@ object(DDTrace\RootSpanData)#%d (24) {
   }
   ["baggage"]=>
   array(0) {
-  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  }
+  ["env"]=>
+  string(0) ""
+  ["version"]=>
+  string(0) ""
+  ["component"]=>
+  string(0) ""
+  ["spanKind"]=>
+  int(0)
+  ["attributes"]=>
+  array(2) {
+    ["runtime-id"]=>
+    string(36) "%s"
+    ["process_id"]=>
+    int(%d)
+  }
+  ["ignoreError"]=>
+  bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }

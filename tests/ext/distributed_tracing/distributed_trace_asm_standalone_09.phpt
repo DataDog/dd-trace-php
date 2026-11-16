@@ -15,9 +15,9 @@ DD_APM_TRACING_ENABLED=0
 $outer = DDTrace\start_span();
 DDTrace\close_span();
 
-$traces = dd_trace_serialize_closed_spans();
+$chunks = dd_trace_serialize_closed_spans()['chunks'];
 
-var_dump($traces[0]['meta']['_dd.p.ts']);
+var_dump($chunks[0]['spans'][0]['attributes']['_dd.p.ts']);
 
 ?>
 --EXPECTF--

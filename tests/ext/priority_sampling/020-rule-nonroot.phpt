@@ -19,7 +19,7 @@ var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KE
 if ($root->metrics["_dd.agent_psr"] == 1) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 
 echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
@@ -31,7 +31,7 @@ var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KE
 if (!isset($root->metrics["_dd.agent_psr"]) && $root->metrics["_dd.rule_psr"] == 0.3) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 
 echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
@@ -45,7 +45,7 @@ var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KE
 if (!isset($root->metrics["_dd.agent_psr"]) && $root->metrics["_dd.rule_psr"] == 0.7) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 
 echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
@@ -57,7 +57,7 @@ var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KE
 if (!isset($root->metrics["_dd.agent_psr"]) && $root->metrics["_dd.rule_psr"] == 0.7) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 
 echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
@@ -69,7 +69,7 @@ var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KE
 if (!isset($root->metrics["_dd.agent_psr"]) && $root->metrics["_dd.rule_psr"] == 0.9) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 
 ?>

@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\MongoDB;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
@@ -414,16 +415,16 @@ class MongoDBIntegration extends Integration
             if (isset($args[1])) {
                 $deletes = ObjectKVStore::get($args[1], 'deletes', []);
                 for ($index = 0; $index < \count($deletes); $index++) {
-                    $span->meta['mongodb.deletes.' . $index . '.filter'] = $deletes[$index];
+                    $span->attributes['mongodb.deletes.' . $index . '.filter'] = $deletes[$index];
                 }
 
                 $updates = ObjectKVStore::get($args[1], 'updates', []);
                 for ($index = 0; $index < \count($updates); $index++) {
-                    $span->meta['mongodb.updates.' . $index . '.filter'] = $updates[$index];
+                    $span->attributes['mongodb.updates.' . $index . '.filter'] = $updates[$index];
                 }
 
                 $insertsCount = ObjectKVStore::get($args[1], 'insertsCount', 0);
-                $span->meta['mongodb.insertsCount'] = $insertsCount;
+                $span->attributes['mongodb.insertsCount'] = $insertsCount;
             }
         });
     }
@@ -593,29 +594,28 @@ class MongoDBIntegration extends Integration
         $span->service = 'mongodb';
         Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->type = Type::MONGO;
-        $span->meta[Tag::SPAN_KIND] = 'client';
+        $span->spanKind = SpanKind::CLIENT;
         $serializedQuery = $rawQuery ? self::serializeQuery($rawQuery) : null;
         $span->resource = \implode(' ', array_filter([$method, $database, $collection, $command, $serializedQuery]));
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
+        $span->component = self::NAME;
+        $span->attributes[Tag::DB_SYSTEM] = self::SYSTEM;
         if ($database) {
-            $span->meta[Tag::MONGODB_DATABASE] = $database;
+            $span->attributes[Tag::MONGODB_DATABASE] = $database;
         }
         if ($collection) {
-            $span->meta[Tag::MONGODB_COLLECTION] = $collection;
+            $span->attributes[Tag::MONGODB_COLLECTION] = $collection;
         }
         if ($host) {
-            $span->meta[Tag::TARGET_HOST] = $host;
+            $span->attributes[Tag::TARGET_HOST] = $host;
         }
         if ($port) {
-            $span->meta[Tag::TARGET_PORT] = $port;
+            $span->attributes[Tag::TARGET_PORT] = (int)$port;
         }
         if ($rawQuery && !\dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")) {
-            $span->meta[Tag::MONGODB_QUERY] = MongoDBIntegration::serializeQuery($rawQuery, false);
+            $span->attributes[Tag::MONGODB_QUERY] = MongoDBIntegration::serializeQuery($rawQuery, false);
         } elseif ($serializedQuery) {
-            $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
+            $span->attributes[Tag::MONGODB_QUERY] = $serializedQuery;
         }
         $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-        self::addTraceAnalyticsIfEnabled($span);
     }
 }

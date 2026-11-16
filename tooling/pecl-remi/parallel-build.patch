@@ -1,0 +1,41 @@
+--- a/php-pecl-datadog-trace.spec
++++ b/php-pecl-datadog-trace.spec
+@@ -186,6 +186,9 @@
+ [ -f Makefile.global ] && GLOBAL=Makefile.global || GLOBAL=build/Makefile.global
+ sed -e 's/INSTALL_ROOT/DESTDIR/' -i $GLOBAL
+ 
++# Share the PHP-independent host tool and build both PHP ABIs concurrently.
++cargo build --locked -p php_sidecar_mockgen
++(
+ cd ../NTS
+ %configure \
+     --enable-ddtrace \
+@@ -196,8 +199,11 @@
+ 
+ # make_build breaks verbose mode for rust, so keep old way
+ make %{?_smp_mflags}
++) > "$PECL_BUILD_ARTIFACTS/nts-build.log" 2>&1 &
++nts_pid=$!
+ 
+ %if %{with_zts}
++(
+ cd ../ZTS
+ %configure \
+     --enable-ddtrace \
+@@ -207,7 +213,15 @@
+     --with-php-config=%{__ztsphpconfig}
+ 
+ make %{?_smp_mflags}
+-%endif
++) > "$PECL_BUILD_ARTIFACTS/zts-build.log" 2>&1 &
++zts_pid=$!
++%endif
++status=0
++wait "$nts_pid" || status=1
++%if %{with_zts}
++wait "$zts_pid" || status=1
++%endif
++test "$status" -eq 0
+ 
+ 
+ %install

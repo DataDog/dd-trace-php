@@ -267,7 +267,7 @@ bool ddtrace_ffe_remote_config_enabled(void) {
 }
 
 bool ddtrace_ffe_agentless_enabled(void) {
-    return dd_ffe.cdn_config != NULL;
+    return dd_ffe.enabled && dd_ffe.source == DDTRACE_FFE_SOURCE_AGENTLESS;
 }
 
 // The in-process thread listener does not fetch from the CDN. A reader of the agentless directory would then not receive any product.

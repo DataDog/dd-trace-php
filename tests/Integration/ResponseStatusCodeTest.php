@@ -35,11 +35,12 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
         $this->assertExpectedSpans(
             $traces,
             [
-                SpanAssertion::build('web.request', 'web.request', 'web', 'GET /success')->withExactTags([
+                SpanAssertion::build('web.request', 'web.request', 'web', 'GET /success')->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost/success',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
             ]
         );
@@ -60,12 +61,13 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
         $this->assertExpectedSpans(
             $traces,
             [
-                SpanAssertion::build('web.request', 'web.request', 'web', 'GET /error')->withExactTags(
+                SpanAssertion::build('web.request', 'web.request', 'web', 'GET /error')->withExactAttributes(
                     [
                         'http.method'      => 'GET',
                         'http.url'         => 'http://localhost/error',
                         'http.status_code' => '500',
                         'span.kind' => 'server',
+                        'component' => 'web',
                     ]
                 )->setError(),
             ]
