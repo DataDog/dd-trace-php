@@ -21,6 +21,17 @@ include __DIR__ . '/../includes/request_replayer.inc';
 $rr = new RequestReplayer();
 $rr->clearDumpedData();
 
+// sidecar uses V1 only for agents >= 7.79 (libdatadog #2877); set after the clear, which resets /info
+file_get_contents('http://request-replayer/set-agent-info', false, stream_context_create(['http' => [
+    'method' => 'PUT',
+    'header' => ['Content-Type: application/json', 'X-Datadog-Test-Session-Token: serializer_wire_sidecar_v1'],
+    'content' => json_encode([
+        'endpoints' => ['/v0.4/traces', '/v0.6/stats', '/v0.7/config', '/v1.0/traces', '/telemetry/proxy/', '/evp_proxy/v2/'],
+        'client_drop_p0s' => false,
+        'version' => '7.84.1',
+    ]),
+]]));
+
 // The sidecar sends v0.4 until its own /info fetch has advertised /v1.0/traces, and may batch
 // several traces per payload: resend "root" until it shows up in any chunk of a v1 request.
 $req = null;
