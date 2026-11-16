@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -28,7 +29,7 @@ class EloquentIntegration extends Integration
                 $span->name = 'eloquent.get';
                 $sql = $this->getQuery()->toSql();
                 $span->resource = $sql;
-                $span->meta[Tag::DB_STATEMENT] = $sql;
+                $span->attributes[Tag::DB_STATEMENT] = $sql;
                 EloquentIntegration::setCommonValues($span);
             }
         );
@@ -95,9 +96,9 @@ class EloquentIntegration extends Integration
     {
         $span->type = Type::SQL;
         Integration::handleInternalSpanServiceName($span, self::getAppName());
-        $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::DB_SYSTEM] = 'other_sql';
+        $span->spanKind = SpanKind::CLIENT;
+        $span->component = self::NAME;
+        $span->attributes[Tag::DB_SYSTEM] = 'other_sql';
     }
 
     /**
@@ -109,7 +110,7 @@ class EloquentIntegration extends Integration
             return $name;
         }
 
-        $name = \ddtrace_config_app_name();
+        $name = \dd_trace_env_config('DD_SERVICE');
         if (empty($name) && is_callable('config')) {
             $name = config('app.name');
         }

@@ -70,6 +70,12 @@ function map_type($raw, $parser) {
 }
 
 function normalize_default($v, $type, $name) {
+    // PHP INI represents an unset optional URL as an empty string, which
+    // selects the managed endpoint: report that semantic default rather than
+    // an empty custom endpoint.
+    if ($name === 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL' && $v === '') {
+        return null;
+    }
     if (strtoupper($v) === 'NULL') {
         // OTEL env vars are string-typed and use "" (not null) as their "unset" default.
         if (strpos($name, 'OTEL_') === 0) {
@@ -379,11 +385,7 @@ extract_c_supported_configurations() {
 #undef PHP_VERSION_ID
 #define PHP_VERSION_ID $PHP_VERSION_ID
 #undef DD_SIDECAR_TRACE_SENDER_DEFAULT
-#if PHP_VERSION_ID >= 80300
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
-#else
-#define DD_SIDECAR_TRACE_SENDER_DEFAULT false
-#endif
 // Do not expand CALIASES() directly, otherwise parameter counting in macros is broken.
 #define ALTCALIASES(...) ,##__VA_ARGS__
 #define ALT

@@ -1105,6 +1105,33 @@ static bool zai_line_arm_range(zai_line_def *def, zend_op_array *op_array, zend_
     return true;
 }
 
+typedef struct {
+    uint32_t line;
+    HashTable candidates; /* op_array pointer -> op_array, all resolving to line */
+} zai_line_resolution;
+
+static void zai_line_resolution_free(zval *zv) {
+    zai_line_resolution *resolution = Z_PTR_P(zv);
+    zend_hash_destroy(&resolution->candidates);
+    efree(resolution);
+}
+
+static bool zai_line_range_belongs_to_outer(zai_line_def *def, zend_op_array *op_array, zai_line_resolution *resolution) {
+    /* A range contained in the function, or starting inside it, cannot disambiguate it.
+       Exact function boundaries are ambiguous too, including a single-line closure. */
+    if (zend_hash_num_elements(&resolution->candidates) < 2 || def->line > op_array->line_start || def->end_line < op_array->line_end || (def->line == op_array->line_start && def->end_line == op_array->line_end)) {
+        return false;
+    }
+
+    zend_op_array *outer;
+    ZEND_HASH_FOREACH_PTR(&resolution->candidates, outer) {
+        if (outer->line_start <= op_array->line_start && outer->line_end >= op_array->line_end && (outer->line_start < op_array->line_start || outer->line_end > op_array->line_end)) {
+            return true;
+        }
+    } ZEND_HASH_FOREACH_END();
+    return false;
+}
+
 /* Resolve in two passes per file: find the smallest executable line >= the request across candidate op_arrays, then arm only that line.
    This avoids independently sliding enclosing functions or file scope to unrelated code.
    Visit nested closures and declared classes as well. */
@@ -1123,17 +1150,24 @@ static bool zai_line_resolve_op_array(zai_line_def *def, zend_op_array *op_array
         if (!arm) {
             /* Track the minimum per file, so suffix-matched files resolve independently while their enclosing op_arrays share one result. */
             if (zai_line_find_opline(op_array, def->line, 0, &resolved)) {
-                zval *min = zend_hash_find(by_file, op_array->filename);
-                if (!min || (uint32_t)Z_LVAL_P(min) > resolved) {
-                    zval zv;
-                    ZVAL_LONG(&zv, resolved);
-                    zend_hash_update(by_file, op_array->filename, &zv);
+                zai_line_resolution *resolution = zend_hash_find_ptr(by_file, op_array->filename);
+                if (!resolution) {
+                    resolution = emalloc(sizeof(*resolution));
+                    resolution->line = resolved;
+                    zend_hash_init(&resolution->candidates, 4, NULL, NULL, 0);
+                    zend_hash_add_ptr(by_file, op_array->filename, resolution);
+                } else if (resolution->line > resolved) {
+                    resolution->line = resolved;
+                    zend_hash_clean(&resolution->candidates);
+                }
+                if (resolution->line == resolved) {
+                    zend_hash_index_add_ptr(&resolution->candidates, (zend_ulong)(uintptr_t)op_array, op_array);
                 }
             }
         } else {
-            zval *min = zend_hash_find(by_file, op_array->filename);
-            if (min) {
-                opline = zai_line_find_opline(op_array, def->line, (uint32_t)Z_LVAL_P(min), &resolved);
+            zai_line_resolution *resolution = zend_hash_find_ptr(by_file, op_array->filename);
+            if (resolution && !zai_line_range_belongs_to_outer(def, op_array, resolution)) {
+                opline = zai_line_find_opline(op_array, def->line, resolution->line, &resolved);
             }
         }
 
@@ -1363,11 +1397,11 @@ static bool zai_line_resolve_pass(zai_line_def *def, zend_op_array *extra, HashT
     return armed;
 }
 
-/* Resolve one executable line per file, then arm every matching op_array.
+/* Resolve one executable line per file, then use the range to disambiguate matching op_arrays.
    Repeated resolution is idempotent per (opline, def). */
 static bool zai_line_resolve(zai_line_def *def, zend_op_array *extra) {
-    HashTable by_file; /* filename -> smallest executable lineno >= def->line in that file */
-    zend_hash_init(&by_file, 4, NULL, NULL, 0);
+    HashTable by_file; /* filename -> zai_line_resolution */
+    zend_hash_init(&by_file, 4, NULL, zai_line_resolution_free, 0);
 
     zai_line_resolve_pass(def, extra, &by_file, false);
     bool armed = zend_hash_num_elements(&by_file) && zai_line_resolve_pass(def, extra, &by_file, true);

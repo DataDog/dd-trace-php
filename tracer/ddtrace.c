@@ -324,11 +324,6 @@ void ddtrace_pre_config_minit() {
         datadog_config_entries[DATADOG_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SIGTERM].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
         datadog_config_entries[DATADOG_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SIGINT].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
     }
-
-    // Background sender does not send a Content-Length header, but sidecar does. Force-enable it thus, as the background sender does not work at all.
-    if (getenv("AWS_LAMBDA_FUNCTION_NAME")) {
-        datadog_config_entries[DATADOG_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
-    }
 #endif
 
     // Make sure it's available for appsec, before any early returns
@@ -385,6 +380,7 @@ void ddtrace_minit_late() {
 }
 
 void ddtrace_mshutdown() {
+    ddtrace_ffe_shutdown();
     zai_uhook_mshutdown();
     zai_hook_mshutdown();
     zai_line_hook_mshutdown();
@@ -731,7 +727,8 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 }
 
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
-    flags->ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
+    ddtrace_ffe_startup();
+    flags->ffe_enabled = ddtrace_ffe_remote_config_enabled();
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
     if (flags->ffe_enabled) {
         LOG(DEBUG, "Feature Flags: effective settings (sdk_env=%s, poll_interval_seconds=%g, agent_timeout_ms=%" PRId64 "); source=Agent Remote Configuration, no direct flag endpoint or initialization timeout",
@@ -750,7 +747,8 @@ bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
         }
     }
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
-        || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
+        || flags->ffe_enabled
+        || ddtrace_ffe_agentless_enabled()
         || get_global_DD_METRICS_OTEL_ENABLED()
         || get_global_DD_DATA_STREAMS_ENABLED();
 }
@@ -784,6 +782,7 @@ void ddtrace_internal_handle_fork() {
 #endif
     // Acquire the child's shared line-hook references and re-establish inherited trampolines.
     zai_line_hook_handle_fork();
+    ddtrace_ffe_handle_fork();
 
     if (DATADOG_G(sidecar)) {
         // Unconditionally send, even if root span is NULL

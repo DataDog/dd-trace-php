@@ -1,4 +1,5 @@
 use crate::bytes::MaybeOwnedZendString;
+use datadog_ffe::cdn::{CdnConfig, CdnEndpoint, EndpointError};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
@@ -7,6 +8,7 @@ use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::debug;
 
 struct FfeState {
@@ -179,6 +181,100 @@ pub extern "C" fn ddog_ffe_has_config() -> bool {
 #[no_mangle]
 pub extern "C" fn ddog_ffe_config_version() -> u64 {
     FFE_STATE.with(|state| state.borrow().version)
+}
+
+/// The agentless (CDN) configuration source, fixed for the lifetime of the process.
+pub struct FfeCdnConfig(pub(crate) CdnConfig);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum FfeCdnConfigError {
+    MissingApiKey,
+    InvalidApiKey,
+    InvalidSite,
+    InvalidUrl,
+}
+
+/// A non-empty `base_url` is fetched as given and never receives the API key.
+/// Otherwise the managed endpoint of `site` is used, filtered to `env`.
+/// The intervals must already be within the ranges accepted by the sidecar.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_cdn_config_new(
+    base_url: CharSlice,
+    site: CharSlice,
+    env: CharSlice,
+    api_key: CharSlice,
+    poll_interval_secs: u32,
+    request_timeout_secs: u32,
+    error: &mut FfeCdnConfigError,
+) -> Option<Box<FfeCdnConfig>> {
+    let endpoint = CdnEndpoint::build(
+        &base_url.to_utf8_lossy(),
+        &site.to_utf8_lossy(),
+        &env.to_utf8_lossy(),
+        &api_key.to_utf8_lossy(),
+    )
+    .map_err(|e| {
+        *error = match e {
+            EndpointError::MissingApiKey => FfeCdnConfigError::MissingApiKey,
+            EndpointError::InvalidApiKey => FfeCdnConfigError::InvalidApiKey,
+            EndpointError::InvalidSite => FfeCdnConfigError::InvalidSite,
+            EndpointError::InvalidUrl
+            | EndpointError::UnsupportedScheme
+            | EndpointError::UrlContainsWhitespace => FfeCdnConfigError::InvalidUrl,
+        };
+    })
+    .ok()?;
+    Some(Box::new(FfeCdnConfig(CdnConfig {
+        endpoint,
+        poll_interval: Duration::from_secs(poll_interval_secs.into()),
+        request_timeout: Duration::from_secs(request_timeout_secs.into()),
+        language: "php".to_string(),
+        version: include_str!("../../VERSION").trim().into(),
+    })))
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_cdn_config_drop(_: Box<FfeCdnConfig>) {}
+
+/// Build the authenticated EVP intake independently of any custom CDN URL.
+/// Missing credentials or an invalid destination leave local EVP discovery available.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_evp_endpoint_new(
+    site: CharSlice,
+    api_key: CharSlice,
+) -> Option<Box<libdd_common::Endpoint>> {
+    let site = site.try_to_utf8().ok()?.trim();
+    let site = if site.is_empty() {
+        "datadoghq.com"
+    } else {
+        site
+    };
+    // Validate the input before URI parsing, which can discard a fragment.
+    if !site
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'))
+    {
+        return None;
+    }
+    let endpoint = libdd_common::Endpoint {
+        url: format!(
+            "https://event-platform-intake.{}/",
+            site.to_ascii_lowercase()
+        )
+        .parse()
+        .ok()?,
+        api_key: Some(api_key.try_to_utf8().ok()?.to_owned().into()),
+        ..Default::default()
+    };
+    datadog_sidecar::service::EvpTransportConfig::prefer_local_then_direct(
+        libdd_common::Endpoint::default(),
+        Some(endpoint.clone()),
+        "event-platform-intake",
+    )
+    .validate()
+    .ok()?;
+    Some(Box::new(endpoint))
 }
 
 const REASON_STATIC: i32 = 0;
@@ -455,6 +551,48 @@ mod tests {
     use std::sync::Once;
 
     static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
+
+    #[test]
+    fn evp_endpoint_uses_canonical_https_intake() {
+        for (site, host) in [
+            ("datadoghq.eu", "event-platform-intake.datadoghq.eu"),
+            (
+                " US3.Datadoghq.com ",
+                "event-platform-intake.us3.datadoghq.com",
+            ),
+            ("", "event-platform-intake.datadoghq.com"),
+        ] {
+            let endpoint = ddog_ffe_evp_endpoint_new(site.into(), "test-key".into()).unwrap();
+            assert_eq!(endpoint.url.scheme_str(), Some("https"));
+            assert_eq!(endpoint.url.host(), Some(host));
+            assert_eq!(endpoint.url.path(), "/");
+            assert_eq!(endpoint.api_key.as_deref(), Some("test-key"));
+        }
+    }
+
+    #[test]
+    fn evp_endpoint_rejects_invalid_destinations_and_credentials() {
+        for site in [
+            "https://datadoghq.com",
+            "datadoghq.com:443",
+            "datadoghq.com/path",
+            "datadoghq.com?query",
+            "datadoghq.com#fragment",
+            "datadoghq.com@other.invalid",
+            "bad site",
+            "a..invalid",
+            "-bad.invalid",
+            "\u{212a}.com",
+        ] {
+            assert!(
+                ddog_ffe_evp_endpoint_new(site.into(), "test-key".into()).is_none(),
+                "{site}"
+            );
+        }
+        for key in ["", "key\r\nInjected: value"] {
+            assert!(ddog_ffe_evp_endpoint_new("datadoghq.com".into(), key.into()).is_none());
+        }
+    }
 
     fn setup_zend_string_functions() {
         INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {

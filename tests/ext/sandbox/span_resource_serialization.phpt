@@ -34,7 +34,7 @@ with_false();
 with_empty_string();
 with_value();
 
-foreach (dd_trace_serialize_closed_spans() as $span) {
+foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] as $span) {
     echo "name: {$span['name']}; resource: {$span['resource']}\n";
 }
 

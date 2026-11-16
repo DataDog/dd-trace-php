@@ -37,7 +37,7 @@ class MysqliCommon
 
         $parts = explode(':', $hostString);
         $host = $parts[0];
-        $port = isset($parts[1]) ? $parts[1] : '3306';
+        $port = isset($parts[1]) ? (int)$parts[1] : 3306;
         return [
             Tag::DB_TYPE => 'mysql',
             Tag::TARGET_HOST => $host,

@@ -341,6 +341,36 @@ foreach ($build_platforms as $platform) {
     paths:
       - pecl
 
+# Package sources, root-vendor dependencies, then build/install/test both PHP ABIs.
+"pecl offline vendored build":
+  stage: verify
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.4_bookworm-14"
+  tags: [ "arch:amd64" ]
+  services:
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
+  needs:
+    - job: "pecl build"
+      artifacts: true
+  variables:
+    MAKE_JOBS: 8
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - sudo apt-get update -qq
+    - sudo apt-get install -y --no-install-recommends gcc g++ rpm pigz
+  script:
+    - switch-php nts
+    - HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 tooling/bin/pecl-offline-vendored-build ./pecl/datadog_trace-*.tgz
+  artifacts:
+    when: always
+    paths:
+      - artifacts/pecl-offline/
+    reports:
+      junit: artifacts/pecl-offline/*-junit.xml
+
 <?php
 foreach ($build_platforms as $platform) {
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
@@ -356,6 +386,8 @@ foreach ($build_platforms as $platform) {
   tags: [ "arch:$ARCH" ]
   needs:
     - job: "prepare code"
+      artifacts: true
+    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
   variables:
     IMAGE: "<?= $image ?>"
@@ -375,18 +407,29 @@ foreach ($build_platforms as $platform) {
     # Load the function in this shell too, not just the build-tracing subprocess.
     - source "$BASH_ENV"
 <?php endif; ?>
-    # Replace the PHP 7.0 NTS/ZTS release extensions on both libc targets;
-    # Alpine's common archive now contains LLVM bitcode too. Debug stays non-LTO.
+    # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
+    # Every SSI common rebuild must match the canonical DSO, including DWARF.
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?><?= $suffix ?>.so"
+    - export CARGO_BUILD_JOBS=12
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/libdatadog_php.so"
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/libdatadog_php.so"
   artifacts:
+    when: always
     paths:
       - "extensions_*"
       - "standalone_*"
+      # Retain the candidate common DSO if its identity check failed.
+      - "tmp/release-variants/**/ssi/libdatadog_php.so"
       - "ddtrace_*-fat.ldflags"
       - "ddtrace_*-fat.sym"
 
@@ -490,7 +533,7 @@ foreach ($build_platforms as $platform) {
   script:
     - echo "" >> "$BASH_ENV"
     - mkdir -p "ssi_<?= $arch_dir ?>"
-    - cp "libdatadog_php_<?= $arch_dir . $suffix ?>.so" "ssi_<?= $arch_dir ?>/libdatadog_php.so"
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir . $suffix ?>.so"
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
     - switch-php "${PHP_VERSION}"
     - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
@@ -504,6 +547,7 @@ foreach ($build_platforms as $platform) {
     # The shared DSO is packaged from the single sidecar job, not each PHP job.
     - rm "ssi_<?= $arch_dir ?>/libdatadog_php.so"
   artifacts:
+    when: always
     paths:
       - "ssi_*"
 <?php
@@ -1365,7 +1409,7 @@ endforeach;
           - alpine:3.21
           - alpine:3.24
       # Pre-GA versions only exist as -rc tags on Docker Hub.
-      - IMAGE: <?= json_encode(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "php:$v-rc-fpm-alpine" : "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      - IMAGE: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*"php:$v-rc-fpm-alpine"*/ : "php:$v-fpm-alpine"; }, $all_minor_major_targets))), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1457,7 +1501,7 @@ endforeach;
     INSTALL_MODE: sury
   parallel:
     matrix:
-      - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
+      - PHP_VERSION: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*broken for PHP 8.6 currently*/ : $v; }, $all_minor_major_targets))), "\n" ?>
         IMAGE:
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
@@ -1710,6 +1754,11 @@ endforeach;
     - source venv/bin/activate
     - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
     - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
+    # The mirror builder keeps another copy of the weblog layers and of the library bundle in its build context.
+    # The scenarios only run the loaded images: free that space for their services, RabbitMQ blocks publishers
+    # below 50 MB of free disk.
+    - docker buildx rm --force system-tests-mirror 2>/dev/null || true
+    - docker system df || true
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
@@ -1729,6 +1778,7 @@ endforeach;
   parallel:
     matrix:
       - TESTSUITE:
+        - APM_TRACING_EFFICIENT_PAYLOAD
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY

@@ -29,9 +29,7 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(2) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -48,20 +46,18 @@ array(2) {
     string(29) "peer_service_wrong_values.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["attributes"]=>
     array(3) {
-      ["_dd.peer.service.source"]=>
-      string(11) "db.instance"
       ["db.instance"]=>
       string(8) "only_tag"
+      ["_dd.peer.service.source"]=>
+      string(11) "db.instance"
       ["peer.service"]=>
       string(8) "only_tag"
     }
   }
   [1]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -78,12 +74,12 @@ array(2) {
     string(29) "peer_service_wrong_values.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["attributes"]=>
     array(3) {
-      ["_dd.peer.service.source"]=>
-      string(11) "db.instance"
       ["db.instance"]=>
       string(3) "foo"
+      ["_dd.peer.service.source"]=>
+      string(11) "db.instance"
       ["peer.service"]=>
       string(3) "foo"
     }

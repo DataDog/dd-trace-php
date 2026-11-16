@@ -5,6 +5,26 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <zend.h>
+#include <components-rs/common.h>
+
+typedef enum {
+    DDTRACE_FFE_SOURCE_DISABLED,
+    DDTRACE_FFE_SOURCE_REMOTE_CONFIG,
+    DDTRACE_FFE_SOURCE_AGENTLESS,
+} ddtrace_ffe_source;
+
+// Resolves the startup configuration once per process.
+void ddtrace_ffe_startup(void);
+void ddtrace_ffe_shutdown(void);
+void ddtrace_ffe_handle_fork(void);
+bool ddtrace_ffe_enabled(void);
+bool ddtrace_ffe_remote_config_enabled(void);
+bool ddtrace_ffe_agentless_enabled(void);
+// The agentless source for new Remote Config readers, NULL if they cannot use it.
+const ddog_FfeCdnConfig *ddtrace_ffe_cdn_config(void);
+// Reports diagnostics on first use and waits for the initial agentless configuration.
+void ddtrace_ffe_before_evaluate(void);
+void ddtrace_ffe_provider_state(zval *state);
 
 bool ddtrace_ffe_record_evaluation_metric(zend_string *flag_key, zend_string *variant, const char *reason, const char *error_type, zend_string *allocation_key);
 bool ddtrace_ffe_flush_evaluation_metrics(void);

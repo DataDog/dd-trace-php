@@ -177,7 +177,8 @@ trait EndpointFallbackSamplingTests extends SamplingTestsInFpm {
                     assert metric.namespace == 'appsec'
                     assert metric.type == 'count'
                     assert metric.points[0][1] >= 1.0
-                    assert 'framework:unknown' in metric.tags
+                    // web root spans default their component to "web"
+                    assert 'framework:web' in metric.tags
             }
         } finally {
             resetFpm()

@@ -360,6 +360,13 @@ typedef enum ddog_EvaluateAt {
   DDOG_EVALUATE_AT_EXIT,
 } ddog_EvaluateAt;
 
+typedef enum ddog_FfeCdnConfigError {
+  DDOG_FFE_CDN_CONFIG_ERROR_MISSING_API_KEY,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_API_KEY,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_SITE,
+  DDOG_FFE_CDN_CONFIG_ERROR_INVALID_URL,
+} ddog_FfeCdnConfigError;
+
 typedef enum ddog_InBodyLocation {
   DDOG_IN_BODY_LOCATION_NONE,
   DDOG_IN_BODY_LOCATION_START,
@@ -521,6 +528,11 @@ typedef struct ddog_Config ddog_Config;
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
+
+/**
+ * The agentless (CDN) configuration source, fixed for the lifetime of the process.
+ */
+typedef struct ddog_FfeCdnConfig ddog_FfeCdnConfig;
 
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
@@ -1301,12 +1313,34 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
+typedef struct ddog_TracerPayloadBytes ddog_TracerPayloadBytes;
+typedef struct ddog_TraceChunkBytes ddog_TraceChunkBytes;
 typedef struct ddog_SpanBytes ddog_SpanBytes;
 typedef struct ddog_SpanLinkBytes ddog_SpanLinkBytes;
 typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
 typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
+typedef struct ddog_Attributes ddog_Attributes;
+typedef struct ddog_AttrValue ddog_AttrValue;
 
+
+/**
+ * Attribute value type tags from [`ddog_v1_value_type`], so a C caller picks the matching typed
+ * value getter.
+ */
+#define ddog_DDOG_V1_ATTR_STRING 0
+
+#define ddog_DDOG_V1_ATTR_INT 1
+
+#define ddog_DDOG_V1_ATTR_DOUBLE 2
+
+#define ddog_DDOG_V1_ATTR_BOOL 3
+
+#define ddog_DDOG_V1_ATTR_BYTES 4
+
+#define ddog_DDOG_V1_ATTR_KEYVALUE 5
+
+#define ddog_DDOG_V1_ATTR_LIST 6
 
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
@@ -1357,9 +1391,14 @@ typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWrit
 typedef struct ddog_Arc_Target ddog_Arc_Target;
 
 /**
- * Fundamental configuration of the RC client, which always must be set.
+ * An owned `List` attribute value under construction. Opaque to C.
  */
-typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
+typedef struct ddog_AttrList ddog_AttrList;
+
+/**
+ * An owned `KeyValue` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrMap ddog_AttrMap;
 
 /**
  * A mapping of a shared-memory segment, at an address that never changes.
@@ -1371,6 +1410,11 @@ typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
  * allowing safe transfer and sharing of file handles across processes, and threads
  */
 typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
+
+/**
+ * Identifies a sidecar RC publication independently of its server configuration.
+ */
+typedef struct ddog_RemoteConfigInvariants ddog_RemoteConfigInvariants;
 
 /**
  * Opaque registration for a Windows remote configuration callback.
@@ -1572,6 +1616,14 @@ typedef struct ddog_SenderParameters {
   int64_t buffer_size;
   ddog_CharSlice url;
 } ddog_SenderParameters;
+
+/**
+ * Payload-level tracer metadata for the V1 send path not already carried by the sender's
+ * `tracer_headers_tags` (lang, tracer_version, container_id live there and are routed from there).
+ */
+typedef struct ddog_TracerMetadataV1 {
+  ddog_CharSlice runtime_id;
+} ddog_TracerMetadataV1;
 
 /**
  * Raw AppSec response returned by the AppSec message functions.
@@ -1828,6 +1880,11 @@ typedef struct ddog_crasht_Config {
    * (not just the crashing thread) using ptrace-based remote unwinding.
    */
   bool collect_all_threads;
+  /**
+   * If true, the collector will read OTel thread-level context (trace_id, span_id, etc.) from
+   * each thread's TLS and include them in the crash report under `experimental`.
+   */
+  bool collect_otel_thread_contexts;
   bool create_alt_stack;
   bool demangle_names;
   /**

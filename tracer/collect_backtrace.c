@@ -622,6 +622,11 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
         prev_stack_frame = stack_frame;
 
         skip_frame:
+#ifdef ZEND_HAS_OOM
+        if (ZEND_HAS_OOM()) {
+            break;
+        }
+#endif
         if (UNEXPECTED(ZEND_CALL_KIND(call) == ZEND_CALL_TOP_FUNCTION)
             && !fake_frame
             && prev

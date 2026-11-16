@@ -79,6 +79,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_TRACER_SOURCES += " serializer.c";
 	DDTRACE_TRACER_SOURCES += " span.c";
 	DDTRACE_TRACER_SOURCES += " span_stats.c";
+	DDTRACE_TRACER_SOURCES += " span_tags_view.c";
 	DDTRACE_TRACER_SOURCES += " standalone_limiter.c";
 	DDTRACE_TRACER_SOURCES += " trace_filter.c";
 	DDTRACE_TRACER_SOURCES += " trace_source.c";
@@ -146,7 +147,6 @@ if (PHP_DDTRACE != 'no') {
 		ADD_SOURCES(zai_dirname + "/interceptor/php8", "interceptor.c resolver" + (version < 802 ? "_pre-8_2" : "") + ".c", "ddtrace");
 	}
 
-	ADD_SOURCES(configure_module_dirname + "/tracer/vendor/mpack", "mpack.c", "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/tracer/vendor/mt19937", "mt19937-64.c", "ddtrace");
 	// ADD_SOURCES(configure_module_dirname + "/src/dogstatsd", "client.c", "ddtrace");
 
@@ -179,12 +179,16 @@ if (PHP_DDTRACE != 'no') {
 		.concat(recursivelySearchRustFiles(configure_module_dirname + "/sidecar"));
 	rust_files.push(condense_path(configure_module_dirname + "/Cargo.toml"));
 	rust_files.push(condense_path(configure_module_dirname + "/Cargo.lock"));
+	rust_files.push(condense_path(configure_module_dirname + "/VERSION"));
 
 	var cargo_lib = "$(BUILD_DIR)/target-common/" + ddtrace_cargo_profile + "/datadog_php.lib";
 
 	var fragment = configure_module_dirname + "/Makefile.frag.w32";
 	frag_out = FSO.CreateTextFile(fragment, true);
 
+	// Match Unix helper identity: incompatible tracer releases must not reuse a pipe.
+	frag_out.WriteLine("!if [set SIDECAR_VERSION=" + versionContent + "]");
+	frag_out.WriteLine("!endif");
 	frag_out.WriteLine("CARGO_TARGET_DIR=$(BUILD_DIR)/target-common/");
 	// Promote to env var
 	frag_out.WriteLine("!if [set CARGO_TARGET_DIR=$(CARGO_TARGET_DIR)]");

@@ -50,7 +50,7 @@ DDTrace\remove_hook($id);
 verify(count($spans) === 2 && $ends === 2 && $closes === 2 && $spans[0] !== $spans[1], 'one span per range execution');
 verify($data[0]->span()->getStartTime() === 0, 'retained HookData cannot reopen a finished range');
 DDTrace\close_span();
-$names = array_column(dd_trace_serialize_closed_spans(), 'name');
+$names = array_column(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans')), 'name');
 sort($names);
 verify($names === ['range1', 'range2', 'root'], 'all spans serialized once');
 

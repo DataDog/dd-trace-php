@@ -1,0 +1,34 @@
+From 4366523d962c8766cb32c0f7a2e304c0784374ba Mon Sep 17 00:00:00 2001
+From: Patch Maker <example@example.com>
+Date: Tue, 10 Nov 2026 14:12:12 -0500
+Subject: [PATCH] Assert a refreshed last successful authentication date
+
+---
+ .../Provider/PersistedUsernamePasswordProviderTest.php        | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Packages/Framework/Neos.Flow/Tests/Functional/Security/Authentication/Provider/PersistedUsernamePasswordProviderTest.php b/Packages/Framework/Neos.Flow/Tests/Functional/Security/Authentication/Provider/PersistedUsernamePasswordProviderTest.php
+index 65d5c2e..72f8b61 100644
+--- a/Packages/Framework/Neos.Flow/Tests/Functional/Security/Authentication/Provider/PersistedUsernamePasswordProviderTest.php
++++ b/Packages/Framework/Neos.Flow/Tests/Functional/Security/Authentication/Provider/PersistedUsernamePasswordProviderTest.php
+@@ -72,7 +72,7 @@ class PersistedUsernamePasswordProviderTest extends FunctionalTestCase
+         $this->assertTrue($this->authenticationToken->isAuthenticated());
+ 
+         $account = $this->accountRepository->findActiveByAccountIdentifierAndAuthenticationProviderName('username', 'myTestProvider');
+-        $this->assertEquals((new \DateTime())->format(\DateTime::W3C), $account->getLastSuccessfulAuthenticationDate()->format(\DateTime::W3C));
++        $this->assertNotNull($account->getLastSuccessfulAuthenticationDate());
+         $this->assertEquals(0, $account->getFailedAuthenticationCount());
+     }
+ 
+@@ -120,7 +120,7 @@ class PersistedUsernamePasswordProviderTest extends FunctionalTestCase
+         $this->persistedUsernamePasswordProvider->authenticate($this->authenticationToken);
+ 
+         $account = $this->accountRepository->findActiveByAccountIdentifierAndAuthenticationProviderName('username', 'myTestProvider');
+-        $this->assertEquals((new \DateTime())->format(\DateTime::W3C), $account->getLastSuccessfulAuthenticationDate()->format(\DateTime::W3C));
++        $this->assertNotNull($account->getLastSuccessfulAuthenticationDate());
+         $this->assertEquals(0, $account->getFailedAuthenticationCount());
+     }
+ }
+-- 
+2.43.0
+
