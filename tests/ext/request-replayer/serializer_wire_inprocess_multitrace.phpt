@@ -36,8 +36,8 @@ $rr->clearDumpedData();
 dd_trace_internal_fn('await_agent_info');
 
 // Three independent root traces closed before a single flush. Each closed span
-// stack becomes its own v0.4 trace; the background sender must frame all three
-// (outer msgpack array of N) so the agent keeps every trace, not just the first.
+// stack becomes its own v0.4 trace; every trace must reach the agent, framed
+// as an outer msgpack array of the exact trace count it carries.
 for ($i = 0; $i < 3; $i++) {
     $s = \DDTrace\start_trace_span();
     $s->name = "root$i";
@@ -49,13 +49,43 @@ for ($i = 0; $i < 3; $i++) {
 \DDTrace\flush();
 dd_trace_internal_fn("synchronous_flush");
 
-$req = $rr->waitForRequest(function ($r) { return strpos($r["uri"], "/v0.4/traces") !== false; });
-$traces = json_decode($req["body"], true);
-echo "uri=" . $req["uri"] . "\n";
-echo "trace_count_header=" . $req["headers"]["X-Datadog-Trace-Count"] . "\n";
-echo "trace_count=" . count($traces) . "\n";
-$names = array_map(function ($t) { return $t[0]["name"]; }, $traces);
+// The background sender may rotate its stack between the flush's per-trace
+// writes and deliver the traces in several requests; each request must frame
+// the traces it carries correctly, and all three traces must arrive exactly
+// once across the requests.
+$traceCountHeader = 0;
+$traceCount = 0;
+$names = array();
+$uri = null;
+for ($i = 0; $i < 500; $i++) {
+    $requests = $rr->replayAllRequests();
+    if (is_array($requests)) {
+        foreach ($requests as $request) {
+            if (strpos($request["uri"], "/v0.4/traces") === false) continue;
+            $requestTraces = json_decode($request["body"], true);
+            $requestHeaderCount = (int)$request["headers"]["X-Datadog-Trace-Count"];
+            if ($requestHeaderCount !== count($requestTraces)) {
+                throw new Exception("a request advertised $requestHeaderCount trace(s) but carried " . count($requestTraces));
+            }
+            if ($uri === null) $uri = $request["uri"];
+            $traceCountHeader += $requestHeaderCount;
+            $traceCount += count($requestTraces);
+            foreach ($requestTraces as $trace) $names[] = $trace[0]["name"];
+        }
+    }
+    if (count(array_unique($names)) === 3) break;
+    usleep($rr->flushInterval);
+}
+$distinct = array_values(array_unique($names));
+sort($distinct);
+if ($distinct !== array("root0", "root1", "root2")) {
+    throw new Exception("expected root0,root1,root2 across the delivered requests, saw " . implode(",", $distinct));
+}
+if (count($names) !== 3) throw new Exception("duplicate traces delivered: " . implode(",", $names));
 sort($names);
+echo "uri=$uri\n";
+echo "trace_count_header=$traceCountHeader\n";
+echo "trace_count=$traceCount\n";
 echo "names=" . implode(",", $names) . "\n";
 ?>
 --EXPECTF--
