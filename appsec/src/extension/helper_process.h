@@ -19,6 +19,7 @@ void dd_helper_shutdown(void);
 void dd_helper_mshutdown(void);
 void dd_helper_gshutdown(ddappsec_globals *nonnull globals);
 void dd_helper_rshutdown(void);
+void dd_helper_abandon_request(void);
 
 typedef dd_result (*client_init_func)(dd_conn *nonnull, void *unspecnull ctx);
 dd_conn *nullable dd_helper_mgr_acquire_conn(
