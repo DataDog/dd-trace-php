@@ -190,8 +190,8 @@ class EndpointCatalogTest extends BaseTestCase
 
     public function testCacheEntryResolvesOptionalsByReplayAndFallsBackToMandatoryRoute()
     {
-        $entry = "/posts/{page}\0" . EndpointCatalog::REPLAY_MARKER . "/posts\0"
-            . '{^/posts(?:/(?P<page>[^/]++))?/?$}sD';
+        $entry = "/posts/{page}\0"
+            . EndpointCatalog::replayNormalization('/posts', [], '{^/posts(?:/(?P<page>[^/]++))?/?$}sD');
         $this->assertSame('/posts', EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/posts'));
         $this->assertSame('/posts/{page}', EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/posts/2'));
         // The replay cannot tell which optionals took part: fall back to the
@@ -226,6 +226,38 @@ class EndpointCatalogTest extends BaseTestCase
             ['rest' => true],
             EndpointCatalog::matchedParamsFromReplay($regex, 'rest', '/normalized/catchall/a/b/')
         );
+    }
+
+    public function testCacheEntryTreatsAnEmptyOptionalAsAbsent()
+    {
+        // RFC-1125: an optional part bound to an empty value is absent, even
+        // though Symfony binds rest = '' rather than its default.
+        $entry = "/normalized/catchall/{rest}\0" . EndpointCatalog::replayNormalization(
+            '/normalized/catchall',
+            [],
+            '{^/normalized/catchall(?:/(?P<rest>.*))?/?$}sD'
+        );
+        $this->assertSame(
+            '/normalized/catchall',
+            EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/normalized/catchall/')
+        );
+        $this->assertSame(
+            '/normalized/catchall/{rest}',
+            EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/normalized/catchall/a/b')
+        );
+    }
+
+    public function testCacheEntryKeepsAMandatoryVariableBoundToAnEmptyValue()
+    {
+        // A requirement that can match an empty string never makes a
+        // variable optional.
+        $entry = "/a/{x}/{page}\0" . EndpointCatalog::replayNormalization(
+            '/a/{x}',
+            ['x' => true],
+            '{^/a/(?P<x>[^/]*)(?:/(?P<page>[^/]++))?/?$}sD'
+        );
+        $this->assertSame('/a/{x}', EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/a/'));
+        $this->assertSame('/a/{x}/{page}', EndpointCatalog::normalizedRouteFromCacheEntry($entry, '/a//2'));
     }
 
     public function testReplayDecodesThePathLikeSymfonyMatcher()

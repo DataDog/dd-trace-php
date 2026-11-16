@@ -150,7 +150,8 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 [],
             ],
             // The requirement decides whether an empty capture takes part:
-            // '.*' matches the bare separator, '.+' does not.
+            // '.*' matches the bare separator, '.+' does not. Either way an
+            // empty value is absent from the normalized route (RFC-1125).
             'catch-all optional accepting an empty value' => [
                 '/opt/catchall/{rest}',
                 ['rest' => 'none'],
@@ -158,7 +159,7 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
                 '',
                 [
                     '/opt/catchall' => '/opt/catchall',
-                    '/opt/catchall/' => '/opt/catchall/{rest}',
+                    '/opt/catchall/' => '/opt/catchall',
                     '/opt/catchall/a/b' => '/opt/catchall/{rest}',
                 ],
                 [],
@@ -330,7 +331,7 @@ class SymfonyOptionalParticipationTest extends BaseTestCase
     {
         $normalization = (string) RouteNormalizer::normalizeFromSymfony($plan['path'], $plan['matchedParams']);
         if ($plan['ambiguous'] && $regex !== null) {
-            $normalization = EndpointCatalog::REPLAY_MARKER . $normalization . "\0" . $regex;
+            $normalization = EndpointCatalog::replayNormalization($normalization, $plan['matchedParams'], $regex);
         }
 
         return $plan['path'] . "\0" . $normalization;

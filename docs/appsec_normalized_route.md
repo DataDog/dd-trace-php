@@ -1,27 +1,45 @@
 # `_dd.appsec.normalized_route`
 
-The root span tag `_dd.appsec.normalized_route` (RFC-1103) is set by the
-Laravel, Symfony, Laminas and WordPress integrations. It is built by
+The root span tag `_dd.appsec.normalized_route` (RFC-1103, amended by
+RFC-1125, which replaces its normalization rules) is set by the Laravel,
+Symfony, Laminas and WordPress integrations. It is built by
 `DDTrace\Util\RouteNormalizer` from the route the framework matched and from
 which of that route's parameters took part in the match. `http.route` is not
 affected by any of the cases below.
 
 The route is an OpenAPI path template:
 
-- static text within a URL segment is kept (`/users/user-{id}`);
+- static text within a URL segment is kept (`/users/user-{id}`) and
+  percent-encoded: every character other than `A-Z a-z 0-9 - . _ ~` is
+  encoded with uppercase hex. Where the framework matches the encoded path
+  (Laminas, WordPress), an existing escape is kept (`%c3%a9` -> `%C3%A9`);
+  where it matches the decoded path (Laravel, Symfony, and WordPress when the
+  rule only matches the decoded path), `%` is a literal character (`%25`);
 - parameters in the same segment stay separate, with the text between them
   (`/photos/{id}.{format}`);
-- parameter names keep only `[A-Za-z0-9_]`; any other character becomes `_`;
-- a catch-all is `{paramN}` (the representation is still an open question in
-  the RFC).
+- a parameter name that is already valid (`[A-Za-z0-9_]`) keeps it; in other
+  names each Unicode code point outside that set becomes `_` (`föo` ->
+  `f_o`). A replaced name equal to a name already in the route gets the
+  smallest numeric suffix not used in the route (`/a/{user-id}/{user_id}` ->
+  `/a/{user_id_2}/{user_id}`), so replaced names colliding with each other
+  are suffixed in path order;
+- an unnamed parameter or catch-all is `{param<N>}`, with the smallest N not
+  used in the route, and is placed where it matched: a catch-all that
+  continues a segment stays in it (`/api{param1}`);
+- the route ends with `/` if and only if the route declares a trailing slash
+  and nothing follows it.
 
-An optional parameter is in the route when the request has it and left out
-when it does not. Presence is resolved with the framework's own matching data,
-or by running the framework's own pattern again on the same subject. Where
-presence cannot be determined, the route falls back to its mandatory
-parameters only: a route without the optional parameters is better than no
-route. This page lists, per integration, where that fallback is used, and the
-remaining cases where no route can be built at all.
+An optional part (parameter, static text or group) is in the route when the
+framework bound a non-empty value to it from the URL (for static text: when
+its match included it), and left out otherwise; an empty value or a default
+is absent. Every catch-all is treated as optional. Presence is resolved with
+the framework's own matching data, or by running the framework's own pattern
+again on the same subject. Where presence cannot be determined, the route
+falls back to its mandatory parts: the tag is never omitted because optional
+parts cannot be resolved. This page lists, per integration, where that
+fallback is used, and the remaining cases where no route can be built at all
+(no route determined, or a route that cannot be expressed as path segments
+and parameters).
 
 ## All integrations
 
@@ -56,7 +74,8 @@ normalized without emitting values taken from the request.
 
 Any later attempt to support these must first establish per-request parameter
 participation from the framework's own matching data, as the four supported
-integrations do; a template-only normalization would violate RFC-1103 R-2/R-3.
+integrations do; a template-only normalization would not describe the
+effective route of the request, as RFC-1125 requires.
 
 - No other framework is supported (e.g. Lumen, Mezzio, Phalcon).
 
@@ -69,7 +88,8 @@ capture map was not recorded for the request. The map is taken from
 merged. A route bound without going through these methods has no map.
 
 An optional parameter that matched an empty string counts as absent, as it
-does for Laravel.
+does for Laravel. Laravel matches the decoded path, so a `%` in a route is
+static text (`%25`).
 
 ## Symfony
 
@@ -94,8 +114,14 @@ the decoded path info. It falls back to the mandatory variables when:
   path without it also matches (Symfony redirects there, or another route may
   have matched).
 
+An optional variable the replay bound to an empty value (e.g. `{rest}` with
+requirement `.*` on `/catchall/`) is absent, together with the separator
+Symfony puts in its optional. A mandatory variable is in the route whatever
+its value.
+
 The route is the route path of the matched route. The request's base URL
-(the directory of the front controller) is not part of it.
+(the directory of the front controller) is not part of it. Symfony matches
+the decoded path, so a `%` in a route is static text (`%25`).
 
 ## Laminas
 
@@ -103,9 +129,15 @@ Set by the `RouteInterface::match` hook for the top-level `TreeRouteStack`
 match of a named route. The routes Laminas matched are recorded while
 `Laminas\Mvc\RouteListener::onRoute` runs, and their patterns are run again
 on the same path, at the same offset, to tell which optional parts took part.
-It falls back to the mandatory parts of the named route (Literal text, Segment
-literals and the Segment parameters outside optionals; a Wildcard adds
-nothing) when:
+A `Regex` route is a whole-route regex: the text it matched outside capture
+groups is static text, each capture that took part is a parameter (unnamed
+ones get `param<N>`; an unnamed capture around a named one, as in
+`(\.(?<format>json))?`, only groups it), and its spec plays no part. A `Wildcard` is an unnamed
+catch-all, absent when it matched nothing.
+
+It falls back to the mandatory parts of the named route (Literal text,
+Segment literals and the Segment parameters outside optionals, a Regex's
+literal text and mandatory captures; a Wildcard adds nothing) when:
 
 - routing happens outside `RouteListener::onRoute` (e.g. non-MVC
   applications using `TreeRouteStack` directly): nothing is recorded. A later
@@ -117,59 +149,58 @@ nothing) when:
 - a `Segment` has translated literals (`{key}` parts), which need the
   router's translator;
 - a `Segment` optional with a leading separator matched an empty capture
-  (e.g. `[/:a]` on `/e/`): Laminas drops the empty parameter, and the
-  separator it matched is not explained by any shape of the route;
-- a `Regex` route's spec does not line up with the text the regex matched
-  (e.g. text the regex holds in a non-capturing optional, or a placeholder
-  that names no capture group), a capture that took part has no placeholder
-  in the spec, or the spec is empty;
+  (e.g. `[/:a]` on `/e/`): the empty parameter is absent, and the separator
+  it matched is not explained by any shape of the route;
 - a `Wildcard` matched more than one piece without starting with `/`;
 - replaying a route throws.
 
-The fallback cannot be built, and the tag is omitted, when the named route has
-a `Regex` route (its spec does not tell optional captures apart), a `Segment`
-with translated literals, or a route type laminas-router does not ship.
+The tag is not set, as the route cannot be expressed, when a `Regex` route
+can match text outside its captures that is not plain literal text (a
+character class, `.`, an escape such as `\d`, a repeated part, a lookaround),
+and when the fallback is needed but the named route has a `Regex` route with
+an alternation outside an optional part, a `Segment` with translated
+literals, or a route type laminas-router does not ship.
 
 Deliberate simplifications:
 
 - The router's base URL (`TreeRouteStack::getBaseUrl()`, the application's
   directory below the document root) is not part of the route, as it is not
   part of `http.route`.
-- A `Wildcard` always renders as one catch-all element `/{paramN}`, however
-  many key/value pairs it matched. A Wildcard that matched a single piece with
-  no `/` continues the URL segment before it, which then becomes a parameter.
-  A Wildcard that matched nothing adds nothing.
+- A `Wildcard` always renders as one catch-all element `{param<N>}`, however
+  many key/value pairs it matched.
 
 ## WordPress
 
 Set by the `WP::main` hook when WordPress matched a rewrite rule
 (`did_permalink`) and the request is not a 404. The matched rule is run again
-on `WP::$request`. WordPress rewrite rules are regular expressions with no
-declared optional parameters, so there is no mandatory-only route to fall back
-to. The tag is omitted when:
+on `WP::$request`, and, like WordPress, on its URL-decoded form when it does
+not match the raw one. The rule is a whole-route regex: text of the subject
+outside the captures that took part is static text, each such capture is a
+parameter (named captures keep their name, unnamed ones get `param<N>`, the
+smallest N not used), and a capture that matched an empty string is absent.
+WordPress matches `#^rule#`, so a rule without `$` is a prefix route: the
+rest of the path is its unnamed catch-all. Rewrite rules declare no optional
+parameters, so there is no mandatory-only route to fall back to. The tag is
+not set when:
 
 - the rule can consume text that is not inside a capture group: outside
   captures it uses `.`, a character class, `*`, `+`, `{`, an escape such as
-  `\d` or `\w`, an inline option or a lookaround. This rejects WordPress's
-  index permalink rules (`index.php/...`) and its default attachment rules;
-- the rule matches `WP::$request` only after URL-decoding (WordPress tries
-  both), or matches only a prefix of it;
-- WordPress may have matched a subject that is not kept. It swaps the subject
-  for `$requested_file/$requested_path` from the first rule that starts with
-  the requested file, so the tag is omitted when `PATH_INFO` is not empty
-  (e.g. `/index.php/foo`) and the requested file cannot be shown to be empty.
-  A site whose server rewrites every request to `index.php/$1` has the whole
-  request URI consumed by the path info, leaving an empty requested file: no
-  swap can happen there and the tag is kept. A subdirectory installation whose
-  request URI is exactly the home path is omitted, though WordPress would not
-  have swapped;
+  `\d` or `\w`, an inline option or a lookaround. The route cannot be
+  expressed. This rejects WordPress's index permalink rules (`index.php/...`)
+  and its default attachment rules;
+- WordPress may have matched a subject that is not kept, so no route is
+  determined. It swaps the subject for `$requested_file/$requested_path`
+  from the first rule that starts with the requested file, so the tag is
+  omitted when `PATH_INFO` is not empty (e.g. `/index.php/foo`) and the
+  requested file cannot be shown to be empty. A site whose server rewrites
+  every request to `index.php/$1` has the whole request URI consumed by the
+  path info, leaving an empty requested file: no swap can happen there and
+  the tag is kept. A subdirectory installation whose request URI is exactly
+  the home path is omitted, though WordPress would not have swapped;
 - the capture names do not line up with their groups.
 
 Deliberate simplifications:
 
 - WordPress strips the path of a subdirectory installation (`home_url()`)
   from `WP::$request`, so it is not part of the route.
-- A capture that matched an empty string counts as absent. Unnamed captures
-  are named `paramN` after their group number. Text of the subject outside
-  the captures is kept as static text; a capture nested in another is covered
-  by the outer one.
+- A capture nested in another is covered by the outer one.

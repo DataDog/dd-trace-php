@@ -130,8 +130,10 @@ class WordPress61Tests extends AbstractWordPressAppsecTests {
         Span absentSpan = absentTrace.first()
         assert absentSpan.meta.'http.route' ==
                 '^normalized-capture-hole/(?:([^/]+)-)?([^/]+)$'
+        // RFC-1125: an unnamed capture gets param<N>, the smallest N not
+        // used, so the only capture that took part is param1.
         assert absentSpan.meta.'_dd.appsec.normalized_route' ==
-                '/normalized-capture-hole/{param2}'
+                '/normalized-capture-hole/{param1}'
 
         Trace presentTrace = CONTAINER.traceFromRequest(
                 '/normalized-capture-hole/head-tail/') {
@@ -163,13 +165,10 @@ class WordPress61Tests extends AbstractWordPressAppsecTests {
                 '^normalized-named-captures/(?P<first>[^/]+)-' +
                 '(?P<second>[^/]+)/?$'
         // Both named captures share one URL segment and stay separate, with
-        // the static '-' between them. RFC-1103 does not define whether a route accepting
-        // both terminal-slash forms should retain '/', so accept either form.
-        String normalizedRoute = span.meta.'_dd.appsec.normalized_route'
-        assert normalizedRoute ==
-                '/normalized-named-captures/{first}-{second}' ||
-                normalizedRoute ==
-                '/normalized-named-captures/{first}-{second}/'
+        // the static '-' between them. WordPress trims the '/' the rule
+        // accepts optionally from WP::$request, so it never matched one.
+        assert span.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-named-captures/{first}-{second}'
     }
 
     @Test

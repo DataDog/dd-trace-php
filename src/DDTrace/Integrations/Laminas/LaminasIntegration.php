@@ -1400,21 +1400,16 @@ class LaminasIntegration extends Integration
     }
 
     /**
-     * A Regex match as elements. The spec is the template Regex::assemble()
-     * fills with parameters, so it describes the match only where it lines
-     * up with the text the Regex matched: its static text verbatim, and each
-     * placeholder of a capture that took part at that capture's offset. Only
-     * the names of the regex's capture groups are placeholders; anything
-     * else, such as the %C3% of an encoded character, is static text. Static
-     * text right before a placeholder whose capture did not take part may be
-     * missing from the URL by trailing separators, such as the '.' of
-     * %id%.%format%: the regex holds them in the capture's optional. The
-     * static elements are the text the URL has.
+     * A Regex match as elements. A Regex route is a whole-route regex, so per
+     * RFC-1125 the text it matched outside capture groups is static text and
+     * each capture group that took part is a parameter (unnamed ones get
+     * param<N>); a capture that did not take part, or matched an empty value,
+     * is absent. The spec, the template Regex::assemble() fills, plays no part:
+     * it need not line up with what the regex matches.
      *
-     * Null when the spec does not line up, e.g. when it has text the regex
-     * holds in a non-capturing optional, or a placeholder that names no
-     * capture group, and when a capture that took part has no placeholder:
-     * its position in the route is then unknown.
+     * Null when the regex can match text outside its captures that is not
+     * plain literal text: the route cannot be expressed. Also null when the
+     * regex does not match as Laminas matched it.
      *
      * @return array|null
      */
@@ -1425,92 +1420,22 @@ class LaminasIntegration extends Integration
         int $length
     ) {
         $regex = (string) self::laminasReadProperty($route, \Laminas\Router\Http\Regex::class, 'regex');
-        // The spec property, not getSpec(), which a subclass could add.
-        $spec = (string) self::laminasReadProperty($route, \Laminas\Router\Http\Regex::class, 'spec');
+        if (!\DDTrace\Util\RouteNormalizer::regexHasOnlyCapturedDynamics($regex)) {
+            return null;
+        }
         $matches = self::laminasMatchAt($regex, $urlPath, $offset);
-        if ($spec === '' || $matches === null || strlen($matches[0][0]) !== $length) {
+        if ($matches === null || strlen($matches[0][0]) !== $length) {
             return null;
         }
 
-        preg_match_all('/\(\?(?:P?<|\')([A-Za-z_][A-Za-z0-9_]*)[>\']/', $regex, $groupNames);
-        $groups = array_flip($groupNames[1]);
-        $tokens = [];
-        $static = '';
-        $specLength = strlen($spec);
-        for ($i = 0; $i < $specLength; $i++) {
-            if (
-                $spec[$i] === '%'
-                && preg_match('/\G%([A-Za-z_][A-Za-z0-9_]*)%/', $spec, $placeholder, 0, $i)
-                && isset($groups[$placeholder[1]])
-            ) {
-                if ($static !== '') {
-                    $tokens[] = ['static', $static];
-                    $static = '';
-                }
-                // Regex::match() keeps the named captures that took part with
-                // a non-empty value.
-                $name = $placeholder[1];
-                $tokens[] = isset($matches[$name]) && $matches[$name][1] >= 0 && $matches[$name][0] !== ''
-                    ? ['param', $name, $matches[$name][0], $matches[$name][1]]
-                    : ['absent'];
-                $i += strlen($placeholder[0]) - 1;
-                continue;
-            }
-            $static .= $spec[$i];
-        }
-        if ($static !== '') {
-            $tokens[] = ['static', $static];
-        }
-
-        $placed = [];
-        foreach ($tokens as $token) {
-            if ($token[0] === 'param') {
-                $placed[$token[1]] = true;
-            }
-        }
-        foreach ($matches as $name => $capture) {
-            if (\is_string($name) && $capture[1] >= 0 && $capture[0] !== '' && !isset($placed[$name])) {
-                return null;
-            }
-        }
-
         $start = $offset ?? 0;
-        $states = [[$start, []]];
-        foreach ($tokens as $t => $token) {
-            $nextStates = [];
-            foreach ($states as list($position, $elements)) {
-                if ($token[0] === 'absent') {
-                    $nextStates[] = [$position, $elements];
-                } elseif ($token[0] === 'param') {
-                    if ($token[3] === $position) {
-                        $elements[] = ['param', $token[1]];
-                        $nextStates[] = [$position + strlen($token[2]), $elements];
-                    }
-                } else {
-                    $text = $token[1];
-                    $shortest = isset($tokens[$t + 1]) && $tokens[$t + 1][0] === 'absent'
-                        ? strlen(rtrim($text, './-_~'))
-                        : strlen($text);
-                    for ($k = strlen($text); $k >= $shortest; $k--) {
-                        $candidate = (string) substr($text, 0, $k);
-                        if ($k === 0 || substr_compare($urlPath, $candidate, $position, $k) === 0) {
-                            $nextStates[] = [
-                                $position + $k,
-                                $k === 0 ? $elements : array_merge($elements, [['static', $candidate]]),
-                            ];
-                        }
-                    }
-                }
-            }
-            $states = $nextStates;
-        }
-        foreach ($states as list($position, $elements)) {
-            if ($position === $start + $length) {
-                return $elements;
-            }
-        }
-
-        return null;
+        return \DDTrace\Util\RouteNormalizer::regexMatchElements(
+            $regex,
+            $urlPath,
+            $start,
+            $start + $length,
+            $matches
+        );
     }
 
     /**
@@ -1897,10 +1822,11 @@ class LaminasIntegration extends Integration
      * route as RouteNormalizer::normalizeElements() elements with only its
      * mandatory parts. Literal text and Segment literals are static text,
      * Segment parameters outside optionals are parameters, optionals are left
-     * out, and a Wildcard, which only takes optional key/value pairs, adds
-     * nothing. Null for a Regex, whose spec does not tell its optional
-     * captures apart, for a translated literal, and for a route type
-     * laminas-router does not ship.
+     * out, a Regex contributes its literal text and mandatory captures (see
+     * RouteNormalizer::regexFallbackElements()), and a Wildcard, an unnamed
+     * catch-all whose presence is unknown, adds nothing. Null for a Regex that
+     * cannot be expressed that way, for a translated literal, and for a route
+     * type laminas-router does not ship: the route cannot be expressed.
      *
      * @return array|null
      */
@@ -1966,6 +1892,13 @@ class LaminasIntegration extends Integration
                 }
             }
             return $elements;
+        }
+
+        if ($route instanceof \Laminas\Router\Http\Regex) {
+            // A whole-route regex: literal text and mandatory captures only.
+            return \DDTrace\Util\RouteNormalizer::regexFallbackElements(
+                (string) self::laminasReadProperty($route, \Laminas\Router\Http\Regex::class, 'regex')
+            );
         }
 
         if ($route instanceof \Laminas\Router\Http\Chain) {
