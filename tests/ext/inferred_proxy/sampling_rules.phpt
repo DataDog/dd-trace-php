@@ -86,6 +86,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
                         "stage": "aws-prod",
                         "_dd.inferred_span": 1,
                         "http.status_code": "200",
+                        "_dd.top_level": 1,
                         "_dd.rule_psr": 0.3,
                         "_dd.p.ksr": "0.3"
                     }

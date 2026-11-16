@@ -1359,9 +1359,11 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
     ddtrace_span_precomputed pre;
     ddtrace_precompute_span(span, &pre);
 
+    bool client_side_stats = get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED();
+
     // Trace-level filter: when stats computation is enabled, drop the span from the
     // entire pipeline (trace sending + stats) if its trace is filtered.
-    if (DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+    if (client_side_stats) {
         if (DATADOG_G(agent_info_reader)) {
             ddog_apply_agent_info_concentrator_config(DATADOG_G(agent_info_reader));
         }
@@ -1534,7 +1536,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
     }
 
 
-    if (p0_trace && !keep_error_chunk && !span_sampling_applied && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+    if (p0_trace && !keep_error_chunk && !span_sampling_applied && client_side_stats && ddog_agent_has_stats_computation()) {
         if (inferred_span) {
             // Inferred span won't be serialized, so feed it to the concentrator here.
             ddtrace_span_precomputed inferred_pre;
@@ -1800,7 +1802,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
     zend_string_release(Z_STR(prop_root_service_as_string));
     zend_string_release(Z_STR(prop_service_as_string));
 
-    if (DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+    if (client_side_stats && ddog_agent_has_stats_computation()) {
         ddtrace_feed_span_to_concentrator(span, &pre);
     }
 
@@ -1821,7 +1823,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
     }
 
     // Top-level as the agent defines it: a local root, or a span whose (mapped) service differs from its parent's.
-    if (ctx->mark_top_level || (DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && !is_inferred_span)) {
+    if (ctx->mark_top_level || client_side_stats) {
         // A root's emitted parent is its inferred span, if any.
         ddtrace_span_data *top_level_parent = span->parent ? SPANDATA(span->parent) : inferred_span;
         if (!top_level_parent || ddtrace_span_service_differs_from_parent(top_level_parent, pre.service)) {

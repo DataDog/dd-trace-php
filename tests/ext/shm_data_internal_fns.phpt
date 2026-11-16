@@ -60,6 +60,9 @@ $rr->setResponse(['rate_by_service' => [
 ]]);
 
 \DDTrace\start_span();
+// Always send the bootstrap trace so the agent response can populate sampling rates.
+// Client-side stats can otherwise discard a P0 trace before any response is received.
+\DDTrace\set_priority_sampling(1);
 \DDTrace\close_span();
 dd_trace_internal_fn('synchronous_flush'); // ensure sidecar sends immediately
 $rr->waitForDataAndReplay();

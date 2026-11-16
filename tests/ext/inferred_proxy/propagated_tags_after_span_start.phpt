@@ -103,7 +103,8 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
                         "_dd.inferred_span": 1,
                         "_dd.parent_id": "00000000000000bb",
                         "_dd.p.usr.id": "12345",
-                        "http.status_code": "200"
+                        "http.status_code": "200",
+                        "_dd.top_level": 1
                     }
                 }
             ]

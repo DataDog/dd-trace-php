@@ -101,6 +101,7 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
             "stage": "aws-prod",
             "_dd.inferred_span": 1,
             "http.status_code": "200",
+            "_dd.top_level": 1,
             "_dd.agent_psr": 1
         }
     },
