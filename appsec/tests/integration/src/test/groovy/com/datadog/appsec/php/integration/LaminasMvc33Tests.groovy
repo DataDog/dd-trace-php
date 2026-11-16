@@ -473,7 +473,9 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
         }
 
         assert trace.first().meta.'http.route' == '/normalized-proto[.:format]/users[.:format]'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-proto/{format}'
+        // RFC-1125: static text stays in its segment; only the optional that
+        // took part (the second [.:format]) is in the route.
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-proto/users.{format}'
     }
 
     @Test
@@ -486,7 +488,7 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
         }
 
         assert trace.first().meta.'http.route' == '/normalized-proto[.:format]/users[.:format]'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == '/{format}/users'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-proto.{format}/users'
     }
 
     @Test
