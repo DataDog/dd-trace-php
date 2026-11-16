@@ -60,6 +60,7 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
             "http.method": "GET",
             "process_id": %d,
             "http.status_code": "200",
+            "_dd.top_level": 1,
             "php.compilation.total_time_ms": %f,
             "php.memory.peak_usage_bytes": %d,
             "php.memory.peak_real_usage_bytes": %d
@@ -82,6 +83,7 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
             "stage": "aws-prod",
             "_dd.inferred_span": 1,
             "http.status_code": "200",
+            "_dd.top_level": 1,
             "_dd.agent_psr": 1
         }
     },

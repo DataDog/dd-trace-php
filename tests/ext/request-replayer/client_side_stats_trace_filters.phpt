@@ -83,6 +83,14 @@ function makeSpan(string $name, string $resource, array $meta, ?string $env = nu
     foreach ($meta as $k => $v) {
         $s->meta[$k] = $v;
     }
+    // Children inherit the root's filter decision, even with conflicting tags.
+    $child = \DDTrace\start_span();
+    $child->name = $name . '.child';
+    $child->service = 'filter-test-service';
+    $child->meta['http.method'] = 'DELETE';
+    $child->meta['filter_reject'] = 'yes';
+    $child->metrics['_dd.measured'] = 1;
+    \DDTrace\close_span();
     \DDTrace\close_span();
 }
 
@@ -224,4 +232,6 @@ if (empty($ops)) {
 ?>
 --EXPECT--
 in traces: op.pass
+in traces: op.pass.child
 in stats: op.pass
+in stats: op.pass.child

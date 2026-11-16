@@ -72,24 +72,32 @@ include __DIR__ . '/../dd_dumper.inc';
 spans(\DDTrace\SpanData) (8) {
   intval (trace_closure_ge_php_84.php, 0, cli)
     result => 0
+    _dd.top_level => 1
   {closure:%s.php:7\{closure} (trace_closure_ge_php_84.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:7
     result => 1
+    _dd.top_level => 1
   test\foo.{closure} (trace_closure_ge_php_84.php, 2, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:12
     result => 2
+    _dd.top_level => 1
   test\bar.foo.{closure} (trace_closure_ge_php_84.php, 3, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:19
     result => 3
+    _dd.top_level => 1
   intval (trace_closure_ge_php_84.php, 0, cli)
     result => 1
+    _dd.top_level => 1
   {closure:%s.php:7\{closure} (trace_closure_ge_php_84.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:7
     result => 2
+    _dd.top_level => 1
   test\foo.{closure} (trace_closure_ge_php_84.php, 2, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:12
     result => 3
+    _dd.top_level => 1
   test\bar.foo.{closure} (trace_closure_ge_php_84.php, 3, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:19
     result => 4
+    _dd.top_level => 1
 }
