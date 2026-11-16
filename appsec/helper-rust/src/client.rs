@@ -400,7 +400,11 @@ fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
             if let Some(telemetry) = &client.telemetry_client {
                 update_error_telemetry_context(telemetry.clone());
             }
-            error!("Failed to get service with new RC path: {}; will continue running with old service!", e);
+            let fd_diagnostics = client.service_manager.describe_fd_exhaustion(&e);
+            error!(
+                "Failed to get service with new RC path: {:#}; will continue running with old service!{}",
+                e, fd_diagnostics
+            );
         }
     }
 }
