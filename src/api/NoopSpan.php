@@ -209,23 +209,6 @@ final class NoopSpan implements SpanInterface
     }
 
     /**
-     * @param bool $value
-     * @return self
-     */
-    public function setTraceAnalyticsCandidate($value = true)
-    {
-        return $this;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isTraceAnalyticsCandidate()
-    {
-        return false;
-    }
-
-    /**
      * Set a DD metric.
      *
      * @param string $key

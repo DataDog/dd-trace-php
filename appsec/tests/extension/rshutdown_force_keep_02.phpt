@@ -1,0 +1,35 @@
+--TEST--
+Sampling priority is not set when helper set force to false
+--INI--
+datadog.appsec.enabled=1
+--FILE--
+<?php
+use function datadog\appsec\testing\{rinit, rshutdown, root_span_get_attributes};
+
+include __DIR__ . '/inc/mock_helper.php';
+
+$helper = Helper::createInitedRun([
+    response_list(response_request_init([[['ok', []]], []])),
+    response_list(response_request_shutdown([[['ok', []]], [], [], [], false])),
+]);
+
+var_dump(rinit());
+var_dump(rshutdown());
+
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
+?>
+--EXPECTF--
+bool(true)
+bool(true)
+root_span_get_attributes():
+Array
+(
+    [_dd.appsec.enabled] => 1
+    [_dd.appsec.waf.duration_ext] => %f
+    [_dd.runtime_family] => php
+    [process_id] => %d
+    [runtime-id] => %s
+)

@@ -1,9 +1,12 @@
 --TEST--
 Set DDTrace\start_span() properties
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 $original_span = DDTrace\active_span();
 
@@ -40,7 +43,7 @@ $span = DDTrace\start_span();
 DDTrace\close_span($span->getStartTime() / 1000000000 + 2.0000002); // nobody likes the limits of double precision
 var_dump(round($span->getDuration(), -3));
 
-$serialized = dd_trace_serialize_closed_spans();
+$serialized = dd_clean_spans();
 $serialized[0]["duration"] += 500; // fix flakiness
 var_dump($serialized);
 
@@ -55,9 +58,7 @@ bool(true)
 float(2000000000)
 array(2) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -72,27 +73,24 @@ array(2) {
     string(34) "start_span_with_all_properties.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(4) {
+    ["attributes"]=>
+    array(6) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
-      float(%f)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      int(%d)
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
   [1]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -107,24 +105,25 @@ array(2) {
     string(4) "test"
     ["type"]=>
     string(6) "runner"
-    ["meta"]=>
-    array(2) {
-      ["aa"]=>
-      string(2) "bb"
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(5) {
+    ["attributes"]=>
+    array(9) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
       float(%f)
+      ["_dd.svc_src"]=>
+      string(1) "m"
+      ["aa"]=>
+      string(2) "bb"
       ["cc"]=>
       float(0)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

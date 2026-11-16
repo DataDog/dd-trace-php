@@ -2,7 +2,7 @@
 Negative duration for dropped spans
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 
@@ -10,7 +10,7 @@ $outerSpan = DDTrace\start_span();
 
 DDTrace\start_span();
 DDTrace\close_span();
-var_dump(count(dd_trace_serialize_closed_spans()));
+var_dump(count(dd_trace_serialize_closed_spans()['chunks'][0]['spans']));
 
 var_dump($outerSpan->getDuration());
 
@@ -18,4 +18,4 @@ var_dump($outerSpan->getDuration());
 --EXPECTF--
 int(1)
 int(-1)
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

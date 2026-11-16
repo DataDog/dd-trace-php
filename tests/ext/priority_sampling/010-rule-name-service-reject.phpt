@@ -5,7 +5,7 @@ DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.3, "name": "no.*match", "service": "n
 DD_TRACE_GENERATE_ROOT_SPAN=1
 --SKIPIF--
 <?php
-if (getenv("USE_ZEND_ALLOC") === "0") {
+if (getenv("USE_ZEND_ALLOC") === "0" && !getenv("SKIP_ASAN")) {
     die("skip: test will show memory errors under valgrind where PCRE is built without valgrind support");
 }
 ?>
@@ -20,7 +20,7 @@ $root->service = "barservice";
 if ($root->metrics["_dd.rule_psr"] == 0.7) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
 ?>

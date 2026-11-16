@@ -25,7 +25,10 @@
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
-        "sort-packages": true
+        "sort-packages": true,
+        "audit": {
+            "block-insecure": false
+        }
     },
     "extra": {
         "laravel": {
@@ -42,14 +45,17 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
-        }
+        },
+        "files": ["../../../Appsec/Mock.php"]
     },
     "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php -r \"(new PDO('mysql:host=mysql-integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel8');\"",
+            "@php artisan package:discover --ansi",
+            "@php artisan migrate:fresh --force"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""

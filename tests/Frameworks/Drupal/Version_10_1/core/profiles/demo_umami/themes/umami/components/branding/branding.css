@@ -1,0 +1,34 @@
+/**
+ * @file
+ * This file is used to style the branding block.
+ */
+
+.branding {
+  flex: 0 1 40%;
+}
+
+@media screen and (min-width: 48em) {
+  .branding {
+    flex: 0 1 220px;
+    margin: 2.5rem 0;
+    text-align: left;
+  }
+}
+
+.branding__site-logo {
+  display: inline-block;
+  width: 100%;
+  max-width: 205px;
+  background-color: inherit;
+}
+
+.branding__site-logo:hover,
+.branding__site-logo:focus {
+  background-color: inherit;
+}
+
+.branding__site-logo svg {
+  width: 100%;
+  max-width: 205px;
+  height: auto;
+}

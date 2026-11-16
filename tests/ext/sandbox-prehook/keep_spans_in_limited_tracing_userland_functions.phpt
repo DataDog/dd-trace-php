@@ -1,10 +1,12 @@
 --TEST--
 [Prehook Regression] Keep spans in limited mode (userland functions)
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_SPANS_LIMIT=5
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 function myFunc1($foo) {
     return $foo;
 }
@@ -35,7 +37,7 @@ myFunc2(true);
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_clean_spans());
 ?>
 --EXPECT--
 bool(false)

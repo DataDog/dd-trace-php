@@ -1,0 +1,70 @@
+<?php
+
+namespace DDTrace\Integrations\Psr18;
+
+use DDTrace\Http\Urls;
+use DDTrace\Integrations\HttpClientIntegrationHelper;
+use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
+use DDTrace\SpanKind;
+use DDTrace\Tag;
+use DDTrace\Type;
+
+// Note: we test this as part of the GuzzleIntegration, which uses the Psr18Integration as well
+class Psr18Integration extends Integration
+{
+    const NAME = 'psr18';
+
+    public static function init(): int
+    {
+        /* We rely on the specific integrations to send distributed tracing headers;
+         * curl will almost guarantee do it for us anyway. Just do a post-hook to get the response.
+         */
+        \DDTrace\trace_method(
+            'Psr\Http\Client\ClientInterface',
+            'sendRequest',
+            static function (SpanData $span, $args, $retval) {
+                $span->resource = 'sendRequest';
+                $span->name = 'Psr\Http\Client\ClientInterface.sendRequest';
+                $span->type = Type::HTTP_CLIENT;
+                $span->spanKind = SpanKind::CLIENT;
+                $span->component = self::NAME;
+
+                if (isset($args[0])) {
+                    self::addRequestInfo($span, $args[0]);
+                }
+
+                if (isset($retval)) {
+                    /** @var \Psr\Http\Message\ResponseInterface $retval */
+                    $statusCode = $retval->getStatusCode();
+                    $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$statusCode;
+                    HttpClientIntegrationHelper::setClientError($span, $statusCode, $retval->getReasonPhrase());
+                }
+            }
+        );
+
+        return Integration::LOADED;
+    }
+
+    public static function addRequestInfo(SpanData $span, $request)
+    {
+        /** @var \Psr\Http\Message\RequestInterface $request */
+        $url = $request->getUri();
+        $host = Urls::hostname($url);
+
+        if ($host) {
+            $span->attributes[Tag::NETWORK_DESTINATION_NAME] = $host;
+        }
+
+        if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
+            $span->service = Urls::hostnameForTag($url);
+            $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+        }
+
+        $span->attributes[Tag::HTTP_METHOD] = $request->getMethod();
+
+        if (!array_key_exists(Tag::HTTP_URL, $span->attributes)) {
+            $span->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+        }
+    }
+}

@@ -1,101 +1,264 @@
 #include "logging.h"
 
-#include <stdatomic.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
+#include "ffi_utils.h"
 #include "configuration.h"
+#include <components-rs/datadog.h>
+#include <main/SAPI.h>
 
-extern inline void ddtrace_log_err(const char *message);
+#ifndef _WIN32
+#define atomic_compare_exchange_strong_int atomic_compare_exchange_strong
+#endif
 
-atomic_uintptr_t php_ini_error_log;
 
-void ddtrace_bgs_log_minit(void) { atomic_store(&php_ini_error_log, (uintptr_t)NULL); }
+static void dd_log_set_level(bool debug) {
+    bool once = runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS();
+    if (debug) {
+        if (strcmp("cli", sapi_module.name) != 0 && (runtime_config_first_init ? get_DD_TRACE_STARTUP_LOGS() : get_global_DD_TRACE_STARTUP_LOGS())) {
+            ddog_set_log_level(DDOG_CHARSLICE_C("debug"), once);
+        } else {
+            ddog_set_log_level(DDOG_CHARSLICE_C("debug,startup=error"), once);
+        }
+    } else if (runtime_config_first_init) {
+        ddog_set_log_level(dd_zend_string_to_CharSlice(get_DD_TRACE_LOG_LEVEL()), once);
+    } else if (zend_string_equals_literal_ci(Z_STR(zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_LOG_LEVEL].decoded_value), "error")) {
+        ddog_set_error_log_level(once); // optimized handling without parsing
+    } else {
+        ddog_set_log_level(dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), once);
+    }
+}
 
-void ddtrace_bgs_log_rinit(char *error_log) {
+// We need to ensure that logging is initialized (i.e. set) at least once per thread.
+void datadog_log_ginit(void) {
+    dd_log_set_level(get_global_DD_TRACE_DEBUG());
+}
+
+_Atomic(int) datadog_error_log_fd = -1;
+static _Atomic(uintmax_t) dd_error_log_fd_rotated = 0;
+
+void datadog_log_minit(void) {
+    if (ZSTR_LEN(get_global_DD_TRACE_LOG_FILE())) {
+        int fd = VCWD_OPEN_MODE(ZSTR_VAL(get_global_DD_TRACE_LOG_FILE()), O_RDWR | O_APPEND, 0666);
+        if (fd < 0) {
+            // Retry with CREAT to only apply fchmod() on CREAT
+            fd = VCWD_OPEN_MODE(ZSTR_VAL(get_global_DD_TRACE_LOG_FILE()), O_CREAT | O_RDWR | O_APPEND, 0666);
+            if (fd < 0) {
+                return;
+            }
+#ifndef _WIN32
+            fchmod(fd, 0666); // ignore umask
+#endif
+        }
+        atomic_store(&datadog_error_log_fd, fd);
+
+        time_t now;
+        time(&now);
+        atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
+    }
+
+    // no need to call dd_log_set_level here, datadog_config_minit() inits the debug config
+}
+
+void datadog_log_rinit(char *error_log) {
+    if (atomic_load(&datadog_error_log_fd) != -1) {
+        return;
+    }
+
     if (!error_log || strcasecmp(error_log, "syslog") == 0 || strlen(error_log) == 0) {
         return;
     }
 
-    uintptr_t desired = (uintptr_t)zend_strndup(error_log, strlen(error_log));
-    uintptr_t expected = (uintptr_t)NULL;
-    if (!atomic_compare_exchange_strong(&php_ini_error_log, &expected, desired)) {
-        // if it didn't exchange, then we need to free our duplicated string
-        free((char *)desired);
+    int desired = VCWD_OPEN_MODE(error_log, O_RDWR | O_APPEND, 0666);
+    if (desired < 0) {
+        // Retry with CREAT to only apply fchmod() on CREAT
+        desired = VCWD_OPEN_MODE(error_log, O_CREAT | O_RDWR | O_APPEND, 0666);
+
+#ifndef _WIN32
+        if (desired >= 0) {
+            fchmod(desired, 0666); // ignore umask
+        }
+#endif
+    }
+
+    time_t now;
+    time(&now);
+    atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
+    int expected = -1;
+    if (!atomic_compare_exchange_strong_int(&datadog_error_log_fd, &expected, desired)) {
+        // if it didn't exchange, then we need to free it
+        close(desired);
     }
 }
 
-void ddtrace_bgs_log_mshutdown(void) {
-    char *error_log = (char *)atomic_load(&php_ini_error_log);
-    atomic_store(&php_ini_error_log, (uintptr_t)NULL);
-    free(error_log);
+int datadog_get_fd_path(int fd, char *buf) {
+#ifdef _WIN32
+    intptr_t handle = _get_osfhandle(fd);
+    if (handle == INVALID_HANDLE_VALUE) {
+        return -1;
+    }
+    return GetFinalPathNameByHandleA((HANDLE) handle, buf, MAXPATHLEN, VOLUME_NAME_DOS) ? 1 : -1;
+#elif defined(F_GETPATH)
+    return fcntl(fd, F_GETPATH, buf);
+#else
+    char pathbuf[MAXPATHLEN];
+    snprintf(pathbuf, MAXPATHLEN, "/proc/self/fd/%d", fd);
+    int len = readlink(pathbuf, buf, PATH_MAX);
+    if (len >= 0) {
+        buf[len] = 0;
+    }
+    return len;
+#endif
 }
 
-#undef ddtrace_bgs_logf
-int ddtrace_bgs_logf(const char *fmt, ...) {
-    int ret = 0;
-    char *error_log = (char *)atomic_load(&php_ini_error_log);
-    if (error_log) {
-        FILE *fh = fopen(error_log, "a");
+void datadog_log_mshutdown(void) {
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
+    atomic_store(&datadog_error_log_fd, -1);
+    if (error_log_fd != -1) {
+        close(error_log_fd);
+    }
+}
 
-        if (fh) {
-            va_list args, args_copy;
-            va_start(args, fmt);
+int datadog_log_with_time(int fd, const char *msg, int msg_len) {
+    // todo: we only need 20-ish for the main part, but how much for the timezone?
+    // Wish PHP printed -hhmm or +hhmm instead of the name
+    char *msgbuf = malloc(msg_len + 70);
+    if (!msgbuf) {
+        return -1;
+    }
 
-            va_copy(args_copy, args);
-            int needed_len = vsnprintf(NULL, 0, fmt, args_copy);
-            va_end(args_copy);
+    time_t now;
+    time(&now);
+    struct tm *now_local = localtime(&now);
+    if (!now_local) {
+        free(msgbuf);
+        return -1;
+    }
+    char *p = msgbuf;
+    *(p++) = '[';
+    int time_len = (int)strftime(p, 64, "%d-%b-%Y %H:%M:%S %Z", now_local);
+    if (time_len > 0) {
+        p += time_len;
+    }
+    *(p++) = ']';
+    *(p++) = ' ';
+    memcpy(p, msg, msg_len);
+    p += msg_len;
+    *(p++) = '\n';
 
-            char *msgbuf = malloc(needed_len);
-            vsnprintf(msgbuf, needed_len, fmt, args);
-            va_end(args);
-
-            time_t now;
-            time(&now);
-            struct tm *now_local = localtime(&now);
-            // todo: we only need 20-ish for the main part, but how much for the timezone?
-            // Wish PHP printed -hhmm or +hhmm instead of the name
-            char timebuf[64];
-            int time_len = strftime(timebuf, sizeof timebuf, "%d-%b-%Y %H:%M:%S %Z", now_local);
-            if (time_len > 0) {
-                ret = fprintf(fh, "[%s] %s\n", timebuf, msgbuf);
+    uintmax_t last_check = atomic_exchange(&dd_error_log_fd_rotated, (uintmax_t) now);
+    if (last_check < (uintmax_t)now - 60) { // 1x/min
+        char pathbuf[MAXPATHLEN];
+        if (datadog_get_fd_path(fd, pathbuf) >= 0) {
+            // datadog_get_fd_path() is always absolute, so we can bypass VCWD_OPEN_MODE.
+            int new_fd = open(pathbuf, O_RDWR | O_APPEND, 0666);
+            if (new_fd < 0) {
+                // Retry with CREAT to only apply fchmod() on CREAT
+                new_fd = open(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
+#ifndef _WIN32
+                fchmod(new_fd, 0666); // ignore umask
+#endif
             }
-
-            free(msgbuf);
-            fclose(fh);
+            dup2(new_fd, fd); // atomic replace
+            close(new_fd);
         }
+    }
+
+    int ret = write(fd, msgbuf, p - msgbuf);
+
+    free(msgbuf);
+    return ret;
+}
+
+#undef datadog_signal_safe_logf
+int datadog_signal_safe_logf(const char *fmt, ...) {
+    int ret = 0;
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
+    if (error_log_fd != -1) {
+        va_list args, args_copy;
+        va_start(args, fmt);
+
+        va_copy(args_copy, args);
+        int needed_len = vsnprintf(NULL, 0, fmt, args_copy);
+        va_end(args_copy);
+
+        char *msgbuf = malloc(needed_len + 1);
+        vsnprintf(msgbuf, needed_len + 1, fmt, args);
+        va_end(args);
+
+        ret = datadog_log_with_time(error_log_fd, msgbuf, needed_len);
+
+        free(msgbuf);
     }
 
     return ret;
 }
 
-void ddtrace_log_errf(const char *format, ...) {
-    va_list args;
-    char *buffer;
-
-    va_start(args, format);
-    vspprintf(&buffer, 0, format, args);
-    ddtrace_log_err(buffer);
-
-    efree(buffer);
-    va_end(args);
+static void dd_log_callback(ddog_CharSlice msg) {
+    char *message = (char*)msg.ptr;
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
+    if (error_log_fd != -1) {
+        datadog_log_with_time(error_log_fd, message, (int)msg.len);
+    } else {
+        // Temporarily disable user abort to prevent zend_bailout() from being
+        // called inside php_log_err(). This callback is invoked from Rust while
+        // a RefCell borrow is held. A bailout (longjmp) would skip Rust
+        // destructors, leaving the RefCell<Option<Dispatch>> permanently
+        // borrowed and causing a panic on the following request.
+        // If we STILL have a bailout, ... The safest thing to is probably to
+        // catch it. We shouldn't log though, or risk a new bailout.
+        bool orig_ignore_user_abort = PG(ignore_user_abort);
+        PG(ignore_user_abort) = 1;
+        volatile char *allocated_msg = NULL;
+        zend_try {
+            if (msg.ptr[msg.len]) {
+                message = zend_strndup(msg.ptr, msg.len);
+                allocated_msg = message;
+                php_log_err(message);
+                free(message);
+            } else {
+                php_log_err(message);
+            }
+        } zend_catch {
+            free((void*)allocated_msg);
+        } zend_end_try();
+        PG(ignore_user_abort) = orig_ignore_user_abort;
+    }
 }
 
-static atomic_int dd_force_log_once_flag = 1;
-void ddtrace_log_onceerrf(const char *format, ...) {
-    va_list args;
-    char *buffer;
-    int expected = 1;
 
-    va_start(args, format);
-    vspprintf(&buffer, 0, format, args);
-    if (get_DD_TRACE_DEBUG()) {
-        ddtrace_log_err(buffer);
-    } else if (atomic_compare_exchange_strong(&dd_force_log_once_flag, &expected, 0)) {
-        ddtrace_log_errf("%s This message is only displayed once. Use DD_TRACE_DEBUG=1 to show all messages.", buffer);
+// Sidecar threads have no PHP request state, so they cannot use php_log_err() or zend_bailout().
+// Drop messages when no log file is configured.
+static void dd_log_callback_off_thread(ddog_CharSlice msg) {
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
+    if (error_log_fd != -1) {
+        datadog_log_with_time(error_log_fd, (char *)msg.ptr, (int)msg.len);
+    }
+}
+
+void datadog_log_init(void) {
+    ddog_log_callback = dd_log_callback;
+    ddog_log_callback_off_thread = dd_log_callback_off_thread;
+}
+
+bool datadog_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_str);
+
+    dd_log_set_level(Z_TYPE_P(new_value) == IS_TRUE);
+
+    return true;
+}
+
+bool datadog_alter_dd_trace_log_level(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_str);
+    if (runtime_config_first_init ? get_DD_TRACE_DEBUG() : get_global_DD_TRACE_DEBUG()) {
+        return true;
     }
 
-    efree(buffer);
-    va_end(args);
+    ddog_set_log_level(dd_zend_string_to_CharSlice(Z_STR_P(new_value)), runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS());
+
+    return true;
 }

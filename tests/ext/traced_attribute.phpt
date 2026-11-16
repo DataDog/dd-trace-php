@@ -1,8 +1,9 @@
 --TEST--
-Set DDTrace\start_span() properties
+Test tracing via attributes
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80000) die('skip: No attributes pre-PHP 8'); ?>
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -10,7 +11,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 include __DIR__ . '/sandbox/dd_dumper.inc';
 
 class Foo {
-    #[DDTrace\Trace(name: "simplename", resource: "rsrc", type: "typeee", service: "test", tags: ["a" => "b", 1 => "ignored"])]
+    #[DDTrace\Trace(name: "simplename", resource: "rsrc", type: "typeee", service: "test", attributes: ["a" => "b", "data" => "dog", 1 => "numeric key"])]
     static function simple($arg) {}
 /*
     #[DDTrace\Trace(saveArgs: ["foo"])]
@@ -55,16 +56,45 @@ noRecursion();
 dd_dump_spans();
 
 ?>
---EXPECT--
+--EXPECTF--
 spans(\DDTrace\SpanData) (3) {
   bar (traced_attribute.php, bar, cli)
-    _dd.p.dm => -1
+    _dd.code_origin.type => entry
+    _dd.code_origin.frames.0.file => %s
+    _dd.code_origin.frames.0.line => 22
+    _dd.code_origin.frames.0.method => bar
+    _dd.code_origin.frames.1.file => %s
+    _dd.code_origin.frames.1.line => 40
     simplename (test, rsrc, typeee)
+      _dd.svc_src => m
       a => b
+      data => dog
+      1 => numeric key
+      _dd.code_origin.type => exit
+      _dd.code_origin.frames.0.file => %s
+      _dd.code_origin.frames.0.line => 7
+      _dd.code_origin.frames.0.method => simple
+      _dd.code_origin.frames.0.type => Foo
+      _dd.code_origin.frames.1.file => %s
+      _dd.code_origin.frames.1.line => 23
+      _dd.code_origin.frames.1.method => bar
+      _dd.code_origin.frames.2.file => %s
+      _dd.code_origin.frames.2.line => 40
+      _dd.base_service => traced_attribute.php
   recursion (traced_attribute.php, recursion, cli)
-    _dd.p.dm => -1
+    _dd.code_origin.type => entry
+    _dd.code_origin.frames.0.file => %s
+    _dd.code_origin.frames.0.line => 27
+    _dd.code_origin.frames.0.method => recursion
+    _dd.code_origin.frames.1.file => %s
+    _dd.code_origin.frames.1.line => 45
     recursion (traced_attribute.php, recursion, cli)
       recursion (traced_attribute.php, recursion, cli)
   noRecursion (traced_attribute.php, noRecursion, cli)
-    _dd.p.dm => -1
+    _dd.code_origin.type => entry
+    _dd.code_origin.frames.0.file => %s
+    _dd.code_origin.frames.0.line => 34
+    _dd.code_origin.frames.0.method => noRecursion
+    _dd.code_origin.frames.1.file => %s
+    _dd.code_origin.frames.1.line => 46
 }

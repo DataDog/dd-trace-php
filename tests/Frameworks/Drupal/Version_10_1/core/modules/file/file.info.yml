@@ -1,0 +1,7 @@
+name: File
+type: module
+description: 'Provides a field type for files and defines a "managed_file" Form API element.'
+package: Field types
+version: VERSION
+dependencies:
+  - drupal:field

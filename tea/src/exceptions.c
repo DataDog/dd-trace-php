@@ -1,7 +1,11 @@
 #include <include/exceptions.h>
 
 zend_class_entry *tea_exception_throw(const char *message) {
+#if PHP_VERSION_ID >= 80500
+    zend_class_entry *ce = zend_ce_exception;
+#else
     zend_class_entry *ce = zend_exception_get_default();
+#endif
     zend_throw_exception(ce, (char *)message, 0);
     return ce;
 }

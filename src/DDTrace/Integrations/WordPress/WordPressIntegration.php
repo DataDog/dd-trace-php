@@ -1,0 +1,151 @@
+<?php
+
+namespace DDTrace\Integrations\WordPress;
+
+use DDTrace\Integrations\Integration;
+
+class WordPressIntegration extends Integration
+{
+    const NAME = 'wordpress';
+
+    /**
+     * {@inheritdoc}
+     */
+    public static function init(): int
+    {
+        // This call happens right in central config initialization
+        \DDTrace\hook_function('wp_check_php_mysql_versions', null, static function () {
+            if (!isset($GLOBALS['wp_version']) || !is_string($GLOBALS['wp_version'])) {
+                return false;
+            }
+            $majorVersion = substr($GLOBALS['wp_version'], 0, 1);
+            if ($majorVersion >= 4) {
+                WordPressIntegrationLoader::load();
+            }
+
+            return true;
+        });
+
+        \DDTrace\hook_method('WP', 'main', null, function ($This, $scope, $args) {
+            if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
+                if (
+                    function_exists('\datadog\appsec\push_addresses') &&
+                    \property_exists($This, 'query_vars') &&
+                        function_exists('is_404') && is_404() === false
+                ) {
+                    $parameters = $This->query_vars;
+                    if (count($parameters) > 0) {
+                        \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
+                    }
+                }
+            }
+        });
+
+        \DDTrace\hook_function(
+            'wp_authenticate',
+            null,
+            static function ($args, $retval) {
+                $userClass = '\WP_User';
+
+                $username = null;
+                if (isset($args[0])) {
+                    $username = $args[0];
+                }
+
+                if (!($retval instanceof $userClass)) {
+                    //Login failed
+                    // Mirror WordPress' own $ignore_codes (wp-includes/pluggable.php
+                    // wp_authenticate). When the failure is a missing username or
+                    // password, WP itself does not consider this a real attempt —
+                    // skip emitting an automated event (e.g. plain GET /wp-login.php).
+                    $errorClass = '\WP_Error';
+                    if ($retval instanceof $errorClass
+                        && in_array($retval->get_error_code(), ['empty_username', 'empty_password'], true)) {
+                        return;
+                    }
+                    if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
+                        return;
+                    }
+                    $exists = $retval instanceof $errorClass &&
+                        \property_exists($retval, 'errors') &&
+                        is_array($retval->errors) &&
+                        isset($retval->errors['incorrect_password']);
+
+                    \datadog\appsec\internal\track_user_login_failure_event_automated('wordpress', $username, null, $exists, []);
+                    return;
+                }
+
+                //From this moment on, login is succesful
+                if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
+                    return;
+                }
+
+                $data = \property_exists($retval, 'data') ? $retval->data : null;
+
+                $id = \property_exists($data, 'ID') ? $data->ID : null;
+                $metadata = [];
+                if (\property_exists($data, 'user_email')) {
+                    $metadata['email'] = $data->user_email;
+                }
+
+                if (\property_exists($data, 'display_name')) {
+                    $metadata['name'] = $data->display_name;
+                }
+
+                \datadog\appsec\internal\track_user_login_success_event_automated(
+                    'wordpress',
+                    $username,
+                    $id,
+                    $metadata
+                );
+            }
+        );
+
+        \DDTrace\hook_function(
+            'register_new_user',
+            null,
+            static function ($args, $retval) {
+                if (!function_exists('\datadog\appsec\internal\track_user_signup_event_automated')) {
+                    return;
+                }
+
+                $metadata = [];
+                $login = null;
+
+                if (isset($args[0])) {
+                    $metadata['username'] = $args[0];
+                    $login = $args[0];
+                }
+
+                if (isset($args[1])) {
+                    $metadata['email'] = $args[1];
+                }
+
+                \datadog\appsec\internal\track_user_signup_event_automated(
+                    'wordpress',
+                    $login,
+                    $retval,
+                    $metadata
+                );
+            }
+        );
+
+        \DDTrace\hook_function(
+            'wp_validate_auth_cookie',
+            null,
+            static function ($args, $retval) {
+                if (!function_exists('\datadog\appsec\internal\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                if ($retval !== false) {
+                    \datadog\appsec\internal\track_authenticated_user_event_automated(
+                        'wordpress', $retval
+                    );
+                }
+            }
+        );
+
+        return self::LOADED;
+    }
+}

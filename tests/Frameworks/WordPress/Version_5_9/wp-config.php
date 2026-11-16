@@ -20,7 +20,7 @@
 
 // ** Database settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
-define( 'DB_NAME', 'test' );
+define( 'DB_NAME', 'wp59' );
 
 /** Database username */
 define( 'DB_USER', 'test' );
@@ -29,7 +29,7 @@ define( 'DB_USER', 'test' );
 define( 'DB_PASSWORD', 'test' );
 
 /** Database hostname */
-define( 'DB_HOST', 'mysql_integration' );
+define( 'DB_HOST', 'mysql-integration' );
 
 /** Database charset to use in creating database tables. */
 define( 'DB_CHARSET', 'utf8mb4' );
@@ -37,7 +37,7 @@ define( 'DB_CHARSET', 'utf8mb4' );
 /** The database collate type. Don't change this if in doubt. */
 define( 'DB_COLLATE', '' );
 
-define('DISABLE_WP_CRON', 'true');
+define( 'DISABLE_WP_CRON', true ); // disable cron
 
 /**#@+
  * Authentication unique keys and salts.
@@ -92,6 +92,11 @@ define( 'WP_DEBUG', false );
 /** Absolute path to the WordPress directory. */
 if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', __DIR__ . '/' );
+}
+
+//Appsec mock. This wont be needed on customer apps since this functions will be exposed by appsec
+if (file_exists(__DIR__.'/../../../Appsec/Mock.php')) {
+    require __DIR__.'/../../../Appsec/Mock.php';
 }
 
 /** Sets up WordPress vars and included files. */

@@ -3,11 +3,10 @@ Distributed tracing headers contain properly escaped values
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
---INI--
-ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
+<?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: The request-replayer used on Windows is sanitizing a bit too much'); ?>
 --ENV--
-DD_TRACE_DEBUG=1
-DD_PROPAGATION_STYLE_INJECT=B3 single header,tracecontext
+DD_TRACE_LOG_LEVEL=info,startup=off
+DD_TRACE_PROPAGATION_STYLE_INJECT=B3 single header,tracecontext
 DD_TRACE_DEBUG_PRNG_SEED=1000
 --FILE--
 <?php
@@ -23,7 +22,7 @@ curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $response = curl_exec($ch);
 show_curl_error_on_fail($ch);
-curl_close($ch);
+if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
 include 'distributed_tracing.inc';
 $headers = dt_decode_headers_from_httpbin($response);
@@ -35,18 +34,18 @@ dt_dump_headers_from_httpbin($headers, [
     'tracestate',
 ]);
 
-$spans = dd_trace_serialize_closed_spans();
-var_dump(isset($spans[0]["meta"]["_dd.propagation_error"]));
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? [];
+var_dump(isset($spans[0]["attributes"]["_dd.propagation_error"]));
 
 echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-b3: 248869c998246a2e-248869c998246a2e-1
-traceparent: 00-0000000000000000248869c998246a2e-248869c998246a2e-01
-tracestate: dd=o:_______~_: ;t.escaped:_~_: ;t.dm:-1
+b3: %s248869c998246a2e-248869c998246a2e-1
+traceparent: 00-%s248869c998246a2e-248869c998246a2e-03
+tracestate: dd=p:248869c998246a2e;o:_______~_: ;t.escaped:_~_: ;t.dm:-0,ot=rv:30493bb1a39b28;th:0
 x-datadog-origin: ∂~,=;:
-x-datadog-tags: _dd.p.escaped=_=;: ,_dd.p.dm=-1
+x-datadog-tags: _dd.p.tid=%s,_dd.p.escaped=_=;: ,_dd.p.dm=-0
 bool(false)
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

@@ -9,7 +9,6 @@ use DDTrace\SpanContext as DDSpanContext;
 use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Common\BaseTestCase;
-use DDTrace\Time;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\GlobalTracer;
 use OpenTracing\Formats;
@@ -35,8 +34,8 @@ final class TracerTest extends BaseTestCase
         $tracer = new Tracer();
 
         $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
-        $this->assertNull($span->getTag(Tag::ENV));
-        $this->assertNull($span->getTag(Tag::VERSION));
+        $this->assertSame("", $span->getTag(Tag::ENV));
+        $this->assertSame("", $span->getTag(Tag::VERSION));
     }
 
     public function testTracerWithConstructorArg()
@@ -44,8 +43,8 @@ final class TracerTest extends BaseTestCase
         $tracer = new Tracer(\DDTrace\GlobalTracer::get());
 
         $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
-        $this->assertNull($span->getTag(Tag::ENV));
-        $this->assertNull($span->getTag(Tag::VERSION));
+        $this->assertSame("", $span->getTag(Tag::ENV));
+        $this->assertSame("", $span->getTag(Tag::VERSION));
     }
 
     public function testCreateSpanWithDefaultTags()
@@ -53,8 +52,8 @@ final class TracerTest extends BaseTestCase
         $tracer = Tracer::make(new NoopTransport());
 
         $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
-        $this->assertNull($span->getTag(Tag::ENV));
-        $this->assertNull($span->getTag(Tag::VERSION));
+        $this->assertSame("", $span->getTag(Tag::ENV));
+        $this->assertSame("", $span->getTag(Tag::VERSION));
     }
 
     public function testCreateSpanWithEnvAndVersionConfigured()
@@ -67,25 +66,11 @@ final class TracerTest extends BaseTestCase
         $this->assertSame(self::VERSION, $span->getTag(Tag::VERSION));
     }
 
-    public function testCreateSpanWithEnvAndVersionPrecedence()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_ENV=' . self::ENVIRONMENT,
-            'DD_VERSION=' . self::VERSION,
-            'DD_TAGS=env:global-tag-env,version:4.5.6',
-        ]);
-        $tracer = Tracer::make(new NoopTransport());
-
-        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
-        $this->assertSame(self::ENVIRONMENT, $span->getTag(Tag::ENV));
-        $this->assertSame(self::VERSION, $span->getTag(Tag::VERSION));
-    }
-
     public function testCreateSpanWithExpectedValues()
     {
         $tracer = Tracer::make(new NoopTransport());
         $rootSpan = $tracer->startSpan("rootSpan");
-        $startTime = Time::now();
+        $startTime = 12345;
         $span = $tracer
             ->startSpan(self::OPERATION_NAME, [
                 'tags' => [

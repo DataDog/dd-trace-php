@@ -8,7 +8,7 @@ class MakefileGenerator
     {
         $targetsString = sprintf(
             implode(
-                " \\\n    ",
+                " \\\n\t",
                 array_map(
                     function ($identifier) {
                         return "test.scenario.$identifier";

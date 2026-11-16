@@ -4,15 +4,12 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
-apk add php7 curl
+apk add php7 curl libgcc
 
 # Initially no ddtrace
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.78.0"
-generate_installers "${new_version}"
-
 set +e
 output=$(php ./build/packages/datadog-setup.php --php-bin php)
 exit_status=$?

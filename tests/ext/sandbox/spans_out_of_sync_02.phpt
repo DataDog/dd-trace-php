@@ -1,7 +1,7 @@
 --TEST--
 Gracefully handle out-of-sync spans from traced function [internal][default properties]
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=dd_trace_serialize_closed_spans
 --FILE--
 <?php
@@ -15,9 +15,12 @@ var_dump(dd_trace_serialize_closed_spans());
 
 echo 'Done.' . PHP_EOL;
 ?>
---EXPECT--
-Cannot run tracing closure for dd_trace_serialize_closed_spans(); spans out of sync
-array(0) {
+--EXPECTF--
+[ddtrace] [error] [%d] Cannot run tracing closure for dd_trace_serialize_closed_spans(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
+array(1) {
+  ["chunks"]=>
+  array(0) {
+  }
 }
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

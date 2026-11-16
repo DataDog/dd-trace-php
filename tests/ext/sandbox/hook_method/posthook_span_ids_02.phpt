@@ -3,8 +3,8 @@ DDTrace\hook_method posthook does not mess up spans with children
 --INI--
 zend.assertions=1
 assert.exception=1
-ddtrace.request_init_hook=
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -55,7 +55,7 @@ function main()
 
 main();
 
-$spans = dd_trace_serialize_closed_spans(); 
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 assert(count($spans) == 2);
 
 foreach ($spans as $span) {

@@ -47,10 +47,4 @@ class Format
      * @see http://php.net/manual/en/function.getallheaders.php
      */
     const HTTP_HEADERS = 'http_headers';
-
-    /**
-     * @deprecated
-     * A propagator that handles curl style http headers arrays.
-     */
-    const CURL_HTTP_HEADERS = 'curl_http_headers';
 }

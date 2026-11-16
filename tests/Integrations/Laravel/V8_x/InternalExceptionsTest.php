@@ -4,17 +4,14 @@ namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class InternalExceptionsTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-    use SpanAssertionTrait;
+    public static $database = "laravel8";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
     }
@@ -42,31 +39,27 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     'web',
                     'App\Http\Controllers\InternalErrorController@notImplemented not-implemented'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'laravel.route.name' => 'not-implemented',
                         'laravel.route.action' => 'App\Http\Controllers\InternalErrorController@notImplemented',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/not-implemented',
+                        'http.url' => 'http://localhost/not-implemented',
                         'http.status_code' => '501',
+                        'http.route' => 'not-implemented',
                         TAG::SPAN_KIND => 'server',
-                        TAG::COMPONENT => 'laravel'
+                        TAG::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
-                    ->withExactMetrics([
-                        '_sampling_priority_v1' => 1,
-                        'process_id' => getmypid(),
-                    ])
-                    ->setError(
-                        'Symfony\Component\HttpKernel\Exception\HttpException',
-                        'Not Implemented',
-                        true
-                    )
+                    ->samplingPriority(1)
                     ->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'not-implemented')
-                            ->withExactTags([
-                                TAG::COMPONENT => 'laravel'
+                            ->withExactAttributes([
+                                TAG::COMPONENT => 'laravel',
+                                '_dd.svc_src' => 'laravel',
+                                'track_error' => 'false',
                             ])
                             ->setError('Symfony\Component\HttpKernel\Exception\HttpException')
-                            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+                            ->withExistingAttributeNames([Tag::ERROR_MSG, 'error.stack']),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
@@ -106,27 +99,27 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     'web',
                     'App\Http\Controllers\InternalErrorController@unauthorized unauthorized'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'laravel.route.name' => 'unauthorized',
                         'laravel.route.action' => 'App\Http\Controllers\InternalErrorController@unauthorized',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/unauthorized',
+                        'http.url' => 'http://localhost/unauthorized',
                         'http.status_code' => '403',
+                        'http.route' => 'unauthorized',
                         TAG::SPAN_KIND => 'server',
-                        TAG::COMPONENT => 'laravel'
+                        TAG::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
-                    ->withExactMetrics([
-                        '_sampling_priority_v1' => 1,
-                        'process_id' => getmypid(),
-                    ])
+                    ->samplingPriority(1)
                     ->withChildren([
                         SpanAssertion::build(
                             'laravel.view.render',
                             'laravel_test_app',
                             'web',
                             'errors::403'
-                        )->withExactTags([
-                            TAG::COMPONENT => 'laravel'
+                        )->withExactAttributes([
+                            TAG::COMPONENT => 'laravel',
+                            '_dd.svc_src' => 'laravel',
                         ])->withChildren([
                             SpanAssertion::exists('laravel.view')->withChildren([
                                 SpanAssertion::exists('laravel.event.handle'),
@@ -135,11 +128,13 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laravel.event.handle'),
                         ]),
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'unauthorized')
-                            ->withExactTags([
-                                TAG::COMPONENT => 'laravel'
+                            ->withExactAttributes([
+                                TAG::COMPONENT => 'laravel',
+                                '_dd.svc_src' => 'laravel',
+                                'track_error' => 'false',
                             ])
                             ->setError()
-                            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+                            ->withExistingAttributeNames([Tag::ERROR_MSG, 'error.stack']),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'

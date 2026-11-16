@@ -1,0 +1,255 @@
+<?php
+
+namespace DDTrace\Integrations\CodeIgniter\V2;
+
+use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
+use DDTrace\SpanKind;
+use DDTrace\Tag;
+use DDTrace\Type;
+use DDTrace\Util\Normalizer;
+
+class CodeIgniterIntegration extends Integration
+{
+    const NAME = 'codeigniter';
+
+    /**
+     * Add instrumentation to CodeIgniter requests
+     */
+    public static function init($router = null): int
+    {
+        $rootSpan = \DDTrace\root_span();
+        if (null === $rootSpan) {
+            return Integration::NOT_LOADED;
+        }
+        $service = \dd_trace_env_config('DD_SERVICE') ?: self::NAME;
+
+        if (!\defined('CI_VERSION') || !isset($router)) {
+            return Integration::NOT_LOADED;
+        }
+        $majorVersion = \substr(\CI_VERSION, 0, 2);
+        if ('2.' === $majorVersion || '3.' === $majorVersion) {
+            /* After _set_routing has been called the class and method
+             * are known, so now we can set up tracing on CodeIgniter.
+             */
+            self::registerIntegration($router, $rootSpan, $service);
+        }
+
+        return parent::LOADED;
+    }
+
+    public static function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
+    {
+        $rootSpan->name = 'codeigniter.request';
+        $rootSpan->service = $service;
+        $rootSpan->type = Type::WEB_SERVLET;
+        $rootSpan->spanKind = SpanKind::SERVER;
+        $rootSpan->component = self::NAME;
+
+        $controller = $router->fetch_class();
+        $method = $router->fetch_method();
+
+        \DDTrace\trace_method(
+            $controller,
+            $method,
+            function (SpanData $span) use ($rootSpan, $method, $service) {
+                $class = \get_class($this);
+                $span->name = $span->resource = "{$class}.{$method}";
+                $span->service = $service;
+                $span->type = Type::WEB_SERVLET;
+                $span->component = CodeIgniterIntegration::NAME;
+
+                // We took the assumption that all controllers will extend CI_Controller.
+                // But we've at least seen one healthcheck controller not extending it.
+                if (property_exists($this, 'load') && $this->load && \method_exists($this->load, 'helper')) {
+                    $this->load->helper('url');
+
+                    if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                        $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                            . Normalizer::sanitizedQueryString();
+                    }
+                    $rootSpan->attributes['app.endpoint'] = "{$class}::{$method}";
+                }
+            }
+        );
+
+        /* From https://codeigniter.com/userguide2/general/controllers.html:
+         * If your controller contains a function named _remap(), it will
+         * always get called regardless of what your URI contains. It
+         * overrides the normal behavior in which the URI determines which
+         * function is called, allowing you to define your own function
+         * routing rules.
+         */
+        \DDTrace\trace_method(
+            $controller,
+            '_remap',
+            function (SpanData $span, $args, $retval, $ex) use ($rootSpan, $service) {
+                $class = \get_class($this);
+
+                $span->name = "{$class}._remap";
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->service = $service;
+                $span->type = Type::WEB_SERVLET;
+                $span->component = CodeIgniterIntegration::NAME;
+
+                // We took the assumption that all controllers will extend CI_Controller.
+                // But we've at least seen one healthcheck case where it wasn't the case.
+                if ($this->load && \method_exists($this->load, 'helper')) {
+                    $this->load->helper('url');
+
+                    $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                        . Normalizer::sanitizedQueryString();
+                    $rootSpan->attributes['app.endpoint'] = "{$class}::_remap";
+                }
+            }
+        );
+
+        \DDTrace\trace_method(
+            'CI_Loader',
+            'view',
+            static function (SpanData $span, $args, $retval, $ex) use ($service) {
+                $span->name = 'CI_Loader.view';
+                $span->service = $service;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->type = Type::WEB_SERVLET;
+                $span->component = self::NAME;
+            }
+        );
+
+        /* I think tracing the CI_DB_driver's query method should catch usage
+         * from all drivers. All drivers extend CI_DB and I *think* that CI_DB
+         * extends either CI_DB_driver or CI_DB_active_rec which in turn
+         * extends CI_DB_driver. */
+        \DDTrace\trace_method(
+            'CI_DB_driver',
+            'query',
+            function (SpanData $span, $args, $retval, $ex) use ($service) {
+                $class = \get_class($this);
+                $span->name = "{$class}.query";
+                $span->service = $service;
+                $span->type = Type::SQL;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->component = CodeIgniterIntegration::NAME;
+            }
+        );
+
+        /* We can't just trace CI_Cache's methods, unfortunately. This
+         * pattern is provided in CodeIgniter's documentation:
+         *     $this->load->driver('cache')
+         *     $this->cache->memcached->save('foo', 'bar', 10);
+         * Which avoids get, save, delete, etc, on CI_Cache. But CI_Cache
+         * requires a driver, so we can intercept the driver at __get.
+         */
+        $registered_cache_adapters = array();
+        \DDTrace\trace_method(
+            'CI_Cache',
+            '__get',
+            static function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
+                if (!$ex && \is_object($retval)) {
+                    $class = \get_class($retval);
+                    if (!isset($registered_cache_adapters[$class])) {
+                        self::registerCacheAdapter($class, $service);
+                        $registered_cache_adapters[$class] = true;
+                    }
+                }
+                $span->component = self::NAME;
+                return false;
+            }
+        );
+
+        self::setHttpRoute($router, $rootSpan);
+    }
+
+    /**
+     * @param string $adapter
+     * @param string $service
+     */
+    public static function registerCacheAdapter($adapter, $service)
+    {
+        \DDTrace\trace_method(
+            $adapter,
+            'get',
+            function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
+                $class = \get_class($this);
+                $span->name = "{$class}.get";
+                $span->service = $service;
+                $span->type = Type::CACHE;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->component = CodeIgniterIntegration::NAME;
+            }
+        );
+
+        \DDTrace\trace_method(
+            $adapter,
+            'save',
+            function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
+                $class = \get_class($this);
+                $span->name = "{$class}.save";
+                $span->service = $service;
+                $span->type = Type::CACHE;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->component = CodeIgniterIntegration::NAME;
+            }
+        );
+
+        \DDTrace\trace_method(
+            $adapter,
+            'delete',
+            function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
+                $class = \get_class($this);
+                $span->name = "{$class}.delete";
+                $span->service = $service;
+                $span->type = Type::CACHE;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->component = CodeIgniterIntegration::NAME;
+            }
+        );
+
+        \DDTrace\trace_method(
+            $adapter,
+            'clean',
+            function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
+                $class = \get_class($this);
+                $span->name = "{$class}.clean";
+                $span->service = $service;
+                $span->type = Type::CACHE;
+                $span->resource = $span->name;
+                $span->component = CodeIgniterIntegration::NAME;
+            }
+        );
+    }
+
+    /*
+     * Replicate CodeIgniter's route parsing, as matching key is never stored or returned in the framework.
+     */
+    private static function setHttpRoute($router, $rootSpan) {
+        // Turn the segment array into a URI string
+        $uri = implode('/', $router->uri->segments);
+
+        // Is there a literal match?  If so we're done
+        if (isset($router->routes[$uri]))
+        {
+            $rootSpan->attributes[Tag::HTTP_ROUTE] = $uri;
+            return;
+        }
+
+        // Loop through the route array looking for wild-cards
+        foreach ($router->routes as $key => $val)
+        {
+            $origKey = $key;
+            // Convert wild-cards to RegEx
+            $key = str_replace(':any', '.+', str_replace(':num', '[0-9]+', $key));
+
+            // Does the RegEx match?
+            if (preg_match('#^'.$key.'$#', $uri))
+            {
+                $rootSpan->attributes[Tag::HTTP_ROUTE] = $origKey;
+                return;
+            }
+        }
+
+        // If we got this far it means we didn't encounter a
+        // matching route so we'll set the site default route
+        $rootSpan->attributes[Tag::HTTP_ROUTE] = $uri;
+    }
+}

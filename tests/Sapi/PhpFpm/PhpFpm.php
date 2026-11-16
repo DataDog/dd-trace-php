@@ -35,25 +35,67 @@ final class PhpFpm implements Sapi
     private $logFile;
 
     /**
+     * @var string
+     */
+    private $host;
+
+    /**
+     * @var int
+     */
+    private $port;
+
+    /**
+     * @var int
+     */
+    private $maxChildren;
+
+    /**
+     * @var bool
+     */
+    private $runAsSudo;
+
+    /**
+     * @var array
+     */
+    private $masterInis;
+
+    /**
      * @param string $rootPath
      * @param string $host
      * @param int $port
      * @param array $envs
      * @param array $inis
+     * @param int $maxChildren
+     * @param string|null $fpmUser
+     * @param string|null $fpmGroup
+     * @param bool $runAsSudo
+     * @param array $masterInis
      */
-    public function __construct($rootPath, $host, $port, array $envs = [], array $inis = [])
+    public function __construct($rootPath, $host, $port, array $envs = [], array $inis = [], $maxChildren = 1, $fpmUser = null, $fpmGroup = null, $runAsSudo = false, array $masterInis = [])
     {
         $this->envs = $envs;
         $this->inis = $inis;
+        $this->host = $host;
+        $this->port = $port;
+        $this->maxChildren = $maxChildren;
+        $this->runAsSudo = $runAsSudo;
+        $this->masterInis = $masterInis;
 
         $logPath = $rootPath . '/' . self::ERROR_LOG;
+
+        $userGroup = '';
+        if ($fpmUser !== null) {
+            $userGroup = "user = $fpmUser\ngroup = " . ($fpmGroup !== null ? $fpmGroup : $fpmUser);
+        }
 
         $replacements = [
             '{{fcgi_host}}' => $host,
             '{{fcgi_port}}' => $port,
+            '{{max_children}}' => $maxChildren,
             '{{envs}}' => $this->envsForConfFile(),
             '{{inis}}' => $this->inisForConfFile(),
             '{{error_log}}' => $logPath,
+            '{{user_group}}' => $userGroup,
         ];
         $configContent = str_replace(
             array_keys($replacements),
@@ -63,6 +105,7 @@ final class PhpFpm implements Sapi
 
         $this->configFile = sys_get_temp_dir() . uniqid('/www-conf-', true);
         $this->logFile = fopen($logPath, "a+");
+        fseek($this->logFile, 0, SEEK_END);
 
         // This gets logged to phpunit_error.log (check CircleCI artifacts)
         error_log("[php-fpm] Generated config file '{$this->configFile}'");
@@ -76,8 +119,15 @@ final class PhpFpm implements Sapi
 
     public function start()
     {
+        $iniFlags = '';
+        foreach ($this->masterInis as $name => $value) {
+            $iniFlags .= sprintf(' -d %s=%s', $name, escapeshellarg((string)$value));
+        }
+
         $cmd = sprintf(
-            'php-fpm -p %s --fpm-config %s -F',
+            '%sphp-fpm%s -p %s --fpm-config %s -F',
+            $this->runAsSudo ? 'sudo ' : '',
+            $iniFlags,
             __DIR__,
             $this->configFile
         );
@@ -88,6 +138,42 @@ final class PhpFpm implements Sapi
 
         $this->process = new Process($processCmd);
         $this->process->start();
+
+        // php-fpm only binds its socket after module startup (all MINITs), which can take seconds on a loaded CI pod
+        if (!$this->waitUntilServerRunning()) {
+            $message = sprintf(
+                "[php-fpm] Server never came up (%s)...\nstdout: %s\nstderr: %s",
+                $this->process->isRunning() ? 'still running' : 'exit code ' . $this->process->getExitCode(),
+                $this->process->getOutput(),
+                $this->process->getErrorOutput()
+            );
+            error_log($message);
+            throw new \RuntimeException($message);
+        }
+        error_log("[php-fpm] Server is up and responding...");
+    }
+
+    public function waitUntilServerRunning($timeout = 30)
+    {
+        $deadline = microtime(true) + $timeout;
+        do {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                fclose($socket);
+                return true;
+            }
+            if (!$this->process->isRunning()) {
+                return false;
+            }
+            usleep(50000);
+        } while (microtime(true) < $deadline);
+
+        return false;
+    }
+
+    public function getProcessPid()
+    {
+        return $this->process ? $this->process->getPid() : null;
     }
 
     public function stop()

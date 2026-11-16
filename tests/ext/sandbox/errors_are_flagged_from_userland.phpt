@@ -1,9 +1,12 @@
 --TEST--
 Errors from userland will be flagged on span
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 function testErrorFromUserland()
@@ -18,15 +21,13 @@ DDTrace\trace_function('testErrorFromUserland', function (SpanData $span) {
 
 testErrorFromUserland();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 testErrorFromUserland()
 array(1) {
   [0]=>
-  array(11) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -42,23 +43,22 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["error"]=>
-    int(1)
-    ["meta"]=>
-    array(2) {
+    bool(true)
+    ["attributes"]=>
+    array(7) {
+      ["runtime-id"]=>
+      string(36) "%s"
+      ["process_id"]=>
+      int(%d)
       ["error.message"]=>
       string(9) "Foo error"
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(4) {
-      ["process_id"]=>
-      float(%f)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

@@ -1,0 +1,733 @@
+struct _zend_string;
+#ifndef DDTRACE_PHP_H
+#define DDTRACE_PHP_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "common.h"
+#include "telemetry.h"
+#include "sidecar.h"
+
+extern void (*ddog_log_callback)(ddog_CharSlice);
+
+/**
+ * Log callback for sidecar threads. It may write to `DD_TRACE_LOG_FILE`, but must not call PHP's
+ * error logger, which requires request state and can bail out.
+ */
+extern void (*ddog_log_callback_off_thread)(ddog_CharSlice);
+
+extern ddog_VecRemoteConfigProduct DATADOG_REMOTE_CONFIG_PRODUCTS;
+
+extern ddog_VecRemoteConfigCapabilities DATADOG_REMOTE_CONFIG_CAPABILITIES;
+
+extern const uint8_t *DDOG_PHP_FUNCTION;
+
+extern ddog_Uuid datadog_runtime_id;
+
+extern ddog_Uuid datadog_session_id;
+
+extern uint8_t datadog_formatted_session_id[36];
+
+extern uint8_t datadog_formatted_root_session_id[36];
+
+extern uint8_t datadog_formatted_parent_session_id[36];
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_minit(int _type, int module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_post_deactivate(void);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+void ddog_php_prof_zend_activate(void);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+void ddog_php_prof_zend_deactivate(void);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_rinit(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_rshutdown(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+/**
+ * Prints the module info. Calls many C functions from the Zend Engine,
+ * including calling variadic functions. It's essentially all unsafe, so be
+ * careful, and do not call this manually (only let the engine call it).
+ */
+void ddog_php_prof_minfo(ddog_ModuleEntry *module_ptr);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_mshutdown(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_zend_startup(ddog_ZendExtension *extension);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+void ddog_php_prof_zend_shutdown(ddog_ZendExtension *extension);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+bool ddog_php_prof_is_enabled(void);
+#endif
+
+/**
+ * Check that a configuration value can be represented as a UTF-8 PHP string.
+ *
+ * # Safety
+ * `bytes` must point to `len` readable bytes unless `len` is zero.
+ */
+bool datadog_bytes_are_valid_utf8(const uint8_t *bytes, uintptr_t len);
+
+ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
+
+bool ddog_shall_log(enum ddog_Log category);
+
+void ddog_set_error_log_level(bool once);
+
+void ddog_set_log_level(ddog_CharSlice level, bool once);
+
+void ddog_log(enum ddog_Log category, bool once, ddog_CharSlice msg);
+
+void ddog_reset_logger(void);
+
+uint32_t ddog_get_logs_count(ddog_CharSlice level);
+
+/**
+ * Read all agent /info data in one SHM read and apply env, container-hash and concentrator
+ * config atomically.
+ *
+ * Fills `env_out` with the agent's `config.default_env` (zero-length slice if absent).
+ * Fills `container_hash_out` with `container_tags_hash` (zero-length slice if absent).
+ * Both slices borrow from the reader's cached info — valid until the next `reader.read()`.
+ *
+ * Concentrator config (peer tags, span kinds, trace filters) is applied only when the
+ * SHM has changed since the last read (`changed == true`).  Calling this once at RINIT
+ * ensures the config is always applied before the first span is processed, so the
+ * per-span `ddog_apply_agent_info_concentrator_config` can safely rely on `changed` alone.
+ *
+ * # Safety
+ * `reader` must be a valid pointer to an `AgentInfoReader`.
+ */
+void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
+                           ddog_CharSlice *env_out,
+                           ddog_CharSlice *container_hash_out);
+
+/**
+ * Serialize the current cached agent info as a JSON string.
+ * Returns NULL if no info has been read yet.
+ * The returned pointer must be freed with `ddog_agent_info_json_free`.
+ */
+char *ddog_agent_info_as_json(struct ddog_AgentInfoReader *reader);
+
+void ddog_agent_info_json_free(char *ptr);
+
+/**
+ * Apply concentrator config changes from the agent /info SHM.
+ *
+ * Cheap no-op when the SHM has not changed (`changed == false`).  Only applies when
+ * new data has arrived mid-request — `ddog_apply_agent_info` at RINIT guarantees the
+ * initial configuration is already in place, so `changed` alone is sufficient here.
+ *
+ * # Safety
+ * `reader` must be a valid pointer to an `AgentInfoReader`.
+ */
+void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
+
+/**
+ * Whether the in-process sender's v0.4 downgrade can send native `span_events`: the agent's
+ * /info advertises them. Otherwise span events go to the legacy `events` meta JSON.
+ */
+bool ddog_agent_has_span_events(void);
+
+void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
+                         void (*addref_func)(struct _zend_string*),
+                         ddog_OwnedZendString (*init_func)(ddog_CharSlice));
+
+void ddog_set_span_service_zstr(ddog_SpanBytes *span, struct _zend_string *str);
+
+void ddog_set_span_name_zstr(ddog_SpanBytes *span, struct _zend_string *str);
+
+void ddog_set_span_resource_zstr(ddog_SpanBytes *span, struct _zend_string *str);
+
+void ddog_set_span_type_zstr(ddog_SpanBytes *span, struct _zend_string *str);
+
+/**
+ * String attribute sharing both zend strings (zero-copy).
+ */
+void ddog_attributes_add_zstr(ddog_Attributes *attrs,
+                              struct _zend_string *key,
+                              struct _zend_string *value);
+
+/**
+ * Double attribute under a shared zend string key (zero-copy).
+ */
+void ddog_attributes_add_double_zstr(ddog_Attributes *attrs,
+                                     struct _zend_string *key,
+                                     double value);
+
+/**
+ * Drop cached tables so the next checkpoint for each key goes through IPC.
+ */
+void ddog_dsm_tables_clear(void);
+
+/**
+ * Forget the request's pathway. Called at request shutdown.
+ */
+void ddog_dsm_reset_pathway(void);
+
+/**
+ * Set the request's pathway aside and start a fresh one, e.g. while a message's callback runs.
+ */
+void ddog_dsm_push_pathway(void);
+
+/**
+ * Go back to the pathway the last `ddog_dsm_push_pathway` set aside, or to a fresh one if there
+ * is none.
+ */
+void ddog_dsm_pop_pathway(void);
+
+/**
+ * Set a checkpoint on the request's pathway and record it.
+ *
+ * `edge_tags` are `key:value` strings, at most `MAX_EDGE_TAGS` of which are kept; their order
+ * does not matter. `carrier` is the `dd-pathway-ctx-base64` value the message arrived with, or
+ * empty. The context to hand on with the message is written to `out` as base64, and its length
+ * returned; `out` must hold `DSM_CONTEXT_MAX_LEN` bytes.
+ *
+ * The checkpoint is only recorded once the agent has said it accepts DSM; the pathway is
+ * tracked, and the context returned, either way.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ * `edge_tags` must point to `edge_tag_count` valid slices, and `out` to `out_cap` bytes.
+ */
+uintptr_t ddog_dsm_set_checkpoint(struct ddog_SidecarTransport *transport,
+                                  const struct ddog_DsmIdentity *identity,
+                                  const ddog_CharSlice *edge_tags,
+                                  uintptr_t edge_tag_count,
+                                  ddog_CharSlice carrier,
+                                  int64_t payload_size_bytes,
+                                  uint8_t *out,
+                                  uintptr_t out_cap);
+
+/**
+ * Record `offset` for the backlog named by `tags`, e.g. a Kafka partition's produce offset or
+ * a consumer group's committed one. The sidecar keeps the highest offset per backlog in each
+ * bucket; negative offsets (unknown to librdkafka) are dropped.
+ *
+ * `tags` are `key:value` strings in any order, each with a key `BacklogTag` knows (`topic`,
+ * `type`, `kafka_cluster_id`, `consumer_group`, `partition`); every tag has a fixed position,
+ * which is the order they are reported in. An offset with a tag of any other key is dropped
+ * rather than reported under the tags that remain. Nothing is recorded until the agent has
+ * said it accepts DSM.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ * `tags` must point to `tag_count` valid slices.
+ */
+void ddog_dsm_track_backlog(struct ddog_SidecarTransport *transport,
+                            const struct ddog_DsmIdentity *identity,
+                            const ddog_CharSlice *tags,
+                            uintptr_t tag_count,
+                            int64_t offset);
+
+/**
+ * Write the id of the cluster the Kafka clients with `bootstrap_servers` reach to `out`, if this
+ * process or another process of the sidecar has read it from such a client, and return its
+ * length; 0 if no process has, or it does not fit in `out_cap` bytes.
+ *
+ * # Safety
+ * `out` must point to `out_cap` writable bytes.
+ */
+uintptr_t ddog_dsm_get_kafka_cluster_id(ddog_CharSlice bootstrap_servers,
+                                        uint8_t *out,
+                                        uintptr_t out_cap);
+
+/**
+ * Record that the Kafka clients with `bootstrap_servers` reach the cluster `cluster_id`, as the
+ * caller read it from one of them, and share it with the sidecar's other processes the first
+ * time.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ */
+void ddog_dsm_set_kafka_cluster_id(struct ddog_SidecarTransport *transport,
+                                   ddog_CharSlice bootstrap_servers,
+                                   ddog_CharSlice cluster_id);
+
+bool ddog_ffe_load_config(ddog_CharSlice json);
+
+bool ddog_ffe_has_config(void);
+
+uint64_t ddog_ffe_config_version(void);
+
+/**
+ * A non-empty `base_url` is fetched as given and never receives the API key.
+ * Otherwise the managed endpoint of `site` is used, filtered to `env`.
+ * The intervals must already be within the ranges accepted by the sidecar.
+ */
+struct ddog_FfeCdnConfig *ddog_ffe_cdn_config_new(ddog_CharSlice base_url,
+                                                  ddog_CharSlice site,
+                                                  ddog_CharSlice env,
+                                                  ddog_CharSlice api_key,
+                                                  uint32_t poll_interval_secs,
+                                                  uint32_t request_timeout_secs,
+                                                  enum ddog_FfeCdnConfigError *error);
+
+void ddog_ffe_cdn_config_drop(struct ddog_FfeCdnConfig*);
+
+/**
+ * Build the authenticated EVP intake independently of any custom CDN URL.
+ * Missing credentials or an invalid destination leave local EVP discovery available.
+ */
+struct ddog_Endpoint *ddog_ffe_evp_endpoint_new(ddog_CharSlice site, ddog_CharSlice api_key);
+
+struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
+                                        int32_t expected_type,
+                                        ddog_CharSlice targeting_key,
+                                        const struct ddog_FfeAttribute *attributes,
+                                        uintptr_t attributes_count);
+
+void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
+
+struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
+                                                             const struct ddog_FfeCdnConfig *cdn_config,
+                                                             bool di_enabled);
+
+uint64_t ddog_remote_config_current_generation(const struct ddog_RemoteConfigState *remote_config);
+
+const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
+
+bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
+
+/**
+ * Returns all loaded remote config entries as a JSON object:
+ *   { "config_id": "content_summary", ... }
+ * For live debugger entries the value is the probe ID (or "service_config").
+ * For dynamic config entries the value is "apm_tracing".
+ * The returned pointer must be freed with `ddog_remote_config_loaded_configs_free`.
+ */
+char *ddog_remote_config_get_loaded_configs(const struct ddog_RemoteConfigState *remote_config);
+
+void ddog_remote_config_loaded_configs_free(char *ptr);
+
+bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
+                                   ddog_CharSlice typename_);
+
+bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remote_config);
+
+struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
+
+bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
+                                            ddog_CharSlice service,
+                                            ddog_CharSlice env,
+                                            ddog_CharSlice version,
+                                            const struct ddog_Vec_Tag *tags,
+                                            const struct ddog_Vec_Tag *process_tags);
+
+/**
+ * Subscribes the sidecar to the agentless feature flags source of the current target.
+ * The transport replays it after reconnects and forks, and skips unchanged registrations.
+ *
+ * # Safety
+ * `remote_config` must be valid. It is not borrowed while sending: reconnecting rebinds it.
+ */
+ddog_MaybeError ddog_remote_config_register_cdn(const struct ddog_RemoteConfigState *remote_config,
+                                                struct ddog_SidecarTransport **transport);
+
+/**
+ * Processes updates, then waits for feature flags until they are loaded or `timeout_ms` elapses.
+ */
+void ddog_remote_config_await_ffe(struct ddog_RemoteConfigState *remote_config,
+                                  uint32_t timeout_ms);
+
+bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remote_config,
+                                             ddog_CharSlice config,
+                                             ddog_OwnedZendString new_value);
+
+/**
+ * Initializes the PHP bridge used by remote configuration.
+ *
+ * `update_config` is always installed so remote configuration can read and
+ * update PHP INI values. `setup` is optional: tracer builds provide a live
+ * debugger setup, while common-only builds pass null because they do not link
+ * the tracer's evaluator and debugger callbacks.
+ *
+ * # Safety
+ *
+ * If non-null, `setup` must point to a valid [`LiveDebuggerSetup`] for the
+ * duration of this call. This function must be called during module startup,
+ * before remote configuration can be processed.
+ */
+void ddog_setup_remote_config(ddog_DynamicConfigUpdate update_config,
+                              const struct ddog_LiveDebuggerSetup *setup);
+
+/**
+ * Enable or disable dynamic instrumentation.
+ * When disabling: all installed probe hooks are removed (but kept in `active` for reinstallation).
+ * When enabling: all probes in `active` that have no installed hook are (re-)installed.
+ */
+void ddog_set_dynamic_instrumentation_enabled(struct ddog_RemoteConfigState *remote_config,
+                                              bool enabled);
+
+void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
+
+void ddog_shutdown_remote_config(struct ddog_RemoteConfigState *_state);
+
+/**
+ * Free the FFI-owned allocations in a `Probe` (the `tags` vec and the nested
+ * span-decoration / log allocations) by consuming it; borrowed `CharSlice`s are
+ * left untouched. Called from `dd_probe_dtor` when a probe is uninstalled.
+ */
+void ddog_drop_probe(struct ddog_Probe);
+
+void ddog_log_debugger_data(const struct ddog_Vec_DebuggerPayload *payloads);
+
+void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
+
+ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigState *remote_config_state,
+                                               struct ddog_SidecarTransport **transport,
+                                               const struct ddog_InstanceId *instance_id,
+                                               const struct ddog_Probe *probe,
+                                               uint64_t timestamp);
+
+struct ddog_VoidResult datadog_crasht_init_with_sidecar(struct ddog_Config ffi_config,
+                                                        ddog_crasht_Metadata metadata,
+                                                        struct ddog_SidecarTransport *transport,
+                                                        int32_t sidecar_master_pid);
+
+void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path, ddog_CharSlice log_level);
+
+/**
+ * Starts a thread-mode master listener with the PHP-linked AppSec backend
+ * registered in the listener's process.
+ */
+ddog_MaybeError ddog_sidecar_connect_master_php(void);
+
+/**
+ * # Safety
+ * Call in the child after fork, before starting threads. Inherited sidecar tasks
+ * and references to their state must not be used afterward.
+ */
+ddog_MaybeError ddog_sidecar_handle_fork_php(void);
+
+/**
+ * Ensures the connected sidecar's AppSec backend is started using the
+ * configuration captured from the PHP extension.
+ */
+ddog_MaybeError ddog_sidecar_ensure_appsec_started(struct ddog_SidecarTransport **transport);
+
+ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
+                                         const char *error_path,
+                                         ddog_CharSlice log_level,
+                                         bool enable_telemetry,
+                                         void (*on_reconnect)(struct ddog_SidecarTransport*),
+                                         const struct ddog_Endpoint *crashtracker_endpoint,
+                                         uint64_t backpressure_bytes,
+                                         uint64_t backpressure_queue);
+
+bool datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
+                               struct ddog_SidecarTransport *(*factory)(void));
+
+void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
+                                      struct ddog_SidecarTransport *(*factory)(void));
+
+void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
+
+/**
+ * Retire mappings from a previous namespace so subsequent reads reopen them. To be called on
+ * every (re)connected transport: the connection may be to a new sidecar. Reconnects are rare,
+ * so the process-wide caches are simply reopened by every thread.
+ */
+void ddog_sidecar_reconnect_readers(const struct ddog_ShmCacheMap *telemetry,
+                                    struct ddog_RemoteConfigState *remote_config,
+                                    const struct ddog_AgentInfoReader *agent_info,
+                                    const ddog_AgentRemoteConfigReader *agent_config);
+
+/**
+ * The fd of the transport's current connection; it changes on reconnect.
+ */
+int32_t ddog_sidecar_transport_raw_fd(struct ddog_SidecarTransport *const *transport);
+
+bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
+
+bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
+                                     uint64_t hash,
+                                     uint32_t granularity_seconds);
+
+#if defined(__linux__)
+/**
+ * Execute the prepared flush. For a default signal disposition, terminate the process afterward.
+ * The object must remain alive until the raw worker exits; custom handlers use normal shutdown
+ * to join that worker. `_exit` terminates the whole process without runtime cleanup.
+ * The signal handler must reject inherited state before starting a worker after fork.
+ */
+int32_t datadog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush,
+                                         bool terminate_process);
+#endif
+
+/**
+ * Drop cached concentrators so the next span for each key goes through IPC.
+ */
+void ddog_span_concentrators_clear(void);
+
+/**
+ * Returns true once the agent /info has been received and applied.
+ * Used by the PHP extension to skip stats computation until the concentrator
+ * has been properly initialised with peer-tag keys and span kinds.
+ */
+bool ddog_is_agent_info_ready(void);
+
+/**
+ * Returns true when the agent supports client-side stats computation:
+ * agent info has been received, `client_drop_p0s` is true, and the reported
+ * agent version is >= 7.65.0.
+ */
+bool ddog_agent_has_stats_computation(void);
+
+/**
+ * Invoke `callback` with the cached reader and send any returned span through IPC.
+ * SHM is opened after sending, so the first span also creates the sidecar's concentrator.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ * The slices and callback must be valid. The callback transfers ownership of its result.
+ */
+bool ddog_span_concentrator_with(struct ddog_SidecarTransport *transport,
+                                 ddog_CharSlice env,
+                                 ddog_CharSlice version,
+                                 ddog_CharSlice service,
+                                 struct ddog_OwnedShmSpanInput *(*callback)(const struct ddog_SpanConcentrator*,
+                                                                            void*),
+                                 void *userdata);
+
+/**
+ * Return a pointer to the concentrator's peer-tag-key array and write the count to `*out_count`.
+ *
+ * The returned pointer is valid for the lifetime of the guard passed to this call.
+ * May return null when there are no peer tag keys.
+ */
+const ddog_CharSlice *ddog_span_concentrator_peer_tag_keys(const struct ddog_SpanConcentrator *c,
+                                                           uintptr_t *out_count);
+
+/**
+ * Add a PHP span to the concentrator for stats computation.
+ *
+ * Fast eligibility pre-check: returns true if a span with these attributes would be accepted
+ * by `ddog_span_concentrator_add_php_span`.
+ *
+ * Call this before constructing the full `PhpSpanStats`.  If it returns false, skip the span
+ * entirely.  If it returns true, fill the remaining fields and call `add_php_span`.
+ */
+bool ddog_span_concentrator_is_eligible(const struct ddog_SpanConcentrator *c,
+                                        bool has_top_level,
+                                        bool is_measured,
+                                        ddog_CharSlice span_kind,
+                                        bool is_partial_snapshot);
+
+/**
+ * Write to SHM, or return an owned span for the callback to pass back for IPC.
+ *
+ * # Safety
+ * All slices and peer-tag pointers in `span` must remain valid for this call.
+ */
+struct ddog_OwnedShmSpanInput *ddog_span_concentrator_add_php_span(const struct ddog_SpanConcentrator *c,
+                                                                   const struct ddog_PhpSpanStats *span);
+
+bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
+                                            ddog_CharSlice path);
+
+struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
+
+void ddog_sidecar_telemetry_buffer_drop(struct ddog_SidecarActionsBuffer*);
+
+void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                  ddog_CharSlice integration_name,
+                                                  ddog_CharSlice integration_version,
+                                                  bool integration_enabled);
+
+void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                 ddog_CharSlice dependency_name,
+                                                 ddog_CharSlice dependency_version);
+
+/**
+ * Enqueues an endpoint into a telemetry actions buffer (to be sent via ddog_sidecar_telemetry_buffer_flush).
+ */
+void ddog_sidecar_telemetry_addEndpoint_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                               enum ddog_Method method,
+                                               ddog_CharSlice path,
+                                               ddog_CharSlice operation_name,
+                                               ddog_CharSlice resource_name);
+
+void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                 ddog_CharSlice config_key,
+                                                 ddog_CharSlice config_value,
+                                                 enum ddog_ConfigurationOrigin origin,
+                                                 ddog_CharSlice config_id);
+
+ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(struct ddog_SidecarTransport **transport,
+                                                    struct ddog_SidecarActionsBuffer *buffer);
+
+/**
+ * Flushes the buffer for the given service and env instead of the current application.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_buffer_flush_for_service(struct ddog_SidecarTransport **transport,
+                                                                ddog_CharSlice service,
+                                                                ddog_CharSlice env,
+                                                                struct ddog_SidecarActionsBuffer *buffer);
+
+ddog_MaybeError ddog_sidecar_telemetry_register_metric(struct ddog_SidecarTransport **transport,
+                                                       ddog_CharSlice metric_name,
+                                                       enum ddog_MetricType metric_type,
+                                                       enum ddog_MetricNamespace namespace_);
+
+void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                         ddog_CharSlice metric_name,
+                                                         double metric_value,
+                                                         ddog_CharSlice tags);
+
+void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
+                                                       struct ddog_SidecarActionsBuffer *buffer,
+                                                       ddog_CharSlice log);
+
+struct ddog_ShmCacheMap *ddog_sidecar_telemetry_cache_new(void);
+
+void ddog_sidecar_telemetry_cache_drop(struct ddog_ShmCacheMap*);
+
+bool ddog_sidecar_telemetry_config_sent(struct ddog_ShmCacheMap *cache,
+                                        ddog_CharSlice service,
+                                        ddog_CharSlice env);
+
+ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport **transport,
+                                                    struct ddog_SidecarActionsBuffer *buffer,
+                                                    struct ddog_ShmCacheMap *cache,
+                                                    ddog_CharSlice service,
+                                                    ddog_CharSlice env);
+
+bool ddog_sidecar_telemetry_are_endpoints_collected(struct ddog_ShmCacheMap *cache,
+                                                    ddog_CharSlice service,
+                                                    ddog_CharSlice env);
+
+/**
+ * Check whether the trace rooted at `resource` / `root_span` passes all configured trace
+ * filters (filter_tags, filter_tags_regex, ignore_resources from agent /info).
+ *
+ * Returns `true` to include in the pipeline, `false` to drop the entire trace (no sending,
+ * no stats).  Filters are evaluated against the root span — the decision applies uniformly
+ * to all spans of the trace.
+ *
+ * * **When configured**: `filter_tags` and `filter_tags_regex` entries — one
+ *   `lookup_fn` call per filter entry.
+ * * **Fast path**: returns `true` immediately when no filters are configured.
+ */
+bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
+                                   const void *root_span,
+                                   ddog_RootTagLookupFn lookup_fn);
+
+/**
+ * Parse JSON directly to MessagePack. A negative depth means unlimited.
+ * Allocator callbacks must not reenter the parser, unwind or longjmp.
+ */
+struct ddog_AppsecBodyMessagePack ddog_appsec_parse_json(ddog_CharSlice input,
+                                                         int32_t max_depth,
+                                                         struct ddog_AppsecBodyAllocator allocator);
+
+/**
+ * Parse XML directly to MessagePack; external entities are never loaded.
+ * Allocator callbacks must not reenter the parser, unwind or longjmp.
+ */
+struct ddog_AppsecBodyMessagePack ddog_appsec_parse_xml(ddog_CharSlice input,
+                                                        int32_t max_depth,
+                                                        struct ddog_AppsecBodyAllocator allocator);
+
+/**
+ * # Safety
+ * `body` must come from a parse function and must not be dropped twice.
+ */
+void ddog_appsec_body_msgpack_drop(struct ddog_AppsecBodyMessagePack body);
+
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT or first rinit.
+ */
+void datadog_generate_runtime_id(void);
+
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT.
+ */
+void datadog_generate_session_id(void);
+
+void datadog_format_runtime_id(uint8_t (*buf)[36]);
+
+#if defined(__linux__)
+/**
+ * Publish or update dd-trace-php's standard Linux OTel Process Context.
+ */
+bool datadog_publish_otel_process_context(ddog_CharSlice process_tags);
+#endif
+
+ddog_CharSlice ddtrace_get_container_id(void);
+
+void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
+
+char *ddtrace_strip_invalid_utf8(const char *input, uintptr_t *len);
+
+void ddtrace_drop_rust_string(char *input, uintptr_t len);
+
+struct ddog_Endpoint *datadog_parse_agent_url(ddog_CharSlice url);
+
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url);
+
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
+
+/**
+ * Initialize crashtracking, selecting the receiver strategy for this process:
+ *   - Linux, sidecar host (`master_pid == getpid()`): the in-process thread-mode sidecar can't
+ *     serve its own crash, so spawn a fork+exec subprocess receiver (like the standalone daemon),
+ *     resolving frames there since a crashing process can't reliably symbolize itself.
+ *   - Linux, worker/collector: connect to the sidecar IPC socket and upgrade it to a crashtracker
+ *     receiver on crash (`SOCK_SEQPACKET` + `enter_crashtracker_receiver`), streaming the report
+ *     over that single socket and resolving frames in-process.
+ *   - other unix (macOS): no sidecar upgrade; the default connector reaches the socket path.
+ *
+ * `master_pid` is the thread-mode master listener PID (0 if none): it keys the IPC socket and, on
+ * Linux, distinguishes the host from a worker.
+ *
+ * # Safety
+ * `endpoint` must point to a valid `Endpoint`; `metadata`'s borrowed strings/tags must outlive the
+ * call (they are copied into owned storage before it returns).
+ */
+ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
+                                          ddog_crasht_Metadata metadata,
+                                          int32_t master_pid);
+
+uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
+
+/**
+ * Sets the endpoint's test session token, but only when it actually differs from the one already
+ * there.
+ *
+ * In our ZTS runs we sometimes set it, but always to the same value. This extra check prevents
+ * possible use-after-free in our test suite, given that it there only ever transitions from None
+ * to Some().
+ */
+void ddog_endpoint_set_test_token_if_changed(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
+
+const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
+
+void ddog_free_normalized_tag_value(const char *ptr);
+
+#endif  /* DDTRACE_PHP_H */

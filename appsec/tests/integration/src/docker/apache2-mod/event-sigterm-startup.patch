@@ -1,0 +1,33 @@
+event MPM: don't exit() from a SIGTERM handler during child startup
+
+make_child() installs just_die() as the SIGTERM handler of a freshly forked
+child, and it stays installed until child_main() blocks all signals in
+apr_setup_signal_thread(). An ungraceful restart (or stop) SIGTERMs all
+children; if one is still starting up, just_die() runs clean_child_exit(),
+i.e. apr_pool_destroy() and exit(), from signal context. When the signal
+interrupted malloc() (e.g. in ap_thread_main_create()), the heap is left
+half-updated and the first free() run by an exit handler aborts with
+"free(): corrupted unsorted chunks" or similar.
+
+Terminate with the async-signal-safe _Exit() instead. A child killed this
+early has hardly set anything up, so skipping its cleanups is harmless.
+
+Applies to httpd 2.4.68 (Debian trixie) and 2.4.69.
+
+Upstream bug: https://bz.apache.org/bugzilla/show_bug.cgi?id=70267
+
+--- a/server/mpm/event/event.c
++++ b/server/mpm/event/event.c
+@@ -784,7 +784,11 @@
+ 
+ static void just_die(int sig)
+ {
+-    clean_child_exit(0);
++    /* Only installed while a new child starts up, where SIGTERM may interrupt
++     * e.g. malloc(): clean_child_exit() (pool cleanups, exit()) is not
++     * async-signal-safe, so terminate right away.
++     */
++    _Exit(0);
+ }
+ 
+ /*****************************************************************

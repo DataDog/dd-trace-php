@@ -1,8 +1,10 @@
 --TEST--
 Test swapping span stacks due to auto-close of spans by functions
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_AUTOFINISH_SPANS=1
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -57,7 +59,6 @@ Now, we have explicitly closed it: bool(true)
 We closed the active stack after all other stacks were closed. No other span is active right now: bool(true)
 spans(\DDTrace\SpanData) (1) {
   span_stack_swap_traced_function.php (span_stack_swap_traced_function.php, span_stack_swap_traced_function.php, cli)
-    _dd.p.dm => -1
     outer (span_stack_swap_traced_function.php, outer, cli)
       creates_span_stack (span_stack_swap_traced_function.php, creates_span_stack, cli)
         inner (span_stack_swap_traced_function.php, inner, cli)

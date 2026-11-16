@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Routing\Controller as BaseController;
-
+use Illuminate\Http\Request;
 
 class CommonSpecsController extends BaseController
 {
@@ -20,5 +20,10 @@ class CommonSpecsController extends BaseController
     public function error()
     {
         throw new \Exception('Controller error');
+    }
+
+    public function dynamicRoute(Request $request, $param01, $param02 = 'defaultValue')
+    {
+        return "dynamicRoute";
     }
 }

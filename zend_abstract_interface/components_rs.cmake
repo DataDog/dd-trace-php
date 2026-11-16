@@ -1,0 +1,92 @@
+include(ExternalProject)
+
+set(CARGO_BUILD_CMD cargo build)
+set(CARGO_BUILD_ENV "") # Initialize to empty
+
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CARGO_BUILD_CMD ${CARGO_BUILD_CMD} --release)
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    set(CARGO_BUILD_CMD ${CARGO_BUILD_CMD} --release)
+    # set(CARGO_BUILD_ENV RUSTFLAGS=-C\ debuginfo=2) # FIXME: does not work
+endif()
+
+set(LIBDATADOG_DIR "${CMAKE_SOURCE_DIR}/../libdatadog")
+set(LIBDATADOG_STAMP_FILE "${CMAKE_BINARY_DIR}/libdatadog.stamp")
+set(DDTRACE_EXPORT_SYMBOL_FILES
+    "${CMAKE_SOURCE_DIR}/../ddtrace-extension.sym")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
+        "${CMAKE_SOURCE_DIR}/../ddtrace-extension-linux.sym")
+endif()
+list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
+    "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php.sym")
+if(UNIX)
+    list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
+        "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-unix.sym")
+endif()
+string(JOIN "' '" DDTRACE_EXPORT_SYMBOL_ARGUMENTS
+    ${DDTRACE_EXPORT_SYMBOL_FILES})
+add_custom_target(libdatadog_stamp
+    COMMAND ${CMAKE_COMMAND} -E touch ${LIBDATADOG_STAMP_FILE} #XXX: use a script to find modifications
+    BYPRODUCT ${LIBDATADOG_STAMP_FILE}
+)
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace-fat.version")
+add_custom_target(ddtrace_exports
+    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${DDTRACE_EXPORT_SYMBOL_ARGUMENTS}'; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
+    BYPRODUCT ${EXPORTS_FILE}
+    DEPENDS ${DDTRACE_EXPORT_SYMBOL_FILES}
+    VERBATIM
+)
+elseif(APPLE)
+set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace-fat.sym")
+add_custom_target(ddtrace_exports
+    COMMAND bash -c "sed 's/^/_/' '${DDTRACE_EXPORT_SYMBOL_ARGUMENTS}' > '${EXPORTS_FILE}'"
+    BYPRODUCT ${EXPORTS_FILE}
+    DEPENDS ${DDTRACE_EXPORT_SYMBOL_FILES}
+    VERBATIM
+)
+endif()
+
+file(READ "${CMAKE_SOURCE_DIR}/../VERSION" VERSION_CONTENTS)
+string(STRIP "${VERSION_CONTENTS}" PHP_DDTRACE_VERSION)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/gen_ddtrace/ext")
+set(VERSION_H_PATH "${CMAKE_BINARY_DIR}/gen_ddtrace/ext/version.h")
+
+add_custom_command(
+    OUTPUT "${VERSION_H_PATH}"
+    COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --switch= --green "Updating version.h"
+    COMMAND ${CMAKE_COMMAND} -E remove -f "${VERSION_H_PATH}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${VERSION_H_PATH}"
+    COMMAND printf "\\#ifndef PHP_DDTRACE_VERSION\\\\n\\#define PHP_DDTRACE_VERSION \"%s\"\\\\n\\#endif" "'\"${PHP_DDTRACE_VERSION}\"'" >> "${VERSION_H_PATH}"
+    DEPENDS "${CMAKE_SOURCE_DIR}/../VERSION"
+    COMMENT "Generating version.h"
+)
+add_custom_target(update_version_h ALL DEPENDS "${VERSION_H_PATH}")
+
+set(DDTRACE_PHP_INCLUDE_FLAGS ${PhpConfig_INCLUDE_DIRS})
+list(TRANSFORM DDTRACE_PHP_INCLUDE_FLAGS PREPEND "-I")
+list(JOIN DDTRACE_PHP_INCLUDE_FLAGS " " DDTRACE_PHP_INCLUDES)
+
+ExternalProject_Add(components_rs_proj
+    PREFIX ${CMAKE_BINARY_DIR}/components_rs
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}/../components-rs
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env
+        "DDTRACE_PHP_INCLUDES=${DDTRACE_PHP_INCLUDES}"
+        ${CARGO_BUILD_ENV} ${CARGO_BUILD_CMD} --target-dir=${CMAKE_BINARY_DIR}/components_rs
+    INSTALL_COMMAND ""
+    DEPENDS libdatadog_stamp
+    BUILD_IN_SOURCE TRUE
+)
+
+add_library(components_rs STATIC IMPORTED)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CARGO_BUILD_LOCATION ${CMAKE_BINARY_DIR}/components_rs/debug)
+else()
+    set(CARGO_BUILD_LOCATION ${CMAKE_BINARY_DIR}/components_rs/release)
+endif()
+set_property(TARGET components_rs PROPERTY IMPORTED_LOCATION ${CARGO_BUILD_LOCATION}/libdatadog_php.a)
+add_dependencies(components_rs components_rs_proj)

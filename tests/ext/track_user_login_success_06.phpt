@@ -1,0 +1,30 @@
+--TEST--
+Test \datadog\appsec\v2\track_user_login_success no user id given
+--FILE--
+<?php
+\datadog\appsec\v2\track_user_login_success("login", NULL, [
+  'metakey1' => 'meta value'
+]);
+$root = \DDTrace\root_span();
+var_dump((array) $root->meta);
+
+?>
+--EXPECTF--
+array(8) {
+  ["runtime-id"]=>
+  string(%d) %s
+  ["appsec.events.users.login.success.usr.login"]=>
+  string(%d) "login"
+  ["appsec.events.users.login.success.track"]=>
+  string(%d) "true"
+  ["_dd.appsec.events.users.login.success.sdk"]=>
+  string(%d) "true"
+  ["appsec.events.users.login.success.metakey1"]=>
+  string(%d) "meta value"
+  ["service.name"]=>
+  string(31) "track_user_login_success_06.php"
+  ["operation.name"]=>
+  string(31) "track_user_login_success_06.php"
+  ["span.type"]=>
+  string(3) "cli"
+}

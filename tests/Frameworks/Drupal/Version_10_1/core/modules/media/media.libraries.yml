@@ -1,0 +1,42 @@
+form:
+  version: VERSION
+  js:
+    js/form.js: {}
+  dependencies:
+    - core/drupal.form
+
+type_form:
+  version: VERSION
+  js:
+    js/type_form.js: {}
+  dependencies:
+    - core/drupal.form
+
+oembed.formatter:
+  version: VERSION
+  css:
+    component:
+      css/oembed.formatter.css: {}
+
+oembed.frame:
+  version: VERSION
+  css:
+    component:
+      css/oembed.frame.css: {}
+
+filter.caption:
+  version: VERSION
+  css:
+    component:
+      css/filter.caption.css: {}
+  dependencies:
+    - filter/caption
+
+# Despite the name, this is actually not specific to CKEditor 4, and can be
+# used by all text editor plugins.
+media_embed_ckeditor_theme:
+  version: VERSION
+  js:
+    js/media_embed_ckeditor.theme.js: {}
+  dependencies:
+    - core/drupal

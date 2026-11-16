@@ -14,9 +14,9 @@ trait SpanAssertionTrait
      * @param SpanAssertion[] $expectedSpans
      * @param bool $isSandbox
      */
-    public function assertExpectedSpans($traces, $expectedSpans, $isSandbox = false)
+    public function assertExpectedSpans($traces, $expectedSpans, $applyDefaults = true)
     {
-        (new SpanChecker())->assertSpans($traces, $expectedSpans, $isSandbox);
+        (new SpanChecker())->assertSpans($traces, $expectedSpans, $applyDefaults);
     }
 
     /**
@@ -25,9 +25,9 @@ trait SpanAssertionTrait
      * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
      */
-    public function assertFlameGraph($traces, $expectedSpans)
+    public function assertFlameGraph($traces, $expectedSpans, bool $assertExactCount = true, bool $applyDefaults = true)
     {
-        (new SpanChecker())->assertFlameGraph($traces, $expectedSpans);
+        (new SpanChecker())->assertFlameGraph($traces, $expectedSpans, $assertExactCount, $applyDefaults);
     }
 
     /**
@@ -63,26 +63,28 @@ trait SpanAssertionTrait
      */
     public function assertError(array $span, $message, array $expectedStackLinesGroups)
     {
-        $this->assertSame(1, $span['error']);
+        $this->assertTrue($span['error']);
+
+        $attributes = SpanChecker::attributeView($span);
 
         // message assertion supports '*' wildcard but DOES NOT enforce order.
         $messagePartsByWildcard = \explode('*', $message);
         foreach ($messagePartsByWildcard as $messagePart) {
             $this->assertNotSame(
                 false,
-                \strpos($span['meta'][Tag::ERROR_MSG], $messagePart),
-                \sprintf('Message "%s" does not contain "%s"', $span['meta'][Tag::ERROR_MSG], $message)
+                \strpos($attributes[Tag::ERROR_MSG], $messagePart),
+                \sprintf('Message "%s" does not contain "%s"', $attributes[Tag::ERROR_MSG], $message)
             );
         }
 
-        $stackGroups = \explode('stack groups separator', $span['meta']['error.stack']);
+        $stackGroups = \explode('stack groups separator', $attributes['error.stack']);
         if (count($stackGroups) !== count($expectedStackLinesGroups)) {
             $this->fail(
                 \sprintf(
                     'Found %d stack groups, expected %d: %s',
                     count($stackGroups),
                     count($expectedStackLinesGroups),
-                    $span['meta']['error.stack']
+                    $attributes['error.stack']
                 )
             );
         }

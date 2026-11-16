@@ -1,0 +1,66 @@
+--TEST--
+Don't send crashtracker report when segmentation fault signal is raised and config disables it
+--SKIPIF--
+<?php
+if (!extension_loaded('posix')) die('skip: posix extension required');
+if (getenv('SKIP_ASAN') || getenv('USE_ZEND_ALLOC') === '0') die("skip: intentionally causes segfaults");
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %A in EXPECTF");
+if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
+if (PHP_VERSION_ID < 70200) die("skip: TEST_PHP_EXTRA_ARGS is only available on PHP 7.2+");
+include __DIR__ . '/includes/skipif_no_dev_env.inc';
+// Crashtracking isn't supported on macOS. Separately, this test's own diff also picks up
+// macOS /bin/sh's own "Segmentation fault: 11" job-control notice on stderr (not suppressed
+// by the test's own "2>/dev/null", which only covers the child's stderr) -- either issue
+// alone would fail this test there.
+if (PHP_OS === "Darwin") die("skip: crashtracker is not supported on macOS");
+?>
+--ENV--
+DD_TRACE_LOG_LEVEL=0
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_CRASHTRACKING_ENABLED=0
+--INI--
+datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault_disabled.phpt
+--FILE--
+<?php
+
+include __DIR__ . '/includes/request_replayer.inc';
+$rr = new RequestReplayer();
+$rr->clearDumpedData(); // ensure clean state
+
+usleep(100000); // Let time to the sidecar to open the crashtracker socket
+
+$php = getenv('TEST_PHP_EXECUTABLE');
+$args = getenv('TEST_PHP_EXTRA_ARGS');
+$cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);' 2>/dev/null";
+system($cmd);
+
+// Poll up to 5s to confirm no crash report (is_crash:true) arrives.
+$crashReportFound = false;
+for ($i = 0; $i < 10 && !$crashReportFound; $i++) {
+    usleep(500000);
+    foreach ($rr->replayAllRequests() ?: [] as $request) {
+        if ($request["uri"] != "/telemetry/proxy/api/v2/apmtelemetry") {
+            continue;
+        }
+        $body = json_decode($request["body"], true);
+        $batch = $body["request_type"] == "message-batch" ? $body["payload"] : [$body];
+        foreach ($batch as $json) {
+            if ($json["request_type"] != "logs" || !isset($json["payload"]["logs"])) {
+                continue;
+            }
+            foreach ($json["payload"]["logs"] as $payload) {
+                if ($payload["is_crash"] ?? false) {
+                    $crashReportFound = true;
+                    break 3;
+                }
+            }
+        }
+    }
+}
+
+echo $crashReportFound ? "FAIL: unexpected crash report sent\n" : "OK\n";
+
+?>
+--EXPECT--
+OK

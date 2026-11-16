@@ -1,4 +1,7 @@
+#include "../tsrmls_cache.h"
 #include "config_ini.h"
+#include "config_stable_file.h"
+#include <json/json.h>
 
 #include <SAPI.h>
 #include <assert.h>
@@ -7,10 +10,13 @@
 
 #define UNUSED(x) (void)(x)
 
-static void (*env_to_ini_name)(zai_string_view env_name, zai_config_name *ini_name);
+static void (*env_to_ini_name)(zai_str env_name, zai_config_name *ini_name);
 static bool is_fpm = false;
+#if ZTS
+ZEND_TLS bool inis_synchronized;
+#endif
 
-static bool zai_config_generate_ini_name(zai_string_view name, zai_config_name *ini_name) {
+static bool zai_config_generate_ini_name(zai_str name, zai_config_name *ini_name) {
     ini_name->len = 0;
     *ini_name->ptr = '\0';
 
@@ -21,28 +27,47 @@ static bool zai_config_generate_ini_name(zai_string_view name, zai_config_name *
 
 #if ZTS
 // we need to prevent race conditions between copying the inis and setting the global inis during first rinit
+#ifndef _WIN32
 static pthread_rwlock_t lock_ini_init_rw = PTHREAD_RWLOCK_INITIALIZER;
+#else
+static SRWLOCK lock_ini_init_rw;
+#endif
 static tsrm_thread_end_func_t original_thread_end_handler;
 
 static void zai_config_lock_ini_copying(THREAD_T thread_id) {
+#ifndef _WIN32
     pthread_rwlock_rdlock(&lock_ini_init_rw);
+#else
+    AcquireSRWLockShared(&lock_ini_init_rw);
+#endif
     original_thread_end_handler(thread_id);
+#ifndef _WIN32
     pthread_rwlock_unlock(&lock_ini_init_rw);
+#else
+    ReleaseSRWLockShared(&lock_ini_init_rw);
+#endif
 }
 #endif
 
 // values retrieved here are assumed to be valid
-int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf,
-                                        zai_string_view default_value, zai_config_id entry_id) {
+int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
+                                        int16_t ini_count,
+                                        zai_option_str *buf,
+                                        zai_str default_value,
+                                        zai_config_id entry_id) {
     if (!env_to_ini_name) return -1;
 
     zai_config_memoized_entry *memoized = &zai_config_memoized_entries[entry_id];
 
 #if ZTS
+#ifndef _WIN32
     pthread_rwlock_wrlock(&lock_ini_init_rw);
+#else
+    AcquireSRWLockExclusive(&lock_ini_init_rw);
+#endif
 #endif
 
-    int16_t name_index = -1;
+    int16_t name_index = ZAI_CONFIG_ORIGIN_DEFAULT;
     zend_string *runtime_value = NULL;
     zend_string *parsed_ini_value = NULL;
 
@@ -55,12 +80,12 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
                 // validate
                 zval new_zv;
                 ZVAL_UNDEF(&new_zv);
-                if (!zai_config_decode_value(ZAI_STRING_FROM_ZSTR(ini_str), memoized->type, memoized->parser, &new_zv, true)) {
+                if (!zai_config_decode_value((zai_str)ZAI_STR_FROM_ZSTR(ini_str), memoized->type, memoized->parser, &new_zv, true)) {
                     continue;
                 }
-                zai_config_dtor_pzval(&new_zv);
+                zai_json_dtor_pzval(&new_zv);
 
-                parsed_ini_value = zend_string_copy(ini_str);
+                parsed_ini_value = ini_str;
                 name_index = i;
                 break;
             }
@@ -72,19 +97,19 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
 
     for (int16_t i = 0; i < ini_count; ++i) {
         if (entries[i]->modified && !runtime_value && (is_minit || entries[i]->modifiable == PHP_INI_SYSTEM)) {
-            runtime_value = zend_string_copy(entries[i]->value);
+            runtime_value = entries[i]->value;
         }
         zval *inizv = cfg_get_entry(ZSTR_VAL(entries[i]->name), ZSTR_LEN(entries[i]->name));
         if (inizv != NULL && !parsed_ini_value) {
             // validate
             zval new_zv;
             ZVAL_UNDEF(&new_zv);
-            if (!zai_config_decode_value(ZAI_STRING_FROM_ZSTR(Z_STR_P(inizv)), memoized->type, memoized->parser, &new_zv, true)) {
+            if (!zai_config_decode_value((zai_str)ZAI_STR_FROM_ZSTR(Z_STR_P(inizv)), memoized->type, memoized->parser, &new_zv, true)) {
                 continue;
             }
-            zai_config_dtor_pzval(&new_zv);
+            zai_json_dtor_pzval(&new_zv);
 
-            parsed_ini_value = zend_string_copy(Z_STR_P(inizv));
+            parsed_ini_value = Z_STR_P(inizv);
             name_index = i;
             break;
         }
@@ -102,19 +127,27 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
                 continue;
             }
 
-            zend_string **target = entries[i]->modified ? &entries[i]->orig_value : &entries[i]->value;
+            zend_string *new_value = NULL;
             if (i > 0) {
-                zend_string_release(*target);
-                *target = zend_string_copy(entries[0]->modified ? entries[0]->orig_value : entries[0]->value);
-            } else if (buf->ptr != NULL) {
-                zend_string_release(*target);
-                *target = zend_string_init(buf->ptr, buf->len, 1);
+                new_value = zend_string_copy(entries[0]->modified ? entries[0]->orig_value : entries[0]->value);
+            } else if (zai_option_str_is_some(*buf)) {
+                new_value = zend_string_init(buf->ptr, buf->len, 1);
             } else if (parsed_ini_value != NULL) {
+                new_value = zend_string_copy(parsed_ini_value);
+            }
+            if (new_value) {
+                zend_string **target = entries[i]->modified ? &entries[i]->orig_value : &entries[i]->value;
                 zend_string_release(*target);
-                *target = zend_string_copy(parsed_ini_value);
+                if (entries[i]->modified && entries[i]->orig_value == entries[i]->value) {
+                    // Handle edge case where a value was previously attempted to be modified, but on_modify failed.
+                    // In that case orig_value == value, but without a refcount increase. Update it to avoid running into a use after free.
+                    entries[i]->value = new_value;
+                }
+                *target = new_value;
             }
 
             if (runtime_value) {
+                new_value = zend_string_copy(runtime_value);
                 if (entries[i]->modified) {
                     if (entries[i]->value != entries[i]->orig_value) {
                         zend_string_release(entries[i]->value);
@@ -125,26 +158,25 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
                     entries[i]->orig_modifiable = entries[i]->modifiable;
                     zend_hash_add_ptr(EG(modified_ini_directives), entries[i]->name, entries[i]);
                 }
-                entries[i]->value = zend_string_copy(runtime_value);
+                entries[i]->value = new_value;
             }
-        }
-
-        if (runtime_value) {
-            buf->ptr = ZSTR_VAL(runtime_value);
-            buf->len = ZSTR_LEN(runtime_value);
-            zend_string_release(runtime_value);
-        } else if (parsed_ini_value && buf->ptr == NULL) {
-            buf->ptr = ZSTR_VAL(parsed_ini_value);
-            buf->len = ZSTR_LEN(parsed_ini_value);
         }
     }
 
-    if (parsed_ini_value) {
-        zend_string_release(parsed_ini_value);
+    if (runtime_value) {
+        buf->ptr = ZSTR_VAL(runtime_value);
+        buf->len = ZSTR_LEN(runtime_value);
+    } else if (parsed_ini_value && zai_option_str_is_none(*buf)) {
+        buf->ptr = ZSTR_VAL(parsed_ini_value);
+        buf->len = ZSTR_LEN(parsed_ini_value);
     }
 
 #if ZTS
+#ifndef _WIN32
     pthread_rwlock_unlock(&lock_ini_init_rw);
+#else
+    ReleaseSRWLockExclusive(&lock_ini_init_rw);
+#endif
 #endif
 
     return name_index;
@@ -154,8 +186,8 @@ bool zai_config_is_initialized(void);
 static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     // ensure validity at any stage
     zai_config_id id;
-    zai_string_view name = {.len = ZSTR_LEN(entry->name), .ptr = ZSTR_VAL(entry->name)};
-    zai_string_view value_view = {.len = ZSTR_LEN(new_value), .ptr = ZSTR_VAL(new_value)};
+    zai_str name = ZAI_STR_FROM_ZSTR(entry->name);
+    zai_str value_view = ZAI_STR_FROM_ZSTR(new_value);
 
     if (!zai_config_get_id_by_name(name, &id)) {
         // TODO Log cannot find ID
@@ -171,7 +203,9 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     zval new_zv;
     ZVAL_UNDEF(&new_zv);
 
-    if (!zai_config_decode_value(value_view, memoized->type, memoized->parser, &new_zv, /* persistent */ stage != PHP_INI_STAGE_RUNTIME)) {
+    bool global_stage = stage != PHP_INI_STAGE_RUNTIME && stage != PHP_INI_STAGE_HTACCESS;
+
+    if (!zai_config_decode_value(value_view, memoized->type, memoized->parser, &new_zv, /* persistent */ global_stage)) {
         // TODO Log decoding error
 
         return FAILURE;
@@ -179,18 +213,18 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
 
     /* Ignore calls that happen before runtime (e.g. the default INI values on MINIT). System values are obtained on
      * first-time RINIT. */
-    if (stage != PHP_INI_STAGE_RUNTIME) {
-        zai_config_dtor_pzval(&new_zv);
+    if (global_stage) {
+        zai_json_dtor_pzval(&new_zv);
         return SUCCESS;
     }
 
     if (!zai_config_is_initialized()) {
-        zval_dtor(&new_zv);
+        zval_ptr_dtor_nogc(&new_zv);
         return SUCCESS;
     }
 
-    if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv)) {
-        zval_dtor(&new_zv);
+    if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv, new_value)) {
+        zval_ptr_dtor_nogc(&new_zv);
         return FAILURE;
     }
 
@@ -202,7 +236,9 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
 #endif
         if (alias != entry) {  // otherwise we leak memory, entry->modified is cached in zend_alter_ini_entry_ex...
             if (alias->modified) {
-                zend_string_release(alias->value);
+                if (alias->value != alias->orig_value) {
+                    zend_string_release(alias->value);
+                }
             } else {
                 alias->modified = true;
                 alias->orig_value = alias->value;
@@ -210,7 +246,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
                 zend_hash_add_ptr(EG(modified_ini_directives), alias->name, alias);
             }
             if (is_reset) {
-                alias->value = entry->orig_value;
+                alias->value = alias->orig_value;
                 alias->modified = false;
                 alias->orig_value = NULL;
             } else {
@@ -220,19 +256,19 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     }
 
     zai_config_replace_runtime_config(id, &new_zv);
-    zval_dtor(&new_zv);
+    zval_ptr_dtor_nogc(&new_zv);
     return SUCCESS;
 }
 
-static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_string_view name,
-                                     zai_config_name *ini_name, int module_number, zai_config_id id) {
+static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_str name, zai_config_name *ini_name,
+                                     zend_ini_entry_def *entry_defs, int module_number, zai_config_id id) {
     if (!zai_config_generate_ini_name(name, ini_name)) {
         assert(false && "Invalid INI name conversion");
         return;
     }
 
     zai_config_id duplicate;
-    if (zai_config_get_id_by_name((zai_string_view){.ptr = ini_name->ptr, .len = ini_name->len}, &duplicate)) {
+    if (zai_config_get_id_by_name((zai_str)ZAI_STR_NEW(ini_name->ptr, ini_name->len), &duplicate)) {
         return;
     }
 
@@ -241,13 +277,15 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
     zend_ini_entry *existing;
     if ((existing = zend_hash_str_find_ptr(EG(ini_directives), ini_name->ptr, ini_name->len))) {
         memoized->original_on_modify = existing->on_modify;
-        zai_string_view current_value = memoized->default_encoded_value;
-        if (ZSTR_LEN(existing->value) != current_value.len || memcmp(current_value.ptr, ZSTR_VAL(existing->value), ZSTR_LEN(existing->value)) != 0) {
-            zai_string_view value_view = (zai_string_view){ .ptr = existing->value->val, .len = existing->value->len };
+        zai_str current_value = memoized->default_encoded_value;
+        zai_str value_view = ZAI_STR_FROM_ZSTR(existing->value);
+        if (!zai_str_eq(current_value, value_view)) {
             zval decoded;
+            ZVAL_UNDEF(&decoded);
+
             // This should never fail, ideally, as all usages should validate the same way, but at least not crash, just don't accept the value then
             if (zai_config_decode_value(value_view, memoized->type, memoized->parser, &decoded, 1)) {
-                zai_config_dtor_pzval(&memoized->decoded_value);
+                zai_json_dtor_pzval(&memoized->decoded_value);
                 ZVAL_COPY_VALUE(&memoized->decoded_value, &decoded);
             }
         }
@@ -256,8 +294,6 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
         return;
     }
 
-    /* ZEND_INI_END() adds a null terminating entry */
-    zend_ini_entry_def entry_defs[1 + /* terminator entry */ 1] = {{0}, {0}};
     zend_ini_entry_def *entry = &entry_defs[0];
 
     entry->name = ini_name->ptr;
@@ -266,7 +302,10 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
     entry->value_length = memoized->default_encoded_value.len;
     entry->on_modify = ZaiConfigOnUpdateIni;
     entry->modifiable = memoized->ini_change == zai_config_system_ini_change ? PHP_INI_SYSTEM : PHP_INI_ALL;
-    if (memoized->type == ZAI_CONFIG_TYPE_BOOL) {
+
+    if (memoized->displayer) {
+        entry->displayer = memoized->displayer;
+    } else if (memoized->type == ZAI_CONFIG_TYPE_BOOL) {
         entry->displayer = php_ini_boolean_displayer_cb;
     }
 
@@ -278,6 +317,8 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
 
 // PHP 5 expects 'static storage duration for ini entry names
 zai_config_name ini_names[ZAI_CONFIG_ENTRIES_COUNT_MAX * ZAI_CONFIG_NAMES_COUNT_MAX];
+// PHP 8.6+ keeps zend_ini_entry->def, so the defs need static storage too; [1] is the null terminator
+static zend_ini_entry_def ini_defs[ZAI_CONFIG_ENTRIES_COUNT_MAX * ZAI_CONFIG_NAMES_COUNT_MAX][2];
 
 void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_number) {
     env_to_ini_name = env_to_ini;
@@ -290,8 +331,10 @@ void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_numb
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         for (uint8_t n = 0; n < memoized->names_count; ++n) {
             zai_config_name *ini_name = &ini_names[i * ZAI_CONFIG_NAMES_COUNT_MAX + n];
-            zai_string_view name = {.len = memoized->names[n].len, .ptr = memoized->names[n].ptr};
-            zai_config_add_ini_entry(memoized, name, ini_name, module_number, i);
+            zend_ini_entry_def *entry_defs = ini_defs[i * ZAI_CONFIG_NAMES_COUNT_MAX + n];
+            memset(entry_defs, 0, sizeof(ini_defs[0]));
+            zai_str name = ZAI_STR_NEW(memoized->names[n].ptr, memoized->names[n].len);
+            zai_config_add_ini_entry(memoized, name, ini_name, entry_defs, module_number, i);
             // We need to cache ini directives here, at least for ZTS in order to access the global inis
             memoized->ini_entries[n] = zend_hash_str_find_ptr(EG(ini_directives), ini_name->ptr, ini_name->len);
             assert(memoized->ini_entries[n] != NULL);
@@ -299,8 +342,41 @@ void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_numb
     }
 
 #if ZTS
+#ifdef _WIN32
+    InitializeSRWLock(&lock_ini_init_rw);
+#endif
     original_thread_end_handler = tsrm_set_new_thread_end_handler(zai_config_lock_ini_copying);
 #endif
+}
+
+static inline bool zai_config_process_runtime_env(zai_config_memoized_entry *memoized, zai_env_buffer buf, bool in_startup, uint16_t config_index, uint16_t name_index) {
+    /*
+     * we unconditionally decode the value because we do not store the in-use encoded value
+     * so we cannot compare the current environment value to the current configuration value
+     * for the purposes of short circuiting decode
+     */
+    if (env_to_ini_name) {
+        zend_string *str = zend_string_init(buf.ptr, strlen(buf.ptr), in_startup);
+
+        zend_ini_entry *ini = memoized->ini_entries[name_index];
+        if (zend_alter_ini_entry_ex(ini->name, str, PHP_INI_USER, PHP_INI_STAGE_RUNTIME, 0) == SUCCESS) {
+            zend_string_release(str);
+            return true;
+        }
+        zend_string_release(str);
+    } else {
+        zai_str rte_value = ZAI_STR_FROM_CSTR(buf.ptr);
+
+        zval new_zv;
+        ZVAL_UNDEF(&new_zv);
+        if (zai_config_decode_value(rte_value, memoized->type, memoized->parser, &new_zv, /* persistent */ false)) {
+            zai_config_replace_runtime_config(config_index, &new_zv);
+            zval_ptr_dtor(&new_zv);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void zai_config_ini_rinit(void) {
@@ -322,82 +398,93 @@ void zai_config_ini_rinit(void) {
 
 #if ZTS
     // Skip during preloading, in that case EG(ini_directives) is the actual source of truth (NTS-like)
-    if (env_to_ini_name && !in_startup) {
-        for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+    if (env_to_ini_name && !inis_synchronized && zai_config_first_rinit_done && !in_startup) {
+        for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
             zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
             if (!memoized->original_on_modify) {
                 bool applied_update = false;
                 for (uint8_t n = 0; n < memoized->names_count; ++n) {
                     zend_ini_entry *source = memoized->ini_entries[n],
                                    *ini = zend_hash_find_ptr(EG(ini_directives), source->name);
+                    // On ZTS INIs must be not shared between threads (otherwise: refcount race conditions). Hence we dup them rather than just copy.
+                    ZEND_ASSERT(ini && source);
+                    ZEND_ASSERT(ini != source && "ZTS INI sync must not run against the global INI table");
                     if (ini->modified) {
-                        if (ini->orig_value == ini->value) {
-                            ini->value = source->value;
-                        }
+                        bool identical_orig = ini->orig_value == ini->value;
                         zend_string_release(ini->orig_value);
-                        ini->orig_value = zend_string_copy(source->value);
+                        ini->orig_value = zend_string_dup(source->value, 1);
+                        if (identical_orig) {
+                            ini->value = ini->orig_value;
 
-                        if (!applied_update) {
-                            if (ZaiConfigOnUpdateIni(ini, ini->value, NULL, NULL, NULL, PHP_INI_STAGE_RUNTIME) == SUCCESS) {
-                                // first encountered name has highest priority
-                                applied_update = true;
-                            } else {
-                                zend_string_release(ini->value);
-                                ini->value = ini->orig_value;
-                                ini->modified = false;
-                                ini->orig_value = NULL;
+                            if (!applied_update) {
+                                if (ZaiConfigOnUpdateIni(ini, ini->value, NULL, NULL, NULL, PHP_INI_STAGE_RUNTIME) == SUCCESS) {
+                                    // first encountered name has highest priority
+                                    applied_update = true;
+                                } else {
+                                    zend_string_release(ini->value);
+                                    ini->value = ini->orig_value;
+                                    ini->modified = false;
+                                    ini->orig_value = NULL;
+                                }
                             }
                         }
                     } else {
                         zend_string_release(ini->value);
-                        ini->value = zend_string_copy(source->value);
+                        ini->value = zend_string_dup(source->value, 1);
                     }
                 }
             }
         }
+        // We need to do this copying just once - once after zai_config_first_rinit_done.
+        inis_synchronized = true;
     }
 #endif
 
-    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
-
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+        ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        if (memoized->ini_change == zai_config_system_ini_change || memoized->original_on_modify) {
+        if (memoized->ini_change == zai_config_system_ini_change) {
             continue;
         }
 
-        for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
-            zai_string_view name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
-            zai_env_result result = zai_getenv_ex(name, buf, false);
-
-            if (result == ZAI_ENV_SUCCESS) {
-                /*
-                 * we unconditionally decode the value because we do not store the in-use encoded value
-                 * so we cannot compare the current environment value to the current configuration value
-                 * for the purposes of short circuiting decode
-                 */
-                if (env_to_ini_name) {
-                    zend_string *str = zend_string_init(buf.ptr, strlen(buf.ptr), in_startup);
-
-                    zend_ini_entry *ini = memoized->ini_entries[name_index];
-                    if (zend_alter_ini_entry_ex(ini->name, str, PHP_INI_USER, PHP_INI_STAGE_RUNTIME, 0) == SUCCESS) {
-                        zend_string_release(str);
-                        goto next_entry;
-                    }
-                    zend_string_release(str);
+        // makes only sense to update INIs once, avoid rereading env unnecessarily
+        if (!env_to_ini_name || !memoized->original_on_modify) {
+            for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
+                zai_str name = ZAI_STR_NEW(memoized->names[name_index].ptr, memoized->names[name_index].len);
+                zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
+                if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG
+                    && strcpy(buf.ptr, ZSTR_VAL(entry->value))
+                    && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
+                    memoized->name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
+                    memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
+                    goto next_entry;
+                } else if (zai_sapi_getenv(name, &buf) == ZAI_ENV_SUCCESS
+                    && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
+                    goto next_entry;
                 } else {
-                    zai_string_view rte_value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
-
-                    zval new_zv;
-                    ZVAL_UNDEF(&new_zv);
-                    if (zai_config_decode_value(rte_value, memoized->type, memoized->parser, &new_zv, /* persistent */ false)) {
-                        zai_config_replace_runtime_config(i, &new_zv);
-                        zval_ptr_dtor(&new_zv);
+                    const char *cached = zai_config_sys_env_cached(i, name_index);
+                    if (cached) {
+                        zai_env_buffer cached_buf = {strlen(cached), (char *)cached};
+                        if (zai_config_process_runtime_env(memoized, cached_buf, in_startup, i, name_index)) {
+                            goto next_entry;
+                        }
                     }
                 }
+                if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG
+                    && strcpy(buf.ptr, ZSTR_VAL(entry->value))
+                    && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
+                    memoized->name_index = ZAI_CONFIG_ORIGIN_LOCAL_STABLE;
+                    memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
+                    goto next_entry;
+                }
+            }
+
+            if (memoized->env_config_fallback && memoized->env_config_fallback(&buf, false) && zai_config_process_runtime_env(memoized, buf, in_startup, i, 0)) {
+                goto next_entry;
             }
         }
 
+        // explicitly ensure that changed handlers are called for any configs not identical to global default config
         if (env_to_ini_name) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
                 zend_ini_entry *ini = memoized->ini_entries[name_index];
@@ -420,7 +507,7 @@ void zai_config_ini_mshutdown(void) {}
 
 bool zai_config_is_modified(zai_config_id entry_id) {
     zai_config_memoized_entry *entry = &zai_config_memoized_entries[entry_id];
-    if (entry->name_index >= 0) {
+    if (entry->name_index >= ZAI_CONFIG_ORIGIN_MODIFIED) {
         return true;
     }
 
@@ -430,4 +517,35 @@ bool zai_config_is_modified(zai_config_id entry_id) {
 #endif
 
     return ini->modified;
+}
+
+void zai_config_change_default_ini(zai_config_id entry_id, zai_str str) {
+    zai_config_memoized_entry *memoized = &zai_config_memoized_entries[entry_id];
+    zend_ini_entry *entry = memoized->ini_entries[0];
+    zend_string_release(entry->value);
+    entry->value = zend_string_init(str.ptr, str.len, 1);
+    if (entry->modified) {
+        entry->modified = false;
+        zend_string_release(entry->orig_value);
+    }
+#if ZTS
+    zend_ini_entry *runtime_entry = zend_hash_find_ptr(EG(ini_directives), entry->name);
+    if (runtime_entry != entry) {
+        zend_string_release(runtime_entry->value);
+        runtime_entry->value = zend_string_copy(entry->value);
+        if (runtime_entry->modified) {
+            runtime_entry->modified = false;
+            zend_string_release(runtime_entry->orig_value);
+        }
+    }
+#endif
+    memoized->default_encoded_value = str;
+    memoized->name_index = ZAI_CONFIG_ORIGIN_DEFAULT;
+
+    zval decoded;
+    ZVAL_UNDEF(&decoded);
+    if (zai_config_decode_value(str, memoized->type, memoized->parser, &decoded, 1)) {
+        zai_json_dtor_pzval(&memoized->decoded_value);
+        ZVAL_COPY_VALUE(&memoized->decoded_value, &decoded);
+    }
 }

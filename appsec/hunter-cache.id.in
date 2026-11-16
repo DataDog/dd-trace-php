@@ -1,0 +1,4 @@
+ToolChain-ID: ${HUNTER_TOOLCHAIN_SHA1}
+Config-ID: ${HUNTER_CONFIG_SHA1}
+Hunter-ID: ${HUNTER_GATE_SHA1}
+Extra-ID: "Change this line to force a cache update"

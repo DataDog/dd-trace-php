@@ -20,7 +20,7 @@
         <name>Luca Abbati</name>
         <user>labbati</user>
         <email>luca.abbati@gmail.com</email>
-        <active>yes</active>
+        <active>no</active>
     </lead>
     <lead>
         <name>Bob Weinand</name>
@@ -29,15 +29,27 @@
         <active>yes</active>
     </lead>
     <lead>
-        <name>Joe Watkins</name>
-        <user>krakjoe</user>
-        <email>krakjoe@php.net</email>
-        <active>yes</active>
-    </lead>
-    <lead>
         <name>Pierre Bonet</name>
         <user>pierotibou</user>
         <email>pierotibou@php.net</email>
+        <active>yes</active>
+    </lead>
+    <lead>
+        <name>Alejandro Estringana Ruiz</name>
+        <user>estringanadd</user>
+        <email>estringanadd@php.net</email>
+        <active>yes</active>
+    </lead>
+    <lead>
+        <name>Florian Engelhardt</name>
+        <user>flowcontrol</user>
+        <email>flo@dotbox.org</email>
+        <active>yes</active>
+    </lead>
+    <lead>
+        <name>Luc Vieillescazes</name>
+        <user>iamluc</user>
+        <email>luc@vieillescazes.net</email>
         <active>yes</active>
     </lead>
     <!-- **Automatically updated with pecl-build script** -->
@@ -56,13 +68,17 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-${notes}
+${changelog}
 ]]></notes>
     <contents>
         <dir name="/">
-            <!-- code and test files -->${codefiles}
+            <!-- code, PHP and test files -->${codefiles}
             <file name="config.m4" role="src" />
-            <file name="ddtrace.sym" role="src" />
+            <file name="config.w32" role="src" />
+            <file name="ddtrace-extension-linux.sym" role="src" />
+            <file name="ddtrace-extension.sym" role="src" />
+            <file name="compile_rust.sh" role="src" />
+            <file name="VERSION" role="src" />
 
             <!-- Docs -->
             <file name="CHANGELOG.md" role="doc" />
@@ -71,26 +87,13 @@ ${notes}
             <file name="LICENSE.BSD3" role="doc" />
             <file name="NOTICE" role="doc" />
             <file name="README.md" role="doc" />
-            <file name="UPGRADE-0.10.md" role="doc" />
-
-            <!-- PHP files -->
-            <!-- Include any files from ./bridge that are not referenced in ./bridge/_files.php -->
-            <!-- Make sure to update <filelist> below too -->
-            <file name="bridge/_generated_api.php" role="php" />
-            <file name="bridge/_generated_integrations.php" role="php" />
-            <file name="bridge/_generated_tracer.php" role="php" />
-            <file name="bridge/_generated_tracer_api.php" role="php" />
-            <file name="bridge/autoload.php" role="php" />
-            <file name="bridge/dd_init.php" role="php" />
-            <file name="bridge/dd_register_optional_deps_autoloader.php" role="php" />
-            <file name="bridge/dd_wrap_autoloader.php" role="php" />
         </dir>
     </contents>
     <dependencies>
         <required>
             <php>
                 <min>7.0</min>
-                <max>8.2.99</max>
+                <max>8.6.99</max>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>
@@ -103,14 +106,7 @@ ${notes}
     <providesextension>ddtrace</providesextension>
     <extsrcrelease>
         <filelist>
-            <install as="datadog_trace/bridge/_generated_api.php" name="bridge/_generated_api.php" />
-            <install as="datadog_trace/bridge/_generated_integrations.php" name="bridge/_generated_integrations.php" />
-            <install as="datadog_trace/bridge/_generated_tracer.php" name="bridge/_generated_tracer.php" />
-            <install as="datadog_trace/bridge/_generated_tracer_api.php" name="bridge/_generated_tracer_api.php" />
-            <install as="datadog_trace/bridge/autoload.php" name="bridge/autoload.php" />
-            <install as="datadog_trace/bridge/dd_init.php" name="bridge/dd_init.php" />
-            <install as="datadog_trace/bridge/dd_register_optional_deps_autoloader.php" name="bridge/dd_register_optional_deps_autoloader.php" />
-            <install as="datadog_trace/bridge/dd_wrap_autoloader.php" name="bridge/dd_wrap_autoloader.php" />
+            <!-- Move PHP files to target destination -->${filelist}
         </filelist>
     </extsrcrelease>
 </package>

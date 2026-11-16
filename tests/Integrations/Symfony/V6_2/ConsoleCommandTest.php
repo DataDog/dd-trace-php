@@ -8,14 +8,22 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 class ConsoleCommandTest extends IntegrationTestCase
 {
-    protected static function getConsoleScript()
+    public static function getConsoleScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/bin/console';
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'symfony/console';
+    }
+
     public function testScenario()
     {
-        list($traces) = $this->inCli(self::getConsoleScript(), [], [], 'about');
+        list($traces) = $this->inCli(static::getConsoleScript(), [
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
+        ], [], 'about');
 
         $this->assertFlameGraph(
             $traces,
@@ -23,9 +31,11 @@ class ConsoleCommandTest extends IntegrationTestCase
                 SpanAssertion::build('console', 'console', 'cli', 'console')
                     ->withChildren([
                         SpanAssertion::build('symfony.console.command.run', 'symfony', 'cli', 'about')
-                            ->withExactTags([
+                            ->withExactAttributes([
                                 'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
                                 Tag::COMPONENT => 'symfony',
+                                '_dd.svc_src' => 'symfony',
+                                '_dd.base_service' => 'console'
                             ]),
                         SpanAssertion::exists('symfony.console.command', 'symfony.console.command'),
                         SpanAssertion::exists('symfony.console.terminate', 'symfony.console.terminate'),

@@ -57,6 +57,15 @@ final class CliServer implements Sapi
 
     public function start()
     {
+        //Avoid previous tests
+        $this->waitUntilServerIsNotRunning();
+        if (getenv('PHPUNIT_COVERAGE')) {
+            $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
+            $xdebugExtension = end($xdebugExtension);
+            $this->inis['zend_extension'] = $xdebugExtension;
+            $this->inis['xdebug.mode'] = 'coverage';
+        }
+
         /**
          * If a router is provided to the built-in web server (the index file),
          * the request init hook (which hooks auto_prepend_file) will not run.
@@ -68,7 +77,7 @@ final class CliServer implements Sapi
          * As a result auto_prepend_file (and the request init hook) is not executed.
          */
         $cmd = sprintf(
-            'php %s -S %s:%d -t %s', // . ' %s'
+            PHP_BINARY . ' %s -S %s:%d -t %s', // . ' %s'
             new IniSerializer($this->inis),
             $this->host,
             $this->port,
@@ -86,12 +95,59 @@ final class CliServer implements Sapi
 
         $this->process = new Process($processCmd);
         $this->process->start();
+
+        // php -S only binds its socket after module startup (all MINITs), which can take seconds on a loaded CI pod
+        if (!$this->waitUntilServerRunning()) {
+            $message = sprintf(
+                "[cli-server] Server never came up (%s)...\nstdout: %s\nstderr: %s",
+                $this->process->isRunning() ? 'still running' : 'exit code ' . $this->process->getExitCode(),
+                $this->process->getOutput(),
+                $this->process->getErrorOutput()
+            );
+            error_log($message);
+            throw new \RuntimeException($message);
+        }
+        error_log("[cli-server] Server is up and responding...");
+    }
+
+    public function waitUntilServerIsNotRunning()
+    {
+        //Let's wait until server is not accepting connections
+        for ($try = 0; $try < 40; $try++) {
+             $socket = @fsockopen($this->host, $this->port);
+            if ($socket == false) {
+                return true;
+            }
+            usleep(50000);
+        }
+
+        return false;
+    }
+
+    public function waitUntilServerRunning($timeout = 30)
+    {
+        $deadline = microtime(true) + $timeout;
+        do {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                fclose($socket);
+                return true;
+            }
+            if (!$this->process->isRunning()) {
+                return false;
+            }
+            usleep(50000);
+        } while (microtime(true) < $deadline);
+
+        return false;
     }
 
     public function stop()
     {
         error_log("[cli-server] Stopping...");
         $this->process->stop(0);
+        $this->waitUntilServerIsNotRunning();
+        error_log("[cli-server] Stopped");
     }
 
     public function isFastCgi()
@@ -102,7 +158,7 @@ final class CliServer implements Sapi
     public function checkErrors()
     {
         $newLogs = $this->process->getIncrementalErrorOutput();
-        if (preg_match("(=== Total [0-9]+ memory leaks detected ===)", $newLogs)) {
+        if (preg_match("(=== Total [0-9]+ memory leaks detected ===|AddressSanitizer:)", $newLogs)) {
             return $newLogs;
         }
 

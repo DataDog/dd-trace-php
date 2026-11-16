@@ -1,0 +1,57 @@
+--TEST--
+Assert that the default environment can be read from agent info
+--SKIPIF--
+<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
+if (PHP_VERSION_ID >= 80100) {
+    echo "nocache\n";
+}
+$ctx = stream_context_create([
+    'http' => [
+        'method' => 'PUT',
+        "header" => [
+            "Content-Type: application/json",
+            "X-Datadog-Test-Session-Token: dd_trace_agent_env",
+        ],
+        'content' => '{"config":{"default_env":"test_env"}}'
+    ]
+]);
+$response = @file_get_contents("http://request-replayer/set-agent-info", false, $ctx);
+if ($response === false) {
+    $error = error_get_last();
+    die("request-replayer setup failed: " . ($error ? $error['message'] : 'unknown error'));
+}
+?>
+--ENV--
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_TRACE_AGENT_FLUSH_INTERVAL=333
+DD_TRACE_GENERATE_ROOT_SPAN=0
+--INI--
+datadog.env=
+datadog.trace.agent_test_session_token=dd_trace_agent_env
+--FILE--
+<?php
+
+include __DIR__ . '/../includes/request_replayer.inc';
+
+$rr = new RequestReplayer();
+
+$span = \DDTrace\start_span();
+
+// make sure sidecar keeps up with us
+$agentInfoReady = dd_trace_internal_fn('await_agent_info');
+
+\DDTrace\close_span();
+if ($span->env !== 'test_env') {
+    if (!$agentInfoReady) {
+        echo "Timed out waiting for agent info after 5000ms\n";
+    }
+    echo 'Cached agent info: ', json_encode(dd_trace_internal_fn('get_agent_info')), "\n";
+}
+var_dump($span->env);
+
+?>
+--EXPECTF--
+string(8) "test_env"

@@ -1,0 +1,633 @@
+<?php
+
+namespace DDTrace\Tests\Integrations\SQLSRV;
+
+use DDTrace\Integrations\SQLSRV\SQLSRVIntegration;
+use DDTrace\Tag;
+use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanChecker;
+use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
+
+class SQLSRVTest extends IntegrationTestCase
+{
+    private static $host = 'sqlsrv-integration';
+    private static $port = 1433;
+    private static $db = 'master';
+    private static $user = 'sa';
+    private static $password = 'Password12!';
+
+    // phpcs:disable
+    const ERROR_CONNECT = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
+    const ERROR_QUERY_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
+    const ERROR_QUERY_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
+    const ERROR_PREPARE_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Statement(s) could not be prepared.';
+    const ERROR_PREPARE_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.';
+    // phpcs:enable
+
+    private static function getArchitecture()
+    {
+        return php_uname('m');
+    }
+
+    public static function ddSetUpBeforeClass()
+    {
+        parent::ddSetUpBeforeClass();
+        self::waitForSqlServerReady();
+    }
+
+    private static function waitForSqlServerReady()
+    {
+        $maxAttempts = 30;
+        $attempt = 0;
+        $conn = false;
+
+        while ($attempt < $maxAttempts && $conn === false) {
+            $attempt++;
+            $conn = @sqlsrv_connect(
+                self::$host . ', ' . self::$port,
+                [
+                    'PWD' => self::$password,
+                    'Database' => self::$db,
+                    'UID' => self::$user,
+                    'TrustServerCertificate' => true,
+                ]
+            );
+
+            if ($conn === false) {
+                if ($attempt < $maxAttempts) {
+                    usleep(500000);
+                }
+            }
+        }
+
+        if ($conn === false) {
+            $errors = sqlsrv_errors();
+            $lastError = $errors ? json_encode($errors) : 'Unknown error';
+            throw new \RuntimeException(
+                "SQL Server not ready after {$maxAttempts} attempts. Last error: {$lastError}"
+            );
+        }
+
+        sqlsrv_close($conn);
+    }
+
+    public static function ddTearDownAfterClass()
+    {
+        parent::ddTearDownAfterClass();
+    }
+
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        $this->setUpDatabase();
+    }
+
+    protected function ddTearDown()
+    {
+        $this->clearDatabase();
+        parent::ddTearDown();
+    }
+
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+            'DD_DBM_PROPAGATION_MODE',
+            'DD_DBM_TRACE_PREPARED_STATEMENTS',
+        ];
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'ext-sqlsrv';
+    }
+
+    public function testConnectOk()
+    {
+        $traces = $this->isolateTracer(function () {
+            $conn = $this->createConnection();
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('sqlsrv_connect', 'sqlsrv', 'sql', 'sqlsrv_connect')
+                ->withExactAttributes(self::baseTags())
+        ]);
+    }
+
+    public function testConnectError()
+    {
+        $traces = $this->isolateTracer(function () {
+            $conn = sqlsrv_connect(self::$host, ['PWD' => 'wrong_password']);
+            $this->assertFalse($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect')
+                ->setError('SQLSRV error', SQLSRVTest::ERROR_CONNECT)
+        ]);
+    }
+
+    public function testQueryOk()
+    {
+        $query = 'SELECT * FROM tests WHERE id=1';
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query, [], ['Scrollable' => 'static']);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testQueryOkPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = 'SELECT * FROM tests WHERE id=1';
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query, [], ['Scrollable' => 'static']);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query, true), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testQueryError()
+    {
+        $query = "SELECT * FROM non_existing_table";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query);
+            sqlsrv_close($conn);
+        });
+
+        // No metrics expected, as the default 'forward' cursor type is used
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query))
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactAttributes([
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testQueryErrorPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "SELECT * FROM non_existing_table";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query);
+            sqlsrv_close($conn);
+        });
+
+        // No metrics expected, as the default 'forward' cursor type is used
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query, true))
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactAttributes([
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testCommitOk()
+    {
+        $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_begin_transaction($conn);
+            sqlsrv_query($conn, $query);
+            sqlsrv_commit($conn);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertOneRowInDatabase('tests', ['id' => 1000, 'name' => 'Sam']);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
+            SpanAssertion::build('sqlsrv_commit', 'sqlsrv', 'sql', 'sqlsrv_commit')
+                ->withExactAttributes(self::baseTags())
+        ]);
+    }
+
+    public function testPrepareOk()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query)),
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testPrepareOkPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query)),
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query, true), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testPrepareError()
+    {
+        $query = "SELECT * FROM non_existing_table WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1]);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::exists('sqlsrv_prepare'),
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactAttributes(self::baseTags($query), [
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testPrepareErrorPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "SELECT * FROM non_existing_table WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1]);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::exists('sqlsrv_prepare'),
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactAttributes(self::baseTags($query, true), [
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testPreparedStatementUsesServiceModeForDBM()
+    {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+
+            close_span();
+        });
+
+        // Get the raw spans
+        $spans = (new SpanChecker())->flattenTraces($traces);
+
+        // Find prepare and execute spans
+        $connectSpan = null;
+        $prepareSpan = null;
+        $executeSpan = null;
+
+        foreach ($spans as $span) {
+            if ($span['name'] === 'sqlsrv_connect') {
+                $connectSpan = $span;
+            } elseif ($span['name'] === 'sqlsrv_prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'sqlsrv_execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($connectSpan, 'sqlsrv_connect span should exist');
+        $this->assertNotNull($prepareSpan, 'sqlsrv_prepare span should exist');
+        $this->assertNotNull($executeSpan, 'sqlsrv_execute span should exist');
+
+        // Verify that execute and prepare span are siblings
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'sqlsrv_execute should be a sibling of sqlsrv_prepare'
+        );
+
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
+
+        // Verify that SERVICE mode is used for the prepare span
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['attributes'] ?? [],
+            'sqlsrv_prepare should use SERVICE mode'
+        );
+    }
+
+
+    public function testPreparedStatementKeepsServiceModeForDBMWhenTracingPreparedStatements()
+    {
+        // sqlsrv is not a full-propagation backend, so the option must change nothing here
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full', 'DD_DBM_TRACE_PREPARED_STATEMENTS=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+
+            close_span();
+        });
+
+        $prepareSpan = null;
+        foreach ((new SpanChecker())->flattenTraces($traces) as $span) {
+            if ($span['name'] === 'sqlsrv_prepare') {
+                $prepareSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($prepareSpan, 'sqlsrv_prepare span should exist');
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['attributes'] ?? [],
+            'sqlsrv_prepare should still use SERVICE mode'
+        );
+    }
+    public function testExecError()
+    {
+        $query = "SELECT * FROM non_existing_table";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_begin_transaction($conn);
+            $stmt = sqlsrv_prepare($conn, $query);
+            sqlsrv_execute($stmt);
+            sqlsrv_commit($conn);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::exists('sqlsrv_prepare'),
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactAttributes(self::baseTags($query)),
+            SpanAssertion::exists('sqlsrv_commit')
+        ]);
+    }
+
+    public function testLimitedTracerConnectQuery()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $conn = $this->createConnection();
+            $query = 'SELECT * FROM tests WHERE id=1';
+            sqlsrv_query($conn, $query);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertEmpty($traces);
+    }
+
+    public function testLimitedtracerCommit()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $conn = $this->createConnection();
+            $query = "INSERT INTO tests (id, name) VALUES (100, 'From Test')";
+            sqlsrv_begin_transaction($conn);
+            sqlsrv_query($conn, $query);
+            sqlsrv_commit($conn);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertOneRowInDatabase('tests', ['id' => 100, 'name' => 'From Test']);
+        $this->assertEmpty($traces);
+    }
+
+    public function testLimitedConnectPrepareStatement()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $conn = $this->createConnection();
+            $query = "INSERT INTO tests (id, name) VALUES (?, ?)";
+            $stmt = sqlsrv_prepare($conn, $query, [100, 'From Test']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertOneRowInDatabase('tests', ['id' => 100, 'name' => 'From Test']);
+        $this->assertEmpty($traces);
+    }
+
+    public function testConnectPrepareStatement()
+    {
+        $query = "INSERT INTO tests (id, name) VALUES (?, ?)";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [100, 'From Test']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertOneRowInDatabase('tests', ['id' => 100, 'name' => 'From Test']);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query)),
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ], true, false);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $query = 'SELECT * FROM tests WHERE id=1';
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query, [], ['Scrollable' => 'static']);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'configured_service', 'sql', $query)
+                ->withExactAttributes(self::baseTags($query, false, null), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1)
+        ]);
+    }
+
+    public function testConnectionMetadataPort()
+    {
+        $withoutPort = SQLSRVIntegration::extractConnectionMetadata(['host\\inst', []]);
+        $this->assertArrayNotHasKey(Tag::TARGET_PORT, $withoutPort);
+
+        $withPort = SQLSRVIntegration::extractConnectionMetadata(['host, 1433', []]);
+        $this->assertSame(1433, $withPort[Tag::TARGET_PORT]);
+    }
+
+    private function createConnection()
+    {
+        $conn = sqlsrv_connect(
+            self::$host . ', ' . self::$port,
+            [
+                'PWD' => self::$password,
+                'Database' => self::$db,
+                'UID' => self::$user,
+                'TrustServerCertificate' => true,
+            ]
+        );
+
+        return $conn;
+    }
+
+    private function queryDatabaseAllAssociative($table, $wheres)
+    {
+        $conditions = [];
+        foreach ($wheres as $key => $value) {
+            $conditions[] = "$key = '$value'";
+        }
+        $inlineWhere = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+        $conn = $this->createConnection();
+        $sql = "SELECT * FROM $table $inlineWhere";
+        $stmt = sqlsrv_query($conn, $sql);
+        $results = [];
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $results[] = $row;
+        }
+        sqlsrv_close($conn);
+        return $results;
+    }
+
+    private function assertOneRowInDatabase($table, $wheres)
+    {
+        $results = $this->queryDatabaseAllAssociative($table, $wheres);
+        $this->assertCount(1, $results);
+    }
+
+    private static function baseTags($query = null, $expectPeerService = false, $svcSrc = SQLSRVIntegration::NAME)
+    {
+        $tags = [
+            Tag::SPAN_KIND => 'client',
+            Tag::COMPONENT => SQLSRVIntegration::NAME,
+            Tag::DB_SYSTEM => SQLSRVIntegration::SYSTEM,
+            Tag::DB_INSTANCE => self::$db,
+            Tag::DB_USER => self::$user,
+            Tag::TARGET_HOST => self::$host,
+            Tag::TARGET_PORT => self::$port,
+        ];
+
+        if ($svcSrc !== null) {
+            $tags['_dd.svc_src'] = $svcSrc;
+        }
+
+        if ($expectPeerService) {
+            $tags['peer.service'] = 'master';
+            $tags['_dd.peer.service.source'] = 'db.instance';
+        }
+
+        return $tags;
+    }
+
+    private function clearDatabase()
+    {
+        $conn = $this->createConnection();
+        $sql = 'DROP TABLE IF EXISTS tests';
+        sqlsrv_query($conn, $sql);
+        sqlsrv_commit($conn);
+        sqlsrv_close($conn);
+    }
+
+    private function setUpDatabase()
+    {
+        $conn = $this->createConnection();
+        $sql1 = 'CREATE TABLE tests (id INT PRIMARY KEY, name VARCHAR(100))';
+        sqlsrv_query($conn, $sql1);
+        $sql2 = "INSERT INTO tests (id, name) VALUES (1, 'Tom')";
+        sqlsrv_query($conn, $sql2);
+        sqlsrv_commit($conn);
+        sqlsrv_close($conn);
+    }
+}

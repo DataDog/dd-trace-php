@@ -3,7 +3,6 @@ Long running manual flush
 --SKIPIF--
 <?php if (!extension_loaded('pcntl')) die('skip: pcntl extension required'); ?>
 --ENV--
-DD_TRACE_CLI_ENABLED=true
 DD_TRACE_GENERATE_ROOT_SPAN=false
 DD_TRACE_AUTO_FLUSH_ENABLED=false
 --FILE--
@@ -50,7 +49,7 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $output = ob_get_contents();
     ob_end_clean();
     $lines = explode(PHP_EOL, $output);
-    if (in_array("Flushing tracer...", $lines) && in_array("Tracer reset", $lines)) {
+    if (in_array("[ddtrace] [info] Flushing tracer...", $lines) && in_array("Tracer reset", $lines)) {
         echo "OK" . PHP_EOL;
     }
 }

@@ -1,5 +1,5 @@
 --TEST--
-Profiling should only be enabled after preloading has happened
+[profiling] Profiling should only be enabled after preloading has happened
 --DESCRIPTION--
 This is a special case for when PHP-FPM running as non-root user and preloading
 is enabled. In this case, PHP will do preloading in the php-fpm: master process
@@ -12,31 +12,35 @@ See: https://github.com/DataDog/dd-trace-php/issues/1919
 Due to limitations of PHPT, this test does not test PHP-FPM or processes run
 with different permissions, but it makes sure, that profiling is started after
 preloading is done.
+--ENV--
+USE_ZEND_ALLOC=0
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70400)
-    echo "skip: need preloading and therefore PHP", PHP_EOL;
-if (!extension_loaded('datadog-profiling'))
+    echo "skip: need preloading and therefore PHP >= 7.4.0", PHP_EOL;
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires datadog-profiling", PHP_EOL;
+if (!extension_loaded('Zend OPcache'))
+    echo "skip: test requires opcache", PHP_EOL;
 ?>
 --INI--
 datadog.profiling.enabled=yes
 datadog.profiling.log_level=debug
-datadog.profiling.experimental_allocation_enabled=no
-datadog.profiling.experimental_cpu_time_enabled=no
-zend_extension=opcache
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
 opcache.preload_user=root
 --FILE--
 <?php
+/*
+ * this `usleep()` makes sure profiling will start and take a sample. This is because
+ * we need to make sure that the "Started with an upload period ..." message
+ * comes after the "preloading" output from the preloading script.
+ */
+usleep(11000);
 echo "Done.", PHP_EOL;
 ?>
 --EXPECTREGEX--
-.* zend_post_startup_cb hasn't happened yet; not enabling profiler.
-preloading
-.* Started with an upload period of 67 seconds and approximate wall-time period of 10 milliseconds.
-Done.
-.* Stopping profiler.
-.* Notified other threads of cancellation.
-.* No profiles to upload.
+.*zend_post_startup_cb hasn't happened yet; not enabling profiler.
+(.*\n)*preloading
+.*Started with an upload period of [0-9]+ seconds and approximate wall-time period of [0-9]+ milliseconds.
+.*Done.*

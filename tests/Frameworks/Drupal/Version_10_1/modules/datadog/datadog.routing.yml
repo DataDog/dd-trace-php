@@ -1,0 +1,15 @@
+simple_view:
+  path: '/simple_view'
+  defaults:
+    _title: 'Simple View'
+    _controller: '\Drupal\datadog\Controller\DatadogController::simpleView'
+  requirements:
+    _access: 'TRUE'
+
+error:
+  path: '/error'
+  defaults:
+    _title: 'Error'
+    _controller: '\Drupal\datadog\Controller\DatadogController::error'
+  requirements:
+    _access: 'TRUE'

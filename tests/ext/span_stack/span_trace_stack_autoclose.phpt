@@ -1,7 +1,9 @@
 --TEST--
 Test autoclosing of spans on abandoned span stacks
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70400) die('skip: Requires PHP 7.4 or greater to observe using WeakRefs'); ?>
 --FILE--
@@ -34,6 +36,5 @@ We are back on our primary stack: bool(true)
 Having lost all references to the that span stacks objects, it is autoclosed: bool(true)
 spans(\DDTrace\SpanData) (1) {
   span_trace_stack_autoclose.php (span_trace_stack_autoclose.php, span_trace_stack_autoclose.php, cli)
-    _dd.p.dm => -1
      (span_trace_stack_autoclose.php, cli)
 }

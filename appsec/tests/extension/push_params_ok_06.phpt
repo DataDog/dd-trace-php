@@ -1,0 +1,40 @@
+--TEST--
+Rasp addresses are not sent to the helper if RASP disabled.
+--INI--
+datadog.appsec.enabled=1
+datadog.appsec.rasp_enabled=0
+--FILE--
+<?php
+use function datadog\appsec\testing\{rinit, rshutdown, root_span_get_attributes};
+use function datadog\appsec\push_addresses;
+
+include __DIR__ . '/inc/mock_helper.php';
+
+$helper = Helper::createInitedRun([
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
+]);
+
+var_dump(rinit());
+push_addresses(["server.request.path_params" => 1234], "lfi");
+var_dump(rshutdown());
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
+
+var_dump($helper->get_command("request_exec"));
+
+?>
+--EXPECTF--
+bool(true)
+bool(true)
+Array
+(
+    [_dd.appsec.enabled] => %d
+    [_dd.appsec.waf.duration_ext] => %f
+    [_dd.runtime_family] => php
+    [process_id] => %d
+    [runtime-id] => %s
+)
+array(0) {
+}

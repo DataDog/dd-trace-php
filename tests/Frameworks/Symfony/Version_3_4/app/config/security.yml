@@ -23,3 +23,5 @@ security:
 
             # https://symfony.com/doc/current/security/form_login_setup.html
             #form_login: ~
+    access_control:
+        - { path: ^/behind_auth, roles: ROLE_USER }

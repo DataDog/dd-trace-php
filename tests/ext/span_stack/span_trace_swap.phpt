@@ -1,7 +1,9 @@
 --TEST--
 Test creating swapping traces
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -10,6 +12,7 @@ include __DIR__ . '/../sandbox/dd_dumper.inc';
 $primary_trace = DDTrace\start_span();
 
 $new_root = DDTrace\start_trace_span();
+$new_root->name = "other root";
 
 DDTrace\switch_stack($primary_trace);
 echo 'We are back on our primary stack: '; var_dump($primary_trace == DDTrace\active_span());
@@ -39,7 +42,5 @@ We closed the active stack after all other stacks were closed. No other span is 
 This automatically switches back to the parent stack: bool(true)
 spans(\DDTrace\SpanData) (2) {
   span_trace_swap.php (span_trace_swap.php, span_trace_swap.php, cli)
-    _dd.p.dm => -1
-  span_trace_swap.php (span_trace_swap.php, span_trace_swap.php, cli)
-    _dd.p.dm => -1
+  other root (span_trace_swap.php, other root, cli)
 }

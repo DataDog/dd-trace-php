@@ -4,8 +4,8 @@ The purpose of randomized tests is to find edge cases that users could encounter
 
 The basic idea is to randomly generate a matrix of application configurations:
   - Apache/Nginx
-  - PHP 5.4-8.0
-  - Centos 7
+  - PHP 7.0-8.3
+  - Centos 7 / Debian Buster
 
 and to run a application with randomily generated execution paths, which involve a number of scenarios and integrations.
 
@@ -18,13 +18,14 @@ Additional platforms and settings can be provided in the `./config` folder.
 
 ### Overview
 
-The typical worksflow is:
+The typical workflow is:
 
 Download the tracer version you intend to test.
+(Note that as the randomized tests use `Docker`, the following command must NOT be run inside a container)
 
 ```
 # Use the .tar.gz from <root>/build/packages built locally
-make tracer.local
+make library.local
 
 # Download from a url
 make library.download LIBRARY_TEST_URL=<link to the .tar.gz>
@@ -93,7 +94,22 @@ $ make analyze
 
 Currently the following checks are executed:
 - the returned status code can only be on of 200 (OK), 510 (controlled uncaught exception), 511 (controlled php error). Any other return code will result in a failing analysis.
-- At least 1000 requests have been executed. If we find that vegeta has performed less than 1000 request, then the  test fails as we might have put the system not under enough pressure and combination of execution paths to find meaningful problems. In this case the error will be reported with a message `Minimum request not matched` and, unless there are not requests at all, it typically means that your hardward is not power enough to run a large amount of concurrent tests. You can either reduce concurrency via `make execute CONCURRENT_JOBS=3` or run specific tests via `make -C .tmp.scenarios test.scenario.<scenario_name>`.
+- At least 1000 requests have been executed. If we find that vegeta has performed less than 1000 request, then the test fails as we might have put the system not under enough pressure and combination of execution paths to find meaningful problems. In this case the error will be reported with a message `Minimum request not matched` and, unless there are not requests at all, it typically means that your hardware is not power enough to run a large amount of concurrent tests. You can either reduce concurrency via `make execute CONCURRENT_JOBS=3` or run specific tests via `make -C .tmp.scenarios test.scenario.<scenario_name>`.
+
+### Reproduce a failing job in CI
+
+You can reproduce a CI job by running the following commands:
+
+```bash
+# Download the package from the CI
+make library.download LIBRARY_TEST_URL=<URL of the package from the "package extension" job artifacts>
+# Generate the scenarios (Should match the configuration in `.circleci/continue_config.yml`)
+make generate SEED=<The seed from the "Generate scenarios" step of the randomized job> NUMBER_OF_SCENARIOS=4 PLATFORMS=centos7
+# Run the scenarios (Should match the configuration in `.circleci/continue_config.yml`)
+make test CONCURRENT_JOBS=2 DURATION=1m30s
+# Analyze the results
+make analyze
+```
 
 ### Launch a local environment with a specific scenario activated
 
@@ -129,6 +145,16 @@ Note that the generated scenarios can be run individually. In the directory `.tm
 
 ### Analyzing a core dump generated in CI
 
+Run a script `circleci_core.sh` which will install the used extension, and launch a gdb shell with the core dump:
+
+```
+tests/randomized/circleci_core.sh https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/17113/workflows/196b5740-f3ce-4faf-8731-e9a4b15d114a/jobs/4964970/steps
+```
+
+The only argument to that script is the URL of the job.
+
+#### Alternative: Manual steps
+
 Run a container with the most recent version of the proper docker image for the specific version of PHP. For example, assuming PHP 8.0:
 
 ```
@@ -156,6 +182,52 @@ Then load it in `gdb`:
 gdb --core=/tmp/core php-fpm|httpd|php
 ```
 
+#### Manual steps using ASAN
+
+In some cases it might be tricky to find the memory corruption, but you can
+always use an address sanitizer to try and find problems.
+
+If you want/need the tracer to be linked to ASAN as well, you need to fetch the
+package from the `package extension zts-debug-asan` step instead of the `package
+extension` job, otherwise only PHP itself will be linked to ASAN in the
+following, which might be sufficient depending on the use case.
+
+#### Ubuntu image
+
+In case the bug was spotted in a Ubuntu image, there is PHP with ASAN already
+installed, you need to switch to it:
+
+```sh
+switch-php debug-zts-asan
+```
+
+After this you can start run the tests again with address sanitizer enabled.
+
+#### CentOS image
+
+If the bug was spotted in CentOS, you'd need to recompile PHP with ASAN:
+
+```sh
+yum install -y devtoolset-7-libasan-devel
+mkdir -p /tmp/build-php
+cd /tmp/build-php
+/root/configure.sh --prefix=${PHP_INSTALL_DIR_NTS} --with-config-file-path=${PHP_INSTALL_DIR_NTS} --with-config-file-scan-dir=${PHP_INSTALL_DIR_NTS}/conf.d --enable-address-sanitizer
+make -j
+make install
+```
+
+This will install `libasan`, reconfigure PHP to enable the address sanitizer,
+recompile and install it. You also need to set some ASAN options and make sure
+to disable the ZendMM:
+
+```sh
+export ASAN_OPTIONS=abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
+export USE_ZEND_ALLOC=0
+```
+
+After this you can start run the tests again with address sanitizer enabled.
+
 ## Rebuilding docker containers
 
-The randomized tests docker containers are based on our CentOS 7 containers.
+The randomized tests docker containers are based on our CentOS 7 or Debian Buster containers.
+The centos7 images are built by the manual `Randomized build` and `Randomized publish` jobs of the `ci-images` child pipeline (see `dockerfiles/ci/README.md`); their tags carry a generation from `tests/randomized/.env` (`RANDOMIZED_CENTOS_NEXT_VERSION`). The buster ones are still pushed by hand with `make publish.buster`.

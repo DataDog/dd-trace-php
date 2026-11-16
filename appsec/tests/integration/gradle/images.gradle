@@ -1,0 +1,474 @@
+ext.repo = 'datadog/dd-appsec-php-ci'
+final String repo = ext.repo
+// Keep dependent Dockerfile FROM references local while CI pushes to staging.
+final String pushRepo = project.findProperty('pushRepo') ?: repo
+
+apply from: "$rootDir/gradle/tag_mappings.gradle"
+
+if (System.getenv('GITLAB_CI') == 'true') {
+    ext.dockerMirror = '669783387624.dkr.ecr.us-east-1.amazonaws.com/dockerhub'
+} else {
+    ext.dockerMirror = 'docker.io'
+}
+final List<String> dockerMirrorArgs = [
+        '--build-arg', "DOCKER_REGISTRY=${ext.dockerMirror}",
+]
+if (project.hasProperty("floatingImageTags")) {
+    ext.map_tag = { tag -> ":${tag}" }
+} else {
+    ext.map_tag = { tag ->
+        if (ext.tag_mappings.containsKey(tag)) {
+            "@${ext.tag_mappings[tag]}"
+        } else {
+            throw new GradleException("Tag ${tag} not found in tag_mappings.gradle")
+        }
+    }
+}
+
+def phpVersions = [
+        '7.0': '7.0.33',
+        '7.1': '7.1.33',
+        '7.2': '7.2.34',
+        '7.3': '7.3.33',
+        '7.4': '7.4.29',
+        '8.0': '8.0.18',
+        '8.1': '8.1.31',
+        '8.2': '8.2.35',
+        '8.3': '8.3.36',
+        '8.4': '8.4.27',
+        '8.5': '8.5.12',
+        '8.6': '8.6.0RC3',
+]
+
+def normalizeArch = { a ->
+    switch (a) {
+        case ['aarch64', 'arm64']:
+            return 'arm64'
+        case ['amd64', 'x86_64']:
+            return 'amd64'
+        default:
+            throw new GradleException("Unsupported architecture: $a")
+    }
+}
+def nativeArch = normalizeArch(System.getProperty('os.arch'))
+def arch = normalizeArch(project.findProperty('dockerArch') ?: nativeArch)
+def archSuffix = arch == 'arm64' ? 'aarch64' : arch
+def isCrossBuilding = arch != nativeArch
+def dockerPlatform = arch == 'arm64' ? 'linux/arm64' : 'linux/amd64'
+
+def imageUpToDate = { inputs, String image ->
+    return {
+        long volumeTime = creationDateOf(image)
+        if (volumeTime == 0) {
+            return false
+        }
+        long latestInputDate = inputs.files.collect { it.lastModified() }.max()
+        latestInputDate <= volumeTime
+    }
+}
+def imageIsNewerThan = { image1, image2 ->
+    creationDateOf(image1) > creationDateOf(image2)
+}
+
+final List<String> dockerBuildCommand = [
+    'docker', 'buildx', 'build', '--progress=plain', '--load',
+    *(isCrossBuilding ? ['--platform', dockerPlatform] : []),
+]
+
+tasks.register('buildToolchain', Exec) {
+    description = "Build the toolchain image"
+    inputs.dir 'src/docker/toolchain'
+    outputs.upToDateWhen imageUpToDate(inputs, "$repo:toolchain")
+    commandLine(*dockerBuildCommand, *dockerMirrorArgs,
+            '-t', "$repo:toolchain", 'src/docker/toolchain')
+}
+
+tasks.register('buildPhpDeps', Exec) {
+    description = "Build the PHP deps image"
+    inputs.file file('src/docker/php/Dockerfile-php-deps')
+    inputs.file file('src/docker/php/build_dev_php.sh')
+    outputs.upToDateWhen {
+        imageUpToDate(inputs, "$repo:php-deps")() &&
+                imageIsNewerThan("$repo:php-deps", "$repo:toolchain")
+    }
+    commandLine(*dockerBuildCommand, '-t', "$repo:php-deps",
+            '-f', 'src/docker/php/Dockerfile-php-deps', 'src/docker/php')
+
+    dependsOn 'buildToolchain'
+}
+
+def buildPhp = { String version, String variant ->
+    tasks.register("buildPhp-$version-$variant", Exec) {
+        String tag = "php-${version}-${variant}"
+        String image = "$repo:$tag"
+        description = "Build the image for PHP ${version} ${variant}"
+        inputs.property 'phpVersion', phpVersions[version]
+        inputs.file file('src/docker/php/Dockerfile')
+        inputs.file file('src/docker/php/build_dev_php.sh')
+        inputs.file file('src/docker/php/php.ini')
+        inputs.dir 'src/docker/php/php_patches'
+        outputs.upToDateWhen {
+            imageUpToDate(inputs, image)() &&
+                    imageIsNewerThan(image, "$repo:php-deps")
+        }
+        commandLine(*dockerBuildCommand, '--build-arg', "PHP_VERSION=${phpVersions[version]}",
+                '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker/php')
+
+        dependsOn 'buildPhpDeps'
+    }
+}
+
+testMatrix.each { spec ->
+    buildPhp(spec[0], spec[1])
+}
+tasks.register('buildAllPhp') {
+    testMatrix.each { spec ->
+        dependsOn "buildPhp-${spec[0]}-${spec[1]}"
+    }
+}
+
+def buildApache2ModTask = { String version, String variant ->
+    tasks.register("buildApache2Mod-$version-$variant", Exec) {
+        String tag = "apache2-mod-php-${version}-${variant}"
+        String image = "$repo:$tag"
+        description = "Build the image for Apache2 mod_php ${version} ${variant}"
+        inputs.dir 'src/docker/apache2-mod'
+        outputs.upToDateWhen {
+            imageUpToDate(inputs, image)() &&
+                    imageIsNewerThan(image, "$repo:php-$version-$variant")
+        }
+        commandLine(*dockerBuildCommand, '--build-arg', "PHP_VERSION=$version",
+                '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker',
+                '-f', 'src/docker/apache2-mod/Dockerfile')
+
+        dependsOn "buildPhp-${version}-${variant}"
+    }
+}
+
+testMatrix.each { spec ->
+    buildApache2ModTask(spec[0], spec[1])
+}
+tasks.register('buildAllApache2Mod') {
+    testMatrix.each { spec ->
+        dependsOn "buildApache2Mod-${spec[0]}-${spec[1]}"
+    }
+}
+
+def buildApache2FpmTask = { String version, String variant ->
+    tasks.register("buildApache2Fpm-$version-$variant", Exec) {
+        String tag = "apache2-fpm-php-${version}-${variant}"
+        String image = "$repo:$tag"
+        description = "Build the image for Apache2 + fpm ${version} ${variant}"
+        inputs.dir 'src/docker/apache2-fpm'
+        inputs.dir 'src/docker/fpm-common'
+        outputs.upToDateWhen {
+            imageUpToDate(inputs, image)() &&
+                    imageIsNewerThan(image, "$repo:php-$version-$variant")
+        }
+        commandLine(*dockerBuildCommand, '--build-arg', "PHP_VERSION=$version",
+                '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker',
+                '-f', 'src/docker/apache2-fpm/Dockerfile')
+
+        dependsOn "buildPhp-${version}-${variant}"
+    }
+}
+
+testMatrix.each { spec ->
+    buildApache2FpmTask(spec[0], spec[1])
+}
+
+tasks.register('buildAllApache2Fpm') {
+    testMatrix.each { spec ->
+        dependsOn "buildApache2Fpm-${spec[0]}-${spec[1]}"
+    }
+}
+
+def buildNginxFpmTask = { String version, String variant ->
+    tasks.register("buildNginxFpm-$version-$variant", Exec) {
+        String tag = "nginx-fpm-php-${version}-${variant}"
+        String image = "$repo:$tag"
+        description = "Build the image for Nginx + fpm ${version} ${variant}"
+        inputs.dir 'src/docker/nginx-fpm'
+        inputs.dir 'src/docker/fpm-common'
+        outputs.upToDateWhen {
+            imageUpToDate(inputs, image)() &&
+                    imageIsNewerThan(image, "$repo:php-$version-$variant")
+        }
+        commandLine(*dockerBuildCommand, '--build-arg', "PHP_VERSION=$version",
+                '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker',
+                '-f', 'src/docker/nginx-fpm/Dockerfile')
+
+        dependsOn "buildPhp-${version}-${variant}"
+    }
+}
+testMatrix.each { spec ->
+    buildNginxFpmTask(spec[0], spec[1])
+}
+tasks.register('buildAllNginxFpm') {
+    testMatrix.each { spec ->
+        dependsOn "buildNginxFpm-${spec[0]}-${spec[1]}"
+    }
+}
+
+tasks.register('buildFrankenPHP-8.4-release-zts', Exec) {
+    String tag = "frankenphp-8.4-release-zts"
+    String image = "$repo:$tag"
+    description = "Build the image for FrankenPHP 8.4 zts"
+    inputs.dir 'src/docker/frankenphp'
+    outputs.upToDateWhen imageUpToDate(inputs, image)
+    commandLine(*dockerBuildCommand, '-t', "$repo:$tag", *dockerMirrorArgs,
+            'src/docker/frankenphp', '-f', 'src/docker/frankenphp/Dockerfile')
+}
+
+tasks.register('buildNginxFpm-8.5-release-musl', Exec) {
+    String image = "$repo:nginx-fpm-php-8.5-release-musl"
+    description = "Build the musl-nginx image for Alpine testing"
+    inputs.file file('src/docker/nginx-fpm-musl/Dockerfile')
+    inputs.file file('src/docker/nginx-fpm-musl/nginx.conf')
+    outputs.upToDateWhen imageUpToDate(inputs, image)
+
+    commandLine(*dockerBuildCommand, *dockerMirrorArgs,
+            '-t', image,
+            '-f', 'src/docker/nginx-fpm-musl/Dockerfile',
+            'src/docker/nginx-fpm-musl')
+}
+
+tasks.register('buildApache2Mod-8.5-release-zts-musl', Exec) {
+    String image = "$repo:apache2-mod-php-8.5-release-zts-musl"
+    description = 'Build the Apache2 mod_php ZTS musl test image'
+    inputs.file file('src/docker/apache2-mod-zts-musl/Dockerfile')
+    inputs.file file('src/docker/apache2-mod-zts-musl/php.conf')
+    inputs.file file('src/docker/apache2-mod-zts-musl/start.sh')
+    inputs.file file('src/docker/apache2-mod/event-sigterm-startup.patch')
+    outputs.upToDateWhen imageUpToDate(inputs, image)
+
+    commandLine(*dockerBuildCommand, *dockerMirrorArgs,
+            '-t', image,
+            '-f', 'src/docker/apache2-mod-zts-musl/Dockerfile',
+            'src/docker')
+}
+
+tasks.register('buildPhpBuildonlyRustImage', Exec) {
+    String image = "$repo:php-buildonly-rust"
+    String baseRepository = System.getenv('GITLAB_CI') == 'true' ?
+            'registry.ddbuild.io/ci/musl-toolchain-glibc-support/php-buildonly' :
+            'datadog/php-buildonly'
+    description = 'Build the portable PHP extension build image'
+    inputs.file 'src/docker/php-buildonly-rust/Dockerfile'
+    inputs.file 'src/docker/php-buildonly-rust/php-symbols.txt.gz'
+    inputs.property 'baseRepository', baseRepository
+    outputs.upToDateWhen imageUpToDate(inputs, image)
+    commandLine(*dockerBuildCommand,
+            '--build-arg', "PHP_BUILDONLY_REPOSITORY=$baseRepository", '-t', image,
+            'src/docker/php-buildonly-rust')
+}
+
+task buildAll {
+    dependsOn 'buildAllPhp',
+            'buildAllApache2Mod',
+            'buildAllApache2Fpm',
+            'buildAllNginxFpm',
+            'buildFrankenPHP-8.4-release-zts',
+            'buildPhpBuildonlyRustImage',
+            'buildNginxFpm-8.5-release-musl',
+            'buildApache2Mod-8.5-release-zts-musl'
+}
+
+def buildPushTask = { String tag, requirement ->
+    tasks.register("pushImage-${tag}", Exec) {
+        String image = "$repo:$tag"
+        String pushedImage = "$pushRepo:$tag-$archSuffix"
+        description = "Push image $image to $pushedImage"
+
+        doFirst {
+            def proc = ['docker', 'tag', image, pushedImage].execute()
+                proc.waitForOrKill(5_000)
+                if (proc.exitValue() != 0) {
+                    throw new GradleException("Failed to tag image $image with arch")
+                }
+        }
+
+        dependsOn requirement
+        commandLine 'docker', 'push', pushedImage
+    }
+}
+def allPushTasks = [
+        buildPushTask("toolchain", 'buildToolchain'),
+        buildPushTask("php-deps", 'buildPhpDeps'),
+        *testMatrix.collect { spec ->
+            buildPushTask("php-${spec[0]}-${spec[1]}", "buildPhp-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildPushTask("apache2-mod-php-${spec[0]}-${spec[1]}", "buildApache2Mod-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildPushTask("apache2-fpm-php-${spec[0]}-${spec[1]}", "buildApache2Fpm-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildPushTask("nginx-fpm-php-${spec[0]}-${spec[1]}", "buildNginxFpm-${spec[0]}-${spec[1]}")
+        },
+        buildPushTask("frankenphp-8.4-release-zts", 'buildFrankenPHP-8.4-release-zts'),
+        buildPushTask("php-buildonly-rust", 'buildPhpBuildonlyRustImage'),
+        buildPushTask("nginx-fpm-php-8.5-release-musl", 'buildNginxFpm-8.5-release-musl'),
+        buildPushTask("apache2-mod-php-8.5-release-zts-musl", 'buildApache2Mod-8.5-release-zts-musl'),
+]
+tasks.register('pushAll') {
+    dependsOn allPushTasks
+}
+
+tasks.register('pushBase') {
+    dependsOn 'pushImage-toolchain', 'pushImage-php-deps'
+}
+phpVersions.keySet().each { version ->
+    tasks.register("pushPhp-${version}") {
+        dependsOn allPushTasks.findAll { it.name.contains("-${version}-") }
+    }
+}
+
+def buildMultiArchTask = { String tag ->
+    tasks.register("pushImage-${tag}-multiarch", Exec) {
+        String image = "$pushRepo:$tag"
+        commandLine 'docker', 'buildx', 'imagetools', 'create',
+                '-t', image, "$image-aarch64", "$image-amd64"
+    }
+}
+def allImageTags = allPushTasks.collect { it.name - ~/\ApushImage-/ }
+def allMultiArchTasks = allImageTags.collect { buildMultiArchTask(it) }
+tasks.register('pushMultiArch') {
+    dependsOn allMultiArchTasks
+}
+
+def signMultiArchTask = { String tag, requirement ->
+    tasks.register("signImage-${tag}-multiarch", Exec) {
+        String image = "$pushRepo:$tag"
+        description = "Sign image $image"
+        dependsOn requirement
+
+        doFirst {
+            def proc = ['docker', 'buildx', 'imagetools', 'inspect',
+                    '--format', '{{.Manifest.Digest}}', image].execute()
+            proc.waitForOrKill(30_000)
+            if (proc.exitValue() != 0) {
+                throw new GradleException(
+                        "Failed to get manifest digest for $image: ${proc.err.text}")
+            }
+
+            String digest = proc.text.trim()
+            if (!(digest ==~ /sha256:[0-9a-f]{64}/)) {
+                throw new GradleException(
+                        "Invalid manifest digest for $image: $digest")
+            }
+            commandLine 'ddsign', 'sign', "$image@$digest"
+        }
+    }
+}
+def allSignTasks = allImageTags.withIndex().collect { tag, index ->
+    signMultiArchTask(tag, allMultiArchTasks[index])
+}
+tasks.register('signMultiArch') {
+    dependsOn allSignTasks
+}
+
+// Build a JSON-parsing closure backed by a private copy of groovy-json loaded
+// in an isolated, child-first classloader. FastStringUtils' daemon-global
+// static service cache can otherwise be poisoned permanently by a worker
+// thread whose context classloader lacks the groovy-json service.
+def makeIsolatedJsonParser = {
+    URL jsonJar = groovy.json.JsonSlurper.protectionDomain.codeSource.location
+    ClassLoader parent = groovy.json.JsonSlurper.classLoader
+    def isolated = new URLClassLoader([jsonJar] as URL[], parent) {
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) {
+            // Define groovy-json's own classes locally so they get fresh
+            // static state; delegate everything else (groovy runtime, JDK,
+            // ...) to the parent so types stay mutually compatible.
+            if (name.startsWith('groovy.json.') || name.startsWith('org.apache.groovy.json.')) {
+                synchronized (getClassLoadingLock(name)) {
+                    Class<?> c = findLoadedClass(name) ?: findClass(name)
+                    if (resolve) {
+                        resolveClass(c)
+                    }
+                    return c
+                }
+            }
+            super.loadClass(name, resolve)
+        }
+    }
+    Class<?> slurperClass = isolated.loadClass('groovy.json.JsonSlurper')
+    def ctor = slurperClass.getDeclaredConstructor()
+    def parseText = slurperClass.getMethod('parseText', String)
+    return { String text ->
+        // ServiceLoader (inside the isolated FastStringUtils) uses the thread
+        // context classloader; point it at our loader so the service resolves
+        // regardless of which thread runs the parse.
+        def prev = Thread.currentThread().contextClassLoader
+        Thread.currentThread().contextClassLoader = isolated
+        try {
+            parseText.invoke(ctor.newInstance(), text)
+        } finally {
+            Thread.currentThread().contextClassLoader = prev
+        }
+    }
+}
+
+task generateTagMappings {
+    description = "Generate tag_mappings.gradle file with SHA256 hashes for all pushed images"
+    def outputFile = file("${project.rootDir}/gradle/tag_mappings.gradle")
+    outputs.file outputFile
+
+    doLast {
+        def parseJson = makeIsolatedJsonParser()
+        def tagMappings = new java.util.concurrent.ConcurrentHashMap<String, String>()
+        def customThreadPool = new java.util.concurrent.ForkJoinPool(10)
+
+        try {
+            customThreadPool.submit {
+                allImageTags.parallelStream().forEach { tag ->
+                    def imageRef = "${repo}:${tag}"
+
+                    def retries = 3
+
+                    boolean success = false
+                    while (retries-- > 0 && !success) {
+                        try {
+                            def proc = ['docker', 'buildx', 'imagetools', 'inspect',
+                                    '--format', '{{json .Manifest.Digest}}', imageRef].execute()
+                            proc.waitForOrKill(10_000)
+
+                            if (proc.exitValue() == 0) {
+                                String sha256 = parseJson(proc.text)
+                                tagMappings[tag] = sha256
+                                println "${imageRef} → ${sha256}"
+                                success = true
+                            } else {
+                                def errorMsg = "Failed to get manifest for ${imageRef}: ${proc.err.text}"
+                                if (retries == 0) {
+                                    throw new GradleException(errorMsg)
+                                } else {
+                                    println "${imageRef} → ${errorMsg} (will retry)"
+                                }
+                            }
+                        } catch (Exception e) {
+                            def errorMsg = "Failed to get manifest for ${imageRef}: ${e.message}"
+                            if (retries == 0) {
+                                throw new GradleException(errorMsg)
+                            } else {
+                                println "${imageRef} → ${errorMsg} (will retry)"
+                            }
+                        }
+                    }
+                }
+            }.get()
+        } finally {
+            customThreadPool.shutdown()
+        }
+
+        outputFile.text = """// Auto-generated tag mappings with SHA256 hashes
+// Generated on ${new Date()}
+
+ext.tag_mappings = [
+${tagMappings.collect { tag, sha256 -> "    '${tag}': '${sha256}'" }.join(',\n')}
+]
+"""
+    }
+}

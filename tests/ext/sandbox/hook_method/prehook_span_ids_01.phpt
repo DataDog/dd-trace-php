@@ -3,7 +3,6 @@ DDTrace\hook_method prehook does not mess up span ids
 --INI--
 zend.assertions=1
 assert.exception=1
-ddtrace.request_init_hook=
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

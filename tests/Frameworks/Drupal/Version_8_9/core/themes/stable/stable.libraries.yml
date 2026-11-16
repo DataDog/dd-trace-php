@@ -1,0 +1,9 @@
+drupal.ajax:
+  version: VERSION
+  js:
+    js/ajax.js: {}
+
+drupal.user:
+  version: VERSION
+  js:
+    js/user.theme.js: {}

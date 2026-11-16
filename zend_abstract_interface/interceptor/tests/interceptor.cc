@@ -1,7 +1,9 @@
 #include <tea/testing/catch2.hpp>
+#include <sandbox/tests/zai_tests_common.hpp>
 
 extern "C" {
 #include <hook/hook.h>
+#include <sandbox/sandbox.h>
 #include <tea/extension.h>
 #include <ext/standard/basic_functions.h>
 #if PHP_VERSION_ID >= 80000
@@ -12,6 +14,7 @@ extern "C" {
 
     static PHP_MINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_minit();
+        zai_hook_ginit();
         return SUCCESS;
     }
 
@@ -38,6 +41,7 @@ extern "C" {
     }
 
     static PHP_MSHUTDOWN_FUNCTION(ddtrace_testing_hook) {
+        zai_hook_gshutdown();
         zai_hook_mshutdown();
         return SUCCESS;
     }
@@ -117,15 +121,15 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
 
 #define INSTALL_HOOK(fn) INSTALL_CLASS_HOOK("", fn)
 #define INSTALL_CLASS_HOOK(class, fn) REQUIRE(zai_hook_install( \
-    ZAI_STRL_VIEW(class), \
-    ZAI_STRL_VIEW(fn), \
+    ZAI_STRL(class), \
+    ZAI_STRL(fn), \
     zai_hook_test_begin, \
     zai_hook_test_end, \
     ZAI_HOOK_AUX(NULL, NULL), \
     4) != -1)
 #define INSTALL_GENERATOR_HOOK(fn, resume, yield) REQUIRE(zai_hook_install_generator( \
-                                               ZAI_STRL_VIEW(""), \
-                                               ZAI_STRL_VIEW(fn), \
+                                               ZAI_STR_EMPTY, \
+                                               ZAI_STRL(fn), \
                                                zai_hook_test_begin,    \
                                                resume, \
                                                yield, \
@@ -134,8 +138,8 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
                                                4) != -1)
 #define CALL_FN(fn, ...) do { \
     zval result; \
-    zai_string_view _fn_name = ZAI_STRL_VIEW(fn);               \
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0)); \
+    zai_str _fn_name = ZAI_STRL(fn);               \
+    REQUIRE(zai_test_call_global_with_0_params(_fn_name, &result)); \
     __VA_ARGS__               \
     zval_ptr_dtor(&result);                          \
 } while (0)
@@ -237,7 +241,6 @@ INTERCEPTOR_TEST_CASE("internal function throws", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
-#if PHP_VERSION_ID >= 50500
 INTERCEPTOR_TEST_CASE("generator function intercepting from internal call", {
     INSTALL_HOOK("generator");
     CALL_FN("generator", CHECK(zai_hook_test_end_invocations == 0););
@@ -403,7 +406,7 @@ static void zai_hook_test_yield_multi_gen(zend_ulong invocation, zend_execute_da
 INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from multi-generator", {
     int32_t *zai_hook_test_multi_yield_invocations = (int32_t *)calloc(1, 4);
     INSTALL_GENERATOR_HOOK("yieldFromInnerGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
-    REQUIRE(zai_hook_install_generator(ZAI_STRL_VIEW(""),ZAI_STRL_VIEW("yieldFromMultiGenerator"),
+    REQUIRE(zai_hook_install_generator(ZAI_STR_EMPTY,ZAI_STRL("yieldFromMultiGenerator"),
                 zai_hook_test_begin, zai_hook_test_resume, zai_hook_test_yield_multi_gen, zai_hook_test_end,
                 ZAI_HOOK_AUX(zai_hook_test_multi_yield_invocations, free), 4) != -1);
     ++zai_hook_test_yield_invocations;
@@ -464,7 +467,6 @@ INTERCEPTOR_TEST_CASE("generator with finally and return intercepting", {
     CHECK(zai_hook_test_end_invocations == 1);
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
-#endif
 
 INTERCEPTOR_TEST_CASE("generator with finally and return value intercepting", {
     INSTALL_HOOK("generatorWithFinallyReturnValue");
@@ -478,9 +480,8 @@ INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     INSTALL_HOOK("bailout");
 
     zval result;
-    zai_string_view _fn_name = ZAI_STRL_VIEW("bailout");
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0) == false);
-
+    zai_str fn_name = ZAI_STRL("bailout");
+    REQUIRE(!zai_test_call_global_with_0_params(fn_name, &result));
     REQUIRE(CG(unclean_shutdown));
 
 #if PHP_VERSION_ID < 80000
@@ -495,3 +496,20 @@ INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
+INTERCEPTOR_TEST_CASE("bailout in yielded from generator runs end handlers of delegating generators", {
+    INSTALL_HOOK("bailoutOuterGenerator");
+    INSTALL_HOOK("bailoutInnerGenerator");
+
+    zval result;
+    zai_str fn_name = ZAI_STRL("runBailoutYieldFromGenerator");
+    REQUIRE(!zai_test_call_global_with_0_params(fn_name, &result));
+    REQUIRE(CG(unclean_shutdown));
+
+#if PHP_VERSION_ID < 80000
+    php_call_shutdown_functions();
+#endif
+
+    CHECK(zai_hook_test_begin_invocations == 2);
+    CHECK(zai_hook_test_end_invocations == 2);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});

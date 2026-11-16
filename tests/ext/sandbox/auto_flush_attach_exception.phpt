@@ -3,8 +3,7 @@ Auto-flushing will attach an exception during exception cleanup
 --DESCRIPTION--
 @see https://github.com/DataDog/dd-trace-php/issues/879
 --ENV--
-DD_TRACE_AUTO_FLUSH_ENABLED=1
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -35,5 +34,5 @@ try {
 ?>
 --EXPECTF--
 Caught exception: Oops!
-Flushing trace of size 2 to send-queue for %s
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] Flushing v1 trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

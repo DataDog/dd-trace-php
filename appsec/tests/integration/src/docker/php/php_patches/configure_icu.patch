@@ -1,0 +1,232 @@
+--- configure	2021-10-22 15:34:45.016504348 +0100
++++ configure	2021-11-16 18:08:54.941056099 +0000
+@@ -44706,6 +44701,208 @@
+     PHP_ICU_DIR=DEFAULT
+   fi
+ 
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for location of ICU headers and libraries" >&5
++$as_echo_n "checking for location of ICU headers and libraries... " >&6; }
++  found_icu=no
++
++    if test -z "$PKG_CONFIG"; then
++    # Extract the first word of "pkg-config", so it can be a program name with args.
++set dummy pkg-config; ac_word=$2
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
++$as_echo_n "checking for $ac_word... " >&6; }
++if ${ac_cv_path_PKG_CONFIG+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  case $PKG_CONFIG in
++  [\\/]* | ?:[\\/]*)
++  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
++  ;;
++  *)
++  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
++for as_dir in $PATH
++do
++  IFS=$as_save_IFS
++  test -z "$as_dir" && as_dir=.
++    for ac_exec_ext in '' $ac_executable_extensions; do
++  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
++    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
++    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
++    break 2
++  fi
++done
++  done
++IFS=$as_save_IFS
++
++  test -z "$ac_cv_path_PKG_CONFIG" && ac_cv_path_PKG_CONFIG="no"
++  ;;
++esac
++fi
++PKG_CONFIG=$ac_cv_path_PKG_CONFIG
++if test -n "$PKG_CONFIG"; then
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
++$as_echo "$PKG_CONFIG" >&6; }
++else
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
++$as_echo "no" >&6; }
++fi
++
++
++  fi
++
++    if test "$PHP_ICU_DIR" = "DEFAULT" && test -x "$PKG_CONFIG" && $PKG_CONFIG --exists icu-uc icu-io icu-i18n; then
++    if $PKG_CONFIG --atleast-version=40 icu-uc; then
++      found_icu=yes
++      icu_version_full=`$PKG_CONFIG --modversion icu-uc`
++      ac_IFS=$IFS
++      IFS="."
++      set $icu_version_full
++      IFS=$ac_IFS
++      icu_version=`expr $1 \* 1000 + $2`
++      { $as_echo "$as_me:${as_lineno-$LINENO}: result: found $icu_version_full" >&5
++$as_echo "found $icu_version_full" >&6; }
++
++      ICU_LIBS=`$PKG_CONFIG --libs icu-uc icu-io icu-i18n`
++      ICU_INCS=`$PKG_CONFIG --cflags-only-I icu-uc icu-io icu-i18n`
++      ICU_CXXFLAGS="-DU_USING_ICU_NAMESPACE=1"
++
++      { $as_echo "$as_me:${as_lineno-$LINENO}: result: found $ICU_VERSION" >&5
++$as_echo "found $ICU_VERSION" >&6; }
++
++
++  for ac_i in $ICU_LIBS; do
++    case $ac_i in
++    -pthread)
++      if test "$ext_shared" = "yes"; then
++        INTL_SHARED_LIBADD="$INTL_SHARED_LIBADD -pthread"
++      else
++
++
++  unique=`echo $ac_i|$SED 's/[^a-zA-Z0-9]/_/g'`
++
++  cmd="echo $ac_n \"\$EXTRA_LDFLAGS$unique$ac_c\""
++  if test -n "$unique" && test "`eval $cmd`" = "" ; then
++    eval "EXTRA_LDFLAGS$unique=set"
++    EXTRA_LDFLAGS="$EXTRA_LDFLAGS $ac_i"
++  fi
++
++      fi
++    ;;
++    -l*)
++      ac_ii=`echo $ac_i|cut -c 3-`
++
++
++  case $ac_ii in
++  c|c_r|pthread*) ;;
++  *)
++    if test "$ext_shared" = "yes"; then
++        INTL_SHARED_LIBADD="$INTL_SHARED_LIBADD -l$ac_ii"
++    else
++
++
++  case $ac_ii in
++  c|c_r|pthread*) ;;
++  *)
++      LIBS="$LIBS -l$ac_ii"
++   ;;
++  esac
++
++
++    fi
++   ;;
++  esac
++
++
++    ;;
++    -L*)
++      ac_ii=`echo $ac_i|cut -c 3-`
++
++  if test "$ac_ii" != "/usr/$PHP_LIBDIR" && test "$ac_ii" != "/usr/lib"; then
++
++  if test -z "$ac_ii" || echo "$ac_ii" | grep '^/' >/dev/null ; then
++    ai_p=$ac_ii
++  else
++
++    ep_dir=`echo $ac_ii|$SED 's%/*[^/][^/]*/*$%%'`
++
++    ep_realdir=`(cd "$ep_dir" && pwd)`
++    ai_p="$ep_realdir"/`basename "$ac_ii"`
++  fi
++
++
++      if test "$ext_shared" = "yes"; then
++        INTL_SHARED_LIBADD="-L$ai_p $INTL_SHARED_LIBADD"
++        test -n "$ld_runpath_switch" && INTL_SHARED_LIBADD="$ld_runpath_switch$ai_p $INTL_SHARED_LIBADD"
++      else
++
++
++
++  unique=`echo $ai_p|$SED 's/[^a-zA-Z0-9]/_/g'`
++
++  cmd="echo $ac_n \"\$LIBPATH$unique$ac_c\""
++  if test -n "$unique" && test "`eval $cmd`" = "" ; then
++    eval "LIBPATH$unique=set"
++
++    test -n "$ld_runpath_switch" && LDFLAGS="$LDFLAGS $ld_runpath_switch$ai_p"
++    LDFLAGS="$LDFLAGS -L$ai_p"
++    PHP_RPATHS="$PHP_RPATHS $ai_p"
++
++  fi
++
++
++      fi
++
++  fi
++
++    ;;
++    esac
++  done
++
++
++  for ac_i in $ICU_INCS; do
++    case $ac_i in
++    -I*)
++      ac_ii=`echo $ac_i|cut -c 3-`
++
++  if test "$ac_ii" != "/usr/include"; then
++
++  if test -z "$ac_ii" || echo "$ac_ii" | grep '^/' >/dev/null ; then
++    ai_p=$ac_ii
++  else
++
++    ep_dir=`echo $ac_ii|$SED 's%/*[^/][^/]*/*$%%'`
++
++    ep_realdir=`(cd "$ep_dir" && pwd)`
++    ai_p="$ep_realdir"/`basename "$ac_ii"`
++  fi
++
++
++
++  unique=`echo $ai_p|$SED 's/[^a-zA-Z0-9]/_/g'`
++
++  cmd="echo $ac_n \"\$INCLUDEPATH$unique$ac_c\""
++  if test -n "$unique" && test "`eval $cmd`" = "" ; then
++    eval "INCLUDEPATH$unique=set"
++
++      if test ""; then
++        INCLUDES="-I$ai_p $INCLUDES"
++      else
++        INCLUDES="$INCLUDES -I$ai_p"
++      fi
++
++  fi
++
++  fi
++
++    ;;
++    esac
++  done
++
++    else
++      as_fn_error $? "ICU version 4.0 or later required." "$LINENO" 5
++    fi
++  fi
++
++    if test "$found_icu" = "no"; then
+   if test "$PHP_ICU_DIR" = "DEFAULT"; then
+         # Extract the first word of "icu-config", so it can be a program name with args.
+ set dummy icu-config; ac_word=$2
+@@ -44753,9 +44950,6 @@
+     ICU_CONFIG="$PHP_ICU_DIR/bin/icu-config"
+   fi
+ 
+-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for location of ICU headers and libraries" >&5
+-$as_echo_n "checking for location of ICU headers and libraries... " >&6; }
+-
+     icu_install_prefix=`$ICU_CONFIG --prefix 2> /dev/null`
+   if test "$?" != "0" || test -z "$icu_install_prefix"; then
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+@@ -44912,6 +45106,10 @@
+     esac
+   done
+ 
++
++      ICU_CXXFLAGS=`$ICU_CONFIG --cxxflags`
++      ICU_CXXFLAGS="$ICU_CXXFLAGS -DU_USING_ICU_NAMESPACE=1"
++    fi
+   fi
+ 
+ 

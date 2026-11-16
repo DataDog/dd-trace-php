@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class FatalErrorTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }
@@ -25,6 +25,10 @@ final class FatalErrorTest extends WebFrameworkTestCase
 
     public function testScenario()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped("Test doesn't work in coverage mode");
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Fatal error tracking', '/fatal');
             $this->call($spec);
@@ -38,13 +42,15 @@ final class FatalErrorTest extends WebFrameworkTestCase
                     'autoload',
                     'web',
                     'GET /fatal'
-                )->withExactTags([
+                )->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/fatal',
+                    'http.url' => 'http://localhost/fatal',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ])
                 ->setError("E_ERROR", "Intentional E_ERROR")
-                ->withExistingTagsNames(['error.stack']),
+                ->withExistingAttributeNames(['error.stack']),
             ]
         );
     }

@@ -1,6 +1,17 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 CENTOS6_PHP_VERSIONS:=7.0.centos6 7.1.centos6 7.2.centos6 7.3.centos6 7.4.centos6 8.0.centos6
 
+INSTALLER_DOCKER_ARGS = \
+	$(if $(INSTALLER_DOCKER_NETWORK),--network $(INSTALLER_DOCKER_NETWORK)) \
+	$(if $(INSTALLER_REPOSITORY_URL),--env DD_TEST_INSTALLER_REPO=$(INSTALLER_REPOSITORY_URL))
+INSTALLER_DOCKER_RUN = docker run --rm -i \
+	-v $(shell pwd)/../../:/app \
+	--env-file $(shell pwd)/.env \
+	$(INSTALLER_DOCKER_ARGS) \
+	-e CIRCLECI \
+	-e GITHUB_RELEASES_MIRROR \
+	--workdir=/app
+
 .PHONY: $(CENTOS6_PHP_VERSIONS)
 
 $(CENTOS6_PHP_VERSIONS): %.centos6:
@@ -19,7 +30,7 @@ $(CENTOS6_PHP_VERSIONS): %.centos6:
 #  2. From this folder:
 #       - Example alpine: make verify_alpine DOCKER_IMAGE=alpine:3.10 PHP_PACKAGE="php7 php7-fpm"
 #       - Example centos: make verify_centos DOCKER_IMAGE=centos:7 PHP_MAJOR=7 PHP_MINOR=4
-#       - Example debian: make verify_debian DOCKER_IMAGE=debian:buster INSTALL_MODE=sury PHP_VERSION=7.4
+#       - Example debian: make verify_debian DOCKER_IMAGE=debian:bookworm INSTALL_MODE=sury PHP_VERSION=7.4
 verify_alpine:
 	docker-compose run --rm \
 		-e VERIFY_APACHE=no \
@@ -42,6 +53,22 @@ verify_debian:
 		debian \
 		dockerfiles/verify_packages/verify.sh
 
+# Thread-mode sidecar under a privilege-dropping PHP-FPM (root master, www-data workers).
+# Asserts the request is served and traced, that the agent-response shared memory is owned by
+# and named for the worker user, and that the sidecar threads dropped while FPM's own main
+# thread did not. Linux only: per-thread credentials are a Linux facility.
+#   Example: make verify_fpm_thread_sidecar_uid DOCKER_IMAGE=datadog/dd-trace-ci:php-8.3_bookworm-14 INSTALL_MODE=sury PHP_VERSION=8.3
+verify_fpm_thread_sidecar_uid:
+	docker-compose run --rm \
+		-e INSTALL_MODE="$(INSTALL_MODE)" \
+		-e PHP_PACKAGE="$(PHP_PACKAGE)" \
+		-e PHP_VERSION="$(PHP_VERSION)" \
+		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
+		-e PHP_FPM_BIN="$(PHP_FPM_BIN)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
+		debian \
+		dockerfiles/verify_packages/verify_fpm_thread_sidecar_uid.sh
+
 verify_centos:
 	docker-compose run --rm \
 		-e PHP_MAJOR="$(PHP_MAJOR)" \
@@ -51,17 +78,19 @@ verify_centos:
 		centos \
 		dockerfiles/verify_packages/verify.sh
 
-# Centos 6 is verified using the existing images due to difficulties building it after the repos have been disabled.
-verify_centos_6: $(CENTOS6_PHP_VERSIONS)
-
 verify_tar_root:
 	docker-compose run --rm \
 		-e PHP_VERSION="$(PHP_VERSION)" \
 		tar_gz \
 		bash dockerfiles/verify_packages/verify_tar_gz_root.sh
 
-test_legacy_installer_no_ext_json:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/verify_no_ext_json.sh
+../../build/packages/datadog-setup.php: ../../VERSION
+	(cd ../..; tooling/bin/generate-installers.sh $(shell cat ../../VERSION) build/packages)
+
+global_test_dependencies: ../../build/packages/datadog-setup.php
+
+test_legacy_installer_no_ext_json: global_test_dependencies
+	docker run --rm -i -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/verify_no_ext_json.sh
 
 test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
@@ -73,11 +102,15 @@ test_install_no_ldconfig_in_path.sh \
 test_install_without_scan_dir.sh \
 test_install_add_missing_ini_settings.sh \
 test_install_custom_ini_name.sh \
+test_install_custom_ini_file.sh \
+test_install_custom_ext_dir_and_ini.sh \
 test_install_custom_installation_directory.sh \
+test_install_custom_extension_directory.sh \
 test_install_custom_installation_root.sh \
 test_install_non_root_user.sh \
 test_install_subdir_from_file.sh \
 test_install_subdir_from_version.sh \
+test_install_umask_permissions.sh \
 test_install_uninstall_install_tracer_appsec.sh \
 test_install_uninstall_install_tracer_profiling.sh \
 test_install_uninstall_install_tracer.sh \
@@ -85,47 +118,56 @@ test_profiler_install_disabled.sh \
 test_profiler_install_enabled.sh \
 test_uninstall.sh \
 test_upgrade_from_legacy.sh \
+test_upgrade_from_legacy_appsec.sh \
 test_upgrade_from_php_installer.sh \
-	:
+test_upgrade_preserves_legacy_profiling.sh \
+test_upgrade_preserves_recent_profiling.sh \
+	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_debug.sh \
 test_first_install_php_debugzts.sh \
-test_profiler_install_unsupported_debug.sh \
-	:
+test_profiler_install_enabled_debug.sh \
+	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_zts.sh \
-	:
+	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_install_non_binary.sh \
 test_fpm.sh \
-	:
+	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
 
 test_profiler_install_unsupported.sh \
-	:
+	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
+test_alpine_no_libgcc_s.sh \
 test_first_install_alpine.sh \
 test_alpine_install_no_ext_curl_no_curl_cli.sh \
 test_alpine_install_no_ext_curl_yes_curl_cli.sh \
-	:
+	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) alpine:3.13 sh dockerfiles/verify_packages/installer/$(@)
 
-test_alpine_no_libexecinfo.sh:
+test_alpine_zts_no_zend_signals.sh \
+	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) dunglas/frankenphp:php8.3.12-alpine sh dockerfiles/verify_packages/installer/$(@)
 
-test_install_on_plesk.sh:
+test_alpine_no_libexecinfo.sh: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app plesk/plesk:18.0 sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
+
+test_install_on_plesk.sh: global_test_dependencies
+	@echo "################### $(@) ###################"
+	$(INSTALLER_DOCKER_RUN) plesk/plesk:18.0 sh dockerfiles/verify_packages/installer/$(@)

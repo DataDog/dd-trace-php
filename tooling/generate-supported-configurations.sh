@@ -1,0 +1,420 @@
+#!/bin/bash
+# Generates metadata/supported-configurations.json from config definitions.
+#
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+readonly CONFIG_HEADER_FILES=(
+    "ext/configuration.h"
+)
+readonly CONFIG_DEPENDENCY_FILES=(
+    "tracer/configuration_dependencies.h"
+    "tracer/configuration.h"
+    "profiling/configuration.h"
+    "appsec/src/extension/configuration_dependencies.h"
+    "appsec/src/extension/configuration_table.h"
+)
+readonly OTEL_CONFIG_FILES=(
+    "ext/otel_config.c"
+    "tracer/tracer_otel_config.c"
+    "src/DDTrace/OpenTelemetry/Configuration.php"
+)
+readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
+readonly CONFIG_GENERATION_INPUT_FILES=(
+    "${CONFIG_HEADER_FILES[@]}"
+    "${CONFIG_DEPENDENCY_FILES[@]}"
+    "${OTEL_CONFIG_FILES[@]}"
+    "${GENERATOR_SCRIPT_FILE}"
+)
+
+if [[ "${1:-}" == "--print-input-files" ]]; then
+    printf '%s\n' "${CONFIG_GENERATION_INPUT_FILES[@]}"
+    exit 0
+fi
+if [[ $# -gt 0 ]]; then
+    echo "Usage: $0 [--print-input-files]" >&2
+    exit 1
+fi
+
+# Maps C config type to JSON schema type.
+PHP_CODE_FILE=$(mktemp "${TMPDIR:-/tmp}/ddtrace-supported-configurations.XXXXXX.php")
+trap 'rm -f "$PHP_CODE_FILE"' EXIT
+
+cat >"$PHP_CODE_FILE" <<'ENDPHP'
+<?php
+function map_type($raw, $parser) {
+    $raw = trim($raw);
+    if (preg_match('/^CUSTOM\((.+)\)$/', $raw, $m)) {
+        $inner = trim($m[1]);
+        // Most CUSTOM(INT) configurations accept textual enum values and only
+        // decode them to integers internally. Sampling distances and AppSec's
+        // _parse_uint* (appsec/src/extension/configuration_dependencies.h) are
+        // different: their custom parser validates an integer.
+        if ($inner === 'INT') {
+            $int_parsers = ['ddog_php_prof_config_parse_sampling_distance', '_parse_uint32', '_parse_uint64'];
+            return in_array($parser, $int_parsers, true) ? 'int' : 'string';
+        }
+        if ($inner === 'MAP') {
+            return 'map';
+        }
+        $raw = $inner;
+    }
+    $map = [
+        'BOOL' => 'boolean', 'STRING' => 'string', 'INT' => 'int', 'DOUBLE' => 'decimal',
+        'MAP' => 'map', 'JSON' => 'array', 'SET_OR_MAP_LOWERCASE' => 'map',
+        'SET' => 'array', 'SET_LOWERCASE' => 'array',
+        'uint32_t' => 'int', 'uint64_t' => 'int',
+    ];
+    return $map[$raw] ?? 'string';
+}
+
+function normalize_default($v, $type, $name) {
+    // PHP INI represents an unset optional URL as an empty string, which
+    // selects the managed endpoint: report that semantic default rather than
+    // an empty custom endpoint.
+    if ($name === 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL' && $v === '') {
+        return null;
+    }
+    if (strtoupper($v) === 'NULL') {
+        // OTEL env vars are string-typed and use "" (not null) as their "unset" default.
+        if (strpos($name, 'OTEL_') === 0) {
+            return '';
+        }
+        return null;
+    }
+    if ($type === 'boolean') {
+        if ($v === '0') return 'false';
+        if ($v === '1') return 'true';
+    }
+    // C-preprocessed string defaults keep one extra escaping layer.
+    // Normalize all string-typed defaults consistently.
+    if ($type === 'string') {
+        $v = stripslashes($v);
+    }
+    return $v;
+}
+
+function normalize_aliases($aliases, $canonical) {
+    // Local aliases only need to be a subset of the configuration registry.
+    // Keep runtime-compatible legacy aliases unpublished until the registry's
+    // existing implementation versions include them.
+    $unpublishedAliases = [
+        'DD_PROFILING_ALLOCATION_ENABLED' => [
+            'DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED',
+        ],
+        'DD_PROFILING_EXCEPTION_ENABLED' => [
+            'DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED',
+        ],
+        'DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE' => [
+            'DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE',
+        ],
+    ];
+    $excluded = array_flip($unpublishedAliases[$canonical] ?? []);
+
+    $out = [];
+    foreach ($aliases as $a) {
+        if ($a !== '' && $a !== $canonical && !isset($excluded[$a])) {
+            $out[$a] = true;
+        }
+    }
+    return array_keys($out);
+}
+
+function normalize_supported_entries($entries, $canonical) {
+    if (!is_array($entries)) {
+        return [];
+    }
+    $normalized = [];
+    foreach ($entries as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        if (isset($entry["aliases"]) && is_array($entry["aliases"])) {
+            $aliases = normalize_aliases($entry["aliases"], $canonical);
+            if (!empty($aliases)) {
+                sort($aliases);
+                $entry["aliases"] = $aliases;
+            } else {
+                unset($entry["aliases"]);
+            }
+        }
+        $normalized[] = $entry;
+    }
+    return $normalized;
+}
+
+function add_supported_entry(&$supported, $name, $entry) {
+    // This experimental runtime setting predates its registry metadata. Do not
+    // publish it until an implementation version exists in the registry.
+    if ($name === 'DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED') {
+        return;
+    }
+
+    // Keep the first-seen source as canonical for duplicate names.
+    if (!isset($supported[$name])) {
+        $supported[$name] = [$entry];
+    }
+}
+
+function add_otel_entries(&$supported, $names, $metadata, $sensitiveNames = []) {
+    $names = array_unique($names);
+    sort($names);
+    foreach ($names as $name) {
+        $sensitive = isset($sensitiveNames[$name]);
+        if (isset($metadata[$name])) {
+            // The SDK metadata table is authoritative for OTEL vars: overwrite any
+            // entry derived from an extension CONFIG of the same name (e.g.
+            // OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) so the published default is the
+            // SDK's rather than the extension's runtime resolution.
+            [$type, $default] = $metadata[$name];
+            $entry = ["implementation" => "A", "type" => $type, "default" => $default];
+            if ($sensitive) {
+                $entry["sensitive"] = true;
+            }
+            $supported[$name] = [$entry];
+        } else {
+            // Not in the table: an OTEL var resolved by the SDK that we don't model.
+            $entry = ["implementation" => "A", "type" => "string", "default" => ""];
+            if ($sensitive) {
+                $entry["sensitive"] = true;
+            }
+            add_supported_entry($supported, $name, $entry);
+        }
+    }
+}
+
+$supported = [];
+foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLine) {
+    [$configLine, $options] = array_pad(explode("|CONFIG_OPTIONS|", $configLine, 2), 2, '');
+    $configLine = preg_replace('((\\\\{2})*\K"\s*")', '', $configLine);
+    $config = str_getcsv(trim($configLine), ",", '"', '\\');
+    if (count($config) < 4) {
+        continue;
+    }
+    [$type, $name, $default] = array_map('trim', array_slice($config, 0, 3));
+    $aliases = count($config) > 3 ? array_slice($config, 3) : [];
+    $parser = preg_match('/\\.parser\\s*=\\s*([A-Za-z0-9_]+)/', $options, $parserMatch)
+        ? $parserMatch[1] : '';
+    $mappedType = map_type($type, $parser);
+    $entry = [
+        "implementation" => "A",
+        "type" => $mappedType,
+        "default" => normalize_default($default, $mappedType, $name),
+    ];
+    // $options is the stringized designated-initializer tail of the CONFIG/CALIAS
+    // macro invocation (e.g. ".ini_change = ..., .sensitive = 1"), captured above
+    // via the |CONFIG_OPTIONS| marker rather than as a CSV field, so it can't be
+    // confused by embedded commas.
+    if (preg_match('/\.sensitive\s*=\s*(1|true)\b/', $options)) {
+        $entry["sensitive"] = true;
+    }
+    $norm = normalize_aliases($aliases, $name);
+    if (!empty($norm)) {
+        sort($norm);
+        $entry["aliases"] = $norm;
+    }
+    add_supported_entry($supported, $name, $entry);
+}
+
+// Type and default for OTEL configs, sourced from the open-telemetry/sdk PHP
+// package (Common/Configuration/ValueTypes.php and Defaults.php, v1.x), since
+// these vars are resolved by the SDK rather than the extension. SDK enum/mixed
+// types map to the schema's "string", list -> "array", map -> "map", and
+// integer -> "int"; per the schema every default is a string and map/array
+// defaults are "". The *_LOGS_* vars are undefined in the SDK's ValueTypes and
+// mirror their generic OTLP counterparts. The metrics temporality default is the
+// SDK value "cumulative"; DatadogResolver overrides it to "delta" at runtime.
+// These SDK defaults are authoritative even where the extension also defines the
+// config (e.g. OTEL_EXPORTER_OTLP_METRICS_ENDPOINT), so the published default
+// reflects the OTel spec, not the extension's runtime resolution.
+$otelMetadata = [
+    "OTEL_BLRP_EXPORT_TIMEOUT"                          => ["int",    "30000"],
+    "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE"                   => ["int",    "512"],
+    "OTEL_BLRP_MAX_QUEUE_SIZE"                          => ["int",    "2048"],
+    "OTEL_BLRP_SCHEDULE_DELAY"                          => ["int",    "1000"],
+    "OTEL_EXPORTER_OTLP_ENDPOINT"                       => ["string", "http://localhost:4318"],
+    "OTEL_EXPORTER_OTLP_HEADERS"                        => ["map",    ""],
+    "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT"                  => ["string", "http://localhost:4318"],
+    "OTEL_EXPORTER_OTLP_LOGS_HEADERS"                   => ["map",    null],
+    "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL"                  => ["string", "http/protobuf"],
+    "OTEL_EXPORTER_OTLP_LOGS_TIMEOUT"                   => ["int",    "10000"],
+    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"               => ["string", "http://localhost:4318"],
+    "OTEL_EXPORTER_OTLP_METRICS_HEADERS"                => ["map",    null],
+    "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL"               => ["string", "http/protobuf"],
+    "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE" => ["string", "cumulative"],
+    "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT"                => ["int",    "10000"],
+    "OTEL_EXPORTER_OTLP_PROTOCOL"                       => ["string", "http/protobuf"],
+    "OTEL_EXPORTER_OTLP_TIMEOUT"                        => ["int",    "10000"],
+    "OTEL_LOG_LEVEL"                                    => ["string", "info"],
+    "OTEL_LOGS_EXPORTER"                                => ["array",  "otlp"],
+    "OTEL_METRICS_EXPORTER"                             => ["array",  "otlp"],
+    "OTEL_METRIC_EXPORT_INTERVAL"                       => ["int",    "60000"],
+    "OTEL_METRIC_EXPORT_TIMEOUT"                        => ["int",    "30000"],
+    "OTEL_PROPAGATORS"                                  => ["array",  "tracecontext,baggage"],
+    "OTEL_RESOURCE_ATTRIBUTES"                          => ["map",    ""],
+    "OTEL_SERVICE_NAME"                                 => ["string", ""],
+    "OTEL_TRACES_EXPORTER"                              => ["array",  "otlp"],
+    "OTEL_TRACES_SAMPLER"                               => ["string", "parentbased_always_on"],
+    "OTEL_TRACES_SAMPLER_ARG"                           => ["string", ""],
+];
+
+// OTEL env vars the C extension reads directly via ZAI_STRL("OTEL_...").
+$otelPaths = ["../ext/otel_config.c", "../tracer/tracer_otel_config.c"];
+foreach ($otelPaths as $otelPath) {
+    if (file_exists($otelPath)) {
+        preg_match_all('/ZAI_STRL\("(OTEL_[A-Z0-9_]+)"\)/', file_get_contents($otelPath), $m);
+        add_otel_entries($supported, $m[1], $otelMetadata);
+    }
+}
+
+$otelWhitelistSource = file_get_contents("../src/DDTrace/OpenTelemetry/Configuration.php");
+preg_match('/OTEL_CONFIG_WHITELIST\s*=\s*\[(.*?)\]/s', $otelWhitelistSource, $whitelistMatch);
+preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $whitelistMatch[1], $m);
+$otelNames = $m[1];
+preg_match('/OTEL_SENSITIVE_CONFIGURATIONS\s*=\s*\[(.*?)\]/s', $otelWhitelistSource, $sensitiveMatch);
+preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $sensitiveMatch[1], $m);
+$otelSensitiveNames = $m[1];
+add_otel_entries($supported, array_merge($otelNames, $otelSensitiveNames), $otelMetadata, array_fill_keys($otelSensitiveNames, true));
+
+if (empty($supported)) {
+    fwrite(STDERR, "Error: no supported configurations were generated\n");
+    exit(1);
+}
+ksort($supported);
+
+$outputPath = "../metadata/supported-configurations.json";
+$output = [
+    "version" => "2",
+    "supportedConfigurations" => $supported,
+    "deprecations" => (object)[],
+];
+if (file_exists($outputPath)) {
+    $existing = json_decode(file_get_contents($outputPath), true);
+    if (is_array($existing)) {
+        $output["deprecations"] = isset($existing["deprecations"]) && is_array($existing["deprecations"])
+            ? (object)$existing["deprecations"] : (object)[];
+        $existingSupported = $existing["supportedConfigurations"] ?? [];
+        $merged = [];
+        foreach ($supported as $name => $entries) {
+            $generatedEntry = $entries[0];
+            $existingEntries = normalize_supported_entries($existingSupported[$name] ?? [], $name);
+            if (!empty($existingEntries)) {
+                // Existing keys must keep their implementation labels exactly as-is.
+                // Update the "A" entry when present, otherwise update the first entry.
+                $targetIdx = 0;
+                foreach ($existingEntries as $idx => $existingEntry) {
+                    if (($existingEntry["implementation"] ?? null) === "A") {
+                        $targetIdx = $idx;
+                        break;
+                    }
+                }
+                $impl = $existingEntries[$targetIdx]["implementation"] ?? null;
+                $existingEntries[$targetIdx] = $generatedEntry;
+                if ($impl !== null) {
+                    $existingEntries[$targetIdx]["implementation"] = $impl;
+                } else {
+                    unset($existingEntries[$targetIdx]["implementation"]);
+                }
+            } else {
+                $existingEntries[] = $generatedEntry;
+            }
+            $merged[$name] = $existingEntries;
+        }
+        ksort($merged);
+        $output["supportedConfigurations"] = $merged;
+    }
+} else {
+    $output["supportedConfigurations"] = $supported;
+}
+
+$dir = dirname($outputPath);
+if (!is_dir($dir)) {
+    mkdir($dir, 0755, true);
+}
+$json = json_encode($output, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+$json = preg_replace_callback('/^ +/m', function ($m) {
+    return str_repeat('  ', (int)(strlen($m[0]) / 4));
+}, $json);
+file_put_contents($outputPath, $json . "\n");
+echo "Wrote supported configurations to $outputPath\n";
+ENDPHP
+
+cat <<EOT >../ext/version.h
+#ifndef PHP_DDTRACE_VERSION
+#define PHP_DDTRACE_VERSION "$(cat "../VERSION")"
+#endif
+EOT
+
+PHP_VERSION_ID=${PHP_VERSION_ID:-0}
+
+CPP_COMPILER=${CPP_COMPILER:-${CC:-}}
+CPP_COMPILER_CMD=()
+if [[ -n "$CPP_COMPILER" ]]; then
+    read -r -a CPP_COMPILER_CMD <<<"$CPP_COMPILER"
+    # If CC/CPP_COMPILER points to a missing wrapper (e.g. "ccache cc" without ccache),
+    # fall back to auto-discovery below.
+    if [[ ${#CPP_COMPILER_CMD[@]} -gt 0 ]] && ! command -v "${CPP_COMPILER_CMD[0]}" >/dev/null 2>&1; then
+        CPP_COMPILER_CMD=()
+    fi
+fi
+if [[ ${#CPP_COMPILER_CMD[@]} -eq 0 ]]; then
+    for candidate in cc clang gcc; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            CPP_COMPILER_CMD=("$candidate")
+            break
+        fi
+    done
+fi
+if [[ ${#CPP_COMPILER_CMD[@]} -eq 0 ]]; then
+    echo "Error: no C compiler found (tried CC, cc, clang, gcc)" >&2
+    exit 1
+fi
+
+extract_c_supported_configurations() {
+    local header="$1"
+    # Normalize to non-Linux defaults so generated metadata stays stable
+    # across developer machines and CI runners.
+    "${CPP_COMPILER_CMD[@]}" $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F "JSON_CONFIGURATION_MARKER" | tail -n+2
+#undef __linux__
+#define TRACER
+#define PROFILING
+#define APPSEC
+#include "$header"
+
+#undef PHP_VERSION_ID
+#define PHP_VERSION_ID $PHP_VERSION_ID
+#undef DD_SIDECAR_TRACE_SENDER_DEFAULT
+#define DD_SIDECAR_TRACE_SENDER_DEFAULT true
+// Do not expand CALIASES() directly, otherwise parameter counting in macros is broken.
+#define ALTCALIASES(...) ,##__VA_ARGS__
+#define ALT
+#define EXPAND(x) x
+#define CUSTOM(id) id
+// Preserve the literal config type tokens (e.g. CUSTOM(INT)) so the generator can
+// map them to the correct JSON schema type.
+// The designated-initializer tail (.ini_change = ..., .sensitive = true, etc.) is
+// forwarded after a |CONFIG_OPTIONS| marker rather than as a plain CSV field, so
+// the PHP parser can split it out before CSV-parsing the rest of the line -- an
+// embedded comma in that tail (e.g. "a, b") would otherwise be indistinguishable
+// from a real field separator.
+#define CONFIG(type, name, default_value, ...) \
+    #type, #name, default_value, |CONFIG_OPTIONS| #__VA_ARGS__ |NEXT_CONFIG|
+#define CALIAS(type, name, default_value, aliases, ...) \
+    #type, #name, default_value EXPAND(ALT##aliases) |CONFIG_OPTIONS| #__VA_ARGS__ |NEXT_CONFIG|
+
+JSON_CONFIGURATION_MARKER
+#ifdef DD_ALL_CONFIGURATIONS
+DD_ALL_CONFIGURATIONS
+#else
+DD_CONFIGURATION
+#endif
+
+CODE
+}
+
+{
+    for header in "${CONFIG_HEADER_FILES[@]}"; do
+        extract_c_supported_configurations "../$header"
+    done
+} | php "$PHP_CODE_FILE"

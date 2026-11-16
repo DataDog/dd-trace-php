@@ -1,0 +1,119 @@
+<?php
+
+namespace DDTrace\Integrations\Lumen;
+
+use DDTrace\SpanData;
+use DDTrace\SpanKind;
+use DDTrace\Integrations\Integration;
+use DDTrace\Tag;
+
+/**
+ * Lumen Sandboxed integration
+ */
+class LumenIntegration extends Integration
+{
+    const NAME = 'lumen';
+
+    /**
+     * @return int
+     */
+    public static function init(): int
+    {
+        \DDTrace\hook_method(
+            'Laravel\Lumen\Application',
+            '__construct',
+            static function () {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $rootSpan->component = self::NAME;
+                    $rootSpan->spanKind = SpanKind::SERVER;
+                }
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Laravel\Lumen\Application',
+            'prepareRequest',
+            static function (SpanData $span, $args) {
+                $span->component = self::NAME;
+
+                $rootSpan = \DDTrace\root_span();
+                $request = $args[0];
+                $rootSpan->name = 'lumen.request';
+                $rootSpan->service = \dd_trace_env_config('DD_SERVICE') ?: self::NAME;
+                Integration::tagFrameworkServiceSource($rootSpan, LumenIntegration::NAME);
+                if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                    $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->getUri());
+                }
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
+
+                return false;
+            }
+        );
+
+        // convert to non-tracing API
+        $hook = 'posthook';
+        // Extracting resource name as in legacy integration
+        \DDTrace\trace_method(
+            'Laravel\Lumen\Application',
+            'handleFoundRoute',
+            [
+                $hook => static function (SpanData $span, $args) {
+                    $rootSpan = \DDTrace\root_span();
+
+                    $span->service = \dd_trace_env_config('DD_SERVICE') ?: self::NAME;
+
+                    Integration::tagFrameworkServiceSource($span, LumenIntegration::NAME);
+                    $span->type = 'web';
+                    if (count($args) < 1 || !\is_array($args[0])) {
+                        return;
+                    }
+                    $routeInfo = $args[0];
+                    $resourceName = null;
+                    $span->component = self::NAME;
+                    if (isset($routeInfo[1]['uses'])) {
+                        $action = $routeInfo[1]['uses'];
+                        $rootSpan->attributes['lumen.route.action'] = $action;
+                        $span->attributes['lumen.route.action'] = $action;
+                    }
+                    if (isset($routeInfo[1]['as'])) {
+                        $routeAlias = $routeInfo[1]['as'];
+                        $rootSpan->attributes['lumen.route.name'] = $routeAlias;
+                        $span->resource = $routeAlias;
+                        $resourceName = $routeAlias;
+                    }
+                    if (
+                        null !== $resourceName
+                        && !\dd_trace_env_config("DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED")
+                        && \dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
+                    ) {
+                        $method = $rootSpan->attributes[Tag::HTTP_METHOD];
+                        $rootSpan->resource = $method . ' ' . $resourceName;
+                    }
+                },
+            ]
+        );
+
+        $exceptionRender = static function (SpanData $span, $args) {
+            $span->service = \dd_trace_env_config('DD_SERVICE') ?: self::NAME;
+            Integration::tagFrameworkServiceSource($span, LumenIntegration::NAME);
+            $span->type = 'web';
+            if (count($args) < 1 || !\is_a($args[0], 'Throwable')) {
+                return;
+            }
+
+            $span->component = self::NAME;
+
+            $rootSpan = \DDTrace\root_span();
+            $exception = $args[0];
+            $rootSpan->exception = $exception;
+        };
+
+        \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [$hook => $exceptionRender]);
+        \DDTrace\trace_method('Laravel\Lumen\Application', 'sendExceptionToHandler', [$hook => $exceptionRender]);
+
+        // View is rendered in laravel as the method name overlaps
+
+        return Integration::LOADED;
+    }
+}

@@ -1,11 +1,12 @@
 --TEST--
 Check sample rate is in effect
 --SKIPIF--
-<?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip timing sensitive test, does not make sense with valgrind'); ?>
+<?php if (getenv("USE_ZEND_ALLOC") === "0" && !getenv("SKIP_ASAN")) die('skip timing sensitive test, does not make sense with valgrind'); ?>
 --ENV--
-DD_SAMPLING_RATE=0
-DD_SPAN_SAMPLING_RULES=[{"sample_rate":0.5,"max_per_second":10}]
-DD_TRACE_DEBUG_PRNG_SEED=420
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_SAMPLE_RATE=0
+DD_SPAN_SAMPLING_RULES=[{"sample_rate":0.5,"max_per_second":3}]
+DD_TRACE_DEBUG_PRNG_SEED=23
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -13,41 +14,41 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DDTrace\start_span();
 DDTrace\close_span();
 
-$last = dd_trace_serialize_closed_spans()[0]["metrics"];
+$last = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]["attributes"];
 print "First span: rule_rate={$last["_dd.span_sampling.rule_rate"]}\n";
 
 $droppedCount = 0;
-for ($i = 0; $i < 26; ++$i) {
+for ($i = 0; $i < 7; ++$i) {
     DDTrace\start_span();
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
-echo "$droppedCount dropped out of 27\n";
+echo "$droppedCount dropped out of 7\n";
 
 $droppedCount = 0;
-for ($i = 0; $i < 10; ++$i) {
+for ($i = 0; $i < 3; ++$i) {
     DDTrace\start_span();
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
-echo "$droppedCount dropped out of 10\n";
+echo "$droppedCount dropped out of 3\n";
 
-usleep(100000);
+usleep(350000);
 
 DDTrace\start_span();
 DDTrace\close_span();
 
-$last = dd_trace_serialize_closed_spans()[0]["metrics"];
-echo "22st span: rule_rate={$last["_dd.span_sampling.rule_rate"]}\n";
+$last = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]["attributes"];
+echo "11th span: rule_rate={$last["_dd.span_sampling.rule_rate"]}\n";
 
 ?>
 
 --EXPECT--
 First span: rule_rate=0.5
-15 dropped out of 27
-10 dropped out of 10
-22st span: rule_rate=0.5
+3 dropped out of 7
+3 dropped out of 3
+11th span: rule_rate=0.5

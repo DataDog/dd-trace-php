@@ -1,0 +1,8 @@
+{
+    "require": {
+        "stripe/stripe-php": "^13.0"
+    },
+    "autoload-dev": {
+        "files": ["../../../../tests/Appsec/Mock.php"]
+    }
+}

@@ -1,0 +1,1 @@
+{"message":"sampled listFiles","status":"info","timestamp":"2024-07-18T07:55:14.390600+00:00","env":"test","version":"1.0","service":"openai-test","openai.request.method":"GET","openai.request.endpoint":"\/v1\/files","openai.organization.name":"org-1234","openai.user.api_key":"sk-...9d5d","dd.trace_id":"16907363434524120797","dd.span_id":"16907363434524120797"}

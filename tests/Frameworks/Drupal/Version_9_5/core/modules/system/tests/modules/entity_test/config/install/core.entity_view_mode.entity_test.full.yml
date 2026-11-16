@@ -1,0 +1,8 @@
+status: false
+dependencies:
+  module:
+    - entity_test
+id: entity_test.full
+label: Full
+targetEntityType: entity_test
+cache: true

@@ -16,25 +16,29 @@ EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions
 EXTENSION_CFG_DIR=${EXTENSION_BASE_DIR}/etc
 EXTENSION_LOGS_DIR=${EXTENSION_BASE_DIR}/log
 EXTENSION_SRC_DIR=${EXTENSION_BASE_DIR}/dd-trace-sources
-EXTENSION_AUTO_INSTRUMENTATION_FILE=${EXTENSION_SRC_DIR}/bridge/dd_wrap_autoloader.php
+EXTENSION_AUTO_INSTRUMENTATION_PATH=${EXTENSION_SRC_DIR}/src
 INI_FILE_NAME='ddtrace.ini'
 CUSTOM_INI_FILE_NAME='ddtrace-custom.ini'
 
 PATH="${PATH}:/usr/local/bin"
 
+function println() {
+    echo -e '###' "$@"
+}
+
 # We attempt in this order the following binary names:
-#    1. php
-#    2. php8 (some alpine versions install php 8.x from main repo to this binary)
-#    3. php7 (some alpine versions install php 7.x from main repo to this binary)
-#    4. php5 (some alpine versions install php 5.x from main repo to this binary)
+for name in php php8 php83 php82 php81 php80 php7 php74 php73 php72 php71 php70
+do
+    if [ -z "$DD_TRACE_PHP_BIN" ]; then
+        DD_TRACE_PHP_BIN=$(command -v "$name" || true)
+    else
+        break
+    fi
+done
+
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
-    DD_TRACE_PHP_BIN=$(command -v php || true)
-fi
-if [ -z "$DD_TRACE_PHP_BIN" ]; then
-    DD_TRACE_PHP_BIN=$(command -v php8 || true)
-fi
-if [ -z "$DD_TRACE_PHP_BIN" ]; then
-    DD_TRACE_PHP_BIN=$(command -v php7 || true)
+    println 'Unable to locate PHP binary'
+    exit 0
 fi
 
 function invoke_php() {
@@ -44,10 +48,6 @@ function invoke_php() {
     # that should cause no problem in any machine when our tracer is installed.
     # alias invoke_php="$DD_TRACE_PHP_BIN -d memory_limit=128M"
     $DD_TRACE_PHP_BIN -d memory_limit=128M "$*"
-}
-
-function println() {
-    echo -e '###' "$@"
 }
 
 function append_configuration_to_file() {
@@ -202,16 +202,17 @@ elif [[ -n $PHP_DEBUG_BUILD ]]; then
 fi
 
 OS_SPECIFIER=""
-if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${VERSION_SUFFIX}" != "-zts" ]; then
+if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release"); then
     OS_SPECIFIER="-alpine"
 fi
 
-EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}${OS_SPECIFIER}.so"
+# Matches the artifact names: ddtrace-<api>[-alpine][-zts|-debug].so
+EXTENSION_NAME="ddtrace-${PHP_VERSION}${OS_SPECIFIER}${VERSION_SUFFIX}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
 [datadog]
 extension=${EXTENSION_FILE_PATH}
-datadog.trace.request_init_hook=${EXTENSION_AUTO_INSTRUMENTATION_FILE}
+datadog.trace.sources_path=${EXTENSION_AUTO_INSTRUMENTATION_PATH}
 EOF
 )
 

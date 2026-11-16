@@ -1,10 +1,11 @@
 --TEST--
 Use DDTrace\close_span() on span started within internal span
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AUTOFINISH_SPANS=1
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function test() { }
 
@@ -15,21 +16,19 @@ DDTrace\trace_function("test", function($s) {
 
 test();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 // has no effect
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
-Found unfinished span while automatically closing spans with name 'my precious span'
+[ddtrace] [warning] [%d] Found unfinished span while automatically closing spans with name 'my precious span'
 array(2) {
   [0]=>
-  array(9) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -48,9 +47,7 @@ array(2) {
     string(3) "cli"
   }
   [1]=>
-  array(9) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -69,7 +66,7 @@ array(2) {
     string(3) "cli"
   }
 }
-There is no user-span on the top of the stack. Cannot close.
+[ddtrace] [error] [%d] There is no user-span on the top of the stack. Cannot close.
 array(0) {
 }
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

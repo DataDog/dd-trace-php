@@ -1,0 +1,5 @@
+config_id: 42_local_config
+apm_configuration_default:
+  DD_SERVICE: service_from_local_config
+  DD_ENV: env_from_local_config
+  DD_DYNAMIC_INSTRUMENTATION_ENABLED: true

@@ -1,0 +1,57 @@
+--TEST--
+Sample rate is not changed to 0 after first call during a minute when there is appsec upstream
+--SKIPIF--
+<?php
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
+?>
+--ENV--
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_TRACE_AGENT_FLUSH_INTERVAL=333
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
+DD_APM_TRACING_ENABLED=0
+HTTP_X_DATADOG_TRACE_ID=42
+HTTP_X_DATADOG_PARENT_ID=10
+HTTP_X_DATADOG_ORIGIN=datadog
+HTTP_X_DATADOG_SAMPLING_PRIORITY=3
+HTTP_X_DATADOG_TAGS=_dd.p.ts=02
+--INI--
+datadog.trace.agent_test_session_token=background-sender/agent_samplinga
+--FILE--
+<?php
+include __DIR__ . '/../includes/request_replayer.inc';
+
+$rr = new RequestReplayer();
+
+$get_sampling = function() use ($rr) {
+    $root = json_decode($rr->waitForDataAndReplay()["body"], true);
+    return RequestReplayer::chunkPriority($root);
+};
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+dd_trace_internal_fn("synchronous_flush");
+
+echo "First call it is used as heartbeat: {$get_sampling()}\n";
+
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+// reset it for other tests
+dd_trace_internal_fn("synchronous_flush");
+echo "This call has the same sample rate: {$get_sampling()}\n";
+
+
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+dd_trace_internal_fn("synchronous_flush");
+echo "This call also has the same sample rate: {$get_sampling()}\n";
+?>
+--EXPECTF--
+First call it is used as heartbeat: 3
+This call has the same sample rate: 3
+This call also has the same sample rate: 3

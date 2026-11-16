@@ -8,7 +8,8 @@ In this one, we're making sure that a tracing closure still works when:
   - It is defined inside another closure that does have a scope.
   - It is targeting a method.
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 
@@ -56,4 +57,4 @@ $app->run();
 App::__construct hooked.
 App::run
 App::run traced.
-Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 2 to send-queue for %s

@@ -10,9 +10,11 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class EloquentTest extends WebFrameworkTestCase
 {
+    public static $database = "laravel42";
+
     use SpanAssertionTrait;
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
     }
@@ -35,9 +37,10 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'User'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             Tag::COMPONENT => 'eloquent',
+            '_dd.svc_src' => 'laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -53,10 +56,11 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'select * from `users`'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             'sql.query' => 'select * from `users`',
             Tag::COMPONENT => 'eloquent',
+            '_dd.svc_src' => 'laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -72,9 +76,10 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'User'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             Tag::COMPONENT => 'eloquent',
+            '_dd.svc_src' => 'laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -91,9 +96,10 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'User'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             Tag::COMPONENT => 'eloquent',
+            '_dd.svc_src' => 'laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -110,15 +116,16 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'User'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             Tag::COMPONENT => 'eloquent',
+            '_dd.svc_src' => 'laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        return new \PDO('mysql:host=mysql-integration;dbname=laravel42', 'test', 'test');
     }
 }

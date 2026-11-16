@@ -1,0 +1,477 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
+"""
+dockerh - Docker helper for dd-trace-php local CI reproduction.
+
+Wraps `docker run` with automatic bind mounts for the repo checkout
+(read-only) and a persistent cache overlay for build artifacts.
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+CONTAINER_PROJECT = "/project/dd-trace-php"
+CONTAINER_LOWER = "/project/dd-trace-php-ro"
+CONTAINER_CACHE = "/cache"
+
+# Overlays inside the project: repo-relative paths mounted as writable
+# over the read-only checkout. Docker requires mountpoint dirs to exist
+# on the base layer, so we create them in the checkout if missing (they
+# are gitignored build artifact dirs).
+PROJECT_OVERLAYS: list[str] = [
+    "target",
+    "profiling/target",
+    "appsec/build",
+    "tmp",
+]
+
+
+_OVL_MOUNT_HELPER_C = r"""
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <sys/mount.h>
+#include <sys/prctl.h>
+#include <sys/syscall.h>
+
+struct cap_data { unsigned int effective, permitted, inheritable; };
+struct cap_header { unsigned int version; int pid; };
+
+int main(int argc, char **argv) {
+    if (argc < 7) {
+        fprintf(stderr, "Usage: ovl_mount <uid> <gid> <lower> <upper> <work> <merged>\n");
+        return 1;
+    }
+    int uid = atoi(argv[1]), gid = atoi(argv[2]);
+
+    /* Drop to target uid/gid but keep capabilities */
+    prctl(PR_SET_KEEPCAPS, 1);
+    setgid(gid);
+    setuid(uid);
+
+    /* Re-acquire caps needed for overlayfs setup:
+     * SYS_ADMIN(21): mount syscall
+     * DAC_OVERRIDE(1): workdir internal operations
+     * FOWNER(3): xattr operations on workdir
+     * CHOWN(0): ownership adjustments */
+    struct cap_header h = { .version = 0x20080522 };
+    struct cap_data d[2] = {
+        { .effective  = (1u<<21)|(1u<<1)|(1u<<3)|(1u<<0),
+          .permitted  = (1u<<21)|(1u<<1)|(1u<<3)|(1u<<0) },
+        { 0 }
+    };
+    syscall(SYS_capset, &h, d);
+
+    char opts[4096];
+    snprintf(opts, sizeof(opts),
+             "lowerdir=%s,upperdir=%s,workdir=%s,userxattr",
+             argv[3], argv[4], argv[5]);
+    if (mount("overlay", argv[6], "overlay", 0, opts)) {
+        fprintf(stderr, "ovl_mount: %s\n", strerror(errno));
+        return 1;
+    }
+    return 0;
+}
+"""
+
+# Minimal static setpriv replacement.  Supports the subset of flags that
+# dockerh actually uses: --reuid, --regid, --clear-groups.  Works on any
+# Linux container (Alpine/BusyBox, Debian slim, scratch, …) because it is
+# compiled as a static musl binary – no runtime dependencies at all.
+_SETPRIV_HELPER_C = r"""
+#define _GNU_SOURCE
+#include <grp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+int main(int argc, char **argv) {
+    uid_t uid = 0;
+    gid_t gid = 0;
+    int got_uid = 0, got_gid = 0, clear_groups = 0;
+    int i;
+
+    for (i = 1; i < argc; i++) {
+        if (strncmp(argv[i], "--reuid=", 8) == 0) {
+            uid = (uid_t)atoi(argv[i] + 8);
+            got_uid = 1;
+        } else if (strncmp(argv[i], "--regid=", 8) == 0) {
+            gid = (gid_t)atoi(argv[i] + 8);
+            got_gid = 1;
+        } else if (strcmp(argv[i], "--clear-groups") == 0) {
+            clear_groups = 1;
+        } else {
+            break;  /* first non-option → start of command */
+        }
+    }
+
+    if (i >= argc) {
+        fprintf(stderr, "Usage: setpriv [--reuid=UID] [--regid=GID] [--clear-groups] CMD [ARGS...]\n");
+        return 1;
+    }
+
+    if (clear_groups && setgroups(0, NULL) != 0) {
+        perror("setgroups");
+        return 1;
+    }
+    if (got_gid && setgid(gid) != 0) {
+        perror("setgid");
+        return 1;
+    }
+    if (got_uid && setuid(uid) != 0) {
+        perror("setuid");
+        return 1;
+    }
+
+    execvp(argv[i], &argv[i]);
+    perror("execvp");
+    return 127;
+}
+"""
+
+
+def _get_ovl_mount_helper() -> str:
+    """Build (or return cached) static ovl_mount binary for each arch."""
+    import platform
+    arch = platform.machine()  # e.g. arm64, x86_64
+    cache_dir = os.path.expanduser("~/.cache/dd-ci")
+    os.makedirs(cache_dir, exist_ok=True)
+    bin_path = os.path.join(cache_dir, f"ovl_mount-{arch}")
+    src_path = os.path.join(cache_dir, "ovl_mount.c")
+
+    if os.path.exists(bin_path):
+        return bin_path
+
+    with open(src_path, "w") as f:
+        f.write(_OVL_MOUNT_HELPER_C)
+
+    # Cross-compile for both architectures using Docker
+    target = "aarch64-linux-musl" if arch == "arm64" else "x86_64-linux-musl"
+    print(f"Building ovl_mount helper for {arch}...", file=sys.stderr)
+    subprocess.run(
+        ["docker", "run", "--rm", "--platform", f"linux/{arch}",
+         "-v", f"{cache_dir}:/src",
+         "alpine:3.20", "sh", "-c",
+         f"apk add --no-cache gcc musl-dev >/dev/null 2>&1 && "
+         f"cc -static -o /src/ovl_mount-{arch} /src/ovl_mount.c && "
+         f"chmod 755 /src/ovl_mount-{arch}"],
+        check=True,
+    )
+    return bin_path
+
+
+def _get_setpriv_helper() -> str:
+    """Build (or return cached) static setpriv binary for each arch."""
+    import platform
+    arch = platform.machine()  # e.g. arm64, x86_64
+    cache_dir = os.path.expanduser("~/.cache/dd-ci")
+    os.makedirs(cache_dir, exist_ok=True)
+    bin_path = os.path.join(cache_dir, f"setpriv-{arch}")
+    src_path = os.path.join(cache_dir, "setpriv.c")
+
+    if os.path.exists(bin_path):
+        return bin_path
+
+    with open(src_path, "w") as f:
+        f.write(_SETPRIV_HELPER_C)
+
+    print(f"Building setpriv helper for {arch}...", file=sys.stderr)
+    subprocess.run(
+        ["docker", "run", "--rm", "--platform", f"linux/{arch}",
+         "-v", f"{cache_dir}:/src",
+         "alpine:3.20", "sh", "-c",
+         f"apk add --no-cache gcc musl-dev >/dev/null 2>&1 && "
+         f"cc -static -o /src/setpriv-{arch} /src/setpriv.c && "
+         f"chmod 755 /src/setpriv-{arch}"],
+        check=True,
+    )
+    return bin_path
+
+
+def repo_root() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True,
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        sys.exit("error: not inside a git repository")
+
+
+
+def main() -> None:
+    # Split on first bare "--" to separate dockerh+docker options from the
+    # container command.
+    argv = sys.argv[1:]
+    cmd_args: list[str] | None = None
+    if "--" in argv:
+        idx = argv.index("--")
+        pre = argv[:idx]
+        cmd_args = argv[idx + 1:]
+    else:
+        pre = argv
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--cache", dest="cache_name", default=None)
+    parser.add_argument("--clean-cache", action="store_true", default=False)
+    parser.add_argument("--no-cache-overlay", action="store_true", default=False)
+    parser.add_argument("--writable-tree", action="store_true", default=False,
+                        help="Mount the repo read-write instead of read-only")
+    parser.add_argument("--overlayfs", action="store_true", default=False,
+                        help="Use overlayfs instead of per-dir bind mounts; "
+                             "all writes go to the cache dir transparently")
+    parser.add_argument("--root", action="store_true", default=False,
+                        help="Stay as root inside the container (skip privilege drop)")
+    parser.add_argument("--php", dest="php_variant", default=None,
+                        metavar="VARIANT",
+                        help="Call switch-php VARIANT before running (nts, zts, debug, nts-asan, debug-zts-asan)")
+    parser.add_argument("--help", action="store_true", default=False)
+
+    known, remaining = parser.parse_known_args(pre)
+
+    if known.help:
+        print(
+            "Usage: dockerh --cache NAME --overlayfs [OPTIONS] IMAGE [DOCKER_OPTIONS...] -- COMMAND [ARGS...]\n"
+            "\n"
+            "Wraps docker run with the repo mounted read-only and a persistent\n"
+            "overlay so all writes go to the cache transparently.\n"
+            "\n"
+            "Options:\n"
+            "  --cache NAME          Cache name (required)\n"
+            "  --overlayfs           Use overlayfs (recommended); writes go to Docker\n"
+            "                        volume dd-ci-NAME. Use --clean-cache to reset.\n"
+            "  --php VARIANT         Call switch-php before running\n"
+            "                        (nts, zts, debug, nts-asan, debug-zts-asan)\n"
+            "  --root                Stay as root (skip privilege drop to host uid)\n"
+            "  --clean-cache         Delete the cache (volume or dir), then continue\n"
+            "  --no-cache-overlay    Skip cache mounts (--cache not required)\n"
+            "  --help                Show this help\n"
+            "\n"
+            "Cache storage:\n"
+            "  --overlayfs           Docker volume dd-ci-NAME (inspect with\n"
+            "                        docker run --rm -v dd-ci-NAME:/v alpine ls /v/upper)\n"
+            "  legacy (no flag)      Host directory ~/.cache/dd-ci/NAME/\n",
+            file=sys.stderr,
+        )
+        sys.exit(0)
+
+    if known.cache_name is None and (not known.no_cache_overlay or known.clean_cache or known.overlayfs):
+        sys.exit("error: --cache NAME is required. Run with --help for usage.")
+
+    if known.overlayfs and known.writable_tree:
+        sys.exit("error: --overlayfs and --writable-tree are mutually exclusive")
+
+    if not remaining:
+        sys.exit("error: IMAGE is required. Run with --help for usage.")
+
+    image = remaining[0]
+    docker_opts = remaining[1:]
+
+    # Translate bookworm-style --php values for centos-7 images.
+    # centos-7 uses version-prefixed variants (8.3, 8.3-debug, 8.3-zts);
+    # bookworm uses bare names (nts, debug, zts, nts-asan, debug-zts-asan).
+    if known.php_variant:
+        centos_match = re.search(r"php-(\d+\.\d+)_centos", image)
+        if centos_match:
+            php_ver = centos_match.group(1)
+            variant = known.php_variant
+            asan_variants = {"nts-asan", "debug-zts-asan"}
+            if variant in asan_variants:
+                sys.exit(f"error: --php {variant} is not available on centos-7 images "
+                         f"(no ASAN builds). Use a bookworm image instead.")
+            centos_map = {"nts": php_ver, "debug": f"{php_ver}-debug", "zts": f"{php_ver}-zts"}
+            if variant in centos_map:
+                mapped = centos_map[variant]
+                print(f"Mapped --php {variant} to {mapped} for centos-7 image", file=sys.stderr)
+                known.php_variant = mapped
+
+    root = repo_root()
+    cache_dir = os.path.expanduser(f"~/.cache/dd-ci/{known.cache_name}") if known.cache_name else None
+
+    if known.clean_cache and known.cache_name:
+        if known.overlayfs:
+            vol_name = f"dd-ci-{known.cache_name}"
+            result = subprocess.run(
+                ["docker", "volume", "rm", "-f", vol_name],
+                capture_output=True, text=True,
+            )
+            if result.returncode == 0 and vol_name in result.stdout:
+                print(f"Removed volume {vol_name}", file=sys.stderr)
+            else:
+                print(f"Volume {vol_name} does not exist", file=sys.stderr)
+        elif cache_dir:
+            if os.path.exists(cache_dir):
+                shutil.rmtree(cache_dir)
+                print(f"Removed {cache_dir}", file=sys.stderr)
+            else:
+                print(f"Cache dir does not exist: {cache_dir}", file=sys.stderr)
+
+    uid = os.getuid()
+    gid = os.getgid()
+
+    docker_cmd = ["docker", "run", "--rm"]
+
+    if sys.stdin.isatty():
+        docker_cmd.append("-it")
+
+    # Always start as root so we can register the host uid/gid in /etc/passwd,
+    # /etc/group, and /etc/sudoers, then drop to the host uid via setpriv.
+    # This means bind-mounted files and cache overlay dirs (owned by the host
+    # user) are writable, files written appear as the host user on the host
+    # filesystem, and scripts that call sudo (e.g. switch-php) always work.
+    orig_ep = _image_entrypoint(image)
+    tmpdir = tempfile.mkdtemp(prefix="dockerh-")
+    entrypoint_path = os.path.join(tmpdir, "init.sh")
+    # Use our static setpriv helper so this works on every base image
+    # (Alpine/BusyBox, slim Debian, scratch, etc.).
+    if known.root:
+        # --root: stay as root, no privilege drop.
+        if orig_ep:
+            drop_and_exec = "exec " + " ".join(_shell_quote(a) for a in orig_ep) + ' "$@"'
+        else:
+            drop_and_exec = 'exec "$@"'
+    elif orig_ep:
+        drop_and_exec = (
+            f"exec /dockerh-setpriv --reuid={uid} --regid={gid} --clear-groups " +
+            " ".join(_shell_quote(a) for a in orig_ep) + ' "$@"'
+        )
+    else:
+        drop_and_exec = f'exec /dockerh-setpriv --reuid={uid} --regid={gid} --clear-groups "$@"'
+
+    # Redirect BASH_ENV to a writable location.  Some CI images (e.g.
+    # centos-7) bake BASH_ENV=/etc/profile.d/zzz-ddtrace.sh which is
+    # owned by root.  Build scripts append to $BASH_ENV, so it must be
+    # writable after setpriv drops to the host uid.  We copy the
+    # original content (e.g. devtoolset-7 activation) to preserve it.
+    bash_env_lines = (
+        f'cp "${{BASH_ENV:-/dev/null}}" /tmp/.bash_env 2>/dev/null || true\n'
+        f"export BASH_ENV=/tmp/.bash_env\n"
+        f"chown {uid}:{gid} \"$BASH_ENV\"\n"
+    )
+
+    overlayfs_lines = ""
+    if known.overlayfs:
+        # The mount helper drops to the target uid/gid but retains the
+        # capabilities needed for overlayfs setup (SYS_ADMIN, DAC_OVERRIDE,
+        # FOWNER, CHOWN). This way overlayfs sees the lower-dir files with
+        # the virtiofs uid mapping for the target user, producing correct
+        # ownership in the merged view. After mount, capabilities are
+        # dropped by the setpriv call in drop_and_exec.
+        overlayfs_lines = (
+            f"mkdir -p {CONTAINER_CACHE}/upper {CONTAINER_CACHE}/work {CONTAINER_PROJECT}\n"
+            f"chown {uid}:{gid} {CONTAINER_CACHE}/upper\n"
+            f"chmod 777 {CONTAINER_CACHE}/work\n"
+            f"/dockerh-ovl-mount {uid} {gid}"
+            f" {CONTAINER_LOWER} {CONTAINER_CACHE}/upper {CONTAINER_CACHE}/work"
+            f" {CONTAINER_PROJECT}\n"
+            f"cd {CONTAINER_PROJECT}\n"
+        )
+
+    switch_php_lines = ""
+    if known.php_variant:
+        switch_php_lines = f"""switch-php {known.php_variant}
+# Transfer ownership of the PHP extension/ini dirs to localuser so that make
+# install (which runs plain cp/tee, no sudo) can write there as uid {uid}.
+chown localuser "$(php-config --extension-dir)" "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')" || true
+# Allow nginx to create temp dirs under /var/lib/nginx/ when running as localuser.
+chown localuser /var/lib/nginx/ 2>/dev/null || true
+"""
+
+    with open(entrypoint_path, "w") as f:
+        f.write(f"""#!/bin/sh
+set -e
+echo 'localuser:x:{uid}:{gid}::/tmp:/bin/sh' >> /etc/passwd
+echo 'localgroup:x:{gid}:localuser' >> /etc/group
+[ -f /etc/shadow ] && echo 'localuser:*:19000:0:99999:7:::' >> /etc/shadow || true
+echo 'localuser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+{bash_env_lines}{overlayfs_lines}{switch_php_lines}{drop_and_exec}
+""")
+    os.chmod(entrypoint_path, 0o755)
+    docker_cmd += ["--user", "root"]
+    docker_cmd += ["-e", "HOME=/tmp"]
+    docker_cmd += ["-v", f"{entrypoint_path}:/dockerh-init.sh:ro"]
+    docker_cmd += ["--entrypoint", "/dockerh-init.sh"]
+
+    # Always mount the static setpriv helper so privilege dropping works
+    # on every base image (Alpine/BusyBox, slim Debian, scratch, etc.).
+    setpriv_helper = _get_setpriv_helper()
+    docker_cmd += ["-v", f"{setpriv_helper}:/dockerh-setpriv:ro"]
+
+    if known.overlayfs:
+        mount_helper = _get_ovl_mount_helper()
+        docker_cmd += ["-v", f"{mount_helper}:/dockerh-ovl-mount:ro"]
+
+    if known.overlayfs:
+        # overlayfs mode: mount repo read-only as the lower dir, use a Docker
+        # named volume for the overlay upper/work dirs (native VM filesystem
+        # supports overlayfs properly, unlike virtiofs bind mounts).
+        vol_name = f"dd-ci-{known.cache_name}"
+        docker_cmd += ["--cap-add", "SYS_ADMIN"]
+        docker_cmd += ["--security-opt", "apparmor=unconfined"]
+        docker_cmd += ["-v", f"{root}:{CONTAINER_LOWER}:ro"]
+        docker_cmd += ["-v", f"{vol_name}:{CONTAINER_CACHE}"]
+    else:
+        # Legacy mode: per-directory bind mount overlays.
+        # Checkout mount (read-only by default; read-write with --writable-tree)
+        tree_mode = "" if known.writable_tree else ":ro"
+        docker_cmd += ["-v", f"{root}:{CONTAINER_PROJECT}{tree_mode}"]
+
+        # Cache overlay mounts
+        if not known.no_cache_overlay:
+            for repo_subdir in PROJECT_OVERLAYS:
+                # Ensure the mountpoint dir exists in the checkout so Docker
+                # can layer the writable bind mount on top of the :ro base.
+                os.makedirs(os.path.join(root, repo_subdir), exist_ok=True)
+                host_path = os.path.join(cache_dir, repo_subdir)  # type: ignore[arg-type]
+                os.makedirs(host_path, exist_ok=True)
+                docker_cmd += ["-v", f"{host_path}:{CONTAINER_PROJECT}/{repo_subdir}"]
+
+    docker_cmd += ["-w", CONTAINER_PROJECT]
+
+    # Pass through any extra docker options
+    docker_cmd += docker_opts
+
+    docker_cmd.append(image)
+
+    if cmd_args is not None:
+        docker_cmd += cmd_args
+    # If no --, remaining args after image were consumed as docker_opts;
+    # no command means docker default entrypoint runs.
+
+    print("+ " + " ".join(_shell_quote(a) for a in docker_cmd), file=sys.stderr)
+    os.execvp("docker", docker_cmd)
+
+
+def _image_entrypoint(image: str) -> list[str]:
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", "--format", "{{json .Config.Entrypoint}}", image],
+            capture_output=True, text=True, check=True,
+        )
+        val = json.loads(result.stdout.strip())
+        return val if val else []
+    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _shell_quote(s: str) -> str:
+    if s and not re.search(r"[^\w@%+=:,./-]", s):
+        return s
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+if __name__ == "__main__":
+    main()

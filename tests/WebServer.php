@@ -4,11 +4,15 @@ namespace DDTrace\Tests;
 
 use DDTrace\Tests\Nginx\NginxServer;
 use DDTrace\Tests\Sapi\CliServer\CliServer;
+use DDTrace\Tests\Sapi\Frankenphp\FrankenphpServer;
+use DDTrace\Tests\Sapi\OctaneServer\OctaneServer;
 use DDTrace\Tests\Sapi\PhpApache\PhpApache;
 use DDTrace\Tests\Sapi\PhpCgi\PhpCgi;
 use DDTrace\Tests\Sapi\PhpFpm\PhpFpm;
 use DDTrace\Tests\Sapi\Roadrunner\RoadrunnerServer;
 use DDTrace\Tests\Sapi\Sapi;
+use DDTrace\Tests\Sapi\SwooleServer\SwooleServer;
+use PHPUnit\Framework\Assert;
 
 /**
  * A controllable php server running in a separate process.
@@ -16,7 +20,7 @@ use DDTrace\Tests\Sapi\Sapi;
 final class WebServer
 {
     const FCGI_HOST = '0.0.0.0';
-    const FCGI_PORT = 9797;
+    const FCGI_PORT = 9797 - GLOBAL_PORT_OFFSET;
 
     const ERROR_LOG_NAME = 'dd_php_error.log';
 
@@ -45,6 +49,11 @@ final class WebServer
     private $port;
 
     /**
+     * @var string|null
+     */
+    private $ddprofServiceName;
+
+    /**
      * @var string
      */
     private $indexFile;
@@ -55,11 +64,11 @@ final class WebServer
     private $envs = [];
 
     private $defaultEnvs = [
-        'DD_TRACE_AGENT_PORT' => 80,
-        'DD_AGENT_HOST' => 'request-replayer',
+        'DD_TRACE_AGENT_PORT' => 9126,
+        'DD_AGENT_HOST' => 'test-agent',
         'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
         // Short flush interval by default or our tests will take all day
-        'DD_TRACE_AGENT_FLUSH_INTERVAL' => 333,
+        'DD_TRACE_AGENT_FLUSH_INTERVAL' => 111,
     ];
 
     /**
@@ -68,11 +77,24 @@ final class WebServer
     private $inis = [];
 
     private $roadrunnerVersion = null;
+    private $isOctane = false;
+    private $isFrankenphp = false;
+    private $frankenphpWorkerMode = true;
+    private $isSwoole = false;
+    private $phpFpmMaxChildren = 1;
+    private $phpFpmUser = null;
+    private $phpFpmGroup = null;
+    private $phpFpmSudo = false;
+    private $phpFpmMasterInis = [];
+    private $forceSapi = null;
 
     private $defaultInis = [
         'log_errors' => 'on',
         'datadog.trace.client_ip_header_disabled' => 'true',
     ];
+
+    private $errorLogSize = 0;
+    private $errorLogInode = 0;
 
     /**
      * Persisted apache instance for the lifetime of the testsuite - we use reload instead of restart to apply changes.
@@ -87,14 +109,15 @@ final class WebServer
      * @param string $host
      * @param int $port
      */
-    public function __construct($indexFile, $host = '0.0.0.0', $port = 80)
+    public function __construct($indexFile, $host = '0.0.0.0', $port = 80, $ddprofServiceName = null)
     {
         $this->indexFile = realpath($indexFile);
         $this->defaultInis['error_log'] = dirname($this->indexFile) .  '/' . self::ERROR_LOG_NAME;
         // Enable auto-instrumentation
-        $this->defaultInis['ddtrace.request_init_hook'] = realpath(__DIR__ .  '/../bridge/dd_wrap_autoloader.php');
+        $this->defaultInis['datadog.trace.sources_path'] = realpath(__DIR__ .  '/../src');
         $this->host = $host;
         $this->port = $port;
+        $this->ddprofServiceName = $ddprofServiceName;
     }
 
     public function setRoadrunner($version)
@@ -102,8 +125,70 @@ final class WebServer
         $this->roadrunnerVersion = $version;
     }
 
+    public function setOctane()
+    {
+        $this->isOctane = true;
+    }
+
+    public function setSwoole()
+    {
+        $this->isSwoole = true;
+    }
+
+    public function setFrankenphp($workerMode = true)
+    {
+        $this->isFrankenphp = true;
+        $this->frankenphpWorkerMode = $workerMode;
+    }
+
+    public function setPhpFpmMaxChildren($maxChildren)
+    {
+        $this->phpFpmMaxChildren = $maxChildren;
+    }
+
+    /**
+     * Returns the PID of the FPM master process, or null if not available.
+     */
+    public function getFpmPid()
+    {
+        return ($this->sapi instanceof \DDTrace\Tests\Sapi\PhpFpm\PhpFpm)
+            ? $this->sapi->getProcessPid()
+            : null;
+    }
+
+    public function setPhpFpmUser($user, $group = null)
+    {
+        $this->phpFpmUser = $user;
+        $this->phpFpmGroup = $group;
+    }
+
+    public function setPhpFpmSudo($sudo = true)
+    {
+        $this->phpFpmSudo = $sudo;
+    }
+
+    public function setPhpFpmMasterIni(array $inis)
+    {
+        $this->phpFpmMasterInis = $inis;
+    }
+
+    public function setForceSapi($sapi)
+    {
+        $this->forceSapi = $sapi;
+    }
+
     public function start()
     {
+        if (!isset($this->envs['DD_TRACE_DEBUG'])) {
+            $this->inis['datadog.trace.debug'] = 'true';
+        }
+        if (GLOBAL_AUTO_PREPEND_FILE) {
+            $this->inis['auto_prepend_file'] = GLOBAL_AUTO_PREPEND_FILE;
+        }
+
+        $this->errorLogSize = (int)@filesize($this->defaultInis['error_log']);
+        $this->errorLogInode = (int)@fileinode($this->defaultInis['error_log']);
+
         if ($this->roadrunnerVersion) {
             $this->sapi = new RoadrunnerServer(
                 $this->roadrunnerVersion,
@@ -113,14 +198,39 @@ final class WebServer
                 $this->envs,
                 $this->inis
             );
+        } elseif ($this->isOctane) {
+            $this->sapi = new OctaneServer(
+                $this->indexFile,
+                $this->host,
+                $this->port,
+                $this->envs,
+                $this->inis
+            );
+        } elseif ($this->isSwoole) {
+            $this->sapi = new SwooleServer(
+                $this->indexFile,
+                $this->port,
+                $this->envs,
+                $this->inis
+            );
+        } elseif ($this->isFrankenphp) {
+            $this->sapi = new FrankenphpServer(
+                $this->indexFile,
+                $this->host,
+                $this->port,
+                $this->envs,
+                $this->inis,
+                $this->frankenphpWorkerMode
+            );
         } else {
-            switch (\getenv('DD_TRACE_TEST_SAPI')) {
+            switch ($this->forceSapi ?? \getenv('DD_TRACE_TEST_SAPI')) {
                 case 'cgi-fcgi':
                     $this->sapi = new PhpCgi(
                         self::FCGI_HOST,
                         self::FCGI_PORT,
                         $this->envs,
-                        $this->inis
+                        $this->inis,
+                        $this->ddprofServiceName
                     );
                     break;
                 case 'fpm-fcgi':
@@ -129,7 +239,12 @@ final class WebServer
                         self::FCGI_HOST,
                         self::FCGI_PORT,
                         $this->envs,
-                        $this->inis
+                        $this->inis,
+                        $this->phpFpmMaxChildren,
+                        $this->phpFpmUser,
+                        $this->phpFpmGroup,
+                        $this->phpFpmSudo,
+                        $this->phpFpmMasterInis
                     );
                     break;
                 case 'apache2handler':
@@ -161,6 +276,10 @@ final class WebServer
             }
         }
 
+        // Start PHP-FPM first (if FastCGI), as nginx depends on it
+        $this->sapi->start();
+
+        // Then start nginx (if needed)
         if ($this->sapi->isFastCgi()) {
             $this->server = new NginxServer(
                 $this->indexFile,
@@ -170,10 +289,35 @@ final class WebServer
                 self::FCGI_PORT
             );
             $this->server->start();
+
+            if (!$this->server->waitUntilServerRunning()) {
+                throw new \Exception('Nginx failed to start within expected time');
+            }
+        }
+    }
+
+    public function reload()
+    {
+        if (\method_exists($this->sapi, "reload")) {
+            $this->sapi->reload();
+        } else {
+            Assert::markTestSkipped("Webserver reload not supported");
+        }
+    }
+
+    /**
+     * Ask the SAPI to shut down on SIGTERM alone, without an immediate SIGKILL behind it.
+     *
+     * @param int $timeout seconds to wait for a graceful exit
+     * @return bool whether the SAPI exited with code 0 within $timeout
+     */
+    public function stopGracefully($timeout = 15)
+    {
+        if (!$this->sapi || !\method_exists($this->sapi, "stopGracefully")) {
+            Assert::markTestSkipped("Graceful webserver shutdown not supported for this SAPI");
         }
 
-        $this->sapi->start();
-        usleep(500000);
+        return $this->sapi->stopGracefully($timeout);
     }
 
     /**
@@ -182,12 +326,9 @@ final class WebServer
     public function stop()
     {
         if ($this->sapi) {
-            $shouldWaitForBgs = !isset($this->envs['DD_TRACE_BGS_ENABLED']) || !$this->envs['DD_TRACE_BGS_ENABLED'];
-            if ($shouldWaitForBgs) {
-                // If we don't before stopping the server the main process might die before traces
-                // are actually sent to the agent via the BGS.
-                \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
-            }
+            // If we don't before stopping the server the main process might die before traces
+            // are actually sent to the agent via the BGS.
+            \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
             if ($this->sapi !== self::$apache) {
                 $this->sapi->stop();
             }
@@ -222,8 +363,42 @@ final class WebServer
      */
     public function checkErrors()
     {
-        if (!$this->sapi) {
-            return null;
+        $errorLog = $this->defaultInis['error_log'];
+
+        // Only inspect log entries written since the previous check. Without
+        // advancing the offset, one transient error is reported again by every
+        // retry and every subsequent test that shares this web server.
+        clearstatcache(true, $errorLog);
+        $currentSize = (int) @filesize($errorLog);
+        $currentInode = (int) @fileinode($errorLog);
+        if ($currentSize < $this->errorLogSize || $currentInode !== $this->errorLogInode) {
+            // The log may have been truncated, rotated, or replaced while the
+            // server was running. Comparing the inode detects a replacement that
+            // has already grown to at least the previous offset, which a size-only
+            // check would miss. Start reading from the beginning of the new file.
+            $this->errorLogSize = 0;
+        }
+        $this->errorLogInode = $currentInode;
+
+        $diff = @file_get_contents($errorLog, false, null, $this->errorLogSize);
+        if ($diff === false) {
+            $diff = "";
+        } else {
+            $this->errorLogSize += strlen($diff);
+        }
+
+        $out = "";
+        foreach (explode("\n", $diff) as $line) {
+            // Ignore sidecar retry errors for known-invalid test hostnames — these are
+            // expected cross-test noise from sidecar RC polling after sessions with
+            // deliberately unreachable agent URLs.
+            if (preg_match("(\[ddtrace] \[(error|warn|deprecated|warning)])", $line)
+                && strpos($line, 'invalid_host') === false) {
+                $out .= $line;
+            }
+        }
+        if ($out) {
+            return $out . ($this->sapi ? $this->sapi->checkErrors() : "");
         }
         return $this->sapi->checkErrors();
     }

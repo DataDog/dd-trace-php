@@ -1,0 +1,14 @@
+--- configure	2020-11-04 19:41:03.253862846 +0000
++++ configure.new	2020-11-04 19:40:56.937530722 +0000
+@@ -29607,6 +29607,11 @@
+   else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for cURL in default path" >&5
+ $as_echo_n "checking for cURL in default path... " >&6; }
++    if pkg-config libcurl; then
++      CURL_DIR=`pkg-config --variable=prefix libcurl`
++      { $as_echo "$as_me:${as_lineno-$LINENO}: result: prefix in $CURL_DIR" >&5
++$as_echo "prefix in $CURL_DIR" >&6; }
++    fi
+     for i in /usr/local /usr; do
+       if test -r $i/include/curl/easy.h; then
+         CURL_DIR=$i

@@ -5,8 +5,7 @@ set -e
 . "$(dirname ${0})/utils.sh"
 
 # Install using the php installer
-new_version="0.79.0"
-generate_installers "${new_version}"
+version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin=all
 
 mv /usr/local/sbin/php-fpm /usr/local/sbin/php-fpm7.4
@@ -16,5 +15,5 @@ cat <<'EOT' > /usr/local/sbin/php-fpm
 EOT
 chmod +x /usr/local/sbin/php-fpm
 
-assert_ddtrace_version "${new_version}" php
-assert_ddtrace_version "${new_version}" php-fpm7.4
+assert_ddtrace_version "${version}" php
+assert_ddtrace_version "${version}" php-fpm7.4

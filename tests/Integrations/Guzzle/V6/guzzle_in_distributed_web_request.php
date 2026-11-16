@@ -1,11 +1,13 @@
 <?php
 
 require __DIR__ . '/../../../vendor/autoload.php';
+require __DIR__ . "/../{$_GET["version"]}/vendor/autoload.php";
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Promise;
+use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Response;
 
 $curl = new CurlMultiHandler();
@@ -17,20 +19,23 @@ $resolver = function (Response $response) use (&$found) {
     $found[] = $response;
 };
 
-$promise1 = $client->getAsync('http://httpbin_integration/headers', [
+$port = getenv('HTTPBIN_PORT') ?: '80';
+$url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/headers';
+
+$promise1 = $client->getAsync($url, [
     'headers' => [
         'honored' => 'preserved_value',
     ],
 ])->then($resolver);
 
-$promise2 = $client->getAsync('http://httpbin_integration/headers', [
+$promise2 = $client->getAsync($url, [
     'headers' => [
         'honored' => 'preserved_value',
     ],
 ])->then($resolver);
 
-$aggregate = Promise\all([$promise1, $promise2]);
-while (!Promise\is_settled($aggregate)) {
+$aggregate = Utils::all([$promise1, $promise2]);
+while ($aggregate->getState() === PromiseInterface::PENDING) {
     $curl->tick();
 }
 

@@ -1,0 +1,50 @@
+[package]
+name = "helper-rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "ddappsec_helper"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "io-util", "sync", "time", "macros"] }
+
+serde = { workspace = true, default-features = true, features = ["derive"] }
+serde_tuple = { version = "1.0" }
+rmp-serde = { workspace = true }  # MessagePack support for serde
+serde_json = { workspace = true, default-features = true }
+anyhow = { workspace = true, default-features = true, features = ["backtrace"] }
+thiserror = { workspace = true, default-features = true }
+futures = { workspace = true, default-features = true }
+log = { workspace = true, features = ["kv", "kv_std"] }  # Logging facade with key-value support
+tokio-util = { workspace = true, features = ["codec", "rt"] }
+tokio-stream = "0.1"
+libc = { workspace = true }
+arc-swap = { workspace = true }
+crossbeam-epoch = "0.9"  # Epoch-based memory reclamation
+libddwaf = { path = "../third_party/libddwaf-rust/crates/libddwaf" }
+libddwaf-sys = { path = "../third_party/libddwaf-rust/crates/libddwaf-sys", default-features = false, features = ["ring"] }
+datadog-sidecar = { path = "../../libdatadog/datadog-sidecar", default-features = false, features = ["tracing"] }
+libdd-common = { path = "../../libdatadog/libdd-common" }
+libdd-ipc = { path = "../../libdatadog/libdd-ipc" }
+libdd-process-utils = { path = "../../libdatadog/libdd-process-utils" }
+libdd-remote-config = { path = "../../libdatadog/libdd-remote-config" }
+libdd-telemetry = { path = "../../libdatadog/libdd-telemetry" }
+base64 = { workspace = true, default-features = true }
+# gzip compression for schemas.
+# TODO: do we and libdatadog really need runtime_detection? It only gives
+# crc32fast runtime CPU detection. libdatadog's gzip users don't request it,
+# but get it through this crate because features unify; dropping it here
+# drops it for them too.
+flate2 = { workspace = true, features = ["runtime_detection"] }
+
+[features]
+coverage = []
+source-static = ["libddwaf-sys/source-static"]
+
+[build-dependencies]
+cc = { workspace = true }
+
+[dev-dependencies]
+serial_test = { workspace = true, default-features = true }

@@ -17,6 +17,12 @@ return function (App $app) {
         throw new \Exception('Foo error');
     });
 
+    $app->get('/parameterized/{value}', function (Request $request, Response $response, array $args) {
+        $value = $args['value'];
+        $response->getBody()->write("Hello, $value");
+        return $response;
+    });
+
     $app->get('/[{name}]', function (Request $request, Response $response, array $args) use ($container) {
         // Sample log message
         $container->get('logger')->info("Slim-Skeleton '/' route");

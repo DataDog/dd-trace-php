@@ -14,7 +14,7 @@ dtrace:::BEGIN
     printf("Tracing... Hit Ctrl-C to end.\n");
 }
 
-pid$target:ddtrace:_dd_*:entry,
+pid$target:ddtrace:dd_*:entry,
 pid$target:ddtrace:ddtrace_*:entry,
 pid$target:ddtrace:zm_activate_ddtrace*:entry,
 pid$target:ddtrace:zif_dd_trace*:entry,
@@ -25,7 +25,7 @@ pid$target:ddtrace:zif_ddtrace**:entry
     self->function[self->depth] = vtimestamp;
 }
 
-pid$target:ddtrace:_dd_*:return,
+pid$target:ddtrace:dd_*:return,
 pid$target:ddtrace:ddtrace_*:return,
 pid$target:ddtrace:zm_activate_ddtrace*:return,
 pid$target:ddtrace:zif_dd_trace*:return,

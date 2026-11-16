@@ -1,23 +1,20 @@
 --TEST--
 deferred loading only happens once, even if dispatch is not overwritten
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 _DD_LOAD_TEST_INTEGRATIONS=1
-DD_TRACE_DEBUG=1
---INI--
-ddtrace.request_init_hook={PWD}/deferred_loading_helper.php
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 
 namespace DDTrace\Test
 {
-    use DDTrace\Integrations\Integration;
-
-    class TestSandboxedIntegration extends Integration
+    class TestSandboxedIntegration implements \DDTrace\Integration
     {
-        function init()
+        static function init(): int
         {
             echo "autoload_attempted" . PHP_EOL;
-            return Integration::LOADED;
+            return self::LOADED;
         }
     }
 }
@@ -40,4 +37,4 @@ namespace
 autoload_attempted
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s

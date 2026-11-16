@@ -11,7 +11,7 @@ use DDTrace\Type;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CodeIgniter/Version_2_2/ddshim.php';
     }
@@ -48,20 +48,21 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         'web',
                         'GET /simple'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/simple?key=value&<redacted>',
+                        Tag::HTTP_URL => 'http://localhost/simple?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        Tag::HTTP_ROUTE => 'simple',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple.index',
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple.index'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'codeigniter',
                         ])
                     ]),
@@ -72,20 +73,21 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        Tag::HTTP_URL => 'http://localhost/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple_View::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        Tag::HTTP_ROUTE => 'simple_view',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple_View.index',
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple_View.index'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'codeigniter',
                         ])->withChildren([
                             SpanAssertion::build(
@@ -93,7 +95,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'codeigniter_test_app',
                                 Type::WEB_SERVLET,
                                 'simple_view'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => 'codeigniter',
                             ]),
                         ])
@@ -105,26 +107,52 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/error?key=value&<redacted>',
+                        Tag::HTTP_URL => 'http://localhost/error?key=value&<redacted>',
                         // CodeIgniter's error handler does not adjust the status code
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Error_::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        Tag::HTTP_ROUTE => 'error'
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
-                    ->withExistingTagsNames(['error.stack'])
+                    ->withExistingAttributeNames(['error.stack'])
                     ->withChildren([
                         SpanAssertion::build(
                             'Error_.index',
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Error_.index'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'codeigniter',
                         ])->setError('Exception', 'datadog', true),
+                    ]),
+                ],
+                'A GET request to a route with a parameter' => [
+                    SpanAssertion::build(
+                        'codeigniter.request',
+                        'codeigniter_test_app',
+                        'web',
+                        'GET /parameterized/paramValue'
+                    )->withExactAttributes([
+                        Tag::HTTP_METHOD => 'GET',
+                        Tag::HTTP_URL => 'http://localhost/parameterized/paramValue',
+                        Tag::HTTP_STATUS_CODE => '200',
+                        'app.endpoint' => 'Parameterized::customAction',
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'codeigniter',
+                        Tag::HTTP_ROUTE =>  'parameterized/(:any)',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Parameterized.customAction',
+                            'codeigniter_test_app',
+                            Type::WEB_SERVLET,
+                            'Parameterized.customAction'
+                        )->withExactAttributes([
+                            Tag::COMPONENT => 'codeigniter',
+                        ])
                     ]),
                 ],
             ]

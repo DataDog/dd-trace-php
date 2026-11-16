@@ -9,7 +9,7 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
 {
     const BGS_FLUSH_INTERVAL_MS = 500;
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }
@@ -24,22 +24,10 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_BETA_SEND_TRACES_VIA_THREAD' => true,
-            'DD_TRACE_BGS_ENABLED' => true,
-            'DD_TRACE_DEBUG_CURL_OUTPUT' => true,
-            'DD_TRACE_ENCODER' => 'msgpack',
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
+            'DD_TRACE_DEBUG_CURL_OUTPUT' => 'true',
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => self::BGS_FLUSH_INTERVAL_MS,
         ]);
-    }
-
-    protected function ddSetUp()
-    {
-        parent::ddSetUp();
-
-        // clear out any previous logs
-        $log = self::getAppErrorLog();
-        @\unlink($log);
-        \touch($log);
     }
 
     protected static function getInis()
@@ -47,6 +35,19 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
         return array_merge(parent::getInis(), [
             'error_log' => self::getAppErrorLog(),
         ]);
+    }
+
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+
+        // Truncate (not unlink) so the existing fd in datadog_error_log_fd still works.
+        // Unlinking creates a new inode that the already-open fd does not point to.
+        $log = self::getAppErrorLog();
+        @\file_put_contents($log, '');
+        if (!\file_exists($log)) {
+            \touch($log);
+        }
     }
 
     public function testScenario()
@@ -58,8 +59,10 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
             self::assertEquals('This is a string', $response);
 
             // Endpoint seemed to work; allow for flush interval to trigger
-            \usleep(self::BGS_FLUSH_INTERVAL_MS * 1000);
+            \usleep(self::BGS_FLUSH_INTERVAL_MS * 2 * 1000);
         });
+
+        \usleep(self::BGS_FLUSH_INTERVAL_MS * 2 * 1000);
 
         $log = self::getAppErrorLog();
         $contents = \file_get_contents($log);

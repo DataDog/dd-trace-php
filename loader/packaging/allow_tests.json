@@ -1,0 +1,11 @@
+[
+    {"filepath":  "/usr/bin/php", "args": [], "envars":  [], "host": {"os": "linux", "arch": "x64", "libc":  "glibc:2.17"}},
+    {"filepath":  "/usr/bin/php", "args": [], "envars":  [], "host": {"os": "linux", "arch": "x64", "libc":  "musl"}},
+    {"filepath":  "/usr/bin/php", "args": [], "envars":  [], "host": {"os": "linux", "arch": "arm64", "libc":  "glibc:2.17"}},
+    {"filepath":  "/usr/bin/php", "args": [], "envars":  [], "host": {"os": "linux", "arch": "arm64", "libc":  "musl:1.5"}},
+    {"filepath":  "/elephp5ant/thing", "args": [], "envars":  [], "host": {"os": "linux", "arch": "amd64", "libc":  "musl"}},
+    {"filepath":  "/usr/bin/gluglu", "args": [], "envars":  [], "host": {"os": "linux", "arch": "amd64", "libc":  "glibc:3.42"}},
+    {"filepath":  "/opt/php/7/bin/php", "args": [], "envars":  [], "host": {"os": "linux", "arch": "x64", "libc":  "glibc:2.17"}},
+    {"filepath":  "/opt/php/7.4/bin/php", "args": [], "envars":  [], "host": {"os": "linux", "arch": "x64", "libc":  "glibc:2.17"}},
+    {"filepath":  "/usr/bin/php83", "args": [], "envars":  [], "host": {"os": "linux", "arch": "x64", "libc":  "glibc:2.17"}}
+]

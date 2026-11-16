@@ -1,0 +1,10 @@
+{
+    "require-dev": {
+        "php-stubs/generator": "^0.8.4"
+    },
+    "scripts": {
+        "generate": [
+            "php generate-stubs.php"
+        ]
+    }
+}

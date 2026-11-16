@@ -1,8 +1,8 @@
 --TEST--
-Spans are automatically flushed when auto-flushing enabled
+Spans are not automatically flushed when auto-flushing disabled
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -21,5 +21,5 @@ main();
 
 ?>
 --EXPECTF--
-Flushing trace of size 1 to send-queue for %s
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s

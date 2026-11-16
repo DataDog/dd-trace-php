@@ -1,0 +1,17 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - filter.format.private_images
+  module:
+    - editor_test
+format: private_images
+editor: unicorn
+image_upload:
+  status: true
+  scheme: private
+  directory: ''
+  max_size: ''
+  max_dimensions:
+    width: null
+    height: null

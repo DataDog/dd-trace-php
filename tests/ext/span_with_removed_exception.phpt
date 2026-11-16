@@ -2,6 +2,8 @@
 Unset, nulled and generally invalid data in exception property is ignored
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --SKIPIF--
 <?php
 if (version_compare(PHP_VERSION, '7.4.0', '>='))
@@ -11,6 +13,8 @@ if (version_compare(PHP_VERSION, '7.4.0', '>='))
 ?>
 --FILE--
 <?php
+
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function test() {
     throw new \Exception;
@@ -23,7 +27,7 @@ DDTrace\trace_function("test", function($span) {
 try {
     test();
 } catch (Exception $e) {
-    var_dump(dd_trace_serialize_closed_spans());
+    var_dump(dd_clean_spans());
 }
 
 DDTrace\trace_function("test", function($span) {
@@ -33,7 +37,7 @@ DDTrace\trace_function("test", function($span) {
 try {
     test();
 } catch (Exception $e) {
-    var_dump(dd_trace_serialize_closed_spans());
+    var_dump(dd_clean_spans());
 }
 
 DDTrace\trace_function("test", function($span) {
@@ -43,16 +47,14 @@ DDTrace\trace_function("test", function($span) {
 try {
     test();
 } catch (Exception $e) {
-    var_dump(dd_trace_serialize_closed_spans());
+    var_dump(dd_clean_spans());
 }
 
 ?>
 --EXPECTF--
 array(1) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -67,29 +69,26 @@ array(1) {
     string(31) "span_with_removed_exception.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(4) {
+    ["attributes"]=>
+    array(6) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
-      float(%f)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      int(%d)
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
 }
 array(1) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -104,29 +103,26 @@ array(1) {
     string(31) "span_with_removed_exception.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(4) {
+    ["attributes"]=>
+    array(6) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
-      float(%f)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      int(%d)
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
 }
 array(1) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -141,20 +137,19 @@ array(1) {
     string(31) "span_with_removed_exception.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(4) {
+    ["attributes"]=>
+    array(6) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
-      float(%f)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      int(%d)
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

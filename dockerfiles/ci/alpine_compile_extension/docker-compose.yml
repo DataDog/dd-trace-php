@@ -2,116 +2,175 @@ version: '3.7'
 
 services:
 
-  base:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine
+  base-alpine:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine
     build:
       context: .
-      target: base
+      dockerfile: base.Dockerfile
       x-bake: &bake
         platforms:
           - linux/arm64
           - linux/amd64
+      args: &build-base
+        # Build php images FROM the (possibly freshly built) internal base,
+        # not the Docker Hub fallback baked into the Dockerfile ARG default.
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
+    volumes:
+        - ../../:/app
 
   7.0-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.0
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.0
     build:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.0.33
-        php_sha: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
-        php_api: 20151012
-    command: build-dd-trace-php
+        <<: *build-base
+        phpVersion: 7.0.33
+        phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
+        phpApi: 20151012
     volumes:
         - ../../:/app
 
   7.1-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.1
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.1
     build:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.1.33
-        php_sha: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
-        php_api: 20160303
-    command: build-dd-trace-php
+        <<: *build-base
+        phpVersion: 7.1.33
+        phpSha256Hash: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
+        phpApi: 20160303
     volumes:
         - ../../:/app
 
   7.2-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.2
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.2
     build:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.2.34
-        php_sha: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
-        php_api: 20170718
-    command: build-dd-trace-php
+        <<: *build-base
+        phpVersion: 7.2.34
+        phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
+        phpApi: 20170718
     volumes:
         - ../../:/app
 
   7.3-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.3
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.3
     build:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.3.33
-        php_sha: 9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8
-        php_api: 20180731
-    command: build-dd-trace-php
+        <<: *build-base
+        phpVersion: 7.3.33
+        phpSha256Hash: 9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8
+        phpApi: 20180731
     volumes:
         - ../../:/app
 
   7.4-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.4
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.4
     build:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.4.33
-        php_sha: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
-        php_api: 20190902
-    command: build-dd-trace-php
+        <<: *build-base
+        phpVersion: 7.4.33
+        phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
+        phpApi: 20190902
     volumes:
         - ../../:/app
 
   8.0-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.0
     build:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.0.27
-        php_sha: fe2376faaf91c28ead89a36e118c177f4a8c9a7280a189b97265da1af1f4d305
-        php_api: 20200930
-    command: build-dd-trace-php
+        <<: *build-base
+        phpVersion: 8.0.30
+        phpSha256Hash: 449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c
+        phpApi: 20200930
     volumes:
       - ../../:/app
 
   8.1-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.1
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.1
     build:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.1.15
-        php_sha: 4035236180efac535ff4f22db9ef3195672f31e3e0aa88f89c38ac0715beca3b
-        php_api: 20210902
-    command: build-dd-trace-php
+        <<: *build-base
+        phpVersion: 8.1.31
+        phpSha256Hash: 618923b407c4575bfee085f00c4aaa16a5cc86d4b1eb893c0f352d61541bbfb1
+        phpApi: 20210902
     volumes:
       - ../../:/app
 
   8.2-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.2
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.2
     build:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.2.1
-        php_sha: 6d7b1b8feb14fd1c65a2bc9d0f72c75589a61a946566cf9c3bf9536a5530b635
-        php_api: 20220829
-    command: build-dd-trace-php
+        <<: *build-base
+        phpVersion: 8.2.33
+        phpSha256Hash: 9a525d4db1237ede408e454b46f5a93b9e45d83d71753592e3f921903d917e07
+        phpApi: 20220829
+    volumes:
+      - ../../:/app
+
+  8.3-alpine:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.3
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: 8.3.33
+        phpSha256Hash: f43566da482abeb1614a512dabeda74967847ce8e176a977390d7a115e7812fd
+        phpApi: 20230831
+    volumes:
+      - ../../:/app
+
+  8.4-alpine:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.4
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: 8.4.25
+        phpSha256Hash: 5cde1da976b728fa09e6b549a4c8afcd0c180337028dacf34f73b11be50253db
+        phpApi: 20240924
+    volumes:
+      - ../../:/app
+
+  8.5-alpine:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.5
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: 8.5.10
+        phpSha256Hash: "f5c0ac99b85b3d677de475c2e4f509f9b4f54663f3ee5a84d6d9481a521d4100"
+        phpApi: 20250925
+    volumes:
+      - ../../:/app
+
+  8.6-alpine:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.6
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: 8.6.0RC7
+        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC7.tar.gz
+        phpSha256Hash: "68b753e1d45e1417c6874008500de66102963cf0791e8c541211e9386318722e"
+        phpApi: 20261112
     volumes:
       - ../../:/app

@@ -2,13 +2,30 @@
 
 set -e
 
+# Retry a command up to 3 times with 10s backoff before signaling infra failure.
+# All failures in this script are infrastructure failures (package downloads,
+# network), not test failures — so exhausted retries exit 75 (EX_TEMPFAIL)
+# to trigger GitLab's infra-retry rule rather than marking the job as failed.
+retry_or_tempfail() {
+    local n=1
+    until "$@"; do
+        if [ "$n" -ge 3 ]; then
+            echo "Infrastructure command failed after $n attempts, signaling retry (exit 75): $*" >&2
+            exit 75
+        fi
+        echo "Command failed (attempt $n/3): $* — retrying in 10s..." >&2
+        n=$((n + 1))
+        sleep 10
+    done
+}
+
 mkdir -p /run/nginx
 
-apk add --no-cache nginx curl
+retry_or_tempfail apk add --no-cache nginx curl
 
 # Installing php
 if [ ! -z "${PHP_PACKAGE}" ]; then
-    apk add --no-cache ${PHP_PACKAGE}
+    retry_or_tempfail apk add --no-cache ${PHP_PACKAGE}
 fi
 
 # Preparing PHP
@@ -17,6 +34,21 @@ if [ -z "$PHP_BIN" ]; then
 fi
 if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php8 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php86 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php85 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php84 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php83 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php82 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php81 || true)
@@ -32,8 +64,9 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
     apk add --no-cache $(pwd)/build/packages/*$(uname -m)*.apk --allow-untrusted
 else
     echo "Installing dd-trace-php using the new PHP installer"
+    retry_or_tempfail apk add --no-cache libgcc
     installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-musl.tar.gz")
-    $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all
+    $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all --enable-appsec
 fi
 
 # Preparing NGINX
@@ -44,6 +77,21 @@ cp $(pwd)/dockerfiles/verify_packages/nginx.conf /etc/nginx/nginx.conf
 # Preparing PHP-FPM
 if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm86 || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm85 || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm84 || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm83 || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm82 || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm81 || true)
@@ -63,6 +111,25 @@ if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/usr/local/etc/php-fpm.d/www.conf
 fi
 if [ ! -f "${WWW_CONF}" ]; then
+    WWW_CONF=/etc/php86/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.22+
+    WWW_CONF=/etc/php85/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.21
+    WWW_CONF=/etc/php84/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.20
+    WWW_CONF=/etc/php83/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.19
+    WWW_CONF=/etc/php82/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
     # Alpine 3.17
     WWW_CONF=/etc/php81/php-fpm.d/www.conf
 fi
@@ -73,7 +140,7 @@ if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/etc/php7/php-fpm.d/www.conf
 fi
 # For cases when it defaults to UDS
-sed -i 's/^listen = .*$/listen = 9000/g' ${WWW_CONF}
+sed -i 's/^listen = .*$/listen = 127.0.0.1:9000/g' $(dirname -- ${WWW_CONF})/*.conf
 # Passing envs to php-fpm process directly for simplicity. Note that on PHP 5.4 clear_env does not appear in www not
 # even commented, so we remove potential existing line and add it at the end of the config file.
 sed -i 's/^;*clear_env.*$//g' ${WWW_CONF}

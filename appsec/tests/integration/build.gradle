@@ -1,0 +1,1381 @@
+import java.nio.file.Files
+import java.nio.file.Path
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
+
+interface InjectedExecOps {
+    @Inject ExecOperations getExecOps()
+}
+
+plugins {
+    id 'groovy'
+    id 'application'
+    id 'de.undercouch.download' version '5.6.0'
+}
+
+repositories {
+    def proxy = System.getenv('MAVEN_REPOSITORY_PROXY')
+    if (proxy) {
+        maven { url proxy }
+    } else {
+        mavenCentral()
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+dependencies {
+    implementation 'ch.qos.logback:logback-classic:1.5.18'
+    implementation 'org.slf4j:jul-to-slf4j:2.0.17'
+
+    implementation 'org.apache.groovy:groovy:4.0.29'
+    implementation 'org.apache.groovy:groovy-json:4.0.29'
+    implementation 'com.google.guava:guava:33.4.8-jre'
+    implementation 'org.msgpack:msgpack-core:0.9.9'
+    implementation 'io.javalin:javalin:6.7.0'
+
+    implementation platform('org.testcontainers:testcontainers-bom:2.0.3')
+    implementation 'org.testcontainers:testcontainers-mysql'
+    implementation "org.testcontainers:testcontainers-junit-jupiter"
+    implementation 'org.hamcrest:hamcrest:2.2'
+    implementation 'com.flipkart.zjsonpatch:zjsonpatch:0.4.16'
+    implementation 'org.junit.jupiter:junit-jupiter-engine:5.12.2'
+    implementation 'org.junit.jupiter:junit-jupiter-params:5.12.2'
+    implementation 'org.junit.platform:junit-platform-launcher'
+
+    testRuntimeOnly 'com.mysql:mysql-connector-j:9.3.0'
+}
+
+test {
+}
+tasks['test'].enabled = false
+
+ext.testMatrix = ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5', '8.6'].collectMany {
+    [[it, 'release'], [it, 'debug'], [it, 'release-zts']]
+}
+ext.uuid = "id -u".execute().text.trim()
+
+apply from: "$rootDir/gradle/images.gradle"
+
+def dockerMirror = ext.dockerMirror
+def map_tag = ext.map_tag
+def repo = ext.repo
+def arch = System.getProperty('os.arch')
+def useHelperRustCoverage = project.hasProperty('useHelperRustCoverage')
+
+if (useHelperRustCoverage && project.hasProperty('useCmake')) {
+    throw new GradleException(
+            'Helper-rust SSI coverage is not supported with -PuseCmake')
+}
+
+def dockerPullTask(String tag) {
+    String taskName = "dockerPull-${tag}"
+    if (tasks.findByName(taskName) != null) {
+        return tasks[taskName]
+    }
+
+    tasks.register("dockerPull-${tag}", Exec) {
+        String imageName = "$dockerMirror/${repo}${map_tag(tag)}"
+        description = "Pull ${imageName} from Docker Hub"
+
+        onlyIf {
+            Process proc = ['docker', 'image', 'inspect', imageName].execute()
+            proc.waitForOrKill(5_000)
+            proc.exitValue() != 0
+        }
+
+        commandLine 'docker', 'pull', imageName
+    }
+}
+
+def creationDateOf(String image) {
+    Process proc = ['docker', 'image', 'inspect', '--format="{{.Created}}"',  image].execute()
+    proc.waitForOrKill(5_000)
+    if (proc.exitValue() != 0) {
+        return 0
+    }
+    def imageModifiedStr = proc.text.trim().replace('"', '')
+    Date volumeDate = Date.from(OffsetDateTime.parse(imageModifiedStr).toInstant())
+    volumeDate.time
+}
+
+def createVolumeTask = { String volumeName ->
+    String taskName = "createVolume-$volumeName"
+    if (tasks.findByName(taskName) != null) {
+        return tasks[taskName]
+    }
+    tasks.register(taskName, Exec) { Exec it ->
+        def injected = project.objects.newInstance(InjectedExecOps)
+        onlyIf {
+            Process proc = ['docker', 'volume', 'inspect', volumeName].execute()
+            proc.waitForOrKill(5_000)
+            proc.exitValue() != 0
+        }
+        it.commandLine 'docker', 'volume', 'create', volumeName
+        doLast {
+            injected.execOps.exec {
+                commandLine 'docker', 'run', '--rm', '-v', "${volumeName}:/vol",
+                        "$dockerMirror/library/busybox",
+                        'sh', '-c', "chown -R ${uuid} /vol"
+            }
+        }
+    }
+}
+
+task downloadComposerOld(type: Download) {
+    def injected = project.objects.newInstance(InjectedExecOps)
+    src 'https://getcomposer.org/download/latest-2.2.x/composer.phar'
+    dest 'build/composer-2.2.x.phar'
+    overwrite false
+    doLast {
+        injected.execOps.exec {
+            commandLine 'chmod', '+x', outputFiles.first().toString()
+        }
+    }
+}
+
+task downloadComposer(type: Download) {
+    def injected = project.objects.newInstance(InjectedExecOps)
+    src 'https://getcomposer.org/download/2.8.6/composer.phar'
+    dest 'build/composer-2.8.6.phar'
+    overwrite false
+    doLast {
+        injected.execOps.exec {
+            commandLine 'chmod', '+x', outputFiles.first().toString()
+        }
+    }
+}
+
+// Modification times (ms) of files in a volume, or null if any is missing
+def volumeFileTimes = { String volumeName, List files ->
+    Process proc = ['docker', 'run', '--rm', '--mount',
+                    "type=volume,src=$volumeName,dst=/vol",
+                    "$dockerMirror/library/busybox", 'sh', '-c',
+                    "stat -c %Y ${files.collect { "'/vol/$it'" }.join(' ')}"]
+            .execute()
+
+    proc.waitForOrKill(5_000)
+    if (proc.exitValue() != 0) {
+        return null
+    }
+    def times = proc.text.readLines()*.trim().findAll { it }.collect { it.toLong() * 1000 }
+    times.size() == files.size() ? times : null
+}
+
+def buildRunInDockerTask = { Map options ->
+    String baseName = options.get('baseName')
+    def version = options.get('version')
+    def variant = options.get('variant')
+    def hasVersionVariant = version && variant
+    def suffix = hasVersionVariant ? "-${version}-${variant}" : ''
+
+    String imageName
+    def pullTask
+    if (options.containsKey('externalImage')) {
+        // Use external Docker image (e.g., rust:alpine3.23)
+        imageName = "$dockerMirror/${options['externalImage']}"
+        pullTask = null // No pull task for external images
+    } else {
+        String imageTag = options.get('imageTag') ?: "${options.get('baseTag', 'php')}-$version-$variant"
+        imageName = "$dockerMirror/${repo}${map_tag(imageTag)}"
+        pullTask = dockerPullTask(imageTag)
+    }
+
+    def volumes = options.get('volumes', [:]).collectEntries { k, v ->
+        [k, v + [task: createVolumeTask(k)]]
+    }
+    def binds = [
+            ("${projectDir}/../../..".toString()):  '/project'
+    ]
+
+    if (hasVersionVariant && options.get('needsTracer', true)) {
+        def volName = "php-tracer-${version}-${variant}"
+        volumes[volName] = [
+                mountPoint: '/project/tmp',
+                task: createVolumeTask(volName),
+        ]
+    }
+    if (options.get('needsBoostCache', true)) {
+        if (project.hasProperty('localBoostCache')) {
+            binds[project.getProperty('localBoostCache')] = '/var/boost-cache'
+        } else {
+            volumes['php-appsec-boost-cache'] = [
+                    mountPoint: '/var/boost-cache',
+                    task: createVolumeTask('php-appsec-boost-cache'),
+            ]
+        }
+    }
+    if (options.get('needsCargoCache', true)) {
+        volumes['php-tracer-cargo-cache'] = [
+                mountPoint: '/root/.cargo/registry',
+                task: createVolumeTask('php-tracer-cargo-cache'),
+        ]
+        volumes['php-tracer-cargo-cache-git'] = [
+                mountPoint: '/root/.cargo/git',
+                task: createVolumeTask('php-tracer-cargo-cache-git'),
+        ]
+    }
+
+    def composerDlTask
+    if (options.get('composer', false)) {
+        if (version in ['7.0', '7.1']) {
+            composerDlTask = tasks['downloadComposerOld']
+        } else {
+            composerDlTask = tasks['downloadComposer']
+        }
+        String composerFile = composerDlTask.outputFiles.first()
+        binds[composerFile] = '/usr/local/bin/composer'
+    }
+
+    def t = tasks.register("$baseName$suffix", Exec) {
+        if (options['description']) {
+            description = hasVersionVariant ? "${options['description']} for PHP $version $variant" : options['description']
+
+            def inputsSpec = options.get('inputs', [:])
+            inputsSpec.get('dirs', []).each { dir ->
+                inputs.files fileTree(dir).matching {
+                    include '**/*'
+                    exclude '**/target/**', '**/*.profraw', '**/*.profdata'
+                    exclude { FileTreeElement element ->
+                        Path p = element.file.toPath()
+                        if (Files.isSymbolicLink(p)) {
+                            // exclude if the target does not exist
+                            if (!Files.exists(Files.readSymbolicLink(p))) {
+                                logger.warn("Excluding broken symlink: $p")
+                                return true
+                            }
+                        }
+                        false // do not exclude
+                    }
+                }
+            }
+            inputsSpec.get('files', []).each {
+                inputs.file it
+            }
+
+            def outputFiles = options.get('outputFiles', [])
+            outputFiles.each {
+                outputs.file it
+            }
+            if (!options['outputs'] && outputFiles.empty) {
+                outputs.upToDateWhen { false }
+            }
+            if (options['outputs']) {
+                String volumeName = hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']
+                def files = options['outputs']['files']
+                outputs.upToDateWhen {
+                    def outputTimes = volumeFileTimes(volumeName, files)
+                    if (!outputTimes) {
+                        return false
+                    }
+                    long outputsTime = outputTimes.min()
+                    long latestInputDate =
+                            inputs.files.collect { it.lastModified() }.max()
+                    if (latestInputDate > outputsTime) {
+                        return false
+                    }
+
+                    long imageTime = creationDateOf(imageName)
+                    imageTime < outputsTime
+                }
+            }
+
+            // Gradle can't fingerprint files in volumes (e.g. a library built
+            // by another task): the task is out of date when one of them is
+            // newer than the oldest output.
+            def volumeInputs = volumes.findAll { name, spec -> spec['inputFiles'] }
+            if (volumeInputs) {
+                String outputVolume = options['outputs'] ?
+                        (hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']) :
+                        null
+                outputs.upToDateWhen {
+                    def outputTimes = outputVolume ?
+                            volumeFileTimes(outputVolume, options['outputs']['files']) :
+                            outputFiles.collect { file(it) }.findAll { it.exists() }*.lastModified()
+                    if (!outputTimes || (!outputVolume && outputTimes.size() != outputFiles.size())) {
+                        return false
+                    }
+                    long outputsTime = outputTimes.min()
+                    volumeInputs.every { name, spec ->
+                        def inputTimes = volumeFileTimes(name, spec['inputFiles'])
+                        inputTimes != null && inputTimes.max() <= outputsTime
+                    }
+                }
+            }
+
+            def commandLine = [
+                    'docker', 'run', '--init', '--rm',
+                    '--entrypoint', options.get('entrypoint', '/bin/bash'),
+            ]
+            if (!options.get('runAsRoot', false)) {
+                commandLine.addAll(['--user', uuid, '-e', 'HOME=/tmp'])
+            }
+            if (System.getenv('GITLAB_CI') != null) {
+                commandLine.addAll(['-e', 'GITLAB_CI'])
+            }
+            binds.each { source, dest ->
+                commandLine.addAll(['--mount', "type=bind,src=${source},dst=${dest}"])
+            }
+            volumes.each { volumeName, volumeSpec ->
+                commandLine << '--mount'
+                def mountOpts = "type=volume,src=${volumeName},dst=${volumeSpec['mountPoint']}"
+                if (volumeSpec.get('readonly', false)) {
+                    mountOpts += ',readonly'
+                }
+                commandLine << mountOpts
+                dependsOn volumeSpec['task']
+            }
+            commandLine << imageName
+            if (pullTask) {
+                dependsOn pullTask
+            }
+
+            commandLine.addAll(options['command'])
+            it.commandLine commandLine
+
+            if (composerDlTask) {
+                dependsOn composerDlTask
+            }
+
+            options.get('taskDependencies', []).each { dep ->
+                dependsOn dep
+            }
+        }
+    }
+
+    if (options.containsKey('outputs') && options['outputs'].containsKey('volume')) {
+        String volName = hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']
+        String taskName = "cleanVolume-${volName}"
+        if (!tasks.findByName(taskName)) {
+            def task = tasks.register(taskName, Exec) {
+                description = hasVersionVariant ? "Clean volume ${options['outputs']['volume']} for PHP $version $variant" : "Clean volume ${options['outputs']['volume']}"
+                commandLine 'docker', 'volume', 'rm', '-f', volName
+            }
+            tasks['clean'].dependsOn task
+        }
+    }
+
+    t
+}
+
+// in the build image, the release nonzts versions have no suffix
+def phpSdkVersion = { String version, String variant ->
+    variant in ['release', 'release-musl'] ? version : "$version-$variant"
+}
+
+def portableBuildVariant = { String variant ->
+    variant.replace('-musl', '')
+}
+
+def buildTracerTask = { String version, String variant ->
+    buildRunInDockerTask(
+            baseName: 'buildTracer',
+            imageTag: 'php-buildonly-rust',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
+            description: 'Build portable tracer extension for PHP',
+            inputs: [
+                    dirs: [
+                            '../../../ext',
+                            '../../../m4',
+                            '../../src',
+                            '../../../src/dogstatsd',
+                            '../../../tracer',
+                            '../../../components',
+                            '../../../components-rs',
+                            '../../../zend_abstract_interface',
+                            '../../../libdatadog',
+                            '../../helper-rust',
+                            '../../../sidecar',
+                            '../../third_party/libddwaf-rust',
+                    ],
+                    files: [
+                            '../../../Cargo.lock',
+                            '../../../Cargo.toml',
+                            '../../../Makefile',
+                            '../../../VERSION',
+                            '../../../compile_rust.sh',
+                            '../../../config.m4',
+                            '../../../ddtrace-extension-linux.sym',
+                            '../../../ddtrace-extension.sym',
+                            '../../recommended.json',
+                    ],
+            ],
+            outputs: [
+                    volume: 'php-tracer',
+                    files: ['build_extension/modules/ddtrace.so'],
+            ],
+            volumes: [
+                    ("php-tracer-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+                    ("php-tracer-${version}-${variant}"): [
+                            mountPoint: '/tracer',
+                    ],
+                    'php-portable-libdatadog-php': [
+                            mountPoint: '/portable-rust',
+                            readonly: true,
+                            inputFiles: ['libdatadog_php.a', 'php_sidecar_mockgen'],
+                    ],
+            ],
+            taskDependencies: ['buildPortableLibdatadogPhp'],
+            command: [
+                    '-e', '-c',
+                    """
+                    cd /project
+
+                    PHPRC= \\
+                        PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
+                        EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
+                        EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-appsec \\
+                            --with-ddtrace-rust-library=/portable-rust/libdatadog_php.a \\
+                            --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
+                        make /project/tmp/build_extension/modules/ddtrace.so
+                    TRACER=/project/tmp/build_extension/modules/ddtrace.so
+                    # The musl tests reuse this glibc build
+                    versionInfo=\$(readelf --version-info "\$TRACER")
+                    if grep -q 'GLIBC_' <<< "\$versionInfo"; then
+                        echo 'ddtrace.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
+                    mkdir -p /tracer/build_extension/modules
+                    cp "\$TRACER" \
+                        /tracer/build_extension/modules/ddtrace.so
+                    touch /tracer/build_extension/modules/ddtrace.so
+                    """
+            ]
+    )
+}
+
+def buildTracerCmakeTask = { String version, String variant ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
+    buildRunInDockerTask(
+            baseName: 'buildTracerCmake',
+            imageTag: 'php-buildonly-rust',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
+            description: 'Build tracer for PHP (cmake)',
+            inputs: [
+                    dirs: [
+                            '../../../ext',
+                            '../../src',
+                            '../../../src/dogstatsd',
+                            '../../../tracer',
+                            '../../../components',
+                            '../../../components-rs',
+                            '../../../zend_abstract_interface',
+                            '../../../libdatadog',
+                            '../../helper-rust',
+                            '../../../sidecar',
+                            '../../third_party/libddwaf-rust',
+                            '../../../cmake/Modules',
+                            '../../cmake',
+                    ],
+                    files: [
+                            '../../../Cargo.lock',
+                            '../../../Cargo.toml',
+                            '../../../VERSION',
+                            '../../../compile_rust.sh',
+                            '../../../ddtrace-extension-linux.sym',
+                            '../../../ddtrace-extension.sym',
+                            '../../CMakeLists.txt',
+                            '../../third_party/CMakeLists.txt',
+                            '../../recommended.json',
+                    ],
+            ],
+            outputs: [
+                    volume: 'php-tracer-cmake',
+                    files: ['build_extension/modules/ddtrace.so'],
+            ],
+            volumes: [
+                    ("php-tracer-cmake-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+                    ("php-tracer-cmake-${version}-${variant}"): [
+                            mountPoint: '/tracer',
+                    ],
+                    'php-portable-libdatadog-php': [
+                            mountPoint: '/portable-rust',
+                            readonly: true,
+                            inputFiles: ['libdatadog_php.a', 'php_sidecar_mockgen'],
+                    ],
+            ],
+            taskDependencies: ['buildPortableLibdatadogPhp'],
+            command: [
+                    '-e', '-c',
+                    """
+                    cd /project/tmp
+
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    cmake -DCMAKE_BUILD_TYPE=${buildType} \\
+                          -DCMAKE_C_FLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
+                          -DDD_APPSEC_DDTRACE_ALT=ON \\
+                          -DDD_APPSEC_TESTING=OFF \\
+                          -DDD_APPSEC_LIBDATADOG_PHP=/portable-rust/libdatadog_php.a \\
+                          -DDD_APPSEC_PHP_SIDECAR_MOCKGEN=/portable-rust/php_sidecar_mockgen \\
+                          /project/appsec
+                    make -j ddtrace
+                    # The musl tests reuse this glibc build
+                    versionInfo=\$(readelf --version-info ddtrace.so)
+                    if grep -q 'GLIBC_' <<< "\$versionInfo"; then
+                        echo 'ddtrace.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
+                    mkdir -p /tracer/build_extension/modules
+                    cp ddtrace.so /tracer/build_extension/modules/ddtrace.so
+                    touch /tracer/build_extension/modules/ddtrace.so
+                    """
+            ]
+    )
+}
+
+def buildTracerSsiTask = { String version, String variant ->
+    def volumes = [
+            ("php-tracer-ssi-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
+            ("php-tracer-ssi-buildonly-${version}-${variant}"): [
+                    mountPoint: '/project/tmp',
+            ],
+            'php-portable-libdatadog-php': [
+                    mountPoint: '/portable-rust',
+                    readonly: true,
+                    inputFiles: ['libdatadog_php.so', 'php_sidecar_mockgen'],
+            ],
+    ]
+
+    def task = buildRunInDockerTask(
+            baseName: 'buildTracerSsi',
+            imageTag: 'php-buildonly-rust',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
+            description: 'Build tracer in SSI split configuration for PHP',
+            inputs: [
+                    dirs: [
+                            '../../../components',
+                            '../../../ext',
+                            '../../src',
+                            '../../../m4',
+                            '../../../src/dogstatsd',
+                            '../../../tracer',
+                            '../../../zend_abstract_interface',
+                            '../../../components-rs',
+                            '../../../libdatadog',
+                            '../../helper-rust',
+                            '../../../sidecar',
+                            '../../third_party/libddwaf-rust',
+                    ],
+                    files: [
+                            '../../../Cargo.lock',
+                            '../../../Cargo.toml',
+                            '../../../Makefile',
+                            '../../../VERSION',
+                            '../../../compile_rust.sh',
+                            '../../../config.m4',
+                            '../../../ddtrace-extension-linux.sym',
+                            '../../../ddtrace-extension.sym',
+                            '../../../profiling/build.rs',
+                            '../../recommended.json',
+                    ],
+            ],
+            outputs: [
+                    volume: 'php-tracer-ssi',
+                    files: ['ddtrace.so', 'libdatadog_php.so'],
+            ],
+            volumes: volumes,
+            taskDependencies: ['buildPortableLibdatadogPhp'],
+            command: [
+                    '-e', '-c',
+                    """
+                    cd /project
+                    PHPRC= \\
+                        PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
+                        EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
+                        EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-appsec \\
+                            --enable-ddtrace-rust-library-split \\
+                            --with-ddtrace-rust-library=/portable-rust/libdatadog_php.so \\
+                            --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
+                        make /project/tmp/build_extension/modules/ddtrace.so
+                    TRACER=/project/tmp/build_extension/modules/ddtrace.so
+                    patchelf --print-needed "\$TRACER" | \\
+                        grep -qx libdatadog_php.so
+                    cp "\$TRACER" /tracer-ssi/ddtrace.so
+
+                    cp /portable-rust/libdatadog_php.so \\
+                        /tracer-ssi/libdatadog_php.so
+
+                    touch /tracer-ssi/ddtrace.so /tracer-ssi/libdatadog_php.so
+                    """
+            ]
+    )
+    task.configure {
+        inputs.property 'useHelperRustCoverage', useHelperRustCoverage
+        outputs.upToDateWhen {
+            dockerVolumeFilesMatch(
+                    dockerMirror,
+                    'php-portable-libdatadog-php',
+                    "php-tracer-ssi-${version}-${variant}",
+                    'libdatadog_php.so')
+        }
+    }
+    task
+}
+
+static boolean dockerVolumeFilesMatch(
+        String dockerMirror,
+        String sourceVolume,
+        String destinationVolume,
+        String fileName) {
+        Process proc = ['docker', 'run', '--rm',
+                        '--mount',
+                        "type=volume,src=$sourceVolume,dst=/source,readonly",
+                        '--mount',
+                        "type=volume,src=$destinationVolume,dst=/destination,readonly",
+                        "$dockerMirror/library/busybox",
+                        'cmp', '-s', "/source/$fileName", "/destination/$fileName"]
+                .execute()
+        proc.waitForOrKill(5_000)
+        proc.exitValue() == 0
+}
+
+def buildTracerSsiCmakeTask = { String version, String variant ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
+    def task = buildRunInDockerTask(
+            baseName: 'buildTracerSsiCmake',
+            imageTag: 'php-buildonly-rust',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
+            description: 'Build tracer in SSI split configuration for PHP (cmake)',
+            inputs: [
+                    dirs: [
+                            '../../../ext',
+                            '../../src',
+                            '../../../src/dogstatsd',
+                            '../../../tracer',
+                            '../../../components',
+                            '../../../components-rs',
+                            '../../../zend_abstract_interface',
+                            '../../../libdatadog',
+                            '../../helper-rust',
+                            '../../../sidecar',
+                            '../../third_party/libddwaf-rust',
+                            '../../../cmake/Modules',
+                            '../../cmake',
+                    ],
+                    files: [
+                            '../../../Cargo.lock',
+                            '../../../Cargo.toml',
+                            '../../../VERSION',
+                            '../../../compile_rust.sh',
+                            '../../../ddtrace-extension-linux.sym',
+                            '../../../ddtrace-extension.sym',
+                            '../../../profiling/build.rs',
+                            '../../CMakeLists.txt',
+                            '../../cmake/ddtrace.cmake',
+                            '../../recommended.json',
+                    ],
+            ],
+            outputs: [
+                    volume: 'php-tracer-ssi-cmake',
+                    files: ['ddtrace.so', 'libdatadog_php.so'],
+            ],
+            volumes: [
+                    ("php-tracer-ssi-cmake-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+                    ("php-tracer-ssi-cmake-${version}-${variant}"): [
+                            mountPoint: '/tracer-ssi',
+                    ],
+                    'php-portable-libdatadog-php': [
+                            mountPoint: '/portable-rust',
+                            readonly: true,
+                            inputFiles: ['libdatadog_php.so', 'php_sidecar_mockgen'],
+                    ],
+            ],
+            taskDependencies: ['buildPortableLibdatadogPhp'],
+            command: [
+                    '-e', '-c',
+                    """
+                    cd /project/tmp
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    cmake -DCMAKE_BUILD_TYPE=${buildType} \\
+                          -DCMAKE_C_FLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
+                          -DDD_APPSEC_DDTRACE_ALT=ON \\
+                          -DDD_APPSEC_SSI=ON \\
+                          -DDD_APPSEC_TESTING=OFF \\
+                          -DDD_APPSEC_LIBDATADOG_PHP=/portable-rust/libdatadog_php.so \\
+                          -DDD_APPSEC_PHP_SIDECAR_MOCKGEN=/portable-rust/php_sidecar_mockgen \\
+                          /project/appsec
+                    make -j ddtrace
+                    cp ddtrace.so /tracer-ssi/ddtrace.so
+                    cp /portable-rust/libdatadog_php.so \\
+                        /tracer-ssi/libdatadog_php.so
+                    touch /tracer-ssi/ddtrace.so \\
+                        /tracer-ssi/libdatadog_php.so
+                    """
+            ]
+    )
+    task.configure {
+        inputs.property 'useHelperRustCoverage', useHelperRustCoverage
+        outputs.upToDateWhen {
+            dockerVolumeFilesMatch(
+                    dockerMirror,
+                    'php-portable-libdatadog-php',
+                    "php-tracer-ssi-cmake-${version}-${variant}",
+                    'libdatadog_php.so')
+        }
+    }
+    task
+}
+
+def buildCoverageReportTask = {
+        String version, String variant, File coverageDirectory -> // ssi only
+    String id = "${version}-${variant}-ssi"
+    String containerCoverageDirectory =
+            "/project/appsec/tests/integration/build/reports/coverage/$id"
+    File report = new File(
+            coverageDirectory, 'helper-rust-integration.lcov')
+    def coverageReportTask = buildRunInDockerTask(
+            baseName: "generateHelperRustIntegrationCoverage-$id",
+            imageTag: 'php-buildonly-rust',
+            entrypoint: '/bin/sh',
+            description: "Generate helper-rust coverage for $id",
+            needsBoostCache: false,
+            needsCargoCache: false,
+            inputs: [
+                    dirs: ['../../helper-rust/src'],
+            ],
+            volumes: [
+                    'php-portable-libdatadog-php': [
+                            mountPoint: '/portable-rust',
+                            readonly: true,
+                            inputFiles: ['libdatadog_php.so'],
+                    ],
+            ],
+            taskDependencies: ['buildPortableLibdatadogPhp'],
+            outputFiles: [report],
+            command: [
+                    '-e', '-c',
+                    """
+                cd /project
+                LLVM_TOOLS="\$(dirname "\$(rustc --print target-libdir)")/bin"
+                test -x "\$LLVM_TOOLS/llvm-profdata"
+                test -x "\$LLVM_TOOLS/llvm-cov"
+
+                REPORT=$containerCoverageDirectory/helper-rust-integration.lcov
+                rm -f "\$REPORT"
+
+                cd $containerCoverageDirectory
+                set -- *.profraw
+                if [ ! -e "\$1" ]; then
+                    echo 'No helper-rust coverage profiles found for $id' >&2
+                    exit 1
+                fi
+
+                "\$LLVM_TOOLS/llvm-profdata" merge -sparse "\$@" \\
+                    -o merged.profdata
+                find /project/appsec/helper-rust/src \\
+                    -name '*.rs' -print0 |
+                    xargs -0 "\$LLVM_TOOLS/llvm-cov" export \\
+                        /portable-rust/libdatadog_php.so \\
+                        -format=lcov \\
+                        -instr-profile=merged.profdata \\
+                        --sources \\
+                        > "\$REPORT"
+                """.stripIndent()
+            ]
+    )
+    coverageReportTask.configure {
+        inputs.files fileTree(coverageDirectory) {
+            include '*.profraw'
+        }
+    }
+    coverageReportTask
+}
+
+// TODO: loader is actually php independent?
+def buildLoaderTask = { String version, String variant ->
+    buildRunInDockerTask(
+            baseName: 'buildLoader',
+            imageTag: 'php-buildonly-rust',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
+            description: 'Build portable dd_library_loader extension for PHP',
+            inputs: [
+                    dirs: ['../../../loader'],
+            ],
+            outputs: [
+                    volume: 'php-loader',
+                    files: ['dd_library_loader.so'],
+            ],
+            volumes: [
+                    ("php-loader-${version}-${variant}"): [mountPoint: '/loader-build'],
+            ],
+            command: [
+                    '-e', '-c',
+                    """
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    PHP_PREFIX=/opt/php/\$PHP_SDK_VERSION
+                    echo "Using PHP SDK from: \$PHP_PREFIX"
+                    # phpize builds in the source directory: use a copy, so as not
+                    # to write into this task's inputs, which the versions share
+                    rm -rf /loader-build/src
+                    cp -a /project/loader /loader-build/src
+                    cd /loader-build/src
+                    make distclean 2>/dev/null || true
+                    \$PHP_PREFIX/bin/phpize
+                    rm -f config.cache
+                    ./configure --with-php-config=\$PHP_PREFIX/bin/php-config
+                    make -j
+                    cp modules/dd_library_loader.so /loader-build/
+                    touch /loader-build/dd_library_loader.so
+                    """
+            ]
+    )
+}
+
+def runUnitTestsTask = { String phpVersion, String variant ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
+    def env = ''
+    if (project.hasProperty('tests')) {
+        env = "TESTS='${project.getProperty('tests')}' "
+    }
+    def task = buildRunInDockerTask(
+            baseName: 'xtest',
+            baseTag: 'php',
+            version: phpVersion,
+            variant: variant,
+            needsCargoCache: false,
+            description: 'Run appsec extension tests for PHP',
+            volumes: [
+                    ("php-appsec-unit-${phpVersion}-${variant}"): [
+                            mountPoint: '/appsec',
+                    ],
+            ],
+            command: [
+                    '-e', '-c',
+                    """
+                    cd /appsec
+                    cmake -DCMAKE_BUILD_TYPE=$buildType \\
+                          -DCMAKE_INSTALL_PREFIX=/appsec \\
+                          -DDD_APPSEC_TEST_TRACER=/project/tmp/build_extension/modules/ddtrace.so \\
+                          -DDD_APPSEC_TESTING=ON \\
+                          -DBOOST_CACHE_PREFIX=/var/boost-cache \\
+                          /project/appsec
+                    ${env}make -j xtest
+                    """
+            ]
+    )
+
+    task.configure {
+        dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
+    }
+}
+
+def runMainTask = { String phpVersion, String variant ->
+    tasks.create("runMain$phpVersion-$variant", JavaExec) {
+        mainClass = project.property('testClass')
+        classpath = sourceSets.test.runtimeClasspath
+        standardInput = System.in
+
+        if (project.hasProperty('XDEBUG')) {
+            systemProperty 'XDEBUG', '1'
+        }
+        if (project.hasProperty('checkCoreDumps')) {
+            systemProperty 'checkCoreDumps', '1'
+        }
+        systemProperty 'PHP_VERSION', phpVersion
+        systemProperty 'VARIANT', variant
+
+        dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
+    }
+}
+
+(testMatrix + [
+        ['8.5', 'release-musl'],
+        ['8.5', 'release-zts-musl'],
+]).each { spec ->
+    String phpVersion = spec[0]
+    String variant = spec[1]
+
+    def isMusl = variant =~ /\bmusl\b/
+    def isMuslZts = isMusl && variant.contains('zts')
+
+    if (!isMusl) {
+        buildTracerTask(phpVersion, variant)
+        buildTracerCmakeTask(phpVersion, variant)
+        runUnitTestsTask(phpVersion, variant)
+    }
+    if (project.hasProperty('testClass')) {
+        runMainTask(phpVersion, variant)
+    }
+
+    def task = tasks.register("test${phpVersion}-$variant", Test) {
+        group = 'Verification'
+        description = "Run tests for PHP ${phpVersion} ${variant}"
+
+        it.outputs.upToDateWhen { false }
+
+        it.useJUnitPlatform {
+            includeEngines('junit-jupiter')
+            excludeEngines('junit-vintage')
+
+            if (!project.hasProperty('slowTests')) {
+                excludeTags('slow')
+            }
+
+            if (isMuslZts) {
+                includeTags('zts-musl')
+            } else if (isMusl) {
+                includeTags('musl')
+            }
+        }
+
+        it.testClassesDirs = sourceSets.test.output.classesDirs
+        it.classpath = sourceSets.test.runtimeClasspath
+
+        it.systemProperty 'PHP_VERSION', phpVersion
+        it.systemProperty 'VARIANT', variant
+        if (project.hasProperty('XDEBUG')) {
+            it.systemProperty 'XDEBUG', '1'
+        }
+        if (project.hasProperty('checkCoreDumps')) {
+            it.systemProperty 'checkCoreDumps', '1'
+        }
+        it.systemProperty 'DOCKER_MIRROR', dockerMirror
+        if (!project.hasProperty("floatingImageTags")) {
+            it.systemProperty 'TAG_MAPPINGS', "$rootDir/gradle/tag_mappings.gradle"
+        }
+        if (project.hasProperty('useCmake')) {
+            it.systemProperty 'USE_CMAKE', 'true'
+        }
+
+        String artifactVariant = portableBuildVariant(variant)
+        dependsOn project.hasProperty('useCmake') ?
+                "buildTracerCmake-${phpVersion}-${artifactVariant}" :
+                "buildTracer-${phpVersion}-${artifactVariant}"
+
+        if (phpVersion in ['7.0', '7.1']) {
+            dependsOn downloadComposerOld
+        } else {
+            dependsOn downloadComposer
+        }
+    }
+
+    tasks['check'].dependsOn task
+}
+
+if (project.hasProperty('testClass')) {
+    testMatrix.each { ssiSpec ->
+        String phpVersion = ssiSpec[0]
+        String variant = ssiSpec[1]
+        tasks.create("runMain${phpVersion}-${variant}-ssi", JavaExec) {
+            mainClass = project.property('testClass')
+            classpath = sourceSets.test.runtimeClasspath
+            standardInput = System.in
+
+            systemProperty 'PHP_VERSION', phpVersion
+            systemProperty 'VARIANT', variant
+            systemProperty 'SSI', 'true'
+            systemProperty 'DOCKER_MIRROR', dockerMirror
+            if (!project.hasProperty('floatingImageTags')) {
+                systemProperty 'TAG_MAPPINGS', "$rootDir/gradle/tag_mappings.gradle"
+            }
+            if (project.hasProperty('useCmake')) {
+                systemProperty 'USE_CMAKE', 'true'
+            }
+            dependsOn project.hasProperty('useCmake') ?
+                    "buildTracerSsiCmake-${phpVersion}-${variant}" :
+                    "buildTracerSsi-${phpVersion}-${variant}"
+            dependsOn "buildLoader-${phpVersion}-${variant}"
+            dependsOn downloadComposer
+        }
+    }
+}
+
+testMatrix.each { ssiSpec ->
+    String phpVersion = ssiSpec[0]
+    String variant = ssiSpec[1]
+    String id = "${phpVersion}-${variant}-ssi"
+    File coverageDirectory =
+            file("${project.buildDir}/reports/coverage/$id")
+    TaskProvider<Exec> coverageReportTask
+    if (useHelperRustCoverage) {
+        coverageReportTask = buildCoverageReportTask(
+                phpVersion, variant, coverageDirectory)
+    }
+
+    buildTracerSsiTask(phpVersion, variant)
+    buildTracerSsiCmakeTask(phpVersion, variant)
+    buildLoaderTask(phpVersion, variant)
+
+    tasks.register("test$id", Test) {
+        group = 'Verification'
+        description = "Run tests for PHP $phpVersion $variant in SSI mode"
+
+        it.outputs.upToDateWhen { false }
+
+        it.useJUnitPlatform {
+            includeEngines('junit-jupiter')
+            excludeEngines('junit-vintage')
+
+            if (!project.hasProperty('slowTests')) {
+                excludeTags('slow')
+            }
+        }
+
+        it.testClassesDirs = sourceSets.test.output.classesDirs
+        it.classpath = sourceSets.test.runtimeClasspath
+
+        it.systemProperty 'PHP_VERSION', phpVersion
+        it.systemProperty 'VARIANT', variant
+        it.systemProperty 'SSI', 'true'
+
+        if (project.hasProperty('XDEBUG')) {
+            it.systemProperty 'XDEBUG', '1'
+        }
+        if (project.hasProperty('checkCoreDumps')) {
+            it.systemProperty 'checkCoreDumps', '1'
+        }
+        it.systemProperty 'DOCKER_MIRROR', dockerMirror
+        if (!project.hasProperty('floatingImageTags')) {
+            it.systemProperty 'TAG_MAPPINGS', "$rootDir/gradle/tag_mappings.gradle"
+        }
+        if (project.hasProperty('useCmake')) {
+            it.systemProperty 'USE_CMAKE', 'true'
+        }
+        if (useHelperRustCoverage) {
+            it.systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
+            it.systemProperty 'HELPER_RUST_COVERAGE_DIRECTORY',
+                    coverageDirectory.absolutePath
+            it.doFirst {
+                project.delete coverageDirectory
+                if (!coverageDirectory.mkdirs() &&
+                        !coverageDirectory.isDirectory()) {
+                    throw new GradleException(
+                            "Could not create $coverageDirectory")
+                }
+                if (!coverageDirectory.setWritable(true, false)) {
+                    throw new GradleException(
+                            "Could not make $coverageDirectory writable")
+                }
+            }
+            it.finalizedBy coverageReportTask
+        }
+
+        dependsOn project.hasProperty('useCmake') ?
+                "buildTracerSsiCmake-${phpVersion}-${variant}" :
+                "buildTracerSsi-${phpVersion}-${variant}"
+        dependsOn "buildLoader-${phpVersion}-${variant}"
+        dependsOn downloadComposer
+    }
+}
+
+task loadCaches(type: Exec) {
+    description = "Load the docker caches"
+    inputs.file "${project.buildDir}/php-appsec-volume-caches-${arch}.tar.gz"
+
+    commandLine 'docker', 'run', '--rm',
+            '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
+            '-v', 'php-appsec-boost-cache:/caches/php-appsec-boost-cache',
+            '-v', "${project.buildDir}:/build",
+            "$dockerMirror/library/busybox",
+            'sh', '-c',
+            "tar -xzf /build/php-appsec-volume-caches-${arch}.tar.gz -C /caches && \
+                chown -R ${uuid} /caches"
+
+    dependsOn 'createVolume-php-tracer-cargo-cache'
+    dependsOn 'createVolume-php-tracer-cargo-cache-git'
+    dependsOn 'createVolume-php-appsec-boost-cache'
+}
+
+task saveCaches(type: Exec) {
+    description = "Save the docker caches"
+    outputs.file "${project.buildDir}/php-appsec-volume-caches-${arch}.tar.gz"
+    commandLine 'docker', 'run', '--rm',
+            '-e', "UUID=${uuid}",
+            '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
+            '-v', 'php-appsec-boost-cache:/caches/php-appsec-boost-cache',
+            '-v', "${project.buildDir}:/build",
+            "$dockerMirror/library/busybox",
+            'sh', '-c',
+            """tar -czf /build/php-appsec-volume-caches-${arch}.tar.gz \
+              -C /caches php-tracer-cargo-cache php-tracer-cargo-cache-git php-appsec-boost-cache && \
+              chown \$UUID /build/php-appsec-volume-caches-${arch}.tar.gz"""
+}
+
+// Shared configuration for helper-rust tasks
+def helperRustInputs = [
+        dirs: [
+                '../../../libdatadog',
+                '../../helper-rust/src',
+                '../../third_party/libddwaf-rust',
+        ],
+        files: [
+                '../../helper-rust/Cargo.toml',
+                '../../../Cargo.lock',
+                '../../../Cargo.toml',
+                // Workspace members, which cargo reads even for -p helper-rust
+                '../../../sidecar/Cargo.toml',
+                '../../../components-rs/php_sidecar_mockgen/Cargo.toml',
+                '../../../VERSION',
+                '../../../rust-toolchain.toml',
+                '../../helper-rust/clippy.toml',
+                '../../helper-rust/build.rs',
+                '../../helper-rust/coverage_init.c',
+                '../../recommended.json',
+        ],
+]
+
+def helperRustEnvSetup = '''
+export PATH="/root/.cargo/bin:$PATH"
+export RUSTUP_HOME=/root/.rustup
+export CARGO_HOME=/root/.cargo
+export CC=musl-clang
+export CXX=musl-clang++
+export RUSTFLAGS="-C target-feature=-crt-static -C linker=musl-clang"
+cd /project
+export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
+'''
+
+// The shared runtime is PHP-ABI-independent; profiling is built per PHP SDK.
+def portableLibdatadogPhpFeatureArgs = '--no-default-features --features ' +
+        (useHelperRustCoverage ? 'tracer-runtime,helper-rust-coverage' : 'tracer-runtime')
+// Backtraces need unwind tables panic=abort and only 1.92.0 enables them by default
+// We're not there yet
+// See https://github.com/rust-lang/rust/commit/fe66eaa67acc47525db6f13cf97d54780d87b805
+def portableLibdatadogPhpRustFlags = '-C link-arg=/usr/lib/libunwind.a' +
+        ' -C force-unwind-tables=yes'
+if (useHelperRustCoverage) {
+    portableLibdatadogPhpRustFlags += ' -C instrument-coverage'
+}
+def portableLibdatadogPhpBuildMode = useHelperRustCoverage ?
+        'helper-rust-coverage' : 'default'
+def portableLibdatadogPhpCommand = '''
+        RUST_TARGET="$(uname -m)-unknown-linux-musl"
+        export CARGO_TARGET_DIR=/portable-rust/cargo-target
+
+        cd /project
+        CARGO_FEATURES='@FEATURE_ARGS@' RUSTFLAGS='@RUSTFLAGS@' \
+            SHARED=1 PROFILE=tracer-release host_os=linux-musl \
+            ./compile_rust.sh \
+                --package datadog-php \
+                --package php_sidecar_mockgen \
+                -Z build-std=std,panic_abort \
+                -Z build-std-features=llvm-libunwind,backtrace
+
+        LIBRARY_DIR=/portable-rust/cargo-target/tracer-release
+        ln -f "$LIBRARY_DIR/libdatadog_php.so" \
+            /portable-rust/libdatadog_php.so
+        ln -f "$LIBRARY_DIR/libdatadog_php.a" \
+            /portable-rust/libdatadog_php.a
+        ln -f "/portable-rust/cargo-target/$RUST_TARGET/tracer-release/php_sidecar_mockgen" \
+            /portable-rust/php_sidecar_mockgen
+        printf '%s\n' '@BUILD_MODE@' > /portable-rust/build-mode
+        printf '%s\n' "$RUST_TARGET" > /portable-rust/rust-target
+        touch /portable-rust/libdatadog_php.so \
+            /portable-rust/libdatadog_php.a \
+            /portable-rust/php_sidecar_mockgen
+        '''.stripIndent()
+        .replace('@RUSTFLAGS@', portableLibdatadogPhpRustFlags)
+        .replace('@FEATURE_ARGS@', portableLibdatadogPhpFeatureArgs)
+        .replace('@BUILD_MODE@', portableLibdatadogPhpBuildMode)
+
+def buildPortableLibdatadogPhp = buildRunInDockerTask(
+        baseName: 'buildPortableLibdatadogPhp',
+        imageTag: 'php-buildonly-rust',
+        entrypoint: '/bin/sh',
+        description: 'Build portable libdatadog_php libraries',
+        needsBoostCache: false,
+        needsCargoCache: false,
+        inputs: [
+                dirs: [
+                        '../../../components-rs',
+                        '../../../libdatadog',
+                        '../../helper-rust',
+                        '../../../sidecar',
+                        '../../third_party/libddwaf-rust',
+                ],
+                files: [
+                        '../../../Cargo.toml',
+                        '../../../Cargo.lock',
+                        '../../../compile_rust.sh',
+                        '../../../rust-toolchain.toml',
+                        '../../../VERSION',
+                        '../../recommended.json',
+                ],
+        ],
+        outputs: [
+                volume: 'php-portable-libdatadog-php',
+                files: [
+                        'libdatadog_php.so',
+                        'libdatadog_php.a',
+                        'php_sidecar_mockgen',
+                        'build-mode',
+                ],
+        ],
+        volumes: [
+                'php-portable-libdatadog-php': [mountPoint: '/portable-rust'],
+                'php-tracer-cargo-cache': [mountPoint: '/root/.cargo/registry'],
+                'php-tracer-cargo-cache-git': [mountPoint: '/root/.cargo/git'],
+        ],
+        command: [
+                '-e', '-c',
+                portableLibdatadogPhpCommand,
+        ],
+)
+buildPortableLibdatadogPhp.configure {
+    inputs.property 'useHelperRustCoverage', useHelperRustCoverage
+    inputs.property 'cargoFeatures', portableLibdatadogPhpFeatureArgs
+}
+
+buildRunInDockerTask(
+        baseName: 'testHelperRust',
+        imageTag: 'php-buildonly-rust',
+        description: 'Test and lint helper-rust',
+        needsBoostCache: false,
+        inputs: helperRustInputs,
+        volumes: [
+                'php-helper-rust': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${helperRustEnvSetup}
+
+                echo '=== Checking formatting ==='
+                cargo fmt -p helper-rust --check
+
+                echo '=== Running Clippy ==='
+                cargo clippy --release -p helper-rust --no-deps
+
+                echo '=== Building helper-rust ==='
+                cargo build --release -p helper-rust
+
+                echo '=== Running cargo test ==='
+                cargo test --release -p helper-rust
+
+                echo '=== Build and test successful ==='
+                """
+        ]
+)
+
+def appsecBodyRustEnvSetup = '''
+export PATH="/root/.cargo/bin:$PATH"
+export RUSTUP_HOME=/root/.rustup
+export CARGO_HOME=/root/.cargo
+cd /project
+export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
+'''
+
+buildRunInDockerTask(
+        baseName: 'testAppsecBody',
+        imageTag: 'php-buildonly-rust',
+        description: 'Test and lint the isolated body parser on musl',
+        needsBoostCache: false,
+        inputs: [
+                dirs: ['../../../components-rs/appsec_body'],
+                files: ['../run-body-parser-rust-tests.sh', '../../../rust-toolchain.toml'],
+        ],
+        volumes: [
+                'php-appsec-body-rust': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${appsecBodyRustEnvSetup}
+                sh appsec/tests/run-body-parser-rust-tests.sh
+                """
+        ]
+)
+
+buildRunInDockerTask(
+        baseName: 'coverageAppsecBody',
+        imageTag: 'php-buildonly-rust',
+        description: 'Generate coverage for body parser unit tests',
+        needsBoostCache: false,
+        inputs: [
+                dirs: ['../../../components-rs/appsec_body'],
+                files: [
+                        '../../../Cargo.lock',
+                        '../../../Cargo.toml',
+                        '../../../rust-toolchain.toml',
+                ],
+        ],
+        outputs: [
+                volume: 'php-appsec-body-coverage',
+                files: ['coverage-unit.lcov'],
+        ],
+        volumes: [
+                'php-appsec-body-coverage': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${appsecBodyRustEnvSetup}
+                export RUSTC_BOOTSTRAP=ddtrace_appsec_body
+                cargo llvm-cov test --package ddtrace-appsec-body --release --locked --lcov \\
+                    --ignore-filename-regex='components-rs/appsec_body/(tests/|tools/|render[.]rs)' \\
+                    --output-path /helper-rust-build/coverage-unit.lcov
+                """
+        ]
+)
+
+buildRunInDockerTask(
+        baseName: 'coverageHelperRust',
+        imageTag: 'php-buildonly-rust',
+        description: 'Generate coverage for helper-rust unit tests',
+        needsBoostCache: false,
+        inputs: helperRustInputs,
+        outputs: [
+                volume: 'php-helper-rust-coverage',
+                files: ['coverage-unit.lcov'],
+        ],
+        volumes: [
+                'php-helper-rust-coverage': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${helperRustEnvSetup}
+
+                echo '=== Running cargo test with coverage ==='
+                cargo llvm-cov test --release -p helper-rust --lcov \\
+                    --ignore-filename-regex='appsec/third_party/' \\
+                    --output-path /helper-rust-build/coverage-unit.lcov
+
+                echo '=== Coverage data generated ==='
+                """
+        ]
+)
+
+if (hasProperty('buildScan')) {
+    buildScan {
+        termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+        termsOfServiceAgree = 'yes'
+    }
+}
+
+// vim: set et sw=4 ts=4:

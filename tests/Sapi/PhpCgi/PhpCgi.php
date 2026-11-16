@@ -35,17 +35,23 @@ final class PhpCgi implements Sapi
     private $inis;
 
     /**
+     * @var string|null
+     */
+    private $ddprofServiceName;
+
+    /**
      * @param string $host
      * @param int $port
      * @param array $envs
      * @param array $inis
      */
-    public function __construct($host, $port, array $envs = [], array $inis = [])
+    public function __construct($host, $port, array $envs = [], array $inis = [], $ddprofServiceName = null)
     {
         $this->host = $host;
         $this->port = $port;
         $this->envs = $envs;
         $this->inis = $inis;
+        $this->ddprofServiceName = $ddprofServiceName;
     }
 
     public function start()
@@ -56,23 +62,61 @@ final class PhpCgi implements Sapi
             $this->host,
             $this->port
         );
+        if ($this->ddprofServiceName !== null) {
+            $url = file_exists("/var/run/datadog/apm.socket") ? "unix:///var/run/datadog/apm.socket" : "http://localhost:8126";
+            $cmd = "ddprof -l debug -U $url -S {$this->ddprofServiceName} $cmd";
+        }
         $envs = new EnvSerializer($this->envs);
         $processCmd = "$envs exec $cmd";
 
         // See phpunit_error.log in CircleCI artifacts
-        error_log("[php-cgi] Starting: '$envs $processCmd'");
+        error_log("[php-cgi] Starting: '$processCmd'");
         if (isset($this->inis['error_log'])) {
             error_log("[php-cgi] Error log: '" . realpath($this->inis['error_log']) . "'");
         }
 
         $this->process = new Process($processCmd);
         $this->process->start();
+
+        // php-cgi only binds its socket after module startup, so nginx being up does not mean php-cgi is
+        if (!$this->waitUntilServerRunning()) {
+            error_log(sprintf(
+                "[php-cgi] Server never came up (%s)...\nstdout: %s\nstderr: %s",
+                $this->process->isRunning() ? 'still running' : 'exit code ' . $this->process->getExitCode(),
+                $this->process->getOutput(),
+                $this->process->getErrorOutput()
+            ));
+            return;
+        }
+        error_log("[php-cgi] Server is up and responding...");
+    }
+
+    public function waitUntilServerRunning($timeout = 30)
+    {
+        $deadline = microtime(true) + $timeout;
+        do {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                fclose($socket);
+                return true;
+            }
+            if (!$this->process->isRunning()) {
+                return false;
+            }
+            usleep(50000);
+        } while (microtime(true) < $deadline);
+
+        return false;
     }
 
     public function stop()
     {
         error_log("[php-cgi] Stopping...");
-        $this->process->stop(0);
+        if ($this->ddprofServiceName !== null) {
+            $this->process->stop(1); # give time for ddprof to submit
+        } else {
+            $this->process->stop(0);
+        }
     }
 
     public function isFastCgi()

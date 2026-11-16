@@ -1,4 +1,6 @@
+#include "../tsrmls_cache.h"
 #include "uri_normalization.h"
+#include "../sandbox/sandbox.h"
 
 #include <Zend/zend_smart_str.h>
 #include <stdbool.h>
@@ -20,6 +22,14 @@ static inline zend_string *zai_php_pcre_replace(zend_string *regex, zend_string 
 #elif PHP_VERSION_ID < 70300
 #define php_pcre_replace(regex, subj, subjstr, subjlen, replace, limit, replacements) \
     php_pcre_replace(regex, subj, subjstr, subjlen, replace, limit, (int *)replacements)
+#endif
+
+#if PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID < 70400
+#define php_pcre_match_impl(pce, subject_str, return_value, subpats, global, flags, start_offset) php_pcre_match_impl(pce, ZSTR_VAL(subject_str), ZSTR_LEN(subject_str), return_value, subpats, global != 0, 0, flags, start_offset)
+#else
+#define php_pcre_match_impl(pce, subject_str, return_value, subpats, global, flags, start_offset) php_pcre_match_impl(pce, subject_str, return_value, subpats, global != 0, 0, flags, start_offset)
+#endif
 #endif
 
 static zend_bool zai_starts_with_protocol(zend_string *str) {
@@ -137,7 +147,7 @@ zend_string *zai_uri_normalize_path(zend_string *path, zend_array *fragmentRegex
     return path;
 }
 
-zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist, zend_string *pattern) {
+zend_string *zai_filter_query_string(zai_str queryString, zend_array *whitelist, zend_string *pattern) {
     if (zend_hash_num_elements(whitelist) == 0) {
         return ZSTR_EMPTY_ALLOC();
     }
@@ -147,14 +157,20 @@ zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *wh
         zend_hash_get_current_key(whitelist, &str, &numkey);
         if (zend_string_equals_literal(str, "*")) {
             zend_string *qs = zend_string_init(queryString.ptr, queryString.len, 0);
-            if (pattern) {
+            if (pattern && ZSTR_LEN(pattern)) {
                 zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
-                zend_string *regex = zend_strpprintf(0, "(%.*s)", (int)ZSTR_LEN(pattern), ZSTR_VAL(pattern));
+
+                smart_str regex = {0};
+                smart_str_alloc(&regex, ZSTR_LEN(pattern) + 2, 0);
+                smart_str_appendc(&regex, '(');
+                smart_str_appendl(&regex, ZSTR_VAL(pattern), ZSTR_LEN(pattern));
+                smart_str_appendc(&regex, ')');
+                smart_str_0(&regex);
 
                 zend_string *redacted_qs =
-                    php_pcre_replace(regex, qs, ZSTR_VAL(qs), ZSTR_LEN(qs), replacement, -1, NULL);
+                    php_pcre_replace(regex.s, qs, ZSTR_VAL(qs), ZSTR_LEN(qs), replacement, -1, NULL);
 
-                zend_string_release(regex);
+                smart_str_free(&regex);
                 zend_string_release(replacement);
 
                 if (redacted_qs) {
@@ -203,13 +219,25 @@ bool zai_match_regex(zend_string *pattern, zend_string *subject) {
     }
 
     zend_string *regex = zend_strpprintf(0, "(%s)", ZSTR_VAL(pattern));
+
+    zai_error_state error_state;
+    zai_sandbox_error_state_backup(&error_state);
+    zend_replace_error_handling(EH_NORMAL, NULL, NULL);
+    EG(error_reporting) = 0;
+
     pcre_cache_entry *pce = pcre_get_compiled_regex_cache(regex);
+
+    // TODO: error loggins
+
+    zai_sandbox_error_state_restore(&error_state);
+
+    if (!pce) {
+        zend_string_release(regex);
+        return false;
+    }
+
     zval ret;
-#if PHP_VERSION_ID < 70400
-    php_pcre_match_impl(pce, ZSTR_VAL(subject), ZSTR_LEN(subject), &ret, NULL, 0, 0, 0, 0);
-#else
-    php_pcre_match_impl(pce, subject, &ret, NULL, 0, 0, 0, 0);
-#endif
+    php_pcre_match_impl(pce, subject, &ret, NULL, 0, 0, 0);
     zend_string_release(regex);
     return Z_TYPE(ret) == IS_LONG && Z_LVAL(ret) > 0;
 }

@@ -1,0 +1,55 @@
+name: Update Latest Versions
+
+on:
+  workflow_dispatch: # can be triggered manually
+  schedule:
+    - cron: "30 6 * * 1" # weekly on Monday at 6:30 AM
+
+jobs:
+  update-latest-versions:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+      id-token: write # Needed to federate tokens for dd-octo-sts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: DataDog/dd-octo-sts-action@c85802a58e202b7e764b5441e4378c76043c8108 # v1.0.5
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-php
+          policy: self.update-latest-versions.create-pr
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
+        with:
+          php-version: "8.3"
+
+      - name: Install PHP Tracer # Required by test bootstrap
+        run: |
+          curl -Lo /tmp/datadog-setup.php https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php
+          sudo php /tmp/datadog-setup.php --php-bin=all
+          rm /tmp/datadog-setup.php
+
+      - name: Update Test Dependencies
+        run: make composer_tests_update
+
+      - name: Update Latest Versions
+        run: php tests/PackageUpdater.php
+
+      - name: Show changes
+        run: git diff
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.octo-sts.outputs.token }}
+          commit-message: "chore: update latest versions"
+          title: "chore: update latest versions"
+          branch: "update-latest-versions"
+          base: "master"
+          delete-branch: true
+          body: This PR updates the latest pinned versions of the test dependencies.

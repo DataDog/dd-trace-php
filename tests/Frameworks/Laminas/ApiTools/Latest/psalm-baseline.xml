@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="4.10.0@916b098b008f6de4543892b1e0651c1c3b92cbfa">
+  <file src="config/autoload/api-tools-mvc-auth-oauth2-override.global.php">
+    <MixedArrayOffset occurrences="1"/>
+    <UndefinedClass occurrences="1">
+      <code>OAuth2Server</code>
+    </UndefinedClass>
+  </file>
+  <file src="module/Application/src/Controller/IndexController.php">
+    <ImplementedReturnTypeMismatch occurrences="1">
+      <code>Response|ViewModel</code>
+    </ImplementedReturnTypeMismatch>
+  </file>
+  <file src="module/Application/src/Module.php">
+    <MixedInferredReturnType occurrences="1">
+      <code>array&lt;string,mixed&gt;</code>
+    </MixedInferredReturnType>
+    <MixedReturnStatement occurrences="1">
+      <code>include __DIR__ . '/../config/module.config.php'</code>
+    </MixedReturnStatement>
+  </file>
+  <file src="module/Application/test/Controller/IndexControllerTest.php">
+    <MissingReturnType occurrences="3">
+      <code>testIndexActionCanBeAccessed</code>
+      <code>testIndexActionViewModelTemplateRenderedWithinLayout</code>
+      <code>testInvalidRouteDoesNotCrash</code>
+    </MissingReturnType>
+  </file>
+  <file src="module/Application/test/Controller/ZZIndexControllerDevModeTest.php">
+    <MissingReturnType occurrences="1">
+      <code>testIndexActionRedirectsToAdminUi</code>
+    </MissingReturnType>
+  </file>
+</files>

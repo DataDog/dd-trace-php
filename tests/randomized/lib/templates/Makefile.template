@@ -6,6 +6,14 @@ test.scenario.%:
 shell.scenario.%:
 	@make -C $(*) shell
 
-test: {{test_targets}}
+test: start_base_docker \
+	{{test_targets}} \
+	shutdown_base_docker
+
+start_base_docker:
+	@bash ../lib/run-base-docker-compose.sh
+
+shutdown_base_docker:
+	@bash ../lib/run-base-docker-compose.sh shutdown
 
 # keep this line to avoid whitespace errors with generated files

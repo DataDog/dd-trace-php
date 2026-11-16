@@ -12,6 +12,8 @@ use OpenTracing\ScopeManager as OTScopeManager;
 use OpenTracing\Span as OTSpan;
 use OpenTracing\SpanContext as OTSpanContext;
 use OpenTracing\Tracer as OTTracer;
+use function DDTrace\active_span;
+use function DDTrace\Internal\add_span_flag;
 
 final class Tracer implements OTTracer
 {
@@ -28,7 +30,7 @@ final class Tracer implements OTTracer
     /**
      * @param TracerInterface|null $tracer
      */
-    public function __construct(TracerInterface $tracer = null)
+    public function __construct($tracer = null)
     {
         $this->tracer = $tracer ?: GlobalTracer::get();
     }
@@ -39,7 +41,7 @@ final class Tracer implements OTTracer
      * @param array $config
      * @return self
      */
-    public static function make(Transport $transport = null, array $propagators = null, array $config = [])
+    public static function make($transport = null, $propagators = null, array $config = [])
     {
         return new self(
             new DDTracer($transport, $propagators, $config)
@@ -81,9 +83,14 @@ final class Tracer implements OTTracer
         if ($options instanceof \OpenTracing\StartSpanOptions) {
             $options = self::deconstructStartSpanOptions($options);
         }
-        return new Span(
+        $span = new Span(
             $this->tracer->startSpan($operationName, $options)
         );
+
+        // Mark the span as created by OpenTracing
+        add_span_flag(active_span(), \DDTrace\Internal\SPAN_FLAG_OPENTRACING);
+
+        return $span;
     }
 
     /**
@@ -94,9 +101,14 @@ final class Tracer implements OTTracer
         if ($options instanceof \OpenTracing\StartSpanOptions) {
             $options = self::deconstructStartSpanOptions($options);
         }
-        return new Scope(
+        $scope = new Scope(
             $this->tracer->startActiveSpan($operationName, $options)
         );
+
+        // Mark the span as created by OpenTracing
+        add_span_flag(active_span(), \DDTrace\Internal\SPAN_FLAG_OPENTRACING);
+
+        return $scope;
     }
 
     /**

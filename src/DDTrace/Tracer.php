@@ -12,19 +12,12 @@ use DDTrace\Propagators\TextMap;
 use DDTrace\Transport\Internal;
 use DDTrace\Transport\Noop;
 use DDTrace\Transport\Noop as NoopTransport;
+use DDTrace\Util\BaseConverter;
 use DDTrace\Util\ObjectKVStore;
 
 final class Tracer implements TracerInterface
 {
     use LoggingTrait;
-
-    /**
-     * @deprecated Use Tracer::version() instead
-     *
-     * Must begin with a number for Debian packaging requirements
-     * Must use single-quotes for packaging script to work
-     */
-    const VERSION = '1.0.0-nightly';
 
     /**
      * @var Span[][]
@@ -87,7 +80,7 @@ final class Tracer implements TracerInterface
      * @param Propagator[] $propagators
      * @param array $config
      */
-    public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
+    public function __construct($transport = null, $propagators = null, array $config = [])
     {
         $this->transport = $transport ?: new Internal();
         $textMapPropagator = new TextMap($this);
@@ -99,15 +92,26 @@ final class Tracer implements TracerInterface
         foreach ($this->config['global_tags'] as $key => $val) {
             add_global_tag($key, $val);
         }
-        $this->serviceVersion = \ddtrace_config_service_version();
-        $this->environment = \ddtrace_config_env();
+        $this->serviceVersion = \dd_trace_env_config("DD_VERSION");
+        $this->environment = \dd_trace_env_config("DD_ENV");
 
-        $context = current_context();
-        if (isset($context["distributed_tracing_parent_id"])) {
-            $parentId = $context["distributed_tracing_parent_id"];
-            $this->rootContext = new SpanContext($context["trace_id"], $parentId, null, [], true);
-            if (isset($context["distributed_tracing_origin"])) {
-                $this->rootContext->origin = $context["distributed_tracing_origin"];
+        $activeStack = active_stack();
+        if ($activeStack && $activeStack->active && ($rootSpan = root_span())) {
+            $traceId = $rootSpan->traceId;
+            $parentId = isset($rootSpan->parentId) && $rootSpan->parentId !== "" ? $rootSpan->parentId : null;
+            $origin = isset($rootSpan->origin) && $rootSpan->origin !== "" ? $rootSpan->origin : null;
+        } else {
+            // Without an active span, the distributed context is only readable through the propagation headers
+            $headers = generate_distributed_tracing_headers(["datadog", "tracecontext"]);
+            $traceId = isset($headers["traceparent"]) ? substr($headers["traceparent"], 3, 32) : null;
+            $parentId = $headers["x-datadog-parent-id"] ?? null;
+            $origin = $headers["x-datadog-origin"] ?? null;
+        }
+        if ($traceId !== null && $parentId !== null) {
+            $traceId = BaseConverter::convert($traceId, 16, 10);
+            $this->rootContext = new SpanContext($traceId, $parentId, null, [], true);
+            if ($origin !== null) {
+                $this->rootContext->origin = $origin;
             }
         }
 
@@ -124,7 +128,7 @@ final class Tracer implements TracerInterface
      */
     public function reset()
     {
-        if (_ddtrace_config_bool(ini_get("datadog.trace.enabled"), false)) {
+        if ($this->config['enabled'] && \dd_trace_env_config('DD_TRACE_ENABLED')) {
             // Do a full shutdown and re-startup of the tracer, which implies clearing the internal span stack
             ini_set("datadog.trace.enabled", 0);
             ini_set("datadog.trace.enabled", 1);
@@ -153,7 +157,7 @@ final class Tracer implements TracerInterface
      */
     public function startSpan($operationName, $options = [])
     {
-        if (!$this->config['enabled'] || !\ddtrace_config_trace_enabled()) {
+        if (!$this->config['enabled'] || !\dd_trace_env_config('DD_TRACE_ENABLED')) {
             return NoopSpan::create();
         }
 
@@ -179,12 +183,6 @@ final class Tracer implements TracerInterface
         $internalSpan->name = (string) $operationName;
         $internalSpan->service = $service;
         $internalSpan->resource = $resource;
-        if (!isset($internalSpan->metrics)) {
-            $internalSpan->metrics = [];
-        }
-        if (!isset($internalSpan->meta)) {
-            $internalSpan->meta = [];
-        }
         $span = new Span($internalSpan, $context);
 
         foreach ($options->getTags() as $key => $val) {
@@ -297,7 +295,7 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled() && $rootSpan = $this->getSafeRootSpan()) {
+        if ('cli' !== PHP_SAPI && \dd_trace_env_config("DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED") && $rootSpan = $this->getSafeRootSpan()) {
             $this->addUrlAsResourceNameToSpan($rootSpan);
         }
 
@@ -309,6 +307,7 @@ final class Tracer implements TracerInterface
         }
 
         $this->transport->send($this);
+        $this->scopeManager->close();
     }
 
     /**
@@ -336,8 +335,7 @@ final class Tracer implements TracerInterface
      */
     public function getTracesAsArray()
     {
-        $trace = \dd_trace_serialize_closed_spans();
-        return $trace ? [$trace] : $trace;
+        return \dd_trace_serialize_closed_spans()['chunks'];
     }
 
     public function addUrlAsResourceNameToSpan(Contracts\Span $span)
@@ -365,10 +363,6 @@ final class Tracer implements TracerInterface
      */
     private function setPrioritySamplingFromSpan(SpanInterface $span)
     {
-        if (!\ddtrace_config_priority_sampling_enabled()) {
-            return;
-        }
-
         if (!$span->getContext()->isHostRoot()) {
             // Only root spans for each host must have the sampling priority value set.
             return;
@@ -376,7 +370,7 @@ final class Tracer implements TracerInterface
 
         $prioritySampling = $span->getContext()->getPropagatedPrioritySampling();
         if (null !== $prioritySampling) {
-            $this->setPrioritySampling($prioritySampling);
+            set_priority_sampling($prioritySampling);
         }
     }
 
@@ -418,7 +412,7 @@ final class Tracer implements TracerInterface
      */
     public static function version()
     {
-        return self::VERSION;
+        return \phpversion("ddtrace");
     }
 
     /**

@@ -1,0 +1,157 @@
+--TEST--
+Installing a live debugger span decoration probe
+--SKIPIF--
+<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+--ENV--
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
+DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
+DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS=5000
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=live-debugger/span_decoration_probe
+--FILE--
+<?php
+
+require __DIR__ . "/live_debugger.inc";
+
+reset_request_replayer();
+
+// Logs go to v2/input until the sidecar knows the agent lacks it; it knows once the info is visible here.
+if (!dd_trace_internal_fn("await_agent_info")) {
+    echo "The agent info was not received\n";
+}
+
+function &foo($arg) {
+    $meta = &\DDTrace\active_span()->attributes;
+    unset($meta["runtime-id"]);
+    return $meta;
+}
+
+function &root($arg) {
+    $meta = &\DDTrace\root_span()->attributes;
+    unset($meta["runtime-id"], $meta["process_id"]);
+    return $arg;
+}
+
+await_probe_installation(function() {
+    build_span_decoration_probe(["where" => ["methodName" => "foo"], "inBodyLocation" => "START", "decorations" => [
+        ["tags" => [["name" => "bare", "value" => ["segments" => [["str" => "raw"]]]], ["name" => "resource.name", "value" => ["segments" => [["str" => "decorated"]]]]]],
+        ["tags" => [["name" => "arg", "value" => ["segments" => [["json" => ["ref" => "arg"]]]]]], "when" => ["json" => ["instanceof" => [["index" => [["ref" => "arg"], "foo"]], "object"]]]],
+    ]]);
+    build_span_decoration_probe(["where" => ["methodName" => "foo"], "decorations" => [
+        ["tags" => [["name" => "error", "value" => ["segments" => [["json" => ["ref" => "arg"]]]]]], "when" => ["json" => ["eq" => [["index" => [["ref" => "arg"], "val"]], "test"]]]],
+        ["tags" => [["name" => "valid", "value" => ["segments" => [["json" => ["filter" => [["ref" => "arg"], ["ne" => [["ref" => "@it"], 1]]]]]]]]], "when" => ["json" => ["ne" => [["getmember" => [["index" => [["ref" => "arg"], "foo"]], "var"]], 1]]]],
+    ]]);
+
+    build_span_decoration_probe(["where" => ["methodName" => "root"], "inBodyLocation" => "EXIT", "targetSpan" => "ROOT", "decorations" => [
+        ["tags" => [["name" => "ret", "value" => ["segments" => [["str" => "return: "], ["json" => ["ref" => "@return"]]]]]]],
+    ]]);
+
+    \DDTrace\start_span(); // submit span data
+}, 3);
+
+\DDTrace\start_span();
+var_dump(foo(["foo" => (object)["var" => 1, "val" => "test"], "val" => 123]));
+var_dump(\DDTrace\active_span()->resource);
+\DDTrace\active_span()->attributes = [];
+$meta = foo(["foo" => (object)["var" => 2]]);
+ksort($meta);
+var_dump($meta);
+
+root(1);
+var_dump(\DDTrace\root_span()->attributes);
+
+$dlr = new DebuggerLogReplayer;
+$log = $dlr->waitForDebuggerDataAndReplay();
+var_dump($log["uri"]);
+var_dump(json_decode($log["body"], true));
+
+?>
+--CLEAN--
+<?php
+require __DIR__ . "/live_debugger.inc";
+reset_request_replayer();
+?>
+--EXPECTF--
+array(5) {
+  ["bare"]=>
+  string(3) "raw"
+  ["_dd.di.bare.probe_id"]=>
+  string(1) "1"
+  ["_dd.di.resource.name.probe_id"]=>
+  string(1) "1"
+  ["arg"]=>
+  string(50) "[foo => (stdClass){val: test, var: 1}, val => 123]"
+  ["_dd.di.arg.probe_id"]=>
+  string(1) "1"
+}
+string(9) "decorated"
+array(7) {
+  ["_dd.di.arg.probe_id"]=>
+  string(1) "1"
+  ["_dd.di.bare.probe_id"]=>
+  string(1) "1"
+  ["_dd.di.resource.name.probe_id"]=>
+  string(1) "1"
+  ["_dd.di.valid.probe_id"]=>
+  string(1) "2"
+  ["arg"]=>
+  string(27) "[foo => (stdClass){var: 2}]"
+  ["bare"]=>
+  string(3) "raw"
+  ["valid"]=>
+  string(20) "[(stdClass){var: 2}]"
+}
+array(2) {
+  ["ret"]=>
+  string(9) "return: 1"
+  ["_dd.di.ret.probe_id"]=>
+  string(1) "3"
+}
+string(%d) "/debugger/v1/diagnostics?ddtags=debugger_version:1.%s,env:none,version:,runtime_id:%s-%s-%s-%s-%s,host_name:%s"
+array(1) {
+  [0]=>
+  array(5) {
+    ["service"]=>
+    string(34) "debugger_span_decoration_probe.php"
+    ["ddsource"]=>
+    string(11) "dd_debugger"
+    ["timestamp"]=>
+    int(1%d)
+    ["debugger"]=>
+    array(1) {
+      ["snapshot"]=>
+      array(5) {
+        ["language"]=>
+        string(3) "php"
+        ["id"]=>
+        string(36) "%s-%s-%s-%s-%s"
+        ["timestamp"]=>
+        int(1%d)
+        ["probe"]=>
+        array(2) {
+          ["id"]=>
+          string(1) "2"
+          ["location"]=>
+          array(1) {
+            ["method"]=>
+            string(3) "foo"
+          }
+        }
+        ["evaluationErrors"]=>
+        array(1) {
+          [0]=>
+          array(2) {
+            ["expr"]=>
+            string(20) "arg["val"] == "test""
+            ["message"]=>
+            string(77) "Could not fetch index "val" on arg (evaluated to [foo => (stdClass){var: 2}])"
+          }
+        }
+      }
+    }
+    ["message"]=>
+    string(32) "Evaluation errors for probe id 2"
+  }
+}

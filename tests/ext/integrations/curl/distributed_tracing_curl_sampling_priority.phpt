@@ -17,12 +17,12 @@ function query_headers() {
     curl_setopt($ch, CURLOPT_READFUNCTION, function () {}); // must not leak
     $response = curl_exec($ch);
     show_curl_error_on_fail($ch);
-    curl_close($ch);
+    if (PHP_VERSION_ID < 80000) { curl_close($ch); }
     return dt_decode_headers_from_httpbin($response);
 }
 
 $rootSpan = DDTrace\active_span();
-$rootSpan->metrics["_sampling_priority_v1"] = 2;
+$rootSpan->samplingPriority = 2;
 
 dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-sampling-priority']);
 

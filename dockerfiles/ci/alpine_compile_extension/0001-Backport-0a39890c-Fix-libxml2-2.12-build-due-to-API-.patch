@@ -1,0 +1,65 @@
+From fa6a0f80f644932506666beb7c85e4041c4a4646 Mon Sep 17 00:00:00 2001
+From: Niels Dossche <7771979+nielsdos@users.noreply.github.com>
+Date: Fri, 1 Dec 2023 18:03:35 +0100
+Subject: [PATCH] Backport 0a39890c: Fix libxml2 2.12 build due to API breaks
+
+See https://github.com/php/php-src/actions/runs/7062192818/job/19225478601
+---
+ ext/libxml/libxml.c | 12 ++++++++++--
+ ext/soap/php_sdl.c  |  2 +-
+ 2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/ext/libxml/libxml.c b/ext/libxml/libxml.c
+index 3959b362a0e..6cdfbd397f7 100644
+--- a/ext/libxml/libxml.c
++++ b/ext/libxml/libxml.c
+@@ -483,7 +483,11 @@ static void _php_libxml_free_error(void *ptr)
+ 	xmlResetError((xmlErrorPtr) ptr);
+ }
+ 
+-static void _php_list_set_error_structure(xmlErrorPtr error, const char *msg)
++#if LIBXML_VERSION >= 21200
++static void _php_list_set_error_structure(const xmlError *error, const char *msg)
++#else
++static void _php_list_set_error_structure(xmlError *error, const char *msg)
++#endif
+ {
+ 	xmlError error_copy;
+ 	int ret;
+@@ -736,7 +740,11 @@ PHP_LIBXML_API void php_libxml_ctx_warning(void *ctx, const char *msg, ...)
+ 	va_end(args);
+ }
+ 
++#if LIBXML_VERSION >= 21200
++PHP_LIBXML_API void php_libxml_structured_error_handler(void *userData, const xmlError *error)
++#else
+ PHP_LIBXML_API void php_libxml_structured_error_handler(void *userData, xmlErrorPtr error)
++#endif
+ {
+ 	_php_list_set_error_structure(error, NULL);
+ 
+@@ -1009,7 +1017,7 @@ PHP_FUNCTION(libxml_use_internal_errors)
+ /* {{{ Retrieve last error from libxml */
+ PHP_FUNCTION(libxml_get_last_error)
+ {
+-	xmlErrorPtr error;
++	const xmlError *error;
+
+ 	ZEND_PARSE_PARAMETERS_NONE();
+ 
+diff --git a/ext/soap/php_sdl.c b/ext/soap/php_sdl.c
+index 651eab23b7a..7a7ce304d61 100644
+--- a/ext/soap/php_sdl.c
++++ b/ext/soap/php_sdl.c
+@@ -332,7 +332,7 @@ static void load_wsdl_ex(zval *this_ptr, char *struri, sdlCtx *ctx, int include)
+ 	sdl_restore_uri_credentials(ctx);
+ 
+ 	if (!wsdl) {
+-		xmlErrorPtr xmlErrorPtr = xmlGetLastError();
++		const xmlError *xmlErrorPtr = xmlGetLastError();
+ 
+ 		if (xmlErrorPtr) {
+ 			soap_error2(E_ERROR, "Parsing WSDL: Couldn't load from '%s' : %s", struri, xmlErrorPtr->message);
+-- 
+2.41.0
+

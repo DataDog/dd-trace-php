@@ -1,0 +1,202 @@
+<?php
+
+namespace DDTrace\Integrations\Guzzle;
+
+use DDTrace\HookData;
+use DDTrace\Http\Urls;
+use DDTrace\Integrations\HttpClientIntegrationHelper;
+use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
+use DDTrace\SpanKind;
+use DDTrace\Tag;
+use DDTrace\Type;
+use GuzzleHttp;
+
+class GuzzleIntegration extends Integration
+{
+    const NAME = 'guzzle';
+
+    public static function handlePromiseResponse($response, SpanData $span)
+    {
+        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
+        $state = $response->getState();
+        if ($state === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
+            $fulfilledResponse = $response->wait();
+            if ($fulfilledResponse instanceof \Psr\Http\Message\ResponseInterface) {
+                self::setStatusCode($span, $fulfilledResponse);
+            }
+        } elseif ($state === \GuzzleHttp\Promise\PromiseInterface::REJECTED) {
+            try {
+                $response->wait();
+            } catch (\Throwable $e) {
+                self::handleRequestException($span, $e);
+            }
+        } else {
+            $response->then(
+                static function ($response) use ($span) {
+                    if ($response instanceof \Psr\Http\Message\ResponseInterface) {
+                        self::setStatusCode($span, $response);
+                    }
+                },
+                // With http_errors enabled (the default), non-2xx responses reject the promise with a RequestException
+                static function ($reason) use ($span) {
+                    self::handleRequestException($span, $reason);
+                }
+            );
+        }
+    }
+
+    /**
+     * @param \Psr\Http\Message\ResponseInterface|\GuzzleHttp\Message\ResponseInterface $response
+     */
+    public static function setStatusCode(SpanData $span, $response, $setClientError = true)
+    {
+        $statusCode = $response->getStatusCode();
+        $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$statusCode;
+        if ($setClientError) {
+            HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
+        }
+    }
+
+    public static function handleRequestException(SpanData $span, $exception, $setClientError = true)
+    {
+        if ($exception instanceof \GuzzleHttp\Exception\RequestException && $exception->hasResponse()) {
+            self::setStatusCode($span, $exception->getResponse(), $setClientError);
+        }
+    }
+
+    public static function init(): int
+    {
+        \DDTrace\install_hook(
+            'GuzzleHttp\Client::transfer',
+            static function (HookData $hook) {
+                $span = $hook->span();
+                $span->resource = 'transfer';
+                $span->name = 'GuzzleHttp\Client.transfer';
+                Integration::handleInternalSpanServiceName($span, self::NAME);
+                $span->type = Type::HTTP_CLIENT;
+                $span->spanKind = SpanKind::CLIENT;
+                $span->component = self::NAME;
+                $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
+
+                if (isset($hook->args[0])) {
+                    self::addRequestInfo($span, $hook->args[0]);
+                }
+
+                // Note: We must ALWAYS call overrideArguments() to prevent JIT compilation issues.
+                // See ext/hook/uhook.c: "hooks wishing to override args must do so unconditionally"
+
+                if (\dd_trace_env_config('DD_DISTRIBUTED_TRACING') !== false) {
+                    if (isset($hook->args[0])) {
+                        $request = $hook->args[0];
+
+                        if ($request instanceof \Psr\Http\Message\RequestInterface) {
+                            $dtHeaders = \DDTrace\generate_distributed_tracing_headers();
+
+                            if (!empty($dtHeaders)) {
+                                $modified = false;
+
+                                foreach ($dtHeaders as $name => $value) {
+                                    if (!$request->hasHeader($name)) {
+                                        $request = $request->withHeader($name, $value);
+                                        $modified = true;
+                                    }
+                                }
+
+                                if ($modified) {
+                                    $hook->args[0] = $request;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // CRITICAL: Always call overrideArguments to prevent JIT from breaking header injection
+                $hook->overrideArguments($hook->args);
+            },
+            static function (HookData $hook) {
+                if (isset($hook->returned)) {
+                    $response = $hook->returned;
+                    if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
+                        self::handlePromiseResponse($response, $hook->span());
+                    }
+                }
+            }
+        );
+
+        \DDTrace\trace_method(
+            'GuzzleHttp\Client',
+            'send',
+            static function (SpanData $span, $args, $retval, $exception) {
+                $span->resource = 'send';
+                $span->name = 'GuzzleHttp\Client.send';
+                Integration::handleInternalSpanServiceName($span, self::NAME);
+                $span->type = Type::HTTP_CLIENT;
+                $span->spanKind = SpanKind::CLIENT;
+                $span->component = self::NAME;
+
+                if (
+                    \defined('GuzzleHttp\ClientInterface::VERSION')
+                    && substr(\GuzzleHttp\ClientInterface::VERSION, 0, 2) === '5.'
+                ) {
+                    $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
+
+                if (isset($args[0])) {
+                    self::addRequestInfo($span, $args[0]);
+                }
+
+                if (isset($retval)) {
+                    $response = $retval;
+                    if (
+                        \is_a($response, 'GuzzleHttp\Message\ResponseInterface')
+                        || \is_a($response, 'Psr\Http\Message\ResponseInterface')
+                    ) {
+                        self::setStatusCode($span, $response);
+                    } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
+                        self::handlePromiseResponse($response, $span);
+                    }
+                } elseif (isset($exception)) {
+                    // The exception itself already flags the span as errored
+                    self::handleRequestException($span, $exception, false);
+                }
+            }
+        );
+
+        return Integration::LOADED;
+    }
+
+    public static function addRequestInfo(SpanData $span, $request)
+    {
+        if ($request instanceof \Psr\Http\Message\RequestInterface) {
+            $url = $request->getUri();
+            $host = Urls::hostname($url);
+            $span->attributes[Tag::NETWORK_DESTINATION_NAME] = $host;
+
+            if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
+                $span->service = Urls::hostnameForTag($url);
+                $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+            }
+            $span->attributes[Tag::HTTP_METHOD] = $request->getMethod();
+
+            if (!array_key_exists(Tag::HTTP_URL, $span->attributes)) {
+                $span->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+            }
+        } elseif ($request instanceof \GuzzleHttp\Message\RequestInterface) {
+            $url = $request->getUrl();
+            $host = Urls::hostname($url);
+            if ($host) {
+                $span->attributes[Tag::NETWORK_DESTINATION_NAME] = $host;
+            }
+            if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
+                $span->service = Urls::hostnameForTag($url);
+                $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+            }
+            $span->attributes[Tag::HTTP_METHOD] = $request->getMethod();
+
+            if (!array_key_exists(Tag::HTTP_URL, $span->attributes)) {
+                $span->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+            }
+        }
+    }
+}

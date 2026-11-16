@@ -17,8 +17,10 @@ $context->propagatedPrioritySampling = 1;
 $context->parentId = '789';
 
 $ch = curl_init();
+$port = getenv('HTTPBIN_PORT') ?: '80';
+$url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/headers';
 curl_setopt_array($ch, [
-    CURLOPT_URL => 'http://httpbin_integration/headers',
+    CURLOPT_URL => $url,
     CURLOPT_RETURNTRANSFER => true,
 ]);
 $response = json_decode(curl_exec($ch), 1);
@@ -26,7 +28,7 @@ if (empty($response['headers']['X-Datadog-Origin']) || $response['headers']['X-D
     throw new Exception('Unexpected origin header. ' . var_export($response, true));
 }
 
-curl_close($ch);
+if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
 var_dump($context->origin);
 echo "OK\n";

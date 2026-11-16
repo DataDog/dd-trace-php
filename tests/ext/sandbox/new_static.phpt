@@ -1,5 +1,7 @@
 --TEST--
 New static instantiates from expected class
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -46,17 +48,17 @@ function dump_span_names($spans) {
     }
 }
 
-dump_span_names(dd_trace_serialize_closed_spans());
+dump_span_names(dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 
 $bar = Bar::get2();
 var_dump($bar instanceof Foo);
 
-dump_span_names(dd_trace_serialize_closed_spans());
+dump_span_names(dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 
 $bar = Bar::get3();
 var_dump($bar instanceof Bar);
 
-dump_span_names(dd_trace_serialize_closed_spans());
+dump_span_names(dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 
 ?>
 --EXPECT--

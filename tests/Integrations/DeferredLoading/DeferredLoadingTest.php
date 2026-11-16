@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 final class DeferredLoadingTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/index.php';
     }

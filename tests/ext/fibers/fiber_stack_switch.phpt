@@ -3,7 +3,9 @@ Test fiber observing
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80100) die("skip: Fibers are a PHP 8.1+ feature"); ?>
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -77,7 +79,6 @@ Hook: Fiber->resume
 Caught ex
 spans(\DDTrace\SpanData) (1) {
   fiber_stack_switch.php (fiber_stack_switch.php, fiber_stack_switch.php, cli)
-    _dd.p.dm => -1
     Fiber.start (fiber_stack_switch.php, Fiber.start, cli)
       inFiber (fiber_stack_switch.php, inFiber, cli)
         otherFiber (fiber_stack_switch.php, otherFiber, cli) (error: Thrown Exception: ex in %s:%d)

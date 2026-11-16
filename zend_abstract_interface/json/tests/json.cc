@@ -47,7 +47,7 @@ TEST_JSON("decode", {
 
     ZVAL_NULL(&val);
 
-    zai_json_decode_ex(&val, (char *)buf.s->val, buf.s->len, 0, 1);
+    zai_json_decode_assoc_safe(&val, (char *)buf.s->val, buf.s->len, 0, 1);
 
     REQUIRE(Z_TYPE(val) == IS_LONG);
     REQUIRE(Z_LVAL(val) == 42);

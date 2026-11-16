@@ -2,6 +2,24 @@
 
 set -e
 
+export DD_REMOTE_CONFIG_ENABLED=false
+
+wait_for_trace() {
+    TRACE_REPLAY=""
+    attempt=1
+    while [ "$attempt" -le 10 ]; do
+        sleep 1
+        TRACE_REPLAY=$(curl -s -L request-replayer/replay)
+        if [ "${TRACE_REPLAY#*trace_id}" != "$TRACE_REPLAY" ]; then
+            return 0
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    return 1
+}
+
 # Installing generic dependencies. OS_ID='centos'|'debian'|'alpine'
 OS_ID=$(. /etc/os-release; echo $ID)
 sh $(pwd)/dockerfiles/verify_packages/${OS_ID}/install.sh
@@ -32,7 +50,7 @@ fi
 echo "PHP version: $(${DD_TRACE_PHP_BIN} -v)"
 
 # Script output
-CLI_OUTPUT=$(DD_TRACE_CLI_ENABLED=true ${DD_TRACE_PHP_BIN} /var/www/html/index.php)
+CLI_OUTPUT=$(${DD_TRACE_PHP_BIN} /var/www/html/index.php)
 if [ "${CLI_OUTPUT}" != "hi" ]; then
     echo "Error: expected request output is 'hi'. Actual:\n${APACHE_OUTPUT}"
     exit 1
@@ -41,11 +59,8 @@ else
 fi
 
 # Trace exists
-sleep 1
-CLI_TRACES=$(curl -s -L request-replayer/replay)
-# sh compatible way to do string contains
-if [ "${CLI_TRACES#*trace_id}" = "${CLI_TRACES}" ]; then
-    echo "Error: traces have not been sent correctly. From request replayer:\n${CLI_TRACES}"
+if ! wait_for_trace; then
+    echo "Error: traces have not been sent correctly. From request replayer:\n${TRACE_REPLAY}"
     exit 1
 else
     echo "Traces have been sent is correct"
@@ -70,12 +85,9 @@ else
     echo "Request output is correct"
 fi
 
-# Trace exists: waiting more than DD_TRACE_AGENT_FLUSH_INTERVAL=1000
-sleep 2
-NGINX_TRACES=$(curl -s -L request-replayer/replay)
-# sh compatible way to do string contains
-if [ "${NGINX_TRACES#*trace_id}" = "${NGINX_TRACES}" ]; then
-    echo "Error: traces have not been sent correctly. From request replayer:\n${NGINX_TRACES}"
+# Trace exists
+if ! wait_for_trace; then
+    echo "Error: traces have not been sent correctly. From request replayer:\n${TRACE_REPLAY}"
     exit 1
 else
     echo "Traces have been sent is correct"
@@ -89,11 +101,11 @@ echo "##########################################################################
 echo "##########################################################################"
 echo "APACHE verification"
 
-if [ "${VERIFY_APACHE}" != "no" ]; then
+if [ "${VERIFY_APACHE:-yes}" != "no" ]; then
     curl -s -L request-replayer/clear-dumped-data
 
     # Request output
-    APACHE_OUTPUT=$(curl -s -L localhost/index.php)
+    APACHE_OUTPUT=$(curl -s -L localhost:8081/index.php)
     if [ "${APACHE_OUTPUT}" != "hi" ]; then
         echo "Error: expected request output is 'hi'. Actual:\n${APACHE_OUTPUT}"
         exit 1
@@ -101,12 +113,9 @@ if [ "${VERIFY_APACHE}" != "no" ]; then
         echo "Request output is correct"
     fi
 
-    # Trace exists: waiting more than DD_TRACE_AGENT_FLUSH_INTERVAL=1000
-    sleep 2
-    APACHE_TRACES=$(curl -s -L request-replayer/replay)
-    # sh compatible way to do string contains
-    if [ "${APACHE_TRACES#*trace_id}" = "${APACHE_TRACES}" ]; then
-        echo "Error: traces have not been sent correctly. From request replayer:\n${APACHE_TRACES}"
+    # Trace exists
+    if ! wait_for_trace; then
+        echo "Error: traces have not been sent correctly. From request replayer:\n${TRACE_REPLAY}"
         exit 1
     else
         echo "Traces have been sent is correct"

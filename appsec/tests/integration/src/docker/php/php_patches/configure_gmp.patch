@@ -1,0 +1,13 @@
+--- ./configure	2017-07-05 23:57:38.000000000 +0000
++++ ./configure	2019-12-10 18:09:16.951302032 +0000
+@@ -45161,8 +45161,8 @@
+ 
+ if test "$PHP_GMP" != "no"; then
+ 
+-  for i in $PHP_GMP /usr/local /usr; do
+-    test -f $i/include/gmp.h && GMP_DIR=$i && break
++  for i in $PHP_GMP /usr/local/include /usr/include /usr/include/x86_64-linux-gnu; do
++    test -f $i/gmp.h && GMP_DIR=$i && break
+   done
+ 
+   if test -z "$GMP_DIR"; then

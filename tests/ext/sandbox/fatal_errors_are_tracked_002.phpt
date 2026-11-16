@@ -2,20 +2,23 @@
 E_ERROR fatal errors are tracked from hitting the memory limit
 --SKIPIF--
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
+<?php if (PHP_VERSION_ID >= 80600) die('skip: OOM-fatal errors no longer exist on PHP 8.6+'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 memory_limit=2M
+fatal_error_backtraces=0
 --FILE--
 <?php
+include 'dd_dumper.inc';
 register_shutdown_function(function () {
     echo 'Shutdown' . PHP_EOL;
-    foreach (dd_trace_serialize_closed_spans() as $span) {
+    foreach (dd_clean_spans() as $span) {
         echo $span['name'] . PHP_EOL;
-        if (isset($span['error']) && $span['error'] === 1) {
-            echo $span['meta']['error.type'] . PHP_EOL;
-            echo $span['meta']['error.message'] . PHP_EOL;
-            echo $span['meta']['error.stack'] . PHP_EOL;
+        if (!empty($span['error'])) {
+            echo $span['attributes']['error.type'] . PHP_EOL;
+            echo $span['attributes']['error.message'] . PHP_EOL;
+            echo $span['attributes']['error.stack'] . PHP_EOL;
         }
     }
 });

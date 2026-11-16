@@ -1,10 +1,12 @@
 --TEST--
 Keep spans in limited mode (userland methods)
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_SPANS_LIMIT=5
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
+include 'dd_dumper.inc';
 class MyClass
 {
     public function myMethod1($foo) {
@@ -38,7 +40,7 @@ $mc->myMethod2(true);
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_clean_spans());
 ?>
 --EXPECT--
 bool(false)

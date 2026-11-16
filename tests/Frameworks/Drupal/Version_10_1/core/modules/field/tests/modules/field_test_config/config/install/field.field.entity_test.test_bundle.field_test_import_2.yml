@@ -1,0 +1,16 @@
+langcode: en
+dependencies:
+  config:
+    - field.storage.entity_test.field_test_import_2
+id: entity_test.test_bundle.field_test_import_2
+field_name: field_test_import_2
+entity_type: entity_test
+bundle: test_bundle
+label: 'Test import field 2 on test bundle'
+description: ''
+required: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  allowed_formats: {  }
+field_type: text

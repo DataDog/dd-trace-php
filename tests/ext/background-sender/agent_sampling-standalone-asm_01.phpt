@@ -1,0 +1,89 @@
+--TEST--
+Sample rate is changed to 0 after first call during a minute when STANDALONE ASM is enabled and no asm events
+--SKIPIF--
+<?php
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
+?>
+--ENV--
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_TRACE_AGENT_FLUSH_INTERVAL=333
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
+DD_APM_TRACING_ENABLED=0
+--INI--
+datadog.trace.agent_test_session_token=background-sender/agent_samplingc
+--FILE--
+<?php
+include __DIR__ . '/../includes/request_replayer.inc';
+
+$rr = new RequestReplayer();
+
+$picked = 0;
+$notPicked = 0;
+$maxIterations = 15;
+$spanRecords = [];
+for ($i = 0; $i < $maxIterations; $i++)
+{
+    //Do call and get sampling
+    \DDTrace\start_span();
+    \DDTrace\close_span();
+	// Flush the span synchronously before reading from the request replayer
+	dd_trace_internal_fn("synchronous_flush");
+	try {
+		$request = $rr->waitForDataAndReplay();
+	} catch (Exception $e) {
+		// If no request yet, try next iteration
+		continue;
+	}
+	$body = $request["body"] ?? null;
+	if ($body === null) {
+		continue;
+	}
+	$root = json_decode($body, true);
+	if (!is_array($root)) {
+		continue;
+	}
+    $sampling = RequestReplayer::chunkPriority($root);
+	$spanRecords[] = $root;
+	if ($sampling === null) {
+		continue;
+	}
+
+	if ($sampling == 1) { // First pick this minute (or minute rollover)
+        $picked = 1;
+		$notPicked = 0;
+		continue;
+    }
+
+	// Ignore zeros until we've seen the first 1
+	if ($picked == 0) {
+		continue;
+	}
+
+	// After first 1, count zeros
+	if ($sampling == 0) {
+		$notPicked++;
+	}
+    if ($picked == 1 && $notPicked == 2) {
+        break;
+    }
+}
+
+if ($picked == 1 && $notPicked == 2) {
+    echo "All good" . PHP_EOL;
+} else {
+	echo "Iterations: $i" . PHP_EOL;
+	echo "Picked: $picked" . PHP_EOL;
+	echo "notPicked: $notPicked" . PHP_EOL;
+	echo var_dump($spanRecords);
+}
+
+echo "Done" . PHP_EOL;
+
+?>
+--EXPECTF--
+All good
+Done

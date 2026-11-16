@@ -1,0 +1,16 @@
+{
+  "name": "drupal/core-php-storage",
+  "description": "PhpStorage.",
+  "keywords": ["drupal"],
+  "homepage": "https://www.drupal.org/project/drupal",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=7.0.8",
+    "drupal/core-file-security": "^8.8"
+  },
+  "autoload": {
+    "psr-4": {
+      "Drupal\\Component\\PhpStorage\\": ""
+    }
+  }
+}

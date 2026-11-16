@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integration\CurrentContextAccess;
 
 use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class CurrentContextAccessTest extends IntegrationTestCase
@@ -20,46 +21,38 @@ final class CurrentContextAccessTest extends IntegrationTestCase
             ]
         );
 
-        $trace = $traces[0];
-        $this->assertCount(2, $trace);
+        $chunk = $traces[0];
+        $this->assertCount(2, $chunk['spans']);
+        $this->assertNotEquals(0, SpanChecker::traceIdLow($chunk));
 
-        $traceId = $trace[0]['trace_id'];
-        $this->assertNotEquals(0, $traceId);
-
-        foreach ($trace as $span) {
+        foreach ($chunk['spans'] as $span) {
             $spanId = $span['span_id'];
             $this->assertNotEquals(0, $spanId);
-            $this->assertSame($traceId, $span['trace_id']);
-            $this->assertSame($spanId, $span['meta']['extracted_span_id']);
-            $this->assertSame($traceId, $span['meta']['extracted_trace_id']);
+            $this->assertSame($spanId, $span['attributes']['extracted_span_id']);
+            $this->assertSame($chunk['trace_id'], $span['attributes']['extracted_trace_id']);
         }
     }
 
     public function testInShortRunningCliScript()
     {
-        list($traces) = $this->inCli(__DIR__ . '/short-running.php');
+        list($traces) = $this->inCli(__DIR__ . '/short-running.php', ['DD_TRACE_GENERATE_ROOT_SPAN' => 'true']);
 
-        $trace = $traces[0];
-        $this->assertCount(2, $trace);
+        $chunk = $traces[0];
+        $this->assertCount(2, $chunk['spans']);
 
-        $traceId = $trace[0]['trace_id'];
+        $traceId = SpanChecker::traceIdLow($chunk);
         $this->assertNotEquals(0, $traceId);
 
-        foreach ($trace as $span) {
+        foreach ($chunk['spans'] as $span) {
             $spanId = $span['span_id'];
             $this->assertNotEquals(0, $spanId);
-            $this->assertSame($traceId, $span['trace_id']);
-            $this->assertSame($spanId, $span['meta']['extracted_span_id']);
-            $this->assertSame($traceId, $span['meta']['extracted_trace_id']);
+            $this->assertSame($spanId, $span['attributes']['extracted_span_id']);
+            $this->assertSame($traceId, $span['attributes']['extracted_trace_id']);
         }
     }
 
     public function testInLongRunningCliScript()
     {
-        if (\PHP_MAJOR_VERSION === 5) {
-            return $this->markTestSkipped('Long running processes are currently not supported on PHP 5');
-        }
-
         list($traces) = $this->inCli(
             __DIR__ . '/long-running.php',
             [
@@ -68,20 +61,19 @@ final class CurrentContextAccessTest extends IntegrationTestCase
             ]
         );
 
-        $trace = $traces[0];
-        $this->assertCount(2, $trace);
+        $chunk = $traces[0];
+        $this->assertCount(2, $chunk['spans']);
 
-        $traceId = $trace[0]['trace_id'];
+        $traceId = SpanChecker::traceIdLow($chunk);
         $this->assertNotEquals(0, $traceId);
-        $this->assertSame('root_span', $trace[0]['name']);
-        $this->assertSame('internal_span', $trace[1]['name']);
+        $this->assertSame('root_span', $chunk['spans'][0]['name']);
+        $this->assertSame('internal_span', $chunk['spans'][1]['name']);
 
-        foreach ($trace as $span) {
+        foreach ($chunk['spans'] as $span) {
             $spanId = $span['span_id'];
             $this->assertNotEquals(0, $spanId);
-            $this->assertSame($traceId, $span['trace_id']);
-            $this->assertSame($spanId, $span['meta']['extracted_span_id']);
-            $this->assertSame($traceId, $span['meta']['extracted_trace_id']);
+            $this->assertSame($spanId, $span['attributes']['extracted_span_id']);
+            $this->assertSame($traceId, $span['attributes']['extracted_trace_id']);
         }
     }
 }

@@ -62,9 +62,7 @@ dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, int buffer_len,
   }
 
   if (addr->ai_family == PF_UNIX) {
-    if (!connect(client.socket, addr->ai_addr, addr->ai_addrlen)) {
-      free(addr->ai_addr);
-      free(client.addresslist);
+    if (connect(client.socket, addr->ai_addr, addr->ai_addrlen) == -1) {
       client.addresslist = NULL;
       close(client.socket);
       client.socket = -1;
@@ -97,13 +95,14 @@ void dogstatsd_client_dtor(dogstatsd_client *client) {
     client->socket = -1;
   }
   if (client->addresslist) {
-    if (client->address->ai_family == PF_UNIX) {
+    if (client->address && client->address->ai_family == PF_UNIX) {
       free(client->address->ai_addr);
       free(client->addresslist);
     } else {
       freeaddrinfo(client->addresslist);
     }
     client->addresslist = NULL;
+    client->address = NULL;
   }
 }
 
@@ -166,9 +165,11 @@ dogstatsd_client_status dogstatsd_client_metric_send(
     return DOGSTATSD_CLIENT_E_TOO_LONG;
   }
 
-  ssize_t send_status =
-      sendto(client->socket, client->msg_buffer, size, MSG_DONTWAIT,
-             client->address->ai_addr, client->address->ai_addrlen);
+  /* PF_UNIX sockets are already connect()ed, so just send() it. */
+  ssize_t send_status = client->address->ai_family == PF_UNIX
+      ? send(client->socket, client->msg_buffer, size, MSG_DONTWAIT)
+      : sendto(client->socket, client->msg_buffer, size, MSG_DONTWAIT,
+               client->address->ai_addr, client->address->ai_addrlen);
 
   if (send_status > -1) {
     return DOGSTATSD_CLIENT_OK;

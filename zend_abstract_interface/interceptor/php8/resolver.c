@@ -33,10 +33,20 @@ static void zai_interceptor_class_linked(zend_class_entry *ce, zend_string *name
 static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int type);
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
     zend_op_array *op_array = prev_compile_file(file_handle, type);
-#if 0
-    // TODO: on branch merge with libdatadog
-    zai_hook_resolve_file(op_array);
-#endif
+
+    if (op_array) {
+        zai_hook_resolve_file(op_array);
+    }
+
+    return op_array;
+}
+
+static zend_op_array *(*prev_compile_string)(zend_string *source_string, const char *filename, zend_compile_position position);
+static zend_op_array *zai_interceptor_compile_string(zend_string *source_string, const char *filename, zend_compile_position position) {
+    zend_op_array *op_array = prev_compile_string(source_string, filename, position);
+    if (op_array) {
+        zai_hook_register_dynamic_functions(op_array);
+    }
     return op_array;
 }
 
@@ -58,6 +68,8 @@ void zai_interceptor_setup_resolving_post_startup(void) {
 
     prev_compile_file = zend_compile_file;
     zend_compile_file = zai_interceptor_compile_file;
+    prev_compile_string = zend_compile_string;
+    zend_compile_string = zai_interceptor_compile_string;
 }
 
 void zai_interceptor_shutdown(void) {

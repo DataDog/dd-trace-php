@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "gitlab": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-gitlab@2025.4.25"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "${GITLAB_PERSONAL_ACCESS_TOKEN}",
+        "GITLAB_API_URL": "https://gitlab.ddbuild.io/api/v4"
+      }
+    },
+    "speak_when_done": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/Marviel/speak_when_done@76aaaf79b99ec342450d9190d4a15ca4b71cad27",
+        "python",
+        "-m",
+        "speak_when_done.server"
+      ],
+      "env": {}
+    }
+  }
+}

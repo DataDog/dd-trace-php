@@ -14,13 +14,15 @@ done
 for instance_port in $(seq 7001 7006)
 do
     mkdir -p /redis-service/clusters/${instance_port}/data
-    INSTANCE_PORT=${instance_port} envsubst < /conf_template_cluster.conf > /redis-service/clusters/${instance_port}/redis.conf
+    INSTANCE_PORT=${instance_port} INSTANCE_BIND=${DOCKER_IP:-0.0.0.0} envsubst < /conf_template_cluster.conf > /redis-service/clusters/${instance_port}/redis.conf
     redis-server /redis-service/clusters/${instance_port}/redis.conf
 done
 sleep 1
 # We need the actual IP to be exposed as the cluster IP, otherwise it is not possible to connect from
 # other containers due to redirects to 127.0.0.1 (or maybe we just don't know how).
-DOCKER_IP=$(ip a | grep inet | grep eth0 | awk '{print $2}' | awk -F  "/" '{print $1}')
+if [ -z "$DOCKER_IP" ]; then
+  DOCKER_IP=$(ip a | grep inet | grep eth0 | awk '{print $2}' | awk -F  "/" '{print $1}')
+fi
 redis-cli --cluster create \
     ${DOCKER_IP}:7001 \
     ${DOCKER_IP}:7002 \

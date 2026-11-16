@@ -1,0 +1,17 @@
+# Ignore everything by default
+*
+
+# Include only what's needed for helper-rust portable build
+!helper-rust/
+!third_party/libddwaf-rust/
+
+# Exclude build artifacts and caches from helper-rust
+helper-rust/target/
+helper-rust/.cargo/
+helper-rust/build/
+helper-rust/.idea/
+helper-rust/*.log
+
+# Exclude build artifacts from libddwaf-rust
+third_party/libddwaf-rust/target/
+third_party/libddwaf-rust/.cargo/

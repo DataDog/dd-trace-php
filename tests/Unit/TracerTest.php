@@ -7,7 +7,6 @@ use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
-use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
 use DDTrace\Tests\Common\BaseTestCase;
@@ -52,7 +51,7 @@ final class TracerTest extends BaseTestCase
     {
         $tracer = new Tracer(new NoopTransport());
         $tracer->startRootSpan('foo'); // setting start_time not allowed on internal root span
-        $startTime = Time::now();
+        $startTime = 12345;
         $span = $tracer->startSpan(self::OPERATION_NAME, [
             'tags' => [
                 self::TAG_KEY => self::TAG_VALUE
@@ -151,20 +150,11 @@ final class TracerTest extends BaseTestCase
     {
         $tracer = new Tracer(new DebugTransport());
         $span = $tracer->startRootSpan(self::OPERATION_NAME)->getSpan();
-        $this->assertSame(PrioritySampling::USER_KEEP, $tracer->getPrioritySampling());
+        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
         $span->metrics = [];
         $carrier = [];
         $tracer->inject($span->getContext(), Format::TEXT_MAP, $carrier);
-        $this->assertSame(PrioritySampling::USER_KEEP, $tracer->getPrioritySampling());
-    }
-
-    public function testPrioritySamplingIsLazilyAssignedAndRefreshedBeforeFlush()
-    {
-        $tracer = new Tracer(new DebugTransport());
-        $span = $tracer->startRootSpan(self::OPERATION_NAME)->getSpan();
-        $this->assertSame(PrioritySampling::USER_KEEP, $tracer->getPrioritySampling());
-        $span->metrics = [];
-        $this->assertSame(PrioritySampling::USER_KEEP, $tracer->getPrioritySampling());
+        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
     }
 
     public function testPrioritySamplingInheritedFromDistributedTracingContext()
@@ -177,8 +167,6 @@ final class TracerTest extends BaseTestCase
         $tracer->startRootSpan(self::OPERATION_NAME, [
             'child_of' => $distributedTracingContext,
         ]);
-        // We need to flush as priority sampling is lazily evaluated at inject time or flush time.
-        $tracer->flush();
         $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
 
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
@@ -194,13 +182,13 @@ final class TracerTest extends BaseTestCase
         $span = $tracer->startRootSpan(self::OPERATION_NAME, [
             'child_of' => $distributedTracingContext,
         ])->getSpan();
-        $context = \DDTrace\current_context();
+        $rootSpan = \DDTrace\root_span();
         $this->assertSame("1234", $span->getTraceId());
         $this->assertSame("4321", $span->getParentId());
         $this->assertSame("datadog", $span->getContext()->origin);
-        $this->assertSame("1234", $context["trace_id"]);
-        $this->assertSame("4321", $context["distributed_tracing_parent_id"]);
-        $this->assertSame("datadog", $context["distributed_tracing_origin"]);
+        $this->assertSame(str_pad(dechex(1234), 32, "0", STR_PAD_LEFT), $rootSpan->traceId);
+        $this->assertSame("4321", $rootSpan->parentId);
+        $this->assertSame("datadog", $rootSpan->origin);
 
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
@@ -216,14 +204,16 @@ final class TracerTest extends BaseTestCase
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
 
-    public function testFlushAddsHostnameToRootSpanWhenEnabled()
+    public function testFlushAddsHostnameToThePayloadWhenEnabled()
     {
         self::putenv('DD_TRACE_REPORT_HOSTNAME=true');
 
         \dd_trace_serialize_closed_spans();
         $tracer = new Tracer(new NoopTransport());
-        $scope = $tracer->startRootSpan(self::OPERATION_NAME);
-        $this->assertEquals(gethostname(), $tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
+        $tracer->startRootSpan(self::OPERATION_NAME)->close();
+        $payload = \dd_trace_serialize_closed_spans();
+        $this->assertEquals(gethostname(), $payload['hostname']);
+        $this->assertArrayNotHasKey(Tag::HOSTNAME, $payload['chunks'][0]['spans'][0]['attributes']);
     }
 
     public function testIfNoRootScopeExistsItWillBeNull()
@@ -267,5 +257,23 @@ final class TracerTest extends BaseTestCase
 
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');
+    }
+
+    public function testMixingOpenTracingAndModernAPI()
+    {
+        $tracer = new Tracer(new DebugTransport());
+        $tracer->startRootSpan('foo');
+        $foo = $tracer->getActiveSpan();
+
+        $rootSpan = \DDTrace\start_trace_span();
+        $this->assertSame($tracer->getActiveSpan()->internalSpan, $rootSpan);
+        \DDTrace\close_span();
+
+        $this->assertSame($foo, $tracer->getActiveSpan());
+        $tracer->getActiveSpan()->finish();
+
+        $this->assertSame(2, dd_trace_closed_spans_count());
+        $traces = \dd_trace_serialize_closed_spans();
+        $this->assertCount(2, $traces);
     }
 }

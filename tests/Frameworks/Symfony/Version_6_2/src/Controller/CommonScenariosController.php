@@ -9,10 +9,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class CommonScenariosController extends AbstractController
 {
-
-    /**
-     * @Route("/simple", name="simple")
-     */
+    #[Route("/simple", name:"simple")]
     public function simpleAction(Request $request)
     {
         // replace this example code with whatever you need
@@ -21,9 +18,7 @@ class CommonScenariosController extends AbstractController
         );
     }
 
-    /**
-     * @Route("/simple_view", name="simple_view")
-     */
+    #[Route("/simple_view", name:"simple_view")]
     public function simpleViewAction(Request $request)
     {
         // replace this example code with whatever you need
@@ -33,11 +28,39 @@ class CommonScenariosController extends AbstractController
     }
 
     /**
-     * @Route("/error", name="error")
+     * @Route("/dynamic_route/{param01}/{param02?}", name="dynamic route with optionals")
+     */
+    public function dynamicWithOptionalsAction($param01, $param02)
+    {
+        return new Response(
+            'Hi!'
+        );
+    }
+
+    /**
      * @throws \Exception
      */
+     #[Route("/error", name:"error")]
     public function errorAction(Request $request)
     {
         throw new \Exception('An exception occurred');
+    }
+
+    /**
+     * @Route("/behind_auth", name="behind_auth")
+     */
+    public function behindAuthAction(Request $request)
+    {
+        // replace this example code with whatever you need
+        return new Response('Hi!');
+    }
+
+    /**
+     * @Route("/telemetry", name="telemetry")
+     */
+    public function telemetryAction(Request $request)
+    {
+        dd_trace_internal_fn("finalize_telemetry");
+        return new Response('Done');
     }
 }

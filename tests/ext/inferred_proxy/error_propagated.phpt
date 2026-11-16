@@ -1,0 +1,105 @@
+--TEST--
+Should create parent and child spans for error
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
+DD_SERVICE=aws-server
+DD_ENV=local-prod
+DD_VERSION=1.0
+
+DD_TRACE_DEBUG=0
+
+DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED=1
+HTTP_X_DD_PROXY=aws-apigateway
+HTTP_X_DD_PROXY_REQUEST_TIME_MS=100
+HTTP_X_DD_PROXY_PATH=/test
+HTTP_X_DD_PROXY_HTTPMETHOD=GET
+HTTP_X_DD_PROXY_DOMAIN_NAME=example.com
+HTTP_X_DD_PROXY_STAGE=aws-prod
+
+METHOD=GET
+SERVER_NAME=localhost:8888
+SCRIPT_NAME=/foo.php
+REQUEST_URI=/foo
+
+DD_TRACE_DEBUG_PRNG_SEED=42
+--GET--
+foo=bar
+--FILE--
+<?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
+
+function oops()
+{
+    http_response_code(500);
+    throw new \Exception('An exception occurred');
+}
+
+\DDTrace\trace_function('oops', function($span) {
+    $span->name = 'request';
+});
+
+try {
+    oops();
+} catch (\Exception $e) {
+    //
+}
+
+echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
+?>
+--EXPECTF--
+[
+    {
+        "span_id": "13930160852258120406",
+        "parent_id": "11788048577503494824",
+        "start": %d,
+        "duration": %d,
+        "name": "request",
+        "resource": "GET \/foo",
+        "service": "aws-server",
+        "type": "web",
+        "error": true,
+        "env": "local-prod",
+        "version": "1.0",
+        "component": "web",
+        "span_kind": 2,
+        "attributes": {
+            "runtime-id": "%s",
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "http.method": "GET",
+            "process_id": %d,
+            "http.status_code": "500",
+            "error.type": "Exception",
+            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
+            "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}",
+            "php.compilation.total_time_ms": %f,
+            "php.memory.peak_usage_bytes": %d,
+            "php.memory.peak_real_usage_bytes": %d
+        }
+    },
+    {
+        "span_id": "11788048577503494824",
+        "start": 100000000,
+        "duration": %d,
+        "name": "aws.apigateway",
+        "resource": "GET \/test",
+        "service": "example.com",
+        "type": "web",
+        "error": true,
+        "env": "local-prod",
+        "version": "1.0",
+        "component": "aws-apigateway",
+        "attributes": {
+            "http.method": "GET",
+            "http.url": "example.com\/test",
+            "stage": "aws-prod",
+            "_dd.inferred_span": 1,
+            "http.status_code": "500",
+            "error.type": "Exception",
+            "_dd.agent_psr": 1,
+            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
+            "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}"
+        }
+    }
+]

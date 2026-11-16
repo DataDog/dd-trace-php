@@ -15,3 +15,6 @@ framework:
     #fragments: true
     php_errors:
         log: true
+    form:
+        csrf_protection:
+            enabled: false

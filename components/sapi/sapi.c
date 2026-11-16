@@ -20,6 +20,7 @@ sapi_t datadog_php_sapi_from_name(string_view_t module) {
         {SV("cli-server"), DATADOG_PHP_SAPI_CLI_SERVER},
         {SV("embed"), DATADOG_PHP_SAPI_EMBED},
         {SV("fpm-fcgi"), DATADOG_PHP_SAPI_FPM_FCGI},
+        {SV("frankenphp"), DATADOG_PHP_SAPI_FRANKENPHP},
         {SV("litespeed"), DATADOG_PHP_SAPI_LITESPEED},
         {SV("phpdbg"), DATADOG_PHP_SAPI_PHPDBG},
         {SV("tea"), DATADOG_PHP_SAPI_TEA},

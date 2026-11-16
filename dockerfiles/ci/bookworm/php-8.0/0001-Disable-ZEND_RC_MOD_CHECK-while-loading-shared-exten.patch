@@ -1,0 +1,111 @@
+From 48ea62ce58d1587d83202620f7523667649b9001 Mon Sep 17 00:00:00 2001
+From: Arnaud Le Blanc <arnaud.lb@gmail.com>
+Date: Mon, 3 Mar 2025 13:12:21 +0100
+Subject: [PATCH] Disable ZEND_RC_MOD_CHECK() while loading shared extension in
+ FPM
+
+This fixes a ZEND_RC_MOD_CHECK() assertion failure when building with
+"-DZEND_RC_DEBUG=1 --enable-debug --enable-zts". php_dl() is called after
+startup, and manipulates the refcount of persistent strings, which is not
+allowed at this point of the lifecycle.
+
+The dl() function disables the ZEND_RC_MOD_CHECK() assertion before calling
+php_dl(). This change applies the same workaround in FPM.
+
+Closes GH-18075
+
+(cherry picked from commit c531f3d79b1ddbddc04fe3a5b5f51e8d9c2f36d4)
+
+Destroy temporary module classes in reverse order
+
+We destroy classes of dl()'ed modules in clean_module_classes(), during
+shutdown. Child classes of a module use structures of the parent class (such as
+inherited properties), which are destroyed earlier, so we have a use-after-free
+when destroying a child class.
+
+Here I destroy classes in reverse order, as it is done in zend_shutdown() for
+persistent classes.
+
+Fixes GH-17961
+Fixes GH-15367
+
+(cherry picked from commit 1c182674b09b88cb3ca954740504ba57aa1826ad)
+---
+ Zend/zend_API.c        | 23 ++++++++++-------------
+ sapi/fpm/fpm/fpm_php.c | 16 ++++++++++++++++
+ 2 files changed, 26 insertions(+), 13 deletions(-)
+
+diff --git a/Zend/zend_API.c b/Zend/zend_API.c
+index 78cd7a04f79..c4325209b73 100644
+--- a/Zend/zend_API.c
++++ b/Zend/zend_API.c
+@@ -22,6 +22,7 @@
+ #include "zend.h"
+ #include "zend_execute.h"
+ #include "zend_API.h"
++#include "zend_hash.h"
+ #include "zend_modules.h"
+ #include "zend_extensions.h"
+ #include "zend_constants.h"
+@@ -2597,21 +2598,17 @@ ZEND_API zend_result zend_get_module_started(const char *module_name) /* {{{ */
+ }
+ /* }}} */
+ 
+-static int clean_module_class(zval *el, void *arg) /* {{{ */
+-{
+-	zend_class_entry *ce = (zend_class_entry *)Z_PTR_P(el);
+-	int module_number = *(int *)arg;
+-	if (ce->type == ZEND_INTERNAL_CLASS && ce->info.internal.module->module_number == module_number) {
+-		return ZEND_HASH_APPLY_REMOVE;
+-	} else {
+-		return ZEND_HASH_APPLY_KEEP;
+-	}
+-}
+-/* }}} */
+-
+ static void clean_module_classes(int module_number) /* {{{ */
+ {
+-	zend_hash_apply_with_argument(EG(class_table), clean_module_class, (void *) &module_number);
++	/* Child classes may reuse structures from parent classes, so destroy in reverse order. */
++	Bucket *bucket;
++	ZEND_HASH_REVERSE_FOREACH_BUCKET(EG(class_table), bucket) {
++		zend_class_entry *ce = Z_CE(bucket->val);
++		if (ce->type == ZEND_INTERNAL_CLASS && ce->info.internal.module->module_number == module_number) {
++			zend_hash_del_bucket(EG(class_table), bucket);
++		}
++	} ZEND_HASH_FOREACH_END();
++
+ }
+ /* }}} */
+ 
+diff --git a/sapi/fpm/fpm/fpm_php.c b/sapi/fpm/fpm/fpm_php.c
+index 92b18966820..f9cb7bf816d 100644
+--- a/sapi/fpm/fpm/fpm_php.c
++++ b/sapi/fpm/fpm/fpm_php.c
+@@ -87,7 +87,23 @@ int fpm_php_apply_defines_ex(struct key_value_s *kv, int mode) /* {{{ */
+ 
+ 	if (!strcmp(name, "extension") && *value) {
+ 		zval zv;
++		zend_interned_strings_switch_storage(0);
++
++#if ZEND_RC_DEBUG
++		bool orig_rc_debug = zend_rc_debug;
++		/* Loading extensions after php_module_startup() breaks some invariants.
++		 * For instance, it will update the refcount of persistent strings,
++		 * which is normally not allowed at this stage. */
++		zend_rc_debug = false;
++#endif
++
+ 		php_dl(value, MODULE_PERSISTENT, &zv, 1);
++
++#if ZEND_RC_DEBUG
++		zend_rc_debug = orig_rc_debug;
++#endif
++
++		zend_interned_strings_switch_storage(1);
+ 		return Z_TYPE(zv) == IS_TRUE;
+ 	}
+ 
+-- 
+2.41.0
+

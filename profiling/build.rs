@@ -1,117 +1,160 @@
+use bindgen::callbacks::IntKind;
 use std::collections::HashSet;
-use std::env;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
+use std::{env, fs};
 
-fn main() {
-    let php_config_includes_output = Command::new("php-config")
-        .arg("--includes")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
+#[path = "config_codegen.rs"]
+mod config_codegen;
 
-    if !php_config_includes_output.status.success() {
-        match String::from_utf8(php_config_includes_output.stderr) {
-            Ok(stderr) => panic!("`php-config failed: {}", stderr),
-            Err(err) => panic!(
-                "`php-config` failed, not utf8: {}",
-                String::from_utf8_lossy(err.as_bytes())
-            ),
-        }
-    }
+pub fn build() {
+    // Make owns PHP toolchain selection and passes its generated include flags
+    // into Cargo. Do not rediscover a potentially different PHP installation.
+    println!("cargo:rerun-if-env-changed=DDTRACE_PHP_INCLUDES");
+    let php_includes = env::var("DDTRACE_PHP_INCLUDES")
+        .expect("DDTRACE_PHP_INCLUDES is required; build through phpize/configure/Make");
+    let php_include_root = php_include_root(&php_includes);
 
-    let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
-        .expect("`php-config`'s stdout to be valid utf8");
+    // ConfigId/CONFIG_COUNT/the generated accessors are consumed only by
+    // profiling/src/config.rs (see profiling/config_id.rs and this crate's
+    // cfg(feature = "profiling") gate in components-rs/lib.rs), so this codegen
+    // lives and runs here rather than in components-rs/build.rs -- a tracer-only
+    // build (e.g. libdatadog_php.so, shared across every PHP version in SSI/the
+    // portable-lib test harness) never needs to preprocess ext/configuration.h
+    // through a C compiler at all. This function only ever runs after the
+    // DDTRACE_PHP_INCLUDES check above has already succeeded, so it always has
+    // real, correct PHP headers for whichever PHP version Make is building
+    // against -- no stub headers needed.
+    config_codegen::build(&php_includes);
 
-    let vernum = php_config_vernum();
+    // Read the version from the VERSION file
+    let version = fs::read_to_string("VERSION")
+        .expect("Failed to read VERSION file")
+        .trim()
+        .to_string();
+    println!("cargo:rustc-env=PROFILER_VERSION={version}");
+    println!("cargo:rerun-if-changed=VERSION");
+
+    let vernum = php_version_id(&php_include_root);
+    let post_startup_cb = cfg_post_startup_cb(vernum);
     let preload = cfg_preload(vernum);
+    let fibers = cfg_fibers(vernum);
+    let frameless = cfg_frameless(vernum);
+    let run_time_cache = cfg_run_time_cache(vernum);
+    let trigger_time_sample = cfg_trigger_time_sample();
+    let zend_error_observer = cfg_zend_error_observer(vernum);
 
-    generate_bindings(php_config_includes);
-    build_zend_php_ffis(php_config_includes, preload);
+    generate_bindings(&php_includes, fibers, zend_error_observer);
+    build_zend_php_ffis(
+        &php_includes,
+        &php_include_root,
+        vernum,
+        post_startup_cb,
+        preload,
+        run_time_cache,
+        fibers,
+        frameless,
+        trigger_time_sample,
+        zend_error_observer,
+    );
 
     cfg_php_major_version(vernum);
-    cfg_zts();
+    cfg_php_feature_flags(vernum);
+    cfg_php_build(&php_include_root);
+    apple_linker_flags();
 }
 
-fn php_config_vernum() -> u64 {
-    let output = Command::new("php-config")
-        .arg("--vernum")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
-
-    if !output.status.success() {
-        match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php-config --vernum` failed: {}", stderr),
-            Err(err) => panic!(
-                "`php-config --vernum` failed, not utf8: {}",
-                String::from_utf8_lossy(err.as_bytes())
-            ),
-        }
-    }
-
-    let vernum = std::str::from_utf8(output.stdout.as_slice())
-        .expect("`php-config`'s stdout to be valid utf8");
-
-    vernum
-        .trim()
-        .parse::<u64>()
-        .expect("output to be a number and fit in u64")
+fn php_include_root(includes: &str) -> PathBuf {
+    includes
+        .split_whitespace()
+        .filter_map(|flag| flag.strip_prefix("-I"))
+        .map(PathBuf::from)
+        .find(|path| {
+            path.join("main/php_version.h").is_file() && path.join("main/php_config.h").is_file()
+        })
+        .unwrap_or_else(|| {
+            panic!("DDTRACE_PHP_INCLUDES does not contain the PHP include root: {includes}")
+        })
 }
 
-const ZAI_H_FILES: &[&str] = &[
-    "../zend_abstract_interface/zai_string/string.h",
-    "../zend_abstract_interface/config/config.h",
-    "../zend_abstract_interface/config/config_decode.h",
-    "../zend_abstract_interface/config/config_ini.h",
-    "../zend_abstract_interface/env/env.h",
-    "../zend_abstract_interface/json/json.h",
-];
+fn php_version_id(include_root: &Path) -> u64 {
+    let version_header = include_root.join("main/php_version.h");
+    println!("cargo:rerun-if-changed={}", version_header.display());
+    let contents = fs::read_to_string(&version_header).expect("failed to read main/php_version.h");
+    macro_value(&contents, "PHP_VERSION_ID")
+        .expect("PHP_VERSION_ID is missing from main/php_version.h")
+        .parse()
+        .expect("PHP_VERSION_ID is not an integer")
+}
 
-fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
-    println!("cargo:rerun-if-changed=src/php_ffi.h");
-    println!("cargo:rerun-if-changed=src/php_ffi.c");
-    println!("cargo:rerun-if-changed=../ext/handlers_api.c");
-    println!("cargo:rerun-if-changed=../ext/handlers_api.h");
+fn macro_value<'a>(contents: &'a str, name: &str) -> Option<&'a str> {
+    contents.lines().find_map(|line| {
+        let rest = line.trim().strip_prefix("#define ")?;
+        let split_at = rest.find(char::is_whitespace)?;
+        let (macro_name, value) = rest.split_at(split_at);
+        (macro_name == name).then(|| value.trim())
+    })
+}
 
-    // Profiling only needs config and its dependencies.
-    let zai_c_files = [
-        "../zend_abstract_interface/config/config_decode.c",
-        "../zend_abstract_interface/config/config_ini.c",
-        "../zend_abstract_interface/config/config.c",
-        "../zend_abstract_interface/config/config_runtime.c",
-        "../zend_abstract_interface/env/env.c",
-        "../zend_abstract_interface/json/json.c",
-    ];
+#[allow(clippy::too_many_arguments)]
+fn build_zend_php_ffis(
+    php_includes: &str,
+    php_include_root: &Path,
+    vernum: u64,
+    post_startup_cb: bool,
+    preload: bool,
+    run_time_cache: bool,
+    fibers: bool,
+    frameless: bool,
+    trigger_time_sample: bool,
+    zend_error_observer: bool,
+) {
+    println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
+    println!("cargo:rerun-if-changed=profiling/src/php_ffi.c");
 
-    for file in zai_c_files.iter().chain(ZAI_H_FILES.iter()) {
-        println!("cargo:rerun-if-changed={}", *file);
-    }
-
-    let output = Command::new("php-config")
-        .arg("--prefix")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
-
-    let prefix = String::from_utf8(output.stdout).expect("only utf8 chars work");
-    println!("cargo:rustc-link-search=native={}/lib", prefix.trim());
-
-    let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
+    let post_startup_cb = if post_startup_cb { "1" } else { "0" };
     let preload = if preload { "1" } else { "0" };
+    let fibers = if fibers { "1" } else { "0" };
+    let frameless = if frameless { "1" } else { "0" };
+    let run_time_cache = if run_time_cache { "1" } else { "0" };
+    let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
+    let zend_error_observer = if zend_error_observer { "1" } else { "0" };
 
-    cc::Build::new()
-        .files(files.into_iter().chain(zai_c_files.into_iter()))
+    let combined = env::var_os("CARGO_FEATURE_PROFILING_EMBEDDED").is_some();
+    let mut build = cc::Build::new();
+    build.file("profiling/src/php_ffi.c");
+    build
+        .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
-        .includes([Path::new("../ext")])
-        .includes(
-            str::replace(php_config_includes, "-I", "")
-                .split(' ')
-                .map(Path::new)
-                .chain([Path::new("../zend_abstract_interface")]),
+        .define("CFG_FIBERS", fibers)
+        .define("CFG_FRAMELESS", frameless)
+        .define("CFG_RUN_TIME_CACHE", run_time_cache)
+        .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
+        .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
+        .define("PROFILING", None)
+        .includes(["ext", "zend_abstract_interface", "."])
+        // PHP < 7.4 has a noisy offsetof fallback. Make's INCLUDES also
+        // contains project paths, so treat only the PHP SDK as system headers.
+        .flags(
+            php_includes
+                .split_whitespace()
+                .map(|include| match include.strip_prefix("-I") {
+                    Some(path)
+                        if vernum < 70400 && Path::new(path).starts_with(php_include_root) =>
+                    {
+                        format!("-isystem{path}")
+                    }
+                    _ => include.to_owned(),
+                }),
         )
-        .flag_if_supported("-fuse-ld=lld")
-        .flag_if_supported("-std=c11")
-        .flag_if_supported("-std=c17")
-        .compile("php_ffi");
+        .flag_if_supported("-std=gnu11")
+        .flag_if_supported("-std=gnu17");
+    if combined {
+        build.define("TRACER", None);
+    }
+    #[cfg(feature = "test")]
+    build.define("CFG_TEST", "1");
+    build.compile("php_ffi");
 }
 
 #[derive(Debug)]
@@ -125,11 +168,25 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
             bindgen::callbacks::MacroParsingBehavior::Default
         }
     }
+
+    fn int_macro(&self, name: &str, _value: i64) -> Option<IntKind> {
+        match name {
+            "IS_UNDEF" | "IS_NULL" | "IS_FALSE" | "IS_TRUE" | "IS_LONG" | "IS_DOUBLE"
+            | "IS_STRING" | "IS_ARRAY" | "IS_OBJECT" | "IS_RESOURCE" | "IS_REFERENCE"
+            | "_IS_BOOL" => Some(IntKind::U8),
+
+            "ZEND_INTERNAL_FUNCTION" | "ZEND_USER_FUNCTION" => Some(IntKind::U8),
+
+            // None means whatever it would have been without this hook
+            // (likely u32).
+            _ => None,
+        }
+    }
 }
 
-fn generate_bindings(php_config_includes: &str) {
-    println!("cargo:rerun-if-changed=src/php_ffi.h");
-    println!("cargo:rerun-if-changed=../ext/handlers_api.h");
+fn generate_bindings(php_includes: &str, fibers: bool, zend_error_observer: bool) {
+    println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
+    println!("cargo:rerun-if-changed=ext/handlers_api.h");
     let ignored_macros = IgnoreMacros(
         [
             "FP_INFINITE".into(),
@@ -143,15 +200,30 @@ fn generate_bindings(php_config_includes: &str) {
         .collect(),
     );
 
+    let mut clang_args: Vec<String> = if fibers {
+        vec!["-D".into(), "CFG_FIBERS=1".into()]
+    } else {
+        vec!["-D".into(), "CFG_FIBERS=0".into()]
+    };
+
+    if zend_error_observer {
+        clang_args.push("-D".into());
+        clang_args.push("CFG_ZEND_ERROR_OBSERVER=1".into());
+    } else {
+        clang_args.push("-D".into());
+        clang_args.push("CFG_ZEND_ERROR_OBSERVER=0".into());
+    }
     let bindings = bindgen::Builder::default()
         .ctypes_prefix("libc")
+        .clang_args(clang_args)
         .raw_line("extern crate libc;")
-        .header("src/php_ffi.h")
-        .header("../ext/handlers_api.h")
-        .clang_arg("-I../zend_abstract_interface")
+        .header("profiling/src/php_ffi.h")
+        .header("ext/handlers_api.h")
+        .clang_arg("-Izend_abstract_interface")
+        .clang_arg("-I.")
         // Block some zend items that we'll provide manual definitions for
-        .blocklist_item("zai_string_view_s")
-        .blocklist_item("zai_string_view")
+        .blocklist_item("zai_str_s")
+        .blocklist_item("zai_str")
         .blocklist_item("zai_config_entry_s")
         .blocklist_item("zai_config_memoized_entry_s")
         .blocklist_item("zend_bool")
@@ -162,6 +234,17 @@ fn generate_bindings(php_config_includes: &str) {
         .blocklist_item("zend_result")
         .blocklist_item("zend_register_extension")
         .blocklist_item("_zend_string")
+        // Block typedefs that use __attribute__((preserve_none)) calling convention.
+        // PHP 8.5.1+ on macOS enables TAILCALL VM when compiled with Clang 18+,
+        // which uses preserve_none for opcode handlers. Bindgen doesn't support
+        // CXCallingConv_PreserveNone (CC 20) and panics. We use opaque pointers
+        // instead of the actual function signatures because: 1) we never call
+        // these opcode handlers from Rust, and 2) Rust cannot express the
+        // preserve_none calling convention anyway.
+        .blocklist_item("zend_vm_opcode_handler_t")
+        .blocklist_item("zend_vm_opcode_handler_func_t")
+        .raw_line("pub type zend_vm_opcode_handler_t = *const ::std::ffi::c_void;")
+        .raw_line("pub type zend_vm_opcode_handler_func_t = *const ::std::ffi::c_void;")
         // Block a few of functions that we'll provide defs for manually
         .blocklist_item("datadog_php_profiling_vm_interrupt_addr")
         // I had to block these for some reason *shrug*
@@ -179,10 +262,13 @@ fn generate_bindings(php_config_includes: &str) {
         .rustified_enum("datadog_php_profiling_log_level")
         .rustified_enum("zai_config_type")
         .parse_callbacks(Box::new(ignored_macros))
-        .clang_args(php_config_includes.split(' '))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .rustfmt_bindings(true)
+        .clang_args(php_includes.split(' '))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .layout_tests(false)
+        // this prevents bindgen from copying C comments to Rust, as otherwise
+        // rustdoc would look for tests and currently fail as it assumes
+        // codeblocks are Rust code
+        .generate_comments(false)
         .generate()
         .expect("bindgen to succeed");
 
@@ -192,7 +278,18 @@ fn generate_bindings(php_config_includes: &str) {
         .expect("bindings to be written successfully");
 }
 
+fn cfg_post_startup_cb(vernum: u64) -> bool {
+    println!("cargo::rustc-check-cfg=cfg(php_post_startup_cb)");
+    if vernum >= 70300 {
+        println!("cargo:rustc-cfg=php_post_startup_cb");
+        true
+    } else {
+        false
+    }
+}
+
 fn cfg_preload(vernum: u64) -> bool {
+    println!("cargo::rustc-check-cfg=cfg(php_preload)");
     if vernum >= 70400 {
         println!("cargo:rustc-cfg=php_preload");
         true
@@ -201,7 +298,36 @@ fn cfg_preload(vernum: u64) -> bool {
     }
 }
 
+fn cfg_run_time_cache(vernum: u64) -> bool {
+    println!("cargo::rustc-check-cfg=cfg(php_run_time_cache)");
+    if vernum >= 80000 {
+        println!("cargo:rustc-cfg=php_run_time_cache");
+        true
+    } else {
+        false
+    }
+}
+
+fn cfg_trigger_time_sample() -> bool {
+    env::var("CARGO_FEATURE_TRIGGER_TIME_SAMPLE").is_ok()
+}
+
+fn cfg_zend_error_observer(vernum: u64) -> bool {
+    println!("cargo::rustc-check-cfg=cfg(zend_error_observer, zend_error_observer_80)");
+    if vernum >= 80000 {
+        println!("cargo:rustc-cfg=zend_error_observer");
+        if vernum < 80100 {
+            println!("cargo:rustc-cfg=zend_error_observer_80");
+        }
+        true
+    } else {
+        false
+    }
+}
+
 fn cfg_php_major_version(vernum: u64) {
+    println!("cargo::rustc-check-cfg=cfg(php7, php8)");
+
     let major_version = match vernum {
         70000..=79999 => 7,
         80000..=89999 => 8,
@@ -215,24 +341,239 @@ fn cfg_php_major_version(vernum: u64) {
     println!("cargo:rustc-cfg=php{major_version}");
 }
 
-fn cfg_zts() {
-    let output = Command::new("php")
-        .arg("-r")
-        .arg("echo PHP_ZTS, PHP_EOL;")
-        .output()
-        .expect("Unable to run `php`. Is it in your PATH?");
+fn cfg_fibers(vernum: u64) -> bool {
+    println!("cargo::rustc-check-cfg=cfg(php_has_fibers)");
+    if vernum >= 80100 {
+        println!("cargo:rustc-cfg=php_has_fibers");
+        true
+    } else {
+        false
+    }
+}
 
-    if !output.status.success() {
-        match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php failed: {}", stderr),
-            Err(err) => panic!("`php` failed, not utf8: {}", err),
-        }
+fn cfg_frameless(vernum: u64) -> bool {
+    println!("cargo::rustc-check-cfg=cfg(php_frameless)");
+    if vernum >= 80400 {
+        println!("cargo:rustc-cfg=php_frameless");
+        true
+    } else {
+        false
+    }
+}
+
+fn cfg_php_feature_flags(vernum: u64) {
+    println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex, php_zts_fast_globals, php_function_type_enum)");
+
+    if vernum >= 70400 {
+        println!("cargo:rustc-cfg=php_zts_fast_globals");
+    }
+    if vernum >= 70300 {
+        println!("cargo:rustc-cfg=php_gc_status");
+    }
+    if vernum >= 80200 {
+        println!("cargo:rustc-cfg=php_zend_compile_string_has_position");
+    }
+    if vernum >= 80300 {
+        println!("cargo:rustc-cfg=php_gc_status_extended");
+    }
+    if vernum >= 80400 {
+        println!("cargo:rustc-cfg=php_opcache_restart_hook");
+        println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
+    }
+    if vernum >= 80600 {
+        // ZEND_INTERNAL_FUNCTION etc. became zend_function_type enumerators.
+        println!("cargo:rustc-cfg=php_function_type_enum");
+    }
+}
+
+fn cfg_php_build(include_root: &Path) {
+    println!("cargo::rustc-check-cfg=cfg(php_zts)");
+    println!("cargo::rustc-check-cfg=cfg(php_debug)");
+
+    let config_header = include_root.join("main/php_config.h");
+    println!("cargo:rerun-if-changed={}", config_header.display());
+    let contents = fs::read_to_string(&config_header).expect("failed to read main/php_config.h");
+
+    let zts = macro_value(&contents, "ZTS").is_some_and(|value| value != "0");
+    let debug = macro_value(&contents, "ZEND_DEBUG").is_some_and(|value| value != "0");
+
+    if zts {
+        println!("cargo:rustc-cfg=php_zts");
+    }
+    if debug {
+        println!("cargo:rustc-cfg=php_debug");
+    }
+}
+
+/// On macOS (Apple targets), the cdylib has undefined symbols that are
+/// resolved at load time by the PHP process. In debug builds, LTO is off
+/// which produces more unresolved symbols--we fall back to
+/// `-undefined dynamic_lookup` for debug builds.
+///
+/// To regenerate the symbol list after adding new PHP/C API calls:
+///   1. Temporarily make the release-like profile check below take the debug branch.
+///   2. Build the standalone profiler through its supported PHP build path:
+///      `phpize && ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug && make`
+///   3. Extract symbols:
+///      `nm -u modules/datadog-profiling.so | sort -u |
+///       grep -v '^$\|^ERROR\|dyld_stub' | sed 's/^/-Wl,-U,/' | tr '\n' ' '`
+///   4. Update the ALLOWED_UNDEFINED_SYMBOLS list below and restore the check.
+///
+/// ## Why list the symbols manually?
+///
+/// On several branches I've wanted to test out no_panic for things that I
+/// want to be sure cannot panic. For instance, the opcache persist hook is
+/// called while holding a lock in shared memory, it would be bad to panic
+/// there. Its technique is incompatible with -undefined dynamic_lookup.
+///
+/// It also serves as an audit list. I have caught symbols I did not expect
+/// slipping in during these experiments (due to AI).
+fn apple_linker_flags() {
+    let target = env::var("TARGET").unwrap_or_default();
+    if !target.contains("apple") {
+        return;
     }
 
-    let zts =
-        std::str::from_utf8(output.stdout.as_slice()).expect("`php`'s stdout to be valid utf8");
+    let profile = env::var("PROFILE").unwrap_or_default();
+    // Matches both Cargo's `release` profile and our `profiler-release` profile.
+    let release_like = profile.ends_with("release");
+    if !release_like {
+        // Debug and test builds: allow all undefined symbols.
+        println!("cargo:rustc-cdylib-link-arg=-undefined");
+        println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
+        println!("cargo:rustc-link-arg=-undefined");
+        println!("cargo:rustc-link-arg=dynamic_lookup");
+        return;
+    }
 
-    if zts.contains('1') {
-        println!("cargo:rustc-cfg=php_zts");
+    // Release builds: explicitly allow only PHP/Zend symbols that are
+    // resolved at load time from the PHP binary. System symbols (libc,
+    // libSystem, CoreFoundation, Security, etc.) are resolved by the
+    // linker from their respective libraries/frameworks. This way, any
+    // NEW undefined symbol — such as a no_panic sentinel — causes a
+    // linker error.
+    //
+    // Note: on macOS, symbols get a leading underscore, so `_efree` in C
+    // becomes `__efree` here, and `__zend_malloc` becomes `___zend_malloc`.
+    const ALLOWED_UNDEFINED_SYMBOLS: &[&str] = &[
+        // Zend memory allocator
+        "___zend_malloc",
+        "___zend_strdup",
+        "__efree",
+        "__emalloc",
+        "__emalloc_40",
+        "__emalloc_48",
+        "__emalloc_56",
+        "__emalloc_huge",
+        "__emalloc_large",
+        "__emalloc_huge",
+        "__zend_handle_numeric_str_ex",
+        "__zend_hash_init",
+        "__zend_mm_alloc",
+        "__zend_mm_free",
+        "__zend_mm_realloc",
+        // Zend globals
+        "_compiler_globals",
+        "_core_globals",
+        "_executor_globals",
+        "_module_registry",
+        // Zend engine APIs
+        "_cfg_get_entry",
+        "_display_ini_entries",
+        "_gc_collect_cycles",
+        "_instanceof_function_slow",
+        "_is_zend_mm",
+        "_rc_dtor_func",
+        "_zend_accel_schedule_restart_hook",
+        "_zend_alter_ini_entry_ex",
+        "_zend_ce_throwable",
+        "_zend_call_function",
+        "_zend_call_stack_init",
+        "_zend_compile_file",
+        "_zend_compile_string",
+        "_zend_empty_string",
+        "_zend_extensions",
+        "_zend_flf_functions",
+        "_zend_fcall_info_init",
+        "_zend_flf_handlers",
+        "_zend_gc_get_status",
+        "_zend_generator_check_placeholder_frame",
+        "_zend_get_executed_filename_ex",
+        "_zend_get_executed_lineno",
+        "_zend_get_extension",
+        "_zend_get_internal_function_extension_handles",
+        "_zend_get_op_array_extension_handles",
+        "_zend_get_resource_handle",
+        "_zend_hash_add",
+        "_zend_hash_add_empty_element",
+        "_zend_hash_destroy",
+        "_zend_hash_find",
+        "_zend_hash_index_update",
+        "_zend_hash_next_index_insert",
+        "_zend_hash_str_add",
+        "_zend_hash_str_find",
+        "_zend_hash_update",
+        "_zend_ini_boolean_displayer_cb",
+        "_zend_ini_get_value",
+        "_zend_ini_parse_bool",
+        "_zend_ini_parse_quantity",
+        "_zend_ini_string",
+        "_zend_interned_strings_switch_storage",
+        "_zend_interrupt_function",
+        "_zend_known_strings",
+        "_zend_mm_gc",
+        "_zend_mm_get_custom_handlers_ex",
+        "_zend_mm_get_heap",
+        "_zend_mm_set_custom_handlers_ex",
+        "_zend_mm_shutdown",
+        "_zend_new_interned_string",
+        "_zend_observer_error_register",
+        "_zend_parse_parameters",
+        "_zend_post_startup_cb",
+        "_zend_register_extension",
+        "_zend_register_ini_entries",
+        "_zend_str_tolower",
+        "_zend_string_init_interned",
+        "_zend_strtod",
+        "_zend_throw_exception_hook",
+        "_zend_write",
+        "_zval_internal_ptr_dtor",
+        "_zval_ptr_dtor",
+        // PHP APIs
+        "_php_during_module_startup",
+        "_php_error_docref",
+        "_php_get_module_initialized",
+        "_php_info_print_table_end",
+        "_php_info_print_table_row",
+        "_php_info_print_table_start",
+        "_php_error_docref",
+        "_php_json_encode",
+        "_php_json_parse",
+        "_php_json_parser_init",
+        "_php_json_serializable_ce",
+        "_php_version",
+        "_php_version_id",
+        // SAPI
+        "_sapi_getenv",
+        "_sapi_globals",
+        "_sapi_module",
+        // TSRM (ZTS builds only; harmless to list on NTS — they simply
+        // won't appear as undefined)
+        "_executor_globals_id",
+        "_tsrm_get_ls_cache",
+        "_tsrm_set_new_thread_end_handler",
+        // ZTS globals offsets (replace direct globals on ZTS)
+        "_compiler_globals_offset",
+        "_core_globals_offset",
+        "_executor_globals_offset",
+        "_sapi_globals_offset",
+        // Zend parameter error (may appear with certain PHP versions/features)
+        "_zend_wrong_parameter_error",
+        "_zend_wrong_parameters_count_error",
+        "_zend_wrong_parameters_none_error",
+    ];
+
+    for sym in ALLOWED_UNDEFINED_SYMBOLS {
+        println!("cargo:rustc-cdylib-link-arg=-Wl,-U,{sym}");
     }
 }

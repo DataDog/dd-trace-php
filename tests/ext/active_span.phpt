@@ -1,5 +1,7 @@
 --TEST--
 DDTrace\active_span basic functionality
+--SKIPIF--
+<?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %r"); ?>
 --FILE--
 <?php
 
@@ -26,40 +28,103 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\SpanData)#%d (10) {
+object(DDTrace\RootSpanData)#%d (28) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
   string(0) ""
   ["service"]=>
   string(15) "active_span.php"
+  ["meta_struct"]=>
+  array(0) {
+  }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(0) {
+  array(4) {
+    ["runtime-id"]=>
+    string(36) "%s"
+    ["service.name"]=>
+    string(15) "active_span.php"
+    ["operation.name"]=>
+    string(15) "active_span.php"
+    ["span.type"]=>
+    string(3) "cli"
   }
   ["metrics"]=>
   array(1) {
     ["process_id"]=>
-    float(%f)
+    int(%d)
   }
   ["exception"]=>
   NULL
   ["id"]=>
   string(%d) "%d"
+  ["links"]=>
+  array(0) {
+  }
+  ["events"]=>
+  array(0) {
+  }
+  ["peerServiceSources"]=>
+  array(0) {
+  }
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (2) {
+  object(DDTrace\SpanStack)#%d (3) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (2) {
+    object(DDTrace\SpanStack)#%d (3) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
+      ["spanCreationObservers"]=>
+      array(0) {
+      }
     }
     ["active"]=>
     *RECURSION*
+    ["spanCreationObservers"]=>
+    array(0) {
+    }
   }
+  ["onClose"]=>
+  array(0) {
+  }
+  ["baggage"]=>
+  array(0) {
+  }
+  ["env"]=>
+  string(0) ""
+  ["version"]=>
+  string(0) ""
+  ["component"]=>
+  string(0) ""
+  ["spanKind"]=>
+  int(0)
+  ["attributes"]=>
+  array(2) {
+    ["runtime-id"]=>
+    string(36) "%s"
+    ["process_id"]=>
+    int(%d)
+  }
+  ["ignoreError"]=>
+  bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  ["propagatedTags"]=>
+  array(0) {
+  }
+  ["samplingPriority"]=>
+  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  ["tracestateTags"]=>
+  array(0) {
+  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+  ["traceId"]=>
+  string(32) "%s"
+  ["gitMetadata"]=>
+  NULL
+  ["inferredSpan"]=>
+  NULL
 }
 bool(true)

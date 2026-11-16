@@ -2,6 +2,8 @@
 Span stacks are fully reset when the tracer is disabled and re-enabled
 --INI--
 datadog.trace.generate_root_span=0
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
 <?php
 
@@ -15,7 +17,7 @@ DDTrace\switch_stack($stack);
 DDTrace\start_span();
 DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump(count($spans));
 var_dump(isset($spans[0]["parent_id"]));
 

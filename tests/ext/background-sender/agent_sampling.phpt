@@ -1,0 +1,68 @@
+--TEST--
+The background sender informs about changes to the agent sample rate
+--SKIPIF--
+<?php
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no background sender on Windows');
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
+?>
+--ENV--
+DD_TRACE_LOG_LEVEL=info,startup=off
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_TRACE_AGENT_FLUSH_INTERVAL=333
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
+DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=0
+--INI--
+datadog.trace.agent_test_session_token=background-sender/agent_sampling
+--FILE--
+<?php
+include __DIR__ . '/../includes/request_replayer.inc';
+
+$rr = new RequestReplayer();
+
+$get_sampling = function() use ($rr) {
+    $root = json_decode($rr->waitForDataAndReplay()["body"], true);
+    // Ensure the BGS has finished processing the HTTP response (writing agent rates to SHM)
+    // before the caller changes the mock response.
+    dd_trace_internal_fn("synchronous_flush");
+    return RequestReplayer::chunkPriority($root);
+};
+
+$rr->setResponse(["rate_by_service" => ["service:,env:" => 0]]);
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+
+echo "Initial sampling: {$get_sampling()}\n";
+
+$rr->setResponse(["rate_by_service" => ["service:,env:" => 0, "service:foo,env:none" => 1]]);
+dd_trace_internal_fn("synchronous_flush");
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+
+echo "Generic sampling: {$get_sampling()}\n";
+
+// reset it for other tests
+$rr->setResponse(["rate_by_service" => []]);
+dd_trace_internal_fn("synchronous_flush");
+
+$s = \DDTrace\start_span();
+$s->service = "foo";
+$s->env = "none";
+\DDTrace\close_span();
+
+echo "Specific sampling: {$get_sampling()}\n";
+
+?>
+--EXPECTF--
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
+Initial sampling: 1
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
+Generic sampling: 0
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
+Specific sampling: 1
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

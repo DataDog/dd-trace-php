@@ -7,6 +7,8 @@ const DEFAULT_ENVS = [
     'DD_ENV' => 'some_env',
     'DD_SERVICE' => 'my_custom_service',
     'DD_TRACE_CLI_ENABLED' => 'true',
+    'DD_TRACE_LOG_FILE' => '/results/dd_php_error.log',
+    'RUST_BACKTRACE' => '1',
 ];
 
 // Values from this array might be selected and set. When an environment variable from this list is selected,
@@ -21,7 +23,6 @@ const ENVS = [
     'DD_TRACE_AGENT_PORT' => ['9999'],
     'DD_DISTRIBUTED_TRACING' => ['false'],
     'DD_AUTOFINISH_SPANS' => ['true'],
-    'DD_PRIORITY_SAMPLING' => ['false'],
     'DD_SERVICE_MAPPING' => ['pdo:pdo-changed,curl:curl-changed'],
     'DD_TRACE_AGENT_CONNECT_TIMEOUT' => ['1'],
     'DD_TRACE_AGENT_TIMEOUT' => ['1'],
@@ -63,4 +64,5 @@ const ENVS = [
     'DD_TRACE_YII_ENABLED' => ['false'],
     'DD_TRACE_ZENDFRAMEWORK_ENABLED' => ['false'],
     'DD_PROFILING_ENABLED' => ['true'],
+    'DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED' => ['true'],
 ];

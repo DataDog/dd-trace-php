@@ -11,10 +11,9 @@ extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
 # Install using the php installer
-new_version="0.78.0"
-generate_installers "${new_version}"
+version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin php-fpm
-assert_ddtrace_version "${new_version}"
+assert_ddtrace_version "${version}"
 
 # Uninstall
 php ./build/packages/datadog-setup.php --php-bin php-fpm --uninstall
@@ -37,4 +36,4 @@ else
 fi
 
 # extension=... in the INI file should be commented out
-assert_file_contains "${ini_dir}/98-ddtrace.ini" ";extension = ddtrace.so"
+assert_file_contains "${ini_dir}/98-ddtrace.ini" "; extension = ddtrace.so"

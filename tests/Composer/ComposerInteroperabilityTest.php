@@ -30,6 +30,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testComposerInteroperabilityWhenNoInitHook()
     {
+        // Empty traces are the expected result, so they must not trigger the retry
+        // used by tests which expect the agent to receive a trace.
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/'));
@@ -38,16 +40,20 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_SOURCES_PATH' => 'do_not_exists',
+                'DD_AUTOLOAD_NO_COMPILE' => 'false',
             ],
             [
-                'ddtrace.request_init_hook' => 'do_not_exists',
-            ]
+                'datadog.trace.sources_path' => 'do_not_exists',
+            ],
+            false
         );
 
+        // Will fallback to installed sources, which does not include DDTrace, only api/, thus doing a Noop
         $this->assertEmpty($traces);
     }
 
-    public function testComposerInteroperabilityWhenInitHookWorks()
+    public function testComposerInteroperabilityWhenSourcesValid()
     {
         $traces = $this->inWebServer(
             function ($execute) {
@@ -59,7 +65,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
             ],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
             ]
         );
 
@@ -84,18 +90,19 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
-                'zend_extension' => 'opcache.so',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -118,23 +125,67 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
-                'zend_extension' => 'opcache.so',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ])
                 ->withChildren([
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'GET',
+                            '_dd.svc_src' => 'm',
+                        ]),
+                ]),
+        ]);
+    }
+
+    /**
+     * Simulates an autoloading scenario when preloading and composer are used. Manual tracing is done, but DDTrace
+     * classes are not used in the preloading script, but composer is used in the preloading script.
+     */
+    public function testPreloadDDTraceNotUsedWithComposerManualTracing()
+    {
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
+        }
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $output = $execute(GetSpec::create('default', '/manual-tracing'));
+                TestCase::assertSame("OK - preload:'DDTrace classes NOT used in preload'", $output);
+            },
+            __DIR__ . "/app/index.php",
+            [],
+            [
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
+                'opcache.preload' => __DIR__ . '/app/preload.composer.no.ddtrace.php',
+            ] + self::opcacheInis()
+        );
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
+                ->withExactAttributes([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
+                    'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
+                ])
+                ->withChildren([
+                    SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
+                        ->withExactAttributes([
+                            'http.method' => 'GET',
+                            '_dd.svc_src' => 'm',
                         ]),
                 ]),
         ]);
@@ -158,18 +209,19 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
-                'zend_extension' => 'opcache.so',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'opcache.preload' => __DIR__ . '/app/preload.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -192,23 +244,25 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
-                'zend_extension' => 'opcache.so',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'opcache.preload' => __DIR__ . '/app/preload.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ])
                 ->withChildren([
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'GET',
+                            '_dd.svc_src' => 'm',
                         ]),
                 ]),
         ]);
@@ -228,16 +282,18 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
             ]
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -256,16 +312,18 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
             ]
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-composer',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -287,18 +345,19 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
-                'zend_extension' => 'opcache.so',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-composer',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -322,18 +381,19 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
-                'zend_extension' => 'opcache.so',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer-autoload-fails')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-composer-autoload-fails',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer-autoload-fails',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -357,18 +417,19 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
-                'zend_extension' => 'opcache.so',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
-            ]
+            ] + self::opcacheInis()
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /composer-autoload-fails')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/composer-autoload-fails',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/composer-autoload-fails',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
         ]);
     }
@@ -397,5 +458,11 @@ class ComposerInteroperabilityTest extends BaseTestCase
     private function getPreloadTouchFilePath()
     {
         return __DIR__ . '/app/touch.preload';
+    }
+
+    private static function opcacheInis()
+    {
+        // PHP 8.5+ has OPcache built in: there is no opcache.so to load
+        return PHP_VERSION_ID < 80500 ? ['zend_extension' => 'opcache.so'] : [];
     }
 }

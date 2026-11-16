@@ -7,6 +7,7 @@ if (version_compare(PHP_VERSION, '7.4.0', '>='))
 ?>
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 date_default_timezone_set('UTC');
@@ -47,10 +48,10 @@ foreach ($allTheTypes as $value) {
 $allTheTypes = array_reverse($allTheTypes);
 
 $i = 0;
-foreach (dd_trace_serialize_closed_spans() as $span) {
+foreach (dd_clean_spans() as $span) {
     var_dump($allTheTypes[$i]);
     foreach (['name', 'resource', 'service', 'type'] as $prop) {
-        if (isset($span[$prop])) {
+        if (isset($span[$prop]) && $span[$prop] !== "") {
             var_dump($span[$prop]);
         } else {
             printf("'%s' dropped\n", $prop);
@@ -116,16 +117,16 @@ NULL
 'type' dropped
 
 bool(false)
-string(7) "(false)"
-string(7) "(false)"
-string(7) "(false)"
-string(7) "(false)"
+string(5) "false"
+string(5) "false"
+string(5) "false"
+string(5) "false"
 
 bool(true)
-string(6) "(true)"
-string(6) "(true)"
-string(6) "(true)"
-string(6) "(true)"
+string(4) "true"
+string(4) "true"
+string(4) "true"
+string(4) "true"
 
 float(4.2)
 string(3) "4.2"

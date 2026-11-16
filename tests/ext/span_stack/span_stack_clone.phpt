@@ -1,7 +1,9 @@
 --TEST--
 Test cloning a span stack
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -51,13 +53,8 @@ A clone of the primary trace has the root stack as parent: bool(true)
 Switching to an initial stacks parent has no effect: bool(true)
 spans(\DDTrace\SpanData) (5) {
   primary (span_stack_clone.php, primary, cli)
-    _dd.p.dm => -1
   root (span_stack_clone.php, root, cli)
-    _dd.p.dm => -1
   root clone (span_stack_clone.php, root clone, cli)
-    _dd.p.dm => -1
   primary clone (span_stack_clone.php, primary clone, cli)
-    _dd.p.dm => -1
   initial clone (span_stack_clone.php, initial clone, cli)
-    _dd.p.dm => -1
 }

@@ -9,7 +9,7 @@ use DDTrace\Tests\Integrations\Lumen\V5_2\CommonScenariosTest as V5_2_CommonScen
 
 class CommonScenariosTest extends V5_2_CommonScenariosTest
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_6/public/index.php';
     }
@@ -46,11 +46,11 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'lumen_test_app',
                         'web',
                         'GET /simple'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'lumen.route.name' => 'simple_route',
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'lumen',
@@ -60,7 +60,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'lumen_test_app',
                             'web',
                             'simple_route'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                             TAG::COMPONENT => 'lumen',
                         ]),
@@ -72,10 +72,10 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'lumen_test_app',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'lumen',
@@ -85,7 +85,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                             TAG::COMPONENT => 'lumen',
                         ])->withChildren([
@@ -94,7 +94,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                                 'lumen_test_app',
                                 'web',
                                 'simple_view'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 TAG::COMPONENT => 'laravel',
                             ])->withChildren([
                                 SpanAssertion::build(
@@ -102,7 +102,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                                     'lumen_test_app',
                                     'web',
                                     '*/resources/views/simple_view.blade.php'
-                                )->withExactTags([
+                                )->withExactAttributes([
                                     TAG::COMPONENT => 'lumen',
                                 ]),
                                 SpanAssertion::exists('laravel.event.handle'),
@@ -117,14 +117,14 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'lumen_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'lumen'
-                    ])->withExistingTagsNames([
+                    ])->withExistingAttributeNames([
                         'error.stack',
                     ])->setError('Exception', 'Controller error')
                     ->withChildren([
@@ -133,10 +133,10 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                             TAG::COMPONENT => 'lumen'
-                        ])->withExistingTagsNames([
+                        ])->withExistingAttributeNames([
                             'error.stack',
                         ])->setError('Exception', 'Controller error'),
                         SpanAssertion::build(
@@ -144,7 +144,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.sendExceptionToHandler'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             TAG::COMPONENT => 'lumen'
                         ])->withChildren([
                             SpanAssertion::exists('laravel.event.handle'),

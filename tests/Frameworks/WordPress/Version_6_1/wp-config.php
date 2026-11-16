@@ -20,7 +20,7 @@
 
 // ** Database settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
-define( 'DB_NAME', 'test' );
+define( 'DB_NAME', 'wp61' );
 
 /** Database username */
 define( 'DB_USER', 'test' );
@@ -29,13 +29,15 @@ define( 'DB_USER', 'test' );
 define( 'DB_PASSWORD', 'test' );
 
 /** Database hostname */
-define( 'DB_HOST', 'mysql_integration' );
+define( 'DB_HOST', 'mysql-integration' );
 
 /** Database charset to use in creating database tables. */
 define( 'DB_CHARSET', 'utf8mb4' );
 
 /** The database collate type. Don't change this if in doubt. */
 define( 'DB_COLLATE', '' );
+
+define( 'DISABLE_WP_CRON', true );
 
 /**#@+
  * Authentication unique keys and salts.
@@ -94,3 +96,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Sets up WordPress vars and included files. */
 require_once ABSPATH . 'wp-settings.php';
+
+//Appsec mock. This wont be needed on customer apps since this functions will be exposed by appsec
+if (file_exists(__DIR__.'/../../../Appsec/Mock.php')) {
+	require __DIR__.'/../../../Appsec/Mock.php';
+}

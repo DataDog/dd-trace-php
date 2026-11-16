@@ -1,0 +1,8 @@
+name: Node
+type: module
+description: 'Manages the creation, configuration, and display of the main site content.'
+package: Core
+version: VERSION
+configure: entity.node_type.collection
+dependencies:
+  - drupal:text

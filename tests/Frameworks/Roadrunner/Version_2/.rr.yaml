@@ -1,0 +1,18 @@
+server:
+  command: "php worker.php"
+
+http:
+  address: 0.0.0.0:80
+  middleware: ["gzip"]
+  pool:
+    num_workers: 1
+    max_jobs: 0
+    allocate_timeout: 600s
+    destroy_timeout: 600s
+
+logs:
+  mode: production
+  level: debug
+  output: stdout
+  encoding: console
+  err_output: stderr

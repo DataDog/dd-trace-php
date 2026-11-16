@@ -1,0 +1,80 @@
+name: Umami
+type: theme
+base theme: classy
+description: 'The theme used for the Umami food magazine demonstration site.'
+version: VERSION
+core: 8.x
+libraries:
+  - umami/global
+  - umami/messages
+  - umami/webfonts-open-sans
+  - umami/webfonts-scope-one
+
+libraries-override:
+  classy/base: umami/classy.base
+  classy/book-navigation: umami/classy.book-navigation
+  classy/dialog: umami/classy.dialog
+  classy/dropbutton: umami/classy.dropbutton
+  classy/file: umami/classy.file
+  classy/forum: umami/classy.forum
+  classy/image-widget: umami/classy.image-widget
+  classy/indented: umami/classy.indented
+  classy/media_embed_ckeditor_theme: umami/classy.media_embed_ckeditor_theme
+  classy/media_embed_error: umami/classy.media_embed_error
+  classy/media_library: umami/classy.media_library
+  classy/messages: false
+  classy/node: umami/classy.node
+  classy/progress: umami/classy.progress
+  classy/search-results: umami/classy.search-results
+  classy/user: umami/classy.user
+  layout_builder/twocol_section:
+    css:
+      theme:
+        layouts/twocol_section/twocol_section.css: layouts/twocol_section/twocol_section.css
+  layout_builder/threecol_section:
+    css:
+      theme:
+        layouts/threecol_section/threecol_section.css: layouts/threecol_section/threecol_section.css
+  layout_builder/fourcol_section:
+    css:
+      theme:
+        layouts/fourcol_section/fourcol_section.css: layouts/fourcol_section/fourcol_section.css
+
+libraries-extend:
+  tour/tour-styling:
+    - umami/demo-umami-tour
+  core/drupal.dialog:
+    - umami/classy.dialog
+  core/drupal.dropbutton:
+    - umami/classy.dropbutton
+  core/drupal.progress:
+    - umami/classy.progress
+  file/drupal.file:
+    - umami/classy.file
+  media/media_embed_ckeditor_theme:
+    - umami/classy.media_embed_ckeditor_theme
+  media_library/view:
+    - umami/classy.media_library
+  media_library/widget:
+    - umami/classy.media_library
+  user/drupal.user:
+    - umami/classy.user
+
+regions:
+  pre_header: Pre-header
+  header: Header
+  highlighted: Highlighted
+  tabs: Tabs
+  banner_top: 'Banner Top'
+  breadcrumbs: Breadcrumbs
+  page_title: 'Page Title'
+  content: Content
+  sidebar: Sidebar
+  content_bottom: 'Content Bottom'
+  footer: Footer
+  bottom: Bottom
+  page_top: 'Page top' # Needed by Drupal Core
+  page_bottom: 'Page bottom' # Needed by Drupal Core
+
+ckeditor_stylesheets:
+  - css/classy/components/media-embed-error.css

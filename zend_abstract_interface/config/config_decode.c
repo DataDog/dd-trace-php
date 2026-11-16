@@ -6,41 +6,8 @@
 #include <main/php.h>
 #include <stdbool.h>
 #include <string.h>
-#include <strings.h>
 
-#if PHP_VERSION_ID < 80000
-#if PHP_VERSION_ID < 70300
-#define GC_DELREF(x) (--GC_REFCOUNT(x))
-#endif
-
-static zend_always_inline void zend_hash_release(zend_array *array) {
-    if (!(GC_FLAGS(array) & IS_ARRAY_IMMUTABLE)) {
-        if (GC_DELREF(array) == 0) {
-            zend_hash_destroy(array);
-#if PHP_VERSION_ID < 70300
-            pefree(array, array->u.flags & HASH_FLAG_PERSISTENT);
-#else
-            pefree(array, GC_FLAGS(array) & IS_ARRAY_PERSISTENT);
-#endif
-        }
-    }
-}
-#endif
-
-void zai_config_dtor_pzval(zval *pval) {
-    if (Z_TYPE_P(pval) == IS_ARRAY) {
-        if (Z_DELREF_P(pval) == 0) {
-            zend_hash_destroy(Z_ARRVAL_P(pval));
-            free(Z_ARRVAL_P(pval));
-        }
-    } else {
-        zval_internal_ptr_dtor(pval);
-    }
-    // Prevent an accidental use after free
-    ZVAL_UNDEF(pval);
-}
-
-static bool zai_config_decode_bool(zai_string_view value, zval *decoded_value) {
+static bool zai_config_decode_bool(zai_str value, zval *decoded_value) {
     if ((value.len == 1 && strcmp(value.ptr, "1") == 0) || (value.len == 2 && strcasecmp(value.ptr, "on") == 0) ||
         (value.len == 3 && strcasecmp(value.ptr, "yes") == 0) ||
         (value.len == 4 && strcasecmp(value.ptr, "true") == 0)) {
@@ -76,7 +43,7 @@ static bool zai_config_is_valid_double_format(const char *str) {
     return true;
 }
 
-static bool zai_config_decode_double(zai_string_view value, zval *decoded_value) {
+static bool zai_config_decode_double(zai_str value, zval *decoded_value) {
     if (!zai_config_is_valid_double_format(value.ptr)) return false;
 
     const char *endptr = value.ptr;
@@ -114,7 +81,7 @@ static bool zai_config_is_valid_int_format(const char *str) {
     return true;
 }
 
-static bool zai_config_decode_int(zai_string_view value, zval *decoded_value) {
+static bool zai_config_decode_int(zai_str value, zval *decoded_value) {
     if (!zai_config_is_valid_int_format(value.ptr)) return false;
 
 #if PHP_VERSION_ID >= 80200
@@ -138,7 +105,7 @@ static bool zai_config_decode_int(zai_string_view value, zval *decoded_value) {
     return true;
 }
 
-static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persistent, bool lowercase, bool map_keyless) {
     zval tmp;
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
@@ -146,41 +113,90 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
     char *data = (char *)value.ptr;
     if (data && *data) {  // non-empty
         const char *key_start, *key_end, *value_start, *value_end;
-        do {
-            if (*data != ',' && *data != ' ' && *data != '\t' && *data != '\n') {
-                key_start = key_end = data;
-                while (*++data) {
-                    if (*data == ':') {
-                        while (*++data && (*data == ' ' || *data == '\t' || *data == '\n'))
-                            ;
 
-                        value_start = value_end = data;
-                        if (!*data || *data == ',') {
-                            --value_end;  // empty string instead of single char
+        do {
+            while (*data == ',' || *data == ' ' || *data == '\t' || *data == '\n') {
+                data++;
+            }
+
+            if (*data) {
+                key_start = data;
+                key_end = NULL;
+                bool has_colon = false;
+
+                while (*data && *data != ',') {
+                    if (*data == ':') {
+                        has_colon = true;
+                        data++;
+
+                        while (*data == ' ' || *data == '\t' || *data == '\n') data++;
+
+                        if (*data == ',' || !*data) {
+                            value_end = NULL;
                         } else {
-                            while (*++data && *data != ',') {
+                            value_start = value_end = data;
+                            do {
                                 if (*data != ' ' && *data != '\t' && *data != '\n') {
                                     value_end = data;
                                 }
-                            }
+                                data++;
+                            } while (*data && *data != ',');
                         }
 
-                        size_t key_len = key_end - key_start + 1;
-                        size_t value_len = value_end - value_start + 1;
-                        zval val;
-                        ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
-                        zend_hash_str_update(Z_ARRVAL(tmp), key_start, key_len, &val);
+                        if (key_end && key_start) {
+                            size_t key_len = key_end - key_start + 1;
+
+                            zend_string *key = zend_string_init(key_start, key_len, persistent);
+                            if (lowercase) {
+                                zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key));
+                            }
+
+                            zval val;
+                            if (value_end) {
+                                size_t value_len = value_end - value_start + 1;
+                                ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
+                            } else {
+                                if (persistent) {
+                                    ZVAL_EMPTY_PSTRING(&val);
+                                } else {
+                                    ZVAL_EMPTY_STRING(&val);
+                                }
+                            }
+                            zend_hash_update(Z_ARRVAL(tmp), key, &val);
+                            zend_string_release(key);
+                        }
+
                         break;
                     }
+
+                    // Set key_end to the last valid non-whitespace character of the key
                     if (*data != ' ' && *data != '\t' && *data != '\n') {
                         key_end = data;
                     }
+                    data++;
                 }
-            } else {
-                ++data;
+
+                // Handle standalone keys (without a colon) if map_keyless is enabled
+                if (map_keyless && !has_colon && key_end) {
+                    size_t key_len = key_end - key_start + 1;
+                    zend_string *key = zend_string_init(key_start, key_len, persistent);
+                    if (lowercase) {
+                        zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key));
+                    }
+
+                    zval val;
+                    if (persistent) {
+                        ZVAL_EMPTY_PSTRING(&val);
+                    } else {
+                        ZVAL_EMPTY_STRING(&val);
+                    }
+                    zend_hash_update(Z_ARRVAL(tmp), key, &val);
+                    zend_string_release(key);
+                }
             }
         } while (*data);
 
+        // Check if the array has any elements; if not, cleanup
         if (zend_hash_num_elements(Z_ARRVAL(tmp)) == 0) {
             zend_hash_destroy(Z_ARRVAL(tmp));
             pefree(Z_ARRVAL(tmp), persistent);
@@ -192,7 +208,7 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
     return true;
 }
 
-static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bool persistent, bool lowercase) {
+static bool zai_config_decode_set(zai_str value, zval *decoded_value, bool persistent, bool lowercase) {
     zval tmp;
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
@@ -231,71 +247,31 @@ static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bo
     return true;
 }
 
-static void zai_config_persist_zval(zval *in) {
-    if (Z_TYPE_P(in) == IS_ARRAY) {
-        zend_array *array = Z_ARR_P(in);
-        ZVAL_NEW_PERSISTENT_ARR(in);
-        zend_hash_init(Z_ARR_P(in), array->nTableSize, NULL, zai_config_dtor_pzval, 1);
-        if (zend_hash_num_elements(array)) {
-#if PHP_VERSION_ID >= 80200
-            if (HT_IS_PACKED(array)) {
-                zval *val;
-                int idx;
-                ZEND_HASH_PACKED_FOREACH_KEY_VAL(array, idx, val) {
-                    zai_config_persist_zval(val);
-                    zend_hash_index_add_new(Z_ARR_P(in), idx, val);
-                    ZVAL_NULL(val);
-                }
-                ZEND_HASH_FOREACH_END();
-            } else
-#endif
-            {
-                Bucket *bucket;
-                ZEND_HASH_FOREACH_BUCKET(array, bucket) {
-                    zai_config_persist_zval(&bucket->val);
-                    if (bucket->key) {
-                        zend_hash_str_add_new(Z_ARR_P(in), ZSTR_VAL(bucket->key), ZSTR_LEN(bucket->key), &bucket->val);
-                    } else {
-                        zend_hash_index_add_new(Z_ARR_P(in), bucket->h, &bucket->val);
-                    }
-                    ZVAL_NULL(&bucket->val);
-                }
-                ZEND_HASH_FOREACH_END();
-            }
-        }
-        zend_hash_release(array);
-    } else if (Z_TYPE_P(in) == IS_STRING) {
-        zend_string *str = Z_STR_P(in);
-        if (!(GC_FLAGS(str) & IS_STR_PERSISTENT)) {
-            ZVAL_PSTRINGL(in, ZSTR_VAL(str), ZSTR_LEN(str));
-            zend_string_release(str);
-        }
-    }
-}
-
-static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, bool persistent) {
-    zai_json_decode_assoc(decoded_value, (char *)value.ptr, (int)value.len, 20);
-
-    if (Z_TYPE_P(decoded_value) != IS_ARRAY) {
-        zval_dtor(decoded_value);
+static bool zai_config_decode_json(zai_str value, zval *decoded_value, bool persistent) {
+    if (zai_json_decode_assoc_safe(decoded_value, (char *)value.ptr, (int)value.len, 20, persistent) != SUCCESS) {
         ZVAL_NULL(decoded_value);
         return false;
     }
 
-    // as we do not want to parse the JSON ourselves, we have to ensure persistence ourselves by copying
-    if (persistent) {
-        zai_config_persist_zval(decoded_value);
+    if (Z_TYPE_P(decoded_value) != IS_ARRAY) {
+        if (persistent) {
+            zval_internal_ptr_dtor(decoded_value);
+        } else {
+            zval_ptr_dtor_nogc(decoded_value);
+        }
+        ZVAL_NULL(decoded_value);
+        return false;
     }
 
     return true;
 }
 
-static bool zai_config_decode_string(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool zai_config_decode_string(zai_str value, zval *decoded_value, bool persistent) {
     ZVAL_NEW_STR(decoded_value, zend_string_init(value.ptr, value.len, persistent));
     return true;
 }
 
-bool zai_config_decode_value(zai_string_view value, zai_config_type type, zai_custom_parse custom_parser, zval *decoded_value, bool persistent) {
+bool zai_config_decode_value(zai_str value, zai_config_type type, zai_custom_parse custom_parser, zval *decoded_value, bool persistent) {
     assert((Z_TYPE_P(decoded_value) <= IS_NULL) && "The decoded_value must be IS_UNDEF or IS_NULL");
     switch (type) {
         case ZAI_CONFIG_TYPE_BOOL:
@@ -305,7 +281,9 @@ bool zai_config_decode_value(zai_string_view value, zai_config_type type, zai_cu
         case ZAI_CONFIG_TYPE_INT:
             return zai_config_decode_int(value, decoded_value);
         case ZAI_CONFIG_TYPE_MAP:
-            return zai_config_decode_map(value, decoded_value, persistent);
+            return zai_config_decode_map(value, decoded_value, persistent, false, false);
+        case ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE:
+            return zai_config_decode_map(value, decoded_value, persistent, true, true);
         case ZAI_CONFIG_TYPE_SET:
             return zai_config_decode_set(value, decoded_value, persistent, false);
         case ZAI_CONFIG_TYPE_SET_LOWERCASE:

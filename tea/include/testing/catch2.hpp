@@ -38,9 +38,7 @@
 *    Code or cases tested with bailout will fail if code does not bail
 *    Code or cases tested without bailout will fail if code bails
 */
-extern "C" {
-#include "../sapi.h"
-}
+#include "fixture.hpp"
 
 #include <catch2/catch.hpp>
 
@@ -50,6 +48,11 @@ extern "C" {
 #define TEA_TEST_PROLOGUE_NONE {}
 
 /* {{{ TEA_TEST_TAG_NO_ASAN will hide a test when running under ASAN and always tag with [no-asan] */
+#if defined(__has_feature)
+# if __has_feature(address_sanitizer)
+#  define __SANITIZE_ADDRESS__
+# endif
+#endif
 #ifdef __SANITIZE_ADDRESS__
 # define TEA_TEST_TAG_NO_ASAN   "[no-asan][!hide]"
 #else
@@ -64,92 +67,6 @@ extern "C" {
         __TEA_TEST_CASE_TAGS)                                        \
     __TEA_TEST_CASE_SUITE " [" __TEA_TEST_CASE_DESCRIPTION "]",      \
     "[" __TEA_TEST_CASE_SUITE "]" __TEA_TEST_CASE_TAGS /* }}} */
-
-/* {{{ Test Case Fixing */
-typedef enum {
-    TEA_TEST_CASE_STAGE_INITIAL =  0b000,
-    TEA_TEST_CASE_STAGE_PROLOGUE = 0b001,
-    TEA_TEST_CASE_STAGE_PREFORK =  0b010,
-    TEA_TEST_CASE_STAGE_REQUEST =  0b100
-} TeaTestCaseStage;
-
-class TeaTestCaseFixture {
-public:
-    TeaTestCaseFixture() {
-       stage = TEA_TEST_CASE_STAGE_INITIAL;
-    }
-
-    bool tea_sapi_sinit() {
-        if (::tea_sapi_sinit()) {
-            stage |= TEA_TEST_CASE_STAGE_PROLOGUE;
-            return true;
-        }
-        return false;
-    }
-
-    bool tea_sapi_minit() {
-        if (::tea_sapi_minit()) {
-            stage |= TEA_TEST_CASE_STAGE_PREFORK;
-            return true;
-        }
-        return false;
-    }
-
-    bool tea_sapi_rinit() {
-        if (::tea_sapi_rinit()) {
-            stage |= TEA_TEST_CASE_STAGE_REQUEST;
-            return true;
-        }
-        return false;
-    }
-
-    bool tea_sapi_spinup() {
-        return tea_sapi_sinit() &&
-               tea_sapi_minit() &&
-               tea_sapi_rinit();
-    }
-
-    void tea_sapi_rshutdown() {
-        stage &= ~TEA_TEST_CASE_STAGE_REQUEST;
-
-        ::tea_sapi_rshutdown();
-    }
-
-    void tea_sapi_mshutdown() {
-        stage &= ~TEA_TEST_CASE_STAGE_PREFORK;
-
-        ::tea_sapi_mshutdown();
-    }
-
-    void tea_sapi_sshutdown() {
-        stage &= ~TEA_TEST_CASE_STAGE_PROLOGUE;
-
-        ::tea_sapi_sshutdown();
-    }
-
-    void tea_sapi_spindown() {
-        tea_sapi_rshutdown();
-        tea_sapi_mshutdown();
-        tea_sapi_sshutdown();
-    }
-
-    virtual ~TeaTestCaseFixture() {
-        if (stage & TEA_TEST_CASE_STAGE_REQUEST) {
-            tea_sapi_rshutdown();
-        }
-
-        if (stage & TEA_TEST_CASE_STAGE_PREFORK) {
-            tea_sapi_mshutdown();
-        }
-
-        if (stage & TEA_TEST_CASE_STAGE_PROLOGUE) {
-            tea_sapi_sshutdown();
-        }
-    }
-
-private:
-    unsigned int stage;
-};
 
 #define TEA_TEST_CASE_DECL(...) \
     TEST_CASE_METHOD(           \

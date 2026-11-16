@@ -10,9 +10,6 @@ final class NoRootSpanTest extends CLITestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        if (PHP_MAJOR_VERSION === 5) {
-            $this->markTestSkipped('Auto flushing not supported on PHP 5');
-        }
     }
 
     protected function getScriptLocation()
@@ -39,8 +36,15 @@ final class NoRootSpanTest extends CLITestCase
                 'foo_service',
                 'custom',
                 'foo_resource'
-            )->withExactTags([
+            )->withExactAttributes([
                 'foo' => 'bar',
+                '_dd.code_origin.frames.0.method' => 'my_app',
+                '_dd.code_origin.type' => 'entry',
+                '_dd.code_origin.frames.1.line' => 30,
+                '_dd.code_origin.frames.1.file' => '%s',
+                '_dd.code_origin.frames.0.file' => '%s',
+                '_dd.code_origin.frames.0.line' => 6,
+                '_dd.svc_src' => 'm',
             ])->withChildren([
                 SpanAssertion::exists(
                     'mysqli_connect',
@@ -48,7 +52,7 @@ final class NoRootSpanTest extends CLITestCase
                 ),
                 SpanAssertion::exists(
                     'curl_exec',
-                    'http://httpbin_integration/status/?'
+                    'http://' . HTTPBIN_SERVICE_HOST . '/status/?'
                 ),
             ])
         ]);

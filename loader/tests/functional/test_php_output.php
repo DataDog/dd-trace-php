@@ -1,0 +1,27 @@
+<?php
+
+require_once __DIR__."/includes/autoload.php";
+skip_if_php5();
+
+$output = runCLI('-v', false);
+assertNotContains($output, 'ddtrace');
+assertNotContains($output, 'dd_library_loader');
+assertNotContains($output, 'datadog-profiling');
+assertNotContains($output, 'ddappsec');
+
+// AppSec is part of the injected ddtrace, no separate ddappsec is loaded
+$output = runCLI('-v', true);
+assertContains($output, 'with ddtrace v');
+assertContains($output, 'with dd_library_loader v');
+assertNotContains($output, 'ddappsec');
+
+$output = runCLI('-m', false);
+assertNotContains($output, 'ddtrace');
+assertNotContains($output, 'dd_library_loader');
+assertNotContains($output, 'datadog-profiling');
+assertNotContains($output, 'ddappsec');
+
+$output = runCLI('-m', true);
+assertContains($output, 'ddtrace');
+assertContains($output, 'dd_library_loader');
+assertNotContains($output, 'ddappsec');

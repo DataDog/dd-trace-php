@@ -19,14 +19,21 @@
 			"App\\": "app/"
 		}
 	},
+	"autoload-dev": {
+		"files": ["../../../Appsec/Mock.php"]
+	},
 	"scripts": {
 		"post-install-cmd": [
+            "php -r \"(new PDO('mysql:host=mysql-integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel42');\"",
 			"php artisan clear-compiled",
-			"php artisan optimize"
+			"php artisan optimize",
+			"php artisan migrate --force"
 		],
 		"post-update-cmd": [
+            "php -r \"(new PDO('mysql:host=mysql-integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel42');\"",
 			"php artisan clear-compiled",
-			"php artisan optimize"
+			"php artisan optimize",
+			"php artisan migrate --force"
 		],
 		"post-create-project-cmd": [
 			"php artisan key:generate"
@@ -37,6 +44,9 @@
 		"preferred-install": "dist",
         "allow-plugins": {
             "kylekatarnls/update-helper": true
+        },
+        "audit": {
+            "block-insecure": false
         }
 	},
 	"minimum-stability": "stable"

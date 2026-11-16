@@ -1,59 +1,16 @@
 //! Definitions for interacting with the profiler from a C API, such as the
 //! ddtrace extension.
 
-use crate::bindings::zend_execute_data;
-use crate::runtime_id;
-use std::borrow::Cow;
-use std::fmt::{Display, Formatter};
-use std::marker::PhantomData;
-
-/// A non-owning, not necessarily null terminated, not utf-8 encoded, borrowed
-/// string. Must satisfy the requirements of [core::slice::from_raw_parts],
-/// notably it must not use the nul pointer even when the length is 0.
-/// Keep this representation in sync with zai_string_view.
-#[repr(C)]
-pub struct StringView<'a> {
-    len: libc::size_t,
-    ptr: *const libc::c_char,
-    // The PhantomData says this acts like a reference to a [u8], even though
-    // it doesn't actually have one.
-    _marker: PhantomData<&'a [u8]>,
-}
-
-impl<'a> From<&'a [u8]> for StringView<'a> {
-    fn from(value: &'a [u8]) -> Self {
-        Self {
-            len: value.len(),
-            ptr: value.as_ptr() as *const libc::c_char,
-            _marker: Default::default(),
-        }
-    }
-}
-
-impl<'a> StringView<'a> {
-    pub fn as_slice(&self) -> &'a [u8] {
-        // Safety: StringView's are required to uphold these invariants.
-        unsafe { core::slice::from_raw_parts(self.ptr as *const u8, self.len as usize) }
-    }
-
-    pub fn to_string_lossy(&self) -> Cow<'a, str> {
-        String::from_utf8_lossy(self.as_slice())
-    }
-}
-
-impl<'a> Display for StringView<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.to_string_lossy())
-    }
-}
+use crate::profiling::bindings::ZaiStr;
+use crate::profiling::runtime_id;
 
 #[no_mangle]
 pub extern "C" fn datadog_profiling_notify_trace_finished(
     local_root_span_id: u64,
-    span_type: StringView,
-    resource: StringView,
+    span_type: ZaiStr,
+    resource: ZaiStr,
 ) {
-    crate::notify_trace_finished(
+    crate::profiling::notify_trace_finished(
         local_root_span_id,
         span_type.to_string_lossy(),
         resource.to_string_lossy(),
@@ -65,9 +22,9 @@ pub extern "C" fn datadog_profiling_notify_trace_finished(
 #[repr(C, align(16))]
 pub struct Uuid(uuid::Uuid);
 
-impl From<uuid::Uuid> for Uuid {
-    fn from(uuid: uuid::Uuid) -> Self {
-        Self(uuid)
+impl From<&uuid::Uuid> for Uuid {
+    fn from(uuid: &uuid::Uuid) -> Self {
+        Self(*uuid)
     }
 }
 
@@ -75,31 +32,46 @@ impl From<uuid::Uuid> for Uuid {
 /// Only call this from a PHP thread.
 #[no_mangle]
 pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
-    runtime_id().into()
+    Uuid(runtime_id())
 }
 
-/// Gathers a time sample if the configured period has elapsed. Used by the
-/// tracer to handle pending profiler interrupts before calling a tracing
-/// closure from an internal function hook; if this isn't done then the
-/// closure is erroneously at the top of the stack.
-///
-/// # Safety
-/// The zend_execute_data pointer should come from the engine to ensure it and
-/// its sub-objects are valid.
+#[cfg(feature = "trigger_time_sample")]
 #[no_mangle]
-pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_execute_data) {
-    crate::interrupt_function(execute_data);
+extern "C" fn ddog_php_prof_trigger_time_sample() {
+    use log::error;
+    use std::sync::atomic::Ordering;
+
+    // SAFETY: This callback runs on the active PHP request thread with live globals.
+    let result = unsafe { super::RequestLocals::from_module_globals() }.try_with_borrow(|locals| {
+        if locals.system_settings().profiling_enabled {
+            // Safety: only vm interrupts are stored there, or possibly null (edges only).
+            if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
+                // SAFETY: this callback runs on an initialized PHP request thread.
+                let globals = unsafe { crate::profiling::module_globals::get_profiler_globals() };
+                // SAFETY: the current thread's module globals are valid through GSHUTDOWN.
+                unsafe { (*globals).interrupt_count.fetch_add(1, Ordering::Relaxed) };
+                vm_interrupt.store(true, Ordering::SeqCst);
+            }
+        }
+    });
+
+    if let Err(err) = result {
+        error!("ddog_php_prof_trigger_time_sample failed to borrow request locals: {err}");
+    }
 }
+
+pub use crate::profiling::wall_time::ddog_php_prof_interrupt_function;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::borrow::Cow;
 
     #[test]
     fn test_string_view() {
         let slice: &[u8] = b"datadog \xF0\x9F\x90\xB6";
-        let string_view: StringView = StringView::from(slice);
-        assert_eq!(slice, string_view.as_slice());
+        let string_view = ZaiStr::from(slice);
+        assert_eq!(slice, string_view.as_bytes());
 
         let expected = "datadog 🐶";
         let actual = string_view.to_string_lossy();
@@ -108,7 +80,7 @@ mod tests {
             _ => panic!("Expected a borrowed string, got: {:?}", actual),
         };
 
-        let actual = string_view.to_string();
+        let actual = string_view.into_string();
         assert_eq!(expected, actual)
     }
 }

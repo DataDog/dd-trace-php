@@ -1,0 +1,6 @@
+#ifndef DATADOG_CRASHTRACKING_FRAMES_H
+#define DATADOG_CRASHTRACKING_FRAMES_H
+
+void datadog_register_crashtracking_frames_collection(void);
+
+#endif // DATADOG_CRASHTRACKING_FRAMES_H

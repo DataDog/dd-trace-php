@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integration;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
+use DDTrace\Integrations\Integration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -14,10 +15,16 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         parent::ddTearDown();
         self::putenv('DD_TRACE_DEBUG_PRNG_SEED');
         self::putenv('DD_DBM_PROPAGATION_MODE');
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN");
+        self::putenv('DD_DBM_TRACE_PREPARED_STATEMENTS');
+        self::putenv('DD_DBM_INJECT_SQL_BASEHASH');
+        self::putenv('DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED');
         self::putEnv("DD_ENV");
         self::putEnv("DD_SERVICE");
+        self::putEnv("DD_SERVICE_MAPPING");
         self::putEnv("DD_VERSION");
+
+        // Reload config to reset process tags
+        \dd_trace_internal_fn('reload_process_tags');
     }
 
     public function instrumented($arg, $optionalArg = null)
@@ -45,20 +52,271 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         }
 
         // phpcs:disable Generic.Files.LineLength.TooLong
-        $this->assertSame("/*dddbs='testdb',ddps='phpunit',traceparent='00-0000000000000000c08c967f0e5e7b0a-22e2c43f8a1ad34e-01'*/ SELECT 1", $commentedQuery);
+        $this->assertRegularExpression('/^\/\*dddbs=\'testdb\',ddps=\'phpunit\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-03\'\*\/ SELECT 1$/', $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("phpunit")->withChildren([
-                SpanAssertion::exists('instrumented')->withExactTags([
-                    "_dd.dbm_trace_injected" => "true"
+                SpanAssertion::exists('instrumented')->withExactAttributes([
+                    "_dd.dbm_trace_injected" => "true",
+                    "_dd.base_service" => "phpunit",
                 ])
             ])
         ]);
     }
 
+
+    public function testPreparedStatementKeepsFullModeWhenTracingPreparedStatements()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                // $preventFullMode = true, as the prepare hooks pass it
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1, true);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_DBM_TRACE_PREPARED_STATEMENTS=true");
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        // Same output as testInjection: the comment carries the injecting span's own context (the seeded
+        // child id a3978fb9b92502a8, not the root c151df7d6ee5e2d6) and that span carries the marker.
+        // phpcs:disable Generic.Files.LineLength.TooLong
+        $this->assertRegularExpression('/^\/\*dddbs=\'testdb\',ddps=\'phpunit\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-03\'\*\/ SELECT 1$/', $commentedQuery);
+        // phpcs:enable Generic.Files.LineLength.TooLong
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists("phpunit")->withChildren([
+                SpanAssertion::exists('instrumented')->withExactAttributes([
+                    "_dd.dbm_trace_injected" => "true",
+                    "_dd.base_service" => "phpunit",
+                ])
+            ])
+        ]);
+    }
+
+
+    public function testTracingPreparedStatementsIsANoOpOutsideFullMode()
+    {
+        foreach (['service', 'dynamic_service', 'disabled'] as $mode) {
+            try {
+                $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                    $hook->span()->service = "testdb";
+                    $hook->span()->name = "instrumented";
+                    DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1, true);
+                });
+                self::putEnv("DD_DBM_PROPAGATION_MODE=$mode");
+                self::putEnv("DD_DBM_TRACE_PREPARED_STATEMENTS=true");
+                $this->isolateTracer(function () use (&$commentedQuery) {
+                    \DDTrace\start_trace_span();
+                    $commentedQuery = $this->instrumented(0, "SELECT 1");
+                    \DDTrace\close_span();
+                });
+            } finally {
+                \DDTrace\remove_hook($hook);
+            }
+            $this->assertStringNotContains('traceparent', $commentedQuery, "mode=$mode must be unaffected");
+        }
+    }
+    public function testInjectionServiceMappingOnce()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $span = $hook->span();
+                Integration::handleInternalSpanServiceName($span, "pdo");
+                $span->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_SERVICE_MAPPING=pdo:mapped-service");
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'phpunit\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-03\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists("phpunit")->withChildren([
+                SpanAssertion::exists('instrumented')->withExactAttributes([
+                    "_dd.dbm_trace_injected" => "true",
+                    "_dd.base_service" => "mapped-service",
+                ])
+            ])
+        ]);
+    }
+
+    public function testInjectionServiceMappingTwice()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $span = $hook->span();
+                Integration::handleInternalSpanServiceName($span, "pdo");
+                $span->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_SERVICE_MAPPING=pdo:mapped-service");
+            // Note that here, we don't start a new trace, hence the service mapping should apply to both dddbs & ddps
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-c151df7d6ee5e2d6-03\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('instrumented')->withExactAttributes([
+                "_dd.dbm_trace_injected" => "true",
+                "_dd.base_service" => "mapped-service",
+            ])
+        ]);
+    }
+
+    public function testInjectionServiceMappingService()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $span = $hook->span();
+                Integration::handleInternalSpanServiceName($span, "pdo");
+                $span->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=service");
+            self::putEnv("DD_SERVICE_MAPPING=pdo:mapped-service");
+            // Note that here, we don't start a new trace, hence the service mapping should apply to both dddbs & ddps
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'mapped-service\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('instrumented')->withExactAttributes([
+                "_dd.dbm_trace_injected" => "true",
+                "_dd.base_service" => "mapped-service",
+            ])
+        ]);
+    }
+
+    public function testInjectionServiceMappingNone()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $span = $hook->span();
+                Integration::handleInternalSpanServiceName($span, "pdo");
+                $span->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=none");
+            self::putEnv("DD_SERVICE_MAPPING=pdo:mapped-service");
+            // Note that here, we don't start a new trace, hence the service mapping should apply to both dddbs & ddps
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertSame('SELECT 1', $commentedQuery);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('instrumented')->withExactAttributes([
+                "_dd.dbm_trace_injected" => "true",
+                "_dd.base_service" => "mapped-service",
+            ])
+        ]);
+    }
+
+    public function testInjectionPeerService()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                $hook->span()->meta["peer.service"] = 'dbinstance';
+                $hook->span()->meta["db.name"] = 'myDatabase';
+                $hook->span()->meta["out.host"] = '127.0.0.1';
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_SERVICE_MAPPING=phpunit:mapped-service");
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        // phpcs:disable Generic.Files.LineLength.TooLong
+        $this->assertRegularExpression('/^\/\*dddb=\'myDatabase\',dddbs=\'testdb\',ddh=\'127.0.0.1\',ddprs=\'dbinstance\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-03\'\*\/ SELECT 1$/', $commentedQuery);
+        // phpcs:enable Generic.Files.LineLength.TooLong
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists("phpunit")->withChildren([
+                SpanAssertion::exists('instrumented')->withExactAttributes([
+                    "_dd.dbm_trace_injected" => "true",
+                    "peer.service" => "dbinstance",
+                    "_dd.base_service" => "mapped-service",
+                ])
+            ])
+        ]);
+    }
+
+    public function testOrdering()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                $hook->span()->meta["peer.service"] = 'dbinstance';
+                $hook->span()->meta["db.instance"] = 'myDatabase';
+                $hook->span()->meta["out.host"] = 'mysql';
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_SERVICE_MAPPING=phpunit:mapped-service");
+            self::putEnv("DD_ENV=prod");
+            self::putEnv("DD_VERSION=v6");
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $dbmComment = preg_replace('/^.*\/\*(.*)\*\/.*$/', '$1', $commentedQuery);
+        $dbmCommentParts = explode(',', $dbmComment);
+        $keys = array_map(function ($part) {
+            return explode('=', $part)[0];
+        }, $dbmCommentParts);
+        $sortedKeys = $keys;
+        sort($sortedKeys);
+        $this->assertSame($sortedKeys, $keys);
+    }
+
     public function testEnvPropagation()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         self::putEnv("DD_ENV=envtest");
         self::putEnv("DD_SERVICE=service \'test");
         self::putEnv("DD_VERSION=0");
@@ -68,10 +326,12 @@ class DatabaseMonitoringTest extends IntegrationTestCase
 
     public function testRootSpanPropagation()
     {
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $rootSpan = \DDTrace\root_span();
         $rootSpan->service = "";
         $rootSpan->meta["version"] = "0";
-        $rootSpan->meta["env"] = "0";
+        $rootSpan->env = "0";
         $commented = DatabaseIntegrationHelper::propagateViaSqlComments("q", "", \DDTrace\DBM_PROPAGATION_SERVICE);
         $this->assertSame("/*dde='0',ddpv='0'*/ q", $commented);
 
@@ -89,5 +349,168 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         } finally {
             \DDTrace\remove_hook($hook);
         }
+    }
+
+    public function testBaseHashInjection()
+    {
+        self::putEnv('DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=true');
+        self::putEnv('DD_DBM_INJECT_SQL_BASEHASH=true');
+        self::putEnv('DD_DBM_PROPAGATION_MODE=full');
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+
+        \dd_trace_internal_fn('reload_process_tags');
+
+        // we don't have access to the agent info endpoint in this test so we have to mock the container tags hash
+        \dd_trace_internal_fn('set_container_tags_hash', 'abc123');
+
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+
+            $this->assertNotNull(\DDTrace\System\process_tags_base_hash(), 'process_tags_base_hash() is null');
+
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        // SQL Comment should have ddsh tag
+        preg_match('/ddsh=\'([^\']+)\'/', $commentedQuery, $matches);
+        $this->assertNotEmpty($matches, 'ddsh not found in SQL comment');
+        $ddshValue = $matches[1];
+
+        $propagatedHash = $traces[0]['spans'][1]['attributes']['_dd.propagated_hash'] ?? null;
+        $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
+        $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
+    }
+
+    public function testBaseHashInjectionWithoutContainerTagsHash()
+    {
+        self::putEnv('DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=true');
+        self::putEnv('DD_DBM_INJECT_SQL_BASEHASH=true');
+        self::putEnv('DD_DBM_PROPAGATION_MODE=full');
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+
+        \dd_trace_internal_fn('reload_process_tags');
+
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+
+            $this->assertNotNull(\DDTrace\System\process_tags_base_hash(), 'process_tags_base_hash() is null without container tags hash');
+
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        preg_match('/ddsh=\'([^\']+)\'/', $commentedQuery, $matches);
+        $this->assertNotEmpty($matches, 'ddsh not found in SQL comment');
+        $ddshValue = $matches[1];
+
+        $propagatedHash = $traces[0]['spans'][1]['attributes']['_dd.propagated_hash'] ?? null;
+        $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
+        $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
+    }
+
+    public function testBaseHashNotInjectedWhenDisabled()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            // DD_DBM_INJECT_SQL_BASEHASH is not set (defaults to false)
+            self::putEnv("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=true");
+
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+
+        // Compatibility with older PHP Version
+        if (method_exists($this, 'assertDoesNotMatchRegularExpression')) {
+            // The query should NOT contain the base hash
+            $this->assertDoesNotMatchRegularExpression('/ddsh=/', $commentedQuery);
+        } else {
+            $this->assertNotRegExp('/ddsh=/', $commentedQuery);
+        }
+
+        // The span should NOT have the _dd.propagated_hash tag
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists("phpunit")->withChildren([
+                SpanAssertion::exists('instrumented')->withExactAttributes([
+                    "_dd.dbm_trace_injected" => "true",
+                    "_dd.base_service" => "phpunit",
+                ])
+            ])
+        ]);
+    }
+
+    public function testDynamicServiceMode()
+    {
+        // dynamic_service is equivalent to service + DD_DBM_INJECT_SQL_BASEHASH=true:
+        // service-style comment (no traceparent) plus the base hash, even though
+        // DD_DBM_INJECT_SQL_BASEHASH is left unset.
+        self::putEnv('DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=true');
+        self::putEnv('DD_DBM_PROPAGATION_MODE=dynamic_service');
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+
+        \dd_trace_internal_fn('reload_process_tags');
+        \dd_trace_internal_fn('set_container_tags_hash', 'abc123');
+
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+
+            $this->assertNotNull(\DDTrace\System\process_tags_base_hash(), 'process_tags_base_hash() is null');
+
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        // service-style: a ddsh base hash is injected, but no traceparent
+        $this->assertRegularExpression(
+            '/^\/\*dddbs=\'testdb\',ddps=\'phpunit\',ddsh=\'[0-9a-f]+\'\*\/ SELECT 1$/',
+            $commentedQuery
+        );
+
+        $ddshValue = preg_replace('/^.*ddsh=\'([^\']+)\'.*$/', '$1', $commentedQuery);
+        $propagatedHash = $traces[0]['spans'][1]['attributes']['_dd.propagated_hash'] ?? null;
+        $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
+        $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
+
+        // dynamic_service is not full mode, so the trace-injected marker must be absent
+        $this->assertArrayNotHasKey('_dd.dbm_trace_injected', $traces[0]['spans'][1]['attributes']);
     }
 }

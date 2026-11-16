@@ -2,34 +2,61 @@
 
 set -e
 
+# Retry a command up to 3 times with 10s backoff before signaling infra failure.
+# All failures in this script are infrastructure failures (package downloads,
+# network), not test failures — so exhausted retries exit 75 (EX_TEMPFAIL)
+# to trigger GitLab's infra-retry rule rather than marking the job as failed.
+retry_or_tempfail() {
+    local n=1
+    until "$@"; do
+        if [ "$n" -ge 3 ]; then
+            echo "Infrastructure command failed after $n attempts, signaling retry (exit 75): $*" >&2
+            exit 75
+        fi
+        echo "Command failed (attempt $n/3): $* — retrying in 10s..." >&2
+        n=$((n + 1))
+        sleep 10
+    done
+}
+
+# Bound apt: a stalled mirror fetch otherwise hangs until the 1 h job timeout.
+apt_get() { timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 "$@"; }
+
 # Common installations
-apt update
-apt install -y \
+retry_or_tempfail apt_get update
+retry_or_tempfail apt_get install -y \
     apt-transport-https \
     lsb-release \
     ca-certificates \
     curl \
-    software-properties-common \
     nginx \
     apache2 \
     procps \
     gnupg
 
+# Nginx listens on 8080, apache on 8081
+sed -i 's/80/127.0.0.1:8081/' /etc/apache2/ports.conf
+sed -i 's/*:80/127.0.0.1:8081/' /etc/apache2/sites-enabled/000-default.conf
+
 # Installing php
 if [ "${INSTALL_MODE}" = "native" ]; then
-    apt-get install -y ${PHP_PACKAGE}
+    retry_or_tempfail apt_get install -y ${PHP_PACKAGE}
 elif [ "${INSTALL_MODE}" = "sury" ]; then
-    curl -sSL -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+    retry_or_tempfail curl -sSfL -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
     sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
-    apt update
-    apt install -y \
+    retry_or_tempfail apt_get update
+    retry_or_tempfail apt_get install -y \
         php${PHP_VERSION}-cli \
         php${PHP_VERSION}-curl \
         php${PHP_VERSION}-fpm \
-        php${PHP_VERSION}-opcache \
         libapache2-mod-php${PHP_VERSION}
         WWW_CONF=/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf
         PHP_FPM_BIN=php-fpm${PHP_VERSION}
+    # opcache is built into PHP 8.5+, there is no php8.x-opcache package
+    if dpkg --compare-versions "${PHP_VERSION}" lt 8.5; then
+        retry_or_tempfail apt_get install -y \
+            php${PHP_VERSION}-opcache
+    fi
 else
     echo "Unknown installation mode: ${INSTALL_MODE}"
     exit 1
@@ -53,16 +80,17 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
 else
     echo "Installing dd-trace-php using the new PHP installer"
     installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-gnu.tar.gz")
-    ${PHP_BIN} datadog-setup.php --file "$installable_bundle" --php-bin all
+    ${PHP_BIN} datadog-setup.php --file "$installable_bundle" --php-bin all --enable-appsec
 fi
 
 # PHP-FPM setup
 # For cases when it defaults to UDS
-sed -i 's/^listen = .*$/listen = 9000/g' ${WWW_CONF}
+sed -i 's/^listen = .*$/listen = 127.0.0.1:9000/g' $(dirname -- ${WWW_CONF})/*.conf
 # Passing envs to php-fpm process directly for simplicity. Note that on PHP 5.4 clear_env does not appear in www not
 # even commented, so we remove potential existing line and add it at the end of the config file.
 sed -i 's/^;*clear_env.*$//g' ${WWW_CONF}
 echo 'clear_env = no' >> ${WWW_CONF}
+echo 'listen.allowed_clients = 127.0.0.1' >> ${WWW_CONF}
 sed -i 's/^;*catch_workers_output.*$/catch_workers_output = yes/g' ${WWW_CONF}
 
 echo "Starting ${PHP_FPM_BIN}"

@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Not_Autoloaded/Headers/index.php';
     }
@@ -38,11 +38,13 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
 
         $tags = [
             'http.method' => 'GET',
-            'http.url' => 'http://localhost:' . self::PORT . '/',
-            'http.status_code' => 200,
+            'http.url' => 'http://localhost/',
+            'http.status_code' => '200',
             'http.request.headers.first-header' => 'some value: with colon',
             'http.request.headers.forth-header' => '123',
             'http.response.headers.third-header' => 'separated: with  : colon',
+            'span.kind' => 'server',
+            'component' => 'web',
         ];
         if (\getenv('DD_TRACE_TEST_SAPI') != 'apache2handler') {
             $tags['http.request.headers.w__rd-header'] = 'foo';
@@ -56,7 +58,7 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
                     'my-service',
                     'web',
                     'GET /'
-                )->withExactTags($tags),
+                )->withExactAttributes($tags),
             ]
         );
     }

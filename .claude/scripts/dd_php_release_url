@@ -1,0 +1,168 @@
+#!/bin/bash
+
+set -eo pipefail
+
+# Function to get DataDog PHP extension download URL (monolithic per-PHP-API build)
+# Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type>
+# Example: dd_php_release_url "1.13.0" "8.4" "x86_64" "gnu"
+dd_php_release_url() {
+    local ext_version="$1"
+    local php_version="$2"
+    local arch="$3"
+    local libc_type="$4"
+
+    # Validate inputs
+    if [[ -z "$ext_version" || -z "$php_version" || -z "$arch" || -z "$libc_type" ]]; then
+        echo "Error: Missing required parameters" >&2
+        echo "Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type>" >&2
+        echo "Example: dd_php_release_url '1.13.0' '8.4' 'x86_64' 'gnu'" >&2
+        return 1
+    fi
+
+    # Map PHP versions to API numbers
+    local api_version
+    case "$php_version" in
+        8.5) api_version="20250925" ;;
+        8.4) api_version="20240924" ;;
+        8.3) api_version="20230831" ;;
+        8.2) api_version="20220829" ;;
+        8.1) api_version="20210902" ;;
+        8.0) api_version="20200930" ;;
+        7.4) api_version="20190902" ;;
+        7.3) api_version="20180731" ;;
+        7.2) api_version="20170718" ;;
+        7.1) api_version="20160303" ;;
+        7.0) api_version="20151012" ;;
+        *)
+            echo "Error: Unsupported PHP version: $php_version" >&2
+            echo "Supported versions: 7.0, 7.1, 7.2, 7.3, 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5" >&2
+            return 1
+            ;;
+    esac
+
+    # Validate arch
+    if [[ "$arch" != "x86_64" && "$arch" != "arm64" && "$arch" != "aarch64" ]]; then
+        echo "Error: Invalid architecture: $arch (must be x86_64, arm64, or aarch64)" >&2
+        return 1
+    fi
+
+    # Normalize aarch64 to arm64
+    [[ "$arch" == "aarch64" ]] && arch="arm64"
+
+    # Validate libc type
+    if [[ "$libc_type" != "gnu" && "$libc_type" != "musl" ]]; then
+        echo "Error: Invalid libc type: $libc_type (must be gnu or musl)" >&2
+        return 1
+    fi
+
+    # Construct the URL
+    local url="https://github.com/DataDog/dd-trace-php/releases/download/${ext_version}/dd-library-php-${ext_version}-${arch}-linux-${libc_type}-${api_version}.tar.gz"
+
+    echo "$url"
+}
+
+# Download the SSI PHP package from ECR public (public.ecr.aws/datadog/apm-library-php-package).
+# Tagged releases use the OCI tag "<version>-1" (e.g. 1.18.0 -> tag 1.18.0-1).
+# The layer is a zstd-compressed tar containing linux-gnu/ and linux-musl/ trees.
+#
+# Usage: dd_php_ssi_download <extension_version> <arch> <destdir>
+# arch: x86_64 or aarch64
+dd_php_ssi_download() {
+    local ext_version="$1"
+    local arch="$2"
+    local destdir="$3"
+
+    if [[ -z "$ext_version" || -z "$arch" || -z "$destdir" ]]; then
+        echo "Error: Missing required parameters" >&2
+        echo "Usage: dd_php_ssi_download <extension_version> <arch> <destdir>" >&2
+        return 1
+    fi
+
+    # Normalize aarch64/arm64
+    [[ "$arch" == "arm64" ]] && arch="aarch64"
+    if [[ "$arch" != "x86_64" && "$arch" != "aarch64" ]]; then
+        echo "Error: Invalid architecture: $arch (must be x86_64 or aarch64)" >&2
+        return 1
+    fi
+    local oci_arch
+    [[ "$arch" == "x86_64" ]] && oci_arch="amd64" || oci_arch="arm64"
+
+    local registry="public.ecr.aws"
+    local repo="datadog/apm-library-php-package"
+    local tag="${ext_version}-1"
+
+    echo "Fetching SSI package ${ext_version} (${arch}) from ECR public tag ${tag}..." >&2
+
+    # Get anonymous pull token
+    local token
+    token=$(curl -sf "https://${registry}/token/?service=${registry}&scope=repository:${repo}:pull" \
+        | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")
+
+    local auth_header="Authorization: Bearer ${token}"
+    local base_url="https://${registry}/v2/${repo}"
+
+    # Fetch index manifest to get the platform-specific child manifest digest
+    local platform_digest
+    platform_digest=$(curl -sf \
+        -H "$auth_header" \
+        -H "Accept: application/vnd.oci.image.index.v1+json" \
+        "${base_url}/manifests/${tag}" \
+        | python3 -c "
+import json, sys
+idx = json.load(sys.stdin)
+for m in idx.get('manifests', []):
+    if m.get('platform', {}).get('architecture') == '${oci_arch}':
+        print(m['digest'])
+        break
+")
+
+    if [[ -z "$platform_digest" ]]; then
+        echo "Error: could not find ${oci_arch} manifest in index for tag ${tag}" >&2
+        return 1
+    fi
+
+    # Fetch platform manifest to get the layer digest
+    local layer_digest
+    layer_digest=$(curl -sf \
+        -H "$auth_header" \
+        -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+        "${base_url}/manifests/${platform_digest}" \
+        | python3 -c "
+import json, sys
+m = json.load(sys.stdin)
+print(m['layers'][0]['digest'])
+")
+
+    if [[ -z "$layer_digest" ]]; then
+        echo "Error: could not find layer digest in manifest" >&2
+        return 1
+    fi
+
+    echo "Downloading layer ${layer_digest}..." >&2
+    local layer_file="${destdir}/_layer.tar.zst"
+    curl -sfL \
+        -H "$auth_header" \
+        -o "$layer_file" \
+        "${base_url}/blobs/${layer_digest}"
+    zstd -d "$layer_file" --stdout | tar -C "$destdir" -x
+    rm "$layer_file"
+}
+
+main() {
+  set -x
+  local tmpdir
+  tmpdir=$(mktemp -d /tmp/crash_binaries.XXXXXXXXXX)
+
+  if [[ "${1:-}" == "--ssi" ]]; then
+    shift
+    dd_php_ssi_download "$1" "$2" "$tmpdir"
+  else
+    local url
+    url=$(dd_php_release_url "$@")
+    curl -sLf -o - "$url" | tar -C "$tmpdir" -xzf -
+  fi
+
+  echo "$tmpdir"
+}
+
+main "$@"

@@ -1,4 +1,5 @@
-FROM datadog/dd-trace-ci:alpine AS base
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
+FROM ${CI_REGISTRY_IMAGE}:alpine AS base
 
 ARG phpVersion
 ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts
@@ -90,7 +91,7 @@ RUN set -eux; \
     switch-php ${PHP_VERSION}-debug;
 
 # Install Composer
-COPY --from=composer:1 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 

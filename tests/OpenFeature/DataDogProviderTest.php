@@ -1,0 +1,486 @@
+<?php
+
+declare(strict_types=1);
+
+namespace DDTrace\Tests\OpenFeature {
+
+use DDTrace\FeatureFlags\EvaluationDetails;
+use DDTrace\FeatureFlags\EvaluationErrorCode;
+use DDTrace\FeatureFlags\EvaluationReason;
+use DDTrace\FeatureFlags\EvaluationType;
+use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
+use DDTrace\Log\ErrorLogLogger;
+use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LogLevel;
+use DDTrace\Log\NullLogger;
+use DDTrace\OpenFeature\DataDogProvider;
+use OpenFeature\implementation\flags\Attributes;
+use OpenFeature\implementation\flags\EvaluationContext;
+use OpenFeature\interfaces\provider\ErrorCode;
+use OpenFeature\interfaces\provider\Reason;
+use OpenFeature\OpenFeatureAPI;
+use PHPUnit\Framework\TestCase;
+
+final class DataDogProviderTest extends TestCase
+{
+    public function testProviderMetadataNamesDatadogProvider(): void
+    {
+        $provider = new DataDogProvider();
+
+        self::assertSame('Datadog', $provider->getMetadata()->getName());
+    }
+
+    public function testOpenFeatureClientResolvesTypedValuesThroughDatadogClient(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator
+            ->setSuccess('bool.flag', true, EvaluationReason::TARGETING_MATCH, 'on')
+            ->setSuccess('string.flag', 'blue')
+            ->setSuccess('integer.flag', 42)
+            ->setSuccess('float.flag', 3.5)
+            ->setSuccess('object.flag', ['enabled' => true]);
+
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator));
+
+        self::assertTrue($client->getBooleanValue('bool.flag', false));
+        self::assertSame('blue', $client->getStringValue('string.flag', 'red'));
+        self::assertSame(42, $client->getIntegerValue('integer.flag', 0));
+        self::assertSame(3.5, $client->getFloatValue('float.flag', 0.0));
+        self::assertSame(['enabled' => true], $client->getObjectValue('object.flag', []));
+
+        $details = $client->getBooleanDetails('bool.flag', false);
+        self::assertSame('bool.flag', $details->getFlagKey());
+        self::assertTrue($details->getValue());
+        self::assertSame(Reason::TARGETING_MATCH, $details->getReason());
+        self::assertSame('on', $details->getVariant());
+        self::assertNull($details->getError());
+    }
+
+    public function testStaticReasonIsPreservedAsDatadogReason(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setSuccess('static.flag', 'value', EvaluationReason::STATIC_REASON);
+
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator));
+        $details = $client->getStringDetails('static.flag', 'fallback');
+
+        self::assertSame(EvaluationReason::STATIC_REASON, $details->getReason());
+    }
+
+    public function testEvaluationContextIsNormalizedForDatadogClient(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setSuccess('context.flag', 'on');
+
+        $provider = $this->providerForEvaluator($evaluator);
+        $provider->resolveStringValue('context.flag', 'off', new EvaluationContext(
+            'user-123',
+            new Attributes([
+                'plan' => 'pro',
+                'age' => 41,
+                'rate' => 1.5,
+                'beta' => true,
+                'nested' => ['drop'],
+                'null' => null,
+                'date' => new \DateTimeImmutable(),
+            ])
+        ));
+
+        $calls = $evaluator->getCalls();
+        self::assertCount(1, $calls);
+        self::assertSame('user-123', $calls[0]['targetingKey']);
+        self::assertSame([
+            'plan' => 'pro',
+            'age' => 41,
+            'rate' => 1.5,
+            'beta' => true,
+        ], $calls[0]['attributes']);
+    }
+
+    public function testUnavailableRuntimeReturnsDefaultDetailsAndOneWarning(): void
+    {
+        $logger = new OpenFeatureRecordingLogger();
+        $client = $this->openFeatureClientFor($this->providerForEvaluator(new UnavailableEvaluator(), $logger));
+
+        $value = $client->getBooleanValue('checkout.enabled', true);
+        $details = $client->getStringDetails('checkout.copy', 'fallback');
+
+        self::assertTrue($value);
+        self::assertSame('fallback', $details->getValue());
+        self::assertSame(Reason::ERROR, $details->getReason());
+        self::assertSame(ErrorCode::PROVIDER_NOT_READY()->getValue(), $details->getError()->getResolutionErrorCode()->getValue());
+        self::assertSame(UnavailableEvaluator::WARNING_MESSAGE, $details->getError()->getResolutionErrorMessage());
+        self::assertSame([$details->getError()->getResolutionErrorMessage()], $logger->warnings());
+    }
+
+    public function testProviderWarningIsEmittedOncePerProvider(): void
+    {
+        $logger = new OpenFeatureRecordingLogger();
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator
+            ->setUnavailable('first.flag', true, 'temporary unavailable')
+            ->setUnavailable('second.flag', true, 'temporary unavailable');
+
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
+
+        $client->getBooleanValue('first.flag', false);
+        $client->getBooleanValue('second.flag', false);
+
+        self::assertSame(['temporary unavailable'], $logger->warnings());
+    }
+
+    public function testThrowingLoggerDoesNotChangeProviderNotReadyEvaluation(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setUnavailable('preview.flag', false, 'runtime unavailable');
+        $logger = new OpenFeatureThrowingLogger();
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
+
+        $firstDetails = $client->getBooleanDetails('preview.flag', false);
+        $secondDetails = $client->getBooleanDetails('preview.flag', false);
+
+        self::assertFalse($firstDetails->getValue());
+        self::assertSame(Reason::ERROR, $firstDetails->getReason());
+        self::assertSame(
+            ErrorCode::PROVIDER_NOT_READY()->getValue(),
+            $firstDetails->getError()->getResolutionErrorCode()->getValue()
+        );
+        self::assertFalse($secondDetails->getValue());
+        self::assertSame(1, $logger->warningCount());
+    }
+
+    public function testProviderErrorsMapToOpenFeatureDetails(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setFlagNotFound('missing.flag');
+
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator));
+        $details = $client->getStringDetails('missing.flag', 'fallback');
+
+        self::assertSame('fallback', $details->getValue());
+        self::assertSame(Reason::ERROR, $details->getReason());
+        self::assertSame(EvaluationErrorCode::FLAG_NOT_FOUND, $details->getError()->getResolutionErrorCode()->getValue());
+        self::assertSame('Feature flag "missing.flag" was not found', $details->getError()->getResolutionErrorMessage());
+    }
+
+    public function testTypeMismatchReturnsDefaultWithOpenFeatureError(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setSuccess('integer.flag', 'not-an-int');
+
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator));
+        $details = $client->getIntegerDetails('integer.flag', 7);
+
+        self::assertSame(7, $details->getValue());
+        self::assertSame(Reason::ERROR, $details->getReason());
+        self::assertSame(EvaluationErrorCode::TYPE_MISMATCH, $details->getError()->getResolutionErrorCode()->getValue());
+    }
+
+    public function testDebugLogsProviderResolutionWithRawInputs(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setSuccess('string.flag', 'blue', EvaluationReason::TARGETING_MATCH, 'blue', ['configVersion' => 2]);
+        $logger = new OpenFeatureRecordingLogger();
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
+
+        $client->getStringValue('string.flag', 'red', new EvaluationContext('user-123', new Attributes(['plan' => 'pro'])));
+
+        self::assertSame([
+            'Feature Flags: provider resolved {"flagKey":"string.flag","valueType":"string","targetingKey":"user-123",'
+                . '"attributes":{"plan":"pro"},"defaultValue":"red","value":"blue","variant":"blue",'
+                . '"reason":"TARGETING_MATCH","errorCode":null,"errorMessage":null,"flagMetadata":{},"configVersion":2}',
+        ], $logger->debugs());
+    }
+
+    public function testHookFailuresAreLoggedWithoutClaimingTheReturnedValue(): void
+    {
+        foreach (['before', 'after'] as $stage) {
+            $evaluator = (new OpenFeatureTestEvaluator())->setSuccess('hook.flag', true);
+            $logger = new OpenFeatureRecordingLogger();
+            $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
+            $client->addHooks(new FailingEvaluationHook($stage));
+
+            self::assertFalse($client->getBooleanValue('hook.flag', false, new EvaluationContext(
+                'raw-user', new Attributes(['plan' => 'pro'])
+            )));
+            $logs = implode("\n", $logger->debugs());
+            self::assertStringContainsString('Feature Flags: OpenFeature evaluation error', $logs);
+            self::assertStringContainsString($stage . ' hook failed', $logs);
+            self::assertStringContainsString('"defaultValue":false', $logs);
+            self::assertStringContainsString('"targetingKey":"raw-user","attributes":{"plan":"pro"}', $logs);
+            self::assertStringContainsString('"returnedValueObservable":false', $logs);
+            self::assertCount($stage === 'before' ? 0 : 1, $evaluator->getCalls());
+        }
+    }
+
+    public function testDebugOffDoesNotInstallDiagnosticHooks(): void
+    {
+        $hooks = $this->providerForEvaluator(new OpenFeatureTestEvaluator())->getHooks();
+        self::assertCount(1, $hooks);
+        self::assertInstanceOf(\DDTrace\OpenFeature\FlagEvaluationHook::class, $hooks[0]);
+    }
+
+    public function testHookDiagnosticFormattingFailurePreservesDefault(): void
+    {
+        $logger = new OpenFeatureRecordingLogger();
+        $client = $this->openFeatureClientFor($this->providerForEvaluator(new OpenFeatureTestEvaluator(), $logger));
+        $client->addHooks(new FailingEvaluationHook('before'));
+        $attribute = new class implements \JsonSerializable {
+            public function jsonSerialize(): mixed
+            {
+                throw new \RuntimeException('cannot serialize context');
+            }
+        };
+        self::assertFalse($client->getBooleanValue('hook.flag', false, new EvaluationContext(
+            'user', new Attributes(['object' => $attribute])
+        )));
+        self::assertStringContainsString('detailsUnavailable: cannot serialize context', implode("\n", $logger->debugs()));
+    }
+
+    private function providerForEvaluator(Evaluator $evaluator, ?LoggerInterface $logger = null): DataDogProvider
+    {
+        return DataDogProvider::createWithDependencies($evaluator, $logger ?: new NullLogger(LogLevel::EMERGENCY));
+    }
+
+    private function openFeatureClientFor(DataDogProvider $provider)
+    {
+        $api = OpenFeatureAPI::getInstance();
+        $api->setProvider($provider);
+
+        return $api->getClient('datadog-test');
+    }
+}
+
+final class FailingEvaluationHook extends \OpenFeature\implementation\hooks\BooleanHook
+{
+    public function __construct(private string $stage) {}
+
+    public function before(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\hooks\HookHints $hints): ?\OpenFeature\interfaces\flags\EvaluationContext
+    {
+        if ($this->stage === 'before') {
+            throw new \RuntimeException('before hook failed');
+        }
+        return null;
+    }
+
+    public function after(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\provider\ResolutionDetails $details, \OpenFeature\interfaces\hooks\HookHints $hints): void
+    {
+        throw new \RuntimeException('after hook failed');
+    }
+
+    public function error(\OpenFeature\interfaces\hooks\HookContext $context, \Throwable $error, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
+    public function finally(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
+}
+
+final class OpenFeatureTestEvaluator implements Evaluator
+{
+    /** @var array<string, EvaluationDetails> */
+    private array $details = [];
+
+    /** @var list<array<string, mixed>> */
+    private array $calls = [];
+
+    public function setSuccess(
+        string $flagKey,
+        mixed $value,
+        string $reason = EvaluationReason::STATIC_REASON,
+        ?string $variant = null,
+        array $providerState = []
+    ): self {
+        $this->details[$flagKey] = new EvaluationDetails(
+            $value,
+            $this->typeForValue($value),
+            $reason,
+            $variant,
+            null,
+            null,
+            [],
+            [],
+            $providerState
+        );
+
+        return $this;
+    }
+
+    public function setUnavailable(string $flagKey, mixed $defaultValue, string $message): self
+    {
+        $this->details[$flagKey] = new EvaluationDetails(
+            $defaultValue,
+            $this->typeForValue($defaultValue),
+            EvaluationReason::ERROR,
+            null,
+            EvaluationErrorCode::PROVIDER_NOT_READY,
+            $message,
+            [],
+            [],
+            ['ready' => false, 'productionRuntime' => false, 'reason' => 'test_unavailable']
+        );
+
+        return $this;
+    }
+
+    public function setFlagNotFound(string $flagKey): self
+    {
+        $this->details[$flagKey] = new EvaluationDetails(
+            'fallback',
+            EvaluationType::STRING,
+            EvaluationReason::ERROR,
+            null,
+            EvaluationErrorCode::FLAG_NOT_FOUND,
+            'Feature flag "' . $flagKey . '" was not found'
+        );
+
+        return $this;
+    }
+
+    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = [], $targetingKeyInvalid = false)
+    {
+        $this->calls[] = [
+            'flagKey' => $flagKey,
+            'expectedType' => $expectedType,
+            'targetingKey' => $targetingKey,
+            'attributes' => $attributes,
+        ];
+
+        if (array_key_exists($flagKey, $this->details)) {
+            $details = $this->details[$flagKey];
+            if ($this->matchesExpectedType($details->getValue(), $expectedType)) {
+                return $details;
+            }
+
+            return new EvaluationDetails(
+                $defaultValue,
+                $expectedType,
+                EvaluationReason::ERROR,
+                null,
+                EvaluationErrorCode::TYPE_MISMATCH,
+                'Expected ' . $expectedType . ' flag value'
+            );
+        }
+
+        return new EvaluationDetails(
+            $defaultValue,
+            $expectedType,
+            EvaluationReason::ERROR,
+            null,
+            EvaluationErrorCode::PROVIDER_NOT_READY,
+            UnavailableEvaluator::WARNING_MESSAGE,
+            [],
+            [],
+            ['ready' => false, 'productionRuntime' => false, 'reason' => 'test_missing_result']
+        );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function getCalls(): array
+    {
+        return $this->calls;
+    }
+
+    private function typeForValue(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return EvaluationType::BOOLEAN;
+        }
+        if (is_int($value)) {
+            return EvaluationType::INTEGER;
+        }
+        if (is_float($value)) {
+            return EvaluationType::FLOAT;
+        }
+        if (is_array($value)) {
+            return EvaluationType::OBJECT;
+        }
+        return EvaluationType::STRING;
+    }
+
+    private function matchesExpectedType(mixed $value, string $expectedType): bool
+    {
+        return match ($expectedType) {
+            EvaluationType::BOOLEAN => is_bool($value),
+            EvaluationType::STRING => is_string($value),
+            EvaluationType::INTEGER => is_int($value),
+            EvaluationType::FLOAT => is_float($value) || is_int($value),
+            EvaluationType::OBJECT => is_array($value),
+            default => false,
+        };
+    }
+}
+
+final class OpenFeatureRecordingLogger implements LoggerInterface
+{
+    /** @var string[] */
+    private array $debugs = [];
+
+    /** @var string[] */
+    private array $warnings = [];
+
+    public function debug($message, array $context = [])
+    {
+        $this->debugs[] = ErrorLogLogger::interpolate($message, $context);
+    }
+
+    public function warning($message, array $context = [])
+    {
+        $this->warnings[] = $message;
+    }
+
+    public function error($message, array $context = [])
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function debugs(): array
+    {
+        return $this->debugs;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function warnings(): array
+    {
+        return $this->warnings;
+    }
+}
+
+final class OpenFeatureThrowingLogger implements LoggerInterface
+{
+    private int $warningCount = 0;
+
+    public function debug($message, array $context = [])
+    {
+        throw new \ErrorException('debug logger failed');
+    }
+
+    public function warning($message, array $context = [])
+    {
+        ++$this->warningCount;
+        throw new \ErrorException($message);
+    }
+
+    public function error($message, array $context = [])
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
+    }
+
+    public function warningCount(): int
+    {
+        return $this->warningCount;
+    }
+}
+}

@@ -1,7 +1,7 @@
 --TEST--
 Gracefully handle out-of-sync spans in closure itself [user][default properties]
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 
@@ -17,6 +17,6 @@ shutdown_and_flush();
 
 echo 'Done.' . PHP_EOL;
 ?>
---EXPECT--
+--EXPECTF--
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

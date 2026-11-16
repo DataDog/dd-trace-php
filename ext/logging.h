@@ -3,54 +3,26 @@
 #include <php.h>
 
 #include "configuration.h"
-
-inline void ddtrace_log_err(const char *message) {
-#if PHP_VERSION_ID < 80000
-    php_log_err((char *)message);
+#ifndef _WIN32
+#include <stdatomic.h>
 #else
-    php_log_err(message);
+#include <components/atomic_win32_polyfill.h>
 #endif
-}
 
-#define ddtrace_log_debugf(...)                                                               \
-    do {                                                                                      \
-        if (runtime_config_first_init ? get_DD_TRACE_DEBUG() : get_global_DD_TRACE_DEBUG()) { \
-            ddtrace_log_errf(__VA_ARGS__);                                                    \
-        }                                                                                     \
-    } while (0)
+extern _Atomic(int) datadog_error_log_fd;
 
-#define ddtrace_log_debug(message)                                                            \
-    do {                                                                                      \
-        if (runtime_config_first_init ? get_DD_TRACE_DEBUG() : get_global_DD_TRACE_DEBUG()) { \
-            ddtrace_log_err(message);                                                         \
-        }                                                                                     \
-    } while (0)
-
-#define ddtrace_assert_log_debug(message) \
-    do {                                  \
-        const char *message_ = message;   \
-        ZEND_ASSERT(0 && message_);       \
-        ddtrace_log_debug(message_);      \
-    } while (0)
-
-void ddtrace_log_errf(const char *format, ...);
-
-/* These are used by the background sender; use other functions from PHP thread.
+/* These are used by the background sender; use other log component from PHP thread.
  * {{{ */
-void ddtrace_bgs_log_minit(void);
-void ddtrace_bgs_log_rinit(char *error_log);
-void ddtrace_bgs_log_mshutdown(void);
+void datadog_log_minit(void);
+void datadog_log_ginit(void);
+void datadog_log_rinit(char *error_log);
+void datadog_log_mshutdown(void);
+int datadog_get_fd_path(int fd, char *buf);
 
-int ddtrace_bgs_logf(const char *fmt, ...);
-/* variadic functions cannot be inlined; we use a macro to essentially inline
- * the part we care about: the early return */
-#define ddtrace_bgs_logf(fmt, ...) (get_global_DD_TRACE_DEBUG_CURL_OUTPUT() ? ddtrace_bgs_logf(fmt, __VA_ARGS__) : 0)
-/* }}} */
+int datadog_signal_safe_logf(const char *fmt, ...);
 
-static inline int ddtrace_quiet_zpp(void) {
-    return PHP_DEBUG ? 0 : ZEND_PARSE_PARAMS_QUIET;
-}
-
-void ddtrace_log_onceerrf(const char *format, ...);
+void datadog_log_init(void);
+bool datadog_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string *new_str);
+bool datadog_alter_dd_trace_log_level(zval *old_value, zval *new_value, zend_string *new_str);
 
 #endif  // DD_LOGGING_H

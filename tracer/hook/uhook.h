@@ -1,0 +1,67 @@
+#ifndef ZAI_UHOOK_H
+#define ZAI_UHOOK_H
+
+#include <php.h>
+#include <sandbox/sandbox.h>
+
+typedef struct {
+    zend_object *closure;
+    zend_fcall_info_cache fcc;
+    bool is_static;
+    zend_function func;
+} dd_uhook_callback;
+
+HashTable *dd_uhook_collect_args(zend_execute_data *execute_data);
+bool dd_uhook_frame_is_live(zend_execute_data *frame);
+HashTable *dd_uhook_symbol_table(zend_execute_data *frame);
+void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure);
+void dd_uhook_log_invocation(void (*log)(const char *, ...), zend_execute_data *execute_data, const char *type, zend_object *closure);
+
+void zai_uhook_rinit();
+#if PHP_VERSION_ID >= 80000
+void zai_uhook_attributes_activate(void);
+#endif
+void zai_uhook_rshutdown();
+void zai_uhook_minit(int module_number);
+void zai_uhook_mshutdown();
+
+void dd_uhook_callback_apply_scope(dd_uhook_callback *cb, zend_class_entry *scope);
+// Note that we cannot access zend_get_called_scope(execute_data) here - we need to have it provided from earlier, it might have been invalidated by now, e.g. in ZEND_NAMED_FUNCTION(zend_closure_internal_handler).
+static inline void dd_uhook_callback_ensure_scope(dd_uhook_callback *cb, zend_execute_data *execute_data, zend_class_entry *scope) {
+    if (!cb->fcc.function_handler) {
+        goto apply_scope;
+    } else if (!cb->is_static) {
+        bool has_this;
+        if (scope != cb->fcc.called_scope) {
+apply_scope:
+            dd_uhook_callback_apply_scope(cb, scope);
+            has_this = !cb->is_static && getThis() != NULL;
+        } else {
+            has_this = getThis() != NULL;
+        }
+
+        cb->fcc.object = has_this ? Z_OBJ(EX(This)) : NULL;
+    }
+}
+
+#if PHP_VERSION_ID < 70400
+#define ZEND_MAP_PTR(x) x
+#endif
+static inline void dd_uhook_callback_destroy(dd_uhook_callback *cb) {
+    if (cb->closure) {
+        if (cb->fcc.function_handler && !cb->is_static && cb->func.op_array.cache_size) {
+            efree(ZEND_MAP_PTR(cb->func.op_array.run_time_cache));
+        }
+        OBJ_RELEASE(cb->closure);
+    }
+}
+#if PHP_VERSION_ID < 70400
+#undef ZEND_MAP_PTR
+#endif
+
+PHP_FUNCTION(DDTrace_trace_function);
+PHP_FUNCTION(DDTrace_trace_method);
+PHP_FUNCTION(DDTrace_hook_function);
+PHP_FUNCTION(DDTrace_hook_method);
+PHP_FUNCTION(dd_untrace);
+#endif

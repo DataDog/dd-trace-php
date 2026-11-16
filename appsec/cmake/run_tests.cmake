@@ -1,0 +1,51 @@
+if(DD_APPSEC_DDTRACE_ALT)
+    set(DD_APPSEC_TRACER_EXT_FILE $<TARGET_FILE:ddtrace>)
+elseif(DD_APPSEC_TEST_TRACER)
+    set(DD_APPSEC_TRACER_EXT_FILE "${DD_APPSEC_TEST_TRACER}")
+else()
+    # The tracer with AppSec, built by the root Makefile
+    get_filename_component(DD_APPSEC_TRACER_EXT_FILE "${CMAKE_SOURCE_DIR}/../tmp/build_appsec/modules/ddtrace.so" REALPATH)
+    get_target_property(_DD_APPSEC_PCRE2_INCLUDE_DIRS
+        PCRE2::pcre2 INTERFACE_INCLUDE_DIRECTORIES)
+    if(_DD_APPSEC_PCRE2_INCLUDE_DIRS)
+        list(TRANSFORM _DD_APPSEC_PCRE2_INCLUDE_DIRS PREPEND "-I")
+        list(JOIN _DD_APPSEC_PCRE2_INCLUDE_DIRS " "
+            _DD_APPSEC_PCRE2_CPPFLAGS)
+        set(_DD_APPSEC_DDTRACE_MAKE_OPTIONS
+            "EXTRA_INCLUDES=${_DD_APPSEC_PCRE2_CPPFLAGS}")
+    endif()
+    add_custom_target(ddtrace
+        COMMAND ${CMAKE_COMMAND} -E env "PATH=${PhpConfig_ROOT_DIR}/bin:$ENV{PATH}" PHPRC=
+                make ${_DD_APPSEC_DDTRACE_MAKE_OPTIONS} compile_appsec
+        BYPRODUCTS ${DD_APPSEC_TRACER_EXT_FILE}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../)
+endif()
+
+add_custom_target(xtest-prepare
+    COMMAND mkdir -p /tmp/appsec-ext-test)
+
+add_custom_target(xtest
+    COMMAND ${CMAKE_COMMAND} -E env "DD_TRACE_GIT_METADATA_ENABLED=0" "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0" "LSAN_OPTIONS=fast_unwind_on_malloc=0"
+        ${CMAKE_SOURCE_DIR}/cmake/run-tests-wrapper.sh
+        "${CMAKE_BINARY_DIR}" "$<TARGET_FILE:mock_helper>" "${DD_APPSEC_TRACER_EXT_FILE}"
+        "${PhpConfig_PHP_BINARY}" -n -d variables_order=EGPCS
+        run-tests-internal.php
+        -n -c ${CMAKE_SOURCE_DIR}/tests/extension/test-php.ini
+        -d "extension_dir=${CMAKE_BINARY_DIR}/extensions"
+        --show-diff
+        ${CMAKE_SOURCE_DIR}/tests/extension/
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+if(DD_APPSEC_ENABLE_COVERAGE)
+    add_custom_command(TARGET xtest POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan
+        "To generate a coverage HTML report, run "
+        "gcovr -r ${CMAKE_SOURCE_DIR} --html --html-details -s -d -o coverage.html")
+endif()
+
+add_dependencies(xtest xtest-prepare)
+if(TARGET ddtrace)
+    add_dependencies(xtest ddtrace)
+endif()
+
+add_subdirectory(tests/mock_helper EXCLUDE_FROM_ALL)

@@ -3,8 +3,6 @@ Distributed tracing headers propagate existing headers on error: curl_setopt_arr
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
---INI--
-ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --DESCRIPTION--
 Some libraries do not check the return stats when setting curl opts.
 @see https://github.com/stripe/stripe-php/blob/33317c9/lib/HttpClient/CurlClient.php#L441
@@ -12,7 +10,8 @@ Some libraries do not check the return stats when setting curl opts.
 The original headers should still be applied even when there is an error from
 setting the curl opts.
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 HTTP_X_DATADOG_ORIGIN=phpt-test
 --FILE--
@@ -52,7 +51,7 @@ $responses[] = curl_exec($ch);
 show_curl_error_on_fail($ch);
 $responses[] = curl_exec($ch);
 show_curl_error_on_fail($ch);
-curl_close($ch);
+if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
 include 'distributed_tracing.inc';
 foreach ($responses as $key => $response) {
@@ -83,4 +82,4 @@ x-datadog-parent-id: %d
 x-orig-header: foo
 
 Done.
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 3 to send-queue for %s

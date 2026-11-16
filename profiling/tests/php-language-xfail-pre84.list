@@ -1,0 +1,4 @@
+ext/opcache/tests/opt/prop_types.phpt
+ext/opcache/tests/opt/gh11170.phpt
+ext/opcache/tests/opt/nullsafe_002.phpt
+ext/opcache/tests/bug66251.phpt

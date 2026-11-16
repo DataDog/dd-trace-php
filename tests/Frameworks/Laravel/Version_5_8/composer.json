@@ -19,7 +19,7 @@
         "fzaninotto/faker": "^1.4",
         "mockery/mockery": "^1.0",
         "nunomaduro/collision": "^2.0",
-        "phpunit/phpunit": "^7.5"
+        "phpunit/phpunit": "<10"
     },
     "config": {
         "optimize-autoloader": true,
@@ -27,6 +27,9 @@
         "sort-packages": true,
         "allow-plugins": {
             "kylekatarnls/update-helper": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "extra": {
@@ -46,14 +49,17 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
-        }
+        },
+        "files": ["../../../Appsec/Mock.php"]
     },
     "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php -r \"(new PDO('mysql:host=mysql-integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel58');\"",
+            "@php artisan package:discover --ansi",
+            "@php artisan migrate:fresh --force"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""

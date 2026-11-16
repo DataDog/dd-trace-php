@@ -2,13 +2,17 @@
 DD_AGENT_HOST with IPv6 works
 --SKIPIF--
 <?php include __DIR__ . '/../startup_logging_skipif.inc'; ?>
---ENV--
-DD_AGENT_HOST=::1
 --FILE--
 <?php
 include_once __DIR__ . '/../startup_logging.inc';
 
-$logs = dd_get_startup_logs([], ['DD_TRACE_DEBUG=1']);
+$logs = dd_get_startup_logs([], [
+    'DD_AGENT_HOST' => '::1',
+    'DD_TRACE_AGENT_PORT' => '8126',
+    'DD_TRACE_DEBUG' => 1,
+    'DD_TRACE_AGENT_TIMEOUT' => 200,
+    'DD_TRACE_RETRY_INTERVAL' => 1,
+]);
 
 dd_dump_startup_logs($logs, [
     'agent_url',

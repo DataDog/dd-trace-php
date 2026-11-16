@@ -10,14 +10,14 @@ assert_no_ddtrace
 extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
-appsec=$(is_appsec_installable && echo 1 || true)
+appsec=$(is_legacy_appsec_installable && echo 1 || true)
 
 # Install using the php installer
 version="0.79.0"
-sha256sum="35532a2b78fae131f61f89271e951b8c050a459e7d10fd579665c2669be8fdad"
 destdir="/tmp"
-fetch_setup_for_version "$version" "$sha256sum" "$destdir"
-php "$destdir/datadog-setup.php" --php-bin php --enable-profiling $([ -n "$appsec" ] && echo --enable-appsec)
+fetch_setup_for_version "$version" "$destdir"
+run_released_installer "$destdir/datadog-setup.php" --php-bin php \
+  --enable-profiling $([ -n "$appsec" ] && echo --enable-appsec)
 rm -v "$destdir/datadog-setup.php"
 assert_ddtrace_version "${version}"
 if [ -n "$appsec" ]; then
@@ -61,8 +61,8 @@ else
 fi
 
 # extension=... in the INI file should be commented out
-assert_file_contains "${ini_dir}/98-ddtrace.ini" ";extension = ddtrace.so"
-assert_file_contains "${ini_dir}/98-ddtrace.ini" ";extension = datadog-profiling.so"
+assert_file_contains "${ini_dir}/98-ddtrace.ini" "; extension = ddtrace.so"
+assert_file_contains "${ini_dir}/98-ddtrace.ini" "; extension = datadog-profiling.so"
 if [ -n "$appsec" ]; then
-  assert_file_contains "${ini_dir}/98-ddtrace.ini" ";extension = ddappsec.so"
+  assert_file_contains "${ini_dir}/98-ddtrace.ini" "; extension = ddappsec.so"
 fi

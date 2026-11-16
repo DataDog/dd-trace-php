@@ -20,7 +20,7 @@
         }
     ],
     "require": {
-        "php": "^5.4 || ^7.0 || ^8.0.0",
+        "php": "^7.0 || ^8.0.0",
         "ext-curl": "*",
         "ext-json": "*"
     },
@@ -29,23 +29,23 @@
         "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
         "phpunit/phpunit": "<10",
-        "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "<5"
     },
     "config": {
         "sort-packages": true,
         "allow-plugins": {
             "g1a/composer-test-scenarios": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "cakephp/plugin-installer": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "autoload": {
         "psr-4": {
             "DDTrace\\": "./src/api/"
-        },
-        "files": [
-            "./src/api/ComposerBootstrap.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {
@@ -56,25 +56,18 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
-        "compile": [
-            "classpreloader.php compile --config=./bridge/_files.php --output=./bridge/_generated.php --strip_comments=1",
-            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g\" ./bridge/_generated.php"
-        ],
-        "compile-verify": "php ./bridge/autoload.php",
-        "fix-lint": "phpcbf",
-        "lint": "phpcs -s --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/,tests/xdebug/",
-        "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
+        "ci-lint": "bash tooling/php-lint/run.sh",
         "static-analyze": [
             "@static-analyze-clear-cache",
             "@static-analyze-api",
             "@static-analyze-ddtrace"
         ],
-        "static-analyze-api": "phpstan analyse --configuration=./phpstan.api.neon --level=2 src/api",
+        "static-analyze-api": "php -dmemory_limit=1G $(which phpstan) analyse --configuration=./phpstan.api.neon --level=2 src/api",
         "static-analyze-clear-cache": [
             "phpstan clear-result-cache --configuration=./phpstan.api.neon",
             "phpstan clear-result-cache --configuration=./phpstan.ddtrace.neon"
         ],
-        "static-analyze-ddtrace": "phpstan analyse --configuration=./phpstan.ddtrace.neon --level=2 src/DDTrace",
+        "static-analyze-ddtrace": "php -dmemory_limit=1G $(which phpstan) analyse --configuration=./phpstan.ddtrace.neon --level=2 src/DDTrace",
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
@@ -84,6 +77,32 @@
     },
     "extra": {
         "scenarios": {
+            "openai": {
+                "require": {
+                    "openai-php/client": "@stable"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "openfeature": {
+                "require": {
+                    "open-feature/sdk": "^2.1"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "opentelemetry1": {
+                "require": {
+                    "open-telemetry/sdk": "@stable",
+                    "open-telemetry/extension-propagator-b3": "@stable",
+                    "open-telemetry/opentelemetry-logger-monolog": "@stable"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "opentracing_beta5": {
                 "require": {
                     "opentracing/opentracing": "1.0.0-beta5"

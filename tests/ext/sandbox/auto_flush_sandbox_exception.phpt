@@ -1,8 +1,7 @@
 --TEST--
 Auto-flushing will sandbox an exception thrown from the tracer flush
 --ENV--
-DD_TRACE_DEBUG=1
-DD_TRACE_AUTO_FLUSH_ENABLED=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -33,6 +32,6 @@ try {
 }
 ?>
 --EXPECTF--
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s
 Caught exception: Oops!
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

@@ -3,7 +3,7 @@ version: '3'
 services:
   agent:
     container_name: agent
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
 
   redis:
     container_name: redis
@@ -11,11 +11,11 @@ services:
 
   httpbin:
     container_name: httpbin
-    image: kong/httpbin
+    image: kong/httpbin:0.2.2
 
   memcached:
     container_name: memcached
-    image: "memcached:1.5-alpine"
+    image: "memcached:1.6-alpine"
 
   elasticsearch:
     container_name: elasticsearch

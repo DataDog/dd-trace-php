@@ -1,10 +1,13 @@
-#ifndef DD_COMPATIBILITY_H
-#define DD_COMPATIBILITY_H
+#ifndef DATADOG_COMPATIBILITY_H
+#define DATADOG_COMPATIBILITY_H
 
 #include <stdbool.h>
 #include <php.h>
+#include <zend_abstract_interface/tsrmls_cache.h>
+#include <Zend/zend_closures.h>
+#include <Zend/zend_smart_str.h>
 
-#include "ext/standard/base64.h"
+#include <ext/standard/base64.h>
 
 #if !defined(ZEND_ASSERT)
 #if ZEND_DEBUG
@@ -16,7 +19,19 @@
 #endif
 #endif
 
-#define UNUSED_1(x) (void)(x)
+#if defined(__has_attribute) && __has_attribute(unused)
+#define ATTR_UNUSED __attribute((unused))
+#define UNUSED_1(x)                             \
+    do {                                        \
+        ATTR_UNUSED __auto_type _ignored = (x); \
+    } while (0)
+#else
+#define ATTR_UNUSED
+#define UNUSED_1(x) \
+    do {            \
+        (void)(x);  \
+    } while (0)
+#endif
 #define UNUSED_2(x, y) \
     do {               \
         UNUSED_1(x);   \
@@ -46,17 +61,370 @@
 #define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, _5, ARITY, ...) UNUSED_##ARITY
 #define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 5, 4, 3, 2, 1)(__VA_ARGS__)
 
-#if PHP_VERSION_ID < 80200
-#define ZEND_ACC_READONLY_CLASS 0
+#define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
+#define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
+
+static zend_always_inline zend_fcall_info dd_fcall_info(int argc, zval *args, zval *rv) {
+    return (zend_fcall_info){
+            .param_count = argc,
+            .params = args,
+            .retval = rv,
+            .size = sizeof(zend_fcall_info),
+#if PHP_VERSION_ID < 70100
+            .symbol_table = NULL,
+#endif
+#if PHP_VERSION_ID >= 80000
+            .named_params = NULL,
+#else
+            .no_separation = 1,
+#endif
+    };
+}
+
+static zend_always_inline void dd_get_closure_to_fcc(zval *closure, zend_fcall_info_cache *fcc) {
+#if PHP_VERSION_ID < 70300
+    fcc->initialized = 1;
+#endif
+#if PHP_VERSION_ID < 80000
+    Z_OBJ_HANDLER_P(closure, get_closure)(closure, &fcc->called_scope, &fcc->function_handler, &fcc->object);
+#else
+    Z_OBJ_HANDLER_P(closure, get_closure)(Z_OBJ_P(closure), &fcc->called_scope, &fcc->function_handler, &fcc->object, 1);
+#endif
+}
+
+static inline zval *datadog_assign_variable(zval *variable_ptr, zval *value) {
+#if PHP_VERSION_ID < 70400
+    return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR);
+#else
+    return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, false);
+#endif
+}
+
+#if PHP_VERSION_ID < 70100
+#define IS_VOID 0
+#define MAY_BE_NULL 0
+#define MAY_BE_STRING 0
+#define MAY_BE_ARRAY 0
+
+#define Z_EXTRA_P(z) Z_NEXT_P(z)
+
+#define HT_IS_PACKED(ht) 0
+#define HT_IS_WITHOUT_HOLES(ht) 0
+
+void zend_print_zval_r_to_buf_compat(smart_str *buf, zval *expr, int indent);
+static inline zend_string *zend_print_zval_r_to_str(zval *expr, int indent) {
+    smart_str buf = {0};
+    zend_print_zval_r_to_buf_compat(&buf, expr, indent);
+    smart_str_0(&buf);
+    return buf.s;
+}
+
+#undef zval_get_long
+#define zval_get_long datadog_zval_get_long
+static inline zend_long zval_get_long(zval *op) {
+    if (Z_ISUNDEF_P(op)) {
+        return 0;
+    }
+    return _zval_get_long(op);
+}
+
+#include <float.h>
+#if defined(DBL_MANT_DIG) && defined(DBL_MIN_EXP)
+#define PHP_DOUBLE_MAX_LENGTH (3 + DBL_MANT_DIG - DBL_MIN_EXP)
+#else
+#define PHP_DOUBLE_MAX_LENGTH 1080
+#endif
+
+#define zend_declare_class_constant_ex(ce, name, value, access_type, doc_comment) zend_declare_class_constant(ce, ZSTR_VAL(name), ZSTR_LEN(name), value)
+
+// copied from PHP-7.0 source, but converting zend_long * to uint32_t * - assuming little endian
+static inline void zend_property_guard_dtor(zval *el) {
+    efree_size(Z_PTR_P(el), sizeof(zend_ulong));
+}
+static inline uint32_t *zend_get_property_guard(zend_object *zobj, zend_string *member) {
+    HashTable *guards;
+    zend_long stub, *guard;
+
+    ZEND_ASSERT(GC_FLAGS(zobj) & IS_OBJ_USE_GUARDS);
+    if (GC_FLAGS(zobj) & IS_OBJ_HAS_GUARDS) {
+        guards = Z_PTR(zobj->properties_table[zobj->ce->default_properties_count]);
+        ZEND_ASSERT(guards != NULL);
+        if ((guard = zend_hash_find_ptr(guards, member)) != NULL) {
+            return (uint32_t *)(guard + 1) - 1;
+        }
+    } else {
+        ALLOC_HASHTABLE(guards);
+        zend_hash_init(guards, 8, NULL, zend_property_guard_dtor, 0);
+        Z_PTR(zobj->properties_table[zobj->ce->default_properties_count]) = guards;
+        GC_FLAGS(zobj) |= IS_OBJ_HAS_GUARDS;
+    }
+
+    stub = 0;
+    guard = zend_hash_add_mem(guards, member, &stub, sizeof(zend_ulong));
+    return (uint32_t *)(guard + 1) - 1;
+}
+
+static inline zval *zend_read_property_ex(zend_class_entry *scope, zval *object, zend_string *name, zend_bool silent, zval *rv) {
+    zval property, *value;
+    zend_class_entry *old_scope = EG(scope);
+
+    EG(scope) = scope;
+
+    if (!Z_OBJ_HT_P(object)->read_property) {
+        zend_error_noreturn(E_CORE_ERROR, "Property %s of class %s cannot be read", ZSTR_VAL(name), ZSTR_VAL(Z_OBJCE_P(object)->name));
+    }
+
+    ZVAL_STR(&property, name);
+    value = Z_OBJ_HT_P(object)->read_property(object, &property, silent?BP_VAR_IS:BP_VAR_R, NULL, rv);
+
+    EG(scope) = old_scope;
+    return value;
+}
 #endif
 
 #if PHP_VERSION_ID < 70200
+#define ZEND_ACC_FAKE_CLOSURE ZEND_ACC_INTERFACE
+
+#define zend_strpprintf strpprintf
+#define zend_vstrpprintf vstrpprintf
+
+// persistent must be true iif we're on the startup phase
+static zend_always_inline zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
+    zend_string *ret = zend_string_init(str, len, persistent);
+#ifdef ZTS
+    // zend_new_interned_string() is the identity function on ZTS: flag the string as interned manually, so that it is
+    // not refcounted (it may be shared between threads) and zend_string_release() is a no-op
+    GC_FLAGS(ret) |= IS_STR_INTERNED;
+    zend_string_hash_val(ret);
+    return ret;
+#else
+    return zend_new_interned_string(ret);
+#endif
+}
+
+#undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
+#define ZEND_ARG_VARIADIC_TYPE_INFO(pass_by_ref, name, type_hint, allow_null) ZEND_ARG_INFO(pass_by_ref, name)
+
+#define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
+    static const zend_internal_arg_info name[] = { \
+        { (const char*)(zend_uintptr_t)(required_num_args), NULL, PHP_VERSION_ID >= 70100 || !(return_reference) ? (type) == IS_FALSE ? _IS_BOOL : (type) : 0, return_reference, allow_null, 0 },
+#define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
+    static const zend_internal_arg_info name[] = { \
+        { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
+#undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO
+#define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(name, type, allow_null) \
+    ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, 0, -1, type, allow_null)
+#define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(name, class_name, allow_null) \
+    ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, 0, -1, class_name, allow_null)
+
+extern zend_string *zend_empty_string;
+
+typedef void zend_type;
+typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
+
+static inline void smart_str_append_printf(smart_str *dest, const char *format, ...) {
+    va_list arg;
+    va_start(arg, format);
+    zend_string *str = vstrpprintf(0, format, arg);
+    va_end(arg);
+    smart_str_append(dest, str);
+    zend_string_release(str);
+}
+
+static inline size_t smart_str_get_len(smart_str *str) { return str->s ? ZSTR_LEN(str->s) : 0; }
+
+static inline zend_string *smart_str_extract(smart_str *str) {
+    if (str->s) {
+        zend_string *res;
+        smart_str_0(str);
+        res = str->s;
+        str->s = NULL;
+        return res;
+    } else {
+        return ZSTR_EMPTY_ALLOC();
+    }
+}
+
+static inline zend_string *php_base64_encode_str(const zend_string *str) {
+    return php_base64_encode((const unsigned char*)(ZSTR_VAL(str)), ZSTR_LEN(str));
+}
+
 #define DD_PARAM_PROLOGUE(deref, separate) Z_PARAM_PROLOGUE(deref)
+
+#define ZEND_HASH_REVERSE_FOREACH_STR_KEY_VAL(ht, _key, _val) \
+    ZEND_HASH_REVERSE_FOREACH(ht, 0); \
+    _key = _p->key; \
+    _val = _z;
+
+static zend_always_inline zval *zend_hash_str_find_deref(const HashTable *ht, const char *str, size_t len)
+{
+    zval *zv = zend_hash_str_find(ht, str, len);
+    if (zv) {
+        ZVAL_DEREF(zv);
+    }
+    return zv;
+}
+
 #else
 #define DD_PARAM_PROLOGUE Z_PARAM_PROLOGUE
 #endif
 
+#if PHP_VERSION_ID < 70300
+#define GC_ADDREF(x) (++GC_REFCOUNT(x))
+#define GC_DELREF(x) (--GC_REFCOUNT(x))
+#define GC_SET_REFCOUNT(x, rc) (GC_REFCOUNT(x) = rc)
+
+#define GC_IMMUTABLE (1 << 5)
+#define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
+#define GC_DEL_FLAGS(c, flag) GC_FLAGS(c) &= ~(flag)
+
+#define rc_dtor_func zval_dtor_func
+
+static inline HashTable *zend_new_array(uint32_t nSize) {
+    HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
+    zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
+    return ht;
+}
+
+#define ZVAL_EMPTY_ARRAY(z) ZVAL_ARR(z, zend_new_array(0))
+
+extern const HashTable zend_empty_array;
+
+static zend_always_inline void _gc_try_addref(zend_refcounted_h *_rc) {
+    struct _zend_refcounted *rc = (struct _zend_refcounted *)_rc;
+    if (!(GC_FLAGS(rc) & IS_ARRAY_IMMUTABLE)) {
+        GC_ADDREF(rc);
+    }
+}
+#define GC_TRY_ADDREF(p) _gc_try_addref(&(p)->gc)
+static zend_always_inline void _gc_try_delref(zend_refcounted_h *_rc) {
+    struct _zend_refcounted *rc = (struct _zend_refcounted *)_rc;
+    if (!(GC_FLAGS(rc) & IS_ARRAY_IMMUTABLE)) {
+        GC_DELREF(rc);
+    }
+}
+#define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
+
+#define zend_string_efree zend_string_free
+
+#define GC_IS_RECURSIVE(gc) ((gc)->u.v.nApplyCount > 0)
+#define GC_PROTECT_RECURSION(gc) (++(gc)->u.v.nApplyCount)
+#define GC_UNPROTECT_RECURSION(gc) (--(gc)->u.v.nApplyCount)
+
+// Like 7.3+ (which marks the zval's own counted): arrays are marked on themselves, objects on their property table.
+#define DD_RECURSION_HT_P(zv) (Z_TYPE_P(zv) == IS_ARRAY ? Z_ARR_P(zv) : Z_OBJPROP_P(zv))
+#define Z_IS_RECURSIVE_P(zv) GC_IS_RECURSIVE(DD_RECURSION_HT_P(zv))
+#define Z_PROTECT_RECURSION_P(zv) GC_PROTECT_RECURSION(DD_RECURSION_HT_P(zv))
+#define Z_UNPROTECT_RECURSION_P(zv) GC_UNPROTECT_RECURSION(DD_RECURSION_HT_P(zv))
+
+#define ZEND_CLOSURE_OBJECT(op_array) \
+    ((zend_object*)((char*)(op_array) - sizeof(zend_object)))
+
+#define zend_std_read_dimension std_object_handlers.read_dimension
+#define zend_std_get_property_ptr_ptr std_object_handlers.get_property_ptr_ptr
+#define zend_std_read_property std_object_handlers.read_property
+#define zend_std_unset_property std_object_handlers.unset_property
+
+// make ZEND_STRL work
+#undef zend_hash_str_update
+#define zend_hash_str_update(...) _zend_hash_str_update(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_update_ind
+#define zend_hash_str_update_ind(...) _zend_hash_str_update_ind(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_add
+#define zend_hash_str_add(...) _zend_hash_str_add(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_add_new
+#define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
+
+#define zend_hash_real_init_packed(ht) zend_hash_real_init(ht, 1)
+#define zend_hash_real_init_mixed(ht) zend_hash_real_init(ht, 0)
+#define _zend_hash_append_ex(ht, key, zv, known) _zend_hash_append(ht, key, zv)
+#define zend_hash_find_ex(ht, key, known) zend_hash_find(ht, key)
+#define zend_hash_find_ex_ind(ht, key, known) zend_hash_find_ind(ht, key)
+
+#define smart_str_free_ex(str, persistent) smart_str_free(str)
+
+static inline zend_bool zend_ini_parse_bool(zend_string *str) {
+    if ((ZSTR_LEN(str) == 4 && strcasecmp(ZSTR_VAL(str), "true") == 0)
+      || (ZSTR_LEN(str) == 3 && strcasecmp(ZSTR_VAL(str), "yes") == 0)
+      || (ZSTR_LEN(str) == 2 && strcasecmp(ZSTR_VAL(str), "on") == 0)) {
+        return 1;
+    } else {
+        return atoi(ZSTR_VAL(str)) != 0;
+    }
+}
+
+static inline zend_string *zend_ini_get_value(zend_string *name) {
+    zend_ini_entry *ini_entry;
+
+    ini_entry = zend_hash_find_ptr(EG(ini_directives), name);
+    if (ini_entry) {
+        return ini_entry->value ? ini_entry->value : ZSTR_EMPTY_ALLOC();
+    } else {
+        return NULL;
+    }
+}
+
+static inline void zend_string_release_ex(zend_string *str, int persistent) {
+    UNUSED(persistent);
+    zend_string_release(str);
+}
+
+#define ZVAL_DEINDIRECT(z) do { \
+        if (Z_TYPE_P(z) == IS_INDIRECT) { \
+            (z) = Z_INDIRECT_P(z); \
+        } \
+    } while (0)
+#define ZVAL_COPY_DEREF(z, v) do { \
+        zval *_z3 = (v); \
+        ZVAL_DEREF(_z3); \
+        ZVAL_COPY(z, _z3); \
+    } while (0)
+
+#define ZEND_PARSE_PARAMETERS_NONE() do { \
+        if (zend_parse_parameters_none() == FAILURE) { \
+            RETURN_THROWS(); \
+        } \
+    } while (0);
+
+#endif
+
+#if PHP_VERSION_ID < 70400
+#define ZEND_THIS (&EX(This))
+
+#define Z_PROP_FLAG_P(z) Z_EXTRA_P(z)
+#define ZVAL_COPY_VALUE_PROP ZVAL_COPY_VALUE
+
+#define ZEND_HASH_FILL_SET(_val) do { \
+        ZVAL_COPY_VALUE(&__fill_bkt->val, _val); \
+        __fill_bkt->h = (__fill_idx); \
+        __fill_bkt->key = NULL; \
+    } while (0)
+
+#define ZEND_HASH_FILL_NEXT() do { \
+        __fill_bkt++; \
+        __fill_idx++; \
+    } while (0)
+
+#define ZEND_ACC_HEAP_RT_CACHE ZEND_ACC_NO_RT_ARENA
+
+#define tsrm_env_lock()
+#define tsrm_env_unlock()
+
+#define DD_PARAM_ERROR_CODE error_code
+#else
+#define DD_PARAM_ERROR_CODE _error_code
+#endif
+
 #if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID >= 70300
+static zend_always_inline void _gc_try_addref(zend_refcounted_h *rc) {
+    if (!(rc->u.type_info & GC_IMMUTABLE)) {
+        rc->refcount++;
+    }
+}
+#define GC_TRY_ADDREF(p) _gc_try_addref(&(p)->gc)
+#endif
+
 #define ZVAL_OBJ_COPY(z, o) do { \
         zval *__z = (z); \
         zend_object *__o = (o); \
@@ -78,10 +446,39 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
 }
 #define zend_get_closure_method_def dd_zend_get_closure_method_def
 
+#define instanceof_function_slow instanceof_function
+
 #define ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, classname, allow_null, default_value) ZEND_ARG_OBJ_INFO(pass_by_ref, name, classname, allow_null)
 #define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)
-#define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
+
+#if PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 70200 && defined(ZTS)
+/* PHP 7.0-7.1 ZTS destroys its process-wide interned strings before destroying
+ * the main thread's copied class table. A generated property declaration may
+ * pass ZSTR_KNOWN() here, leaving the copied property info pointing at an
+ * already-freed string during tsrm_shutdown(). Store a regular persistent
+ * string instead.
+ */
+static inline int datadog_declare_property_ex(zend_class_entry *ce, zend_string *name, zval *property,
+                                               int access_type, zend_string *doc_comment) {
+    if (!ZSTR_IS_INTERNED(name)) {
+        return zend_declare_property_ex(ce, name, property, access_type, doc_comment);
+    }
+
+    zend_string *persistent_name = zend_string_init(ZSTR_VAL(name), ZSTR_LEN(name), true);
+    int result = zend_declare_property_ex(ce, persistent_name, property, access_type, doc_comment);
+    zend_string_release_ex(persistent_name, true);
+    return result;
+}
+#define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) \
+    datadog_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
+
+#else
+#define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) \
+    zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
+#endif
+
 #define ZEND_TYPE_INIT_MASK(type) NULL
+#define ZEND_TYPE_INIT_NONE(extra_flags) NULL
 #define ZEND_TYPE_INIT_CLASS(class_name, allow_null, extra_flags) NULL; zend_string_release(class_name)
 
 #define ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value) ZEND_ARG_INFO(pass_by_ref, name)
@@ -89,6 +486,8 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
 #define ZEND_ARG_TYPE_MASK(pass_by_ref, name, type_mask, default_value) ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value)
 #define ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, type_hint, allow_null, default_value) ZEND_ARG_TYPE_INFO(pass_by_ref, name, type_hint, allow_null)
 #define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(name, return_reference, required_num_args, class_name, type) ZEND_BEGIN_ARG_INFO_EX(name, 0, return_reference, required_num_args)
+
+#define ZEND_ABSTRACT_ME_WITH_FLAGS(classname, name, arg_info, flags) ZEND_ABSTRACT_ME(classname, name, arg_info)
 
 #define IS_MIXED 0
 
@@ -105,7 +504,7 @@ static inline zend_string *get_active_function_or_method_name(void) {
 
 #define zend_argument_type_error(arg_num, format, ...) do { \
         zend_string *func_name = get_active_function_or_method_name(); \
-        zend_internal_type_error(ZEND_ARG_USES_STRICT_TYPES(), "%s(): Argument #%d " format, ZSTR_VAL(func_name), arg_num, #__VA_ARGS__); \
+        zend_internal_type_error(ZEND_ARG_USES_STRICT_TYPES(), "%s(): Argument #%d " format, ZSTR_VAL(func_name), arg_num, ##__VA_ARGS__); \
         zend_string_release(func_name); \
     } while (0)
 
@@ -120,12 +519,6 @@ static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest,
     }
     return 1;
 }
-
-#if PHP_VERSION_ID < 70400
-#define DD_PARAM_ERROR_CODE error_code
-#else
-#define DD_PARAM_ERROR_CODE _error_code
-#endif
 
 #define Z_PARAM_OBJ_EX2(dest, check_null, deref, separate) \
         DD_PARAM_PROLOGUE(deref, separate); \
@@ -165,99 +558,76 @@ static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest,
     Z_PARAM_OBJ_OF_CLASS_EX(dest, _ce, 0, 0)
 
 typedef ZEND_RESULT_CODE zend_result;
-#endif
 
-#if PHP_VERSION_ID < 70400
-#define ZEND_THIS (&EX(This))
+#define RETURN_THROWS RETURN_NULL
 
-#define Z_PROP_FLAG_P(z) Z_EXTRA_P(z)
-#endif
-
-#if PHP_VERSION_ID < 70300
-#define GC_ADDREF(x) (++GC_REFCOUNT(x))
-#define GC_DELREF(x) (--GC_REFCOUNT(x))
-
-#define GC_IMMUTABLE (1 << 5)
-#define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
-#define GC_DEL_FLAGS(c, flag) GC_FLAGS(c) &= ~(flag)
-
-static inline HashTable *zend_new_array(uint32_t nSize) {
-    HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
-    zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
-    return ht;
+/* For regular arrays (non-persistent, storing zvals). */
+static zend_always_inline void zend_array_release(zend_array *array)
+{
+    if (!(GC_FLAGS(array) & IS_ARRAY_IMMUTABLE)) {
+        if (GC_DELREF(array) == 0) {
+            zend_array_destroy(array);
+        }
+    }
 }
 
-#define DD_ZVAL_EMPTY_ARRAY(z) do {       \
-        zval *__z = (z);                  \
-        Z_ARR_P(__z) = zend_new_array(0); \
-        Z_TYPE_INFO_P(__z) = IS_ARRAY;    \
-    } while (0)
-#define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
-
-#define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
-#define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
-#define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
-
-#define ZEND_CLOSURE_OBJECT(op_array) \
-    ((zend_object*)((char*)(op_array) - sizeof(zend_object)))
-
-// make ZEND_STRL work
-#undef zend_hash_str_update
-#define zend_hash_str_update(...) _zend_hash_str_update(__VA_ARGS__ ZEND_FILE_LINE_CC)
-#undef zend_hash_str_update_ind
-#define zend_hash_str_update_ind(...) _zend_hash_str_update_ind(__VA_ARGS__ ZEND_FILE_LINE_CC)
-#undef zend_hash_str_add
-#define zend_hash_str_add(...) _zend_hash_str_add(__VA_ARGS__ ZEND_FILE_LINE_CC)
-#undef zend_hash_str_add_new
-#define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
-#endif
-
-#define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
-#define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
-
-#if PHP_VERSION_ID < 70200
-#define ZEND_ACC_FAKE_CLOSURE ZEND_ACC_INTERFACE
-
-#define zend_strpprintf strpprintf
-#define zend_vstrpprintf vstrpprintf
-
-static zend_always_inline zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
-    return zend_new_interned_string(zend_string_init(str, len, persistent));
+static inline void *zend_hash_find_ptr_lc(const HashTable *ht, zend_string *key) {
+    void *result;
+    zend_string *lc_key = zend_string_tolower(key);
+    result = zend_hash_find_ptr(ht, lc_key);
+    zend_string_release(lc_key);
+    return result;
 }
 
-#undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
-#define ZEND_ARG_VARIADIC_TYPE_INFO(pass_by_ref, name, type_hint, allow_null) ZEND_ARG_INFO(pass_by_ref, name)
 
-#define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
-    static const zend_internal_arg_info name[] = { \
-        { (const char*)(zend_uintptr_t)(required_num_args), NULL, (type) == IS_FALSE ? _IS_BOOL : (type), return_reference, allow_null, 0 },
-#define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
-    static const zend_internal_arg_info name[] = { \
-        { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
+#define ZEND_UNREACHABLE() ZEND_ASSUME(0)
 
-typedef void zend_type;
+#define ZEND_ARG_SEND_MODE(arg_info) (arg_info)->pass_by_reference
+#define zend_value_error zend_type_error
 
-#include <Zend/zend_smart_str.h>
-static inline void smart_str_append_printf(smart_str *dest, const char *format, ...) {
-    va_list arg;
-    va_start(arg, format);
-    zend_string *str = vstrpprintf(0, format, arg);
-    va_end(arg);
-    smart_str_append(dest, str);
-    zend_string_release(str);
+#define zend_update_property_ex(scope, object, name, value) do { zval _zv; ZVAL_OBJ(&_zv, object); zend_update_property_ex(scope, &_zv, name, value); } while (0)
+
+#define is_numeric_string_ex(str, length, lval, dval, allow_errors, oflow_info, trailing_data) is_numeric_string_ex(str, length, lval, dval, allow_errors, oflow_info)
+
+static zend_always_inline int zend_compare(zval *op1, zval *op2) {
+    zval result;
+    if (compare_function(&result, op1, op2) == FAILURE) {
+        return 1;
+    }
+    return Z_LVAL(result);
 }
-#endif
 
-#if PHP_VERSION_ID < 70100
-#define IS_VOID 0
-#define MAY_BE_NULL 0
-#define MAY_BE_STRING 0
-#define MAY_BE_ARRAY 0
+// const cast
+#undef Z_OBJPROP_P
+#define Z_OBJPROP_P(zv) Z_OBJPROP(*(zval *)(zv))
+#undef Z_OBJDEBUG_P
+#define Z_OBJDEBUG_P(zv, is_temp) Z_OBJDEBUG(*(zval *)(zv), is_temp)
 
-#define Z_EXTRA_P(z) Z_NEXT_P(z)
+#define ZEND_TYPE_CONTAINS_CODE(type, code) ((code) == IS_NULL ? ZEND_TYPE_ALLOW_NULL(type) : ZEND_TYPE_CODE(type) == (code))
 #endif
 
 #if PHP_VERSION_ID < 80100
+#if PHP_VERSION_ID >= 70300
+static zend_always_inline void _gc_try_delref(zend_refcounted_h *rc) {
+    if (!(rc->u.type_info & GC_IMMUTABLE)) {
+        rc->refcount--;
+    }
+}
+#define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
+#endif
+
+#define ZEND_HASH_FOREACH_FROM(_ht, indirect, _from) \
+    do { \
+        Bucket *_p = (_ht)->arData + _from; \
+        Bucket *_end = (_ht)->arData + (_ht)->nNumUsed; \
+        for (; _p != _end; _p++) { \
+            zval *_z = &_p->val; \
+            if (indirect && Z_TYPE_P(_z) == IS_INDIRECT) { \
+                _z = Z_INDIRECT_P(_z); \
+            } \
+            if (UNEXPECTED(Z_TYPE_P(_z) == IS_UNDEF)) \
+                continue;
+
 #undef ZEND_ATOL
 #ifdef ZEND_ENABLE_ZVAL_LONG64
 #define ZEND_ATOL(s) atoll((s))
@@ -265,19 +635,96 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
 #define ZEND_ATOL(s) atol((s))
 #endif
 #define ZEND_ACC_READONLY 0
+
+static zend_always_inline zend_result add_next_index_object(zval *arg, zend_object *obj) {
+    zval tmp;
+
+    ZVAL_OBJ(&tmp, obj);
+    return zend_hash_next_index_insert(Z_ARRVAL_P(arg), &tmp) ? SUCCESS : FAILURE;
+}
+
+#include <main/snprintf.h>
+#define zend_gcvt php_gcvt
+#define ZEND_DOUBLE_MAX_LENGTH PHP_DOUBLE_MAX_LENGTH
+static inline void smart_str_append_double(smart_str *str, double num, int precision, bool zero_fraction) {
+    char buf[ZEND_DOUBLE_MAX_LENGTH];
+    /* Model snprintf precision behavior. */
+    zend_gcvt(num, precision ? precision : 1, '.', 'E', buf);
+    smart_str_appends(str, buf);
+    if (zero_fraction && zend_finite(num) && !strchr(buf, '.')) {
+        smart_str_appendl(str, ".0", 2);
+    }
+}
+
+#define zend_hash_find_known_hash zend_hash_find
+
+static zend_always_inline bool zend_array_is_list(zend_array *array) {
+    zend_long expected_idx = 0;
+    zend_long num_idx;
+    zend_string* str_idx;
+    /* Empty arrays are lists */
+    if (zend_hash_num_elements(array) == 0) {
+        return 1;
+    }
+
+#if PHP_VERSION_ID >= 70100
+    if (HT_IS_PACKED(array) && HT_IS_WITHOUT_HOLES(array)) {
+        return 1;
+    }
+#endif
+
+    /* Check if the list could theoretically be repacked */
+    ZEND_HASH_FOREACH_KEY(array, num_idx, str_idx) {
+        if (str_idx != NULL || num_idx != expected_idx++) {
+            return 0;
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    return 1;
+}
 #endif
 
 #if PHP_VERSION_ID < 80200
-static inline zend_string *ddtrace_vstrpprintf(size_t max_len, const char *format, va_list ap)
+#define DD_FOREACH_FROM(_ht, indirect, _from, index) \
+    ZEND_HASH_FOREACH_FROM(_ht, indirect, _from) \
+    index = _p->h;
+#else
+#define DD_FOREACH_FROM(_ht, indirect, _from, index) \
+    ZEND_HASH_FOREACH_FROM(_ht, indirect, _from) \
+    index = __h;
+#endif
+
+#if PHP_VERSION_ID < 80200
+#define ZEND_ACC_READONLY_CLASS 0
+
+static zend_always_inline bool zend_string_equals_cstr(const zend_string *s1, const char *s2, size_t s2_length)
+{
+    return ZSTR_LEN(s1) == s2_length && !memcmp(ZSTR_VAL(s1), s2, s2_length);
+}
+
+static zend_always_inline bool zend_string_starts_with_cstr(const zend_string *str, const char *prefix, size_t prefix_length)
+{
+    return ZSTR_LEN(str) >= prefix_length && !memcmp(ZSTR_VAL(str), prefix, prefix_length);
+}
+
+static zend_always_inline bool zend_string_starts_with(const zend_string *str, const zend_string *prefix)
+{
+    return zend_string_starts_with_cstr(str, ZSTR_VAL(prefix), ZSTR_LEN(prefix));
+}
+
+#define zend_string_starts_with_literal(str, prefix) \
+    zend_string_starts_with_cstr(str, prefix, strlen(prefix))
+
+static inline zend_string *datadog_vstrpprintf(size_t max_len, const char *format, va_list ap)
 {
     zend_string *str = zend_vstrpprintf(max_len, format, ap);
     return zend_string_realloc(str, ZSTR_LEN(str), 0);
 }
 
 #undef zend_vstrpprintf
-#define zend_vstrpprintf ddtrace_vstrpprintf
+#define zend_vstrpprintf datadog_vstrpprintf
 
-static inline zend_string *ddtrace_strpprintf(size_t max_len, const char *format, ...)
+static inline zend_string *datadog_strpprintf(size_t max_len, const char *format, ...)
 {
     va_list arg;
     zend_string *str;
@@ -289,7 +736,13 @@ static inline zend_string *ddtrace_strpprintf(size_t max_len, const char *format
 }
 
 #undef zend_strpprintf
-#define zend_strpprintf ddtrace_strpprintf
+#define zend_strpprintf datadog_strpprintf
+
+#define ZEND_HASH_ELEMENT(ht, idx) (&ht->arData[idx].val)
+#define ZEND_HASH_MAP_FOREACH_PTR ZEND_HASH_FOREACH_PTR
+#define ZEND_HASH_MAP_FOREACH_STR_KEY_VAL ZEND_HASH_FOREACH_STR_KEY_VAL
+
+const char *zend_memnistr(const char *haystack, const char *needle, size_t needle_len, const char *end);
 
 #if PHP_VERSION_ID >= 80000
 #define zend_weakrefs_hash_add zend_weakrefs_hash_add_fallback
@@ -323,13 +776,142 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
     return zend_call_function(fci, fci_cache);
 }
 
+static inline zend_string *zend_ini_str_ex(const char *name, size_t len, bool orig, bool *exists) {
+    zend_ini_entry *ini_entry = zend_hash_str_find_ptr(EG(ini_directives), name, len);
+    if (ini_entry) {
+        if (exists) {
+            *exists = true;
+        }
+
+        if (orig && ini_entry->modified) {
+            return ini_entry->orig_value ? ini_entry->orig_value : NULL;
+        }
+        return ini_entry->value ? ini_entry->value : NULL;
+    }
+    if (exists) {
+        *exists = false;
+    }
+    return NULL;
+}
+
+static inline zend_string *zend_ini_str(const char *name, size_t name_length, bool orig) {
+    bool exists = false;
+    zend_string *return_value = zend_ini_str_ex(name, name_length, orig, &exists);
+    if (!exists) {
+        return NULL;
+    } else if (!return_value) {
+        return_value = ZSTR_EMPTY_ALLOC();
+    }
+    return return_value;
+}
+
+#define tsrm_is_managed_thread() (tsrm_get_ls_cache() != NULL)
+
 #define zend_zval_value_name zend_zval_type_name
+
+#define Z_PARAM_ZVAL_OR_NULL(dest) Z_PARAM_ZVAL_EX(dest, 1, 0)
+
+#ifndef Z_PARAM_STRING_OR_NULL
+#define Z_PARAM_STRING_OR_NULL(dest, dest_len) \
+    Z_PARAM_STRING_EX(dest, dest_len, 1, 0)
 #endif
 
-#if PHP_VERSION_ID < 70200
-static inline zend_string *php_base64_encode_str(const zend_string *str) {
-    return php_base64_encode((const unsigned char*)(ZSTR_VAL(str)), ZSTR_LEN(str));
+#ifndef Z_PARAM_STR_OR_NULL
+#define Z_PARAM_STR_OR_NULL(dest) \
+    Z_PARAM_STR_EX(dest, 1, 0)
+#endif
+
+#define ZEND_GUARD_PROPERTY_MASK 0xf
+
+// Pre-8.3 php-src used a bare GC_DELREF here; also free on zero, which it leaked.
+#define GC_DTOR_NO_REF(p) do { if (GC_DELREF(p) == 0) rc_dtor_func((zend_refcounted *)(p)); } while (0)
+
+// strip const
+#if PHP_VERSION_ID < 70300
+#undef zval_get_double
+#define zval_get_double(zv) _zval_get_double((zval *)(zv))
+#else
+#define zval_get_double(zv) zval_get_double((zval *)(zv))
+#endif
+
+#endif
+
+#if PHP_VERSION_ID < 80400
+#define zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error, free_trampoline) zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error)
+#undef ZEND_RAW_FENTRY
+#define ZEND_RAW_FENTRY(zend_name, name, arg_info, flags, ...)   { zend_name, name, arg_info, (uint32_t) ((sizeof(arg_info)/sizeof(struct _zend_internal_arg_info))-1), flags },
+
+#if PHP_VERSION_ID < 70100
+#define hasThis() (Z_OBJ_P(ZEND_THIS) != NULL)
+#else
+#define hasThis() (Z_TYPE_P(ZEND_THIS) == IS_OBJECT)
+#endif
+
+static inline zend_class_entry *zend_register_internal_class_with_flags(zend_class_entry *class_entry, zend_class_entry *parent_ce, uint32_t ce_flags) {
+    zend_class_entry *register_class = zend_register_internal_class_ex(class_entry, parent_ce);
+    register_class->ce_flags |= ce_flags;
+    return register_class;
 }
 #endif
 
-#endif  // DD_COMPATIBILITY_H
+#if PHP_VERSION_ID < 80500
+enum {
+#if PHP_VERSION_ID < 80500
+    ZEND_STR_PARENT,
+#if PHP_VERSION_ID >= 70100
+#define ZEND_STR_PARENT (-1 - ZEND_STR_PARENT)
+#endif
+#endif
+#if PHP_VERSION_ID < 70300
+    ZEND_STR_NAME,
+#if PHP_VERSION_ID >= 70100
+#define ZEND_STR_NAME (-1 - ZEND_STR_NAME)
+#endif
+#endif
+#if PHP_VERSION_ID < 70200
+    ZEND_STR_RESOURCE,
+#if PHP_VERSION_ID >= 70100
+#define ZEND_STR_RESOURCE (-1 - ZEND_STR_RESOURCE)
+#endif
+#endif
+#if PHP_VERSION_ID < 70100
+    ZEND_STR_TRACE,
+    ZEND_STR_LINE,
+    ZEND_STR_FILE,
+    ZEND_STR_MESSAGE,
+    ZEND_STR_CODE,
+    ZEND_STR_TYPE,
+    ZEND_STR_FUNCTION,
+    ZEND_STR_OBJECT,
+    ZEND_STR_CLASS,
+    ZEND_STR_OBJECT_OPERATOR,
+    ZEND_STR_PAAMAYIM_NEKUDOTAYIM,
+    ZEND_STR_ARGS,
+    ZEND_STR_UNKNOWN,
+    ZEND_STR_EVAL,
+    ZEND_STR_INCLUDE,
+    ZEND_STR_REQUIRE,
+    ZEND_STR_INCLUDE_ONCE,
+    ZEND_STR_REQUIRE_ONCE,
+    ZEND_STR_PREVIOUS,
+#endif
+    ZEND_STR__LAST
+};
+extern zend_string *datadog_known_strings[ZEND_STR__LAST];
+
+#undef ZSTR_KNOWN
+#if PHP_VERSION_ID >= 70200
+#define ZSTR_KNOWN(idx) (idx < 0 ? datadog_known_strings[-1 - idx] : zend_known_strings[idx])
+#elif PHP_VERSION_ID >= 70100
+#define ZSTR_KNOWN(idx) (idx < 0 ? datadog_known_strings[-1 - idx] : CG(known_strings)[idx])
+#else
+#define ZSTR_KNOWN(idx) datadog_known_strings[idx]
+#endif
+
+#endif
+
+#if PHP_VERSION_ID < 80600
+#define zend_bin2hex php_hash_bin2hex
+#endif
+
+#endif  // DATADOG_COMPATIBILITY_H

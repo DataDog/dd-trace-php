@@ -1,0 +1,367 @@
+<?php
+
+$arch_targets = ["amd64", "arm64"];
+
+$php_versions_to_abi = [
+    "7.0" => "20151012",
+    "7.1" => "20160303",
+    "7.2" => "20170718",
+    "7.3" => "20180731",
+    "7.4" => "20190902",
+    "8.0" => "20200930",
+    "8.1" => "20210902",
+    "8.2" => "20220829",
+    "8.3" => "20230831",
+    "8.4" => "20240924",
+    "8.5" => "20250925",
+    "8.6" => "20261112",
+];
+
+$all_minor_major_targets = array_keys($php_versions_to_abi);
+
+$asan_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">="); }));
+$windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); }));
+$profiler_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.1", ">="); }));
+
+// Newest GA PHP release. Jobs that need a released PHP (lint, Configuration Consistency,
+// sidecar uid verify) run on it. Bump to "8.6" at PHP 8.6 GA.
+$latest_ga_minor_major = "8.5";
+
+// In GitLab CI we use k8s and have to bind to `127.0.0.1`
+$service_bind_address = "0.0.0.0";
+
+if (getenv('GITLAB_CI') === 'true') {
+   $service_bind_address = "127.0.0.1";
+}
+
+function unset_dd_runner_env_vars() {
+?>
+    # DD env vars auto-added to GitLab runners for infra purposes
+    - unset DD_SERVICE
+    - unset DD_ENV
+    - unset DD_TAGS
+    - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+    - unset DD_ENTITY_ID
+<?php
+}
+
+function dockerhub_login() {
+?>
+    - if command -v docker > /dev/null 2>&1; then .gitlab/dockerhub-login.sh; fi
+<?php
+}
+
+function windows_git_setup() {
+?>
+    # Kill leftover containers — a previous run may still hold php_ddtrace.dll open.
+    $containers = docker ps -aq 2>$null
+    if ($containers) { docker rm -f $containers 2>$null }
+
+    # Use cmd.exe rd from the parent dir: handles junctions/symlinks that PS5.1 Remove-Item can't.
+    Write-Host "Performing workspace cleanup..."
+    $workspace = $PWD.Path
+    Push-Location ..
+    cmd /c "rd /s /q ""$workspace"""
+    if (-not (Test-Path $workspace)) {
+        New-Item -ItemType Directory -Path $workspace -Force | Out-Null
+    }
+    Pop-Location
+    $remaining = Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue
+    # git init would reuse leftovers (a clone used to refuse them): retry instead.
+    if ($remaining) { Write-Host "ERROR: could not remove: $($remaining.Name -join ', '); exiting 75 so GitLab auto-retries."; exit 75 }
+    Write-Host "Cleanup complete."
+
+    # PS 5.1 ignores $PSNativeCommandUseErrorActionPreference — use $LASTEXITCODE checks instead.
+    $ErrorActionPreference = 'Stop'
+
+    # Fetch the pipeline commit by SHA: once the branch moves on, a --branch clone no longer contains it.
+    Write-Host "Fetching $env:CI_COMMIT_SHA..."
+    git config --global core.longpaths true
+    git config --global core.symlinks true
+    git init -q .
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    git remote add origin $env:CI_REPOSITORY_URL
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    git fetch --depth 50 origin $env:CI_COMMIT_SHA
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: git fetch failed (likely transient network); exiting 75 so GitLab auto-retries. Remaining workspace contents:"
+        Get-ChildItem -Force | Select-Object Name
+        exit 75
+    }
+    git checkout $env:CI_COMMIT_SHA
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # Initialize submodules
+    Write-Host "Initializing submodules..."
+    git submodule update --init --recursive -- libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
+    if ($LASTEXITCODE -ne 0) { exit 75 }  # transient network (submodule fetch); 75 triggers default retry
+    Write-Host "Git setup complete."
+<?php
+}
+
+function windows_git_setup_with_packages() {
+?>
+    # Preserve artifact packages before workspace cleanup, then restore after clone.
+    Move-Item packages $env:TEMP\dd-artifacts-packages -Force -ErrorAction SilentlyContinue
+<?php windows_git_setup() ?>
+    if (Test-Path "$env:TEMP\dd-artifacts-packages") {
+        Move-Item $env:TEMP\dd-artifacts-packages packages -Force
+    }
+<?php
+}
+
+// When LIBDATADOG_OVERRIDE_SHA is set in the environment (injected by generate-templates
+// on a libdatadog CI schedule run), capture the entire generated YAML and burn the
+// literal SHA into the before_script of every compilation job.  On normal CI runs the
+// env var is absent and the YAML is emitted unchanged with zero overhead.
+$_libdatadog_sha = getenv('LIBDATADOG_OVERRIDE_SHA') ?: '';
+ob_start();
+register_shutdown_function(function () use ($_libdatadog_sha) {
+    $yaml = ob_get_clean();
+
+    if ($_libdatadog_sha === '') {
+        echo $yaml;
+        return;
+    }
+
+    // `|| exit $?` keeps git's 128 (retried) on the centos-7 images, where bash 4.2 turns an errexit status into 1.
+    $step  = <<<STEP
+    - git config --global --add safe.directory "\${CI_PROJECT_DIR}/libdatadog"
+    - (cd libdatadog && { git fetch --depth=1 origin "$_libdatadog_sha" 2>/dev/null || git fetch origin "$_libdatadog_sha" 2>&1; }) || exit \$?
+    - (cd libdatadog && git checkout FETCH_HEAD) || exit \$?
+STEP;
+
+    // Scripts whose presence in a job block means the job compiles Rust from libdatadog.
+    $compile_scripts = [
+        'compile_extension.sh',
+        'build-sidecar.sh',
+        'build-tracing.sh',
+        'build-tracing-asan.sh',
+        'build-profiler.sh',
+    ];
+
+    // Split into top-level YAML blocks (each starts at column 0).
+    $blocks = preg_split('/(?=^[^\s])/m', $yaml, -1, PREG_SPLIT_NO_EMPTY);
+
+    $result = '';
+    foreach ($blocks as $block) {
+        $needs_override = false;
+        foreach ($compile_scripts as $script) {
+            if (str_contains($block, $script)) {
+                $needs_override = true;
+                break;
+            }
+        }
+
+        if ($needs_override) {
+            if (preg_match('/^  before_script:/m', $block)) {
+                // Prepend to an existing before_script list.
+                $block = preg_replace('/^  before_script:/m', "  before_script:\n$step", $block, 1);
+            } elseif (preg_match('/^  script:/m', $block)) {
+                // No before_script — create one immediately before script:.
+                $block = preg_replace('/^  script:/m', "  before_script:\n$step\n  script:", $block, 1);
+            }
+        }
+
+        $result .= $block;
+    }
+
+    // Green CI counts each child pipeline separately: tag every one, not just the root.
+    $result .= file_get_contents(__DIR__ . '/green-ci-exclude-job.yml');
+
+    echo $result;
+});
+
+?>
+variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+
+default:
+  retry:
+    max: 2
+    when:
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
+    exit_codes:
+      - 75
+      - 128
+
+.all_targets: &all_minor_major_targets
+<?php
+foreach ($all_minor_major_targets as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
+
+.asan_targets: &asan_minor_major_targets
+<?php
+foreach ($asan_minor_major_targets as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
+
+.no_asan_targets: &no_asan_minor_major_targets
+<?php
+foreach (array_diff($all_minor_major_targets, $asan_minor_major_targets) as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
+
+.arch_targets: &arch_targets
+<?php
+foreach ($arch_targets as $arch_target) {
+    echo "- \"{$arch_target}\"\n";
+}
+?>
+
+.services:
+  test-agent: &test_agent_service
+    name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.67.0
+    alias: test-agent
+    variables: &test_agent_variables
+      LOG_LEVEL: DEBUG
+      TRACE_LANGUAGE: php
+      DD_TRACE_AGENT_URL: http://request-replayer:80
+      PORT: 9126
+      SNAPSHOT_DIR: ${CI_PROJECT_DIR}/tests/snapshots
+      SNAPSHOT_CI: 1
+      DD_SUPPRESS_TRACE_PARSE_ERRORS: true
+      ENABLED_CHECKS: trace_stall,trace_peer_service,trace_dd_service
+      DD_POOL_TRACE_CHECK_FAILURES: true
+      DD_DISABLE_ERROR_RESPONSES: true
+      SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/dd-trace-php(?=/),httpbin:(?<=//)httpbin-integration:8080'
+      # The runner applies KUBERNETES_SERVICE_* to every service in the pod and the last definition wins, in an
+      # order that varies between pods. Keep these identical to request-replayer's, or Elasticsearch may end up with
+      # 1 CPU / 512Mi and never start listening.
+      KUBERNETES_SERVICE_CPU_REQUEST: 2
+      KUBERNETES_SERVICE_CPU_LIMIT: 2
+      KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
+      KUBERNETES_SERVICE_MEMORY_LIMIT: 1Gi
+
+  # For jobs without a request-replayer: the test agent forwards /info to DD_TRACE_AGENT_URL and fails it if that host is missing.
+  test-agent-standalone:
+    <<: *test_agent_service
+    variables:
+      <<: *test_agent_variables
+      DD_TRACE_AGENT_URL: ""
+
+  request-replayer:
+    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:6.0
+    alias: request-replayer
+    command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
+    variables:
+      DD_REQUEST_DUMPER_FILE: dump.json
+      PHP_CLI_SERVER_WORKERS: "16"
+      KUBERNETES_SERVICE_CPU_REQUEST: 2
+      KUBERNETES_SERVICE_CPU_LIMIT: 2
+      KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
+      KUBERNETES_SERVICE_MEMORY_LIMIT: 1Gi
+
+  httpbin-integration:
+    name: registry.ddbuild.io/images/mirror/kong/httpbin:0.2.2
+    alias: httpbin-integration
+    command: ["pipenv", "run", "gunicorn", "-b", "<?= $service_bind_address ?>:8080", "httpbin:app", "-k", "gevent"]
+
+  mysql:
+    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-mysql-dev-5.6
+    alias: mysql-integration
+    variables:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_PASSWORD: test
+      MYSQL_USER: test
+      MYSQL_DATABASE: test
+
+  elasticsearch2:
+    name: registry.ddbuild.io/images/mirror/library/elasticsearch:2
+    alias: elasticsearch2-integration
+
+  elasticsearch7:
+    name: registry.ddbuild.io/images/mirror/library/elasticsearch:7.17.23
+    alias: elasticsearch7-integration
+    variables:
+      # Service containers currently share a 1Gi memory limit. Leave half of it outside the Java heap for native JVM
+      # memory; a 1Gi heap under a 1Gi cgroup limit is OOM-killed during startup before port 9200 starts listening.
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      discovery.type: single-node
+
+  zookeeper:
+    name: registry.ddbuild.io/images/mirror/confluentinc/cp-zookeeper:7.8.0
+    alias: zookeeper
+    variables:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOOKEEPER_ADMIN_ENABLE_SERVER: "false"
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=srvr,ruok"
+
+  kafka:
+    name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0
+    alias: kafka-integration
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - |
+        # Wait for Zookeeper to be ready before starting Kafka
+        echo "Waiting for Zookeeper to be ready..."
+        for i in $(seq 1 30); do
+          if echo "ruok" | nc zookeeper 2181 2>/dev/null | grep -q "imok"; then
+            echo "Zookeeper is ready, starting Kafka..."
+            break
+          fi
+          echo "Waiting for Zookeeper... attempt $i/30"
+          sleep 2
+        done
+        # Start Kafka with original entrypoint
+        exec /etc/confluent/docker/run
+    variables:
+      KAFKA_BROKER_ID: 111
+      KAFKA_CREATE_TOPICS: test-lowlevel:1:1,test-highlevel:1:1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-integration:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 120000
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 120000
+
+  redis:
+    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-redis-5.0
+    alias: redis-integration
+    variables:
+      DOCKER_IP: "<?= $service_bind_address ?>"
+
+  memcache:
+    name: registry.ddbuild.io/images/mirror/library/memcached:1.5-alpine
+    alias: memcached-integration
+
+  amqp:
+    name: registry.ddbuild.io/images/mirror/rabbitmq:3.9.20-alpine
+    alias: rabbitmq-integration
+
+  mongodb:
+    name: registry.ddbuild.io/images/mirror/mongo:4.2.24
+    alias: mongodb-integration
+    variables:
+      MONGO_INITDB_ROOT_USERNAME: test
+      MONGO_INITDB_ROOT_PASSWORD: test
+
+  sqlsrv:
+    name: registry.ddbuild.io/images/mirror/sqlserver:2019-CU15-ubuntu-20.04
+    alias: sqlsrv-integration
+    variables:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: Password12!
+      MSSQL_PID: Developer
+
+  googlespanner:
+    name: registry.ddbuild.io/images/mirror/cloud-spanner-emulator/emulator:1.5.25
+    alias: googlespanner-integration

@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the update_test_descriptions module.
+ */
+
+/**
+ * Update test of slash in description and/or.
+ */
+function update_test_description_update_8001() {
+}
+
+// phpcs:disable Drupal.Commenting.DocComment.ShortSingleLine
+/**
+ * Update test with multiline description, the quick brown fox jumped over the
+ * lazy dog.
+ */
+// phpcs:enable
+function update_test_description_update_8002() {
+}

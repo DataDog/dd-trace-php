@@ -34,7 +34,9 @@ function broken_exception() {
         $p->setValue($e, "Not an array");
     }
     $p = $ref->getProperty("message");
-    $p->setAccessible(true);
+    if (PHP_VERSION_ID < 80500) {
+        $p->setAccessible(true);
+    }
     $p->setValue($e, new \stdClass);
     return $e;
 }

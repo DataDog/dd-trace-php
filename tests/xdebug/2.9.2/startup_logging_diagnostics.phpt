@@ -18,4 +18,4 @@ if (!isset($logs['incompatible module xdebug'])) {
 echo 'Log: ' . $logs['incompatible module xdebug'] . PHP_EOL;
 ?>
 --EXPECT--
-Log: Found incompatible Xdebug version 2.9.2; ddtrace requires Xdebug 2.9.5 or greater; disabling conflicting functionality
+Log: Found incompatible Xdebug version 2.9.2; ddtrace requires Xdebug 2.9.5 or greater

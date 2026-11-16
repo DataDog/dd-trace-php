@@ -1,0 +1,213 @@
+version: '3.7'
+
+services:
+
+  vc15-base:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-base-vc15
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: vc15.Dockerfile
+
+  vs16-base:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-base-vs16
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: vs16.Dockerfile
+
+  vs17-base:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-base-vs17
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: vs17.Dockerfile
+
+  vs18-base:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-base-vs18
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: vs18.Dockerfile
+
+  vc15:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vc15
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: basetools.Dockerfile
+      args:
+        vsVersion: "vc15"
+        # Stay on the old SDK: php-sdk 2.7.1's php.exe needs VC runtime 14.29, but
+        # the VS2015/vc15 image ships 14.15. vc15 builds PHP 7.x, which don't
+        # need the newer deps (no zstd/curl) anyway.
+        sdkVersion: "2.2.0"
+
+  vs16:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs16
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: basetools.Dockerfile
+      args:
+        vsVersion: "vs16"
+        sdkVersion: "2.7.1"
+
+  vs17:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs17
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: basetools.Dockerfile
+      args:
+        vsVersion: "vs17"
+        # 2.7.1: needed so phpsdk_deps pulls the current 8.5 deps set incl.
+        # libzstd (curl links zstd now); 2.3.0 predates the current deps index.
+        sdkVersion: "2.7.1"
+
+  vs18:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs18
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: basetools.Dockerfile
+      args:
+        vsVersion: "vs18"
+        sdkVersion: "2.7.1"
+
+  php-8.6:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.6_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        # Must match the tarball's top-level directory (see Dockerfile).
+        phpVersion: "8.6.0RC7"
+        vsVersion: "vs18"
+        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC7.tar.gz
+        phpSha256Hash: "68b753e1d45e1417c6874008500de66102963cf0791e8c541211e9386318722e"
+
+  php-8.5:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "8.5.10"
+        vsVersion: "vs17"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.5.10.tar.gz
+        phpSha256Hash: "f5c0ac99b85b3d677de475c2e4f509f9b4f54663f3ee5a84d6d9481a521d4100"
+
+  php-8.4:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.4_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "8.4.25"
+        vsVersion: "vs17"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.4.25.tar.gz
+        phpSha256Hash: "5cde1da976b728fa09e6b549a4c8afcd0c180337028dacf34f73b11be50253db"
+
+  php-8.3:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.3_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "8.3.33"
+        vsVersion: "vs16"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.3.33.tar.gz
+        phpSha256Hash: "f43566da482abeb1614a512dabeda74967847ce8e176a977390d7a115e7812fd"
+
+  php-8.2:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.2_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "8.2.33"
+        vsVersion: "vs16"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.2.33.tar.gz
+        phpSha256Hash: "9a525d4db1237ede408e454b46f5a93b9e45d83d71753592e3f921903d917e07"
+
+  php-8.1:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.1_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "8.1.32"
+        vsVersion: "vs16"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.32.tar.gz
+        phpSha256Hash: "4846836d1de27dbd28e89180f073531087029a77e98e8e019b7b2eddbdb1baff"
+
+  php-8.0:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.0_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "8.0.30"
+        vsVersion: "vs16"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.30.tar.gz
+        phpSha256Hash: "449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c"
+
+  php-7.4:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.4_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "7.4.33"
+        vsVersion: "vc15"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.33.tar.gz
+        phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
+
+  php-7.3:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.3_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "7.3.33"
+        vsVersion: "vc15"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.3.33.tar.gz
+        phpSha256Hash: 9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8
+
+  php-7.2:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.2_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "7.2.34"
+        vsVersion: "vc15"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
+        phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
+
+  request-replayer:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-request-replayer-6.0_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: ../../services/request-replayer
+      dockerfile: windows.Dockerfile

@@ -1,0 +1,125 @@
+#ifndef DATADOG_H
+#define DATADOG_H
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+#include <php.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <components-rs/common.h>
+#include <components/sapi/sapi.h>
+
+#include "version.h"
+#include "compatibility.h"
+#include "git.h"
+#include "threads.h"
+
+extern int datadog_disable;
+extern zend_module_entry datadog_module_entry;
+extern zend_module_entry *datadog_module; // pointer to actually used copy by PHP
+
+extern datadog_php_sapi datadog_active_sapi;
+
+extern ddog_CharSlice php_version_rt;
+
+#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
+#define CXA_THREAD_ATEXIT_WRAPPER 1
+#endif
+
+void datadog_internal_handle_fork(void);
+#ifdef APPSEC
+// The RSHUTDOWN of all products but AppSec. AppSec calls it early when it
+// aborts a request during RINIT, as PHP skips RSHUTDOWN then.
+int datadog_rshutdown_products(int type, int module_number);
+#endif
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+void dd_run_rust_thread_destructors(void *unused);
+#endif
+
+typedef struct {
+    uint64_t low;
+    union {
+        uint64_t high;
+        struct {
+            ZEND_ENDIAN_LOHI(
+                uint32_t padding // zeroes
+            ,
+                uint32_t time
+            )
+        };
+    };
+} datadog_trace_id;
+
+#include <tracer/ddtrace_globals.h>
+#ifdef APPSEC
+#include <appsec/src/extension/ddappsec_globals.h>
+#endif
+
+// clang-format off
+ZEND_BEGIN_MODULE_GLOBALS(datadog)
+#if PHP_VERSION_ID < 70100
+    bool zai_vm_interrupt;
+#endif
+    bool reread_remote_configuration;
+
+    ddog_SidecarTransport *sidecar;
+    bool remote_config_writing; // true while RC WRITE mode INI update is in progress
+    ddog_RemoteConfigState *remote_config_state;
+    ddog_AgentInfoReader *agent_info_reader;
+    // The service and env of the application last set on this thread's connection
+    zend_string *last_service_name;
+    zend_string *last_env_name;
+    ddog_Vec_Tag active_global_tags;
+
+    bool request_initialized;
+    ddog_SidecarActionsBuffer *telemetry_buffer;
+    ddog_SidecarActionsBuffer *metrics_buffer;
+
+    bool asm_event_emitted;
+
+    HashTable git_metadata;
+    zend_string *git_commit;
+    zend_string *git_repository_url;
+    bool git_resolved;
+
+    ddog_ShmCacheMap *telemetry_cache;
+    HashTable otel_config_telemetry;
+
+    char *cgroup_file;
+    zend_bool backtrace_handler_already_run;
+
+#ifdef PROFILING
+    void *profiling_globals;
+#endif
+
+#ifdef TRACER
+    ddtrace_globals ddtrace;
+#endif
+
+#ifdef APPSEC
+    ddappsec_globals appsec;
+    // Set once datadog_rshutdown_products() ran in this request
+    bool rshutdown_products_done;
+#endif
+ZEND_END_MODULE_GLOBALS(datadog)
+// clang-format on
+
+#ifdef ZTS
+#  define DATADOG_G(v) ZEND_TSRMG(datadog_globals_id, zend_datadog_globals *, v)
+#  define DATADOG_GLOBALS_PTR() TSRMG_BULK_STATIC(datadog_globals_id, zend_datadog_globals *)
+#else
+#  define DATADOG_G(v) (datadog_globals.v)
+#  define DATADOG_GLOBALS_PTR() (&datadog_globals)
+#endif
+
+#if defined(PROFILING) && !defined(TRACER)
+#define PHP_DDTRACE_EXTNAME "datadog-profiling"
+#else
+#define PHP_DDTRACE_EXTNAME "ddtrace"
+#endif
+#ifndef PHP_DDTRACE_VERSION
+#define PHP_DDTRACE_VERSION "0.0.0-unknown"
+#endif
+
+#endif // DATADOG_H

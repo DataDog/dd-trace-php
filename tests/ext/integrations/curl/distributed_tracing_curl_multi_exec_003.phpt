@@ -3,10 +3,10 @@ Test CurlMulti during garbage collection
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
---INI--
-ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
+<?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow'); ?>
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
 HTTP_X_DATADOG_ORIGIN=phpt-test
 --FILE--
 <?php
@@ -33,7 +33,7 @@ function doMulti($url)
     $ch = [];
 
     for ($i = 0; $i < 46; ++$i) {
-        $ch[$i] = curl_init();
+        $ch[$i] = curl_init_no_dns_cache();
         curl_setopt($ch[$i], CURLOPT_URL, $url);
         curl_setopt($ch[$i], CURLOPT_RETURNTRANSFER, true);
 
@@ -75,4 +75,4 @@ x-datadog-parent-id: %d
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 Done.
-Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 2 to send-queue for %s

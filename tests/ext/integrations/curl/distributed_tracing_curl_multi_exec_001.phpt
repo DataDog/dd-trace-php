@@ -3,10 +3,9 @@ Distributed tracing headers propagate with curl_multi_exec()
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
---INI--
-ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
 HTTP_X_DATADOG_ORIGIN=phpt-test
 --FILE--
 <?php
@@ -29,11 +28,11 @@ function dumpHeaders($ch)
 
 function doMulti($url)
 {
-    $ch1 = curl_init();
+    $ch1 = curl_init_no_dns_cache();
     curl_setopt($ch1, CURLOPT_URL, $url);
     curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 
-    $ch2 = curl_init();
+    $ch2 = curl_init_no_dns_cache();
     curl_setopt($ch2, CURLOPT_URL, $url);
     curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 
@@ -73,4 +72,4 @@ x-datadog-parent-id: %d
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 Done.
-Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 2 to send-queue for %s

@@ -1,0 +1,33 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_exception",
+  "stacks": [
+    {
+      "profile-type": "exception-samples",
+      "stack-content": [
+        {
+          "regular_expression": "<\\?php;FooBar\\\\throwAndCatch",
+          "percent": 100,
+          "labels": [
+            {
+              "key": "exception type",
+              "values": [
+                "FooBar\\Exception"
+              ]
+            },
+            {
+              "key": "thread id",
+              "values_regex": "^[0-9]+$"
+            },
+            {
+              "key": "thread name",
+              "values": [
+                "cli"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

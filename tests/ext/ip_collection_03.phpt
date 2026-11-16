@@ -1,6 +1,7 @@
 --TEST--
 Client IP should be collected if env DD_TRACE_CLIENT_IP_ENABLED is set to true
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 REMOTE_ADDR=127.0.0.1
 DD_TRACE_CLIENT_IP_ENABLED=true
@@ -8,8 +9,8 @@ DD_TRACE_CLIENT_IP_ENABLED=true
 <?php
 DDTrace\start_span();
 DDTrace\close_span(0);
-$span = dd_trace_serialize_closed_spans();
-var_dump($span[0]["meta"]["http.client_ip"]);
+$span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+var_dump($span[0]["attributes"]["http.client_ip"]);
 ?>
 --EXPECTF--
 string(9) "127.0.0.1"

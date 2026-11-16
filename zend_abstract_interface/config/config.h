@@ -16,35 +16,38 @@ typedef struct zai_config_memoized_entry_s zai_config_memoized_entry;
 typedef uint16_t zai_config_id;
 
 #include "config_ini.h"
+#include "config_stable_file.h"
 
-#define ZAI_CONFIG_ENTRIES_COUNT_MAX 160
+#define ZAI_CONFIG_ENTRIES_COUNT_MAX 360
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
-#define ZAI_CONFIG_NAME_BUFSIZ 60
+// Accommodate the longest supported environment name after its `DD_` prefix is
+// expanded to the `datadog.` INI prefix.
+#define ZAI_CONFIG_NAME_BUFSIZ 80
 
 #define ZAI_CONFIG_ENTRY(_id, _name, _type, default, ...)                          \
     {                                                                              \
-        .id = _id, .name = ZAI_STRL_VIEW(#_name), .type = ZAI_CONFIG_TYPE_##_type, \
-        .default_encoded_value = ZAI_STRL_VIEW(default), ##__VA_ARGS__,            \
+        .id = _id, .name = ZAI_STRL(#_name), .type = ZAI_CONFIG_TYPE_##_type, \
+        .default_encoded_value = ZAI_STRL(default), ##__VA_ARGS__,            \
     }
 
 #define ZAI_CONFIG_ALIASED_ENTRY(id, name, type, default, _aliases, ...) \
     ZAI_CONFIG_ENTRY(id, name, type, default, .aliases = _aliases,       \
-                     .aliases_count = sizeof(_aliases) / sizeof(zai_string_view), ##__VA_ARGS__)
+                     .aliases_count = sizeof(_aliases) / sizeof(zai_str), ##__VA_ARGS__)
 
 struct zai_config_entry_s {
     zai_config_id id;
     // Env name
-    zai_string_view name;
+    zai_str name;
     zai_config_type type;
-    zai_string_view default_encoded_value;
-    // Alias env names in order of precedence:
-    // (e.g. DD_SERVICE_NAME, DD_TRACE_APP_NAME, ddtrace_app_name)
-    // TODO: Drop old names
-    const zai_string_view *aliases;
+    zai_str default_encoded_value;
+    const zai_str *aliases;
     uint8_t aliases_count;
     // Accept or reject ini changes, potentially apply to the currently running system
     zai_config_apply_ini_change ini_change;
     zai_custom_parse parser;
+    zai_custom_display displayer;
+    zai_env_config_fallback env_config_fallback;
+    bool sensitive;
 };
 
 struct zai_config_name_s {
@@ -52,19 +55,31 @@ struct zai_config_name_s {
     char ptr[ZAI_CONFIG_NAME_BUFSIZ];
 };
 
+#define ZAI_CONFIG_ORIGIN_MODIFIED 0
+#define ZAI_CONFIG_ORIGIN_DEFAULT -1
+#define ZAI_CONFIG_ORIGIN_LOCAL_STABLE -2
+#define ZAI_CONFIG_ORIGIN_FLEET_STABLE -3
+
 struct zai_config_memoized_entry_s {
     zai_config_name names[ZAI_CONFIG_NAMES_COUNT_MAX];
     zend_ini_entry *ini_entries[ZAI_CONFIG_NAMES_COUNT_MAX];
     uint8_t names_count;
     zai_config_type type;
     zval decoded_value;
-    zai_string_view default_encoded_value;
+    zai_str default_encoded_value;
     // The index of the name that was used to set the value
     //     anything > 0 is deprecated
-    //     -1 == not set from env or system ini
+    //      0 == modified
+    //     -1 == default value
+    //     -2 == local stable config
+    //     -3 == fleet stable config
     int16_t name_index;
+    zai_str config_id;
     zai_config_apply_ini_change ini_change;
     zai_custom_parse parser;
+    zai_custom_display displayer;
+    zai_env_config_fallback env_config_fallback;
+    bool sensitive;
     ZEND_INI_MH((*original_on_modify)); // when some other extension has registered that INI
 };
 
@@ -80,7 +95,7 @@ void zai_config_mshutdown(void);
 // Not thread-safe; must block (Use pthread_once)
 // Must be called before zai_config_rinit()
 // Update decoded_value with env/ini value if exists
-void zai_config_first_time_rinit(void);
+void zai_config_first_time_rinit(bool in_request);
 
 // Runtime config ctor (++rc)
 void zai_config_rinit(void);
@@ -90,16 +105,22 @@ void zai_config_rshutdown(void);
 // Directly replace the config value for the current request. Copies the passed argument.
 void zai_config_replace_runtime_config(zai_config_id id, zval *value);
 
-extern uint8_t zai_config_memoized_entries_count;
+extern uint16_t zai_config_memoized_entries_count;
 extern zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
+extern bool zai_config_first_rinit_done;
 
 // assertions + error_zal
 // If caller wants to return to userland: Caller must refcount++ & dtor
 zval *zai_config_get_value(zai_config_id id);
 
-bool zai_config_get_id_by_name(zai_string_view name, zai_config_id *id);
+bool zai_config_get_id_by_name(zai_str name, zai_config_id *id);
+
+// Returns NULL if not set; persistent allocation, must not be freed.
+const char *zai_config_sys_env_cached(zai_config_id id, uint8_t name_index);
 
 // Adds name to name<->id mapping. Id may be present multiple times.
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);
+
+bool zai_config_is_initialized(void);
 
 #endif  // ZAI_CONFIG_H

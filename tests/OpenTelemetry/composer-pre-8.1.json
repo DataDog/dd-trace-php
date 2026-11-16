@@ -1,0 +1,18 @@
+{
+    "name": "datadog/dd-trace-tests",
+    "require": {
+        "open-telemetry/sdk": "^1.0",
+        "open-telemetry/extension-propagator-b3": "^1.0",
+        "open-telemetry/opentelemetry-logger-monolog": "^1.0",
+        "open-telemetry/exporter-otlp": "^1.0"
+    },
+    "minimum-stability": "stable",
+    "config": {
+        "audit": {
+            "ignore": {
+                "PKSA-tcfz-w4fm-hhk9": "test-only transitive dep via gen-otlp-protobuf on legacy PHP path, not in production",
+                "PKSA-yqjh-6qvh-g493": "test-only transitive dep via gen-otlp-protobuf on legacy PHP path, not in production"
+            }
+        }
+    }
+}

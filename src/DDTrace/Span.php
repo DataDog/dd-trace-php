@@ -7,7 +7,6 @@ use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\SpanContext as SpanContext;
 use DDTrace\Http\Urls;
-use DDTrace\Processing\TraceAnalyticsProcessor;
 use Exception;
 use InvalidArgumentException;
 use Throwable;
@@ -43,6 +42,8 @@ class Span extends DataSpan
     {
         $this->internalSpan = $internalSpan;
         $this->context = $context;
+        $internalSpan->baggage += $context->baggageItems;
+        $context->baggageItems = &$internalSpan->baggage;
     }
 
     /**
@@ -144,7 +145,7 @@ class Span extends DataSpan
             }
 
             if ($key === Tag::ERROR_MSG) {
-                $this->internalSpan->meta[$key] = (string)$value;
+                $this->internalSpan->attributes[$key] = $value;
                 $this->setError(true);
                 return;
             }
@@ -155,12 +156,12 @@ class Span extends DataSpan
             }
 
             if ($key === Tag::MANUAL_KEEP) {
-                GlobalTracer::get()->setPrioritySampling(Sampling\PrioritySampling::USER_KEEP);
+                set_priority_sampling(Sampling\PrioritySampling::USER_KEEP);
                 return;
             }
 
             if ($key === Tag::MANUAL_DROP) {
-                GlobalTracer::get()->setPrioritySampling(Sampling\PrioritySampling::USER_REJECT);
+                set_priority_sampling(Sampling\PrioritySampling::USER_REJECT);
                 return;
             }
 
@@ -174,14 +175,14 @@ class Span extends DataSpan
                 return;
             }
 
-            if ($key === Tag::HTTP_URL) {
+            if ($key === Tag::HTTP_URL && $value !== null) {
                 $value = Urls::sanitize((string)$value);
             }
 
             if ($key === Tag::HTTP_STATUS_CODE && $value >= 500) {
                 $this->hasError = true;
-                if (!isset($this->internalSpan->meta[Tag::ERROR_TYPE])) {
-                    $this->internalSpan->meta[Tag::ERROR_TYPE] = 'Internal Server Error';
+                if (!isset($this->internalSpan->attributes[Tag::ERROR_TYPE])) {
+                    $this->internalSpan->attributes[Tag::ERROR_TYPE] = 'Internal Server Error';
                 }
             }
 
@@ -196,7 +197,11 @@ class Span extends DataSpan
             }
         }
 
-        $this->internalSpan->meta[$key] = (string)$value;
+        if ($value === null) {
+            unset($this->internalSpan->meta[$key]);
+            return;
+        }
+        $this->internalSpan->meta[$key] = $value;
     }
 
     /**
@@ -204,8 +209,13 @@ class Span extends DataSpan
      */
     public function getTag($key)
     {
-        if (isset($this->internalSpan->meta) && array_key_exists($key, $this->internalSpan->meta)) {
-            return $this->internalSpan->meta[$key];
+        $value = $this->internalSpan->meta[$key] ?? null;
+        if ($value !== null) {
+            return $value;
+        } elseif ($key === "env") {
+            return $this->internalSpan->env;
+        } elseif ($key === "version") {
+            return $this->internalSpan->version;
         }
 
         return null;
@@ -216,7 +226,7 @@ class Span extends DataSpan
      */
     public function getAllTags()
     {
-        return isset($this->internalSpan->meta) ? $this->internalSpan->meta : [];
+        return (array) $this->internalSpan->meta;
     }
 
     /**
@@ -224,7 +234,7 @@ class Span extends DataSpan
      */
     public function hasTag($name)
     {
-        return array_key_exists($name, $this->getAllTags());
+        return isset($this->internalSpan->meta[$name]);
     }
 
     /**
@@ -234,10 +244,13 @@ class Span extends DataSpan
     public function setMetric($key, $value)
     {
         if ($key === Tag::ANALYTICS_KEY) {
-            TraceAnalyticsProcessor::normalizeAnalyticsValue($this->internalSpan->metrics, $value);
-            return;
+            return; // App Analytics is deprecated and a no-op
         }
 
+        if ($value === null) {
+            unset($this->internalSpan->metrics[$key]);
+            return;
+        }
         $this->internalSpan->metrics[$key] = $value;
     }
 
@@ -246,7 +259,7 @@ class Span extends DataSpan
      */
     public function getMetrics()
     {
-        return isset($this->internalSpan->metrics) ? $this->internalSpan->metrics : [];
+        return (array) $this->internalSpan->metrics;
     }
 
     /**
@@ -269,9 +282,9 @@ class Span extends DataSpan
     {
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
-            $this->internalSpan->meta[Tag::ERROR_MSG] = $error->getMessage();
-            $this->internalSpan->meta[Tag::ERROR_TYPE] = get_class($error);
-            $this->internalSpan->meta[Tag::ERROR_STACK] = $error->getTraceAsString();
+            $this->internalSpan->attributes[Tag::ERROR_MSG] = $error->getMessage();
+            $this->internalSpan->attributes[Tag::ERROR_TYPE] = get_class($error);
+            $this->internalSpan->attributes[Tag::ERROR_STACK] = $error->getTraceAsString();
             return;
         }
 
@@ -294,8 +307,8 @@ class Span extends DataSpan
     public function setRawError($message, $type)
     {
         $this->hasError = true;
-        $this->internalSpan->meta[Tag::ERROR_MSG] = $message;
-        $this->internalSpan->meta[Tag::ERROR_TYPE] = $type;
+        $this->internalSpan->attributes[Tag::ERROR_MSG] = $message;
+        $this->internalSpan->attributes[Tag::ERROR_TYPE] = $type;
     }
 
     public function hasError()
@@ -371,7 +384,7 @@ class Span extends DataSpan
                 // messages, and logging multiple messages is not prohibited by the OpenTracing spec:
                 // https://opentracing.io/docs/overview/tags-logs-baggage/#logs
                 // We want to deprecate this behavior and change it. In the meantime we apply this workaround.
-                $this->internalSpan->meta[Tag::ERROR_MSG] = (string)$value;
+                $this->internalSpan->attributes[Tag::ERROR_MSG] = $value;
             } elseif ($key === Tag::LOG_STACK) {
                 $this->setTag(Tag::ERROR_STACK, $value);
             }
@@ -383,7 +396,9 @@ class Span extends DataSpan
      */
     public function addBaggageItem($key, $value)
     {
-        $this->context = $this->context->withBaggageItem($key, $value);
+        if ($key !== '') {
+            $this->internalSpan->baggage[$key] = $value;
+        }
     }
 
     /**
@@ -391,7 +406,7 @@ class Span extends DataSpan
      */
     public function getBaggageItem($key)
     {
-        return $this->context->getBaggageItem($key);
+        return $this->internalSpan->baggage[$key] ?? null;
     }
 
     /**
@@ -399,26 +414,23 @@ class Span extends DataSpan
      */
     public function getAllBaggageItems()
     {
-        return $this->context->baggageItems;
+        return $this->internalSpan->baggage;
     }
 
     /**
-     * @deprecated
-     * @param bool $value
-     * @return self
+     * {@inheritdoc}
      */
-    public function setTraceAnalyticsCandidate($value = true)
+    public function removeBaggageItem($key)
     {
-        return $this;
+        unset($this->internalSpan->baggage[$key]);
     }
 
     /**
-     * @deprecated
-     * @return bool
+     * {@inheritdoc}
      */
-    public function isTraceAnalyticsCandidate()
+    public function removeAllBaggageItems()
     {
-        return false;
+        $this->internalSpan->baggage = [];
     }
 
     public function __destruct()

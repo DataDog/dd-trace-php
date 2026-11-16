@@ -68,6 +68,28 @@ function generate()
     (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
 }
 
+/**
+ * From https://github.com/compose-spec/compose-spec/pull/314:
+ *
+ * > compose-spec/compose-go#261 changed docker compose behavior to require
+ * > normalized project names as input, instead of normalizing project names
+ * > automatically. This landed in compose-spec/compose-go v1.2.5 and
+ * > docker/compose v2.5.1.
+ *
+ * The normalization was modelled after NormalizeProjectName in this PR:
+ * https://github.com/compose-spec/compose-go/pull/261/files
+ *
+ * @param string $identifier
+ * @return string
+ */
+function normalizeDockerProjectName($identifier)
+{
+    $identifier = strtolower($identifier);
+    $identifier = preg_replace('/[^a-z0-9_-]/', '', $identifier, -1);
+    $identifier = ltrim($identifier, '_-');
+    return $identifier;
+}
+
 function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restrictedPlatforms = null)
 {
     srand($scenarioSeed);
@@ -85,7 +107,7 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restric
 
     // Environment variables modifications
     $numberOfEnvModifications = rand(0, MAX_ENV_MODIFICATIONS);
-    $envModifications = array_merge($selectedOs == "buster" ? ["USE_ZEND_ALLOC" => 0] : [], DEFAULT_ENVS);
+    $envModifications = DEFAULT_ENVS;
     for ($envModification = 0; $envModification < $numberOfEnvModifications; $envModification++) {
         $currentEnv = array_rand(ENVS);
         $availableValues = ENVS[$currentEnv];
@@ -104,13 +126,20 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restric
     for ($iniModification = 0; $iniModification < $numberOfIniModifications; $iniModification++) {
         $currentIni = array_rand(INIS);
         $availableValues = INIS[$currentIni];
+
+        if ($selectedPhpVersion === '7.0' && $currentIni === 'extension') {
+            continue; // The PHP Profiler is a Zend Extension for PHP 7.1+
+        }
+
         if ($currentIni == "extension" || rand(0, 1)) {
             $primaryIni[$currentIni] = $availableValues[array_rand($availableValues)];
         } else {
             $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
         }
     }
+
     $identifier = "randomized-$scenarioSeed-$selectedOs-$selectedPhpVersion";
+    $identifier = normalizeDockerProjectName($identifier);
     $scenarioFolder = TMP_SCENARIOS_FOLDER . DIRECTORY_SEPARATOR . $identifier;
 
     // Preparing folder
@@ -132,10 +161,13 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restric
         [
             'identifier' => $identifier,
             'scenario_folder' => $scenarioFolder,
-            'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion-2",
+            'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion-" . ($selectedOs == "centos7" ? 3 : 2),
             'php_version' => $selectedPhpVersion,
             'installation_method' => $selectedInstallationMethod,
             'project_root' => '../../../../',
+            // buster builds are ASAN builds
+            'USE_ZEND_ALLOC' => $selectedOs == "buster" ? 0 : 1,
+            'USE_TRACKED_ALLOC' => $selectedOs == "buster" ? 1 : 0,
         ]
     );
 

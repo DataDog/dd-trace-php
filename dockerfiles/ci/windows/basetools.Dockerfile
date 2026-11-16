@@ -1,0 +1,36 @@
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
+ARG vsVersion
+FROM ${CI_REGISTRY_IMAGE}:windows-base-$vsVersion
+
+RUN powershell.exe "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; $Env:chocolateyVersion = '0.10.15'; $Env:chocolateyUseWindowsCompression = 'false'; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); ''"
+
+# I really need some sane file editing utilities
+RUN powershell "Invoke-WebRequest https://ftp.nluug.nl/pub/vim/pc/vim90w32.zip -OutFile /tmp/vim90w32.zip; Expand-Archive /tmp/vim90w32.zip /tmp; move C:\tmp\vim\vim90\tee.exe C:\Windows\tee.exe; move C:\tmp\vim\vim90\vim.exe C:\Windows\vim.exe; move C:\tmp\vim\vim90\xxd.exe C:\Windows\xxd.exe; Remove-Item /tmp/vim90w32.zip; Remove-Item -Recurse C:\tmp\vim"
+
+RUN powershell "Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile /tmp/rustup-init.exe; cmd /S /C /tmp/rustup-init.exe --profile minimal -y --default-toolchain=1.91.1; Remove-Item /tmp/rustup-init.exe"
+
+# Cargo's bundled libgit2 fails to check out some deeply nested git
+# dependencies on Windows (e.g. rust-tuf's interop-tests fixtures, pulled in
+# via libdd-remote-config) with "path too long", since libgit2 doesn't use
+# \\?\ verbatim paths on checkout. Real git.exe handles long paths correctly
+# with core.longpaths, so make cargo shell out to it for git dependencies.
+RUN choco install -y git
+RUN git config --system core.longpaths true
+RUN powershell "[Environment]::SetEnvironmentVariable('CARGO_NET_GIT_FETCH_WITH_CLI', 'true', 'Machine')"
+
+RUN choco install -y cmake
+RUN choco install -y nasm
+RUN choco install -y llvm
+
+RUN powershell "[Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';C:\Program Files\NASM;C:\Program Files\CMake\bin', 'Machine')"
+
+# initial setup
+
+ARG sdkVersion
+RUN powershell "cd /tmp; Invoke-WebRequest https://github.com/php/php-sdk-binary-tools/archive/refs/tags/php-sdk-%sdkVersion%.zip -OutFile php-sdk.zip; Expand-Archive php-sdk.zip; move php-sdk\php-sdk-binary-tools-php-sdk-%sdkVersion% /php-sdk; Remove-Item php-sdk; Remove-Item php-sdk.zip"
+# Older PHP SDK tags expect Apache indexes to prefix package links with /.
+RUN powershell "$config = 'C:\php-sdk\lib\php\libsdk\SDK\Config.php'; $text = [IO.File]::ReadAllText($config).Replace(',/packages-', ',>packages-'); if ($text.Contains(',/packages-')) { throw 'Failed to patch PHP SDK dependency series regex' }; [IO.File]::WriteAllText($config, $text, [System.Text.Encoding]::ASCII)"
+# The PHP downloads CDN rejects the SDK's user-agent for some reason.
+RUN powershell "$fileOps = 'C:\php-sdk\lib\php\libsdk\SDK\FileOps.php'; $text = [IO.File]::ReadAllText($fileOps); $text = $text -replace '(?m)^\s*curl_setopt\(\$ch, CURLOPT_USERAGENT, Config::getSdkUserAgentName\(\)\);\r?\n?', ''; if ($text.Contains('CURLOPT_USERAGENT')) { throw 'Failed to remove PHP SDK curl user-agent' }; [IO.File]::WriteAllText($fileOps, $text, [System.Text.Encoding]::ASCII)"
+
+WORKDIR /php-sdk

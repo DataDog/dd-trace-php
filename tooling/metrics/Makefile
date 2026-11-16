@@ -1,4 +1,4 @@
-# Use this Makefile from within  a <MAJOR>.<MINOR>-buster development images.
+# Use this Makefile from within  a <MAJOR>.<MINOR>-bookworm development images.
 
 TMP_FOLDER := /tmp/sirun
 RESULTS_FILE := $(TMP_FOLDER)/results.txt

@@ -1,10 +1,13 @@
 --TEST--
 DDTrace\trace_function() can trace internal functions with internal spans
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 var_dump(DDTrace\trace_function('array_sum', function (SpanData $span) {
@@ -15,8 +18,8 @@ var_dump(array_sum([1, 3, 5]));
 
 echo "---\n";
 
-var_dump(dd_trace_serialize_closed_spans());
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 bool(true)
@@ -24,9 +27,7 @@ int(9)
 ---
 array(1) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -41,20 +42,19 @@ array(1) {
     string(30) "dd_trace_function_internal.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(4) {
+    ["attributes"]=>
+    array(6) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
-      float(%f)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      int(%d)
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

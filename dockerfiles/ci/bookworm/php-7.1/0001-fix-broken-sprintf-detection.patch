@@ -1,0 +1,11 @@
+--- a/Zend/acinclude.m4	2024-10-24 07:14:03.431931000 +0000
++++ b/Zend/acinclude.m4	2024-10-24 07:14:19.239931008 +0000
+@@ -67,7 +67,7 @@
+ dnl
+ AC_DEFUN([AC_ZEND_BROKEN_SPRINTF],[
+   AC_CACHE_CHECK(whether sprintf is broken, ac_cv_broken_sprintf,[
+-    AC_TRY_RUN([main() {char buf[20];exit(sprintf(buf,"testing 123")!=11); }],[
++    AC_TRY_RUN([int main() {char buf[20];exit(sprintf(buf,"testing 123")!=11); }],[
+       ac_cv_broken_sprintf=no
+     ],[
+       ac_cv_broken_sprintf=yes

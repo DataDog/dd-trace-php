@@ -1,0 +1,28 @@
+drupal.color:
+  version: VERSION
+  js:
+    color.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/once
+    - core/jquery.once.bc
+    - core/jquery.farbtastic
+    - color/drupal.color.preview
+
+drupal.color.preview:
+  version: VERSION
+  js:
+    preview.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+    - core/jquery.once.bc
+
+admin:
+  version: VERSION
+  css:
+    theme:
+      css/color.admin.css: {}

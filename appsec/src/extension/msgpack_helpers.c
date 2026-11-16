@@ -1,0 +1,692 @@
+// Unless explicitly stated otherwise all files in this repository are
+// dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
+//
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
+// NOLINTNEXTLINE(misc-header-include-cycle)
+#include <php.h>
+
+#include "logging.h"
+#include "msgpack_helpers.h"
+#include "php_helpers.h"
+#include "php_objects.h"
+#include <ext/compatibility.h>
+
+#if !MPACK_HAS_CONFIG
+#    error "MPACK_HAS_CONFIG is not defined"
+#endif
+
+enum { MAX_RECURSION_DEPTH = 50 }; // arbitrary limit to prevent stack overflow
+
+static THREAD_LOCAL_ON_ZTS bool data_truncated_ = false;
+
+static void _mpack_write_zval(
+    mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth);
+
+#ifdef TESTING
+static const size_t MAX_DEPTH_READING = 32;
+static const size_t MAX_BODY_DEPTH_READING = 128;
+static bool parse_messagepack(const char *nonnull data, size_t length,
+    bool php_array_semantics, size_t max_depth, zval *nonnull output);
+
+bool dd_mpack_to_zval(
+    const char *nonnull data, size_t length, zval *nonnull output)
+{
+    return parse_messagepack(
+        data, length, true, MAX_BODY_DEPTH_READING, output);
+}
+#endif
+
+void dd_mpack_write_nullable_cstr(
+    mpack_writer_t *nonnull w, const char *nullable cstr)
+{
+    if (cstr) {
+        mpack_write(w, cstr);
+    } else {
+        mpack_write_str(w, "", 0);
+    }
+}
+
+void dd_mpack_write_nullable_cstr_lim(
+    mpack_writer_t *nonnull w, const char *nullable cstr, size_t max_len)
+{
+    if (cstr) {
+        size_t len = strlen(cstr);
+        if (len > max_len) {
+            data_truncated_ = true;
+            len = max_len;
+        }
+        mpack_write_str(w, cstr, len);
+    } else {
+        mpack_write_str(w, "", 0);
+    }
+}
+
+void dd_mpack_write_nullable_str_lim(mpack_writer_t *nonnull w,
+    const char *nullable str, size_t len, size_t max_len)
+{
+    if (str) {
+        if (len > max_len) {
+            data_truncated_ = true;
+            len = max_len;
+        }
+        mpack_write_str(w, str, len);
+    } else {
+        mpack_write_str(w, "", 0);
+    }
+}
+
+void dd_mpack_write_zstr(
+    mpack_writer_t *nonnull w, const zend_string *nonnull zstr)
+{
+    mpack_write_str(w, ZSTR_VAL(zstr), ZSTR_LEN(zstr));
+}
+
+void dd_mpack_write_zstr_lim(
+    mpack_writer_t *nonnull w, const zend_string *nonnull zstr, size_t max_len)
+{
+    size_t len = ZSTR_LEN(zstr);
+    if (len > max_len) {
+        data_truncated_ = true;
+        len = max_len;
+    }
+    mpack_write_str(w, ZSTR_VAL(zstr), len);
+}
+
+void dd_mpack_write_nullable_zstr(
+    mpack_writer_t *nonnull w, const zend_string *nullable zstr)
+{
+    if (zstr) {
+        dd_mpack_write_zstr(w, zstr);
+    } else {
+        mpack_write_str(w, "", 0);
+    }
+}
+
+void dd_mpack_write_nullable_zstr_lim(
+    mpack_writer_t *nonnull w, const zend_string *nullable zstr, size_t max_len)
+{
+    if (zstr) {
+        dd_mpack_write_zstr_lim(w, zstr, max_len);
+    } else {
+        mpack_write_str(w, "", 0);
+    }
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+static void _dd_mpack_write_array(
+    mpack_writer_t *nonnull w, const zend_array *nullable arr, size_t depth)
+{
+    if (!arr) {
+        mpack_write_nil(w);
+        return;
+    }
+
+    if (depth >= MAX_RECURSION_DEPTH) {
+        mlog(dd_log_warning, "Max recursion depth reached, stopping");
+        mpack_write_nil(w);
+        return;
+    }
+
+    uint32_t num_elems = zend_hash_num_elements(arr);
+    dd_php_array_type arr_type = dd_php_determine_array_type(arr);
+    if (arr_type == php_array_type_sequential) {
+        mpack_start_array(w, num_elems);
+        zval *val;
+        ZEND_HASH_FOREACH_VAL((zend_array *)arr, val)
+        {
+            _mpack_write_zval(w, val, depth);
+        }
+        ZEND_HASH_FOREACH_END();
+        mpack_finish_array(w);
+    } else {
+        mpack_start_map(w, num_elems);
+
+        zend_string *key_s;
+        zend_ulong key_i;
+        zval *val;
+        ZEND_HASH_FOREACH_KEY_VAL((zend_array *)arr, key_i, key_s, val)
+        {
+            if (key_s) {
+                dd_mpack_write_zstr(w, key_s);
+            } else {
+                char buf[MAX_LENGTH_OF_LONG + 1];
+                snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
+                mpack_write(w, buf);
+            }
+            _mpack_write_zval(w, val, depth);
+        }
+        ZEND_HASH_FOREACH_END();
+        mpack_finish_map(w);
+    }
+}
+
+void dd_mpack_write_array(
+    mpack_writer_t *nonnull w, const zend_array *nullable arr)
+{
+    _dd_mpack_write_array(w, arr, 0);
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+static void _mpack_write_array_lim(mpack_writer_t *nonnull w,
+    const zend_array *nonnull arr, dd_mpack_limits *limits)
+{
+    if (limits->depth_remaining == 0 || limits->elements_remaining == 0) {
+        data_truncated_ = true;
+        mpack_write_nil(w);
+        return;
+    }
+
+    limits->elements_remaining--;
+    limits->depth_remaining--;
+
+    uint32_t num_elems = zend_hash_num_elements(arr);
+    uint32_t elems_to_write = MIN(num_elems, limits->elements_remaining);
+
+    if (num_elems > elems_to_write) {
+        data_truncated_ = true;
+    }
+
+    dd_php_array_type arr_type = dd_php_determine_array_type(arr);
+    if (arr_type == php_array_type_sequential) {
+        // don't take the penalty of dynamically allocating the array
+        // i.e. no specification of the array upfront
+        // Instead, if we exceed the limit, we'll start writing nil values
+        // in place of the actual aray values
+        mpack_start_array(w, elems_to_write);
+        zval *val;
+        ZEND_HASH_FOREACH_VAL((zend_array *)arr, val)
+        {
+            if (elems_to_write-- == 0) {
+                break;
+            }
+            dd_mpack_write_zval_lim(w, val, limits);
+        }
+        ZEND_HASH_FOREACH_END();
+        mpack_finish_array(w);
+    } else {
+        mpack_start_map(w, elems_to_write);
+
+        zend_string *key_s;
+        zend_ulong key_i;
+        zval *val;
+        ZEND_HASH_FOREACH_KEY_VAL((zend_array *)arr, key_i, key_s, val)
+        {
+            if (elems_to_write-- == 0) {
+                break;
+            }
+            if (key_s) {
+                dd_mpack_write_zstr_lim(w, key_s, limits->max_string_length);
+            } else {
+                char buf[MAX_LENGTH_OF_LONG + 1];
+                snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
+                mpack_write(w, buf);
+            }
+            dd_mpack_write_zval_lim(w, val, limits);
+        }
+        ZEND_HASH_FOREACH_END();
+        mpack_finish_map(w);
+    }
+
+    limits->depth_remaining++;
+}
+
+void dd_mpack_write_array_lim(mpack_writer_t *nonnull w,
+    const zend_array *nullable arr, dd_mpack_limits *nonnull limits)
+{
+    if (mpack_writer_error(w) != mpack_ok) {
+        return;
+    }
+
+    if (!arr) {
+        mpack_write_nil(w);
+        return;
+    }
+
+    _mpack_write_array_lim(w, arr, limits);
+}
+
+// NOLINTNEXTLINE
+static void _mpack_write_zval(
+    mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth)
+{
+
+    if (zv == NULL) {
+        mpack_write_nil(w);
+        return;
+    }
+
+    switch (Z_TYPE_P(zv)) {
+    case IS_UNDEF:
+    case IS_NULL:
+        mpack_write_nil(w);
+        break;
+
+    case IS_FALSE:
+        mpack_write(w, false);
+        break;
+
+    case IS_TRUE:
+        mpack_write(w, true);
+        break;
+
+    case IS_LONG:
+        mpack_write(w, Z_LVAL_P(zv));
+        break;
+
+    case IS_DOUBLE:
+        mpack_write(w, Z_DVAL_P(zv));
+        break;
+
+    case IS_STRING:
+        dd_mpack_write_zstr(w, Z_STR_P(zv));
+        break;
+
+    case IS_ARRAY: {
+        zend_array *arr = Z_ARRVAL_P(zv);
+        _dd_mpack_write_array(w, arr, depth + 1);
+        break;
+    }
+
+    case IS_REFERENCE: {
+        zval *referent = Z_REFVAL_P(zv);
+        _mpack_write_zval(w, referent, depth);
+        break;
+    }
+
+    default: {
+        mpack_write_nil(w);
+        mlog(dd_log_info, "Found unhandled zval type %d. Serialized as nil",
+            Z_TYPE_P(zv));
+        break;
+    }
+    }
+}
+
+// NOLINTNEXTLINE
+static void _mpack_write_zval_lim(
+    mpack_writer_t *nonnull w, zval *nonnull zv, dd_mpack_limits *limits)
+{
+    if (limits->elements_remaining == 0) {
+        data_truncated_ = true;
+        mpack_write_nil(w);
+        return;
+    }
+
+    switch (Z_TYPE_P(zv)) {
+    case IS_UNDEF:
+    case IS_NULL:
+        limits->elements_remaining--;
+        mpack_write_nil(w);
+        break;
+
+    case IS_FALSE:
+        limits->elements_remaining--;
+        mpack_write(w, false);
+        break;
+
+    case IS_TRUE:
+        limits->elements_remaining--;
+        mpack_write(w, true);
+        break;
+
+    case IS_LONG:
+        limits->elements_remaining--;
+        mpack_write(w, Z_LVAL_P(zv));
+        break;
+
+    case IS_DOUBLE:
+        limits->elements_remaining--;
+        mpack_write(w, Z_DVAL_P(zv));
+        break;
+
+    case IS_STRING:
+        limits->elements_remaining--;
+        dd_mpack_write_zstr_lim(w, Z_STR_P(zv), limits->max_string_length);
+        break;
+
+    case IS_ARRAY: {
+        // no decrement of elements_remaining here because
+        // _mpack_write_array_lim will do it
+        zend_array *arr = Z_ARRVAL_P(zv);
+        _mpack_write_array_lim(w, arr, limits);
+        break;
+    }
+
+    case IS_REFERENCE: {
+        zval *referent = Z_REFVAL_P(zv);
+        _mpack_write_zval_lim(w, referent, limits);
+        break;
+    }
+
+    default: {
+        limits->elements_remaining--;
+        mpack_write_nil(w);
+        mlog(dd_log_info, "Found unhandled zval type %d. Serialized as nil",
+            Z_TYPE_P(zv));
+        break;
+    }
+    }
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+void dd_mpack_write_zval_lim(
+    mpack_writer_t *nonnull w, zval *nullable zv, dd_mpack_limits *limits)
+{
+    if (mpack_writer_error(w) != mpack_ok) {
+        return;
+    }
+
+    if (!zv) {
+        mpack_write_nil(w);
+        return;
+    }
+
+    _mpack_write_zval_lim(w, zv, limits);
+}
+
+static void _buffer_writer_flush(
+    mpack_writer_t *w, const char *data, size_t count);
+
+static void _buffer_writer_teardown(mpack_writer_t *w);
+
+void dd_mpack_writer_init_buffer(mpack_writer_t *nonnull writer,
+    dd_mpack_buffer *nonnull buffer, size_t prefix_size)
+{
+    *buffer = (dd_mpack_buffer){.prefix_size = prefix_size};
+
+    const size_t capacity = MPACK_BUFFER_SIZE;
+    if (prefix_size > SIZE_MAX - capacity) {
+        mpack_writer_init_error(writer, mpack_error_too_big);
+        return;
+    }
+
+    buffer->data = MPACK_MALLOC(prefix_size + capacity);
+    if (buffer->data == NULL) {
+        mpack_writer_init_error(writer, mpack_error_memory);
+        return;
+    }
+    memset(buffer->data, 0, prefix_size);
+
+    mpack_writer_init(writer, buffer->data + prefix_size, capacity);
+    writer->context = buffer;
+    mpack_writer_set_flush(writer, _buffer_writer_flush);
+    mpack_writer_set_teardown(writer, _buffer_writer_teardown);
+}
+
+void dd_mpack_buffer_destroy(dd_mpack_buffer *nonnull buffer)
+{
+    if (buffer->data != NULL) {
+        MPACK_FREE(buffer->data);
+    }
+    *buffer = (dd_mpack_buffer){0};
+}
+
+static void _buffer_writer_flush(
+    mpack_writer_t *w, const char *data, size_t count)
+{
+    // There are three ways flush can be called:
+    //   - flushing the buffer during writing (used is zero, count is all data,
+    //   data is buffer)
+    //   - flushing extra data during writing (used is all flushed data, count
+    //   is extra data, data is not buffer)
+    //   - flushing during teardown (used and count are both all flushed data,
+    //   data is buffer)
+    //
+    // A zero-length buffer flush can only happen during writing, before MPack
+    // follows it with a flush of the extra data; teardown skips empty buffers.
+
+    if (w->buffer == NULL) {
+        mlog(dd_log_error, "w->buffer is NULL (flush called after teardown)");
+        return;
+    }
+
+    bool buffer_was_flushed = data == w->buffer;
+    if (buffer_was_flushed) {
+        if (mpack_writer_buffer_used(w) == count) {
+            // teardown; the buffer is transferred by _buffer_writer_teardown
+            return;
+        }
+        w->position = w->buffer + count;
+        count = 0;
+    }
+
+    size_t used = mpack_writer_buffer_used(w);
+    if (count > SIZE_MAX - used) {
+        mpack_writer_flag_error(w, mpack_error_too_big);
+        return;
+    }
+    dd_mpack_buffer *buffer = w->context;
+    size_t max_capacity = SIZE_MAX - buffer->prefix_size;
+    size_t required = used + count;
+    if (required > max_capacity) {
+        mpack_writer_flag_error(w, mpack_error_too_big);
+        return;
+    }
+
+    size_t capacity = mpack_writer_buffer_size(w);
+    size_t new_capacity = capacity;
+    if (buffer_was_flushed) {
+        // The current contents fit, but MPack flushed because it needs room
+        // for another write of unknown size.
+        if (capacity == max_capacity) {
+            mpack_writer_flag_error(w, mpack_error_too_big);
+            return;
+        }
+        new_capacity =
+            capacity > max_capacity / 2 ? max_capacity : capacity * 2;
+    }
+    while (new_capacity < required) {
+        if (new_capacity > max_capacity / 2) {
+            new_capacity = required;
+            break;
+        }
+        new_capacity *= 2;
+    }
+
+    char *new_data = mpack_realloc(buffer->data, buffer->prefix_size + used,
+        buffer->prefix_size + new_capacity);
+    if (new_data == NULL) {
+        mpack_writer_flag_error(w, mpack_error_memory);
+        return;
+    }
+
+    buffer->data = new_data;
+    w->buffer = new_data + buffer->prefix_size;
+    w->position = w->buffer + used;
+    w->end = w->buffer + new_capacity;
+
+    if (count > 0) {
+        memcpy(w->position, data, count); // NOLINT
+        w->position += count;
+    }
+}
+
+static void _buffer_writer_teardown(mpack_writer_t *w)
+{
+    dd_mpack_buffer *buffer = w->context;
+
+    if (mpack_writer_error(w) != mpack_ok) {
+        MPACK_FREE(buffer->data);
+        buffer->data = NULL;
+        buffer->final_msg_size = 0;
+    } else {
+        buffer->final_msg_size =
+            buffer->prefix_size + mpack_writer_buffer_used(w);
+    }
+    w->buffer = NULL;
+    w->context = NULL;
+}
+
+#ifdef TESTING
+// NOLINTNEXTLINE(misc-no-recursion)
+static bool parse_element(mpack_reader_t *nonnull reader, size_t depth,
+    size_t max_depth, bool php_array_semantics, zval *nonnull output)
+{
+    if (depth >= max_depth) { // critical check!
+        mpack_reader_flag_error(reader, mpack_error_too_big);
+        mlog(dd_log_error, "decode_msgpack error: msgpack object too big");
+        return false;
+    }
+
+    mpack_tag_t tag = mpack_read_tag(reader);
+    if (mpack_reader_error(reader) != mpack_ok) {
+        return false;
+    }
+
+    switch (mpack_tag_type(&tag)) {
+    case mpack_type_nil:
+        ZVAL_NULL(output);
+        break;
+    case mpack_type_bool:
+        ZVAL_BOOL(output, mpack_tag_bool_value(&tag));
+        break;
+    case mpack_type_int:
+        ZVAL_LONG(output, mpack_tag_int_value(&tag));
+        break;
+    case mpack_type_uint: {
+        ZVAL_LONG(output, (long)mpack_tag_uint_value(&tag));
+        break;
+    }
+    case mpack_type_float:
+        ZVAL_DOUBLE(output, mpack_tag_float_value(&tag));
+        break;
+    case mpack_type_double:
+        ZVAL_DOUBLE(output, mpack_tag_double_value(&tag));
+        break;
+
+    case mpack_type_str: {
+        uint32_t length = mpack_tag_str_length(&tag);
+        const char *data = mpack_read_bytes_inplace(reader, length);
+        if (mpack_reader_error(reader) != mpack_ok) {
+            return false;
+        }
+        ZVAL_STRINGL(output, data, length);
+        mpack_done_str(reader);
+        break;
+    }
+    case mpack_type_array: {
+        uint32_t count = mpack_tag_array_count(&tag);
+        array_init(output);
+        while (count-- > 0) {
+            zval new;
+            ZVAL_UNDEF(&new);
+            if (!parse_element(
+                    reader, depth + 1, max_depth, php_array_semantics, &new) ||
+                mpack_reader_error(reader) != mpack_ok) {
+                zval_ptr_dtor(&new);
+                mlog(
+                    dd_log_error, "decode_msgpack error: error decoding array");
+                return false;
+            }
+            zend_hash_next_index_insert(Z_ARRVAL_P(output), &new);
+        }
+        mpack_done_array(reader);
+        break;
+    }
+    case mpack_type_map: {
+        uint32_t count = mpack_tag_map_count(&tag);
+        array_init(output);
+        while (count-- > 0) {
+            zval key;
+            zval value;
+            ZVAL_UNDEF(&key);
+            ZVAL_UNDEF(&value);
+            if (!parse_element(
+                    reader, depth + 1, max_depth, php_array_semantics, &key) ||
+                Z_TYPE(key) != IS_STRING ||
+                !parse_element(reader, depth + 1, max_depth,
+                    php_array_semantics, &value) ||
+                mpack_reader_error(reader) != mpack_ok) {
+                zval_ptr_dtor(&key);
+                zval_ptr_dtor(&value);
+                mlog(dd_log_error, "decode_msgpack error: error decoding map");
+                return false;
+            }
+            // Ignore clang because key is a string here
+            if (php_array_semantics) {
+                // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
+                zend_symtable_update(Z_ARRVAL_P(output), Z_STR(key), &value);
+            } else {
+                // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
+                zend_hash_add_new(Z_ARRVAL_P(output), Z_STR(key), &value);
+            }
+            zval_ptr_dtor_nogc(&key);
+        }
+        mpack_done_map(reader);
+        break;
+    }
+    default:
+        mlog(dd_log_error, "decode_msgpack error: type %s not implemented.\n",
+            mpack_type_to_string(mpack_tag_type(&tag)));
+        mpack_reader_flag_error(reader, mpack_error_data);
+        return false;
+    }
+
+    return true;
+}
+
+static bool parse_messagepack(const char *nonnull data, size_t length,
+    bool php_array_semantics, size_t max_depth, zval *nonnull output)
+{
+    mpack_reader_t reader;
+    mpack_reader_init_data(&reader, data, length);
+    ZVAL_UNDEF(output);
+    bool parsed =
+        parse_element(&reader, 0, max_depth, php_array_semantics, output);
+    if (!parsed) {
+        mpack_reader_flag_error(&reader, mpack_error_data);
+    }
+    bool valid = mpack_ok == mpack_reader_destroy(&reader);
+    if (!parsed || !valid) {
+        zval_ptr_dtor(output);
+        ZVAL_NULL(output);
+        return false;
+    }
+    return true;
+}
+
+static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
+{
+    zend_string *encoded = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &encoded) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    parse_messagepack(ZSTR_VAL(encoded), ZSTR_LEN(encoded), false,
+        MAX_DEPTH_READING, return_value);
+}
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    void_ret_array_arginfo, 0, 1, IS_ARRAY, 0)
+ZEND_ARG_TYPE_INFO(0, encoded, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+// clang-format off
+static const zend_function_entry testing_functions[] = {
+    ZEND_RAW_FENTRY(DD_TESTING_NS "decode_msgpack", PHP_FN(datadog_appsec_testing_decode_msgpack), void_ret_array_arginfo, 0, NULL, NULL)
+    PHP_FE_END
+};
+// clang-format on
+
+static void _register_testing_objects(void)
+{
+    if (!get_global_DD_APPSEC_TESTING()) {
+        return;
+    }
+
+    dd_phpobj_reg_funcs(testing_functions);
+}
+#endif
+
+void dd_msgpack_helpers_startup(void)
+{
+#ifdef TESTING
+    _register_testing_objects();
+#endif
+}
+
+void dd_msgpack_helpers_rinit(void) { data_truncated_ = false; }
+
+bool dd_msgpack_helpers_is_data_truncated(void) { return data_truncated_; }

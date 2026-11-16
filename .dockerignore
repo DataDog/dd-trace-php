@@ -1,4 +1,5 @@
 .git/
+.gitlab-ci-local/
 .composer/
 tests/Frameworks/**
 tmp/

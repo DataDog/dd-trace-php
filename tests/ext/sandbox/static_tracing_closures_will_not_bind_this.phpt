@@ -1,7 +1,8 @@
 --TEST--
 Static tracing closures will not bind $this
 --ENV--
-DD_TRACE_DEBUG=true
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -24,4 +25,4 @@ $foo->test();
 --EXPECTF--
 Foo::test()
 TRACED Foo::test()
-Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 2 to send-queue for %s

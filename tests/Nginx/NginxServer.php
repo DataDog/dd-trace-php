@@ -25,6 +25,16 @@ final class NginxServer
     private $rootPath;
 
     /**
+     * @var string
+     */
+    private $serverHost;
+
+    /**
+     * @var int
+     */
+    private $hostPort;
+
+    /**
      * @param string $indexFile
      * @param string $serverHost
      * @param string $hostPort
@@ -35,6 +45,8 @@ final class NginxServer
     public function __construct($indexFile, $serverHost, $hostPort, $fastCGIHost, $fastCGIPort)
     {
         $this->rootPath = dirname($indexFile);
+        $this->serverHost = $serverHost;
+        $this->hostPort = $hostPort;
         $replacements = [
             '{{root_path}}' => $this->rootPath,
             '{{index_file}}' => basename($indexFile),
@@ -76,13 +88,38 @@ final class NginxServer
 
         $this->process = new Process($processCmd);
         $this->process->start();
+
+        if (!$this->waitUntilServerRunning()) {
+            error_log("[nginx] Server never came up...");
+            return;
+        }
+        error_log("[nginx] Server is up and responding...");
+    }
+
+    public function waitUntilServerRunning()
+    {
+        //Let's wait until nginx is accepting connections
+        for ($try = 0; $try < 40; $try++) {
+            $socket = @fsockopen($this->serverHost, $this->hostPort);
+            if ($socket !== false) {
+                fclose($socket);
+                // Give nginx and PHP-FPM a bit more time to stabilize after port opens
+                usleep(500000);
+                return true;
+            }
+            usleep(50000);
+        }
+
+        return false;
     }
 
     public function stop()
     {
         if ($this->process) {
             error_log("[nginx] Stopping...");
-            $this->process->stop(0);
+            // Grace so the master can reap its worker; a 0s grace SIGKILLs the master
+            // first, leaving the worker orphaned.
+            $this->process->stop(2);
         }
     }
 

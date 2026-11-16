@@ -1,10 +1,13 @@
 --TEST--
 [Prehook Regression] DDTrace\trace_method() can trace with internal spans
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 use DDTrace\SpanData;
 
 class Test
@@ -74,8 +77,8 @@ var_dump($ret);
 
 echo "---\n";
 
-var_dump(dd_trace_serialize_closed_spans());
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 Test::testFoo()
@@ -92,9 +95,7 @@ array(3) {
 ---
 array(3) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -109,33 +110,32 @@ array(3) {
     string(10) "FooService"
     ["type"]=>
     string(7) "FooType"
-    ["meta"]=>
-    array(2) {
-      ["args.0"]=>
-      string(18) "tracing is awesome"
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(6) {
+    ["attributes"]=>
+    array(10) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
       float(%f)
+      ["_dd.svc_src"]=>
+      string(1) "m"
+      ["args.0"]=>
+      string(18) "tracing is awesome"
       ["foo"]=>
       float(100)
       ["bar"]=>
       float(0)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
   [1]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -152,16 +152,14 @@ array(3) {
     string(10) "FooService"
     ["type"]=>
     string(7) "FooType"
-    ["meta"]=>
+    ["attributes"]=>
     array(1) {
       ["rand.range"]=>
       string(8) "42 - 999"
     }
   }
   [2]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -176,20 +174,19 @@ array(3) {
     string(19) "dd_trace_method.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(4) {
+    ["attributes"]=>
+    array(6) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
-      float(%f)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      int(%d)
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

@@ -2,6 +2,7 @@
 DDTrace\add_global_tag() on all sorts of spans
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 DDTrace\add_global_tag("alone", ($_ = "n") . "o");
 DDTrace\add_global_tag("cubs", ($_ = "n") . "o");
@@ -22,16 +23,14 @@ test("arg");
 
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
 HOOK METHOD arg
 array(2) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -48,7 +47,7 @@ array(2) {
     string(49) "add_global_tag_on_userland_and_internal_spans.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["attributes"]=>
     array(2) {
       ["alone"]=>
       string(2) "no"
@@ -57,9 +56,7 @@ array(2) {
     }
   }
   [1]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -76,7 +73,7 @@ array(2) {
     string(49) "add_global_tag_on_userland_and_internal_spans.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["attributes"]=>
     array(2) {
       ["alone"]=>
       string(2) "no"

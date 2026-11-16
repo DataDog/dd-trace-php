@@ -1,9 +1,8 @@
 --TEST--
 Spans are automatically flushed when auto-flushing enabled
 --ENV--
-DD_TRACE_AUTO_FLUSH_ENABLED=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -33,14 +32,14 @@ echo PHP_EOL;
 --EXPECTF--
 3
 6
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 3 to send-queue for %s
 
 10
 15
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 3 to send-queue for %s
 
 21
 28
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 3 to send-queue for %s
 
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

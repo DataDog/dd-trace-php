@@ -1,0 +1,71 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Content Moderation module.
+ */
+
+use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Core\Link;
+
+/**
+ * Implements hook_requirements().
+ */
+function content_moderation_requirements($phase) {
+  $requirements = [];
+
+  if ($phase === 'runtime') {
+    $moduleHandler = \Drupal::moduleHandler();
+    $config = \Drupal::configFactory();
+    $legacy_views = [];
+    foreach ($config->listAll('views.view.') as $view_id) {
+      $view = $config->get($view_id);
+      foreach ($view->get('display') as $display) {
+        if (!empty($display['display_options']['relationships']['moderation_state'])) {
+          if ($moduleHandler->moduleExists('views_ui')) {
+            $view_name = Link::createFromRoute($view->get('label'), 'entity.view.edit_form', ['view' => $view->get('id')])->toString();
+          }
+          else {
+            $view_name = $view->get('label');
+          }
+          $legacy_views[] = $view_name;
+        }
+      }
+    }
+    if (!empty($legacy_views)) {
+      $requirements['deprecated_views_relationship'] = [
+        'title' => t('Content Moderation State views relationship'),
+        'description' => t('This installation contains one or more views which is using a relationship to the Content Moderation State entity. This relationship is deprecated and will be removed before 9.0.0. See <a target="_blank" href=":change_record">this change record</a> for information on removing this relationship or alternative solutions. Views that contain this relationship are: @views', [
+          ':change_record' => 'https://www.drupal.org/node/3061099',
+          '@views' => new FormattableMarkup(implode(', ', $legacy_views), []),
+        ]),
+        'severity' => REQUIREMENT_ERROR,
+      ];
+    }
+  }
+
+  return $requirements;
+}
+
+/**
+ * Remove the 'content_revision_tracker' table.
+ */
+function content_moderation_update_8401() {
+  $database_schema = \Drupal::database()->schema();
+  if ($database_schema->tableExists('content_revision_tracker')) {
+    $database_schema->dropTable('content_revision_tracker');
+  }
+}
+
+/**
+ * Set the 'owner' entity key and update the field.
+ */
+function content_moderation_update_8700() {
+  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+  $entity_type = $definition_update_manager->getEntityType('content_moderation_state');
+  $keys = $entity_type->getKeys();
+  $keys['owner'] = 'uid';
+  $entity_type->set('entity_keys', $keys);
+  $definition_update_manager->updateEntityType($entity_type);
+  $definition_update_manager->updateFieldStorageDefinition($definition_update_manager->getFieldStorageDefinition('uid', 'content_moderation_state'));
+}

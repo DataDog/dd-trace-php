@@ -1,0 +1,41 @@
+<?= $this->doctype() ?>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+<?php
+echo $this->headTitle('Laminas API Tools');
+
+echo $this->headMeta()->appendName('viewport', 'width=device-width, initial-scale=1.0');
+
+echo $this->headLink(['rel' => 'icon', 'type' => 'image/png', 'href' => $this->basePath('/img/favicon.png')])
+    ->prependStylesheet($this->basePath('/api-tools/css/main.min.css'))
+    ->prependStylesheet($this->basePath('/api-tools/css/bootstrap.min.css'));
+
+echo $this->headScript()
+    ->prependFile($this->basePath('/api-tools/js/bootstrap.min.js'))
+    ->prependFile($this->basePath('/api-tools/js/jquery.min.js'));
+?>
+</head>
+<body>
+    <div class="container">
+        <?= $this->content ?>
+    </div>
+    <footer>
+        <hr>
+        <div class="container center-block"><div class="row">
+            <div class="col-sm-4">
+                &copy; <?= date('Y') ?> <a href="https://getlaminas.org/">Laminas Project</a> a Series of LF Projects, LLC.
+            </div>
+
+            <div class="col-sm-4"><p class="center-block">
+                Laminas API Tools version <strong><?= \ApiTools\VERSION ?></strong>
+            </p></div>
+
+            <div class="col-sm-4"><p class="pull-right">
+                For more information <a href="https://api-tools.getlaminas.org">api-tools.getlaminas.org</a>
+            </p></div>
+        </div></div>
+    </footer>
+    <?= $this->inlineScript() ?>
+</body>
+</html>

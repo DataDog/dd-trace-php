@@ -7,7 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class StartupLoggingDiagnosticsTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }
@@ -22,12 +22,14 @@ final class StartupLoggingDiagnosticsTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_DEBUG' => true, // Startup logs only show in debug mode
             'DD_AGENT_HOST' => 'invalid_host', // Will fail diagnostic check
+            'DD_TRACE_SOURCES_PATH' => '/foo/invalid.php', // Will fail diagnostic check
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false', // Prevent sidecar errors from polluting the error log
         ]);
     }
 
-    protected function ddSetUp()
+    public static function ddSetUpBeforeClass()
     {
-        parent::ddSetUp();
+        parent::ddSetUpBeforeClass();
 
         // clear out any previous logs
         $log = self::getAppErrorLog();
@@ -39,7 +41,7 @@ final class StartupLoggingDiagnosticsTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getInis(), [
             'error_log' => self::getAppErrorLog(),
-            'ddtrace.request_init_hook' => '/foo/invalid.php', // Will fail diagnostic check
+            'datadog.trace.sources_path' => '/foo/invalid.php', // Will fail diagnostic check
         ]);
     }
 
@@ -53,6 +55,6 @@ final class StartupLoggingDiagnosticsTest extends WebFrameworkTestCase
         $contents = \file_get_contents(self::getAppErrorLog());
 
         self::assertStringContains('DATADOG TRACER DIAGNOSTICS - agent_error:', $contents);
-        self::assertStringContains('DATADOG TRACER DIAGNOSTICS - datadog.trace.request_init_hook_reachable:', $contents);
+        self::assertStringContains('DATADOG TRACER DIAGNOSTICS - datadog.trace.sources_path_reachable:', $contents);
     }
 }

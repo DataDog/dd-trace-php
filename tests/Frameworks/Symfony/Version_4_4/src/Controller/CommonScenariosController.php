@@ -32,11 +32,39 @@ class CommonScenariosController extends AbstractController
     }
 
     /**
+     * @Route("/dynamic_route/{param01}/{param02?}", name="dynamic route with optionals")
+     */
+    public function dynamicWithOptionalsAction($param01, $param02)
+    {
+        return new Response(
+            'Hi!'
+        );
+    }
+
+    /**
      * @Route("/error", name="error")
      * @throws \Exception
      */
     public function errorAction(Request $request)
     {
         throw new \Exception('An exception occurred');
+    }
+
+    /**
+     * @Route("/behind_auth", name="behind_auth")
+     */
+    public function behindAuthAction(Request $request)
+    {
+        // replace this example code with whatever you need
+        return new Response('Hi!');
+    }
+
+    /**
+     * @Route("/telemetry", name="telemetry")
+     */
+    public function telemetryAction(Request $request)
+    {
+        dd_trace_internal_fn("finalize_telemetry");
+        return new Response('Done');
     }
 }

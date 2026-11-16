@@ -10,8 +10,6 @@ use DDTrace\Tests\Common\IntegrationTestCase;
  */
 abstract class CLITestCase extends IntegrationTestCase
 {
-    use AgentReplayerTrait;
-
     /**
      * The location of the script to execute
      *
@@ -27,12 +25,16 @@ abstract class CLITestCase extends IntegrationTestCase
     protected static function getEnvs()
     {
         $envs = [
-            'DD_TRACE_CLI_ENABLED' => 'true',
-            'DD_AGENT_HOST' => 'request-replayer',
-            'DD_TRACE_AGENT_PORT' => '80',
+            'DD_AGENT_HOST' => 'test-agent',
+            'DD_TRACE_AGENT_PORT' => '9126',
             // Uncomment to see debug-level messages
-            //'DD_TRACE_DEBUG' => 'true',
+            'DD_TRACE_DEBUG' => 'true',
             'DD_TEST_INTEGRATION' => 'true',
+            'DD_TRACE_AUTO_FLUSH_ENABLED' => 'false',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
+            'DD_TRACE_SHUTDOWN_TIMEOUT' => '666666', // Arbitrarily high value to avoid flakiness
+            'DD_TRACE_AGENT_RETRIES' => '3',
+            'DD_TRACE_AGENT_TEST_SESSION_TOKEN' => ini_get("datadog.trace.agent_test_session_token"),
         ];
         return $envs;
     }
@@ -45,7 +47,7 @@ abstract class CLITestCase extends IntegrationTestCase
     protected static function getInis()
     {
         return [
-            'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+            'datadog.trace.sources_path' => __DIR__ . '/../../src',
             // Enabling `strict_mode` disables debug mode
             //'ddtrace.strict_mode' => '1',
         ];
@@ -72,13 +74,30 @@ abstract class CLITestCase extends IntegrationTestCase
      */
     public function getAgentRequestFromCommand($arguments = '', $overrideEnvs = [])
     {
+        $this->executeCommand($arguments, $overrideEnvs);
+        $isTraceRequest = $this->untilFirstTraceRequest();
+        foreach ($this->retrieveDumpedData($isTraceRequest) as $request) {
+            if ($isTraceRequest($request)) {
+                return $request;
+            }
+        }
+        return [];
+    }
+
+    /**
+     * Run a command from the CLI.
+     *
+     * @param string $arguments
+     * @param array $overrideEnvs
+     */
+    public function executeCommand($arguments = '', $overrideEnvs = [])
+    {
         $envs = (string) new EnvSerializer(array_merge([], static::getEnvs(), $overrideEnvs));
         $inis = (string) new IniSerializer(static::getInis());
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);
-        $commandToExecute = "$envs php $inis $script $arguments";
-        `$commandToExecute`;
-        return $this->getLastAgentRequest();
+        $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
+        shell_exec($commandToExecute);
     }
 
     /**
@@ -86,11 +105,11 @@ abstract class CLITestCase extends IntegrationTestCase
      *
      * @return array
      */
-    private function loadTraces($request)
+    public function loadTraces($request)
     {
         if (!isset($request['body'])) {
             return [];
         }
-        return json_decode($request['body'], true);
+        return $this->parseRawDumpedTraces(json_decode($request['body'], true));
     }
 }

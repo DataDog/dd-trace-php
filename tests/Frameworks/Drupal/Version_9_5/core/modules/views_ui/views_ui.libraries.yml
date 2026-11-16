@@ -1,0 +1,40 @@
+views_ui.admin:
+  version: VERSION
+  js:
+    js/ajax.js: {}
+    js/dialog.views.js: {}
+    js/views-admin.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+    - core/jquery.once.bc
+    - core/internal.jquery.form
+    - core/drupal.form
+    - core/drupal.ajax
+    - core/drupal.dropbutton
+    - core/drupal.nodelist.foreach
+    - views/views.ajax
+    - views_ui/admin.styling
+
+views_ui.listing:
+  version: VERSION
+  js:
+    js/views_ui.listing.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupal.string.includes
+    - core/once
+    - core/jquery.once.bc
+    - views_ui/admin.styling
+
+admin.styling:
+  version: VERSION
+  css:
+    component:
+      css/views_ui.admin.css: {}
+    theme:
+      css/views_ui.admin.theme.css: {}
+      css/views_ui.contextual.css: {}

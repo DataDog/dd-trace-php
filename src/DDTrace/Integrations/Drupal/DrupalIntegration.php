@@ -1,0 +1,465 @@
+<?php
+
+namespace DDTrace\Integrations\Drupal;
+
+use DDTrace\HookData;
+use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
+use DDTrace\SpanKind;
+use DDTrace\Tag;
+use DDTrace\Type;
+use DDTrace\Util\ObjectKVStore;
+use Drupal\Core\EventSubscriber\MainContentViewSubscriber;
+use function DDTrace\active_span;
+use function DDTrace\hook_method;
+use function DDTrace\install_hook;
+use function DDTrace\remove_hook;
+use function DDTrace\set_user;
+use function DDTrace\trace_method;
+
+class DrupalIntegration extends Integration
+{
+    const NAME = 'drupal';
+
+    public static function init(): int
+    {
+        ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
+
+        trace_method(
+            'Drupal\Core\DrupalKernel',
+            'handle',
+            [
+                'prehook' => static function (SpanData $span) {
+                    // A pre-hook is used here to ensure that the root span name is set before the symfony integration
+                    // checks for it.
+                    $service = \dd_trace_env_config('DD_SERVICE') ?: 'drupal';
+
+                    $rootSpan = \DDTrace\root_span();
+                    $rootSpan->name = 'drupal.request';
+                    $rootSpan->service = $service;
+                    Integration::tagFrameworkServiceSource($rootSpan, 'drupal');
+                    $rootSpan->spanKind = SpanKind::SERVER;
+                    $rootSpan->component = self::NAME;
+
+                    $span->name = 'drupal.kernel.handle';
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $service;
+                    Integration::tagFrameworkServiceSource($span, 'drupal');
+                    $span->spanKind = SpanKind::SERVER;
+                    $span->component = self::NAME;
+                }
+            ]
+        );
+
+        $stackedHttpKernelTracer = static function (SpanData $span) {
+            $span->name = 'drupal.httpkernel.handle';
+            $span->type = Type::WEB_SERVLET;
+            Integration::setComponentMetadata($span, 'drupal');
+        };
+        // See Drupal\Core\DependencyInjection\Compiler\StackedKernelPass
+        // If a middleware is tagged with 'responder' => true, then the underlying middleware and the HTTP kernel
+        // are flagged as 'lazy', meaning Symfony\Component\HttpKernel\HttpKernel::handle() may not be called.
+        // Drupal 9-
+        trace_method('Stack\StackedHttpKernel', 'handle', $stackedHttpKernelTracer);
+        // Drupal 10+
+        trace_method('Drupal\Core\StackMiddleware\StackedHttpKernel', 'handle', $stackedHttpKernelTracer);
+
+        trace_method(
+            'Drupal\Core\DrupalKernel',
+            'boot',
+            [
+                'prehook' => static function (SpanData $span) {
+                    $span->name = 'drupal.kernel.boot';
+                    $span->type = Type::WEB_SERVLET;
+                    Integration::setComponentMetadata($span, 'drupal');
+                }
+            ]
+        );
+
+        // Cache Metrics (Cache hit/miss) - TBC
+        /*
+        hook_method(
+            'Drupal\Core\Cache\CacheBackendInterface',
+            'getMultiple',
+            static function ($cacheBackend, $scope, $args) {
+                $candidates = count($args[0]);
+            },
+            static function ($cacheBackend, $scope, $args, $retval) {
+                $hits = count($args[0]); // the &cids parameter is modified by reference to match the cache hits
+            }
+        );
+        */
+
+        // Module and Hook Metrics
+        /*
+        hook_method(
+            'Drupal\Core\Extension\ModuleHandler',
+            'invokeAllWith',
+            static function ($moduleHandler, $scope, $args) {
+                // @var string $hook
+                $hook = $args[0];
+                // @var callable $callback
+                $callback = $args[1];
+
+                install_hook(
+                    $callback,
+                    static function (HookData $callbackHookData) use ($hook) {
+                        // callback's signature: (callable $hook, string $module)
+                        $args = $callbackHookData->args;
+                        $module = $args[1];
+
+                        $functionName = $module . '_' . $hook;
+                        install_hook(
+                            $functionName,
+                            static function (HookData $fnHookData) use ($hook, $module, $functionName) {
+                                // Create a span as a metric workaround
+                                $span = $fnHookData->span();
+                                $span->name = 'drupal.hook.' . $hook;
+                                $span->type = Type::WEB_SERVLET;
+                                Integration::setComponentMetadata($span, 'drupal');
+
+                                $span->attributes['drupal.hook'] = $hook;
+                                $span->attributes['drupal.module'] = $module;
+                                $span->attributes['drupal.function'] = $functionName;
+
+                                remove_hook($fnHookData->id);
+                            }
+                        );
+
+                        remove_hook($callbackHookData->id);
+                    }
+                );
+            }
+        );
+        */
+
+        install_hook(
+            'Drupal\Core\Extension\ModuleHandler::invokeAllWith',
+            static function (HookData $hookData) {
+                /** @var string $hook */
+                $hook = $hookData->args[0];
+                /** @var callable $callback */
+                $callback = $hookData->args[1];
+
+                if ($hook === 'cron') {
+                    $hookData->data = install_hook(
+                        $callback,
+                        static function (HookData $callbackHookData) use ($hook) {
+                            // callback's signature: (callable $hook, string $module)
+                            $args = $callbackHookData->args;
+                            $module = $args[1];
+
+                            $functionName = $module . '_' . $hook;
+                            install_hook(
+                                $functionName,
+                                static function (HookData $fnHookData) use ($hook, $module, $functionName) {
+                                    $span = $fnHookData->span();
+                                    $span->name = 'drupal.hook.' . $hook;
+                                    $span->type = Type::WEB_SERVLET;
+                                    Integration::setComponentMetadata($span, 'drupal');
+                                    $span->resource = $functionName;
+
+                                    $span->attributes['drupal.hook'] = $hook;
+                                    $span->attributes['drupal.module'] = $module;
+                                    $span->attributes['drupal.function'] = $functionName;
+
+                                    remove_hook($fnHookData->id);
+                                }
+                            );
+                        }
+                    );
+                }
+            }, static function (HookData $hookData) {
+                if (isset($hookData->data)) {
+                    remove_hook($hookData->data);
+                }
+            }
+        );
+
+        // View Metrics
+        /*
+        install_hook(
+            'Drupal\views\ViewExecutable::execute',
+            function (HookData $hook) {
+                // Create a span as a metric workaround
+                $span = $hook->span();
+                $span->name = 'drupal.view.execute';
+                $span->type = Type::WEB_SERVLET;
+                Integration::setComponentMetadata($span, 'drupal');
+
+                // @var \Drupal\views\Entity\View $storage
+                $storage = $this->storage;
+
+                if (method_exists($storage, 'label')) {
+                    $label = $storage->label();
+                    if (is_string($label)) {
+                        $span->attributes['drupal.view'] = $label;
+                    }
+                }
+            }
+        );
+        */
+
+        hook_method(
+            'Drupal\Core\Theme\ThemeManager',
+            'setThemeRegistry',
+            static function ($themeManager, $scope, $args) {
+                // The theme registry is otherwise protected
+                ObjectKVStore::put($themeManager, 'theme_registry', $args[0]);
+            }
+        );
+
+        hook_method(
+            'Drupal\Core\Theme\Registry',
+            '__construct',
+            static function ($registry, $scope, $args) {
+                // The theme is otherwise protected
+                // _construct($root, $cache, $lock, $module_handler, $theme_handler, $theme_initialization, $theme_name, $runtime_cache, $module_list)
+                ObjectKVStore::put($registry, 'theme_name', $args[6]);
+            }
+        );
+
+        // The span of the executing ThemeManager::render frame. The render function is hooked in its
+        // own frame, so it cannot reach that span on its own.
+        $renderSpan = null;
+        $legacyRenderHooks = [];
+
+        $tagTemplateFile = static function ($file) use (&$renderSpan) {
+            if ($renderSpan) {
+                $renderSpan->attributes['drupal.template.file'] = $file;
+            }
+        };
+
+        $tagLegacyRender = static function (HookData $renderHook) use ($tagTemplateFile) {
+            $tagTemplateFile($renderHook->args[0]);
+        };
+        // Twig is both the default engine and core's fallback when {engine}_render_template() is
+        // missing, and the deprecated global does not delegate to the 11.3+ service.
+        $legacyRenderHooks['twig'] = install_hook('twig_render_template', $tagLegacyRender);
+
+        // Drupal 11.3+ renders through a theme_engine service instead of {engine}_render_template().
+        install_hook(
+            'Drupal\Core\Theme\ThemeEngineInterface::renderTemplate',
+            static function (HookData $hook) use ($tagTemplateFile) {
+                $file = $hook->args[0];
+                // Core passes the path without its extension here; re-append it to keep the pre-11.3 value.
+                if (isset($hook->instance) && $hook->instance instanceof \Drupal\Core\Template\TwigThemeEngine) {
+                    $file .= '.html.twig';
+                }
+                $tagTemplateFile($file);
+            }
+        );
+
+        install_hook(
+            'Drupal\Core\Theme\ThemeManager::render',
+            function (HookData $hookData) use (&$renderSpan, &$legacyRenderHooks, $tagLegacyRender) {
+                // install_hook, unlike trace_method, still runs both callbacks past the span limit;
+                // clearing $renderSpan keeps this frame's template off the enclosing render's span.
+                if (\dd_trace_tracer_is_limited()) {
+                    $hookData->data = $renderSpan;
+                    $renderSpan = null;
+                    return;
+                }
+
+                $span = $hookData->span();
+                $hookData->data = $renderSpan;
+                $renderSpan = $span;
+
+                $span->name = 'drupal.theme.render';
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'drupal';
+                Integration::tagFrameworkServiceSource($span, 'drupal');
+                $span->type = Type::WEB_SERVLET;
+                $span->component = DrupalIntegration::NAME;
+
+                /** @var \Drupal\Core\Theme\ThemeManager $this */
+                $activeTheme = $this->getActiveTheme();
+                $themeName = $activeTheme->getName();
+                $themeEngine = $activeTheme->getEngine();
+
+                if (!empty($themeName)) {
+                    $span->attributes['drupal.render.theme'] = $themeName;
+                }
+
+                if (empty($themeEngine)) {
+                    return;
+                }
+                $span->attributes['drupal.render.engine'] = $themeEngine;
+
+                // Drupal <= 11.2 renders through the {engine}_render_template() global. One hook per
+                // engine name for the whole request; $renderSpan does the attribution.
+                if (!isset($legacyRenderHooks[$themeEngine])) {
+                    $legacyRenderHooks[$themeEngine] =
+                        install_hook("{$themeEngine}_render_template", $tagLegacyRender);
+                }
+            },
+            function (HookData $hookData) use (&$renderSpan) {
+                // $renderSpan is this frame's span, or null when the begin callback bailed out
+                // past the span limit. $hookData->data holds the enclosing render's span.
+                $span = $renderSpan;
+                $renderSpan = $hookData->data;
+                if (!$span) {
+                    return;
+                }
+
+                /** @var null|\Drupal\Core\Theme\Registry $themeRegistry */
+                $themeRegistry = ObjectKVStore::get($this, 'theme_registry');
+                if (!$themeRegistry) {
+                    return;
+                }
+
+                $runtimeThemeRegistry = $themeRegistry->getRuntime();
+                $hook = $hookData->args[0];
+
+                if (is_array($hook)) {
+                    foreach ($hook as $candidate) {
+                        if ($runtimeThemeRegistry->has($candidate)) {
+                            break;
+                        }
+                    }
+                    $hook = $candidate;
+                }
+
+                $originalHook = $hook;
+
+                if (!$runtimeThemeRegistry->has($hook)) {
+                    // Iteratively strip everything after the last '__' delimiter, until an
+                    // implementation is found
+                    while ($pos = strrpos($hook, '__')) {
+                        $hook = substr($hook, 0, $pos);
+                        if ($runtimeThemeRegistry->has($hook)) {
+                            break;
+                        }
+                    }
+                }
+
+                if (!$runtimeThemeRegistry->has($hook)) {
+                    $span->attributes['drupal.render.hook'] = $span->resource = $originalHook;
+                    return;
+                }
+
+                $span->attributes['drupal.render.hook'] = $span->resource = $hook;
+                $info = $runtimeThemeRegistry->get($hook);
+
+                if (isset($info['base hook'])) {
+                    $span->attributes['drupal.render.base_hook'] = $info['base hook'];
+                }
+
+                if (isset($info['type'])) {
+                    $span->attributes['drupal.render.type'] = $info['type'];
+                }
+
+                if (isset($info['render element'])) {
+                    $span->attributes['drupal.render.element'] = $info['render element'];
+                }
+
+                if (isset($info['template'])) {
+                    $span->attributes['drupal.template.template'] = $info['template'];
+                }
+
+                if (isset($info['function'])) {
+                    $span->attributes['drupal.render.theme_function'] = $info['function'];
+                }
+
+                if (isset($info['path'])) {
+                    // The template can be from a different theme than the active one
+                    // Format: '.../themes/<theme_name>/...'
+                    $path = $info['path'];
+                    $themePathStart = strpos($path, '/themes/');
+                    if ($themePathStart !== false) {
+                        $themePath = substr($path,  $themePathStart + 8); // Between '/themes/', 8 = strlen('/themes/')
+                        $themePath = substr($themePath, 0, strpos($themePath, '/')); // Until the next '/'
+                        $span->attributes['drupal.template.theme'] = $themePath;
+                    }
+                }
+            }
+        );
+
+        hook_method(
+            'Drupal\Core\EventSubscriber\MainContentViewSubscriber',
+            '__construct',
+            static function ($mainContViewSubscriber, $scope, $args) {
+                // These are otherwise protected
+                $classResolver = $args[0];
+                $mainContentRenderers = $args[2];
+                ObjectKVStore::put($mainContViewSubscriber, 'class_resolver', $classResolver);
+                ObjectKVStore::put($mainContViewSubscriber, 'main_content_renderers', $mainContentRenderers);
+            }
+        );
+
+        hook_method(
+            'Drupal\Core\EventSubscriber\MainContentViewSubscriber',
+            'onViewRenderArray',
+            null,
+            static function ($mainContViewSubscriber, $scope, $args) {
+                // Called on the kernel.view event => active span should be symfony.kernel.view
+                $span = active_span();
+
+                if ($span->name === 'symfony.kernel.view') {
+                    $classResolver = ObjectKVStore::get($mainContViewSubscriber, 'class_resolver');
+                    $mainContentRenderers = ObjectKVStore::get($mainContViewSubscriber, 'main_content_renderers');
+
+                    /** @var \Symfony\Component\HttpKernel\Event\ViewEvent $event */
+                    $event = $args[0];
+                    $request = $event->getRequest();
+                    $result = $event->getControllerResult();
+                    if ($classResolver
+                        && $mainContentRenderers
+                        && is_array($result)
+                        && ($request->query->has(MainContentViewSubscriber::WRAPPER_FORMAT)
+                            || $request->getRequestFormat() == 'html'
+                        )
+                    ) {
+                        $wrapper = $request->query->get(MainContentViewSubscriber::WRAPPER_FORMAT, 'html');
+
+                        // Fall back to HTML if the requested wrapper envelope is not available.
+                        $wrapper = isset($mainContentRenderers[$wrapper]) ? $wrapper : 'html';
+
+                        $renderer = $classResolver->getInstanceFromDefinition($mainContentRenderers[$wrapper]);
+                        if ($renderer) {
+                            $span->resource = get_class($renderer);
+                        }
+                    }
+                }
+            }
+        );
+
+        trace_method(
+            'Symfony\Component\HttpFoundation\Response',
+            'send',
+            static function (SpanData $span) {
+                $span->name = 'symfony.response.send';
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'drupal';
+                Integration::tagFrameworkServiceSource($span, 'drupal');
+                $span->type = Type::WEB_SERVLET;
+                $span->component = self::NAME;
+            }
+        );
+
+        hook_method(
+            'Drupal\Core\Session\AccountProxy',
+            'setAccount',
+            static function ($This, $scope, $args) {
+                if (!\DDTrace\root_span()) {
+                    return;
+                }
+
+                $account = $args[0];
+                if ($account instanceof \Drupal\Core\Session\AccountInterface) {
+                    $metadata = [
+                        'login' => $account->getAccountName(),
+                        'username' => $account->getDisplayName(),
+                        'email' => $account->getEmail(),
+                    ];
+
+                    $metadata = array_filter($metadata, static function ($value) {
+                        return !empty($value);
+                    });
+
+                    set_user($account->id(), $metadata);
+                }
+            }
+        );
+
+        return Integration::LOADED;
+    }
+}

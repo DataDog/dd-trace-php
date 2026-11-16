@@ -1,0 +1,17 @@
+{
+    "autoload": {
+        "psr-4": {
+            "RandomizedTests\\": "./src/RandomizedTests"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "require": {
+        "elasticsearch/elasticsearch": "^8.0",
+        "guzzlehttp/guzzle": "7.*",
+        "datadog/dd-trace": "0.82.0"
+    }
+}

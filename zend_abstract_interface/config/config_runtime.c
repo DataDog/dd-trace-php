@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include <main/php.h>
 
 #include "config.h"
@@ -22,7 +23,7 @@ void zai_config_runtime_config_ctor(void) {
     if (runtime_config_initialized == true) return;
     runtime_config = emalloc(sizeof(zval) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
 
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         ZVAL_COPY(&runtime_config[i], &zai_config_memoized_entries[i].decoded_value);
     }
     runtime_config_initialized = true;
@@ -30,7 +31,7 @@ void zai_config_runtime_config_ctor(void) {
 
 void zai_config_runtime_config_dtor(void) {
     if (runtime_config_initialized != true) return;
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zval_ptr_dtor(&runtime_config[i]);
     }
     efree(runtime_config);
@@ -55,9 +56,9 @@ void zai_config_register_config_id(zai_config_name *name, zai_config_id id) {
     zend_hash_str_add(&zai_config_name_map, name->ptr, name->len, &tmp);
 }
 
-bool zai_config_get_id_by_name(zai_string_view name, zai_config_id *id) {
+bool zai_config_get_id_by_name(zai_str name, zai_config_id *id) {
     if (!zai_config_name_map.nTableSize) return false;
-    if (!zai_string_stuffed(name) || !id) return false;
+    if (zai_str_is_empty(name) || !id) return false;
 
     assert(name.ptr && name.len && id);
     if (!zai_config_name_map.nTableSize) {

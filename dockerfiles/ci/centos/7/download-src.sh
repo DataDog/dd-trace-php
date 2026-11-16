@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -e
 
 if [ -z "$SRC_DIR" ]; then
@@ -13,6 +14,6 @@ name="${1}"
 url="${2}"
 
 mkdir -p "${SRC_DIR}/${name}"
-curl -fsSL -o "/tmp/${name}.tar.gz" "${url}"
+curl -fvSL --tlsv1.3 -o "/tmp/${name}.tar.gz" "${url}"
 tar xf "/tmp/${name}.tar.gz" -C "${SRC_DIR}/${name}" --strip-components=1
 rm -f "/tmp/${name}.tar.gz"

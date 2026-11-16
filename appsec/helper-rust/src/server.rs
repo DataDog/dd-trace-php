@@ -1,0 +1,57 @@
+use tokio::sync::mpsc;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
+
+use datadog_sidecar::service::telemetry::InProcessTelemetryClientFactory;
+
+use crate::client::{self, Client};
+use crate::rc_notify;
+use crate::service::ServiceManager;
+
+/// Start accepting helper messages from sidecar.
+///
+/// Returns a tracker that can be closed and awaited during shutdown.
+pub fn accept_appsec_messages(
+    runtime_handle: tokio::runtime::Handle,
+    cancel_token: CancellationToken,
+    telemetry: InProcessTelemetryClientFactory,
+) -> TaskTracker {
+    log::info!("Starting to listen for helper messages from sidecar");
+
+    // Create service manager with 'static lifetime
+    // We leak it since it needs to live for the entire process lifetime
+    let service_manager: &'static ServiceManager = Box::leak(Box::new(ServiceManager::new()));
+    let client_task_tracker = TaskTracker::new();
+    let task_tracker = client_task_tracker.clone();
+
+    // Register for RC update callbacks from the sidecar
+    rc_notify::register_for_rc_notifications(service_manager);
+
+    client::start_accepting_messages(
+        // new_client callback:
+        Box::new(move |session| {
+            let client = Client::new(service_manager, telemetry.clone(), session);
+            log::info!("Created client: id {}", client.id);
+            let client_id = client.id;
+
+            let (tx, rx) = mpsc::channel(5);
+
+            let cancel_token = cancel_token.clone();
+
+            let client_future = task_tracker.track_future(async move {
+                client.entrypoint(rx, cancel_token).await;
+                log::debug!("Client future of client {client_id} completed");
+            });
+
+            runtime_handle.spawn(client_future);
+
+            tx
+        }),
+    );
+
+    client_task_tracker
+}
+
+pub fn stop_accepting_appsec_messages() {
+    rc_notify::unregister_for_rc_notifications();
+    client::stop_accepting_messages();
+}

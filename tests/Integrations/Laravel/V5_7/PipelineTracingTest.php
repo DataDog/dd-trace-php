@@ -4,17 +4,14 @@ namespace DDTrace\Tests\Integrations\Laravel\V5_7;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class PipelineTracingTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-    use SpanAssertionTrait;
+    public static $database = "laravel57";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
     }
@@ -35,8 +32,9 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ]),
                 ]),
         ]);
@@ -58,16 +56,18 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ]),
                     SpanAssertion::build(
                         'laravel.pipeline.pipe',
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ]),
                 ]),
         ]);

@@ -14,7 +14,7 @@
 
 // Converts the env name to an INI name
 // Max buffer: ZAI_CONFIG_NAME_BUFSIZ
-typedef void (*zai_config_env_to_ini_name)(zai_string_view env_name, zai_config_name *ini_name);
+typedef void (*zai_config_env_to_ini_name)(zai_str env_name, zai_config_name *ini_name);
 
 void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_number);
 void zai_config_ini_rinit();
@@ -28,11 +28,16 @@ void zai_config_ini_mshutdown();
  * but these get applied before first time rinit. So we need to find the highest priority ini value
  * and apply these as runtime config to all other values
  */
-int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf,
-                                        zai_string_view default_value, zai_config_id entry_id);
+int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
+                                        int16_t ini_count,
+                                        zai_option_str *buf,
+                                        zai_str default_value,
+                                        zai_config_id entry_id);
 
-typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value);
+typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value, zend_string *new_str);
+typedef bool (*zai_env_config_fallback)(zai_env_buffer *buf, bool pre_rinit);
 
-bool zai_config_system_ini_change(zval *old_value, zval *new_value);
+bool zai_config_system_ini_change(zval *old_value, zval *new_value, zend_string *new_str);
 
 bool zai_config_is_modified(zai_config_id entry_id);
+void zai_config_change_default_ini(zai_config_id entry_id, zai_str str);

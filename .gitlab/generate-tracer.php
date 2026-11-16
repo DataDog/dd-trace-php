@@ -1,0 +1,1011 @@
+<?php
+
+include "generate-common.php";
+
+preg_match('(^\.services(.*?)\n(\S|\Z))ms', file_get_contents(__DIR__ . "/generate-common.php"), $m);
+
+preg_match_all('(^  (\S*):)m', $m[1], $m, PREG_PATTERN_ORDER);
+$services = array_combine($m[1], $m[1]);
+
+const ASSERT_NO_MEMLEAKS = ' 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }';
+
+const ZTS_MAKE_TARGETS = ['test_integrations_frankenphp'];
+
+function after_script($execute_dir = ".", $has_test_agent = false) {
+?>
+
+  artifacts:
+    reports:
+      junit: "artifacts/tests/php-tests.xml"
+    paths:
+      - "artifacts/"
+    when: "always"
+  after_script:
+<?php if ($has_test_agent): ?>
+    - .gitlab/check_test_agent.sh
+<?php endif; ?>
+    - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src/"
+<?php
+}
+
+function sidecar_logs() {
+?>
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+    _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
+<?php
+}
+
+function before_script_steps($with_docker_auth = false) {
+    if ($with_docker_auth) dockerhub_login();
+    unset_dd_runner_env_vars();
+?>
+
+    - switch-php "${SWITCH_PHP_VERSION}"
+    - git config --global --add safe.directory "${CI_PROJECT_DIR}"
+    - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
+    - mkdir -p tmp/build_extension/modules artifacts
+    - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "tmp/build_extension/modules/"
+<?php
+}
+?>
+
+stages:
+  - compile
+  - test
+  - "integrations test"
+  - "web test"
+  - "aggregate versions"
+
+#variables:
+#  CI_DEBUG_SERVICES: "true"
+
+<?php function agent_httpbin_service() { ?>
+    - !reference [.services, test-agent]
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
+<?php } ?>
+
+"compile extension: debug":
+  stage: compile
+  tags: [ "arch:${ARCH}" ]
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: *all_minor_major_targets
+        ARCH: *arch_targets
+  variables:
+    host_os: linux-gnu
+    WITH_ASAN: "0"
+    CARGO_HOME: "/rust/cargo/"
+    SWITCH_PHP_VERSION: "debug"
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script: .gitlab/compile_extension.sh
+  after_script: |
+    export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
+    mkdir -p "${out_dir}"
+    mv "tmp/build_extension/modules/ddtrace.so" "${out_dir}"
+  artifacts:
+    paths:
+      - "VERSION"
+      - "modules/"
+
+"compile extension: debug-zts-asan":
+  extends: "compile extension: debug"
+  variables:
+    WITH_ASAN: "1"
+    SWITCH_PHP_VERSION: "debug-zts-asan"
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: *asan_minor_major_targets
+        ARCH: *arch_targets
+
+<?php
+function windows_test_c_job($job_name, $thread_safety, $targets) {
+    $build_dir = $thread_safety === "zts" ? "Release_TS" : "Release";
+?>
+"<?= $job_name ?>":
+  stage: test
+  tags: [ "windows-v2:2019"]
+  needs: []
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: <?= json_encode($targets) ?>
+
+  variables:
+    CONTAINER_NAME: $CI_JOB_NAME_SLUG
+    GIT_STRATEGY: none
+    IMAGE: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
+  script: |
+<?php windows_git_setup() ?>
+
+    mkdir dumps
+
+    $names = @('httpbin-integration','request-replayer', $env:CONTAINER_NAME)
+    foreach ($n in $names) { try { docker rm -f $n | Out-Null } catch {} }
+    try { docker network rm net | Out-Null } catch {}
+
+    # Start the container network and services
+    docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+    # Force a pull so a runner with a stale cached digest doesn't skip the rebuilt image.
+    docker pull registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
+    docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
+    docker pull registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
+    docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
+    docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+
+    # Enable NTFS long path support so cargo's libgit2-based git checkouts of
+    # deeply nested dependencies (e.g. rust-tuf's interop-tests fixtures,
+    # pulled in via libdd-remote-config) don't fail with "path too long".
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name LongPathsEnabled -Value 1 -Type DWord"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local registry tweak, not network — fail fast (no retry)
+
+    # Build <?= $thread_safety ?>. PowerShell does not automatically fail when a
+    # native command returns non-zero, so propagate docker/nmake failures explicitly.
+    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php <?= $thread_safety ?>; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # Set test environment variables
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_TRACE_IGNORE_AGENT_SAMPLING_RATES 1; setx DD_TRACE_RATE_LIMIT 1000000"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # Exclude tests that deadlock the php-cgi SKIPIF skip-task on Windows.
+<?php foreach ([
+        "tests/ext/sandbox/hook_function/hook_does_not_leak_error.phpt",
+    ] as $win_excluded_test): ?>
+    docker exec ${CONTAINER_NAME} powershell.exe "Remove-Item -Force -ErrorAction SilentlyContinue C:\Users\ContainerAdministrator\app\<?= str_replace('/', '\\', $win_excluded_test) ?>"
+<?php endforeach ?>
+
+    # Run extension tests
+    # Write full WER dumps directly into the mounted artifact directory and
+    # keep WER enabled for every PHPT child process.
+    docker exec ${CONTAINER_NAME} powershell.exe -File C:\Users\ContainerAdministrator\app\.gitlab\enable-windows-test-dumps.ps1
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4; -q keeps the arg non-empty)
+    $runTestsJobs = if ([version]$env:PHP_MAJOR_MINOR -ge [version]'7.4') { '-j1' } else { '-q' }
+    docker exec -e _DD_DEBUG_SIDECAR_LOG_LEVEL=trace -e RUN_TESTS_JOBS=$runTestsJobs ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php $env:RUN_TESTS_JOBS -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
+  after_script:
+    - |
+        docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
+        exit 0
+    - |
+        # Try to stop the container, don't care if we fail
+        try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
+    - 'powershell -NoProfile -Command "try { docker logs request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker logs httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker rm -f request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker rm -f httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker network rm net } catch {}"'
+  artifacts:
+    when: always
+    paths:
+      - sidecar.log
+      - x64/<?= $build_dir ?>/php_ddtrace.dll
+      - x64/<?= $build_dir ?>/php_ddtrace.pdb
+      - dumps
+<?php
+}
+
+windows_test_c_job("windows test_c", "nts", $windows_minor_major_targets);
+
+echo "\n";
+
+// Oldest and newest supported Windows targets, kept in sync automatically.
+windows_test_c_job("windows test_c: zts", "zts", [
+    reset($windows_minor_major_targets),
+    end($windows_minor_major_targets),
+]);
+?>
+
+"macos test_c":
+  stage: test
+  tags: ["macos:tart"]
+  # Builds the extension from source: of the compile stage it only needs the generated bridge files.
+  needs:
+    - job: "Prepare code"
+      artifacts: true
+  image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sequoia-latest"
+  variables:
+    PHP_MACOS_VERSION: "8.5.9"
+    PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+    _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
+    # Enables tests gated by tests/ext/includes/skipif_no_dev_env.inc (see request-replayer
+    # setup below), matching the Linux/Windows jobs' dev-env-dependent test coverage.
+    DATADOG_HAVE_DEV_ENV: 1
+    PHP_CLI_SERVER_WORKERS: "16"
+    DD_REQUEST_DUMPER_FILE: dump.json
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - unset DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
+    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php llvm
+    - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
+    - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
+    - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
+    - ./buildconf --force
+    - |
+      export PATH="$(brew --prefix bison)/bin:$(brew --prefix libxml2)/bin:${PATH}"
+      export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+      export LDFLAGS="-L$(brew --prefix libxml2)/lib ${LDFLAGS:-}"
+      export CPPFLAGS="-I$(brew --prefix libxml2)/include ${CPPFLAGS:-}"
+      ./configure \
+        --prefix="${PHP_INSTALL_DIR}" \
+        --enable-debug \
+        --enable-zts \
+        --enable-pcntl \
+        --without-iconv \
+        --with-openssl="$(brew --prefix openssl)" \
+        --with-libxml \
+        --enable-mbstring \
+        --with-sodium \
+        --with-curl \
+        --enable-sockets \
+        --with-ffi
+    - make -j"$(sysctl -n hw.ncpu)"
+    - make install
+    - cd "${CI_PROJECT_DIR}"
+    # Use the pinned toolchain, including rust-src, and install the test tools.
+    - rustup component add rustfmt clippy
+    - |
+      # There's no Docker service network on the macOS Tart runner (unlike the Linux/Windows
+      # jobs' "request-replayer" service container), so run request-replayer as a native
+      # background process on loopback instead, and alias its hostname via /etc/hosts so
+      # tests that hardcode "request-replayer" (see tests/Common/TracerTestTrait.php et al.)
+      # resolve it the same way. Uses brew's php (bundles curl + gmp, both required -- see
+      # dockerfiles/services/request-replayer/linux.Dockerfile and index.php's
+      # UnpackOptions::BIGINT_AS_GMP) rather than our from-source test build, which has
+      # neither and is a separate, unrelated PHP install.
+      grep -q '[[:space:]]request-replayer$' /etc/hosts || sudo bash -c 'echo "127.0.0.1 request-replayer" >> /etc/hosts'
+      REQUEST_REPLAYER_PHP="$(brew --prefix php)/bin/php"
+      "${REQUEST_REPLAYER_PHP}" -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+      "${REQUEST_REPLAYER_PHP}" /tmp/composer-setup.php --install-dir=/tmp --filename=composer.phar
+      (cd dockerfiles/services/request-replayer/src && "${REQUEST_REPLAYER_PHP}" /tmp/composer.phar install --no-interaction)
+      # `sudo -b` (not `sudo ... &`): a non-interactive shell's `&` doesn't put the
+      # backgrounded job in its own process group, so it stays in sudo's -- and sudo,
+      # with pty allocation (common on macOS), waits for the whole process group to exit
+      # before returning. `-b` is sudo's own flag for backgrounding the command, so sudo
+      # itself returns immediately instead of waiting on this long-lived server. Even so,
+      # explicitly kill the server in after_script below (via its captured PID) rather than
+      # relying purely on detachment: the job still hung once even with -b, most likely
+      # some other inherited handle back to the runner's own output pipe, and killing it
+      # outright sidesteps whatever that is rather than chasing it further.
+      sudo -b bash -c "cd '${CI_PROJECT_DIR}/dockerfiles/services/request-replayer/src' && PHP_CLI_SERVER_WORKERS='${PHP_CLI_SERVER_WORKERS}' DD_REQUEST_DUMPER_FILE='${DD_REQUEST_DUMPER_FILE}' nohup '${REQUEST_REPLAYER_PHP}' -S 127.0.0.1:80 index.php < /dev/null > '${CI_PROJECT_DIR}/artifacts/request-replayer.log' 2>&1 & echo \$! > '${CI_PROJECT_DIR}/artifacts/request-replayer.pid'"
+  script:
+    - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
+    - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+    - php --version
+    - sh appsec/tests/run-body-parser-rust-tests.sh
+    - make -j"$(sysctl -n hw.ncpu)"
+    - timeout 20m make test_c
+    # GitLab's "step_script" (before_script + script) itself doesn't return while
+    # request-replayer is still alive -- confirmed by a run where the test suite finished
+    # cleanly (0 failures) but the job then sat idle until GitLab's own 1h job timeout
+    # killed it, with after_script never even starting. So kill it here, at the end of
+    # script itself, not only in after_script (kept below as a backstop for a failing
+    # script: that never reaches this line).
+    - test -f "${CI_PROJECT_DIR}/artifacts/request-replayer.pid" && sudo kill -9 "$(cat "${CI_PROJECT_DIR}/artifacts/request-replayer.pid")" || true
+  after_script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/diffs"
+    - find . -type f \( -name '*.diff' -o -name '*.mem' \) -not -path '*/vendor/*' -exec cp '{}' "${CI_PROJECT_DIR}/artifacts/diffs/" \; || true
+    - test -f "${CI_PROJECT_DIR}/artifacts/request-replayer.pid" && sudo kill -9 "$(cat "${CI_PROJECT_DIR}/artifacts/request-replayer.pid")" || true
+  artifacts:
+    when: always
+    reports:
+      junit: "artifacts/tests/php-tests.xml"
+    paths:
+      - "artifacts/"
+
+
+"Prepare code":
+  stage: compile
+  # Same image as the package "prepare code": composer and unzip are baked in, so no apt or getcomposer.org fetch.
+  image: registry.ddbuild.io/images/mirror/composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac
+  tags: [ "arch:amd64" ]
+  needs: []
+  variables:
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+  before_script:
+    - .gitlab/run-with-retryable-download.sh composer update --no-interaction
+  script:
+    - make generate
+  artifacts:
+    paths:
+      - src/bridge/_generated_*.php
+
+.base_test:
+  stage: test
+  tags: [ "arch:${ARCH}" ]
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  timeout: 60m
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    host_os: linux-gnu
+    COMPOSER_MEMORY_LIMIT: "-1"
+    DD_TRACE_ASSUME_COMPILED: "1"
+    DDAGENT_HOSTNAME: "127.0.0.1"
+    MAX_TEST_PARALLELISM: 8
+    TEST_FILES_DIR: "."
+    DATADOG_HAVE_DEV_ENV: 1
+    HTTPBIN_HOSTNAME: httpbin-integration
+    HTTPBIN_PORT: 8080
+    RUST_BACKTRACE: 1
+<?php sidecar_logs(); ?>
+  before_script:
+<?php before_script_steps(true) ?>
+    - .gitlab/wait-for-service-ready.sh
+
+.asan_test:
+  extends: .base_test
+  variables:
+    SWITCH_PHP_VERSION: debug-zts-asan
+    # Keep this at twice the default in libdatadog/datadog-sidecar/src/watchdog.rs;
+    # update it whenever that default changes.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
+    ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
+
+<?php
+foreach ($asan_minor_major_targets as $major_minor):
+    foreach ($arch_targets as $arch):
+?>
+"ASAN test_c: [<?= $major_minor ?>, <?= $arch ?>]":
+  extends: .asan_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "<?= $arch ?>"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    KUBERNETES_CPU_REQUEST: 6
+    KUBERNETES_CPU_LIMIT: 6
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    MAX_TEST_PARALLELISM: 2
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "<?= $arch ?>"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
+    - make test_c
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+
+"ASAN Internal api randomized tests: [<?= $major_minor ?>, <?= $arch ?>]":
+  extends: .asan_test
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "<?= $arch ?>"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "<?= $arch ?>"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_internal_api_randomized
+<?php after_script(); ?>
+
+<?php
+    endforeach;
+endforeach;
+?>
+
+<?php
+foreach ($asan_minor_major_targets as $major_minor):
+?>
+"ASAN init hook tests: [<?= $major_minor ?>]":
+  extends: .asan_test
+  services:
+    - !reference [.services, httpbin-integration]
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_with_init_hook
+<?php after_script(); ?>
+
+<?php if (version_compare($major_minor, "8.0", ">=")): ?>
+"ASAN test_c with multiple observers: [<?= $major_minor ?>]":
+  extends: .asan_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    KUBERNETES_CPU_REQUEST: 12
+    MAX_TEST_PARALLELISM: 4
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
+    ASAN_OPTIONS: "abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_stack_use_after_return=0"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
+    - make test_c_observer
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+<?php endif; ?>
+
+"ASAN Opcache tests: [<?= $major_minor ?>]":
+  extends: .asan_test
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_opcache
+<?php after_script(); ?>
+<?php
+endforeach;
+?>
+
+
+.debug_test:
+  extends: .base_test
+  variables:
+    SWITCH_PHP_VERSION: debug
+
+<?php
+foreach ($all_minor_major_targets as $major_minor):
+?>
+<?php /* Normal and valgrind passes run as separate jobs: valgrind is far
+   slower, so run in parallel. */ ?>
+"test_extension_ci: [<?= $major_minor ?>]":
+  extends: .debug_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_CPU_LIMIT: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+    # Match the CPU request.
+    MAX_TEST_PARALLELISM: 12
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
+  timeout: 20m
+  script:
+    # The junit upload only scans artifacts/; JUNIT_RESULTS_DIR defaults to the repo root.
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    # Run twice: shared state between .phpt tests only surfaces on a second pass.
+    - make test_extension_ci_normal JUNIT_RESULTS_DIR="${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_extension_ci_normal JUNIT_RESULTS_DIR="${CI_PROJECT_DIR}/artifacts/tests"
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+
+"test_extension_ci: [<?= $major_minor ?>, valgrind]":
+  extends: .debug_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
+    KUBERNETES_CPU_REQUEST: 24
+    KUBERNETES_CPU_LIMIT: 24
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    # Below the CPU request: each worker spawns its own valgrind process.
+    MAX_TEST_PARALLELISM: 20
+    # Memcheck roughly doubles the sidecar's physical memory accounting. Keep
+    # it instrumented, but give its watchdog the same allowance as ASAN jobs.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 4294967296
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
+  timeout: 30m
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_extension_ci_valgrind JUNIT_RESULTS_DIR="${CI_PROJECT_DIR}/artifacts/tests"
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+
+"Unit tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_unit PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
+
+<?php if (version_compare($major_minor, "8.0", ">=")): ?>
+"Feature flags tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_featureflags PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
+<?php endif; ?>
+
+"API unit tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_api_unit <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
+
+"Disabled test_c run: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+    KUBERNETES_CPU_REQUEST: 8
+    MAX_TEST_PARALLELISM: 16
+<?php else: /* no test parallelism */ ?>
+    KUBERNETES_CPU_REQUEST: 1
+  timeout: 40m
+<?php endif; ?>
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_c_disabled <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
+
+"Internal api randomized tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_internal_api_randomized
+<?php after_script(); ?>
+
+"Opcache tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
+    - make test_opcache
+<?php after_script("tmp/build_extension"); ?>
+
+"PHP Language Tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  services:
+    - !reference [.services, test-agent-standalone]
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    DD_TRACE_STARTUP_LOGS: "0"
+    DD_TRACE_WARN_CALL_STACK_DEPTH: "0"
+    DD_TRACE_GIT_METADATA_ENABLED: "0"
+    REPORT_EXIT_STATUS: "1"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+    SKIP_ONLINE_TESTS: "1"
+    WAIT_FOR: test-agent:9126
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_REQUEST: 7Gi
+    KUBERNETES_MEMORY_LIMIT: 7Gi
+<?php else: ?>
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_CPU_LIMIT: 1
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+<?php endif; ?>
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
+<?php if (!in_array($major_minor, ["7.4", "8.5"], true)): /* Limit telemetry overhead to two versions with parallel test runners. */ ?>
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
+<?php endif; ?>
+  timeout: 40m
+  retry:
+    max: 2
+    when:
+      - script_failure
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
+  script:
+    - make install_all
+    - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
+    - export DD_SERVICE=php-language-tests
+    - export DD_VERSION="$(php -n -r 'echo PHP_VERSION;')"
+    - .gitlab/run_php_language_tests.sh
+<?php after_script("/usr/local/src/php"); ?>
+<?php
+endforeach;
+?>
+
+.cli_integration_test:
+  extends: .base_test
+  variables:
+    DD_TRACE_TEST_SAPI: cli-server
+    COMPOSER_PROCESS_TIMEOUT: 0
+    KUBERNETES_CPU_REQUEST: 2 # generally one for PHP and one for the webserver
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    SWITCH_PHP_VERSION: debug
+    COMPOSER_VERSION: 2
+  before_script:
+<?php before_script_steps(true) ?>
+    - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then .gitlab/run-with-retryable-download.sh sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
+    - COMPOSER_MEMORY_LIMIT=-1 .gitlab/run-with-retryable-download.sh composer update --no-interaction # disable composer memory limit completely
+    - .gitlab/run-with-retryable-download.sh make composer_tests_update
+    - .gitlab/wait-for-service-ready.sh
+  script:
+    # The Fabric proxy changes network failure semantics in integration tests.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(".", true); ?>
+    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'frankenphp_error.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
+    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
+
+<?php
+
+// specific service maps:
+$services["elasticsearch1"] = "elasticsearch2";
+$services["elasticsearch8"] = "elasticsearch7";
+$services["elasticsearch_latest"] = "elasticsearch7";
+$services["magento"] = "elasticsearch7";
+$services["deferred_loading"] = "mysql";
+$services["deferred_loadin"] = "redis";
+$services["pdo"] = "mysql";
+$services["kafka"] = ["kafka", "zookeeper"];  // Overwrite auto-generated entry
+
+$jobs = [];
+// Every .cli_integration_test job writes a tested_versions_*.json; "aggregate tested versions" reads only those.
+$tested_versions_jobs = [];
+preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
+foreach ($matches as $m) {
+    $major_minor = "{$m["major"]}.{$m["minor"]}";
+    $type = strtolower($m["type"]);
+
+    preg_match_all('(\t\K[a-z0-9_]+)', $m["targets"], $targets, PREG_PATTERN_ORDER);
+    foreach ($targets[0] as $target) {
+        $jobs[$type][$target][] = $major_minor;
+    }
+}
+
+foreach ($jobs as $type => $type_jobs):
+    foreach ($type_jobs as $target => $versions):
+        $php_variant = in_array($target, ZTS_MAKE_TARGETS, true) ? "debug-zts-asan" : "debug";
+        foreach ($versions as $major_minor):
+            $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
+            if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
+                $sapis[] = "fpm-fcgi";
+            }
+            // Octane starts its own Swoole server before DD_TRACE_TEST_SAPI is read (tests/WebServer.php), so one cell is enough.
+            if (str_contains($target, "laravel_octane")) {
+                $sapis = ["cli-server"];
+            }
+            foreach ($sapis as $sapi):
+?>
+<?php $tested_versions_jobs[] = "$target: [$major_minor" . ($sapi ? ", $sapi" : "") . "]"; ?>
+"<?= end($tested_versions_jobs) ?>":
+  extends: .cli_integration_test
+  stage: "<?= $type ?> test"
+  needs:
+    - job: "compile extension: <?= $php_variant ?>"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  services:
+<?php agent_httpbin_service() ?>
+<?php if ($type == "web"): ?>
+    - !reference [.services, mysql]
+<?php endif; ?>
+<?php
+foreach ($services as $part => $service) {
+    if (str_contains($target, $part)) {
+        foreach ((array)$service as $svc) {
+            echo "    - !reference [.services, $svc]\n";
+        }
+    }
+}
+?>
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    MAKE_TARGET: "<?= $target ?>"
+    ARCH: "amd64"
+    SWITCH_PHP_VERSION: "<?= $php_variant ?>"
+<?php if ($php_variant === "debug-zts-asan"): ?>
+    # These are inherited by the SAPI the harness spawns, which is where we need them. detect_leaks is off on purpose: PHP and Go both leak plenty on a killed server.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
+    ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_leaks=0
+<?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+    # install-frankenphp.sh runs `go build`; fetch modules through Depot rather than proxy.golang.org directly, with no fallback to direct fetches.
+    GOPROXY: "https://depot-read-api-go.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+    GOPRIVATE: ""
+    GONOPROXY: "none"
+<?php endif; ?>
+<?php if ($sapi): ?>
+    DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
+<?php endif; ?>
+<?php if (str_contains($target, "kafka")): ?>
+    WAIT_FOR: zookeeper:2181 kafka-integration:9092
+    CI_DEBUG_SERVICES: "true"
+<?php endif; ?>
+<?php if (str_contains($target, "elasticsearch1")): ?>
+    WAIT_FOR: elasticsearch2-integration:9200
+<?php elseif (str_contains($target, "elasticsearch") || str_contains($target, "magento")): ?>
+    WAIT_FOR: elasticsearch7-integration:9200
+<?php endif; ?>
+<?php if (str_contains($target, "sqlsrv")): ?>
+    WAIT_FOR: sqlsrv-integration:1433
+<?php endif; ?>
+<?php if (preg_match("(test_web_symfony_(2|30|33|40))", $target)): ?>
+    COMPOSER_VERSION: 2.2
+<?php endif; ?>
+<?php if (preg_match("(test_web_laravel_octane)", $target)): ?>
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+<?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+  script:
+    # Build FrankenPHP as its own step, in the proxy-free env the harness gave it: from inside PHPUnit its exit 75 is lost.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - tooling/bin/install-frankenphp.sh || exit $?
+    - !reference [.cli_integration_test, script]
+<?php endif; ?>
+
+<?php
+            endforeach;
+        endforeach;
+    endforeach;
+endforeach;
+?>
+
+<?php
+foreach ($all_minor_major_targets as $major_minor):
+    foreach (["test_auto_instrumentation", "test_composer", "test_integration"] as $test):
+?>
+<?php $tested_versions_jobs[] = "$test: [$major_minor]"; ?>
+"<?= end($tested_versions_jobs) ?>":
+  extends: .cli_integration_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  services:
+<?php agent_httpbin_service() ?>
+    - !reference [.services, mongodb]
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    MAKE_TARGET: "<?= $test ?>"
+    ARCH: "amd64"
+<?php
+    endforeach;
+?>
+
+<?php foreach(["cli-server", "cgi-fcgi"] as $sapi): ?>
+<?php $tested_versions_jobs[] = "test_distributed_tracing: [$major_minor, $sapi]"; ?>
+"<?= end($tested_versions_jobs) ?>":
+  extends: .cli_integration_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  services:
+<?php agent_httpbin_service() ?>
+    - !reference [.services, mongodb]
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    MAKE_TARGET: "test_distributed_tracing"
+    ARCH: "amd64"
+<?php if ($sapi == "cgi-fcgi"): ?>
+    DD_DISTRIBUTED_TRACING: "false"
+<?php endif; ?>
+<?php
+    endforeach;
+endforeach;
+?>
+
+<?php
+$xdebug_test_matrix = [
+    ["7.0", "2.7.2"],
+    ["7.1", "2.9.2"],
+    ["7.1", "2.9.5"],
+    ["7.2", "2.9.2"],
+    ["7.2", "2.9.5"],
+    ["7.3", "2.9.2"],
+    ["7.3", "2.9.5"],
+    ["7.4", "2.9.2"],
+    ["7.4", "2.9.5"],
+    ["8.0", "3.0.0"],
+    ["8.1", "3.1.0"],
+    ["8.2", "3.2.2"],
+    ["8.3", "3.3.2"],
+    ["8.4", "3.4.0"],
+    // ["8.5", "3.5.0"], Xdebug not supported yet on 8.5
+];
+foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
+?>
+"xDebug tests: [<?= $major_minor ?>, <?= $xdebug ?>]":
+  extends: .debug_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    REPORT_EXIT_STATUS: "1"
+  script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make install_all
+    - '# Run xdebug tests'
+    - TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/xdebug-phpt.xml" php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
+<?php if ($xdebug != "2.7.2" && $xdebug != "2.9.2"): ?>
+    - '# Run unit tests with xdebug'
+    - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/php-tests.xml"
+<?php endif; ?>
+<?php after_script(has_test_agent: true); ?>
+
+<?php endforeach; ?>
+
+"aggregate tested versions":
+  stage: "aggregate versions"
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  when: always
+  # Without this list the job downloads every earlier job's artifacts, including ~200 that write no tested_versions_*.json.
+  dependencies:
+<?php foreach ($tested_versions_jobs as $job): ?>
+    - "<?= $job ?>"
+<?php endforeach; ?>
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+    - git config --global user.name "github-actions[bot]"
+    - dd-octo-sts debug --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions
+    - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions > github_token.txt
+    - export GITHUB_TOKEN=$(cat github_token.txt)
+    - ./tooling/tested_versions/create_or_update_supported_versions_pr.sh
+  after_script:
+    # Revoke the GitHub token after usage
+    - if [[ -f github_token.txt ]]; then dd-octo-sts revoke -t $(cat github_token.txt) || true; fi
+  artifacts:
+    paths:
+      - "aggregated_tested_versions.json"
+      - "integration_versions.md"
+    when: "always"
+  rules:
+    # Run automatically on master even if previous jobs failed (flaky tests may still provide artifacts)
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: always
+    - when: manual
+      allow_failure: true

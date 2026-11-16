@@ -10,6 +10,6 @@
  * Note: it also accepts full urls which are preserved: http://example.com/int/123 ---> http://example.com/int/?
  */
 zend_string *zai_uri_normalize_path(zend_string *path, zend_array *fragmentRegex, zend_array *mapping);
-zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist, zend_string *pattern);
+zend_string *zai_filter_query_string(zai_str queryString, zend_array *whitelist, zend_string *pattern);
 bool zai_match_regex(zend_string *pattern, zend_string *subject);
 #endif  // ZAI_URI_NORMALIZATION_H

@@ -1,6 +1,8 @@
 --TEST--
 [regression] Properly skip nested dropped spans
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -28,6 +30,5 @@ dd_dump_spans();
 --EXPECTF--
 spans(\DDTrace\SpanData) (1) {
   root span (nested_dropped_spans.php, root span, cli)
-    _dd.p.dm => -1
     inner span (nested_dropped_spans.php, inner span, cli)
 }

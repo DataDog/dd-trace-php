@@ -7,7 +7,7 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 
 final class IncomingUserInfoTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Not_Autoloaded/index.php';
     }
@@ -22,7 +22,7 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
     public function testSelectedHeadersAreIncluded()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $response = $this->sendRequest('GET', self::HOST_WITH_CREDENTIALS . ':' . self::PORT);
+            $response = $this->sendRequest('GET', self::HOST_WITH_CREDENTIALS);
         });
 
         $this->assertFlameGraph(
@@ -33,10 +33,12 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
                     'my-service',
                     'web',
                     'GET /'
-                )->withExactTags([
+                )->withExactAttributes([
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/',
-                    'http.status_code' => 200,
+                    'http.url' => 'http://localhost/',
+                    'http.status_code' => '200',
+                    'span.kind' => 'server',
+                    'component' => 'web',
                 ]),
             ]
         );

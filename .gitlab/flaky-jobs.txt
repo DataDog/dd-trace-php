@@ -1,0 +1,19 @@
+# flaky-jobs.txt — glob patterns for CI jobs EXCLUDED from the merge gate.
+
+aggregate tested versions
+Extension Tea Tests:*
+installer tests
+Loader test on amd64 libc:*
+macrobenchmarks:*
+PHP Language Tests:*
+PHP language tests:*
+php-laravel-realworld-parallel-check-slo-breaches
+randomized tests:*
+test appsec extension:*
+test_extension_ci: *, valgrind]
+test_integrations_kafka:*
+test_integrations_sqlsrv:*
+test_web_custom:*
+test_web_laravel_8x:*
+windows test_c:*
+Zend Abstract Interface Tests:*

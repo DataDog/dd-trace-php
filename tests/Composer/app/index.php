@@ -39,11 +39,6 @@ switch ($_SERVER['REQUEST_URI']) {
         $scope->close();
 
         /*
-        * Using Configuration class from 'api' (which no longer exists in the 'src')
-        */
-        Configuration::get()->appName('default');
-
-        /*
         * Using Logger class which is defined in both 'src' AND 'api'
         */
         Logger::set(new ErrorLogLogger('debug'));

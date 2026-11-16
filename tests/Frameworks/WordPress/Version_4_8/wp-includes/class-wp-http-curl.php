@@ -224,15 +224,15 @@ class WP_Http_Curl {
 			curl_exec( $handle );
 
 			if ( $curl_error = curl_error( $handle ) ) {
-				curl_close( $handle );
+				if (PHP_VERSION_ID < 80000) { curl_close( $handle ); }
 				return new WP_Error( 'http_request_failed', $curl_error );
 			}
 			if ( in_array( curl_getinfo( $handle, CURLINFO_HTTP_CODE ), array( 301, 302 ) ) ) {
-				curl_close( $handle );
+				if (PHP_VERSION_ID < 80000) { curl_close( $handle ); }
 				return new WP_Error( 'http_request_failed', __( 'Too many redirects.' ) );
 			}
 
-			curl_close( $handle );
+			if (PHP_VERSION_ID < 80000) { curl_close( $handle ); }
 			return array( 'headers' => array(), 'body' => '', 'response' => array('code' => false, 'message' => false), 'cookies' => array() );
 		}
 
@@ -252,27 +252,27 @@ class WP_Http_Curl {
 			if ( CURLE_WRITE_ERROR /* 23 */ == $curl_error ) {
 				if ( ! $this->max_body_length || $this->max_body_length != $bytes_written_total ) {
 					if ( $r['stream'] ) {
-						curl_close( $handle );
+						if (PHP_VERSION_ID < 80000) { curl_close( $handle ); }
 						fclose( $this->stream_handle );
 						return new WP_Error( 'http_request_failed', __( 'Failed to write request to temporary file.' ) );
 					} else {
-						curl_close( $handle );
+						if (PHP_VERSION_ID < 80000) { curl_close( $handle ); }
 						return new WP_Error( 'http_request_failed', curl_error( $handle ) );
 					}
 				}
 			} else {
 				if ( $curl_error = curl_error( $handle ) ) {
-					curl_close( $handle );
+					if (PHP_VERSION_ID < 80000) { curl_close( $handle ); }
 					return new WP_Error( 'http_request_failed', $curl_error );
 				}
 			}
 			if ( in_array( curl_getinfo( $handle, CURLINFO_HTTP_CODE ), array( 301, 302 ) ) ) {
-				curl_close( $handle );
+				if (PHP_VERSION_ID < 80000) { curl_close( $handle ); }
 				return new WP_Error( 'http_request_failed', __( 'Too many redirects.' ) );
 			}
 		}
 
-		curl_close( $handle );
+		if (PHP_VERSION_ID < 80000) { curl_close( $handle ); }
 
 		if ( $r['stream'] )
 			fclose( $this->stream_handle );

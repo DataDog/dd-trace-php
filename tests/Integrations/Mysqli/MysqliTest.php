@@ -3,22 +3,23 @@
 namespace DDTrace\Tests\Integrations\Mysqli;
 
 use DDTrace\Tag;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanChecker;
+use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
 
 class MysqliTest extends IntegrationTestCase
 {
-    private static $host = 'mysql_integration';
-    private static $db = 'test';
-    private static $port = '3306';
+    private static $host = 'mysql-integration';
+    public static $database = 'mysqlitest';
+    private static $port = 3306;
     private static $user = 'test';
     private static $password = 'test';
 
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        IntegrationsLoader::load();
     }
 
     protected function ddSetUp()
@@ -28,16 +29,33 @@ class MysqliTest extends IntegrationTestCase
         $this->setUpDatabase();
     }
 
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+            'DD_SERVICE_MAPPING',
+            'DD_DBM_PROPAGATION_MODE',
+            'DD_DBM_TRACE_PREPARED_STATEMENTS',
+        ];
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'ext-mysqli';
+    }
+
     public function testProceduralConnect()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             $mysqli->close();
         });
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
-                ->withExactTags(self::baseTags()),
+                ->withExactAttributes(self::baseTags()),
         ]);
     }
 
@@ -54,8 +72,8 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
                 ->setError()
-                ->withExactTags(self::baseTags())
-                ->withExistingTagsNames([
+                ->withExactAttributes(self::baseTags(false))
+                ->withExistingAttributeNames([
                     Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
@@ -76,8 +94,8 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
                 ->setError()
-                ->withExactTags(self::baseTags())
-                ->withExistingTagsNames([
+                ->withExactAttributes(self::baseTags(false))
+                ->withExistingAttributeNames([
                     Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
@@ -88,20 +106,20 @@ class MysqliTest extends IntegrationTestCase
     public function testConstructorConnect()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->close();
         });
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct')
-                ->withExactTags(self::baseTags()),
+                ->withExactAttributes(self::baseTags()),
         ]);
     }
 
     public function testProceduralQuery()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, 'SELECT * from tests');
             $mysqli->close();
         });
@@ -109,11 +127,46 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
-                ->withExactMetrics([
+                ->withExactAttributes(self::baseTags(true, false), [
                     Tag::DB_ROW_COUNT => 1,
-                ]),
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
+        ]);
+    }
+
+    public function testProceduralRealQuery()
+    {
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
+            \mysqli_real_query($mysqli, 'SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_real_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactAttributes(self::baseTags(true, false), [
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
+        ]);
+    }
+
+    public function testProceduralQueryPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
+            \mysqli_query($mysqli, 'SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactAttributes(self::baseTags(true, true), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -124,7 +177,7 @@ class MysqliTest extends IntegrationTestCase
         }
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_execute_query($mysqli, 'SELECT * from tests WHERE 1 = ?', [1]);
             $mysqli->close();
         });
@@ -132,8 +185,28 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactAttributes(self::baseTags(), [Tag::DB_ROW_COUNT => 1]),
+        ]);
+    }
+
+    public function testProceduralExecuteQueryPeerServiceEnabled()
+    {
+        if (PHP_VERSION_ID < 80200) {
+            $this->markTestSkipped("mysqli_execute_query is a new function introduced in PHP 8.2");
+        }
+
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
+            \mysqli_execute_query($mysqli, 'SELECT * from tests WHERE 1 = ?', [1]);
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
+                ->withExactAttributes(self::baseTags(true, true), [Tag::DB_ROW_COUNT => 1]),
         ]);
     }
 
@@ -141,28 +214,48 @@ class MysqliTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () {
             $mysqli = \mysqli_init();
-            \mysqli_real_connect($mysqli, self::$host, self::$user, self::$password, self::$db);
+            \mysqli_real_connect($mysqli, self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, 'SELECT * from tests');
             $mysqli->close();
         });
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_real_connect', 'mysqli', 'sql', 'mysqli_real_connect')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactAttributes(self::baseTags()),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
-                ->withExactMetrics([
+                ->withExactAttributes(self::baseTags(), [
                     Tag::DB_ROW_COUNT => 1,
-                ]),
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
+        ]);
+    }
+
+    public function testProceduralQueryRealConnectPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_init();
+            \mysqli_real_connect($mysqli, self::$host, self::$user, self::$password, self::$database);
+            \mysqli_query($mysqli, 'SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('mysqli_real_connect', 'mysqli', 'sql', 'mysqli_real_connect')
+                ->withExactAttributes(self::baseTags()),
+            SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactAttributes(self::baseTags(true, true), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
         ]);
     }
 
     public function testConstructorQuery()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -170,11 +263,47 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
-                ->withExactMetrics([
+                ->withExactAttributes(self::baseTags(), [
                     Tag::DB_ROW_COUNT => 1,
-                ]),
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
+        ]);
+    }
+
+    public function testConstructorRealQuery()
+    {
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $mysqli->real_query('SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.real_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactAttributes(self::baseTags(), [
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
+        ]);
+    }
+
+    public function testConstructorQueryPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $mysqli->query('SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactAttributes(self::baseTags(true, true), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -182,7 +311,7 @@ class MysqliTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () {
             $mysqli = new \mysqli();
-            $mysqli->real_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->real_connect(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -190,14 +319,35 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.real_connect', 'mysqli', 'sql', 'mysqli.real_connect')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactAttributes(self::baseTags()),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
-                ->withExactMetrics([
+                ->withExactAttributes(self::baseTags(), [
                     Tag::DB_ROW_COUNT => 1,
-                ]),
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
+        ]);
+    }
+
+    public function testEmptyConstructorQueryPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli();
+            $mysqli->real_connect(self::$host, self::$user, self::$password, self::$database);
+            $mysqli->query('SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.real_connect', 'mysqli', 'sql', 'mysqli.real_connect')
+                ->withExactAttributes(self::baseTags()),
+            SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactAttributes(self::baseTags(true, true), [
+                    Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -205,25 +355,25 @@ class MysqliTest extends IntegrationTestCase
     {
         $query = "INSERT INTO tests (id, name) VALUES (100, 'Tom')";
         $traces = $this->isolateTracer(function () use ($query) {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, $query);
             \mysqli_commit($mysqli);
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::exists('mysqli_query', $query),
             SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', $query)
-                ->withExactTags(self::baseTags()),
+                ->withExactAttributes(self::baseTags()),
         ]);
     }
 
     public function testConstructorPreparedStatement()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
             $name = 100;
@@ -232,21 +382,102 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactAttributes(self::baseTags(), [Tag::DB_ROW_COUNT => 0]),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli', Tag::DB_SYSTEM => 'mysql',])
-                ->setTraceAnalyticsCandidate(),
+                ->withExactAttributes(self::baseTags())
         ]);
+    }
+
+    public function testConstructorPreparedStatementPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
+            $id = 100;
+            $name = 100;
+            $stmt->bind_param('is', $id, $name);
+            $stmt->execute();
+            $mysqli->close();
+        });
+
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
+                ->withExactAttributes(self::baseTags(), [Tag::DB_ROW_COUNT => 0]),
+            SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
+                ->withExactAttributes(self::baseTags(true, true))
+        ]);
+    }
+
+    public function testProceduralSelectDbPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
+            \mysqli_select_db($mysqli, 'information_schema');
+            \mysqli_query($mysqli, 'SELECT * from columns limit 1');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from columns limit 1')
+                ->withExactAttributes(array_merge(
+                    self::baseTags(true, true),
+                    [
+                        'db.name' => 'information_schema',
+                        '_dd.peer.service.source' => 'db.name',
+                        'peer.service' => 'information_schema',
+                        '_dd.base_service' => 'phpunit',
+                    ]
+                ))
+                ->withExactAttributes([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
+        ], true, false);
+    }
+
+    public function testConstructorSelectDbPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $mysqli->select_db('information_schema');
+            $mysqli->query('SELECT * from columns limit 1');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from columns limit 1')
+                ->withExactAttributes(array_merge(
+                    self::baseTags(true, true),
+                    [
+                        'db.name' => 'information_schema',
+                        '_dd.peer.service.source' => 'db.name',
+                        'peer.service' => 'information_schema',
+                        '_dd.base_service' => 'phpunit'
+                    ]
+                ))
+                ->withExactAttributes([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
+        ], true, false);
     }
 
     public function testLimitedTracerConstructorQuery()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -257,20 +488,20 @@ class MysqliTest extends IntegrationTestCase
     public function testLimitedTracerProceduralCommit()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'From Test')");
             \mysqli_commit($mysqli);
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertEmpty($traces);
     }
 
     public function testLimitedTracerConstructorPreparedStatement()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
             $name = 100;
@@ -279,14 +510,14 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertEmpty($traces);
     }
 
     public function testProceduralPreparedStatement()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             $stmt = \mysqli_prepare($mysqli, "INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
             $name = 100;
@@ -296,16 +527,152 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactAttributes(self::baseTags(), [Tag::DB_ROW_COUNT => 0]),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli', Tag::DB_SYSTEM => 'mysql',]),
+                ->withExactAttributes(self::baseTags()),
+        ], true, false);
+    }
+
+    public function testProceduralPreparedStatementPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
+            $stmt = \mysqli_prepare($mysqli, "INSERT INTO tests (id, name) VALUES (?, ?)");
+            $id = 100;
+            $name = 100;
+            $stmt->bind_param('is', $id, $name);
+
+            \mysqli_stmt_execute($stmt);
+            $mysqli->close();
+        });
+
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
+                ->withExactAttributes(self::baseTags(), [Tag::DB_ROW_COUNT => 0]),
+            SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
+                ->withExactAttributes(self::baseTags(true, true)),
         ]);
     }
 
+    public function testPreparedStatementUsesServiceModeForDBM()
+    {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $stmt = $mysqli->prepare($query);
+            $id = 1;
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $results = $result->fetch_all();
+            $this->assertNotEmpty($results);
+            $mysqli->close();
+
+            close_span();
+        });
+
+        // Get the raw spans
+        $spans = (new SpanChecker())->flattenTraces($traces);
+
+        // Find prepare and execute spans
+        $constructSpan = null;
+        $prepareSpan = null;
+        $executeSpan = null;
+
+        foreach ($spans as $span) {
+            if ($span['name'] === 'mysqli.__construct') {
+                $constructSpan = $span;
+            } elseif ($span['name'] === 'mysqli.prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'mysqli_stmt.execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($constructSpan, 'mysqli.__construct span should exist');
+        $this->assertNotNull($prepareSpan, 'mysqli.prepare span should exist');
+        $this->assertNotNull($executeSpan, 'mysqli_stmt.execute span should exist');
+
+        // Verify that execute and prepare span are siblings
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'mysqli_stmt.execute should be a sibling of mysqli.prepare'
+        );
+
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
+
+        // Verify that SERVICE mode is used for the prepare span
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['attributes'] ?? [],
+            'mysqli.prepare should use SERVICE mode'
+        );
+    }
+
+
+    public function testPreparedStatementUsesFullModeForDBMWhenTracingPreparedStatements()
+    {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full', 'DD_DBM_TRACE_PREPARED_STATEMENTS=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $stmt = $mysqli->prepare($query);
+            $id = 1;
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $this->assertNotEmpty($result->fetch_all());
+            $mysqli->close();
+
+            close_span();
+        });
+
+        $prepareSpan = null;
+        $executeSpan = null;
+        foreach ((new SpanChecker())->flattenTraces($traces) as $span) {
+            if ($span['name'] === 'mysqli.prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'mysqli_stmt.execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($prepareSpan, 'mysqli.prepare span should exist');
+        $this->assertNotNull($executeSpan, 'mysqli_stmt.execute span should exist');
+
+        // Unchanged by the option: execute stays a sibling of prepare, and both resources stay clean
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'mysqli_stmt.execute should be a sibling of mysqli.prepare'
+        );
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
+
+        // Verify that FULL mode is used for the prepare span: its own context is what the comment carries
+        $this->assertSame(
+            'true',
+            $prepareSpan['attributes']['_dd.dbm_trace_injected'] ?? null,
+            'mysqli.prepare should use FULL mode'
+        );
+    }
     public function testConstructorConnectError()
     {
         $traces = $this->isolateTracer(function () {
@@ -319,20 +686,57 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct')
                 ->setError()
-                ->withExistingTagsNames([
+                ->withExistingAttributeNames([
                     Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
                     Tag::SPAN_KIND,
                     Tag::COMPONENT,
                     Tag::DB_SYSTEM,
+                    '_dd.svc_src',
                 ]),
         ]);
     }
 
-    private function baseTags()
+    public function testNoFakeServices()
     {
-        return [
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true'
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $mysqli->query('SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.query', 'configured_service', 'sql', 'SELECT * from tests')
+                ->withExactAttributes(self::baseTags(true, false, null), [
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
+        ], true, false);
+    }
+
+    public function testServiceMappedSplitByDomain()
+    {
+        self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
+        self::putEnv('DD_SERVICE_MAPPING=mysqli:my-mysqli');
+        $traces = $this->isolateTracer(function () {
+            new \mysqli(self::$host, self::$user, self::$password, self::$database);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('mysqli.__construct', 'my-mysqli-mysql-integration', 'sql', 'mysqli.__construct', SpanAssertion::NOT_TESTED)
+        ]);
+    }
+
+    private function baseTags($expectDbName = true, $expectPeerService = false, $svcSrc = 'mysqli')
+    {
+        $tags = [
             'out.host' => self::$host,
             'out.port' => self::$port,
             'db.type' => 'mysql',
@@ -340,12 +744,26 @@ class MysqliTest extends IntegrationTestCase
             Tag::COMPONENT => 'mysqli',
             Tag::DB_SYSTEM => 'mysql',
         ];
+        if ($svcSrc !== null) {
+            $tags['_dd.svc_src'] = $svcSrc;
+        }
+
+        if ($expectDbName) {
+            $tags['db.name'] = self::$database;
+        }
+
+        if ($expectPeerService) {
+            $tags['peer.service'] = self::$database;
+            $tags['_dd.peer.service.source'] = 'db.name';
+        }
+
+        return $tags;
     }
 
     private function setUpDatabase()
     {
         $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query("
                 CREATE TABLE tests (
                     id integer not null primary key,
@@ -361,7 +779,7 @@ class MysqliTest extends IntegrationTestCase
     private function clearDatabase()
     {
         $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query("DROP TABLE IF EXISTS tests");
             $mysqli->commit();
             $mysqli->close();
@@ -381,7 +799,7 @@ class MysqliTest extends IntegrationTestCase
             $conditions[] = "$key = '$value'";
         }
         $inlineWhere = $conditions ? 'WHERE ' . implode('AND', $conditions) : '';
-        $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+        $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
         $result = $mysqli->query("SELECT * FROM $table $inlineWhere");
         if (false === $result) {
             $message = mysqli_error($mysqli);

@@ -26,14 +26,13 @@
         "twig/twig": "^1.0||^2.0"
     },
     "require-dev": {
-        "sensio/generator-bundle": "^3.0",
-        "symfony/phpunit-bridge": "^3.0"
+        "sensio/generator-bundle": "^3.0"
     },
     "scripts": {
         "symfony-scripts": [
             "Incenteev\\ParameterHandler\\ScriptHandler::buildParameters",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::buildBootstrap",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::installAssets",
+            "@php vendor/sensio/distribution-bundle/Resources/bin/build_bootstrap.php var vendor --use-new-directory-structure",
+            "@php bin/console assets:install --symlink --relative web",
             "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::installRequirementsFile",
             "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::prepareDeploymentTarget"
         ],
@@ -42,15 +41,16 @@
         ],
         "post-update-cmd": [
             "@symfony-scripts"
-        ],
-        "simple-phpunit": "php vendor/bin/simple-phpunit",
-        "test": "@simple-phpunit"
+        ]
     },
     "config": {
         "platform": {
             "php": "5.6"
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "audit": {
+            "block-insecure": false
+        }
     },
     "extra": {
         "symfony-app-dir": "app",

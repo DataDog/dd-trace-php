@@ -1,0 +1,1295 @@
+#include "request_lifecycle.h"
+#include "commands/client_init.h"
+#include "commands/config_sync.h"
+#include "commands/request_init.h"
+#include "commands/request_shutdown.h"
+#include "configuration.h"
+#include "ddappsec.h"
+#include "dddefs.h"
+#include "duration_acc.h"
+#include "entity_body.h"
+#include "helper_process.h"
+#include "logging.h"
+#include "php_helpers.h"
+#include "php_objects.h"
+#include "request_abort.h"
+#include "string_helpers.h"
+#include "tags.h"
+#include "telemetry.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
+
+#include <SAPI.h>
+#include <Zend/zend_exceptions.h>
+#include <stdio.h>
+
+#include "attributes.h"
+
+static void _do_request_finish_php(bool ignore_verdict);
+static zend_array *nullable _do_request_begin(zval *nullable rbe_zv);
+static void _do_request_begin_php(void);
+static zend_array *_do_request_finish_user_req(bool ignore_verdict,
+    zend_array *nonnull superglob_equiv, int status_code,
+    zend_array *nullable resp_headers, zend_string *nullable entity);
+static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv);
+static zend_string *nullable _extract_ip_from_autoglobal(void);
+static zend_string *nullable _get_entity_as_string(zval *rbe_zv);
+static void _set_cur_span(zend_object *nullable span);
+static void _reset_globals(void);
+static zend_long _raise_shutdown_memory_limit(void);
+static bool _restore_shutdown_memory_limit(zend_long limit);
+static zend_array *_request_finish_user_req(bool ignore_verdict,
+    zend_array *nonnull superglob_equiv, int status_code,
+    zend_array *nullable resp_headers, zend_string *nullable entity);
+const zend_array *nonnull _get_server_equiv(
+    const zend_array *nonnull superglob_equiv);
+static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
+    dd_api_sec_outcome *nonnull outcome);
+static void _register_testing_objects(void);
+
+static bool _enabled_user_req;
+static zend_string *_server_zstr;
+
+static THREAD_LOCAL_ON_ZTS zend_object *nullable _cur_req_span;
+static THREAD_LOCAL_ON_ZTS zend_array *nullable _superglob_equiv;
+static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
+static THREAD_LOCAL_ON_ZTS zval _blocking_function;
+static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
+static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
+static THREAD_LOCAL_ON_ZTS bool _request_blocked;
+enum { MAX_LENGTH_OF_REM_CFG_PATH = 31 };
+static THREAD_LOCAL_ON_ZTS char
+    _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
+#define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
+
+bool dd_req_is_user_req(void) { return _enabled_user_req; }
+
+void dd_req_lifecycle_set_blocked(void) { _request_blocked = true; }
+
+bool dd_req_lifecycle_is_blocked(void) { return _request_blocked; }
+
+void dd_req_lifecycle_startup(void)
+{
+    // we assume that frankenphp is running in worker mode because
+    // there is no easy way to detect it at this point.
+    // If it's not the case, DD_APPSEC_CLI_START_ON_RINIT should be set
+    _enabled_user_req = (strcmp(sapi_module.name, "cli") == 0 ||
+                            strcmp(sapi_module.name, "frankenphp") == 0) &&
+                        !get_global_DD_APPSEC_CLI_START_ON_RINIT();
+
+    if (_enabled_user_req) {
+        bool res = dd_trace_user_req_add_listeners(&dd_user_req_listeners);
+        if (!res) {
+            if (!get_global_DD_APPSEC_TESTING()) {
+                // on testing, ddtrace is frequently not loaded
+                mlog(dd_log_warning,
+                    "Failed to register user request listeners");
+            }
+        } else {
+            mlog(dd_log_debug, "Request lifecycle driven by user request");
+        }
+    } else {
+        mlog(dd_log_debug, "Request lifecycle matches PHP's");
+    }
+
+    _server_zstr = zend_string_init_interned(LSTRARG("_SERVER"), 1);
+
+    _register_testing_objects();
+}
+
+void dd_req_lifecycle_rinit(bool force)
+{
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        mlog(dd_log_debug,
+            "Skipping request init actions because appsec is fully disabled");
+        return;
+    }
+
+    if (_enabled_user_req) {
+        mlog(dd_log_debug, "Skipping automatic request init on CLI because "
+                           "DD_APPSEC_CLI_START_ON_RINIT=false");
+        return;
+    }
+
+    if (get_global_DD_APPSEC_TESTING() && !force) {
+        mlog(dd_log_debug, "Skipping automatic request init in testing");
+        if (!_enabled_user_req) {
+            _set_cur_span(dd_trace_get_active_root_span());
+            if (!_cur_req_span) {
+                mlog(dd_log_debug, "No root span available on request init");
+            }
+        }
+        return;
+    }
+
+    _empty_service_or_env = zend_string_equals_literal(get_DD_ENV(), "") ||
+                            zend_string_equals_literal(get_DD_SERVICE(), "");
+
+    _set_cur_span(dd_trace_get_active_root_span());
+    if (!_cur_req_span) {
+        mlog(dd_log_debug, "No root span available on request init");
+    }
+
+    if (_client_ip) {
+        mlog(dd_log_warning, "Client IP not cleared on prev request. Value %p",
+            (void *)_client_ip);
+        _client_ip = NULL;
+    }
+
+    _do_request_begin_php();
+}
+
+static void _do_request_begin_php(void)
+{
+    zend_string *nonnull req_body =
+        dd_request_body_buffered(get_DD_APPSEC_MAX_BODY_BUFF_SIZE());
+    zval req_body_zv;
+    ZVAL_STR(&req_body_zv, req_body);
+    UNUSED(_do_request_begin(&req_body_zv));
+}
+
+static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv)
+{
+    if (rbe_zv) {
+        Z_TRY_ADDREF_P(rbe_zv);
+    }
+    return _do_request_begin(rbe_zv);
+}
+
+static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
+{
+    if (ignore_empty && _empty_service_or_env &&
+        _last_rem_cfg_path[0] != '\0') {
+        return false;
+    }
+
+    struct telemetry_rc_info tel_rc_info = dd_trace_get_telemetry_rc_info();
+    const char *cur_path = tel_rc_info.rc_path;
+    if (!cur_path) {
+        cur_path = "";
+    }
+    if (strcmp(cur_path, _last_rem_cfg_path) == 0) {
+        return false;
+    }
+
+    if (strlen(cur_path) > MAX_LENGTH_OF_REM_CFG_PATH) {
+        mlog(dd_log_warning, "Remote config path too long: %s", cur_path);
+        return false;
+    }
+
+    mlog(dd_log_info,
+        "Remote config path changed from %s to %s; "
+        "current service_name=%.*s, env_name=%.*s",
+        _last_rem_cfg_path[0] ? _last_rem_cfg_path : "(none)",
+        cur_path[0] ? cur_path : "(none)",
+        ZSTR_PRINTF(tel_rc_info.service_name),
+        ZSTR_PRINTF(tel_rc_info.env_name));
+
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.strcpy)
+    strcpy(_last_rem_cfg_path, cur_path);
+
+    return true;
+}
+
+static zend_array *nullable _do_request_begin(
+    zval *nullable rbe_zv /* needs free */)
+{
+    // do this even on user req because frankenphp uses normal php output
+    dd_entity_body_rinit();
+
+    dd_tags_rinit();
+
+    dd_telemetry_rinit();
+
+    zend_string *nullable rbe = NULL;
+    if (rbe_zv) {
+        rbe = _get_entity_as_string(rbe_zv);
+        zval_ptr_dtor(rbe_zv);
+    }
+
+    struct req_info_init req_info = {
+        .req_info.root_span = dd_req_lifecycle_get_cur_span(),
+        .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
+        .superglob_equiv = _superglob_equiv,
+        .entity = rbe,
+    };
+
+    // we want to retry once only if we're connected from a previous request
+    int retries_left = dd_helper_mgr_cur_conn() ? 1 : 0;
+
+    // connect/client_init
+retry:;
+    dd_conn *conn =
+        dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &req_info);
+    if (conn == NULL) {
+        mlog_g(dd_log_debug,
+            "No connection; skipping rest of request initialization");
+        if (rbe) {
+            zend_string_release(rbe);
+        }
+        return NULL;
+    }
+
+    int res = dd_success;
+    if (_rem_cfg_path_changed(true) ||
+        (!DDAPPSEC_G(active) &&
+            DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG)) {
+        res = dd_config_sync(
+            conn, &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
+                      .telemetry_settings = dd_trace_get_telemetry_rc_info()});
+        if (res == dd_success && DDAPPSEC_G(active)) {
+            struct timespec start = dd_monotime_start();
+            res = dd_request_init(conn, &req_info);
+            dd_duration_waf_ext_account(&start);
+        }
+    } else if (DDAPPSEC_G(active)) {
+        // request_init
+        struct timespec start = dd_monotime_start();
+        res = dd_request_init(conn, &req_info);
+        dd_duration_waf_ext_account(&start);
+    }
+
+    // we might have been disabled by request_init
+
+    zend_array *spec = NULL;
+    if (res == dd_oom) {
+        goto cleanup;
+    }
+    if (res == dd_helper_say_goobye) {
+        mlog_g(dd_log_info, "request_init/config_sync failed with "
+                            "dd_helper_say_goobye; closing "
+                            "connection to helper");
+        dd_helper_close_conn(true,
+            LSTRARG(
+                "request_init/config_sync failed with dd_helper_say_goobye"));
+    } else if (res == dd_helper_fatal) {
+        mlog_g(dd_log_info,
+            "request_init/config_sync failed with dd_helper_fatal; closing "
+            "connection to helper");
+        dd_helper_close_conn(false,
+            LSTRARG("request_init/config_sync failed with dd_helper_fatal"));
+    } else if (res == dd_should_block || res == dd_should_redirect) {
+        spec = dd_req_lifecycle_abort(
+            REQUEST_STAGE_REQUEST_BEGIN, res, &req_info.req_info.block_params);
+    } else if (res != dd_success && res != dd_should_record) {
+        mlog_g(
+            dd_log_info, "request init failed: %s", dd_result_to_string(res));
+    }
+
+    if (retries_left > 0 &&
+        (res == dd_helper_say_goobye || res == dd_helper_fatal)) {
+        mlog_g(dd_log_info,
+            "Trying to to connect to the helper %d more time(s)", retries_left);
+        retries_left--;
+        goto retry;
+    }
+
+cleanup:
+    if (rbe) {
+        zend_string_release(rbe);
+    }
+
+    dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
+    if (res == dd_oom) {
+        _reset_globals();
+        zend_error_noreturn(E_ERROR,
+            "Failed to allocate memory while parsing the AppSec request body");
+    }
+
+    return spec;
+}
+
+static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force);
+
+void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
+{
+    // temporarily remove the memory limit to avoid bailouts
+    // and as a safety net do a try-catch
+    zend_long orig_mem_limit = _raise_shutdown_memory_limit();
+
+    zend_try { _do_req_lifecycle_rshutdown(ignore_verdict, force); }
+    zend_catch
+    {
+        dd_helper_close_conn(false, NULL, 0);
+        if (PG(last_error_message)) {
+#if PHP_VERSION_ID < 80000
+            const char *last_err = PG(last_error_message);
+#else
+            const char *last_err = ZSTR_VAL(PG(last_error_message));
+#endif
+            mlog_g(dd_log_error,
+                "Bailout in request shutdown; disconnecting from helper: %s",
+                last_err);
+        } else {
+            mlog_g(dd_log_error,
+                "Bailout in request shutdown; disconnecting from helper");
+        }
+        (void)_restore_shutdown_memory_limit(orig_mem_limit);
+        _reset_globals();
+    }
+    zend_end_try();
+
+    if (!_restore_shutdown_memory_limit(orig_mem_limit)) {
+        mlog(
+            dd_log_error, "Failed to restore memory limit in request shutdown");
+    }
+}
+
+static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
+{
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        mlog_g(dd_log_debug, "Skipping all request shutdown actions because "
+                             "appsec is fully disabled");
+        return;
+    }
+
+    if (get_global_DD_APPSEC_TESTING() && !force) {
+        mlog_g(dd_log_debug, "Skipping automatic request shutdown in testing");
+        _reset_globals();
+        return;
+    }
+
+    if (_enabled_user_req) {
+        if (_cur_req_span) {
+            mlog_g(dd_log_info,
+                "Finishing user request whose corresponding "
+                "span is presumably still unclosed on rshutdown");
+            _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
+            _reset_globals();
+        }
+    } else {
+        _do_request_finish_php(ignore_verdict);
+        // _rest_globals already called
+    }
+
+    // if we don't have service/env, our only chance to update the remote config
+    // path is rshutdown because ddtrace's rinit is called before ours and it
+    // resets the path
+    if (_empty_service_or_env && _rem_cfg_path_changed(false)) {
+        mlog_g(dd_log_debug, "No DD_SERVICE/DD_ENV; trying to sync remote "
+                             "config path on rshutdown");
+        dd_conn *conn = dd_helper_mgr_cur_conn();
+        if (conn == NULL) {
+            mlog_g(dd_log_debug,
+                "No connection to the helper for rshutdown config sync");
+        } else {
+            dd_result res = dd_config_sync(conn,
+                &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
+                    .telemetry_settings = dd_trace_get_telemetry_rc_info()});
+            if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
+                mlog_g(dd_log_info,
+                    "request_init/config_sync failed with dd_helper_say_goobye "
+                    "or dd_helper_fatal; closing connection to helper");
+                bool goodbye = res == dd_helper_say_goobye;
+                dd_helper_close_conn(goodbye,
+                    LSTRARG("request_init/config_sync failed with "
+                            "dd_helper_say_goobye or dd_helper_fatal"));
+            } else if (res) {
+                mlog_g(dd_log_info,
+                    "Failed to sync remote config path on rshutdown: %s",
+                    dd_result_to_string(res));
+            }
+        }
+    }
+}
+
+static void _do_request_finish_php(bool ignore_verdict)
+{
+    int verdict = dd_success;
+    dd_conn *conn = dd_helper_mgr_cur_conn();
+    struct req_shutdown_info ctx = {0};
+
+    if (conn && conn->request_started) {
+        const int status_code = SG(sapi_headers).http_response_code;
+        dd_api_sec_outcome api_sec_outcome;
+        ctx = (struct req_shutdown_info){
+            .req_info.root_span = dd_req_lifecycle_get_cur_span(),
+            .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
+            .status_code = status_code,
+            .resp_headers_fmt = RESP_HEADERS_LLIST,
+            .resp_headers_llist = &SG(sapi_headers).headers,
+            .entity = dd_response_body_buffered(),
+            .api_sec_samp_key = _calc_sampling_key(
+                _cur_req_span, status_code, &api_sec_outcome),
+        };
+
+        struct timespec shutdown_start = dd_monotime_start();
+        int res = dd_request_shutdown(conn, &ctx);
+        dd_duration_waf_ext_account(&shutdown_start);
+        if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
+            mlog_g(dd_log_info,
+                "request_shutdown failed with dd_helper_say_goobye or "
+                "dd_helper_fatal; closing connection to helper");
+            bool goodbye = res == dd_helper_say_goobye;
+            dd_helper_close_conn(
+                goodbye, LSTRARG("request_shutdown failed with dd_helper_..."));
+        } else if (res == dd_should_block || res == dd_should_redirect) {
+            verdict = ignore_verdict ? dd_success : res;
+        } else if (res) {
+            mlog_g(dd_log_info, "request shutdown failed: %s",
+                dd_result_to_string(res));
+        }
+
+        dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
+    }
+
+    dd_helper_rshutdown();
+
+    if (DDAPPSEC_G(active) && _cur_req_span) {
+        dd_tags_add_tags(_cur_req_span, NULL);
+        dd_duration_flush_metrics(_cur_req_span);
+    }
+    dd_tags_rshutdown();
+
+    _reset_globals();
+
+    dd_req_lifecycle_abort(
+        REQUEST_STAGE_REQUEST_END, verdict, &ctx.req_info.block_params);
+    dd_request_abort_destroy_block_params(&ctx.req_info.block_params);
+}
+
+static zend_array *_do_request_finish_user_req(bool ignore_verdict,
+    zend_array *nonnull superglob_equiv, int status_code,
+    zend_array *nullable resp_headers, zend_string *nullable entity)
+{
+    zend_long orig_mem_limit = _raise_shutdown_memory_limit();
+    zend_array *volatile result = NULL;
+    zend_try
+    {
+        result = _request_finish_user_req(
+            ignore_verdict, superglob_equiv, status_code, resp_headers, entity);
+    }
+    zend_catch
+    {
+        dd_helper_close_conn(false, NULL, 0);
+        (void)_restore_shutdown_memory_limit(orig_mem_limit);
+        _reset_globals();
+        zend_bailout();
+    }
+    zend_end_try();
+
+    if (!_restore_shutdown_memory_limit(orig_mem_limit)) {
+        if (result) {
+            zend_array_destroy(result);
+        }
+        _reset_globals();
+        zend_error_noreturn(E_ERROR,
+            "Failed to restore memory limit after AppSec request shutdown");
+    }
+    return result;
+}
+
+static zend_array *_request_finish_user_req(bool ignore_verdict,
+    zend_array *nonnull superglob_equiv, int status_code,
+    zend_array *nullable resp_headers, zend_string *nullable entity)
+{
+    int verdict = dd_success;
+    dd_conn *conn = dd_helper_mgr_cur_conn();
+    struct req_shutdown_info ctx = {0};
+
+    if (conn && conn->request_started) {
+        dd_api_sec_outcome api_sec_outcome;
+        ctx = (struct req_shutdown_info){
+            .req_info.root_span = dd_req_lifecycle_get_cur_span(),
+            .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
+            .status_code = status_code,
+            .resp_headers_fmt = RESP_HEADERS_MAP_STRING_LIST,
+            .resp_headers_arr = resp_headers ? resp_headers : &zend_empty_array,
+            .entity = entity,
+            .api_sec_samp_key = _calc_sampling_key(
+                _cur_req_span, status_code, &api_sec_outcome),
+        };
+
+        struct timespec shutdown_start = dd_monotime_start();
+        int res = dd_request_shutdown(conn, &ctx);
+        dd_duration_waf_ext_account(&shutdown_start);
+        if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
+            mlog_g(dd_log_info,
+                "request_shutdown failed with dd_helper_say_goobye or "
+                "dd_helper_fatal; closing connection to helper");
+            bool goodbye = res == dd_helper_say_goobye;
+            dd_helper_close_conn(
+                goodbye, LSTRARG("request_shutdown failed with dd_helper_..."));
+        } else if (res == dd_should_block || res == dd_should_redirect) {
+            verdict = ignore_verdict ? dd_success : res;
+        } else if (res) {
+            mlog_g(dd_log_info, "request shutdown failed: %s",
+                dd_result_to_string(res));
+        }
+
+        dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
+    }
+
+    dd_helper_rshutdown();
+
+    if (DDAPPSEC_G(active) && _cur_req_span) {
+        dd_tags_add_tags(_cur_req_span, superglob_equiv);
+        dd_duration_flush_metrics(_cur_req_span);
+    }
+
+    zend_array *spec = dd_req_lifecycle_abort(
+        REQUEST_STAGE_REQUEST_END, verdict, &ctx.req_info.block_params);
+
+    dd_request_abort_destroy_block_params(&ctx.req_info.block_params);
+
+    return spec;
+}
+
+static zend_long _raise_shutdown_memory_limit(void)
+{
+    zend_long orig_mem_limit = PG(memory_limit);
+    zend_set_memory_limit(ZEND_LONG_MAX);
+    // The old-PHP parser preflight reads PG(memory_limit), not Zend's private
+    // heap limit. Keep both in sync, including for nested shutdown calls.
+    PG(memory_limit) = ZEND_LONG_MAX;
+    return orig_mem_limit;
+}
+
+static bool _restore_shutdown_memory_limit(zend_long limit)
+{
+    PG(memory_limit) = limit;
+#if PHP_VERSION_ID < 80100
+    // Older setters may accept a limit below current usage, letting the
+    // allocator's remaining-space subtraction wrap. Reclaim cached memory
+    // before checking whether the original limit fits.
+    if ((size_t)limit < zend_memory_usage(true)) {
+        zend_mm_gc(zend_mm_get_heap());
+        if ((size_t)limit < zend_memory_usage(true)) {
+            return false;
+        }
+    }
+#endif
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+    zend_set_memory_limit(limit);
+    return true;
+#else
+    return zend_set_memory_limit(limit) == SUCCESS;
+#endif
+}
+
+// Detach request-owned values before releasing them: user destructors can bail.
+static void _reset_globals(void)
+{
+    zend_object *span = _cur_req_span;
+    zend_array *superglob_equiv = _superglob_equiv;
+    zval blocking_function = _blocking_function;
+    _cur_req_span = NULL;
+    dd_trace_root_span_changed();
+    _superglob_equiv = NULL;
+    ZVAL_UNDEF(&_blocking_function);
+
+    if (_client_ip && _client_ip != CLIENT_IP_LOOKUP_FAILED) {
+        zend_string_release(_client_ip);
+    }
+    _client_ip = NULL;
+    _shutdown_done_on_commit = false;
+    _request_blocked = false;
+    dd_tags_rshutdown();
+    dd_duration_reset_globals();
+
+    if (span && GC_DELREF(span) == 0) {
+        zend_objects_store_del(span);
+    }
+    if (superglob_equiv &&
+        (GC_TRY_DELREF(superglob_equiv), GC_REFCOUNT(superglob_equiv) == 0)) {
+        zend_array_destroy(superglob_equiv);
+    }
+    if (Z_TYPE(blocking_function) != IS_UNDEF) {
+        zval_ptr_dtor(&blocking_function);
+    }
+}
+
+static zend_string *nullable _extract_ip_from_autoglobal(void)
+{
+    zval *_server =
+        dd_php_get_autoglobal(TRACK_VARS_SERVER, LSTRARG("_SERVER"));
+    if (!_server) {
+        mlog(dd_log_info, "No SERVER autoglobal available");
+        return NULL;
+    }
+    return dd_ip_extraction_find(_server);
+}
+
+static void _set_cur_span(zend_object *nullable span)
+{
+    zend_object *previous = _cur_req_span;
+    _cur_req_span = span;
+    if (span) {
+        GC_ADDREF(span);
+    }
+    if (previous && GC_DELREF(previous) == 0) {
+        zend_objects_store_del(previous);
+    }
+    dd_trace_root_span_changed();
+}
+
+bool dd_req_lifecycle_is_active(void)
+{
+    dd_conn *conn = dd_helper_mgr_cur_conn();
+    return conn && conn->request_started && DDAPPSEC_G(active);
+}
+
+zend_object *nullable dd_req_lifecycle_get_cur_span(void)
+{
+    return _cur_req_span;
+}
+
+zend_string *nullable dd_req_lifecycle_get_client_ip(void)
+{
+    if (!_client_ip) {
+        if (_superglob_equiv) {
+            zval *_server = zend_hash_find(_superglob_equiv, _server_zstr);
+            if (_server) {
+                _client_ip = dd_ip_extraction_find(_server);
+            }
+        } else {
+            _client_ip = _extract_ip_from_autoglobal();
+        }
+        if (!_client_ip) {
+            _client_ip = CLIENT_IP_LOOKUP_FAILED;
+        }
+    }
+
+    if (_client_ip == CLIENT_IP_LOOKUP_FAILED) {
+        return NULL;
+    }
+    return _client_ip;
+}
+
+static zend_array *nullable _start_user_req(
+    ddtrace_user_req_listeners *listener, zend_object *span,
+    zend_array *super_global_equiv, zval *nullable rbe_zv)
+{
+    UNUSED(listener);
+
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        return NULL;
+    }
+
+    if (_cur_req_span != NULL) {
+        mlog(dd_log_warning, "User request already started; only one user "
+                             "request can be active at a time. Finishing the "
+                             "previous request before starting the new one");
+        zend_array *spec =
+            _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
+        _reset_globals();
+        UNUSED(spec);
+        assert(spec == NULL);
+    }
+
+    mlog(dd_log_debug, "Starting user request for span %p", (void *)span);
+
+    _set_cur_span(span);
+    GC_TRY_ADDREF(super_global_equiv);
+    _superglob_equiv = super_global_equiv;
+    return _do_request_begin_user_req(rbe_zv);
+}
+
+static zend_array *nullable _response_commit(
+    ddtrace_user_req_listeners *listener, zend_object *span, int status,
+    zend_array *resp_headers, zval *rbe_zv)
+{
+    UNUSED(listener);
+
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        return NULL;
+    }
+
+    if (!_cur_req_span) {
+        mlog(dd_log_warning,
+            "Request commit callback called, but there is no "
+            "root span currently associated through the "
+            "request started span (or it was cleared already)");
+        return NULL;
+    }
+    if (_cur_req_span != span) {
+        mlog(dd_log_warning,
+            "Request commit callback called, but the root span currently "
+            "associated is not the same as the one that was provided");
+        return NULL;
+    }
+    if (_shutdown_done_on_commit) {
+        mlog(dd_log_warning,
+            "Request commit callback called twice for the same span");
+        return NULL;
+    }
+
+    mlog(dd_log_debug, "Committing user request for span %p", (void *)span);
+
+    zend_string *rbe = _get_entity_as_string(rbe_zv);
+    bool free_rbe = true;
+    if (!rbe) {
+        // frankenphp writes the response body through the usual means
+        zend_string *rbe_sapi_buf = dd_response_body_buffered();
+        if (rbe_sapi_buf->val[0]) {
+            mlog_g(dd_log_debug,
+                "Using buffered response body of size %zu in notify_commit()",
+                ZSTR_LEN(rbe_sapi_buf));
+            rbe = rbe_sapi_buf;
+            free_rbe = false;
+        }
+    }
+
+    zend_array *res = _do_request_finish_user_req(
+        false, _superglob_equiv, status, resp_headers, rbe);
+
+    if (rbe && free_rbe) {
+        zend_string_release(rbe);
+    }
+
+    _shutdown_done_on_commit = true;
+
+    return res;
+}
+
+static zend_string *nullable _get_entity_as_string(zval *rbe_zv)
+{
+    if (!rbe_zv) {
+        return NULL;
+    }
+
+    const size_t max_size = (size_t)get_DD_APPSEC_MAX_BODY_BUFF_SIZE();
+
+    if (Z_TYPE_P(rbe_zv) == IS_STRING) {
+        if (Z_STRLEN_P(rbe_zv) <= max_size) {
+            zend_string *res = Z_STR_P(rbe_zv);
+            zend_string_addref(res);
+            return res;
+        }
+        mlog(dd_log_debug,
+            "Response body entity is larger than %zu bytes (got %zu); ignoring",
+            max_size, Z_STRLEN_P(rbe_zv));
+        return NULL;
+    }
+
+    if (Z_TYPE_P(rbe_zv) != IS_RESOURCE) {
+        mlog(dd_log_debug,
+            "Response body entity is not a string or a stream; ignoring");
+        return NULL;
+    }
+
+    php_stream *stream = NULL;
+    php_stream_from_zval_no_verify(stream, rbe_zv);
+    if (!stream) {
+        mlog(dd_log_debug,
+            "Response body entity is not a string or a stream; ignoring");
+        return NULL;
+    }
+
+    // TODO: support non-seekable streams. Needs replacing the stream
+    if (stream->flags & PHP_STREAM_FLAG_NO_SEEK) {
+        __auto_type lvl =
+            get_global_DD_APPSEC_TESTING() ? dd_log_info : dd_log_debug;
+        mlog(lvl, "Response body entity is a stream, but it is "
+                  "not seekable; ignoring");
+        return NULL;
+    }
+
+    zend_off_t start_pos = php_stream_tell(stream);
+    if (start_pos < 0) {
+        mlog(dd_log_info, "Failed to get current position of response body "
+                          "entity stream; ignoring");
+        return NULL;
+    }
+
+    if (php_stream_seek(stream, 0, SEEK_END) < 0) {
+        mlog(dd_log_info,
+            "Failed to seek to end of response body entity stream; ignoring");
+        return NULL;
+    }
+
+    size_t stream_size = (size_t)php_stream_tell(stream);
+    if (stream_size == (size_t)-1) {
+        mlog(dd_log_error,
+            "Failed to get current position of response body "
+            "entity stream after seek; response stream is likely corrupted");
+        return NULL;
+    }
+
+    if (stream_size < (size_t)start_pos) {
+        mlog(dd_log_error,
+            "Response body entity stream shrank after seek (%zu to %zu); "
+            "response stream is likely corrupted",
+            (size_t)start_pos, stream_size);
+        return NULL;
+    }
+
+    if (php_stream_seek(stream, start_pos, SEEK_SET) < 0) {
+        mlog(dd_log_error, "Failed to rewind response body entity stream; "
+                           "response stream is likely corrupted");
+        return NULL;
+    }
+
+    size_t effective_size = stream_size - (size_t)start_pos;
+    if (effective_size >= (size_t)get_DD_APPSEC_MAX_BODY_BUFF_SIZE()) {
+        __auto_type lvl =
+            get_global_DD_APPSEC_TESTING() ? dd_log_info : dd_log_debug;
+        mlog(lvl,
+            "Response body entity is larger than %zu bytes (got %zu); ignoring",
+            max_size, effective_size);
+        return NULL;
+    }
+
+    if (effective_size == 0) {
+        return NULL;
+    }
+
+    zend_string *buf = zend_string_alloc(effective_size, 0);
+    char *p = ZSTR_VAL(buf);
+    const char *end = p + effective_size;
+    while (!php_stream_eof(stream) && p < end) {
+        size_t read = php_stream_read(stream, p, end - p);
+        if (read == (size_t)-1 || (read == 0 && !php_stream_eof(stream))) {
+            mlog(dd_log_error, "Failed to read response body entity stream; "
+                               "response stream is likely corrupted");
+            zend_string_release(buf);
+            return NULL;
+        }
+        if (read == 0) {
+            break;
+        }
+        p += read;
+    }
+    size_t total_read = (size_t)(p - ZSTR_VAL(buf));
+    if (total_read != effective_size) {
+        mlog(dd_log_info,
+            "Read fewer data than expected (expected %zu, got %zu)",
+            effective_size, total_read);
+        if (total_read == 0) {
+            zend_string_release(buf);
+            return NULL;
+        }
+        ZSTR_LEN(buf) = total_read;
+    }
+
+    if (php_stream_seek(stream, start_pos, SEEK_SET) < 0) {
+        mlog(dd_log_error, "Failed to rewind response body entity stream; "
+                           "response stream is likely corrupted");
+        zend_string_release(buf);
+        return NULL;
+    }
+
+    return buf;
+}
+
+static void _finish_user_req(
+    ddtrace_user_req_listeners *listener, zend_object *span)
+{
+    UNUSED(listener);
+
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        return;
+    }
+
+    if (_shutdown_done_on_commit) {
+        mlog(dd_log_debug, "Skipping user request shutdown because it was "
+                           "already done on commit");
+        _reset_globals();
+        return;
+    }
+
+    if (_cur_req_span == NULL) {
+        mlog(dd_log_warning,
+            "Request finished callback called, but there is no "
+            "root span currently associated through the "
+            "request started span (or it was cleared already). "
+            "Resetting");
+        _reset_globals();
+        return;
+    }
+    if (_cur_req_span != span) {
+        mlog(dd_log_warning,
+            "Request finished callback called, but the root span currently "
+            "associated is not the same as the one that was provided. "
+            "Resetting");
+        _reset_globals();
+    }
+
+    mlog(dd_log_debug, "Finishing user request for span %p", (void *)span);
+
+    zend_array *arr =
+        _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
+    UNUSED(arr);
+    assert(arr == NULL);
+    _reset_globals();
+}
+
+const zend_array *nonnull _get_server_equiv(
+    const zend_array *nonnull superglob_equiv)
+{
+    zval *_server = zend_hash_str_find(superglob_equiv, LSTRARG("_SERVER"));
+    if (_server && Z_TYPE_P(_server) == IS_ARRAY) {
+        return Z_ARRVAL_P(_server);
+    }
+
+    return &zend_empty_array;
+}
+
+static void _set_blocking_function(ddtrace_user_req_listeners *nonnull self,
+    zend_object *nonnull span, zval *nonnull blocking_function)
+{
+    UNUSED(self);
+
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
+        return;
+    }
+
+    if (_cur_req_span == NULL) {
+        mlog(dd_log_warning, "set_blocking_function called, but there is no "
+                             "root span currently associated through "
+                             "notify_start (or it was cleared already)");
+        return;
+    }
+    if (_cur_req_span != span) {
+        mlog(dd_log_warning,
+            "set_blocking_function called, but the root span currently "
+            "associated is not the same as the one that was provided");
+        return;
+    }
+    if (_shutdown_done_on_commit) {
+        mlog(dd_log_warning,
+            "set_blocking_function called after request shutdown");
+        return;
+    }
+    if (Z_TYPE(_blocking_function) != IS_UNDEF) {
+        mlog(dd_log_warning,
+            "set_blocking_function called twice for the same span");
+        return;
+    }
+
+    ZVAL_COPY(&_blocking_function, blocking_function);
+}
+
+void _call_blocking_function(
+    dd_result res, struct block_params *nonnull block_params)
+{
+    if (Z_TYPE(_blocking_function) == IS_UNDEF) {
+        mlog(dd_log_debug, "dd_req_call_blocking_function called with no "
+                           "blocking function set");
+        return;
+    }
+    if (!_superglob_equiv) {
+        mlog(dd_log_warning, "dd_req_call_blocking_function called, but there "
+                             "is no active span");
+        return;
+    }
+    if (_shutdown_done_on_commit) {
+        mlog(dd_log_warning,
+            "dd_user_req_abort_static_page called after request shutdown");
+        return;
+    }
+
+    mlog(dd_log_debug, "Calling blocking function for span %p",
+        (void *)_cur_req_span);
+
+    const zend_array *nonnull sv = _get_server_equiv(_superglob_equiv);
+    zend_array *spec = NULL;
+    if (res == dd_should_block) {
+        spec = dd_request_abort_static_page_spec(block_params, sv);
+    } else if (res == dd_should_redirect) {
+        spec = dd_request_abort_redirect_spec(block_params, sv);
+    } else {
+        mlog(dd_log_warning,
+            "dd_req_call_blocking_function called with "
+            "invalid result %d",
+            res);
+    }
+    assert(spec != NULL);
+
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
+    char *error = NULL;
+    if (zend_fcall_info_init(
+            &_blocking_function, 0, &fci, &fcc, NULL, &error) == FAILURE) {
+        mlog(dd_log_warning, "Failure resolving callable: %s",
+            error ? error : "");
+        if (error) {
+            efree(error);
+        }
+        return;
+    }
+    fci.param_count = 1;
+    zval zv;
+    ZVAL_ARR(&zv, spec);
+    fci.params = &zv;
+    zval retval;
+    fci.retval = &retval;
+    if (zend_call_function(&fci, &fcc) == FAILURE) {
+        mlog(dd_log_warning, "Failure calling blocking function");
+        return;
+    }
+    if (EG(exception)) {
+        mlog(dd_log_debug, "Blocking function threw an exception");
+    }
+    zval_ptr_dtor(&retval);
+}
+
+ddtrace_user_req_listeners dd_user_req_listeners = {
+    .priority = -10, // NOLINT
+    .start_user_req = _start_user_req,
+    .response_committed = _response_commit,
+    .set_blocking_function = _set_blocking_function,
+    .finish_user_req = _finish_user_req,
+};
+
+zend_array *nullable dd_req_lifecycle_abort(enum request_stage stage,
+    dd_result result, struct block_params *nonnull block_params)
+{
+    if (result != dd_should_block && result != dd_should_redirect) {
+        return NULL;
+    }
+
+    const bool user_req = dd_req_is_user_req();
+
+    zend_array *spec = NULL;
+    if (user_req) {
+        if (stage == REQUEST_STAGE_REQUEST_BEGIN ||
+            stage == REQUEST_STAGE_REQUEST_END) {
+            const zend_array *nonnull server =
+                _get_server_equiv(_superglob_equiv);
+            if (result == dd_should_block) {
+                spec = dd_request_abort_static_page_spec(block_params, server);
+            } else if (result == dd_should_redirect) {
+                spec = dd_request_abort_redirect_spec(block_params, server);
+            }
+        } else {
+            assert(stage == REQUEST_STAGE_MID_REQUEST);
+            _call_blocking_function(result, block_params);
+        }
+    } else { // non-user req
+        if (stage == REQUEST_STAGE_REQUEST_END) {
+            dd_trace_close_all_spans_and_flush();
+        }
+        if (result == dd_should_block) {
+            dd_request_abort_static_page(block_params);
+        } else if (result == dd_should_redirect) {
+            dd_request_abort_redirect(block_params);
+        }
+    }
+
+    if (block_params->security_response_id) {
+        zend_string_release(block_params->security_response_id);
+        block_params->security_response_id = NULL;
+    }
+    if (block_params->redirection_location) {
+        zend_string_release(block_params->redirection_location);
+        block_params->redirection_location = NULL;
+    }
+
+    return spec;
+}
+
+#define FNV_PRIME 1099511628211ULL
+#define FNV_OFFSET_BASIS 14695981039346656037ULL
+static inline uint64_t _hash_string(
+    uint64_t hash, const char *nonnull str, size_t len)
+{
+    for (size_t i = 0; i < len; i++) {
+        hash ^= (uint64_t)str[i];
+        hash *= FNV_PRIME;
+    }
+    return hash;
+}
+static inline uint64_t _hash_zend_string(
+    uint64_t hash, zend_string *nonnull str)
+{
+    return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str));
+}
+
+// Attributes may hold references (by-ref uses of $attributes or $meta).
+static zval *nullable _find_attribute(
+    zval *nonnull attributes, const char *nonnull key, size_t key_len)
+{
+    zval *zv = zend_hash_str_find(Z_ARRVAL_P(attributes), key, key_len);
+    if (zv) {
+        ZVAL_DEREF(zv);
+    }
+    return zv;
+}
+
+static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
+    dd_api_sec_outcome *nonnull outcome)
+{
+    *outcome = DD_API_SEC_SKIP;
+
+    if (!get_DD_API_SECURITY_ENABLED()) {
+        return 0;
+    }
+
+    if (_request_blocked) {
+        mlog_g(
+            dd_log_debug, "Request was blocked; not sampling for API security");
+        return 0;
+    }
+
+    if (!root_span) {
+        return 0;
+    }
+
+    zval *nullable attributes = dd_trace_span_get_attributes(root_span);
+    if (!attributes) {
+        return 0;
+    }
+
+    // check sampling priority: must be >=1. o/wise return 0
+    zend_long sampling_priority =
+        dd_trace_get_priority_sampling_on_span_zobj(root_span);
+    if (get_DD_APM_TRACING_ENABLED() && sampling_priority < 1) {
+        mlog_g(dd_log_debug, "Sampling priority is %" PRIi64 "; not sampling",
+            (int64_t)sampling_priority);
+        return 0;
+    }
+
+    zend_string *route_or_endpoint = NULL;
+    bool free_route_or_endpoint = false;
+
+    zval *route = _find_attribute(attributes, ZEND_STRL("http.route"));
+    const bool has_http_route = route && Z_TYPE_P(route) == IS_STRING;
+    if (has_http_route) {
+        route_or_endpoint = Z_STR_P(route);
+    } else {
+        // http.route is absent, check for http.endpoint
+        zval *endpoint =
+            _find_attribute(attributes, ZEND_STRL("http.endpoint"));
+        const bool has_http_endpoint =
+            endpoint && Z_TYPE_P(endpoint) == IS_STRING;
+        if (has_http_endpoint) {
+            // http.endpoint is already computed
+            // Use it unless status code is 404
+#define HTTP_NOT_FOUND 404
+            if (status_code == HTTP_NOT_FOUND) {
+                mlog_g(dd_log_debug,
+                    "http.endpoint present but status is 404; not sampling");
+            } else {
+                route_or_endpoint = Z_STR_P(endpoint);
+            }
+        } else {
+            // http.endpoint not computed, compute it now without setting the
+            // tag
+            zval *url = _find_attribute(attributes, ZEND_STRL("http.url"));
+            const bool has_http_url = url && Z_TYPE_P(url) == IS_STRING;
+            if (has_http_url) {
+                route_or_endpoint = dd_trace_guess_endpoint_from_url(
+                    Z_STRVAL_P(url), Z_STRLEN_P(url));
+                if (route_or_endpoint) {
+                    free_route_or_endpoint = true;
+                } else {
+                    mlog_g(dd_log_debug,
+                        "Failed to compute http.endpoint; not sampling");
+                }
+            } else {
+                mlog_g(dd_log_debug,
+                    "No http.route, http.endpoint, or http.url; not sampling");
+            }
+        }
+    }
+
+    if (!route_or_endpoint) {
+        goto missing_route;
+    }
+
+    zval *method = _find_attribute(attributes, ZEND_STRL("http.method"));
+    if (!method || Z_TYPE_P(method) != IS_STRING) {
+        mlog_g(dd_log_debug, "No http.method tag; not sampling");
+        // we treat the absence of http.method also as a missing route, because
+        // it also prevents schema extraction and it's sort of part of the route
+        goto missing_route;
+    }
+
+    // use fnv-1a hash with: <route_or_endpoint> NULL <http.method tag> NULL
+    // status_code
+
+    uint64_t hash = FNV_OFFSET_BASIS;
+    hash = _hash_zend_string(hash, route_or_endpoint);
+    hash *= FNV_PRIME; // hash NUL byte
+    hash = _hash_zend_string(hash, Z_STR_P(method));
+    hash *= FNV_PRIME; // hash NUL byte
+
+    // hash status_code
+    char status_str[sizeof("-2147483649")];
+    int status_len =
+        snprintf(status_str, sizeof(status_str), "%d", status_code);
+    hash = _hash_string(hash, status_str, status_len);
+
+    mlog_g(dd_log_debug,
+        "Will use sampling key: %" PRIu64
+        " for route/endpoint %.*s, method %.*s, status %d",
+        hash, (int)ZSTR_LEN(route_or_endpoint), ZSTR_VAL(route_or_endpoint),
+        (int)ZSTR_LEN(Z_STR_P(method)), ZSTR_VAL(Z_STR_P(method)), status_code);
+
+    if (free_route_or_endpoint) {
+        zend_string_release(route_or_endpoint);
+    }
+    *outcome = DD_API_SEC_EVALUATED;
+    return hash;
+
+missing_route:
+    // Neither the route nor a stand-in for it could be determined. 404s are
+    // excluded: an endpoint that does not exist has no route to speak of, so
+    // counting it would be misleading
+    if (status_code != HTTP_NOT_FOUND) {
+        *outcome = DD_API_SEC_MISSING_ROUTE;
+    }
+
+    if (free_route_or_endpoint) {
+        zend_string_release(route_or_endpoint);
+    }
+    return 0;
+}
+
+PHP_FUNCTION(datadog_appsec_testing_dump_req_lifecycle_state)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        return;
+    }
+
+    array_init(return_value);
+    {
+        zval zcur_span;
+        if (_cur_req_span) {
+            GC_ADDREF(_cur_req_span);
+            ZVAL_OBJ(&zcur_span, _cur_req_span);
+        } else {
+            ZVAL_NULL(&zcur_span);
+        }
+        zend_hash_str_add_new(
+            Z_ARRVAL_P(return_value), "span", sizeof("span") - 1, &zcur_span);
+    }
+    {
+        zval zsuperglob_equiv;
+        if (_superglob_equiv) {
+            // may be zend_empty_array; dup it unconditionally because this is
+            // for testing and it's not so simple to handle for all PHP versions
+            ZVAL_ARR(&zsuperglob_equiv, zend_array_dup(_superglob_equiv));
+        } else {
+            ZVAL_NULL(&zsuperglob_equiv);
+        }
+        zend_hash_str_add_new(Z_ARRVAL_P(return_value), "superglob_equiv",
+            sizeof("superglob_equiv") - 1, &zsuperglob_equiv);
+    }
+    {
+        zval zshutdown_on_commit;
+        ZVAL_BOOL(&zshutdown_on_commit, _shutdown_done_on_commit);
+        zend_hash_str_add_new(Z_ARRVAL_P(return_value),
+            "shutdown_done_on_commit", sizeof("shutdown_done_on_commit") - 1,
+            &zshutdown_on_commit);
+    }
+}
+
+// clang-format off
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(dump_arginfo, 0, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+static const zend_function_entry functions[] = {
+    ZEND_RAW_FENTRY(DD_TESTING_NS "dump_req_lifecycle_state", PHP_FN(datadog_appsec_testing_dump_req_lifecycle_state), dump_arginfo, 0, NULL, NULL)
+    PHP_FE_END
+};
+// clang-format on
+
+static void _register_testing_objects(void)
+{
+    if (!get_global_DD_APPSEC_TESTING()) {
+        return;
+    }
+    dd_phpobj_reg_funcs(functions);
+}

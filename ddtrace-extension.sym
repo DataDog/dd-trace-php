@@ -1,0 +1,6 @@
+ddtrace_get_profiling_context
+datadog_process_tags_get_serialized
+datadog_set_all_thread_vm_interrupt
+datadog_loaded_by_ssi
+datadog_ssi_forced_injection_enabled
+get_module

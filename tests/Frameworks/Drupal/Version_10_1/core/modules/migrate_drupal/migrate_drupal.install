@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * @file
+ * Contains install and update functions for Migrate Drupal.
+ */
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function migrate_drupal_update_last_removed() {
+  return 8901;
+}

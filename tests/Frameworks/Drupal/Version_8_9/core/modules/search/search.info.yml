@@ -1,0 +1,7 @@
+name: Search
+type: module
+description: 'Allows users to create search pages based on plugins provided by other modules.'
+package: Core
+version: VERSION
+core: 8.x
+configure: entity.search_page.collection

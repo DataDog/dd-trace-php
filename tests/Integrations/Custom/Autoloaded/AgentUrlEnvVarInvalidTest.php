@@ -7,7 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class AgentUrlEnvVarInvalidTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }
@@ -16,6 +16,7 @@ final class AgentUrlEnvVarInvalidTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_AGENT_URL' => 'http://invalid_hostname:1337',
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
         ]);
     }
 

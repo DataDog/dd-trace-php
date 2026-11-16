@@ -7,7 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class ErrorReportingTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/scripts/index.php';
     }
@@ -23,12 +23,16 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
     public function testUnhandledUserErrorIndex()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-index'));
         });
-        $this->assertError($traces[0][0], "Index message", [['index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Index message", [['index.php', '{main}']]);
         // open task: depends on internal status code tracking (separate PR)
-        // $this->assertSame('500', $traces[0][0]['meta']['http.status_code']);
+        // $this->assertSame('500', $traces[0]['spans'][0]['attributes']['http.status_code']);
     }
 
     public function testUnhandledExceptionIndex()
@@ -36,17 +40,21 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-index'));
         });
-        $this->assertError($traces[0][0], "Exception in index*index.php", [['{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception in index*index.php", [['{main}']]);
         // open task: depends on internal status code tracking (separate PR)
-        // $this->assertSame('500', $traces[0][0]['meta']['http.status_code']);
+        // $this->assertSame('500', $traces[0]['spans'][0]['attributes']['http.status_code']);
     }
 
     public function testUnhandledUserErrorExternal()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-external'));
         });
-        $this->assertError($traces[0][0], "Triggered error", [['trigger_user_error.php', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Triggered error", [['trigger_user_error.php', 'index.php', '{main}']]);
     }
 
     public function testUnhandledExceptionExternal()
@@ -55,7 +63,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('', '/unhandled-exception-external'));
         });
         $this->assertError(
-            $traces[0][0],
+            $traces[0]['spans'][0],
             "Exception generated in external file*trigger_exception.php:5",
             [['trigger_exception.php', 'index.php', '{main}']]
         );
@@ -63,10 +71,14 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
     public function testUnhandledUserErrorInFunction()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-in-function'));
         });
-        $this->assertError($traces[0][0], "Triggered error in function", [['trigger_error', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Triggered error in function", [['trigger_error', 'index.php', '{main}']]);
     }
 
     public function testUnhandledExceptionInFunction()
@@ -74,23 +86,31 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-in-function'));
         });
-        $this->assertError($traces[0][0], "Uncaught Exception: Exception in external file in */functions.php:20", [['index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Uncaught Exception: Exception in external file in */functions.php:20", [['index.php', '{main}']]);
     }
 
     public function testUnhandledUserErrorInNestedFunction()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-in-nested-function'));
         });
-        $this->assertError($traces[0][0], "Triggered error in function", [['trigger_error', 'do_trigger_error', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Triggered error in function", [['trigger_error', 'do_trigger_error', 'index.php', '{main}']]);
     }
 
     public function testUnhandledUserErrorWithErrorHandlerNotHandlingIt()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-run-through-handler-continuing-handling'));
         });
-        $this->assertError($traces[0][0], "Triggered error in function", [['trigger_error', 'do_trigger_error', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Triggered error in function", [['trigger_error', 'do_trigger_error', 'index.php', '{main}']]);
     }
 
     public function testUnhandledExceptionInNestedFunction()
@@ -98,7 +118,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-in-nested-function'));
         });
-        $this->assertError($traces[0][0], "Exception in external file", [['do_throw_exception', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception in external file", [['do_throw_exception', 'index.php', '{main}']]);
     }
 
     public function testUnhandledExceptionInClass()
@@ -106,7 +126,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $response = $this->call(GetSpec::create('', '/unhandled-exception-class'));
         });
-        $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
     public function testUnhandledExceptionRethrownInClass()
@@ -114,7 +134,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-rethrown-class'));
         });
-        $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
     public function testUnhandledThrowableInClass()
@@ -122,7 +142,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-throwable-class'));
         });
-        $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
     public function testUnhandledThrowableMultipleCatches()
@@ -130,7 +150,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-throwable-multiple-catch'));
         });
-        $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
     public function testNestedHeaderHandledExceptionInClass()
@@ -138,7 +158,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-nested-exception-class'));
         });
-        $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
     public function testHandledExceptionInFunction()
@@ -146,7 +166,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-function-header'));
         });
-        $this->assertError($traces[0][0], "Exception in external file", [['do_throw_exception', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception in external file", [['do_throw_exception', 'index.php', '{main}']]);
     }
 
     public function testPreviousExceptionDisplay()
@@ -155,7 +175,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('', '/display-previous-exception-in-output'));
         });
         $this->assertError(
-            $traces[0][0],
+            $traces[0]['spans'][0],
             "Exception thrown by inner service",
             [['doThrow', 'dispatchWithPreviousException', '{main}', '',
             'Next ErrorException: Rethrown Exception in random file:2',
@@ -187,7 +207,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('', '/handled-exception-try-catch-class-header'));
         });
         $this->assertError(
-            $traces[0][0],
+            $traces[0]['spans'][0],
             "Internal Server Obfuscated Error*Exception thrown by inner service*service_throwing_exception.php",
             [['dispatcher.php*doThrow()', 'index.php*dispatchWithException()', '{main}']]
         );
@@ -203,7 +223,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-rethrow-class-header'));
         });
-        $this->assertError($traces[0][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
     /**
@@ -220,7 +240,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('', '/handled-throwable-class-header'));
         });
         $this->assertError(
-            $traces[0][0],
+            $traces[0]['spans'][0],
             "Internal Server Obfuscated Error*thrown by inner service*service_throwing_exception.php",
             [['dispatcher.php*doThrow()', 'index.php*dispatchWithThrowable()', '{main}']]
         );
@@ -231,7 +251,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-class-converted-user-error'));
         });
-        $this->assertError($traces[0][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
     public function testHandledThrowableConvertedUserErrorInClass()
@@ -239,7 +259,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-throwable-class-converted-user-error'));
         });
-        $this->assertError($traces[0][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
     public function testHandledExceptionConvertedUserErrorInFunction()
@@ -247,7 +267,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-function-converted-user-error'));
         });
-        $this->assertError($traces[0][0], "Obfuscated*Exception in external file", [['do_throw_exception', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Obfuscated*Exception in external file", [['do_throw_exception', 'index.php', '{main}']]);
     }
 
     /**
@@ -259,7 +279,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-generated-while-rendering-exception'));
         });
-        $this->assertError($traces[0][0], "Obfuscated*Inner handling error", [['throw_handling_error', 'index.php', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Obfuscated*Inner handling error", [['throw_handling_error', 'index.php', '{main}']]);
     }
 
     public function testFirst500HandledExceptionGetsAttachedAsPreviousExceptionToFutureUncaughtExceptions()
@@ -267,7 +287,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/caught-exception-with-500-followed-by-uncaught-exception'));
         });
-        $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'nestedDispatchWithException', '{main}', '',
+        $this->assertError($traces[0]['spans'][0], "Exception thrown by inner service", [['doThrow', 'nestedDispatchWithException', '{main}', '',
             'Next Exception: Exception in external file', 'trace', 'do_throw_exception', 'main']]);
     }
 
@@ -276,7 +296,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/caught-exception-with-500-followed-by-other-handled-exception'));
         });
-        $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'nestedDispatchWithException', '{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Exception thrown by inner service", [['doThrow', 'nestedDispatchWithException', '{main}']]);
     }
 
     public function testImmediatelyCaughtException()
@@ -284,7 +304,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/immediately-caught-exception'));
         });
-        $this->assertError($traces[0][0], "Caught Exception (501): top-level exception", [['{main}']]);
+        $this->assertError($traces[0]['spans'][0], "Caught Exception (501): top-level exception", [['{main}']]);
     }
 
     public function testInternalExceptionThatShouldNotResultInError()
@@ -292,7 +312,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-exception-not-resulting-in-error'));
         });
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertArrayNotHasKey("error", $traces[0]['spans'][0]);
     }
 
     public function testInternalExceptionUsedForRedirect()
@@ -300,8 +320,8 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-exception-used-for-redirect'));
         });
-        $this->assertSame('303', $traces[0][0]['meta']['http.status_code']);
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertSame('303', $traces[0]['spans'][0]['attributes']['http.status_code']);
+        $this->assertArrayNotHasKey("error", $traces[0]['spans'][0]);
     }
 
 
@@ -310,6 +330,6 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-user-error-not-resulting-in-error'));
         });
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertArrayNotHasKey("error", $traces[0]['spans'][0]);
     }
 }

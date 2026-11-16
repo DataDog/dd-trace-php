@@ -10,7 +10,9 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class RouteCachingTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static $database = "laravel8";
+
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
     }
@@ -34,16 +36,18 @@ class RouteCachingTest extends WebFrameworkTestCase
                     'laravel.request',
                     'Laravel',
                     'web',
-                    'App\Http\Controllers\RouteCachingController@unnamed unnamed_route'
+                    'App\Http\Controllers\RouteCachingController@unnamed unnamed-route'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\RouteCachingController@unnamed',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/unnamed-route',
+                        'http.url' => 'http://localhost/unnamed-route',
                         'http.status_code' => '200',
+                        'http.route' => 'unnamed-route',
                         TAG::SPAN_KIND => 'server',
-                        TAG::COMPONENT => 'laravel'
+                        TAG::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),
@@ -81,16 +85,18 @@ class RouteCachingTest extends WebFrameworkTestCase
                     'laravel.request',
                     'Laravel',
                     'web',
-                    'App\Http\Controllers\RouteCachingController@unnamed unnamed_route'
+                    'App\Http\Controllers\RouteCachingController@unnamed unnamed-route'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\RouteCachingController@unnamed',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/unnamed-route',
+                        'http.url' => 'http://localhost/unnamed-route',
                         'http.status_code' => '200',
+                        'http.route' => 'unnamed-route',
                         TAG::SPAN_KIND => 'server',
-                        TAG::COMPONENT => 'laravel'
+                        TAG::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),
@@ -134,12 +140,12 @@ class RouteCachingTest extends WebFrameworkTestCase
     private function routeCache()
     {
         $appRoot = \dirname(\dirname(self::getAppIndexScript()));
-        `cd $appRoot && php artisan route:cache`;
+        \shell_exec('cd ' . \escapeshellarg($appRoot) . ' && DD_TRACE_CLI_ENABLED=0 php artisan route:cache');
     }
 
     private function routeClear()
     {
         $appRoot = \dirname(\dirname(self::getAppIndexScript()));
-        `cd $appRoot && php artisan route:clear`;
+        \shell_exec('cd ' . \escapeshellarg($appRoot) . ' && DD_TRACE_CLI_ENABLED=0 php artisan route:clear');
     }
 }

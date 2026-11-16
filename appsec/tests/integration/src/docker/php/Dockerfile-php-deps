@@ -1,0 +1,19 @@
+FROM datadog/dd-appsec-php-ci:toolchain
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libzip-dev \
+    zlib1g-dev \
+    libcurl4-gnutls-dev \
+    libgmp-dev \
+    libpng-dev \
+    libonig-dev \
+    libpq-dev \
+    apache2-dev \
+    libsqlite3-dev \
+    gdb \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+ADD build_dev_php.sh /build/php/
+RUN USER=root /build/php/build_dev_php.sh deps

@@ -1,0 +1,297 @@
+global-styling:
+  version: VERSION
+  css:
+    base:
+      css/base/fonts.css: {}
+      css/base/variables.css: {}
+      css/base/base.css: {}
+    layout:
+      css/layout/layout.css: {}
+      css/layout/grid.css: {}
+      css/layout/layout-content-narrow.css: {}
+      css/layout/layout-content-medium.css: {}
+      css/layout/layout-footer.css: {}
+      css/layout/region.css: {}
+      css/layout/region-content.css: {}
+      css/layout/region-hero.css: {}
+      css/layout/region-secondary-menu.css: {}
+      css/layout/social-bar.css: {}
+      css/layout/views.css: {}
+    component:
+      css/components/block.css: {}
+      css/components/breadcrumb.css: {}
+      css/components/embedded-media.css: {}
+      css/components/footer.css: {}
+      css/components/button.css: {}
+      css/components/container-inline.module.css: {}
+      css/components/fieldset.css: {}
+      css/components/field.css: {}
+      css/components/form.css: {}
+      css/components/form-boolean.css: {}
+      css/components/form-text.css: {}
+      css/components/form-textarea.css: {}
+      css/components/form-select.css: {}
+      css/components/header-buttons-mobile.css: {}
+      css/components/header-navigation.css: {}
+      css/components/header-site-branding.css: {}
+      css/components/header-sticky-toggle.css: {}
+      css/components/hero.css: {}
+      css/components/links.css: {}
+      css/components/messages.css: {}
+      css/components/navigation/nav-button-mobile.css: {}
+      css/components/node.css: {}
+      css/components/node-teaser.css: {}
+      css/components/page-title.css: {}
+      css/components/site-header.css: {}
+      css/components/skip-link.css: {}
+      css/components/pager.css: {}
+      css/components/table.css: {}
+      css/components/text-content.css: {}
+      css/components/tabledrag.css: {}
+      css/components/wide-image.css: {}
+
+  js:
+    js/checkbox.js: {}
+
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/tabbable
+    - olivero/navigation-base
+
+book:
+  version: VERSION
+  css:
+    theme:
+      css/components/book.css: {}
+
+cke-dialog:
+  version: VERSION
+  css:
+    component:
+      css/components/cke-dialog.css: {}
+
+color-picker:
+  version: VERSION
+  css:
+    component:
+      css/components/color-picker.css: {}
+  js:
+    js/color-picker.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/drupal.announce
+
+comments:
+  version: VERSION
+  css:
+    component:
+      css/components/comments.css: {}
+  js:
+    js/comments.js: {}
+
+content-below:
+  version: VERSION
+  css:
+    layout:
+      css/layout/region-content-below.css: {}
+
+content_moderation:
+  version: VERSION
+  css:
+    component:
+      css/components/content-moderation.css: {}
+
+details:
+  version: VERSION
+  css:
+    theme:
+      css/components/details.css: {}
+
+dropbutton:
+  version: VERSION
+  css:
+    component:
+      css/components/dropbutton.css: {}
+
+drupal.dialog:
+  version: VERSION
+  css:
+    theme:
+      css/components/ui-dialog.css: {}
+
+drupal.message:
+  version: VERSION
+  js:
+    js/message.theme.js: {}
+  dependencies:
+    - olivero/messages
+
+drupal.node.preview:
+  version: VERSION
+  css:
+    theme:
+      css/components/node-preview-container.css: {}
+
+feed:
+  version: VERSION
+  css:
+    theme:
+      css/components/feed.css: {}
+
+filter.theme:
+  version: VERSION
+  css:
+    component:
+      css/theme/filter.theme.css: {}
+
+forum:
+  version: VERSION
+  css:
+    component:
+      css/components/forum.css: {}
+
+layout_builder_fourcol_section:
+  version: VERSION
+  css:
+    layout:
+      css/layout/layout-builder-fourcol-section.css: {}
+  dependencies:
+    - olivero/layout_discovery_section
+
+layout_builder_threecol_section:
+  version: VERSION
+  css:
+    layout:
+      css/layout/layout-builder-threecol-section.css: {}
+  dependencies:
+    - olivero/layout_discovery_section
+
+layout_builder_twocol_section:
+  version: VERSION
+  css:
+    layout:
+      css/layout/layout-builder-twocol-section.css: {}
+  dependencies:
+    - olivero/layout_discovery_section
+
+layout_discovery_section:
+  version: VERSION
+  css:
+    layout:
+      css/layout/layout-discovery-section-layout.css: {}
+
+layout-views-grid:
+  version: VERSION
+  css:
+    layout:
+      css/layout/layout-views-grid.css: {}
+
+local-actions:
+  version: VERSION
+  css:
+    component:
+      css/components/action-links.css: {}
+
+maintenance-page:
+  version: VERSION
+  css:
+    component:
+      css/components/maintenance-page.css: {}
+
+menu-sidebar:
+  version: VERSION
+  css:
+    component:
+      css/components/navigation/menu-sidebar.css: {}
+
+messages:
+  version: VERSION
+  js:
+    js/messages.js: {}
+  dependencies:
+    - olivero/global-styling
+
+navigation-base:
+  version: VERSION
+  js:
+    js/navigation-utils.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/tabbable
+
+navigation-primary:
+  version: VERSION
+  css:
+    component:
+      css/components/navigation/nav-primary.css: {}
+      css/components/navigation/nav-primary-button.css: {}
+      css/components/navigation/nav-primary-wide.css: {}
+  js:
+    js/navigation.js: {}
+    js/second-level-navigation.js: {}
+    js/nav-resize.js: {}
+  dependencies:
+    - olivero/navigation-base
+
+navigation-secondary:
+  version: VERSION
+  css:
+    component:
+      css/components/navigation/nav-secondary.css: {}
+
+powered-by-block:
+  version: VERSION
+  css:
+    theme:
+      css/components/powered-by-block.css: {}
+
+progress:
+  version: VERSION
+  css:
+    component:
+      css/components/progress.css: {}
+
+search-narrow:
+  version: VERSION
+  css:
+    component:
+      css/components/header-search-narrow.css: {}
+
+search-results:
+  version: VERSION
+  css:
+    theme:
+      css/components/search-results.css: {}
+
+search-wide:
+  version: VERSION
+  css:
+    component:
+      css/components/header-search-wide.css: {}
+  js:
+    js/search.js: {}
+  dependencies:
+    - olivero/navigation-primary
+
+sidebar:
+  version: VERSION
+  css:
+    layout:
+      css/layout/layout-sidebar.css: {}
+
+tabs:
+  version: VERSION
+  css:
+    theme:
+      css/components/tabs.css: {}
+  js:
+    js/tabs.js: {}
+
+tags:
+  version: VERSION
+  css:
+    theme:
+      css/components/tags.css: {}

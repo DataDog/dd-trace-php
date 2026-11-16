@@ -1,73 +1,216 @@
 stages:
   - build
+  - tests
   - deploy
+  - ci-build
+  - ci-publish
+  - merge-gate
 
 variables:
-  LATEST_LIBRARY_x86_64_LINUX_GNU:
-    value: ""
-    description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
-  DOWNSTREAM_REL_BRANCH:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GITHUB_RELEASES_MIRROR: "https://depot-read-api-github-releases.us1.ddbuild.io/internal/mirror/github-releases"
+  # Only clone submodules required by default test jobs
+  # libddwaf-rust is needed because the root Cargo workspace includes
+  # appsec/helper-rust, which depends on it (see 3f893e263)
+  GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
+  RELIABILITY_ENV_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
-  FORCE_TRIGGER:
-    value: "false"
-    description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
+  SYSTEM_TESTS_LIBRARY: php
 
-include:
-  remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
-
-build:
+generate-templates:
   stage: build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
-  tags: [ "runner:main", "size:large" ]
+  # The generators only need php-cli: no git history, no submodules.
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli-alpine
+  tags: [ "arch:amd64" ]
+  needs: []
   script:
     - |
-      if [ -z "$LATEST_LIBRARY_x86_64_LINUX_GNU" ]; then
-        UPSTREAM_TRACER_VERSION=$(curl -L https://api.github.com/repos/DataDog/dd-trace-php/releases | grep -E '"tag_name"|"prerelease"' | paste -sd" \n" - | grep -v '"prerelease": true' | grep -Pom1 '"tag_name": "\K[^"]+')
-        LATEST_LIBRARY_x86_64_LINUX_GNU="https://github.com/DataDog/dd-trace-php/releases/download/${UPSTREAM_TRACER_VERSION}/dd-library-php-${UPSTREAM_TRACER_VERSION}-x86_64-linux-gnu.tar.gz"
-      else
-        UPSTREAM_TRACER_VERSION=$(echo "$LATEST_LIBRARY_x86_64_LINUX_GNU" | grep -Po '(?<=dd-library-php-).+(?=-x86_64-linux-gnu.tar.gz)')
+      touch libdatadog.env  # always present so dotenv artifact never errors
+      # On libdatadog CI schedule: fetch the latest SHA from GitHub, export it so
+      # generate-common.php can embed it directly in compilation job before_scripts.
+      if [ "${SCHEDULED_LIBDATADOG_LATEST:-}" = "true" ]; then
+        set -x
+        apk add --no-cache git
+        LIBDATADOG_PINNED_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
+        LIBDATADOG_OVERRIDE_SHA=$(git ls-remote https://github.com/DataDog/libdatadog main | cut -f1)
+        export LIBDATADOG_OVERRIDE_SHA LIBDATADOG_PINNED_SHA
+        printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_PINNED_SHA=%s\n' "$LIBDATADOG_OVERRIDE_SHA" "$LIBDATADOG_PINNED_SHA" >> libdatadog.env
+        if [ "$LIBDATADOG_OVERRIDE_SHA" = "$LIBDATADOG_PINNED_SHA" ]; then
+          echo 'LIBDATADOG_NO_CHANGES=true'  >> libdatadog.env
+        else
+          echo 'LIBDATADOG_NO_CHANGES=false' >> libdatadog.env
+        fi
+      elif [ "${CI_COMMIT_BRANCH:-}" = "bot/libdatadog-latest" ]; then
+        # Feedback run after a bot commit: the submodule already points to the tested SHA.
+        # Don't export — generate-common.php must not inject fetch/checkout (no-op anyway).
+        set -x
+        apk add --no-cache git
+        LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
+        printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
       fi
-    - echo "UPSTREAM_TRACER_VERSION=${UPSTREAM_TRACER_VERSION}" >> upstream.env
-    - curl --fail --location --output 'dd-library-php-x86_64-linux-gnu.tar.gz' "$LATEST_LIBRARY_x86_64_LINUX_GNU"
-    - curl --fail --location -O "$(dirname $LATEST_LIBRARY_x86_64_LINUX_GNU)/datadog-setup.php"
-    - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
+    - php ./.gitlab/generate-package.php  | tee .gitlab/package-gen.yml
+    - php ./.gitlab/generate-tracer.php   | tee .gitlab/tracer-gen.yml
+    - php ./.gitlab/generate-appsec.php   | tee .gitlab/appsec-gen.yml
+    - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
+    - php ./.gitlab/generate-shared.php   | tee .gitlab/shared-gen.yml
+    - php ./.gitlab/generate-ci-images.php | tee .gitlab/ci-images-gen.yml
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    GIT_DEPTH: "1"
   artifacts:
     paths:
-      - 'upstream.env'
-      - 'datadog-setup-x86_64-linux-gnu.tar'
+      - .gitlab/*-gen.yml
+      # merge-gate runs these without a checkout.
+      - .gitlab/merge-gate.sh
+      - .gitlab/flaky-jobs.txt
+    reports:
+      dotenv: libdatadog.env
 
-deploy_to_reliability_env:
-  stage: deploy
+# Builds against libdatadog main, not the pinned submodule: keep it out of Green CI.
+# Child pipelines get the same job from .gitlab/green-ci-exclude-job.yml.
+green-ci-exclude:
+  stage: build
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  needs: []
   rules:
-    - if: '$FORCE_TRIGGER == "true"'
-    - if: '$CI_PIPELINE_SOURCE != "schedule"'
-      when: always
-  trigger:
-    project: DataDog/apm-reliability/datadog-reliability-env
-    branch: $DOWNSTREAM_REL_BRANCH
+    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
+  timeout: 10 minutes
+  allow_failure: true
   variables:
-    UPSTREAM_PACKAGE_JOB: build
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
-#    COMMIT_SHA would be wrong because the artifact is not built here
-#    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
-    FORCE_TRIGGER: $FORCE_TRIGGER
-
-tracer-base-image:
-  extends: .ci_authenticated_job
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: always
-  stage: deploy
+    GIT_SUBMODULE_STRATEGY: none
+    GIT_DEPTH: "1"
+    GREEN_CI_EXCLUDE_STRICT: "true"
   script:
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-    - ./tooling/ci/download-binary-php.sh dev
-    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot
-    - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod
-    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest
+    - .gitlab/tag-pipeline-green-ci-excluded.sh
+
+tracer-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/tracer-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
+
+appsec-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/appsec-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
+
+# Manual maintenance pipeline that (re)builds the CI Docker images. Generated
+# from dockerfiles/ci/*/docker-compose.yml + .env so versions live in one place.
+# No strategy: depend — the parent must not wait on these manual jobs.
+ci-images:
+  stage: ci-build
+  rules:
+    - when: manual
+      allow_failure: true
+  needs:
+    - job: generate-templates
+      artifacts: true
+  trigger:
+    include:
+      - artifact: .gitlab/ci-images-gen.yml
+        job: generate-templates
+
+profiler-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/profiler-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+shared-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/shared-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+merge-gate:
+  stage: merge-gate
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: never
+    - when: always
+  # No clone: merge-gate.sh and flaky-jobs.txt come from this commit's generate-templates artifacts.
+  dependencies: [ generate-templates ]
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - test -f .gitlab/merge-gate.sh || { echo "generate-templates artifacts missing (expired after 14 days?)"; exit 1; }
+    - bash .gitlab/merge-gate.sh
+
+package-trigger:
+  stage: build
+  needs: [ "generate-templates" ]
+  inherit:
+    variables: false
+  trigger:
+    include:
+      - artifact: .gitlab/package-gen.yml
+        job: "generate-templates"
+      - local: .gitlab/benchmarks.yml
+    strategy: depend
+    forward:
+      pipeline_variables: true
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    NIGHTLY_BUILD: $NIGHTLY_BUILD
+    # CI_PARENT_PIPELINE_SOURCE is set to $CI_PIPELINE_SOURCE so benchmarks defined on
+    # .gitlab/benchmarks.yml can use rules based on the original pipeline source, instead of the
+    # default source "parent_pipeline", automatically set on any children pipeline.
+    CI_PARENT_PIPELINE_SOURCE: $CI_PIPELINE_SOURCE
+
+# Runs after the full CI completes.  Triggered in two situations:
+#   1. Scheduled libdatadog CI run (SCHEDULED_LIBDATADOG_LATEST=true)
+#   2. Push to bot/libdatadog-latest by the bot — feeds CI results back so we can verify whether Claude's fixes actually worked.  The [no-ci-feedback] marker in bot commits prevents triggering a third run.
+analyze-and-create-pr:
+  stage: deploy
+  rules:
+    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
+      when: always
+    - if: '$CI_COMMIT_BRANCH == "bot/libdatadog-latest" && $CI_COMMIT_AUTHOR =~ /github-actions\[bot\]/ && $CI_COMMIT_MESSAGE !~ /\[no-ci-feedback\]/'
+      when: always
+    - when: never
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - tracer-trigger
+    - appsec-trigger
+    - profiler-trigger
+    - shared-trigger
+    - package-trigger
+  trigger:
+    include:
+      - local: .gitlab/libdatadog-latest.yml
+    strategy: depend
+  variables:
+    LIBDATADOG_OVERRIDE_SHA: $LIBDATADOG_OVERRIDE_SHA
+    LIBDATADOG_PINNED_SHA: $LIBDATADOG_PINNED_SHA
+    LIBDATADOG_NO_CHANGES: $LIBDATADOG_NO_CHANGES
+    LIBDATADOG_FEEDBACK_RUN: $LIBDATADOG_FEEDBACK_RUN
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID

@@ -497,7 +497,7 @@ class Zend_Http_Client_Adapter_Curl implements Zend_Http_Client_Adapter_Interfac
     public function close()
     {
         if(is_resource($this->_curl)) {
-            curl_close($this->_curl);
+            if (PHP_VERSION_ID < 80000) { curl_close($this->_curl); }
         }
         $this->_curl         = null;
         $this->_connected_to = [null, null];

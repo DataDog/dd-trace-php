@@ -8,6 +8,12 @@ use DDTrace\Tests\Common\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
+    public function ddSetUp()
+    {
+        parent::ddSetUp();
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+    }
+
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/Laravel/Version_8_x/artisan';
@@ -22,6 +28,8 @@ class CommonScenariosTest extends CLITestCase
 
     public function testCommandWithNoArguments()
     {
+        $this->retrieveDumpedData();
+
         $traces = $this->getTracesFromCommand();
 
         $this->assertFlameGraph($traces, [
@@ -30,8 +38,9 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
             ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
@@ -68,8 +77,9 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan route:list'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
             ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
@@ -106,9 +116,10 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan foo:error'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'laravel',
-            ])->withExistingTagsNames([
+                '_dd.svc_src' => 'laravel',
+            ])->withExistingAttributeNames([
                 Tag::ERROR_MSG,
                 'error.stack'
             ])->withChildren([

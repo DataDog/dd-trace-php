@@ -3,6 +3,7 @@ priority_sampling rule with name and service match
 --ENV--
 DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.3, "name": "fo.*ame", "service": "bar"}, {"sample_rate": 0.7}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
+DD_TRACE_SAMPLING_RULES_FORMAT=regex
 --FILE--
 <?php
 $root = \DDTrace\root_span();
@@ -14,7 +15,7 @@ $root->service = "barservice";
 if ($root->metrics["_dd.rule_psr"] == 0.3) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump((array) $root->metrics);
 }
 echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
 ?>

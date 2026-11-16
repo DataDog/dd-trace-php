@@ -1,8 +1,6 @@
-use crate::bindings::sapi_globals_struct;
+use crate::profiling::zend::sapi_request_info;
 use log::warn;
-use once_cell::sync::OnceCell;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::ffi::{CStr, OsStr};
 use std::fmt::{Display, Formatter};
 use std::os::unix::ffi::OsStrExt;
@@ -18,6 +16,7 @@ pub enum Sapi {
     Cli,
     CliServer,
     Embed,
+    FrankenPHP,
     FpmFcgi,
     Litespeed,
     PhpDbg,
@@ -26,42 +25,35 @@ pub enum Sapi {
 
 impl Sapi {
     pub fn from_name(name: &str) -> Sapi {
-        static SAPIS: OnceCell<HashMap<&str, Sapi>> = OnceCell::new();
-        let sapis = SAPIS.get_or_init(|| {
-            HashMap::from_iter([
-                ("apache2handler", Sapi::Apache2Handler),
-                ("cgi-fcgi", Sapi::CgiFcgi),
-                ("cli", Sapi::Cli),
-                ("cli-server", Sapi::CliServer),
-                ("embed", Sapi::Embed),
-                ("fpm-fcgi", Sapi::FpmFcgi),
-                ("litespeed", Sapi::Litespeed),
-                ("phpdbg", Sapi::PhpDbg),
-                ("tea", Sapi::Tea),
-            ])
-        });
-
-        match sapis.get(name) {
-            None => Sapi::Unknown,
-            Some(sapi) => *sapi,
+        match name {
+            "apache2handler" => Sapi::Apache2Handler,
+            "cgi-fcgi" => Sapi::CgiFcgi,
+            "cli" => Sapi::Cli,
+            "cli-server" => Sapi::CliServer,
+            "embed" => Sapi::Embed,
+            "frankenphp" => Sapi::FrankenPHP,
+            "fpm-fcgi" => Sapi::FpmFcgi,
+            "litespeed" => Sapi::Litespeed,
+            "phpdbg" => Sapi::PhpDbg,
+            "tea" => Sapi::Tea,
+            _ => Sapi::Unknown,
         }
     }
 
     pub fn request_script_name<'a>(
         &self,
-        sapi_globals: &'a sapi_globals_struct,
+        sapi_request_info: sapi_request_info,
     ) -> Option<Cow<'a, str>> {
         match self {
             /* Right now all we need is CLI support, but theoretically it can
              * be obtained for web requests too if we care.
              */
             Sapi::Cli => {
-                let request_info = &sapi_globals.request_info;
-                if request_info.argc > 0 && !request_info.argv.is_null() {
+                if sapi_request_info.argc > 0 && !sapi_request_info.argv.is_null() {
                     // Safety: It's not null; the VM should do the rest.
-                    let cstr = unsafe { CStr::from_ptr(*request_info.argv) };
+                    let cstr = unsafe { CStr::from_ptr(*sapi_request_info.argv) };
                     let bytes = cstr.to_bytes();
-                    return if !bytes.is_empty() {
+                    if !bytes.is_empty() {
                         let osstr = OsStr::from_bytes(bytes);
                         Path::new(osstr)
                             .file_name()
@@ -81,7 +73,7 @@ impl Sapi {
                             })
                     } else {
                         None
-                    };
+                    }
                 } else {
                     None
                 }
@@ -100,6 +92,7 @@ impl AsRef<str> for Sapi {
             Sapi::Cli => "cli",
             Sapi::CliServer => "cli-server",
             Sapi::Embed => "embed",
+            Sapi::FrankenPHP => "frankenphp",
             Sapi::FpmFcgi => "fpm-fcgi",
             Sapi::Litespeed => "litespeed",
             Sapi::PhpDbg => "phpdbg",
@@ -116,7 +109,7 @@ impl Display for Sapi {
 
 #[cfg(test)]
 mod tests {
-    use crate::Sapi;
+    use crate::profiling::Sapi;
 
     #[test]
     fn test_is_recognized_sapi() {
@@ -126,6 +119,7 @@ mod tests {
             ("cli", Sapi::Cli),
             ("cli-server", Sapi::CliServer),
             ("embed", Sapi::Embed),
+            ("frankenphp", Sapi::FrankenPHP),
             ("fpm-fcgi", Sapi::FpmFcgi),
             ("litespeed", Sapi::Litespeed),
             ("phpdbg", Sapi::PhpDbg),

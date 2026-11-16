@@ -208,15 +208,4 @@ interface Span
      * @return array All the currently set metrics.
      */
     public function getMetrics();
-
-    /**
-     * @param bool $value
-     * @return self
-     */
-    public function setTraceAnalyticsCandidate($value = true);
-
-    /**
-     * @return bool
-     */
-    public function isTraceAnalyticsCandidate();
 }

@@ -2,12 +2,13 @@
 
 namespace DDTrace\Tests\Integrations\Roadrunner\V2;
 
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class IPExtractionTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Roadrunner/Version_2/worker.php';
     }
@@ -27,10 +28,10 @@ class IPExtractionTest extends WebFrameworkTestCase
 
     public function testIpExtraction()
     {
-        $traces = $this->tracesFromWebRequest(function () use (&$current_context) {
+        $traces = $this->tracesFromWebRequest(function () use (&$traceId) {
             \DDTrace\add_distributed_tag("user_id", 42);
             \DDTrace\start_span();
-            $current_context = \DDTrace\current_context();
+            $traceId = \DDTrace\root_span()->id;
             $spec = GetSpec::create('request', '/', [
                 "User-Agent: Test",
                 "x-header: somevalue",
@@ -39,11 +40,11 @@ class IPExtractionTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $trace = $traces[0][0];
-        $this->assertSame($current_context["trace_id"], $trace["trace_id"]);
-        $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
-        $this->assertSame("Test", $trace["meta"]["http.useragent"]);
-        $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);
-        $this->assertSame("128.12.34.1", $trace["meta"]["http.client_ip"]);
+        $trace = $traces[0]['spans'][0];
+        $this->assertSame($traceId, SpanChecker::traceIdLow($traces[0]));
+        $this->assertSame("42", $trace["attributes"]["_dd.p.user_id"]);
+        $this->assertSame("Test", $trace["attributes"]["http.useragent"]);
+        $this->assertSame("somevalue", $trace["attributes"]["http.request.headers.x-header"]);
+        $this->assertSame("128.12.34.1", $trace["attributes"]["http.client_ip"]);
     }
 }

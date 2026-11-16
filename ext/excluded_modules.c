@@ -5,17 +5,26 @@
 
 #include <ext/standard/php_versioning.h>
 
-#include "logging.h"
+#include <components/log/log.h>
+#include "configuration.h"
 
-bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
+bool datadog_is_excluded_module(zend_module_entry *module, char *error) {
+#if PHP_VERSION_ID >= 80000
+    if (strcmp("ionCube Loader", module->name) == 0) {
+        snprintf(error, DATADOG_EXCLUDED_MODULES_ERROR_MAX_LEN,
+                     "Found incompatible ionCube Loader extension");
+        return true;
+    }
+#endif
+
     if (strcmp("xdebug", module->name) == 0) {
         /*
         PHP 7.0 was only supported from Xdebug 2.4 through 2.7
         @see: https://xdebug.org/docs/compat
         */
 #if PHP_VERSION_ID < 70100
-        snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
-                 "Found incompatible Xdebug version %s; disabling conflicting functionality", module->version);
+        snprintf(error, DATADOG_EXCLUDED_MODULES_ERROR_MAX_LEN,
+                 "Found incompatible Xdebug version %s", module->version);
         return true;
 #endif
         /*
@@ -36,9 +45,8 @@ bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
         */
         int compare = php_version_compare(module->version, "2.9.5");
         if (compare == -1) {
-            snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
-                     "Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater; disabling "
-                     "conflicting functionality",
+            snprintf(error, DATADOG_EXCLUDED_MODULES_ERROR_MAX_LEN,
+                     "Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater",
                      module->version);
             return true;
         }
@@ -46,22 +54,31 @@ bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
     return false;
 }
 
-void ddtrace_excluded_modules_startup() {
+void datadog_excluded_modules_startup() {
     zend_module_entry *module;
 
-    ddtrace_has_excluded_module = false;
+    datadog_has_excluded_module = false;
+    bool inject_force = get_global_DD_INJECT_FORCE();
 
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {
-        char error[DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN + 1];
-        if (module && module->name && module->version && ddtrace_is_excluded_module(module, error)) {
-            ddtrace_has_excluded_module = true;
-            if (strcmp("xdebug", module->name) == 0) {
-                ddtrace_log_err(error);
+        char error[DATADOG_EXCLUDED_MODULES_ERROR_MAX_LEN + 1];
+        if (module && module->name && module->version && datadog_is_excluded_module(module, error)) {
+            datadog_has_excluded_module = true;
+            if (inject_force) {
+                LOG(WARN, error);
             } else {
-                ddtrace_log_debug(error);
+                LOG(ERROR, error);
             }
-            return;
         }
     }
     ZEND_HASH_FOREACH_END();
+
+    if (datadog_has_excluded_module) {
+        if (inject_force) {
+            LOG(WARN, "Found incompatible extension(s); ignoring since 'datadog.inject_force' is enabled");
+            datadog_has_excluded_module = false;
+        } else {
+            LOG(ERROR, "Found incompatible extension(s); disabling conflicting functionality");
+        }
+    }
 }

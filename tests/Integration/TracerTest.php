@@ -43,10 +43,10 @@ final class TracerTest extends BaseTestCase
             $scope->getSpan()->finish();
         });
 
-        $this->assertSame('custom.name', $traces[0][0]['name']);
-        $this->assertSame('local', $traces[0][0]['meta']['local_tag']);
-        $this->assertSame('global', $traces[0][0]['meta']['global_tag']);
-        $this->assertSame('span_wins', $traces[0][0]['meta']['also_in_span']);
+        $this->assertSame('custom.name', $traces[0]['spans'][0]['name']);
+        $this->assertSame('local', $traces[0]['spans'][0]['attributes']['local_tag']);
+        $this->assertSame('global', $traces[0]['spans'][0]['attributes']['global_tag']);
+        $this->assertSame('span_wins', $traces[0]['spans'][0]['attributes']['also_in_span']);
     }
 
     public function testGlobalTagsArePresentOnInternalSpansByFlushTime()
@@ -69,10 +69,10 @@ final class TracerTest extends BaseTestCase
             $test->dummyMethodGlobalTags();
         });
 
-        $this->assertSame('custom.name', $traces[0][0]['name']);
-        $this->assertSame('local', $traces[0][0]['meta']['local_tag']);
-        $this->assertSame('global', $traces[0][0]['meta']['global_tag']);
-        $this->assertSame('span_wins', $traces[0][0]['meta']['also_in_span']);
+        $this->assertSame('custom.name', $traces[0]['spans'][0]['name']);
+        $this->assertSame('local', $traces[0]['spans'][0]['attributes']['local_tag']);
+        $this->assertSame('global', $traces[0]['spans'][0]['attributes']['global_tag']);
+        $this->assertSame('span_wins', $traces[0]['spans'][0]['attributes']['also_in_span']);
     }
 
     /**
@@ -85,7 +85,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         }, null, ['resource' => 'explicit']);
 
-        $this->assertSame('explicit', $traces[0][0]['resource']);
+        $this->assertSame('explicit', $traces[0]['spans'][0]['resource']);
     }
 
     /**
@@ -98,7 +98,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('custom.operation', $traces[0][0]['resource']);
+        $this->assertSame('custom.operation', $traces[0]['spans'][0]['resource']);
     }
 
     /**
@@ -112,7 +112,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('custom.operation', $traces[0][0]['resource']);
+        $this->assertSame('custom.operation', $traces[0]['spans'][0]['resource']);
     }
 
     /**
@@ -126,7 +126,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('custom.operation', $traces[0][0]['resource']);
+        $this->assertSame('custom.operation', $traces[0]['spans'][0]['resource']);
     }
 
     /**
@@ -152,7 +152,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('custom.internal', $traces[0][1]['resource']);
+        $this->assertSame('custom.internal', $traces[0]['spans'][1]['resource']);
     }
 
     /**
@@ -168,7 +168,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('custom.internal', $traces[0][1]['resource']);
+        $this->assertSame('custom.internal', $traces[0]['spans'][1]['resource']);
     }
 
     public function testResourceNormalizationWebDefault()
@@ -184,7 +184,7 @@ final class TracerTest extends BaseTestCase
             ]
         );
 
-        $this->assertSame('GET /', $traces[0][0]['resource']);
+        $this->assertSame('GET /', $traces[0]['spans'][0]['resource']);
     }
 
     public function testResourceNormalizationWebON()
@@ -201,7 +201,7 @@ final class TracerTest extends BaseTestCase
             ]
         );
 
-        $this->assertSame('GET /', $traces[0][0]['resource']);
+        $this->assertSame('GET /', $traces[0]['spans'][0]['resource']);
     }
 
     public function testResourceNormalizationWebOFF()
@@ -218,7 +218,7 @@ final class TracerTest extends BaseTestCase
             ]
         );
 
-        $this->assertSame('web.request', $traces[0][0]['resource']);
+        $this->assertSame('web.request', $traces[0]['spans'][0]['resource']);
     }
 
     public function testResourceNormalizationWebHonorOverride()
@@ -235,7 +235,7 @@ final class TracerTest extends BaseTestCase
             ]
         );
 
-        $this->assertSame('custom-resource', $traces[0][0]['resource']);
+        $this->assertSame('custom-resource', $traces[0]['spans'][0]['resource']);
     }
 
     public function testEnvironmentIsAddedToASpan()
@@ -246,7 +246,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('my-env', $traces[0][0]['meta']['env']);
+        $this->assertSame('my-env', $traces[0]['spans'][0]['env']);
     }
 
     public function testEnvironmentIsOptional()
@@ -257,58 +257,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertTrue(empty($traces[0][0]['meta']['env']));
-    }
-
-    public function testDDEnvHasPrecedenceOverGlobalTags()
-    {
-        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags']);
-        $traces = $this->isolateTracer(function (Tracer $tracer) {
-            $scope = $tracer->startRootSpan('custom.root');
-            $scope->close();
-        });
-
-        $this->assertSame('from-env', $traces[0][0]['meta']['env']);
-    }
-
-    public function testDDEnvHasPrecedenceOverGlobalTagsForChildrenSpans()
-    {
-        \DDTrace\trace_method(
-            'DDTrace\Tests\Integration\TracerTest',
-            'noopEnvPrecedence',
-            function (SpanData $span) {
-                $span->name = 'custom.child.2';
-                $span->meta['local_tag'] = 'local';
-            }
-        );
-
-        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags,global:foo']);
-
-        $test = $this;
-        $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
-            $scope = $tracer->startRootSpan('custom.root');
-            $scopeChild = $tracer->startActiveSpan('custom.child.1');
-            $test->noopEnvPrecedence();
-            $scopeChild->close();
-            $scope->close();
-        });
-        self::assertCount(3, $traces[0]);
-
-        $span = $traces[0][0];
-        self::assertSame('custom.root', $span['name']);
-        self::assertSame('foo', $span['meta']['global']);
-        self::assertSame('from-env', $span['meta']['env']);
-
-        $span = $traces[0][1];
-        self::assertSame('custom.child.1', $span['name']);
-        self::assertSame('foo', $span['meta']['global']);
-        self::assertSame('from-env', $span['meta']['env']);
-
-        $span = $traces[0][2];
-        self::assertSame('custom.child.2', $span['name']);
-        self::assertSame('foo', $span['meta']['global']);
-        self::assertSame('local', $span['meta']['local_tag']);
-        self::assertSame('from-env', $span['meta']['env']);
+        $this->assertTrue(empty($traces[0]['spans'][0]['env']));
     }
 
     public function testServiceVersionIsAddedToASpan()
@@ -319,7 +268,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('1.2.3', $traces[0][0]['meta']['version']);
+        $this->assertSame('1.2.3', $traces[0]['spans'][0]['version']);
     }
 
     public function testServiceVersionIsOptional()
@@ -330,58 +279,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertTrue(empty($traces[0][0]['meta']['version']));
-    }
-
-    public function testDDVersionHasPrecedenceOverGlobalTags()
-    {
-        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags']);
-        \dd_trace_internal_fn('ddtrace_reload_config'); // tags are now internal config
-        $traces = $this->isolateTracer(function (Tracer $tracer) {
-            $scope = $tracer->startRootSpan('custom.root');
-            $scope->close();
-        });
-
-        $this->assertSame('from-env', $traces[0][0]['meta']['version']);
-    }
-
-    public function testDDVersionPrecedenceOverGlobalTagsForChildrenSpans()
-    {
-        \DDTrace\trace_method(
-            'DDTrace\Tests\Integration\TracerTest',
-            'noopVersionPrecedence',
-            function (SpanData $span) {
-                $span->name = 'custom.child.2';
-            }
-        );
-
-        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags,global:foo']);
-
-        $test = $this;
-        $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
-            $scope = $tracer->startRootSpan('custom.root');
-            $scopeChild = $tracer->startActiveSpan('custom.child.1');
-            $test->noopVersionPrecedence();
-            $scopeChild->close();
-            $scope->close();
-        });
-
-        self::assertCount(3, $traces[0]);
-
-        $span = $traces[0][0];
-        self::assertSame('custom.root', $span['name']);
-        self::assertSame('foo', $span['meta']['global']);
-        self::assertSame('from-env', $span['meta']['version']);
-
-        $span = $traces[0][1];
-        self::assertSame('custom.child.1', $span['name']);
-        self::assertSame('foo', $span['meta']['global']);
-        self::assertSame('from-env', $span['meta']['version']);
-
-        $span = $traces[0][2];
-        self::assertSame('custom.child.2', $span['name']);
-        self::assertSame('foo', $span['meta']['global']);
-        self::assertSame('from-env', $span['meta']['version']);
+        $this->assertTrue(empty($traces[0]['spans'][0]['version']));
     }
 
     public function testTracerReset()
@@ -415,7 +313,7 @@ final class TracerTest extends BaseTestCase
 
         // exactly one preserved_hook
         self::assertSame(1, \count($traces));
-        self::assertSame(1, \count($traces[0]));
+        self::assertSame(1, \count($traces[0]['spans']));
     }
 
     public function testServiceMappingNoEnvMapping()
@@ -426,7 +324,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('original_service', $traces[0][0]['service']);
+        $this->assertSame('original_service', $traces[0]['spans'][0]['service']);
     }
 
     public function testServiceMappingRootSpan()
@@ -439,7 +337,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('changed_service', $traces[0][0]['service']);
+        $this->assertSame('changed_service', $traces[0]['spans'][0]['service']);
     }
 
     public function testServiceMappingNestedSpanLegacyApi()
@@ -456,8 +354,8 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('root_service', $traces[0][0]['service']);
-        $this->assertSame('changed_service', $traces[0][1]['service']);
+        $this->assertSame('root_service', $traces[0]['spans'][0]['service']);
+        $this->assertSame('changed_service', $traces[0]['spans'][1]['service']);
     }
 
     public function testServiceMappingInternalApi()
@@ -481,7 +379,7 @@ final class TracerTest extends BaseTestCase
             $test->dummyMethodServiceMappingInternalApi();
         });
 
-        $this->assertSame('changed_service', $traces[0][0]['service']);
+        $this->assertSame('changed_service', $traces[0]['spans'][0]['service']);
     }
 
     public function testServiceMappingHttpClientsSplitByDomainHost()
@@ -492,14 +390,14 @@ final class TracerTest extends BaseTestCase
             },
             __DIR__ . '/TracerTest_files/index.php',
             [
-                'DD_SERVICE_MAPPING' => 'host-httpbin_integration:changed_service',
+                'DD_SERVICE_MAPPING' => 'host-' . HTTPBIN_SERVICE_HOST . ':changed_service',
                 'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => true,
                 'DD_TRACE_NO_AUTOLOADER' => true,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
 
-        $this->assertSame('changed_service', $traces[0][1]['service']);
+        $this->assertSame('changed_service', $traces[0]['spans'][1]['service']);
     }
 
     public function testServiceMappingHttpClientsSplitByDomainIp()
@@ -517,7 +415,40 @@ final class TracerTest extends BaseTestCase
             ]
         );
 
-        $this->assertSame('changed_service', $traces[0][1]['service']);
+        $this->assertSame('changed_service', $traces[0]['spans'][1]['service']);
+    }
+
+    public function testBaseService()
+    {
+        self::putEnv('DD_SERVICE=original_service');
+
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            \DDTrace\start_span();
+            $child = \DDTrace\start_span();
+            $child->service = 'changed_child';
+            \DDTrace\close_span();
+            \DDTrace\close_span();
+        });
+
+        $this->assertSame('changed_child', $traces[0]['spans'][1]['service']);
+        $this->assertSame('original_service', $traces[0]['spans'][1]['attributes']['_dd.base_service']);
+    }
+
+    public function testBaseServiceWithMapping()
+    {
+        self::putEnv('DD_SERVICE_MAPPING=original_service:changed_service');
+        self::putEnv('DD_SERVICE=original_service');
+
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            \DDTrace\start_span();
+            $child = \DDTrace\start_span();
+            $child->service = 'changed_child';
+            \DDTrace\close_span();
+            \DDTrace\close_span();
+        });
+
+        $this->assertSame('changed_child', $traces[0]['spans'][1]['service']);
+        $this->assertSame('changed_service', $traces[0]['spans'][1]['attributes']['_dd.base_service']);
     }
 
     public function dummyMethodGlobalTags()

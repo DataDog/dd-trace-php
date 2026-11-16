@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+# first arg is `-f` or `--some-option`
+if [ "${1#-}" != "$1" ]; then
+	set -- frankenphp run "$@"
+elif [ "$1" = "classic" ]; then
+  set -- /usr/local/bin/entrypoint_classic.sh
+fi
+
+exec "$@"

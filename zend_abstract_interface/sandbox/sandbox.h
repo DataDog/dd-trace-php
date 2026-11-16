@@ -1,6 +1,7 @@
 #ifndef ZAI_SANDBOX_H
 #define ZAI_SANDBOX_H
 
+#include "../tsrmls_cache.h"
 #include <main/php.h>
 #include <stdbool.h>
 
@@ -75,7 +76,9 @@
  *
  * This function should be invoked when a bailout has been caught.
  *
- * It will restore engine state and continue in all but the case of a timeout
+ * It will restore engine state and continue in all cases except:
+ * - Timeout
+ * - Request is blocked by the extension
  */
 
 /* ######### Timeout ##########
@@ -95,6 +98,8 @@
  *
  *     void zai_sandbox_engine_state_restore(zai_engine_state *es);
  */
+
+extern ZEND_EXT_TLS long zai_sandbox_active;
 
 #if PHP_VERSION_ID >= 80000
 /********************************** <PHP 8> **********************************/
@@ -121,6 +126,7 @@ typedef struct zai_exception_state_s {
 
 typedef struct zai_engine_state_s {
     zend_execute_data *current_execute_data;
+    uint32_t jit_trace_num;
 } zai_engine_state;
 
 typedef struct zai_sandbox_s {
@@ -144,7 +150,6 @@ inline void zai_sandbox_error_state_backup(zai_error_state *es) {
     PG(last_error_file) = NULL;
 
     es->error_reporting = EG(error_reporting);
-    EG(error_reporting) = 0;
     zend_replace_error_handling(EH_THROW, NULL, &es->error_handling);
 }
 
@@ -153,10 +158,12 @@ void zai_sandbox_error_state_restore(zai_error_state *es);
 inline void zai_sandbox_exception_state_backup(zai_exception_state *es) {
     if (UNEXPECTED(EG(exception) != NULL)) {
         es->exception = EG(exception);
-        es->prev_exception = EG(prev_exception);
-        es->opline_before_exception = EG(opline_before_exception);
         EG(exception) = NULL;
+#if PHP_VERSION_ID < 80600
+        es->prev_exception = EG(prev_exception);
         EG(prev_exception) = NULL;
+#endif
+        es->opline_before_exception = EG(opline_before_exception);
     } else {
         es->exception = NULL;
         es->prev_exception = NULL;
@@ -170,7 +177,9 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
 
     if (es->exception) {
         EG(exception) = es->exception;
+#if PHP_VERSION_ID < 80600
         EG(prev_exception) = es->prev_exception;
+#endif
         if (EG(current_execute_data)) {
             // ensure that we continue handling an exception if we were handling one before the sandbox call
             EG(current_execute_data)->opline = EG(exception_op);
@@ -181,19 +190,23 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
 
 inline void zai_sandbox_engine_state_backup(zai_engine_state *es) {
     es->current_execute_data = EG(current_execute_data);
+    es->jit_trace_num = EG(jit_trace_num);
 }
 
 inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
     EG(current_execute_data) = es->current_execute_data;
+    EG(jit_trace_num) = es->jit_trace_num;
 }
 
 inline void zai_sandbox_open(zai_sandbox *sandbox) {
+    ++zai_sandbox_active;
     zai_sandbox_exception_state_backup(&sandbox->exception_state);
     zai_sandbox_error_state_backup(&sandbox->error_state);
     zai_sandbox_engine_state_backup(&sandbox->engine_state);
 }
 
 inline void zai_sandbox_close(zai_sandbox *sandbox) {
+    --zai_sandbox_active;
     zai_sandbox_error_state_restore(&sandbox->error_state);
     zai_sandbox_exception_state_restore(&sandbox->exception_state);
 }
@@ -214,15 +227,38 @@ inline bool zai_sandbox_timed_out(void) {
     return false;
 }
 
+inline bool zai_is_request_blocked(void)
+{
+    if (!PG(last_error_message)) {
+        return false;
+    }
+
+    if (strstr(ZSTR_VAL(PG(last_error_message)), "Datadog blocked the request") != NULL) {
+        return true;
+    }
+
+    return false;
+}
+
 inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
-    if (!zai_sandbox_timed_out()) {
+    if (!zai_sandbox_timed_out() && !zai_is_request_blocked()) {
         zai_sandbox_engine_state_restore(&sandbox->engine_state);
 
         return;
     }
 
+
+    --zai_sandbox_active;
     zend_bailout();
 }
+
+void zai_reset_observed_frame_post_bailout(void);
+#if PHP_VERSION_ID >= 80200
+zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data);
+/* The saved observer head at a callback boundary, or NULL if this frame is not a boundary.
+ * Running-frame joins must update this head instead of the callback's isolated chain. */
+zend_execute_data **zai_sandbox_observed_frame(zend_execute_data *boundary);
+#endif
 /********************************** </PHP 8> *********************************/
 #else
 /********************************** <PHP 7> **********************************/
@@ -268,18 +304,15 @@ inline void zai_sandbox_error_state_backup(zai_error_state *es) {
     PG(last_error_file) = NULL;
 
     es->error_reporting = EG(error_reporting);
-    EG(error_reporting) = 0;
     zend_replace_error_handling(EH_THROW, NULL, &es->error_handling);
 }
 
 inline void zai_sandbox_error_state_restore(zai_error_state *es) {
     if (PG(last_error_message)) {
-        if (PG(last_error_message) != es->message) {
-            free(PG(last_error_message));
-        }
-        if (PG(last_error_file) != es->file) {
-            free(PG(last_error_file));
-        }
+        free(PG(last_error_message));
+    }
+    if (PG(last_error_file)) {
+        free(PG(last_error_file));
     }
     zend_restore_error_handling(&es->error_handling);
     PG(last_error_type) = es->type;
@@ -327,12 +360,14 @@ inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
 }
 
 inline void zai_sandbox_open(zai_sandbox *sandbox) {
+    ++zai_sandbox_active;
     zai_sandbox_exception_state_backup(&sandbox->exception_state);
     zai_sandbox_error_state_backup(&sandbox->error_state);
     zai_sandbox_engine_state_backup(&sandbox->engine_state);
 }
 
 inline void zai_sandbox_close(zai_sandbox *sandbox) {
+    --zai_sandbox_active;
     zai_sandbox_error_state_restore(&sandbox->error_state);
     zai_sandbox_exception_state_restore(&sandbox->exception_state);
 }
@@ -351,16 +386,32 @@ inline bool zai_sandbox_timed_out(void) {
     return false;
 }
 
+inline bool zai_is_request_blocked(void)
+{
+    if (!PG(last_error_message)) {
+        return false;
+    }
+
+    if (strstr(PG(last_error_message), "Datadog blocked the request") != NULL) {
+        return true;
+    }
+
+    return false;
+}
+
 inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
-    if (!zai_sandbox_timed_out()) {
+    if (!zai_sandbox_timed_out() && !zai_is_request_blocked()) {
         zai_sandbox_engine_state_restore(&sandbox->engine_state);
 
         return;
     }
 
+    --zai_sandbox_active;
     zend_bailout();
 }
 /********************************** </PHP 7> *********************************/
 #endif
+
+bool zai_sandbox_call(zai_sandbox *sandbox, zend_fcall_info *fci, zend_fcall_info_cache *fcc);
 
 #endif  // ZAI_SANDBOX_H

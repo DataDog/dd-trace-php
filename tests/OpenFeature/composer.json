@@ -1,0 +1,7 @@
+{
+    "name": "datadog/dd-trace-tests-openfeature",
+    "require": {
+        "open-feature/sdk": "^2.1"
+    },
+    "minimum-stability": "stable"
+}

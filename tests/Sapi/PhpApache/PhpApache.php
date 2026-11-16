@@ -118,29 +118,41 @@ final class PhpApache implements Sapi
         }
     }
 
+    private function startApacheProcess()
+    {
+        $cmd = sprintf(
+            'apache2 -D FOREGROUND -f %s -E %s',
+            $this->configFile,
+            __DIR__ . "/" . self::ERROR_LOG
+        );
+        // setsid as apache broadcasts termination signals to its whole process group
+        $processCmd = "exec setsid $cmd";
+
+        // See phpunit_error.log in CircleCI artifacts
+        error_log("[apache] Starting: '{$cmd}'");
+
+        $this->process = new Process($processCmd);
+        $this->process->start();
+    }
+
     public function start()
     {
         if ($this->process) {
             if ($this->configChanged) {
-                $this->process->signal(SIGUSR1);
+                $this->process->stop(3, SIGUSR1);
                 error_log("[apache] Reloading {$this->process->getPid()}");
+                $this->startApacheProcess();
             }
         } else {
-            $cmd = sprintf(
-                'apache2 -D FOREGROUND -f %s -E %s',
-                $this->configFile,
-                __DIR__ . "/" . self::ERROR_LOG
-            );
-            // setsid as apache broadcasts termination signals to its whole process group
-            $processCmd = "exec setsid $cmd";
-
-            // See phpunit_error.log in CircleCI artifacts
-            error_log("[apache] Starting: '{$cmd}'");
-
-            $this->process = new Process($processCmd);
-            $this->process->start();
+            $this->startApacheProcess();
         }
         $this->configChanged = false;
+    }
+
+    public function reload()
+    {
+        $this->process->signal(SIGUSR1);
+        usleep(10000);
     }
 
     public function stop()

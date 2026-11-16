@@ -1,0 +1,7 @@
+langcode: en
+status: true
+id: dummy_search_type
+label: 'Dummy search type'
+path: dummy_path
+plugin: search_extra_type_search
+configuration: {  }

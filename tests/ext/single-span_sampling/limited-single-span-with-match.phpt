@@ -1,9 +1,10 @@
 --TEST--
 Test max_per_second single span limiting with multiple buckets
 --SKIPIF--
-<?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip timing sensitive test, does not make sense with valgrind'); ?>
+<?php if (getenv("USE_ZEND_ALLOC") === "0" && !getenv("SKIP_ASAN")) die('skip timing sensitive test, does not make sense with valgrind'); ?>
 --ENV--
-DD_SAMPLING_RATE=0
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_SAMPLE_RATE=0
 DD_SPAN_SAMPLING_RULES=[{"sample_rate":1,"max_per_second":2,"service":"a","name":"b"},{"sample_rate":1,"max_per_second":2,"service":"a"},{"sample_rate":1,"max_per_second":2,"name":"b"}]
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
@@ -15,7 +16,7 @@ for ($i = 0; $i < 5; ++$i) {
     DDTrace\active_span()->service = "a";
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
 
@@ -27,7 +28,7 @@ for ($i = 0; $i < 5; ++$i) {
     DDTrace\active_span()->name = "b";
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
 
@@ -40,7 +41,7 @@ for ($i = 0; $i < 5; ++$i) {
     DDTrace\active_span()->name = "b";
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
 

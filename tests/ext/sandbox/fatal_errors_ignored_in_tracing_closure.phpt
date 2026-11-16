@@ -1,8 +1,9 @@
 --TEST--
 Fatal errors are ignored inside a tracing closure (PHP 7+)
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_APPSEC_ENABLED=0
 --FILE--
 <?php
 DDTrace\trace_function('array_sum', function (DDTrace\SpanData $span) {
@@ -14,12 +15,12 @@ var_dump(array_sum([1, 99]));
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-Error thrown in ddtrace's closure defined at %s:%d for array_sum(): Call to undefined function this_function_does_not_exist()
+[ddtrace] [warning] [%d] Error thrown in ddtrace's closure defined at %s:%d for array_sum(): Call to undefined function this_function_does_not_exist() in %s on line %d
 int(100)
 array_sum
 NULL
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

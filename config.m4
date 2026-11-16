@@ -1,8 +1,76 @@
-PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,
+AC_ARG_VAR([DDTRACE_PROFILING_FEATURES], [additional Cargo features for standalone profiler test builds])
+AC_ARG_VAR([DDTRACE_PROFILING_CARGO_BUILD_FLAGS], [additional Cargo build flags for the standalone profiler])
+AC_ARG_VAR([DDTRACE_PROFILING_TARGET], [Rust target triple for the standalone profiler])
+AC_ARG_VAR([DDTRACE_RUST_PROFILE], [Cargo profile used to build the Rust extension library])
+
+PHP_ARG_ENABLE(ddtrace, whether to enable Datadog support,
   [  --enable-ddtrace   Enable Datadog tracing support])
 
-PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
-  [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
+PHP_ARG_ENABLE(ddtrace-tracer, whether to enable Datadog tracing support,
+  [  --disable-ddtrace-tracer Disable Datadog tracing support], yes, no)
+
+PHP_ARG_ENABLE(ddtrace-libddwaf-source, whether to build libddwaf from source,
+  [  --enable-ddtrace-libddwaf-source Build libddwaf from source], no, no)
+
+PHP_ARG_ENABLE(ddtrace-profiling, whether to enable Datadog profiling support,
+  [  --enable-ddtrace-profiling Build Datadog profiling support], no, no)
+
+PHP_ARG_ENABLE(ddtrace-appsec, whether to enable Datadog application security support,
+  [  --enable-ddtrace-appsec Build Datadog application security support], no, no)
+
+PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
+  [  --enable-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
+
+PHP_ARG_WITH(ddtrace-rust-library, the rust library is located; i.e. to compile without cargo,
+  [  --with-ddtrace-rust-library Location to rust library for linking against], -, will be compiled)
+
+PHP_ARG_WITH(ddtrace-php-abi-rust-library, PHP-ABI-specific Rust linker input for combined ddtrace.so,
+  [  --with-ddtrace-php-abi-rust-library Location of the combined extension's PHP-ABI Rust archive], -, will be compiled)
+
+PHP_ARG_WITH(ddtrace-sidecar-mockgen, binary to weaken PHP symbols in object files,
+  [  --with-ddtrace-sidecar-library Location to cargo binary produced by components-rs/php_sidecar_mockgen], -, will be compiled)
+
+PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
+  [  --with-ddtrace-cargo Location to cargo binary for rust compilation], cargo, not found)
+
+PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
+  [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$( (if test x"$ext_shared" = x"yes"; then $GREP -q "ZEND_DEBUG 1" $("$PHP_CONFIG" --include-dir)/main/php_config.h; else test x"$PHP_DEBUG" = x"yes"; fi) && echo yes || echo no)]], [no])
+
+PHP_ARG_ENABLE(ddtrace-rust-build-std, whether to rebuild the private Rust standard library,
+  [  --enable-ddtrace-rust-build-std Rebuild the private Rust standard library (requires rust-src)], no, no)
+
+PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to keep the rust library separate from the extension,
+  [  --enable-ddtrace-rust-library-split Do not build or statically link the rust code], no, no)
+
+dnl Keep make clean out of Cargo targets; distclean removes all product-specific targets.
+AC_DEFUN([DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP], [
+  pushdef([PHP_GEN_GLOBAL_MAKEFILE], [
+    popdef([PHP_GEN_GLOBAL_MAKEFILE])
+    PHP_GEN_GLOBAL_MAKEFILE
+    [sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/.*\.[ao] /{s/| xargs rm -f/! -path ".\/target*\/*" | xargs rm -f/'$'\n}' -e '/^distclean:/a\'$'\n\t''rm -rf target-common/ target-profiling/ target_mockgen/' Makefile]
+    DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
+  ])
+])
+DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
+
+if test "$PHP_DDTRACE_PROFILING" != "no"; then
+  case "$host_os" in
+    mingw*|cygwin*|msys*|windows*)
+      AC_MSG_ERROR([Datadog profiling support is not available on Windows])
+      ;;
+  esac
+
+  if test -z ${PHP_VERSION_ID+x}; then
+    PHP_VERSION_ID=$("$PHP_CONFIG" --vernum)
+  fi
+  if test "$PHP_VERSION_ID" -lt 70100; then
+    AC_MSG_ERROR([Datadog profiling support requires PHP 7.1 or newer; PHP 7.0 is not supported])
+  fi
+fi
+
+if test "$PHP_DDTRACE_APPSEC" != "no" && test "$PHP_DDTRACE_TRACER" = "no"; then
+  AC_MSG_ERROR([Datadog application security support requires the tracer])
+fi
 
 if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_SIZEOF([long])
@@ -17,6 +85,7 @@ if test "$PHP_DDTRACE" != "no"; then
   define(DDTRACE_BASEDIR, esyscmd(printf %s "$(dirname "__file__")"))
   m4_include(DDTRACE_BASEDIR/m4/polyfill.m4)
   m4_include(DDTRACE_BASEDIR/m4/ax_execinfo.m4)
+  m4_include(DDTRACE_BASEDIR/m4/threads.m4)
 
   AX_EXECINFO
 
@@ -30,28 +99,86 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADERS([linux/securebits.h])
   AC_CHECK_HEADERS([linux/capability.h])
+  AC_CHECK_HEADERS([valgrind/valgrind.h])
+
+  dnl
+  m4_ifndef([_LT_CHECK_OBJDIR], AC_LIBTOOL_OBJDIR, _LT_CHECK_OBJDIR)
+
+  if test "$PHP_DDTRACE_RUST_LIBRARY" = "-" || test "$PHP_DDTRACE_SIDECAR_MOCKGEN" = "-"; then
+    if test -n "$PHP_DDTRACE_CARGO" && test "$PHP_DDTRACE_CARGO" != "cargo"; then
+      if test -x "$PHP_DDTRACE_CARGO"; then
+        DDTRACE_CARGO="$PHP_DDTRACE_CARGO"
+      else
+        AC_MSG_ERROR([$PHP_DDTRACE_CARGO is not an executable])
+      fi
+    else
+      AC_CHECK_TOOL(DDTRACE_CARGO, cargo, [:])
+      AS_IF([test "$DDTRACE_CARGO" = ":"], [AC_MSG_ERROR([Please install cargo before configuring, or specify it with --with-ddtrace-cargo=])])
+    fi
+    PHP_SUBST(DDTRACE_CARGO)
+  fi
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
-    EXTRA_LDFLAGS="-fsanitize=address"
+    dnl gcc needs -lasan, clang needs -shared-libsan
+    ac_cflags=$LDFLAGS
+    LDFLAGS=-shared-libsan
+    AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) { return (0); }]])],[found=yes],[found=no],[found=yes])
+    LDFLAGS=$ac_ldflags
+
+    EXTRA_LDFLAGS="-fsanitize=address $(if test $found = "yes"; then echo "-shared-libsan -lclang_rt.asan-$(uname -m)"; else echo "-lasan"; fi)"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
   fi
 
+  CFLAGS="$CFLAGS -fms-extensions"
+  EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions"
+
+  rm="rm -f"
+  lt_simple_link_test_code='int main(void){return(0);}'
+  AC_MSG_CHECKING([whether --undefined-version is a valid linker argument])
+  AC_LIBTOOL_LINKER_OPTION([whether --undefined-version is a valid linker argument],
+    lt_cv_ddtrace_undefined_version,
+    [-Wl,--undefined-version],
+    [LDFLAGS="$LDFLAGS -Wl,--undefined-version"])
+
+  lt_simple_compile_test_code="int some_variable = 0;"
+  Xsed="$SED -e 1s/^X//"
+  AC_LIBTOOL_COMPILER_OPTION([whether -Wno-microsoft-anon-tag is a valid compiler argument],
+    lt_cv_ddtrace_no_microsoft_anon_tag,
+    [-Wno-microsoft-anon-tag], [],
+    [
+      CFLAGS="$CFLAGS -Wno-microsoft-anon-tag"
+      EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-microsoft-anon-tag"
+    ])
+
+  case "$host_os:$host_cpu" in
+    linux*:x86_64)
+      AC_LIBTOOL_COMPILER_OPTION([whether -mtls-dialect=gnu2 is a valid compiler argument],
+        lt_cv_ddtrace_tls_dialect_gnu2,
+        [-mtls-dialect=gnu2], [],
+        [
+          CFLAGS="$CFLAGS -mtls-dialect=gnu2"
+          EXTRA_CFLAGS="$EXTRA_CFLAGS -mtls-dialect=gnu2"
+        ],
+        [AC_MSG_ERROR([x86-64 Linux OTel context sharing requires compiler support for -mtls-dialect=gnu2])])
+      ;;
+  esac
+
   DD_TRACE_VENDOR_SOURCES="\
-    ext/vendor/mpack/mpack.c \
-    ext/vendor/mt19937/mt19937-64.c \
+    tracer/vendor/mt19937/mt19937-64.c \
     src/dogstatsd/client.c \
   "
 
-  DD_TRACE_COMPONENT_SOURCES="\
-    components/container_id/container_id.c \
+  DATADOG_COMPONENT_SOURCES="\
+    components/log/log.c \
     components/sapi/sapi.c \
     components/string_view/string_view.c \
-    components/uuid/uuid.c \
   "
 
   if test -z ${PHP_VERSION_ID+x}; then
     PHP_VERSION_ID=$("$PHP_CONFIG" --vernum)
   fi
+
+  EXTRA_DATADOG_SOURCES=""
 
   if test $PHP_VERSION_ID -lt 70000; then
     dnl PHP 5
@@ -60,7 +187,12 @@ if test "$PHP_DDTRACE" != "no"; then
   elif test $PHP_VERSION_ID -lt 80000; then
     dnl PHP 7.x
 
-    EXTRA_PHP_SOURCES="ext/handlers_curl_php7.c"
+    EXTRA_TRACER_SOURCES="tracer/handlers_curl_php7.c"
+
+    if test $PHP_VERSION_ID -lt 70300; then
+      EXTRA_DATADOG_SOURCES="$EXTRA_DATADOG_SOURCES \
+        ext/zend_hrtime.c"
+    fi
 
     EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php7/interceptor.c \
@@ -69,117 +201,362 @@ if test "$PHP_DDTRACE" != "no"; then
     "
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
-    EXTRA_PHP_SOURCES="\
-        ext/handlers_curl.c \
-        ext/hook/uhook_attributes.c \
+    EXTRA_TRACER_SOURCES="\
+        tracer/handlers_curl.c \
+        tracer/hook/uhook_attributes.c \
+        tracer/hook/uhook_otel.c \
     "
     ZAI_RESOLVER_SUFFIX=""
 
     if test $PHP_VERSION_ID -lt 80200; then
       ZAI_RESOLVER_SUFFIX="_pre-8_2"
-      EXTRA_PHP_SOURCES="$EXTRA_PHP_SOURCES \
-        ext/weakrefs.c"
+      EXTRA_TRACER_SOURCES="$EXTRA_TRACER_SOURCES \
+        tracer/weakrefs.c"
+
+      EXTRA_DATADOG_SOURCES="$EXTRA_DATADOG_SOURCES \
+        ext/patch_zend_call_known_function.c"
     fi
 
     if test $PHP_VERSION_ID -ge 80100; then
-      EXTRA_PHP_SOURCES="$EXTRA_PHP_SOURCES \
-        ext/handlers_fiber.c"
+      EXTRA_TRACER_SOURCES="$EXTRA_TRACER_SOURCES \
+        tracer/handlers_fiber.c"
     fi
 
     EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php8/interceptor.c \
       zend_abstract_interface/interceptor/php8/resolver$ZAI_RESOLVER_SUFFIX.c \
+      zend_abstract_interface/jit_utils/jit_blacklist.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
     "
   fi
 
-  dnl ddtrace.c comes first, then everything else alphabetically
-  DD_TRACE_PHP_SOURCES="$EXTRA_PHP_SOURCES \
-    ext/ddtrace.c \
-    ext/arrays.c \
-    ext/auto_flush.c \
-    ext/circuit_breaker.c \
-    ext/comms_php.c \
-    ext/compat_string.c \
-    ext/coms.c \
+  case "$host_os" in
+    linux*)
+      EXTRA_TRACER_SOURCES="$EXTRA_TRACER_SOURCES tracer/otel_context.c"
+      ;;
+  esac
+
+  dnl The PHP module, profiling configuration, logging, process tags and
+  dnl lifecycle are needed even in the standalone profiler. Do not include
+  dnl sidecar C objects there: each one imports native sidecar-service APIs.
+  DATADOG_PHP_SOURCES="$EXTRA_DATADOG_SOURCES \
+    ext/datadog.c \
+    ext/compat_getrandom.c \
+    ext/compatibility.c \
     ext/configuration.c \
-    ext/ddshared.c \
-    ext/dogstatsd_client.c \
-    ext/engine_api.c \
-    ext/engine_hooks.c \
+    ext/endpoints.c \
     ext/excluded_modules.c \
+    ext/git.c \
     ext/handlers_api.c \
-    ext/handlers_exception.c \
-    ext/handlers_internal.c \
     ext/handlers_pcntl.c \
-    ext/integrations/integrations.c \
-    ext/ip_extraction.c \
     ext/logging.c \
-    ext/memory_limit.c \
-    ext/limiter/limiter.c \
-    ext/priority_sampling/priority_sampling.c \
-    ext/profiling.c \
-    ext/random.c \
-    ext/request_hooks.c \
-    ext/serializer.c \
-    ext/signals.c \
-    ext/span.c \
+    ext/otel_config.c \
+    ext/phpinfo.c \
     ext/startup_logging.c \
-    ext/tracer_tag_propagation/tracer_tag_propagation.c \
-    ext/hook/uhook.c \
-    ext/hook/uhook_legacy.c \
-    \
+    ext/string_utils.c \
+    ext/threads.c \
+  "
+
+  DATADOG_SIDECAR_SOURCES="\
+    ext/agent_info.c \
+    ext/crashtracking_frames.c \
+    ext/handlers_signal.c \
+    ext/remote_config.c \
+    ext/sidecar.c \
+    ext/signals.c \
+    ext/target_metadata.c \
+    ext/telemetry.c \
+  "
+
+  dnl Process tags are tracer/OTel metadata, also forwarded to the sidecar;
+  dnl the collector itself is not a sidecar service.
+  DATADOG_TRACER_PHP_SOURCES="ext/process_tags.c"
+
+  DATADOG_TRACER_SOURCES="$EXTRA_TRACER_SOURCES \
+    tracer/ddtrace.c \
+    tracer/asm_event.c \
+    tracer/auto_flush.c \
+    tracer/autoload_php_files.c \
+    tracer/code_origins.c \
+    tracer/collect_backtrace.c \
+    tracer/comms_php.c \
+    tracer/coms.c \
+    tracer/distributed_tracing_headers.c \
+    tracer/dogstatsd_client.c \
+    tracer/endpoint_guessing.c \
+    tracer/engine_api.c \
+    tracer/engine_hooks.c \
+    tracer/exception_serialize.c \
+    tracer/data_streams.c \
+    tracer/ffe.c \
+    tracer/functions.c \
+    tracer/git_metadata.c \
+    tracer/handlers_exception.c \
+    tracer/handlers_httpstreams.c \
+    tracer/handlers_internal.c \
+    tracer/handlers_kafka.c \
+    tracer/inferred_proxy_headers.c \
+    tracer/integrations/exec_integration.c \
+    tracer/integrations/integrations.c \
+    tracer/ip_extraction.c \
+    tracer/live_debugger.c \
+    tracer/limiter/limiter.c \
+    tracer/memory_limit.c \
+    tracer/otel_sampling.c \
+    tracer/tracer_otel_config.c \
+    tracer/priority_sampling/priority_sampling.c \
+    tracer/profiling.c \
+    tracer/random.c \
+    tracer/rule_matching.c \
+    tracer/serializer.c \
+    tracer/standalone_limiter.c \
+    tracer/span.c \
+    tracer/span_stats.c \
+    tracer/span_tags_view.c \
+    tracer/trace_filter.c \
+    tracer/trace_source.c \
+    tracer/tracer_startup_logging.c \
+    tracer/tracer_tag_propagation/tracer_tag_propagation.c \
+    tracer/tracer_telemetry.c \
+    tracer/user_request.c \
+    tracer/weak_resources.c \
+    tracer/hook/uhook.c \
+    tracer/hook/uhook_line.c \
+    tracer/hook/uhook_legacy.c \
+  "
+
+  DATADOG_APPSEC_SOURCES="\
+    appsec/src/extension/backtrace.c \
+    appsec/src/extension/body_parser.c \
+    appsec/src/extension/commands/client_init.c \
+    appsec/src/extension/commands/client_shutdown.c \
+    appsec/src/extension/commands/config_sync.c \
+    appsec/src/extension/commands/request_exec.c \
+    appsec/src/extension/commands/request_init.c \
+    appsec/src/extension/commands/request_shutdown.c \
+    appsec/src/extension/commands_helpers.c \
+    appsec/src/extension/configuration.c \
+    appsec/src/extension/ddappsec.c \
+    appsec/src/extension/dddefs.c \
+    appsec/src/extension/duration_acc.c \
+    appsec/src/extension/entity_body.c \
+    appsec/src/extension/helper_process.c \
+    appsec/src/extension/ip_extraction.c \
+    appsec/src/extension/logging.c \
+    appsec/src/extension/msgpack_helpers.c \
+    appsec/src/extension/network.c \
+    appsec/src/extension/php_helpers.c \
+    appsec/src/extension/php_objects.c \
+    appsec/src/extension/request_abort.c \
+    appsec/src/extension/request_lifecycle.c \
+    appsec/src/extension/string_helpers.c \
+    appsec/src/extension/tags.c \
+    appsec/src/extension/telemetry.c \
+    appsec/src/extension/test_mock_transport.c \
+    appsec/src/extension/tracer_bridge.c \
+    appsec/src/extension/user_tracking.c \
+    tracer/vendor/mpack/mpack.c \
   "
 
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
     zend_abstract_interface/config/config.c \
     zend_abstract_interface/config/config_decode.c \
     zend_abstract_interface/config/config_ini.c \
+    zend_abstract_interface/config/config_stable_file.c \
     zend_abstract_interface/config/config_runtime.c \
     zend_abstract_interface/env/env.c \
     zend_abstract_interface/exceptions/exceptions.c \
     zend_abstract_interface/headers/headers.c \
     zend_abstract_interface/hook/hook.c \
+    zend_abstract_interface/hook/line_hooks.c \
+    zend_abstract_interface/interceptor/line_hook.c \
+    zend_abstract_interface/jit_utils/opcache_symbols.c \
     zend_abstract_interface/json/json.c \
-    zend_abstract_interface/symbols/lookup.c \
-    zend_abstract_interface/symbols/call.c \
+    zend_abstract_interface/sandbox/call.c \
     zend_abstract_interface/uri_normalization/uri_normalization.c \
+    zend_abstract_interface/zai_string/string.c \
   "
 
-  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
+  DATADOG_EXTENSION_FLAGS="-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -DMPACK_HAS_CONFIG=1 -Wall -std=gnu11"
+
+  ALL_DATADOG_SOURCES=" \
+    $DATADOG_PHP_SOURCES \
+    $ZAI_SOURCES \
+    $DATADOG_COMPONENT_SOURCES \
+  "
+
+  if test "$PHP_DDTRACE_TRACER" != "no"; then
+    ALL_DATADOG_SOURCES="$ALL_DATADOG_SOURCES \
+      $DATADOG_SIDECAR_SOURCES \
+      $DATADOG_TRACER_PHP_SOURCES \
+      $DD_TRACE_VENDOR_SOURCES \
+      $DATADOG_TRACER_SOURCES \
+      $DD_TRACE_PHP_SOURCES
+    "
+
+    DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DTRACER -DSIDECAR"
+
+    if test "$PHP_DDTRACE_APPSEC" != "no"; then
+      ALL_DATADOG_SOURCES="$ALL_DATADOG_SOURCES $DATADOG_APPSEC_SOURCES"
+      dnl AppSec's testing hooks are always compiled in, and only enabled at
+      dnl runtime with DD_APPSEC_TESTING. "#ifdef TESTING" marks that code.
+      DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DAPPSEC -DTESTING"
+    fi
+  fi
+
+  if test "$PHP_DDTRACE_PROFILING" != "no"; then
+    DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DPROFILING"
+  fi
+
+  if test "$PHP_DDTRACE_LIBDDWAF_SOURCE" != "no"; then
+    dnl libddwaf-src contains C++ objects. Use the same C++ driver for its
+    dnl CMake build and the final extension link so it selects the C++ runtime.
+    AC_PROG_CXX
+    ddtrace_cxx_env='CXX="$(CXX)"'
+    PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS, yes)
+  else
+    ddtrace_cxx_env=""
+    PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS)
+  fi
+
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
+  if test "$PHP_DDTRACE_TRACER" = "no" && test "$PHP_DDTRACE_PROFILING" != "no"; then
+    dnl The standalone profiler is the same entrypoint the tracer, but has a different name
+    PHP_MODULES="$PHP_MODULES \$(phplibdir)/datadog-profiling.la"
+    PHP_SUBST(PHP_MODULES)
+
+    cat <<EOT >> Makefile.fragments
+\$(phplibdir)/datadog-profiling.la: \$(phplibdir)/ddtrace.la
+	cp \$(phplibdir)/ddtrace.so \$(phplibdir)/datadog-profiling.so
+	@printf '%s\n' "# datadog-profiling.la - generated by configure" "dlname='datadog-profiling.so'" "library_names='datadog-profiling.so'" "old_library=''" "dependency_libs=''" "installed=no" "shouldnotlink=no" "dlopen=''" "dlpreopen=''" "libdir='\$(phplibdir)'" > \$@
+
+clean-profiler-alias:
+	rm -f \$(phplibdir)/datadog-profiling.la \$(phplibdir)/datadog-profiling.so
+clean: clean-profiler-alias
+
+EOT
+  fi
+
+  dnl sidecar requires us to be linked against libm for pow and powf and librt for shm_* functions.
+  dnl Keep libm as a DT_NEEDED dependency even though libtool places it before the Rust archive
+  dnl that references it; direct sidecar execution cannot inherit libm from the PHP executable.
+  AC_CHECK_LIBM
+  dnl Deliberately not in EXTRA_LDFLAGS: those land before libdatadog_php.a on
+  dnl the link line, so they would not satisfy its undefined symbols. Note that
+  dnl the relinks in .gitlab/compile_extension.sh and
+  dnl .gitlab/link-tracing-extension.sh are driven solely by
+  dnl ddtrace-fat.ldflags
+  dnl and add no libm of their own, so it has to be in that file too.
+  EXTRA_LIBS="$EXTRA_LIBS $LIBM"
+  DDTRACE_SHARED_LIBADD="${DDTRACE_SHARED_LIBADD:-} $LIBM"
+  ddtrace_ldflags_file_extra="$ddtrace_ldflags_file_extra $LIBM"
+  dnl as well as explicitly for pthread_atfork
+  PTHREADS_CHECK
+  EXTRA_CFLAGS="$EXTRA_CFLAGS $ac_cv_pthreads_cflags"
+  EXTRA_LIBS="$EXTRA_LIBS -l$ac_cv_pthreads_lib"
   PHP_CHECK_LIBRARY(rt, shm_open,
-    [PHP_ADD_LIBRARY(rt, , EXTRA_LDFLAGS)])
+    [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"; DDTRACE_SHARED_LIBADD="${DDTRACE_SHARED_LIBADD:-} -lrt"])
+
+  dnl Platform linker requirements for the Rust library
+  case $host_os in
+   linux*)
+    dnl The signal worker calls _exit with shared TLS. Resolve libc symbols
+    dnl when loading the extension, including when Rust is linked as a static archive.
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-z,now"
+    ;;
+   darwin*)
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -framework CoreFoundation -framework Security"
+    PHP_ADD_FRAMEWORK([CoreFoundation])
+    PHP_ADD_FRAMEWORK([Security])
+    PHP_SUBST(EXTRA_LDFLAGS)
+  esac
 
   PHP_CHECK_LIBRARY(curl, curl_easy_setopt,
-    [PHP_ADD_LIBRARY(curl, , EXTRA_LDFLAGS)],
+    [case " $LDFLAGS " in
+       *" -Wl,-Bdynamic "*)
+         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-Bdynamic,-lcurl,-Bstatic"
+         ;;
+       *)
+         PHP_ADD_LIBRARY(curl, , EXTRA_LDFLAGS)
+         ;;
+     esac],
     [AC_MSG_ERROR([cannot find or include curl])])
 
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
 
+  ddtrace_fat_ldflags="$EXTRA_LDFLAGS"
   if test "$ext_shared" = "yes"; then
-    dnl Only export symbols defined in ddtrace.sym, which should all be marked as
-    dnl DDTRACE_PUBLIC in their source files as well.
+    ddtrace_slim_export_symbols="$ext_builddir/ddtrace-slim.sym"
+    cat "$ext_srcdir/ddtrace-extension.sym" > "$ddtrace_slim_export_symbols"
+
+    case $host_os in
+      linux*)
+        cat "$ext_srcdir/ddtrace-extension-linux.sym" \
+          >> "$ddtrace_slim_export_symbols"
+      ;;
+    esac
+
+    ddtrace_fat_export_symbols="$ext_builddir/ddtrace-fat.sym"
+    cat "$ddtrace_slim_export_symbols" \
+      "$ext_srcdir/components-rs/libdatadog-php.sym" \
+      "$ext_srcdir/components-rs/libdatadog-php-unix.sym" \
+      > "$ddtrace_fat_export_symbols"
+
+    dnl Only export the symbols selected above, which should all be marked as
+    dnl DATADOG_PUBLIC in their source files.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym"
+    ddtrace_slim_ldflags="$EXTRA_LDFLAGS -flto -fuse-linker-plugin"
+    ddtrace_fat_ldflags="$ddtrace_slim_ldflags"
+
+    case $host_os in
+      linux*)
+        dnl Both self-contained and SSI extensions can statically link Rust.
+        dnl Discard unreachable sections from the private SSI archive too.
+        ddtrace_slim_ldflags="$ddtrace_slim_ldflags -Wl,--gc-sections"
+        ddtrace_fat_ldflags="$ddtrace_slim_ldflags"
+        if test "$PHP_DDTRACE_TRACER" != "no"; then
+          dnl Only the tracer/sidecar artifact is executable by ld.so.
+          ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-e,ddog_spawn_direct_entry"
+        fi
+      ;;
+    esac
+
+    if test "$PHP_DDTRACE_TRACER" = "no"; then
+      dnl Tracer-only symbols in ddtrace-fat.sym do not exist in the standalone
+      dnl profiler. On macOS, -export-symbols forces them to resolve at link time.
+      ddtrace_standalone_export_symbols="$ext_builddir/ddtrace-standalone.sym"
+      echo get_module > "$ddtrace_standalone_export_symbols"
+      EXTRA_LDFLAGS="$ddtrace_fat_ldflags -export-symbols $ddtrace_standalone_export_symbols"
+    elif test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+      EXTRA_LDFLAGS="$ddtrace_fat_ldflags -export-symbols $ddtrace_fat_export_symbols"
+    else
+      EXTRA_LDFLAGS="$ddtrace_slim_ldflags -export-symbols $ddtrace_slim_export_symbols"
+    fi
 
     PHP_SUBST(EXTRA_CFLAGS)
     PHP_SUBST(EXTRA_LDFLAGS)
+    PHP_SUBST(DDTRACE_SHARED_LIBADD)
   fi
 
+  cat <<EOT >"$ext_srcdir/ext/version.h"
+#ifndef PHP_DDTRACE_VERSION
+#define PHP_DDTRACE_VERSION "$(cat "$ext_srcdir/VERSION")"
+#endif
+EOT
+
   PHP_ADD_INCLUDE([$ext_srcdir])
-  PHP_ADD_INCLUDE([$ext_srcdir/ext])
+
+  PHP_ADD_BUILD_DIR([$ext_builddir/components-rs])
 
   PHP_ADD_BUILD_DIR([$ext_builddir/components])
-  PHP_ADD_BUILD_DIR([$ext_builddir/components/container_id])
+  PHP_ADD_BUILD_DIR([$ext_builddir/components/log])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/string_view])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/uuid])
 
   PHP_ADD_INCLUDE([$ext_srcdir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/symbols])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/env])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions])
@@ -188,6 +565,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php7])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php8])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/jit_utils])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])
@@ -196,28 +574,175 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_assert])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_string])
 
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/hook])
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer/hook])
 
-  PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor])
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor])
+  PHP_ADD_INCLUDE([$ext_srcdir/tracer/vendor])
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer/vendor])
 
-  PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor/zai/hook])
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor/zai/hook])
+  PHP_ADD_INCLUDE([$ext_srcdir/tracer/vendor/mpack])
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer/vendor/mpack])
 
-  PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor/mpack])
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor/mpack])
+  PHP_ADD_INCLUDE([$ext_srcdir/tracer/vendor/mt19937])
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer/vendor/mt19937])
 
-  PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor/mt19937])
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor/mt19937])
-
-  dnl TODO Move this to ext/
+  dnl TODO Drop this in favor of sidecar
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
 
   PHP_ADD_BUILD_DIR([$ext_builddir/ext])
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/limiter])
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/priority_sampling])
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/tracer_tag_propagation])
-  PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
-  PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
+
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer])
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer/limiter])
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer/priority_sampling])
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer/tracer_tag_propagation])
+  PHP_ADD_BUILD_DIR([$ext_builddir/tracer/integrations])
+  PHP_ADD_INCLUDE([$ext_builddir/tracer/integrations])
+
+  dnl AppSec headers are included relative to their directory only: some of
+  dnl their names collide with the ones in ext/.
+  PHP_ADD_BUILD_DIR([$ext_builddir/appsec/src/extension])
+  PHP_ADD_BUILD_DIR([$ext_builddir/appsec/src/extension/commands])
+
+  cat <<'EOT' >> Makefile.fragments
+./modules/ddtrace.a: $(shared_objects_ddtrace) $(DDTRACE_SHARED_DEPENDENCIES)
+	$(LIBTOOL) --mode=link $(CC) -static $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS)  -o $@ -avoid-version -prefer-pic -module $(shared_objects_ddtrace)
+EOT
+
+  if test "$ext_shared" = "yes" && test "$PHP_DDTRACE_TRACER" != "no"; then
+    dnl The mockgen tool only weakens PHP imports for extensions which can
+    dnl execute as the sidecar. It generates no C mocks or source files.
+    all_object_files=$(for src in $ALL_DATADOG_SOURCES; do printf ' %s' "${src%?}lo"; done)
+    all_object_files_absolute=$(for src in $ALL_DATADOG_SOURCES; do printf ' $(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
+    php_binary=$("$PHP_CONFIG" --php-binary)
+    if test "$PHP_DDTRACE_SIDECAR_MOCKGEN" != "-"; then
+      ddtrace_mockgen_invocation="HOST= TARGET= $PHP_DDTRACE_SIDECAR_MOCKGEN"
+    else
+      dnl The mock generator is a build-time host tool. Do not apply extension
+      dnl sanitizer flags to it or its build scripts and procedural macros.
+      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CFLAGS= CXXFLAGS= CPPFLAGS= LDFLAGS= RUSTFLAGS= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run \$(shell echo \"\$(MAKEFLAGS)\" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet)"
+    fi
+  fi
+
+  if test "$PHP_DDTRACE_RUST_LIBRARY" != "-" && \
+      test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+    if test "$PHP_DDTRACE_PHP_ABI_RUST_LIBRARY" = "-"; then
+      dnl Preserve explicit DSO linking for other split configurations.
+      dnl SSI combined builds instead use the loader's implicit preload.
+      case $host_os in
+        linux*)
+          DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
+-Wl,--push-state,-Bdynamic,--no-as-needed,$PHP_DDTRACE_RUST_LIBRARY,--pop-state"
+          ;;
+        darwin*)
+          DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
+-Wl,-needed_library,$PHP_DDTRACE_RUST_LIBRARY"
+          ;;
+      esac
+    fi
+    ddtrace_rust_lib=""
+  elif test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
+    ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"
+  elif test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+    ddtrace_rust_lib=""
+  else
+    dnl consider it debug if -g is specified (but not -g0)
+    ddtrace_cargo_profile=${DDTRACE_RUST_PROFILE:-$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)}
+    ddtrace_target_dir="${CARGO_TARGET_DIR:-\$(builddir)/target-common}"
+    ddtrace_target_path=
+    ddtrace_target_args=
+    if test "$PHP_DDTRACE_PROFILING" != "no" && test -n "$DDTRACE_PROFILING_TARGET"; then
+      ddtrace_target_path="/$DDTRACE_PROFILING_TARGET"
+      ddtrace_target_args="--target $DDTRACE_PROFILING_TARGET"
+    fi
+    ddtrace_rust_lib="$ddtrace_target_dir$ddtrace_target_path/$ddtrace_cargo_profile/libdatadog_php.a"
+
+    ddtrace_cargo_feature_list=
+    if test "$PHP_DDTRACE_TRACER" != "no"; then
+      dnl tracer-runtime includes the PHP-independent AppSec body parsers.
+      ddtrace_cargo_feature_list="tracer,tracer-runtime"
+    fi
+    if test "$PHP_DDTRACE_PROFILING" != "no"; then
+      if test "$PHP_DDTRACE_TRACER" != "no"; then
+        ddtrace_profiler_feature=profiling-embedded,profiling-runtime
+      else
+        dnl Standalone needs logging and UTF-8 validation, but no sidecar or
+        dnl tracer services. The profiler reads OTel context; it does not publish it.
+        ddtrace_profiler_feature=profiling-standalone
+      fi
+      ddtrace_cargo_feature_list="${ddtrace_cargo_feature_list:+$ddtrace_cargo_feature_list,}$ddtrace_profiler_feature${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}"
+      ddtrace_cargo_build_flags="$DDTRACE_PROFILING_CARGO_BUILD_FLAGS $ddtrace_target_args"
+    fi
+    if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_LIBDDWAF_SOURCE" != "no"; then
+      ddtrace_cargo_feature_list="$ddtrace_cargo_feature_list,libddwaf-source-static"
+    fi
+    if test -n "$ddtrace_cargo_feature_list"; then
+      ddtrace_cargo_features="--no-default-features --features $ddtrace_cargo_feature_list"
+    else
+      ddtrace_cargo_features="--no-default-features"
+    fi
+    ddtrace_cargo_build_flags="${ddtrace_cargo_build_flags:-}"
+    ddtrace_rust_build_std=$(test "$PHP_DDTRACE_RUST_BUILD_STD" != "no" && echo 1 || echo 0)
+
+    dnl `make` only reruns a rule when a listed prerequisite is newer than
+    dnl the target; it has no idea that the recipe's own command-line
+    dnl environment (DDTRACE_PHP_INCLUDES, CARGO_FEATURES, ...) can change
+    dnl between configure runs that reuse the same CARGO_TARGET_DIR and
+    dnl target file path (e.g. an NTS build followed by a ZTS build, or a
+    dnl tracer-only build followed by a combined one, sharing an externally
+    dnl set CARGO_TARGET_DIR). Without this, `make` would leave a stale,
+    dnl ABI-incompatible libdatadog_php.a in place and relink it as-is
+    dnl instead of rebuilding it. The generated top-level Makefile already
+    dnl captures this: its `INCLUDES = ...` line is derived from whichever
+    dnl php-config was on PATH when configure ran (NTS vs ZTS resolve to
+    dnl different php-config binaries and therefore different INCLUDES),
+    dnl and config.status rewrites Makefile with a fresh mtime on every
+    dnl configure run. Listing it as a prerequisite is enough to make `make`
+    dnl notice and rebuild.
+    cat <<EOT >> Makefile.fragments
+dnl File globs cover: our own Rust sources plus everything the combined
+dnl (tracer+profiling) crate depends on -- the sidecar crate and the appsec
+dnl Rust helper are real workspace dependencies of `tracer-runtime` (see
+dnl Cargo.toml), so changes there must also trigger a relink here.
+$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/profiling" \( -name "*.rs" -o -name "*.c" -o -name "*.h" \); find "$ext_srcdir/zend_abstract_interface" \( -name "*.c" -o -name "*.h" \); find "$ext_srcdir/sidecar" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/appsec/helper-rust" -name "*.rs" -o -name "*.c" -o -name "Cargo.toml" -o -name "build.rs"; find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' ) $ext_srcdir/ext/configuration.h $ext_srcdir/ext/configuration_helpers.h $ext_srcdir/tracer/configuration.h $ext_builddir/Makefile
+	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" DD_RUST_BUILD_STD=$ddtrace_rust_build_std SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $ddtrace_cxx_env $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet))
+EOT
+  fi
+
+  if test "$PHP_DDTRACE_PHP_ABI_RUST_LIBRARY" != "-"; then
+    if test "$PHP_DDTRACE_PROFILING" = "no" || test "$PHP_DDTRACE_TRACER" = "no"; then
+      AC_MSG_ERROR([the PHP-ABI Rust archive requires a combined ddtrace extension])
+    fi
+    if test "$PHP_DDTRACE_RUST_LIBRARY" = "-" || test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+      AC_MSG_ERROR([the PHP-ABI Rust archive requires a separate common library])
+    fi
+    dnl Include the PHP-ABI Rust archive in ddtrace.so; the common DSO is
+    dnl preloaded by the SSI loader, not linked into the extension.
+    ddtrace_rust_lib="$PHP_DDTRACE_PHP_ABI_RUST_LIBRARY $ddtrace_rust_lib"
+  fi
+
+  dnl Weaken PHP-origin symbols only when this extension can be executed as
+  dnl the sidecar. Standalone profiling is an ordinary PHP shared library.
+  if test "$ext_shared" = "yes" && test "$PHP_DDTRACE_TRACER" != "no"; then
+    ddtrace_weaken_targets="$all_object_files_absolute"
+    if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_PROFILING" != "no"; then
+      ddtrace_weaken_targets="$ddtrace_weaken_targets $ddtrace_rust_lib"
+    fi
+    _ddtrace_weaken_tmp=$(mktemp)
+    cat > "$_ddtrace_weaken_tmp" << WEAKEN
+	($ddtrace_mockgen_invocation weaken-dynsym $ddtrace_weaken_targets $php_binary)
+WEAKEN
+    sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e "/\/ddtrace\.la:\ \\$/r $_ddtrace_weaken_tmp" Makefile.objects
+    dnl run weaken only once, create a dependency on .la for .a
+    echo "./modules/ddtrace.a: | ./ddtrace.la" >> Makefile.fragments
+    rm -f "$_ddtrace_weaken_tmp"
+  fi
+
+  if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
+    shared_objects_ddtrace="$ddtrace_rust_lib $shared_objects_ddtrace"
+  else
+    PHP_GLOBAL_OBJS="$ddtrace_rust_lib $PHP_GLOBAL_OBJS"
+  fi
+
+  dnl These flags are consumed by out-of-tree fat links.
+  echo "$ddtrace_fat_ldflags $EXTRA_CFLAGS$ddtrace_ldflags_file_extra" > ddtrace-fat.ldflags
 fi

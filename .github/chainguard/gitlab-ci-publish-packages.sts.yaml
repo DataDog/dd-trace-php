@@ -1,0 +1,7 @@
+issuer: https://gitlab.ddbuild.io
+
+subject_pattern: "project_path:DataDog/apm-reliability/dd-trace-php:ref_type:(branch|tag):ref:.*"
+
+permissions:
+  packages: write
+  pull_requests: read

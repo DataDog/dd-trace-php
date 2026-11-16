@@ -9,18 +9,19 @@ if (file_exists("/etc/os-release") && preg_match("/alpine/i", file_get_contents(
 ?>
 --XFAIL--
 Code called in the segv handler is not signal safe, this will sometimes result in a segfault.
---ENV--
-DD_LOG_BACKTRACE=1
 --FILE--
 <?php
+
+posix_setrlimit(POSIX_RLIMIT_CORE, 0, 0);
+
 posix_kill(posix_getpid(), 11); // boom
 
 ?>
 --EXPECTREGEX--
-Segmentation fault
-Datadog PHP Trace extension \(DEBUG MODE\)
-Received Signal 11
-Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime
-Backtrace:
+\[ddtrace] \[error] Segmentation fault
+\[ddtrace] \[error] Datadog PHP Trace extension \(DEBUG MODE\)
+\[ddtrace] \[error] Received Signal 11
+\[ddtrace] \[error] Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime
+\[ddtrace] \[error] Backtrace:
 .*ddtrace\.so.*
 .*

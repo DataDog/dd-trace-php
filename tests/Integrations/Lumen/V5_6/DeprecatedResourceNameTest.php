@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class DeprecatedResourceNameTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_6/public/index.php';
     }
@@ -39,14 +39,15 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                     'web',
                     'GET simple_route'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'lumen.route.name' => 'simple_route',
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost/simple',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'lumen',
+                        '_dd.svc_src' => 'lumen',
                     ])
                     ->withChildren([
                         SpanAssertion::build(
@@ -54,9 +55,10 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                             'lumen',
                             'web',
                             'simple_route'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                             Tag::COMPONENT => 'lumen',
+                            '_dd.svc_src' => 'lumen',
                         ]),
                     ]),
             ]

@@ -1,0 +1,2 @@
+ext/intl/tests/timezone_getErrorCodeMessage_basic.phpt
+ext/intl/tests/timezone_getOffset_error.phpt

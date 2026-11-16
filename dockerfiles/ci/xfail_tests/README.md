@@ -6,21 +6,59 @@ This file explains why we decided to disable specific PHP language tests. Invest
 
 # Categories of tests
 
+## IntlTimeZone error handling
+
+- `ext/intl/tests/timezone_getErrorCodeMessage_basic.phpt`
+- `ext/intl/tests/timezone_getOffset_error.phpt`
+
+Disabled in PHP 7.1 - 7.3 on ARM64 only. Also failing without the profiler loaded.
+
+## mb_ereg crashes
+
+- `ext/mbstring/tests/mb_ereg-compat-01.phpt`
+- `ext/mbstring/tests/mb_ereg_basic.phpt`
+- `ext/mbstring/tests/mb_ereg_variation5.phpt`
+
+Disabled in PHP 7.2 on ARM64 only. Crashes even without the profiling
+extension. GDB backtrace points into PHP's bundled Oniguruma engine: `match_at`
+→ `onig_search` → `mb_ereg`.
+
+## Float-to-integer overflow
+
+`7.4-arm64.list` covers the bitwise/modulus operator tests, the
+`decbin`/`dechex`/`decoct` basic 64-bit tests and `pack64.phpt`.
+
+PHP 7.4's configure probe contains undefined behavior. With Clang it enables an
+unsafe float-to-integer cast. Positive overflow then saturates to `INT64_MAX`
+instead of wrapping to `INT64_MIN`. Was fixed [in
+upstream](https://github.com/php/php-src/pull/9215) but not backported to PHP
+7.4
+
+## Hard-timeout timing
+
+`Zend/tests/bug74093.phpt` expects the hard timeout to fire while PHP is in a
+long-running internal operation. It can instead hit the ordinary execution
+timeout during setup. We exclude it on PHP 8.2 and below; on PHP 8.3 and above,
+`.gitlab/run_php_language_tests.sh` adds `--FLAKY--` if needed so the runner can
+retry the individual test once.
+
 ## Object/resource ID skips
 
-The following tests are marked as skipped due to the test relying on a hard-coded resource ID. All of these IDs change when the PHP tracer is enabled due to the resources created in the `ddtrace.request_init_hook`.
+The following tests are marked as skipped due to the test relying on a hard-coded resource ID. All of these IDs change when the PHP tracer is enabled due to the resources created in the `datadog.trace.sources_path`.
 
 - `ext/sockets/tests/socket_create_pair.phpt`
 - `ext/standard/tests/filters/bug54350.phpt`
 - `Zend/tests/type_declarations/scalar_return_basic_64bit.phpt`
 - `Zend/tests/weakrefs/weakmap_basic_map_behaviour.phpt`
 - `ext/standard/tests/filters/bug54350.phpt`
+- `ext/spl/tests/spl_object_hash_deprecated.phpt` (8.6+; the object handle is shifted by objects ddtrace creates)
 
 ## Random port selection
 
 Many tests choose a random port to start up a service. Many of these tests have been updated to not used a random port in more recent PHP versions, but we skip these tests in older versions of PHP because they often choose a port that is already in use in CI.
 
 - `ext/sockets/tests/socket_connect_params.phpt` ([Fixed](https://github.com/php/php-src/commit/3e9dac2) in PHP 7.4)
+- `ext/sockets/tests/socket_sendto_params.phpt` (PHP 7.1 only)
 
 ## Fail even with no tracer installed
 
@@ -53,11 +91,80 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 - `ext/spl/tests/gh10011.phpt`
 - `Zend/tests/gc_045.phpt`
 
+## Tests related to exceptions
+
+- `Zend/tests/generators/exception_during_shutdown.phpt`
+- `ext/dom/tests/dom003.phpt`
+- `ext/dom/tests/dom_set_attr_node.phpt`
+- `ext/intl/tests/bug60192-sort.phpt`
+- `ext/phar/tests/frontcontroller29.phpt`
+- `ext/phar/tests/cache_list/frontcontroller29.phpt`
+- `ext/soap/tests/bug77088.phpt`
+- `ext/spl/tests/gh8318.phpt`
+
+## Tests checking for DO_ICALL
+
+On PHP 8.0 and PHP 8.1 we override zend_execute_internal, which causes DO_FCALL instead of DO_ICALL opcodes to be emitted. Skipping some `ext/opcache` tests there.
+
 ---
 
 # Specific tests
 
-## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`
+## `ext/sockets/tests/socket_export_stream-4.phpt`
+
+Disabled on PHP 7.0–7.3. The test binds fixed UDP ports, including 58484, which
+can already be in use. Occupying that port reproduces the warning without any
+Datadog extension. The [upstream fix][socket-port-fix] lets the OS choose free
+ports and is present in PHP 7.4+, where we keep running the test.
+
+[Failing PHP 7.3 CI job][socket-flake-ci].
+
+[socket-port-fix]: https://github.com/php/php-src/commit/a57905dbacfc4e5d94267fecf0e0f4a2798e7022
+[socket-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2205741810
+
+## `ext/standard/tests/streams/proc_open_bug64438.phpt`
+
+Disabled on PHP 7.0–7.3. The test assumes both pipes return data before either
+returns EOF. Reading stdout data, stdout EOF, stderr data, then stderr EOF is
+also valid and reproduces the CI diff without any Datadog extension. The
+[upstream fix][proc-pipe-fix] collects events per pipe and is present in PHP
+7.4+, where we keep running the test.
+
+[Failing PHP 7.3 CI job][proc-flake-ci].
+
+[proc-pipe-fix]: https://github.com/php/php-src/commit/d20fc5a1927c98db7d4e96c17b9988569822592a
+[proc-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2195978918
+
+## `ext/pcntl/tests/002.phpt`
+
+Disabled on PHP 7.0–7.4. The test blocks SIGCHLD, then installs a handler.
+PHP's `zend_sigaction()` unblocks SIGCHLD during handler registration. If the
+child exits before `pcntl_sigwaitinfo()`, the handler receives the signal and
+the wait hangs. Delaying the parent after killing the child reproduces the
+exact timeout without any Datadog extension.
+
+[Failing PHP 7.4 CI job][pcntl-flake-ci]. We keep running this test on PHP 8.0+;
+the cutoff limits the exclusion to legacy versions, not a known upstream fix.
+
+[pcntl-flake-ci]: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2210035628
+
+These exclusions use the shared version-specific lists for tracer and profiler
+CI. Despite the name, `.gitlab/run_php_language_tests.sh` deletes listed PHPTs
+before running the suite; they do not run as expected failures.
+
+## `ext/standard/tests/file/file_get_contents_file_put_contents_5gb.phpt`
+
+Disabled on versions: `8.2`, `8.3`.
+
+Allocates > 5GB of Ram on a CircleCI medium instance (limit 4GB) but uses
+`/proc/meminfo` to check if enough memory is available in the `SKIP` section.
+See https://github.com/php/php-src/pull/14895 and https://github.com/DataDog/dd-trace-php/pull/2752#issuecomment-2219813169
+
+## `sapi/cli/tests/bug80092.phpt`
+
+Temporarily disabled due to a too strict of a check for the precise php -v output.
+
+## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`, `Zend/tests/gh12073.phpt`, `ext/standard/tests/gh14643_longname.phpt`
 
 Tests memory limits, which we exceed due to tracer being loaded.
 
@@ -69,9 +176,41 @@ By _chance_ the internal comparison happens against another GC protected array w
 
 Test does http request to shut down server.
 
-## `ext/curl/tests/curl_postfields_array.phpt`
+## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_DEBUGFUNCTION.phpt`
 
 Distributed tracing headers are injected
+
+## `ext/curl/tests/curl_getinfo_CURLINFO_HEADER_OUT.phpt`, `ext/standard/tests/http/ghsa-fpwc-w8rq-cr92-002.phpt`
+
+Disabled on versions: `8.6`.
+
+The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
+
+## `ext/soap/tests/gh23686/*.phpt` (the 28 listed in `8.6.list`), `sapi/cli/tests/gh16137_duplicate_headers.phpt`
+
+Disabled on versions: `8.6` (new in 8.6.0RC4/RC5, not yet in the 8.4/8.5 releases used in CI).
+
+The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
+
+## `ext/phar/tests/webphar_cgi_no_path_info.phpt`
+
+Disabled on versions: `8.6` (the test is new in 8.6.0RC4).
+
+The test runs with `variables_order=EGPC`, so `$_SERVER` is not built unless something requests it, and then
+it is an empty array. `Phar::webPhar()` reads `SCRIPT_NAME` from `$_SERVER` whenever it exists and only falls
+back to `sapi_getenv()` otherwise. ddtrace materializes `$_SERVER` in RINIT for the root span, so `webPhar()`
+finds no `SCRIPT_NAME` and returns without the expected redirect. Plain PHP fails the same way with
+`auto_globals_jit=0`, or with `memcache.so` loaded.
+
+## `ext/standard/tests/filters/stream_filter_register_*.phpt` (the 5 listed in `8.6.list`)
+
+Disabled on versions: `8.6` (the tests are new in 8.6).
+
+They expect a shutdown-time `Invalid callback` fatal. ddtrace's uncaught-exception rethrow ends in `zend_bailout()`, which sets `CG(unclean_shutdown)`, so `userfilter_filter` returns early and the fatal is never emitted. Pre-existing ddtrace behaviour, not 8.6-specific.
+
+## `ext/intl/tests/bug60192-sort.phpt`
+
+Has a refcounting bug on PHP 7.4 (which gets triggered by the tracer, but isn't caused by it).
 
 ## `ext/pcntl/tests/pcntl_unshare_01.phpt`
 
@@ -87,6 +226,12 @@ Disabling the creation of the background sender thread the test passes (with a d
 ## `ext/pcntl/tests/pcntl_unshare_03.phpt`
 
 See `ext/pcntl/tests/pcntl_unshare_01.phpt`.
+
+## `ext/openssl/tests/bug79145.phpt`
+
+Disabled on versions: `7.3`, `7.4`, `8.0`.
+
+This test verifies there is no memory leak in `openssl_get_publickey()` by looping 100,000 times. This is too slow sometimes, especially debug PHP build. The test was [rewritten in PHP 8.1](https://github.com/php/php-src/commit/6249172ae37f958f0a3ef92cb55d5bf7affa8214) to do a single warm-up call followed by one measured call, making it fast enough to run without a timeout. The test does not exist in PHP 7.2 and earlier.
 
 ## `ext/openssl/tests/bug74159.phpt`
 
@@ -117,6 +262,13 @@ Such tests were skipped before and are incredibly unstable on 5. It might be a C
 ## `ext/posix/tests/posix_errno_variation2.phpt`
 
 This test was flaky until it was [fixed in PHP 7.2](https://github.com/php/php-src/commit/f4474e5).
+
+## `ext/standard/tests/general_functions/phpinfo.phpt`
+
+* Disabled on versions: `7.0 --> 8.1`.
+* Upstream fix: [Reduce regex backtracking in phpinfo.phpt](https://github.com/php/php-src/commit/c4c45da4b96889348d86828c26225d113af14d21), which is present in PHP 8.2+.
+
+This test compares very large `phpinfo()` output. With tracer-specific modules and CI environment variables enabled, the output grows and older `%A`/`%a` patterns in this test can hit pathological backtracking and fail nondeterministically.
 
 ## `ext/standard/tests/streams/proc_open_bug69900.phpt`
 
@@ -152,3 +304,66 @@ SKIP Test if socket_create_listen() returns false, when it cannot bind to the po
 ## `Zend/fibers/out-of-memory-in*`
 
 ddtrace request init hook consumes more than 2 MB of memory and fails too early instead of testing what it should.
+
+## `Zend/tests/fibers/gh10496-001.phpt`, `Zend/tests/weakrefs/gh10043-007.phpt`, `Zend/tests/fibers/destructors_005.phpt`
+
+ddtrace affects the order of destructor execution due to creating span stacks etc.
+
+## `Zend/tests/fibers/gh19983.phpt`
+
+ddtrace creates a SpanStack per fiber, which will simply recurse too deeply.
+
+## `Zend/tests/stack_limit/stack_limit_013.phpt`
+
+This particular test is very close to the stack limit, and thus sometimes fails to actually exceed the stack limit with ddtrace.
+
+## `ext/zend_test/tests/`, `Zend/tests/gh10346.phpt`
+
+Observer tests trace all functions, including dd setup. Exclude these from being observed.
+
+## `ext/standard/tests/network/syslog_null_byte.phpt`, `ext/standard/tests/network/syslog_new_line.phpt`
+
+Both of them have a additional `PHPT: DIGEST-MD5 common mech free` in the output which is not expected in the test. This line originates from `libdigestmd5.so` which is shipped as part of `libsasl2-modules` in Debian. We are currently running those tests on Debian Buster which is stuck on Version 2.1.27 of that package, while the "fix" is in 2.1.28 version of the Debian package.
+
+See also: https://github.com/DataDog/dd-trace-php/pull/2218
+
+## SKIP\_ONLINE\_TESTS
+
+The env var `SKIP_ONLINE_TESTS` is set so that in newer PHP versions, we skip
+any test which checks this env var. Online tests are too flaky for CI.
+
+The exact PHP version that a given test checks this env var varies, but these
+are some tests which are skipped for older versions which don't check it:
+
+ - `ext/sockets/tests/socket_shutdown.phpt`
+
+## `Zend/tests/disable_classes_warning.phpt`
+
+Disabled on versions: `8.5+`.
+
+PHP 8.5 completely removed the `disable_classes` INI directive (see [RFC](https://wiki.php.net/rfc/remove_disable_classes)).
+
+## `ext/uri/tests/whatwg/parsing/*_null_byte.phpt`
+
+These tests use object ids, and %00; changing the EXPECT to EXPECTF will cause the %00 to be matched as literal NULL-Bytes, breaking the test.
+
+`ext/uri/tests/whatwg/builder/username_success_tab_newline.phpt` (8.6+) fails the same way: its object ids trigger the EXPECTF rewrite, and its `%0A`/`%0D`/`%09` then match as NUL bytes.
+
+## `ext/soap/tests/soap_qname_crash.phpt`
+
+Disabled on versions: `8.1+`.
+
+This test checks PHP's handling of excessively large QName prefix in SoapVar (a stress test for edge cases). With ddtrace loaded, the additional memory overhead causes the test to be killed before it can complete, due to hitting memory limits during the stress test.
+
+## `ext/openssl/tests/sni_server.phpt`, `ext/openssl/tests/sni_server_key_cert.phpt`, `ext/openssl/tests/bug74796.phpt`
+
+Disabled on all versions (where present).
+
+The bundled test certificates expired on 2026-04-02. The TLS handshake fails because the client rejects the expired server certificates, causing `stream_socket_client` to return `false`.
+
+## `ext/sockets/tests/gh21161.phpt`
+
+Disabled on versions: `8.4`, `8.5`, `8.6`.
+
+The test calls `socket_create(AF_INET6, ...)` without a SKIPIF guard for IPv6 availability (only skips on Windows). In CI (Kubernetes pods), IPv6 is not available, so `socket_create` returns `false`. The subsequent `socket_set_option(false, ...)` call throws a `TypeError` instead of producing the expected warnings. This is an upstream bug in the test's SKIPIF section.
+

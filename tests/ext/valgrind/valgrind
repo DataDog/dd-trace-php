@@ -1,0 +1,4 @@
+#!/bin/bash
+DIR=$(dirname "$0")
+export PATH=${PATH/${DIR//\//\\\/}:/}
+exec valgrind "--suppressions=$DIR/suppressions.txt" "$@"

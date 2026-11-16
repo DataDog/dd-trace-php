@@ -27,10 +27,10 @@ final class PHPInstallerTest extends BaseTestCase
         exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php74; chmod a+x php74");
         exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php7.4; chmod a+x php7.4");
         exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm; chmod a+x php-fpm");
-        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php56-fpm; chmod a+x php56-fpm");
-        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php5.6-fpm; chmod a+x php5.6-fpm");
-        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm56; chmod a+x php-fpm56");
-        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm5.6; chmod a+x php-fpm5.6");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php84-fpm; chmod a+x php84-fpm");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php8.4-fpm; chmod a+x php8.4-fpm");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm84; chmod a+x php-fpm84");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm8.4; chmod a+x php-fpm8.4");
         // php72 should be included as a symlink to will_be_linked
         exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch will_be_linked; chmod a+x will_be_linked");
         // phpcs:disable Generic.Files.LineLength.TooLong
@@ -58,6 +58,72 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertFalse(\is_truthy('dIsAbLeD'));
     }
 
+    /**
+     * @dataProvider legacyProfilingConfigurations
+     */
+    public function testLegacyProfilingNeedsEnabling($contents, $expected)
+    {
+        $this->assertSame($expected, \legacy_profiler_needs_enabling($contents));
+    }
+
+    public function legacyProfilingConfigurations()
+    {
+        return [
+            'active extension, commented default' => [
+                "extension = datadog-profiling.so\n;datadog.profiling.enabled = 1\n", true,
+            ],
+            'active zend extension' => [
+                "zend_extension = /opt/datadog/datadog-profiling.so\n", true,
+            ],
+            'quoted Windows extension' => [
+                'extension = "C:\\Datadog\\php_datadog-profiling.dll"', true,
+            ],
+            'commented extension' => [";extension = datadog-profiling.so\n", false],
+            'commented extension after a newline' => ["\n ; extension = datadog-profiling.so\n", false],
+            'profiler mentioned only in a comment' => [
+                "extension = ddtrace.so ; replaces datadog-profiling.so\n", false,
+            ],
+            'explicitly disabled' => [
+                "extension = datadog-profiling.so\ndatadog.profiling.enabled = Off\n", false,
+            ],
+            'explicitly enabled' => [
+                "extension = datadog-profiling.so\ndatadog.profiling.enabled = On\n", false,
+            ],
+            'already combined' => ["extension = ddtrace.so\n", false],
+            'empty configuration' => ['', false],
+        ];
+    }
+
+    public function testConfigCommandsShiftOffAllExtensionSettings()
+    {
+        $settings = \get_ini_settings('', '');
+        $shifted = array_slice($settings, 0, \CMD_CONFIG_NUM_SHIFT);
+        $configurable = array_slice($settings, \CMD_CONFIG_NUM_SHIFT);
+
+        $this->assertSame(['extension'], array_unique(array_column($shifted, 'name')));
+        $this->assertNotContains('extension', array_column($configurable, 'name'));
+        $this->assertNotContains('zend_extension', array_column($configurable, 'name'));
+    }
+
+    public function testLegacyExtensionsAreOnlyAddedForLegacyPackages()
+    {
+        $extensions = function (array $settings) {
+            $defaults = [];
+            foreach ($settings as $setting) {
+                if ($setting['name'] === 'extension') {
+                    $defaults[] = $setting['default'];
+                }
+            }
+            return $defaults;
+        };
+
+        $this->assertSame(['ddtrace.so'], $extensions(\get_ini_settings('', '')));
+        $this->assertSame(
+            ['ddtrace.so', 'datadog-profiling.so', 'ddappsec.so'],
+            $extensions(\get_ini_settings('', '', true, true))
+        );
+    }
+
     public function testBuildCommandNamesMatrix()
     {
         $names = \build_known_command_names_matrix();
@@ -77,9 +143,6 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertContains('php-fpm8.0', $names);
 
         // We test only that all versions are present with at least one combination
-        $this->assertContains('php54', $names);
-        $this->assertContains('php55', $names);
-        $this->assertContains('php56', $names);
         $this->assertContains('php70', $names);
         $this->assertContains('php71', $names);
         $this->assertContains('php72', $names);
@@ -87,6 +150,9 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertContains('php74', $names);
         $this->assertContains('php80', $names);
         $this->assertContains('php81', $names);
+        $this->assertContains('php82', $names);
+        $this->assertContains('php83', $names);
+        $this->assertContains('php84', $names);
     }
 
     /**
@@ -103,10 +169,10 @@ final class PHPInstallerTest extends BaseTestCase
             'php74',
             'php7.4',
             'php-fpm',
-            'php56-fpm',
-            'php5.6-fpm',
-            'php-fpm56',
-            'php-fpm5.6',
+            'php84-fpm',
+            'php8.4-fpm',
+            'php-fpm84',
+            'php-fpm8.4',
             'php72',
         ];
 
@@ -141,6 +207,200 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertNotEmpty($values[THREAD_SAFETY]);
         $this->assertNotEmpty($values[PHP_API]);
         $this->assertNotEmpty($values[IS_DEBUG]);
+    }
+
+    public function cliArguments()
+    {
+        return [
+            [
+                'datadog-setup.php config set DD_PROFILING_ENABLED=1 -ddatadog.profiling.log_level=trace',
+                [
+                    'cmd' => 'config set',
+                    'opts' => [
+                        'd' => [
+                            'datadog.profiling.enabled=1',
+                            'datadog.profiling.log_level=trace'
+                        ]
+                    ]
+                ]
+            ], [
+                'datadog-setup.php config set -d datadog.profiling.enabled=1 -ddatadog.profiling.log_level=trace',
+                [
+                    'cmd' => 'config set',
+                    'opts' => [
+                        'd' => [
+                            'datadog.profiling.enabled=1',
+                            'datadog.profiling.log_level=trace'
+                        ]
+                    ]
+                ]
+            ], [
+                'datadog-setup.php config get -d datadog.profiling.enabled -dfoobar',
+                [
+                    'cmd' => 'config get',
+                    'opts' => [
+                        'd' => [
+                            'datadog.profiling.enabled',
+                            'foobar',
+                        ]
+                    ]
+                ]
+            ], [
+                'datadog-setup.php --php-bin php --php-bin php-cli --install-dir /opt/ --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'php-bin' => [
+                            'php',
+                            'php-cli',
+                        ],
+                        'install-dir' => '/opt/',
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ], [
+                'datadog-setup.php --php-bin=php --php-bin=php-cli --install-dir /opt/ --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'php-bin' => [
+                            'php',
+                            'php-cli',
+                        ],
+                        'install-dir' => '/opt/',
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ], [
+                'datadog-setup.php --help',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'help' => false
+                    ]
+                ]
+            ], [
+                'datadog-setup.php -h --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'h' => false,
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * @dataProvider cliArguments
+     */
+    public function testCliArgumentParsing(string $cli, array $expect)
+    {
+        $command = explode(' ', $cli);
+        $opts = parse_cli_arguments($command);
+        $this->assertSame(
+            $expect,
+            $opts
+        );
+    }
+
+    public function testFailingCliArgumentParsing()
+    {
+        $this->expectOutputString("Parse error at token 'php6'" . PHP_EOL);
+        $command = explode(' ', 'datadog-setup.php config get --php-bin=all php6 -ddatadog.profiling.enabled');
+        $opts = parse_cli_arguments($command);
+        $this->assertFalse(
+            $opts
+        );
+    }
+
+    public function iniFileContents()
+    {
+        return [
+            [
+                ';foo.bar=On;comment',
+                ';foo.bar=On;comment',
+                false,
+                0
+            ], [
+                ';foo.bar=On;comment',
+                'foo.bar = Off;comment',
+                true,
+                1
+            ], [
+                'foo.bar=On;comment
+
+foo.bar=baz',
+                'foo.bar = Off;comment
+
+foo.bar = Off',
+                false,
+                2
+            ]
+        ];
+    }
+
+    /**
+     * @dataProvider iniFileContents
+     */
+    public function testUpdateIniSetting(string $before, string $after, bool $promoteComment, int $expCount)
+    {
+        // Create a temporary file
+        $tempFile = tempnam(sys_get_temp_dir(), 'test');
+        file_put_contents($tempFile, $before);
+
+        $count = \update_ini_setting(['foo.bar', 'Off'], $tempFile, $promoteComment);
+
+        $output = file_get_contents($tempFile);
+        $this->assertSame($after, $output);
+        $this->assertSame($count, $expCount);
+
+        unlink($tempFile);
+    }
+
+    public function iniFilePathsProvider()
+    {
+        return [
+            [
+                [
+                    'Scan this dir for additional .ini files' => '/opt/php/8.4/etc/conf.d',
+                    'Loaded Configuration File' => '',
+                ], [
+                    '/opt/php/8.4/etc/conf.d/98-ddtrace.ini',
+                ]
+            ], [
+                [
+                    'Scan this dir for additional .ini files' => '/opt/php/8.4/etc/conf.d'.\PATH_SEPARATOR.'/opt/php/8.4/etc/override-conf.d',
+                    'Loaded Configuration File' => '',
+                ], [
+                    '/opt/php/8.4/etc/conf.d/98-ddtrace.ini',
+                ]
+            ], [
+                [
+                    'Scan this dir for additional .ini files' => \PATH_SEPARATOR.'/opt/php/8.4/etc/override-conf.d',
+                    'Loaded Configuration File' => '',
+                ], [
+                    '/opt/php/8.4/etc/override-conf.d/98-ddtrace.ini',
+                ]
+            ], [
+                [
+                    'Scan this dir for additional .ini files' => '/opt/php/8.4/etc/override-conf.d'.\PATH_SEPARATOR,
+                    'Loaded Configuration File' => '',
+                ], [
+                    '/opt/php/8.4/etc/override-conf.d/98-ddtrace.ini',
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * @dataProvider iniFilePathsProvider
+     */
+    public function testFindIniFilePath($props, $expected)
+    {
+        $dirs = \find_main_ini_files($props);
+        $this->assertSame($expected, $dirs);
     }
 
     private static function getTmpRootPath()

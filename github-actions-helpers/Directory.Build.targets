@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <PropertyGroup Condition="'$(NukeTasksDirectory)' == ''">
+        <NukeTasksDirectory Condition="'$(MSBuildRuntimeType)' == 'Core'">$(NuGetPackageRoot)nuke.common\6.3.0\build\netcore</NukeTasksDirectory>
+        <NukeTasksDirectory Condition="'$(MSBuildRuntimeType)' != 'Core'">$(NuGetPackageRoot)nuke.common\6.3.0\build\netfx</NukeTasksDirectory>
+    </PropertyGroup>
+
+    <Import Project="$(NukeTasksDirectory)\Nuke.MSBuildTasks.targets" Condition="'$(NukeTasksEnabled)' != 'False'" />
+
+    <PropertyGroup>
+        <NukeScriptDirectory Condition="'$(NukeScriptDirectory)' == ''">$(NukeRootDirectory)</NukeScriptDirectory>
+    </PropertyGroup>
+
+    <ItemGroup Condition="'$(NukeDefaultExcludes)' != 'False'">
+        <None Remove="*.csproj.DotSettings;.editorconfig;Directory.Build.props;Directory.Build.targets" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(NukeScriptDirectory)' != '' And '$(NukeExcludeBoot)' != 'True'">
+        <None Include="$(NukeScriptDirectory)\build.cmd" LinkBase="boot" Condition="Exists('$(NukeScriptDirectory)\build.cmd')" />
+        <None Include="$(NukeScriptDirectory)\build.ps1" LinkBase="boot" Condition="Exists('$(NukeScriptDirectory)\build.ps1')" />
+        <None Include="$(NukeScriptDirectory)\build.sh" LinkBase="boot" Condition="Exists('$(NukeScriptDirectory)\build.sh')" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(NukeRootDirectory)' != '' And '$(NukeExcludeConfig)' != 'True'">
+        <None Include="$(NukeRootDirectory)\.nuke\parameters.json" LinkBase="config" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(NukeRootDirectory)' != '' And '$(NukeExcludeCi)' != 'True'">
+        <None Include="$(NukeRootDirectory)\.github\workflows\*.yml" LinkBase="ci" />
+    </ItemGroup>
+
+</Project>

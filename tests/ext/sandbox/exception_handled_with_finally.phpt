@@ -2,6 +2,9 @@
 Return value from finally block is passed to tracing closure
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70100) die('skip: This causes an unpatched memory leak from php-src on 7.0'); ?>
+--INI--
+; return-in-finally is the subject here; PHP 8.6 deprecates it at compile time
+error_reporting=E_ALL & ~E_DEPRECATED
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -37,9 +40,9 @@ echo doCatchWithFinally() . PHP_EOL;
 array_map(function($span) {
     echo $span['name'];
     echo isset($span['resource']) ? ', ' . $span['resource'] : '';
-    echo isset($span['meta']['error.message']) ? ', ' . $span['meta']['error.message'] : '';
+    echo isset($span['attributes']['error.message']) ? ', ' . $span['attributes']['error.message'] : '';
     echo PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECTF--
 Finally retval

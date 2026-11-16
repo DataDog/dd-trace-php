@@ -18,15 +18,39 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     // host and port for the testing framework
     const HOST = 'http://localhost';
     const HOST_WITH_CREDENTIALS = 'http://my_user:my_password@localhost';
-    const PORT = 9999;
+    const PORT = 9999 - GLOBAL_PORT_OFFSET;
 
     const ERROR_LOG_NAME = 'phpunit_error.log';
+    const COOKIE_JAR = 'cookies.txt';
 
     /**
      * @var WebServer|null
      */
-    private static $appServer;
+    protected static $appServer;
     protected $checkWebserverErrors = true;
+    protected $cookiesFile;
+    protected $maintainSession = false;
+
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+    }
+
+    protected function enableSession()
+    {
+        $this->maintainSession = true;
+        $this->cookiesFile = realpath(dirname(static::getAppIndexScript())) . '/' . static::COOKIE_JAR;
+        $f = @fopen($this->cookiesFile, "r+");
+        if ($f !== false) {
+            ftruncate($f, 0);
+            fclose($f);
+        }
+    }
+
+    protected function disableSession()
+    {
+        $this->maintainSession = false;
+    }
 
     public static function ddSetUpBeforeClass()
     {
@@ -52,19 +76,24 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         parent::ddTearDown();
     }
 
-    /**
-     * Returns the application index.php file full path.
-     *
-     * @return string|null
-     */
-    protected static function getAppIndexScript()
+    protected static function getRoadrunnerVersion()
     {
         return null;
     }
 
-    protected static function getRoadrunnerVersion()
+    protected static function isSwoole()
     {
-        return null;
+        return false;
+    }
+
+    protected static function isOctane()
+    {
+        return false;
+    }
+
+    protected static function isFrankenphp()
+    {
+        return false;
     }
 
     /**
@@ -80,6 +109,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
             'DD_TRACE_DEBUG' => ini_get("datadog.trace.debug"),
+            'DD_TRACE_EXEC_ENABLED' => 'false',
+            'DD_TRACE_SHUTDOWN_TIMEOUT' => '666666', // Arbitrarily high value to avoid flakiness
+            'DD_TRACE_AGENT_RETRIES' => '3',
+            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+            'DD_TRACE_STATS_COMPUTATION_ENABLED' => 'false',
         ];
 
         return $envs;
@@ -91,32 +125,74 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected static function getInis()
     {
+        // PHP 8.5+ has OPcache built in: there is no opcache.so to load
+        $enableOpcache = PHP_VERSION_ID < 80500 && \extension_loaded("Zend OpCache");
+
         return [
-            'ddtrace.request_init_hook' => realpath(__DIR__ . '/../../bridge/dd_wrap_autoloader.php'),
+            'datadog.trace.sources_path' => realpath(__DIR__ . '/../../src'),
             // The following values should be made configurable from the outside. I could not get env XDEBUG_CONFIG
             // to work setting it both in docker-compose.yml and in `getEnvs()` above, but that should be the best
             // option.
+            // Xdebug 2.x configuration
             'xdebug.remote_enable' => 1,
             'xdebug.remote_host' => 'host.docker.internal',
             'xdebug.remote_autostart' => 1,
-        ];
+            // 'xdebug.remote_log' => '/tmp/xdebug.log',
+
+            // Xdebug 3.x configuration
+            'xdebug.mode' => 'develop,debug',
+            'xdebug.client_host' => 'host.docker.internal',
+            'xdebug.start_with_request' => 'yes',
+            // 'xdebug.log' => '/tmp/xdebug.log',
+        ] + ($enableOpcache ? ["zend_extension" => "opcache.so"] : []);
     }
 
     /**
      * Sets up a web server.
      */
-    protected static function setUpWebServer()
+    protected static function setUpWebServer(array $additionalEnvs = [], array $additionalInis = [], $ddprofServiceName = null)
     {
         $rootPath = static::getAppIndexScript();
         if ($rootPath) {
-            self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
-            self::$appServer->mergeEnvs(static::getEnvs());
-            self::$appServer->mergeInis(static::getInis());
+            self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT, $ddprofServiceName);
+
+            $envs = static::getEnvs();
+            if (!empty($additionalEnvs)) {
+                $envs = array_merge($envs, $additionalEnvs);
+            }
+            self::$appServer->mergeEnvs($envs);
+
+            $inis = static::getInis();
+            if (!empty($additionalInis)) {
+                $inis = array_merge($inis, $additionalInis);
+            }
+            self::$appServer->mergeInis($inis);
             if ($version = static::getRoadrunnerVersion()) {
                 self::$appServer->setRoadrunner($version);
             }
+            if (static::isOctane()) {
+                self::$appServer->setOctane();
+            }
+            if (static::isSwoole()) {
+                self::$appServer->setSwoole();
+            }
+            if (static::isFrankenphp()) {
+                if (!ZEND_THREAD_SAFE) {
+                    self::markTestSkipped("The Frankenphp testsuite needs ZTS");
+                }
+                self::$appServer->setFrankenphp();
+            }
+            static::configureWebServer(self::$appServer);
             self::$appServer->start();
         }
+    }
+
+    /**
+     * Hook called after the WebServer is configured but before it is started.
+     * Override in subclasses to apply additional configuration (e.g. FPM user).
+     */
+    protected static function configureWebServer(WebServer $server)
+    {
     }
 
     /**
@@ -129,19 +205,29 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         }
     }
 
+    protected function reloadAppServer()
+    {
+        if (\method_exists(self::$appServer, "reload")) {
+            self::$appServer->reload();
+        } else {
+            $this->markTestSkipped("Webserver reload not supported");
+        }
+    }
+
     /**
      * Executed a call to the test web server.
      *
      * @param RequestSpec $spec
      * @return mixed|null
      */
-    protected function call(RequestSpec $spec)
+    protected function call(RequestSpec $spec, $options = [])
     {
         $response = $this->sendRequest(
             $spec->getMethod(),
-            self::HOST . ':' . self::PORT . $spec->getPath(),
+            self::HOST . $spec->getPath(),
             $spec->getHeaders(),
-            $spec->getBody()
+            $spec->getBody(),
+            $options
         );
         return $response;
     }
@@ -155,13 +241,29 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * @param array|string $body
      * @return mixed|null
      */
-    protected function sendRequest($method, $url, $headers = [], $body = [])
+    protected function sendRequest($method, $url, $headers = [], $body = [], $changedOptions = [])
     {
+        $options = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+        ];
+
+        foreach ($changedOptions as $key => $value) {
+            $options[$key] = $value;
+        }
+
         for ($i = 0; $i < 10; ++$i) {
             $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CONNECT_TO, ["localhost:80:localhost:" . self::PORT]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, $options[CURLOPT_RETURNTRANSFER]);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $options[CURLOPT_FOLLOWLOCATION]);
+            if ($this->maintainSession) {
+                curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookiesFile);
+                curl_setopt ($ch, CURLOPT_COOKIEFILE, $this->cookiesFile);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($ch, CURLOPT_HEADER, 1);
+            }
             if ($method === 'POST') {
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, is_array($body) ? json_encode($body) : $body);
@@ -171,7 +273,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             }
             $response = curl_exec($ch);
             if ($response === false && $i < 9) {
-                \curl_close($ch);
+                if (PHP_VERSION_ID < 80000) { curl_close($ch); }
                 // sleep for 100 milliseconds before trying again
                 \usleep(100 * 1000);
             } else {
@@ -190,12 +292,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
                 curl_error($ch),
                 curl_errno($ch)
             );
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
             $this->fail($message);
             return null;
         }
 
-        curl_close($ch);
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
         return $response;
     }

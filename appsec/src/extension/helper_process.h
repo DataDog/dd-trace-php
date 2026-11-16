@@ -1,0 +1,29 @@
+// Unless explicitly stated otherwise all files in this repository are
+// dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
+//
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#ifndef DD_HELPER_MGR_H
+#define DD_HELPER_MGR_H
+
+#include <components-rs/datadog.h>
+#include <stdbool.h>
+
+#include "attributes.h"
+#include "ddappsec.h"
+#include "dddefs.h"
+#include "network.h"
+
+void dd_helper_startup(void);
+void dd_helper_shutdown(void);
+void dd_helper_mshutdown(void);
+void dd_helper_gshutdown(ddappsec_globals *nonnull globals);
+void dd_helper_rshutdown(void);
+
+typedef dd_result (*client_init_func)(dd_conn *nonnull, void *unspecnull ctx);
+dd_conn *nullable dd_helper_mgr_acquire_conn(
+    client_init_func nonnull, void *unspecnull ctx);
+dd_conn *nullable dd_helper_mgr_cur_conn(void);
+void dd_helper_close_conn(bool goodbye, const char *nullable error, size_t error_len);
+
+#endif // DD_HELPER_MGR_H

@@ -1,7 +1,8 @@
 --TEST--
 DDTrace\hook_function posthook exception is sandboxed (debug internal)
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 zend.assertions=1
@@ -29,6 +30,6 @@ try {
 ?>
 --EXPECTF--
 array_sum hooked.
-Exception thrown in ddtrace's closure defined at %s:%d for array_sum(): !
+[ddtrace] [warning] [%d] Exception thrown in ddtrace's closure defined at %s:%d for array_sum(): ! in %s on line %d
 Sum = 4.
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s

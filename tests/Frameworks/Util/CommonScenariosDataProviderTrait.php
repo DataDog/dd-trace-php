@@ -13,7 +13,7 @@ trait CommonScenariosDataProviderTrait
      * @param array $definedExpectations
      * @return array
      */
-    public function buildDataProvider($definedExpectations)
+    public function buildDataProvider($definedExpectations, $skipExpectations = false)
     {
         $scenarios = TestScenarios::all();
 
@@ -41,7 +41,17 @@ trait CommonScenariosDataProviderTrait
         if ($i !== false) {
             unset($unexpectedRequest[$i]);
         }
-        if ($unexpectedRequest) {
+        //Only available in Laravel for now
+        $i = array_search('A GET request to a dynamic route returning a string', $unexpectedRequest, true);
+        if ($i !== false) {
+            unset($unexpectedRequest[$i]);
+        }
+        //Only available in frameworks implementing http.route
+        $i = array_search('A GET request to a route with a parameter', $unexpectedRequest, true);
+        if ($i !== false) {
+            unset($unexpectedRequest[$i]);
+        }
+        if ($unexpectedRequest && !$skipExpectations) {
             throw new \Exception(
                 'Found the following scenarios not having any expectation defined: '
                 . implode(', ', $unexpectedRequest)
@@ -52,7 +62,9 @@ trait CommonScenariosDataProviderTrait
         foreach ($scenarios as $request) {
             $key = $request->getName();
             if (!isset($definedExpectations[$key])) {
-                error_log('This framework is missing the following scenario test: ' . $key);
+                if (!$skipExpectations) {
+                    error_log('This framework is missing the following scenario test: ' . $key);
+                }
                 continue;
             }
             $dataProvider[$key] = [

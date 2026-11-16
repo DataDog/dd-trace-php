@@ -20,7 +20,7 @@
 
 // ** MySQL settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
-define('DB_NAME', 'test');
+define('DB_NAME', 'wp48');
 
 /** MySQL database username */
 define('DB_USER', 'test');
@@ -29,7 +29,7 @@ define('DB_USER', 'test');
 define('DB_PASSWORD', 'test');
 
 /** MySQL hostname */
-define('DB_HOST', 'mysql_integration');
+define('DB_HOST', 'mysql-integration');
 //define('DB_HOST', '127.0.0.1');
 
 /** Database Charset to use in creating database tables. */
@@ -88,6 +88,11 @@ define('DISABLE_WP_CRON', true);
 /** Absolute path to the WordPress directory. */
 if ( !defined('ABSPATH') )
 	define('ABSPATH', dirname(__FILE__) . '/');
+
+//Appsec mock. This wont be needed on customer apps since this functions will be exposed by appsec
+if (file_exists(__DIR__.'/../../../Appsec/Mock.php')) {
+    require __DIR__.'/../../../Appsec/Mock.php';
+}
 
 /** Sets up WordPress vars and included files. */
 require_once(ABSPATH . 'wp-settings.php');

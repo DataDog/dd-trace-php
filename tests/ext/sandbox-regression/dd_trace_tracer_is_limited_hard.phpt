@@ -1,6 +1,7 @@
 --TEST--
 [Sandbox regression] dd_trace_tracer_is_limited() limits the tracer with a hard span limit
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_SPANS_LIMIT=1000
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 DD_TRACE_GENERATE_ROOT_SPAN=0

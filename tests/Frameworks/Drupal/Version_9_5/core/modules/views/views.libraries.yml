@@ -1,0 +1,19 @@
+views.module:
+  version: VERSION
+  css:
+    component:
+      css/views.module.css: {}
+
+views.ajax:
+  version: VERSION
+  js:
+    js/base.js: {}
+    js/ajax_view.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+    - core/jquery.once.bc
+    - core/internal.jquery.form
+    - core/drupal.ajax

@@ -1,5 +1,11 @@
 --TEST--
 Span metadata is safely converted to strings without errors or exceptions
+--SKIPIF--
+<?php
+if (PHP_VERSION_ID >= 80400) {
+    die('skip: test only stable on PHP < 8.4');
+}
+?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -28,6 +34,7 @@ DDTrace\trace_function('meta_to_string', function (SpanData $span, array $args) 
 });
 
 $allTheTypes = [
+    ['recursive'],
     'already a string',
     42,
     4.2,
@@ -38,63 +45,68 @@ $allTheTypes = [
     new DateTime('2019-09-10'),
     new MyDt('2019-09-10'),
     ['foo' => 0],
+    ['bar' => [1, "key" => 2]],
     fopen('php://memory', 'rb'), // resource
     MY_STRING,
     MY_INT,
     MY_BOOL,
     MyDt::CLASS_CONST_FLOAT,
 ];
-// At the time of writing PHP 5 cannot trace call_user_func*() :/
-//call_user_func_array('meta_to_string', $allTheTypes);
-meta_to_string(
-    $allTheTypes[0],
-    $allTheTypes[1],
-    $allTheTypes[2],
-    $allTheTypes[3],
-    $allTheTypes[4],
-    $allTheTypes[5],
-    $allTheTypes[6],
-    $allTheTypes[7],
-    $allTheTypes[8],
-    $allTheTypes[9],
-    $allTheTypes[10],
-    $allTheTypes[11],
-    $allTheTypes[12],
-    $allTheTypes[13],
-    $allTheTypes[14]
-);
+$allTheTypes[0][1] = &$allTheTypes[0];
 
-list($span) = dd_trace_serialize_closed_spans();
-unset($span['meta']['process_id']);
-$i = 0;
-foreach ($span['meta'] as $key => $value) {
-    var_dump($allTheTypes[$i++]);
+call_user_func_array('meta_to_string', $allTheTypes);
+
+list($span) = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+unset($span['attributes']['process_id'], $span['attributes']['_dd.tags.process'], $span['attributes']['_dd.sdk.otlp_export']);
+$last = -1;
+foreach ($span['attributes'] as $key => $value) {
+    if (strpos($key, 'arg.') !== 0) {
+        continue;
+    }
+    $index = (int)substr($key, 4);
+    if ($last != $index) {
+        echo PHP_EOL;
+        if ($index == 0) {
+            unset($allTheTypes[$index][1]); // *RECURSION* is inconsistent across PHP versions
+        }
+        var_dump($allTheTypes[$index]);
+        $last = $index;
+    }
+    echo "$key: ";
     var_dump($value);
-    echo PHP_EOL;
 }
 ?>
 --EXPECTF--
+array(1) {
+  [0]=>
+  string(9) "recursive"
+}
+arg.0: array(2) {
+  [0]=>
+  string(9) "recursive"
+  [1]=>
+  string(11) "*RECURSION*"
+}
+
 string(16) "already a string"
-string(16) "already a string"
+arg.1: string(16) "already a string"
 
 int(42)
-string(2) "42"
+arg.2: string(2) "42"
 
 float(4.2)
-string(3) "4.2"
+arg.3: string(3) "4.2"
 
 bool(true)
-string(6) "(true)"
+arg.4: string(4) "true"
 
 bool(false)
-string(7) "(false)"
-
-NULL
-string(6) "(null)"
+arg.5: string(5) "false"
 
 object(Closure)#%d (0) {
 }
-string(%d) "object(Closure)#%d"
+arg.7: array(0) {
+}
 
 object(DateTime)#%d (3) {
   ["date"]=>
@@ -104,7 +116,14 @@ object(DateTime)#%d (3) {
   ["timezone"]=>
   string(3) "UTC"
 }
-string(%d) "object(DateTime)#%d"
+arg.8: array(3) {
+  ["date"]=>
+  string(26) "2019-09-10 00:00:00.000000"
+  ["timezone_type"]=>
+  string(1) "3"
+  ["timezone"]=>
+  string(3) "UTC"
+}
 
 object(MyDt)#%d (3) {
   ["date"]=>
@@ -114,25 +133,54 @@ object(MyDt)#%d (3) {
   ["timezone"]=>
   string(3) "UTC"
 }
-string(%d) "object(MyDt)#%d"
+arg.9: array(3) {
+  ["date"]=>
+  string(26) "2019-09-10 00:00:00.000000"
+  ["timezone_type"]=>
+  string(1) "3"
+  ["timezone"]=>
+  string(3) "UTC"
+}
 
 array(1) {
   ["foo"]=>
   int(0)
 }
-string(5) "Array"
+arg.10: array(1) {
+  ["foo"]=>
+  string(1) "0"
+}
+
+array(1) {
+  ["bar"]=>
+  array(2) {
+    [0]=>
+    int(1)
+    ["key"]=>
+    int(2)
+  }
+}
+arg.11: array(1) {
+  ["bar"]=>
+  array(2) {
+    [0]=>
+    string(1) "1"
+    ["key"]=>
+    string(1) "2"
+  }
+}
 
 resource(%d) of type (stream)
-string(%d) "Resource id #%d"
+arg.12: string(%d) "Resource id #%d"
 
 string(17) "string from const"
-string(17) "string from const"
+arg.13: string(17) "string from const"
 
 int(42)
-string(2) "42"
+arg.14: string(2) "42"
 
 bool(true)
-string(6) "(true)"
+arg.15: string(4) "true"
 
 float(4.2)
-string(3) "4.2"
+arg.16: string(3) "4.2"

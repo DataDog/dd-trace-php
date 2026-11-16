@@ -1,0 +1,63 @@
+ARG PHP_VERSION
+ARG VARIANT
+FROM datadog/dd-appsec-php-ci:php-$PHP_VERSION-$VARIANT
+
+RUN apt-get update && apt-get install -y \
+    apache2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Rebuild the event MPM from the installed package's source with
+# event-sigterm-startup.patch, which fixes children aborting with heap
+# corruption when SIGTERMed during startup (ungraceful restarts).
+ADD apache2-mod/event-sigterm-startup.patch /tmp/
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && \
+    mkdir /tmp/apache2-src && cd /tmp/apache2-src && \
+    apt-get source apache2="$(dpkg-query -W -f='${source:Version}' apache2-bin)" && \
+    cd apache2-*/ && \
+    patch -p1 < /tmp/event-sigterm-startup.patch && \
+    apxs -c -I server -I server/mpm/event -o mod_mpm_event.la server/mpm/event/event.c && \
+    install -m 644 .libs/mod_mpm_event.so /usr/lib/apache2/modules/mod_mpm_event.so && \
+    cd / && rm -rf /tmp/apache2-src /tmp/event-sigterm-startup.patch && \
+    sed -i 's/^Types: deb deb-src$/Types: deb/' /etc/apt/sources.list.d/debian.sources && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN usermod -a -G linux_users www-data
+
+RUN rm -rf /var/www/html
+RUN sed -i 's@/var/www/html@/var/www/public@' /etc/apache2/sites-available/000-default.conf
+RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+RUN a2enmod rewrite
+
+ADD apache2-mod/entrypoint.sh /
+
+ARG PHP_VERSION
+ARG VARIANT
+ADD apache2-mod/php.conf /etc/apache2/mods-available/
+ADD apache2-mod/php.load /etc/apache2/mods-available/
+RUN /bin/bash -c 'if [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then sed -i "s/%PHP_MAJOR_VERSION//g" /etc/apache2/mods-available/php.{conf,load}; else \
+  sed -i "s/%PHP_MAJOR_VERSION/${PHP_VERSION:0:1}/g" /etc/apache2/mods-available/php.{conf,load}; fi'
+RUN if echo $VARIANT | grep -q zts; \
+	then sed -i "s/%MPM/event/" /etc/apache2/mods-available/php.load; \
+	else sed -i "s/%MPM/prefork/" /etc/apache2/mods-available/php.load; \
+	fi
+RUN if ! { echo $VARIANT | grep -q zts; }; then a2dismod mpm_event; a2enmod mpm_prefork; fi
+
+RUN sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 1/' /etc/apache2/mods-available/mpm_prefork.conf
+RUN sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 1/' /etc/apache2/mods-available/mpm_worker.conf
+RUN if echo $VARIANT | grep -q zts; then \
+	sed -i 's/StartServers.*/StartServers 1/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i 's/MinSpareThreads.*/MinSpareThreads 3/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i 's/MaxSpareThreads.*/MaxSpareThreads 3/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i 's/ThreadsPerChild.*/ThreadsPerChild 3/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 3/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i '/^<IfModule mpm_event_module>/a\\tServerLimit 1' /etc/apache2/mods-available/mpm_event.conf; \
+	fi
+
+RUN a2enmod php
+
+RUN chmod a+rx /root
+
+EXPOSE 80
+ENTRYPOINT ["/entrypoint.sh"]
+

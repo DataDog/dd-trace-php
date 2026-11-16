@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Routing\Controller;
+use Illuminate\Http\Request;
 
 class HomeController extends Controller {
 
@@ -31,4 +32,9 @@ class HomeController extends Controller {
 	{
 		throw new Exception('Controller error');
 	}
+
+    public function dynamicRoute($param01, $param02 = 'defaultValue')
+    {
+        return "dynamicRoute";
+    }
 }

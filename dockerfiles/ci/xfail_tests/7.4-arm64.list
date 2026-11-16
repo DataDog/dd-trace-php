@@ -1,0 +1,11 @@
+tests/lang/operators/bitwiseAnd_basiclong_64bit.phpt
+tests/lang/operators/bitwiseNot_basiclong_64bit.phpt
+tests/lang/operators/bitwiseOr_basiclong_64bit.phpt
+tests/lang/operators/bitwiseShiftLeft_basiclong_64bit.phpt
+tests/lang/operators/bitwiseShiftRight_basiclong_64bit.phpt
+tests/lang/operators/bitwiseXor_basiclong_64bit.phpt
+tests/lang/operators/modulus_basiclong_64bit.phpt
+ext/standard/tests/math/decbin_basiclong_64bit.phpt
+ext/standard/tests/math/dechex_basiclong_64bit.phpt
+ext/standard/tests/math/decoct_basiclong_64bit.phpt
+ext/standard/tests/strings/pack64.phpt

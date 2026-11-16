@@ -1,0 +1,38 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - user
+id: test_cacheable_metadata_calculation
+label: ''
+module: views
+description: ''
+tag: ''
+base_table: users_field_data
+base_field: uid
+display:
+  default:
+    id: default
+    display_title: Default
+    display_plugin: default
+    position: 0
+    display_options:
+      pager:
+        type: full
+      exposed_form:
+        type: basic
+      access:
+        type: test_cacheable_metadata_access
+      cache:
+        type: tag
+      style:
+        type: default
+      row:
+        type: fields
+    cache_metadata:
+      max-age: -1
+      contexts:
+        - 'languages:language_content'
+        - 'languages:language_interface'
+        - 'user.node_grants:view'
+      tags: {  }

@@ -1,7 +1,8 @@
 --TEST--
 Test DDTrace\close_spans_until
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,span=trace,startup=off
 --FILE--
 <?php
 
@@ -22,12 +23,36 @@ DDTrace\trace_function('traced', function() {});
 traced();
 var_dump(DDTrace\close_spans_until(null));
 var_dump(DDTrace\close_spans_until(null));
-
 ?>
 --EXPECTF--
+[ddtrace] [span] [%d] Creating new root SpanStack: %d, parent_stack: 0
+[ddtrace] [span] [%d] Creating new root SpanStack: %d, parent_stack: %d
+[ddtrace] [span] [%d] Switching to different SpanStack: %d
+[ddtrace] [span] [%d] Starting new root span: trace_id=%s, span_id=%d, parent_id=0, SpanStack=%d, parent_SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
 bool(false)
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
 int(2)
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
 int(2)
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing root span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Switching to different SpanStack: %d
 int(1)
 int(0)
-Flushing trace of size 7 to send-queue for %s
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="close_spans_until.php" resource="close_spans_until.php" type="cli" span_id=%d parent_id=0 start=%d duration=%d error=false kind=%s env="" version="" component="" attributes=%s links=0 events=0
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="traced" resource="traced" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [info] [%d] Flushing v1 trace of size 7 to send-queue for %s

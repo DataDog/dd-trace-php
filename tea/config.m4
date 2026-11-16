@@ -21,7 +21,7 @@ if test "$PHP_TEA" != "no"; then
     AC_DEFINE(HAVE_TEA, 1, [ ])
 
     PHP_TEA_INCLUDE="sapi/tea/include"
-    PHP_TEA_HEADERS="common.h error.h exceptions.h extension.h frame.h sapi.h testing/catch2.hpp"
+    PHP_TEA_HEADERS="common.h error.h exceptions.h extension.h frame.h sapi.h testing/fixture.hpp testing/catch2.hpp"
     PHP_TEA_CFLAGS="-I${abs_srcdir}/${PHP_TEA_INCLUDE}"
     PHP_TEA_FILES="src/error.c src/exceptions.c src/frame.c src/io.c src/ini.c src/extension.c src/sapi.c"
 

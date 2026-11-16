@@ -1,10 +1,13 @@
 --TEST--
 Use DDTrace\close_span() on span started within internal span
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function test() { }
 
@@ -15,21 +18,19 @@ DDTrace\trace_function("test", function($s) {
 
 test();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 // has no effect
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
-Found unfinished span while automatically closing spans with name 'my precious span'
+[ddtrace] [warning] [%d] Found unfinished span while automatically closing spans with name 'my precious span'
 array(1) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -44,25 +45,24 @@ array(1) {
     string(30) "start_span_without_closing.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.p.dm"]=>
-      string(2) "-1"
-    }
-    ["metrics"]=>
-    array(4) {
+    ["attributes"]=>
+    array(6) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["process_id"]=>
-      float(%f)
-      ["_dd.rule_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
+      int(%d)
+      ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
 }
-There is no user-span on the top of the stack. Cannot close.
+[ddtrace] [error] [%d] There is no user-span on the top of the stack. Cannot close.
 array(0) {
 }
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

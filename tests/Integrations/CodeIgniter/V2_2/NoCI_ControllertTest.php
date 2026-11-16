@@ -10,7 +10,7 @@ use DDTrace\Type;
 
 class NoCIControllertTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CodeIgniter/Version_2_2/ddshim.php';
     }
@@ -36,19 +36,20 @@ class NoCIControllertTest extends WebFrameworkTestCase
                     'codeigniter_test_app',
                     'web',
                     'GET /health_check/ping'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/health_check/ping',
+                    Tag::HTTP_URL => 'http://localhost/health_check/ping',
                     Tag::HTTP_STATUS_CODE => '200',
                     Tag::SPAN_KIND => 'server',
                     Tag::COMPONENT => 'codeigniter',
+                    Tag::HTTP_ROUTE => 'health_check/ping',
                 ])->withChildren([
                     SpanAssertion::build(
                         'Health_check.ping',
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
                         'Health_check.ping'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'codeigniter',
                     ])
                 ]),

@@ -1,0 +1,33 @@
+From 66c5dd81b7d3924f9f04282dfaa8e8f7de68aee1 Mon Sep 17 00:00:00 2001
+From: Patch Maker <example@example.com>
+Date: Fri, 16 May 2025 18:47:14 +0000
+Subject: [PATCH] Skip tty tests
+
+---
+ .../Framework/Neos.Flow/Tests/Unit/Cli/ConsoleOutputTest.php  | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/Packages/Framework/Neos.Flow/Tests/Unit/Cli/ConsoleOutputTest.php b/Packages/Framework/Neos.Flow/Tests/Unit/Cli/ConsoleOutputTest.php
+index 545c80b..a3ef5fc 100644
+--- a/Packages/Framework/Neos.Flow/Tests/Unit/Cli/ConsoleOutputTest.php
++++ b/Packages/Framework/Neos.Flow/Tests/Unit/Cli/ConsoleOutputTest.php
+@@ -225,6 +225,8 @@ class ConsoleOutputTest extends UnitTestCase
+      */
+     public function selectWithStringTypeChoiceKeys()
+     {
++        $this->markTestSkipped("Requires a tty");
++
+         $this->answerCustom('y');
+         $choices = [
+             'n' => 'No',
+@@ -248,6 +250,8 @@ class ConsoleOutputTest extends UnitTestCase
+      */
+     public function selectWithIntegerTypeChoiceKeys()
+     {
++        $this->markTestSkipped("Requires a tty");
++
+         $givenAnswer = 2;
+         $this->answerCustom($givenAnswer);
+         $choices = [
+--
+2.39.5

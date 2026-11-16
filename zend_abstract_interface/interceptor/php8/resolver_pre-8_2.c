@@ -1,3 +1,4 @@
+#include "../../tsrmls_cache.h"
 #include <Zend/zend_compile.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_vm.h>
@@ -12,8 +13,10 @@ static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition 
     for (zend_class_entry *ce;
             (ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &classpos));
             zend_hash_move_forward_ex(CG(class_table), &classpos)) {
-        zend_hash_get_current_key_ex(CG(class_table), &lcname, &index, &classpos);
-        zai_hook_resolve_class(ce, lcname);
+        if (ce->ce_flags & ZEND_ACC_LINKED) {
+            zend_hash_get_current_key_ex(CG(class_table), &lcname, &index, &classpos);
+            zai_hook_resolve_class(ce, lcname);
+        }
     }
 
     zend_hash_move_forward_ex(CG(function_table), &funcpos); // move past previous end
@@ -21,12 +24,43 @@ static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition 
             (func = zend_hash_get_current_data_ptr_ex(CG(function_table), &funcpos));
             zend_hash_move_forward_ex(CG(function_table), &funcpos)) {
         zend_hash_get_current_key_ex(CG(function_table), &lcname, &index, &funcpos);
-        zai_hook_resolve_function(func, lcname);
+#if PHP_VERSION_ID < 80100
+        // check for unlinked function: "rtd_key" (i.e. lcname) starts with NUL-byte
+        // On PHP 8.1+ these are attached to the op_array instead and not present in CG(function_table).
+        if (ZSTR_VAL(lcname)[0])
+#endif
+        {
+            zai_hook_resolve_function(func, lcname);
+        }
+    }
+}
+
+// Work around https://github.com/php/php-src/issues/11222
+// This is not a pretty workaround, but we don't have any better possibilities...
+static void zai_resolver_force_space(HashTable *ht) {
+    // Assuming files don't declare more than a thousand functions
+    const int reserved = 1000;
+
+    while (ht->nTableSize < reserved + ht->nNumOfElements) {
+        // A rehash happens when all elements are used. The rehash also resets the nNumUsed.
+        // However, all ht entries within nNumUsed are required to have a valid value.
+        memset(ht->arData + ht->nNumUsed, IS_UNDEF, (ht->nTableSize - ht->nNumUsed) * sizeof(Bucket));
+        ht->nNumUsed = ht->nTableSize;
+        ht->nNumOfElements += reserved;
+        dtor_func_t dtor = ht->pDestructor;
+        ht->pDestructor = NULL;
+        zend_hash_index_add_ptr(ht, 0, NULL);
+        zend_hash_index_del(ht, 0);
+        ht->pDestructor = dtor;
+        ht->nNumOfElements -= reserved;
     }
 }
 
 static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int type);
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
+    zai_resolver_force_space(CG(class_table));
+    zai_resolver_force_space(CG(function_table));
+
     HashPosition classpos, funcpos;
     zend_hash_internal_pointer_end_ex(CG(class_table), &classpos);
     uint32_t class_iter = zend_hash_iterator_add(CG(class_table), classpos);
@@ -43,10 +77,9 @@ static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle
     zend_hash_iterator_del(class_iter);
     zend_hash_iterator_del(func_iter);
 
-#if 0
-    // TODO: on branch merge with libdatadog
-    zai_hook_resolve_file(op_array);
-#endif
+    if (op_array) {
+        zai_hook_resolve_file(op_array);
+    }
 
     return op_array;
 }
@@ -60,11 +93,14 @@ static zend_op_array *zai_interceptor_compile_string(zend_string *source_string,
     zend_op_array *op_array = prev_compile_string(source_string, filename);
 
     zai_interceptor_add_new_entries(classpos, funcpos);
+    if (op_array) {
+        zai_hook_register_dynamic_functions(op_array);
+    }
 
     return op_array;
 }
 
-static void (*prev_class_alias)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler prev_class_alias;
 PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
     prev_class_alias(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (Z_TYPE_P(return_value) == IS_TRUE) {
@@ -83,7 +119,7 @@ PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
 
 static zend_op zai_interceptor_post_declare_op;
 ZEND_TLS zend_op zai_interceptor_post_declare_ops[4];
-struct zai_interceptor_opline { const zend_op *op; struct zai_interceptor_opline *prev; };
+struct zai_interceptor_opline { const zend_op *op; const zend_execute_data *execute_data; struct zai_interceptor_opline *prev; };
 ZEND_TLS struct zai_interceptor_opline zai_interceptor_opline_before_binding = {0};
 static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_data) {
     // We replace the current opline *before* it is executed. Thus we need to preserve opline data first:
@@ -111,10 +147,24 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
         zai_interceptor_opline_before_binding.prev = backup;
     }
     zai_interceptor_opline_before_binding.op = EX(opline);
+    zai_interceptor_opline_before_binding.execute_data = execute_data;
     EX(opline) = zai_interceptor_post_declare_ops;
 }
 
-static void zai_interceptor_pop_opline_before_binding() {
+static void zai_interceptor_pop_opline_before_binding(zend_execute_data *execute_data) {
+    // Normally the zai_interceptor_opline_before_binding stack should be in sync with the actual executing stack, but it might not after bailouts
+    if (execute_data) {
+        if (zai_interceptor_opline_before_binding.execute_data == execute_data) {
+            return;
+        }
+
+        while (zai_interceptor_opline_before_binding.prev && zai_interceptor_opline_before_binding.prev->execute_data != execute_data) {
+            struct zai_interceptor_opline *backup = zai_interceptor_opline_before_binding.prev;
+            zai_interceptor_opline_before_binding = *backup;
+            efree(backup);
+        }
+    }
+
     struct zai_interceptor_opline *backup = zai_interceptor_opline_before_binding.prev;
     if (backup) {
         zai_interceptor_opline_before_binding = *backup;
@@ -155,8 +205,9 @@ static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data)
             }
         }
         // preserve offset
+        zai_interceptor_pop_opline_before_binding(execute_data);
         EX(opline) = zai_interceptor_opline_before_binding.op + (EX(opline) - &zai_interceptor_post_declare_ops[0]);
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
         return ZEND_USER_OPCODE_CONTINUE;
     } else if (prev_post_declare_handler) {
         return prev_post_declare_handler(execute_data);
@@ -191,26 +242,91 @@ static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *exec
 
 // The JIT *requires* a CALL VM (or HYBRID VM and ZEND_DECLARE_* ops are not marked as HOT handlers)
 // Thus we know that EX(opline)->handler contains a valid zend_vm_opcode_handler_t, which we can call.
-#ifdef HAVE_GCC_GLOBAL_REGS
-typedef void (ZEND_FASTCALL *zend_vm_opcode_handler_t)(void);
-#else
+// When HAVE_GCC_GLOBAL_REGS is given, it's actually accepting void. However with the C ABI it doesn't matter if you pass too many args...
 typedef int (ZEND_FASTCALL *zend_vm_opcode_handler_t)(zend_execute_data *execute_data);
-#endif
 static zend_vm_opcode_handler_t zai_interceptor_handlers[256];
+
+// PHP's hybrid VM keeps its frame and instruction pointers in callee-saved
+// registers. Set them explicitly around the nested VM call because an ordinary
+// C wrapper may use those registers for its own locals.
+#if defined(__GNUC__) && defined(__linux__) && defined(__x86_64__)
+__attribute__((visibility("hidden"))) int zai_interceptor_call_vm_handler(
+    zend_execute_data *execute_data, zend_vm_opcode_handler_t handler);
+__asm__(".pushsection .text\n"
+        ".globl zai_interceptor_call_vm_handler\n"
+        ".hidden zai_interceptor_call_vm_handler\n"
+        ".type zai_interceptor_call_vm_handler, @function\n"
+        "zai_interceptor_call_vm_handler:\n"
+        ".cfi_startproc\n"
+        "pushq %r14\n"
+        ".cfi_adjust_cfa_offset 8\n"
+        ".cfi_offset %r14, -16\n"
+        "pushq %r15\n"
+        ".cfi_adjust_cfa_offset 8\n"
+        ".cfi_offset %r15, -24\n"
+        "subq $8, %rsp\n"
+        ".cfi_adjust_cfa_offset 8\n"
+        "movq %rdi, %r14\n"
+        "movq (%rdi), %r15\n"
+        "callq *%rsi\n"
+        "addq $8, %rsp\n"
+        ".cfi_adjust_cfa_offset -8\n"
+        "popq %r15\n"
+        ".cfi_adjust_cfa_offset -8\n"
+        ".cfi_restore %r15\n"
+        "popq %r14\n"
+        ".cfi_adjust_cfa_offset -8\n"
+        ".cfi_restore %r14\n"
+        "retq\n"
+        ".cfi_endproc\n"
+        ".size zai_interceptor_call_vm_handler, .-zai_interceptor_call_vm_handler\n"
+        ".popsection\n");
+#elif defined(__GNUC__) && defined(__linux__) && defined(__aarch64__)
+__attribute__((visibility("hidden"))) int zai_interceptor_call_vm_handler(
+    zend_execute_data *execute_data, zend_vm_opcode_handler_t handler);
+__asm__(".pushsection .text\n"
+        ".globl zai_interceptor_call_vm_handler\n"
+        ".hidden zai_interceptor_call_vm_handler\n"
+        ".type zai_interceptor_call_vm_handler, %function\n"
+        "zai_interceptor_call_vm_handler:\n"
+        ".cfi_startproc\n"
+        "stp x29, x30, [sp, #-32]!\n"
+        ".cfi_adjust_cfa_offset 32\n"
+        ".cfi_offset x29, -32\n"
+        ".cfi_offset x30, -24\n"
+        "mov x29, sp\n"
+        "stp x27, x28, [sp, #16]\n"
+        ".cfi_offset x27, -16\n"
+        ".cfi_offset x28, -8\n"
+        "mov x27, x0\n"
+        "ldr x28, [x0]\n"
+        "blr x1\n"
+        "ldp x27, x28, [sp, #16]\n"
+        ".cfi_restore x27\n"
+        ".cfi_restore x28\n"
+        "ldp x29, x30, [sp], #32\n"
+        ".cfi_adjust_cfa_offset -32\n"
+        ".cfi_restore x29\n"
+        ".cfi_restore x30\n"
+        "ret\n"
+        ".cfi_endproc\n"
+        ".size zai_interceptor_call_vm_handler, .-zai_interceptor_call_vm_handler\n"
+        ".popsection\n");
+#else
+static int zai_interceptor_call_vm_handler(zend_execute_data *execute_data, zend_vm_opcode_handler_t handler) {
+    return handler(execute_data);
+}
+#endif
 
 // Alternative implementation when a JIT is active. We have no choice but be a noisy neighbor in this case (on PHP 8.0 at least)
 // Given that the JIT tracing VM very strongly wants to read some data at some (per op_array) offset (see zend_jit_op_array_trace_extension), an
 // offset we are unable to access from here (lacking visibility).
 // Given that the JIT just works under circumstances which would allow us to directly call the handlers, we just can call them here and continue.
 static int zai_interceptor_declare_jit_handler(zend_execute_data *execute_data) {
-    zend_string *lcname = Z_STR_P(RT_CONSTANT(EX(opline), EX(opline)->op1));
-#ifdef HAVE_GCC_GLOBAL_REGS
-    zai_interceptor_handlers[EX(opline)->opcode]();
-    ++EX(opline); // opline increment is register increment, but user opcode handler reads back from EX(opline). Manually increment here.
-#else
-    zai_interceptor_handlers[EX(opline)->opcode](execute_data);
-#endif
-    if (EX(opline)->opcode == ZEND_DECLARE_FUNCTION) {
+    zend_op *orig_opline = EX(opline);
+    zend_string *lcname = Z_STR_P(RT_CONSTANT(orig_opline, orig_opline->op1));
+    zai_interceptor_call_vm_handler(execute_data, zai_interceptor_handlers[orig_opline->opcode]);
+    if (orig_opline->opcode == ZEND_DECLARE_FUNCTION) {
         zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
         if (function) {
             zai_hook_resolve_function(function, lcname);
@@ -220,6 +336,12 @@ static int zai_interceptor_declare_jit_handler(zend_execute_data *execute_data) 
         if (ce) {
             zai_hook_resolve_class(ce, lcname);
         }
+    }
+    // When HAVE_GCC_GLOBAL_REGS is given this will be the case: EX(opline) is unmodified. But we cannot trivially observe HAVE_GCC_GLOBAL_REGS
+    // in PHP 8.0 or 8.1. Hence we just check for whether it was changed - and if not we can go ahead with the HAVE_GCC_GLOBAL_REGS specific handling.
+    if (orig_opline == EX(opline)) {
+        // opline increment is register increment, but user opcode handler reads back from EX(opline). Manually increment here.
+        ++EX(opline);
     }
     return ZEND_USER_OPCODE_CONTINUE;
 }
@@ -238,8 +360,9 @@ static user_opcode_handler_t prev_handle_exception_handler;
 static int zai_interceptor_handle_exception_handler(zend_execute_data *execute_data) {
     // not everything goes through zend_throw_exception_hook, in particular when zend_rethrow_exception alone is used (e.g. during zend_call_function)
     if (EG(opline_before_exception) == zai_interceptor_post_declare_ops) {
+        zai_interceptor_pop_opline_before_binding(execute_data);
         EG(opline_before_exception) = zai_interceptor_opline_before_binding.op;
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
     }
 
     return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
@@ -250,12 +373,18 @@ static void zai_interceptor_exception_hook(zend_object *ex) {
     zend_function *func = EG(current_execute_data)->func;
     if (func && ZEND_USER_CODE(func->type) && EG(current_execute_data)->opline == zai_interceptor_post_declare_ops) {
         // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
+        zai_interceptor_pop_opline_before_binding(EG(current_execute_data));
         EG(current_execute_data)->opline = zai_interceptor_opline_before_binding.op;
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
     }
     if (prev_exception_hook) {
         prev_exception_hook(ex);
     }
+}
+
+void zai_interceptor_reset_resolver(void) {
+    // reset in case a prior request had a bailout
+    zai_interceptor_opline_before_binding = (struct zai_interceptor_opline){0};
 }
 
 static void *opcache_handle;

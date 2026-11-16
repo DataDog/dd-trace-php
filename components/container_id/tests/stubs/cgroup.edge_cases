@@ -1,7 +1,0 @@
-14:name=systemd:/docker/abcd
-12:pids:/docker/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7
-11:hugetlb:/docker/
-10:net_prio:/docker/                 
-9:perf_event:/docker/                                                                
-8:net_cls:/docker/ZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-some invalid line

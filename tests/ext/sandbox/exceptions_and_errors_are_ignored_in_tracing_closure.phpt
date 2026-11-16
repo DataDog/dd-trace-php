@@ -1,8 +1,9 @@
 --TEST--
 Exceptions and errors are ignored when inside a tracing closure
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
+DD_APPSEC_ENABLED=0
 --INI--
 error_reporting=E_ALL
 --FILE--
@@ -41,16 +42,16 @@ $test->testFoo();
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-Exception thrown in ddtrace's closure defined at %s:21 for mt_srand(): This should be ignored
-Error raised in ddtrace's closure defined at %s:26 for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
+[ddtrace] [warning] [%d] Exception thrown in ddtrace's closure defined at %s:21 for mt_srand(): This should be ignored in %s on line %d
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %s:26 for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
 Test::testFoo() fav num: %d
-%s in ddtrace's closure defined at %s:16 for Test::testFoo(): Undefined variable%sthis_normally_raises_an_%s
+[ddtrace] [warning] [%d] %s in ddtrace's closure defined at %s:16 for Test::testFoo(): Undefined variable%sthis_normally_raises_an_%s
 TestFoo
 MTRand
 MTSeed
 NULL
-No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

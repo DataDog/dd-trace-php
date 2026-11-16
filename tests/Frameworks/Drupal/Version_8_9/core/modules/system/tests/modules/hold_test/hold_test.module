@@ -1,0 +1,28 @@
+<?php
+
+/**
+ * @file
+ * Contains functions for testing hold request/response.
+ */
+
+/**
+ * Request hold.
+ *
+ * @param bool $status
+ *   TRUE - enable hold, FALSE - disable hold.
+ */
+function hold_test_request($status) {
+  $site_path = \Drupal::service('site.path');
+  file_put_contents($site_path . '/hold_test_request.txt', $status);
+}
+
+/**
+ * Response hold.
+ *
+ * @param bool $status
+ *   TRUE - enable hold, FALSE - disable hold.
+ */
+function hold_test_response($status) {
+  $site_path = \Drupal::service('site.path');
+  file_put_contents($site_path . '/hold_test_response.txt', $status);
+}

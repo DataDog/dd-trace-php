@@ -17,7 +17,11 @@ passthru($cmd);
 
 ?>
 --EXPECT--
+Executed negativeMethod
 NegativeClass::negative_method
+Executed negative_function
 negative_function
+Executed negativeMethod
 NegativeClass::negative_method
+Executed negative_function
 negative_function

@@ -1,0 +1,45 @@
+--TEST--
+Test \datadog\appsec\v2\track_user_login_failure
+--INI--
+datadog.appsec.enabled=1
+--FILE--
+<?php
+include __DIR__ . '/inc/ddtrace_version.php';
+
+ddtrace_version_at_least('0.85.0');
+\datadog\appsec\v2\track_user_login_failure(
+  "login",
+  true,
+  [
+    "metakey1" => "metavalue",
+    "metakey2" => "metavalue02",
+]);
+$root = \DDTrace\root_span();
+$attributes = $root->attributes;
+ksort($attributes);
+var_dump($attributes);
+
+?>
+--EXPECTF--
+array(10) {
+  ["_dd.appsec.events.users.login.failure.sdk"]=>
+  string(%d) "true"
+  ["_dd.p.dm"]=>
+  string(2) "-5"
+  ["_dd.p.ts"]=>
+  string(2) "02"
+  ["appsec.events.users.login.failure.metakey1"]=>
+  string(%d) "metavalue"
+  ["appsec.events.users.login.failure.metakey2"]=>
+  string(%d) "metavalue02"
+  ["appsec.events.users.login.failure.track"]=>
+  string(%d) "true"
+  ["appsec.events.users.login.failure.usr.exists"]=>
+  string(%d) "true"
+  ["appsec.events.users.login.failure.usr.login"]=>
+  string(%d) "login"
+  ["process_id"]=>
+  int(%d)
+  ["runtime-id"]=>
+  string(%d) %s
+}

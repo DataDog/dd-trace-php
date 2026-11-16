@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class SamplingPriorityTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../Frameworks/Custom/Version_Not_Autoloaded/index.php';
     }
@@ -17,7 +17,6 @@ class SamplingPriorityTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_DISTRIBUTED_TRACING' => 'true',
-            'DD_PRIORITY_SAMPLING' => 'true',
             'DD_TRACE_NO_AUTOLOADER' => 'true',
         ]);
     }
@@ -44,11 +43,9 @@ class SamplingPriorityTest extends WebFrameworkTestCase
                 'web.request',
                 'web',
                 'GET /index.php'
-            )->withExactTags(
+            )->withExactAttributes(
                 SpanAssertion::NOT_TESTED
-            )->withExactMetrics([
-                '_sampling_priority_v1' => 2,
-            ])
+            )->samplingPriority(2)
         );
     }
 
@@ -74,11 +71,9 @@ class SamplingPriorityTest extends WebFrameworkTestCase
                 'web.request',
                 'web',
                 'GET /index.php'
-            )->withExactTags(
+            )->withExactAttributes(
                 SpanAssertion::NOT_TESTED
-            )->withExactMetrics([
-                '_sampling_priority_v1' => 0,
-            ])
+            )->samplingPriority(0)
         );
     }
 }

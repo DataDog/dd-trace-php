@@ -1,0 +1,682 @@
+[[
+  {
+    "name": "wordpress.request",
+    "service": "wordpress_59_test_app",
+    "resource": "GET /simple_view",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 14707770386545716536,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "65e7005100000000",
+      "component": "wordpress",
+      "http.method": "GET",
+      "http.route": "([^/]+)(?:/([0-9]+))?/?$",
+      "http.status_code": "200",
+      "http.url": "http://localhost/simple_view?key=value&<redacted>",
+      "runtime-id": "4c46007f-c934-41aa-bcbe-c48ecee2d4cc",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_dd.top_level": 1.0,
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "create_initial_taxonomies",
+       "service": "wordpress_59_test_app",
+       "resource": "create_initial_taxonomies",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "create_initial_post_types",
+       "service": "wordpress_59_test_app",
+       "resource": "create_initial_post_types",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "load_plugin",
+       "service": "wordpress_59_test_app",
+       "resource": "datadog (plugin)",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.plugin": "datadog"
+       }
+     },
+     {
+       "name": "action",
+       "service": "wordpress_59_test_app",
+       "resource": "plugins_loaded (hook)",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.hook": "plugins_loaded"
+       }
+     },
+        {
+          "name": "wp_maybe_load_widgets",
+          "service": "wordpress_59_test_app",
+          "resource": "wp_maybe_load_widgets",
+          "trace_id": 0,
+          "span_id": 15,
+          "parent_id": 5,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "wp_maybe_load_embeds",
+          "service": "wordpress_59_test_app",
+          "resource": "wp_maybe_load_embeds",
+          "trace_id": 0,
+          "span_id": 16,
+          "parent_id": 5,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "_wp_customize_include",
+          "service": "wordpress_59_test_app",
+          "resource": "_wp_customize_include",
+          "trace_id": 0,
+          "span_id": 17,
+          "parent_id": 5,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+     {
+       "name": "action",
+       "service": "wordpress_59_test_app",
+       "resource": "setup_theme (hook)",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.hook": "setup_theme"
+       }
+     },
+     {
+       "name": "load_theme",
+       "service": "wordpress_59_test_app",
+       "resource": "Twentytwenty (theme)",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.theme": "Twentytwenty"
+       }
+     },
+     {
+       "name": "action",
+       "service": "wordpress_59_test_app",
+       "resource": "after_setup_theme (hook)",
+       "trace_id": 0,
+       "span_id": 8,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.hook": "after_setup_theme"
+       }
+     },
+     {
+       "name": "WP.init",
+       "service": "wordpress_59_test_app",
+       "resource": "WP.init",
+       "trace_id": 0,
+       "span_id": 9,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "action",
+       "service": "wordpress_59_test_app",
+       "resource": "init (hook)",
+       "trace_id": 0,
+       "span_id": 10,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.hook": "init"
+       }
+     },
+        {
+          "name": "create_initial_post_types",
+          "service": "wordpress_59_test_app",
+          "resource": "create_initial_post_types",
+          "trace_id": 0,
+          "span_id": 18,
+          "parent_id": 10,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "create_initial_taxonomies",
+          "service": "wordpress_59_test_app",
+          "resource": "create_initial_taxonomies",
+          "trace_id": 0,
+          "span_id": 19,
+          "parent_id": 10,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "wp_widgets_init",
+          "service": "wordpress_59_test_app",
+          "resource": "wp_widgets_init",
+          "trace_id": 0,
+          "span_id": 20,
+          "parent_id": 10,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "WP_Widget_Factory._register_widgets",
+             "service": "wordpress_59_test_app",
+             "resource": "WP_Widget_Factory._register_widgets",
+             "trace_id": 0,
+             "span_id": 36,
+             "parent_id": 20,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+     {
+       "name": "action",
+       "service": "wordpress_59_test_app",
+       "resource": "wp_loaded (hook)",
+       "trace_id": 0,
+       "span_id": 11,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.hook": "wp_loaded"
+       }
+     },
+     {
+       "name": "WP.main",
+       "service": "wordpress_59_test_app",
+       "resource": "WP.main",
+       "trace_id": 0,
+       "span_id": 12,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "WP.init",
+          "service": "wordpress_59_test_app",
+          "resource": "WP.init",
+          "trace_id": 0,
+          "span_id": 21,
+          "parent_id": 12,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.parse_request",
+          "service": "wordpress_59_test_app",
+          "resource": "WP.parse_request",
+          "trace_id": 0,
+          "span_id": 22,
+          "parent_id": 12,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.send_headers",
+          "service": "wordpress_59_test_app",
+          "resource": "WP.send_headers",
+          "trace_id": 0,
+          "span_id": 23,
+          "parent_id": 12,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.query_posts",
+          "service": "wordpress_59_test_app",
+          "resource": "WP.query_posts",
+          "trace_id": 0,
+          "span_id": 24,
+          "parent_id": 12,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.handle_404",
+          "service": "wordpress_59_test_app",
+          "resource": "WP.handle_404",
+          "trace_id": 0,
+          "span_id": 25,
+          "parent_id": 12,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.register_globals",
+          "service": "wordpress_59_test_app",
+          "resource": "WP.register_globals",
+          "trace_id": 0,
+          "span_id": 26,
+          "parent_id": 12,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "action",
+          "service": "wordpress_59_test_app",
+          "resource": "wp (hook)",
+          "trace_id": 0,
+          "span_id": 27,
+          "parent_id": 12,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wordpress.hook": "wp"
+          }
+        },
+     {
+       "name": "load_template_loader",
+       "service": "wordpress_59_test_app",
+       "resource": "load_template_loader",
+       "trace_id": 0,
+       "span_id": 13,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "action",
+          "service": "wordpress_59_test_app",
+          "resource": "template_redirect (hook)",
+          "trace_id": 0,
+          "span_id": 28,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wordpress.hook": "template_redirect"
+          }
+        },
+        {
+          "name": "template",
+          "service": "wordpress_59_test_app",
+          "resource": "single (type)",
+          "trace_id": 0,
+          "span_id": 29,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wordpress.template_type": "single"
+          }
+        },
+        {
+          "name": "template",
+          "service": "wordpress_59_test_app",
+          "resource": "singular (type)",
+          "trace_id": 0,
+          "span_id": 30,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wordpress.template_type": "singular",
+            "wordpress.theme": "Twenty Twenty"
+          }
+        },
+        {
+          "name": "get_header",
+          "service": "wordpress_59_test_app",
+          "resource": "get_header",
+          "trace_id": 0,
+          "span_id": 31,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "load_template",
+             "service": "wordpress_59_test_app",
+             "resource": "header (template)",
+             "trace_id": 0,
+             "span_id": 37,
+             "parent_id": 31,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wordpress.template_part": "header",
+               "wordpress.theme": "Twenty Twenty"
+             }
+           },
+              {
+                "name": "action",
+                "service": "wordpress_59_test_app",
+                "resource": "wp_head (hook)",
+                "trace_id": 0,
+                "span_id": 43,
+                "parent_id": 37,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.hook": "wp_head"
+                }
+              },
+                 {
+                   "name": "wp_print_head_scripts",
+                   "service": "wordpress_59_test_app",
+                   "resource": "wp_print_head_scripts",
+                   "trace_id": 0,
+                   "span_id": 53,
+                   "parent_id": 43,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress"
+                   }
+                 },
+              {
+                "name": "body_class",
+                "service": "wordpress_59_test_app",
+                "resource": "body_class",
+                "trace_id": 0,
+                "span_id": 44,
+                "parent_id": 37,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress"
+                }
+              },
+        {
+          "name": "the_post",
+          "service": "wordpress_59_test_app",
+          "resource": "the_post",
+          "trace_id": 0,
+          "span_id": 32,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "load_template",
+          "service": "wordpress_59_test_app",
+          "resource": "content (template)",
+          "trace_id": 0,
+          "span_id": 33,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wordpress.template_part": "content",
+            "wordpress.theme": "Twenty Twenty"
+          }
+        },
+           {
+             "name": "the_content",
+             "service": "wordpress_59_test_app",
+             "resource": "the_content",
+             "trace_id": 0,
+             "span_id": 38,
+             "parent_id": 33,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             },
+             "metrics": {
+               "wordpress.post.id": 5
+             }
+           },
+              {
+                "name": "block",
+                "service": "wordpress_59_test_app",
+                "resource": "core/paragraph (block)",
+                "trace_id": 0,
+                "span_id": 45,
+                "parent_id": 38,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.block.name": "core/paragraph"
+                }
+              },
+           {
+             "name": "comments_template",
+             "service": "wordpress_59_test_app",
+             "resource": "comments_template",
+             "trace_id": 0,
+             "span_id": 39,
+             "parent_id": 33,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+        {
+          "name": "load_template",
+          "service": "wordpress_59_test_app",
+          "resource": "footer-menus-widgets (template)",
+          "trace_id": 0,
+          "span_id": 34,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wordpress.template_part": "footer-menus-widgets",
+            "wordpress.theme": "Twenty Twenty"
+          }
+        },
+           {
+             "name": "dynamic_sidebar",
+             "service": "wordpress_59_test_app",
+             "resource": "sidebar-1",
+             "trace_id": 0,
+             "span_id": 40,
+             "parent_id": 34,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+              {
+                "name": "widget",
+                "service": "wordpress_59_test_app",
+                "resource": "Search (widget)",
+                "trace_id": 0,
+                "span_id": 46,
+                "parent_id": 40,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.widget": "Search"
+                }
+              },
+              {
+                "name": "widget",
+                "service": "wordpress_59_test_app",
+                "resource": "Recent Posts (widget)",
+                "trace_id": 0,
+                "span_id": 47,
+                "parent_id": 40,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.widget": "Recent Posts"
+                }
+              },
+              {
+                "name": "widget",
+                "service": "wordpress_59_test_app",
+                "resource": "Recent Comments (widget)",
+                "trace_id": 0,
+                "span_id": 48,
+                "parent_id": 40,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.widget": "Recent Comments"
+                }
+              },
+           {
+             "name": "dynamic_sidebar",
+             "service": "wordpress_59_test_app",
+             "resource": "sidebar-2",
+             "trace_id": 0,
+             "span_id": 41,
+             "parent_id": 34,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+              {
+                "name": "widget",
+                "service": "wordpress_59_test_app",
+                "resource": "Archives (widget)",
+                "trace_id": 0,
+                "span_id": 49,
+                "parent_id": 41,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.widget": "Archives"
+                }
+              },
+              {
+                "name": "widget",
+                "service": "wordpress_59_test_app",
+                "resource": "Categories (widget)",
+                "trace_id": 0,
+                "span_id": 50,
+                "parent_id": 41,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.widget": "Categories"
+                }
+              },
+              {
+                "name": "widget",
+                "service": "wordpress_59_test_app",
+                "resource": "Meta (widget)",
+                "trace_id": 0,
+                "span_id": 51,
+                "parent_id": 41,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.widget": "Meta"
+                }
+              },
+        {
+          "name": "get_footer",
+          "service": "wordpress_59_test_app",
+          "resource": "get_footer",
+          "trace_id": 0,
+          "span_id": 35,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "load_template",
+             "service": "wordpress_59_test_app",
+             "resource": "footer (template)",
+             "trace_id": 0,
+             "span_id": 42,
+             "parent_id": 35,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wordpress.template_part": "footer",
+               "wordpress.theme": "Twenty Twenty"
+             }
+           },
+              {
+                "name": "action",
+                "service": "wordpress_59_test_app",
+                "resource": "wp_footer (hook)",
+                "trace_id": 0,
+                "span_id": 52,
+                "parent_id": 42,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wordpress.hook": "wp_footer"
+                }
+              },
+     {
+       "name": "action",
+       "service": "wordpress_59_test_app",
+       "resource": "shutdown (hook)",
+       "trace_id": 0,
+       "span_id": 14,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.hook": "shutdown"
+       }
+     }]]

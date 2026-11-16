@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_2_8/app/webroot/index.php';
     }
@@ -19,6 +19,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'cakephp_test_app',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'cakephp/cakephp';
     }
 
     /**
@@ -46,12 +51,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp_test_app',
                         'web',
                         'GET SimpleController@index'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'cakephp.route.controller' => 'simple',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
@@ -60,7 +66,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'cakephp',
                         ])
                     ]),
@@ -71,12 +77,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp_test_app',
                         'web',
                         'GET SimpleViewController@index'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'cakephp.route.controller' => 'simple_view',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
@@ -85,7 +92,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'cakephp',
                         ]),
                         SpanAssertion::build(
@@ -93,7 +100,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'SimpleView/index.ctp'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'cakephp.view' => 'SimpleView/index.ctp',
                             Tag::COMPONENT => 'cakephp',
                         ]),
@@ -105,15 +112,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp_test_app',
                         'web',
                         'GET ErrorController@index'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'cakephp.route.controller' => 'error',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                        'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                    ])->withExistingTagsNames([
+                    ])->withExistingAttributeNames([
                         'error.stack'
                     ])->setError(
                         null,
@@ -124,9 +132,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'cakephp',
-                        ])->withExistingTagsNames([
+                        ])->withExistingAttributeNames([
                             'error.stack',
                         ])->setError(null, 'Foo error'),
                         SpanAssertion::build(
@@ -134,12 +142,38 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Errors/index.ctp'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'cakephp.view' => 'Errors/index.ctp',
                             Tag::COMPONENT => 'cakephp',
                         ]),
                     ]),
                 ],
+                'A GET request to a route with a parameter' => [
+                    SpanAssertion::build(
+                        'cakephp.request',
+                        'cakephp_test_app',
+                        'web',
+                        'GET ParameterizedController@customAction'
+                    )->withExactAttributes([
+                        'cakephp.route.controller' => 'Parameterized',
+                        'cakephp.route.action' => 'customAction',
+                        'http.method' => 'GET',
+                        'http.url' => 'http://localhost/parameterized/paramValue',
+                        'http.status_code' => '200',
+                        'http.route' => '/parameterized/:param',
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'cakephp',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Controller.invokeAction',
+                            'cakephp_test_app',
+                            'web',
+                            'Controller.invokeAction'
+                        )->withExactAttributes([
+                            Tag::COMPONENT => 'cakephp',
+                        ])
+                    ]),
+                ]
             ]
         );
     }

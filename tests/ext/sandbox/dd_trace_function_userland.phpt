@@ -2,6 +2,7 @@
 DDTrace\trace_function() can trace userland functions with internal spans
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 var_dump(DDTrace\trace_function('filter_to_array', function (SpanData $span) {
@@ -26,8 +27,8 @@ var_export(filter_to_array($is_odd, array(1, 2, 3)));
 
 echo "\n---\n";
 
-var_dump(dd_trace_serialize_closed_spans());
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 bool(true)
@@ -38,9 +39,7 @@ array (
 ---
 array(1) {
   [0]=>
-  array(9) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>

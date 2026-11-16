@@ -1,0 +1,139 @@
+#!/usr/bin/env -S uv run --script
+"""Watch a check-ci output file and exit when actionable.
+
+Usage: ci-watch OUTPUT_FILE [--start-offset N] [--stale-timeout SECS] [--poll-interval SECS]
+
+Exits when:
+  - FAILED: line(s) detected            (exit 1)
+  - All pipelines completed             (exit 0)
+  - check-ci timed out                  (exit 3)
+  - No new output for N secs (stale)    (exit 2)
+
+Always prints "RESUME_OFFSET: <N>" before exiting so the caller can
+restart with --start-offset to skip already-processed content.
+
+Streams new lines as progress while waiting.
+"""
+
+import argparse
+import os
+import re
+import sys
+import time
+
+FAILURE_PATTERN = re.compile(r"^FAILED:", re.MULTILINE)
+SUCCESS_PATTERN = re.compile(
+    r"^(All pipelines completed|Stopping script after maximum)",
+    re.MULTILINE,
+)
+TIMEOUT_PATTERN = re.compile(r"^Timeout after \d+s", re.MULTILINE)
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("output_file", help="Path to check-ci output file")
+    p.add_argument(
+        "--start-offset",
+        type=int,
+        default=0,
+        help="Start reading from this byte offset (default: 0)",
+    )
+    p.add_argument(
+        "--stale-timeout",
+        type=int,
+        default=300,
+        help="Exit after this many seconds without new output (default: 300)",
+    )
+    p.add_argument(
+        "--poll-interval",
+        type=int,
+        default=5,
+        help="Seconds between polls (default: 5)",
+    )
+    return p.parse_args()
+
+
+def read_new_content(path, offset):
+    """Read bytes from offset to EOF. Returns (new_text, new_offset)."""
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        return "", offset
+    if size <= offset:
+        return "", offset
+    with open(path, "r", errors="replace") as f:
+        f.seek(offset)
+        text = f.read()
+    return text, size
+
+
+def find_matching_lines(text, pattern):
+    return [line for line in text.splitlines() if pattern.search(line)]
+
+
+def watch(output_file, start_offset, stale_timeout, poll_interval):
+    offset = start_offset
+    last_activity = time.monotonic()
+    full_text = ""
+
+    while True:
+        new_content, offset = read_new_content(output_file, offset)
+
+        if new_content:
+            last_activity = time.monotonic()
+            sys.stdout.write(new_content)
+            if not new_content.endswith("\n"):
+                sys.stdout.write("\n")
+            sys.stdout.flush()
+            full_text += new_content
+
+            failures = find_matching_lines(full_text, FAILURE_PATTERN)
+            if failures:
+                print("\n=== FAILURES DETECTED ===")
+                print("\n".join(failures))
+                completions = (
+                    find_matching_lines(full_text, SUCCESS_PATTERN)
+                    + find_matching_lines(full_text, TIMEOUT_PATTERN)
+                )
+                if completions:
+                    print("=== FINAL STATUS ===")
+                    print("\n".join(completions))
+                else:
+                    print("=== check-ci still running ===")
+                print(f"RESUME_OFFSET: {offset}")
+                return 1
+
+            timeouts = find_matching_lines(full_text, TIMEOUT_PATTERN)
+            if timeouts:
+                print("\n=== FINAL STATUS (check-ci timed out) ===")
+                print("\n".join(timeouts))
+                print(f"RESUME_OFFSET: {offset}")
+                return 3
+
+            completions = find_matching_lines(full_text, SUCCESS_PATTERN)
+            if completions:
+                print("\n=== FINAL STATUS ===")
+                print("\n".join(completions))
+                print(f"RESUME_OFFSET: {offset}")
+                return 0
+
+        elapsed = time.monotonic() - last_activity
+        if elapsed >= stale_timeout:
+            print(f"\n=== STALE: no new output for {stale_timeout}s ===")
+            tail = full_text.rstrip("\n").splitlines()[-5:]
+            if tail:
+                print("Last lines:")
+                print("\n".join(tail))
+            print(f"RESUME_OFFSET: {offset}")
+            return 2
+
+        time.sleep(poll_interval)
+
+
+def main():
+    args = parse_args()
+    sys.exit(watch(args.output_file, args.start_offset, args.stale_timeout, args.poll_interval))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,37 @@
+--- a/build/php.m4	2024-10-24 17:48:29.890432008 +0000
++++ b/build/php.m4	2024-10-24 17:48:50.010479003 +0000
+@@ -1120,7 +1120,7 @@
+ AC_RUN_IFELSE([AC_LANG_SOURCE([[
+ #include <time.h>
+
+-main() {
++int main() {
+ char buf[27];
+ struct tm t;
+ time_t old = 0;
+@@ -1136,7 +1136,7 @@
+ ],[
+   AC_RUN_IFELSE([AC_LANG_SOURCE([[
+ #include <time.h>
+-main() {
++int main() {
+   struct tm t, *s;
+   time_t old = 0;
+   char buf[27], *p;
+@@ -1597,7 +1597,7 @@
+   if test "$found" = "yes"; then
+     ac_libs=$LIBS
+     LIBS="$LIBS -l$2"
+-    AC_RUN_IFELSE([AC_LANG_SOURCE([[main() { return (0); }]])],[found=yes],[found=no],[found=no])
++    AC_RUN_IFELSE([AC_LANG_SOURCE([[int main() { return (0); }]])],[found=yes],[found=no],[found=no])
+     LIBS=$ac_libs
+   fi
+
+@@ -2285,7 +2285,7 @@
+
+ #define TEXT "This is the test message -- "
+
+-main()
++int main()
+ {
+   int n;

@@ -13,17 +13,25 @@ use DDTrace\Util\Versions;
  * @method void assertEmpty(array $arr)
  * @method void assertFalse(boolean $value)
  * @method void assertNotEmpty(array $arr)
- * @method void assertSame(mixed $expected, array $value)
+ * @method void assertSame(mixed $expected, mixed $value)
  * @method void assertTrue(boolean $value)
  */
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {
+    public static $activeResourceLock;
+
     public static function ddSetUpBeforeClass()
     {
+        if (isset(static::$lockedResource)) {
+            $lock = fopen("/tmp/ddtrace-phpunit/lock-" . static::$lockedResource, "c+");
+            flock($lock, LOCK_EX);
+            self::$activeResourceLock = $lock;
+        }
     }
 
     public static function ddTearDownAfterClass()
     {
+        self::$activeResourceLock = null;
     }
 
     protected function ddSetUp()
@@ -36,7 +44,20 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         if (\class_exists('DDTrace\Log\Logger')) {
             Logger::reset();
         }
+        foreach ($this->envsToCleanUpAtTearDown() as $env) {
+            self::putEnv($env);
+        }
         \dd_trace_internal_fn('ddtrace_reload_config');
+    }
+
+    /**
+     * Extend this method in test classes to have those envs automatically cleaned
+     *
+     * @return string[]
+     */
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [];
     }
 
     protected function matchesPhpVersion($version)
@@ -55,7 +76,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         return $logger;
     }
 
-    protected static function putEnv($putenv)
+    public static function putEnv($putenv)
     {
         // cleanup: properly replace this function by ini_set() in test code ...
         if (strpos($putenv, "DD_") === 0) {
@@ -66,6 +87,9 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
             ]));
             if (count($val) > 1) {
                 \ini_set($name, $val[1]);
+            } elseif ($name == "datadog.trace.auto_flush_enabled") {
+                // bootstrap_phpunit.php defaults to false, so we consider this the default
+                \ini_set($name, "false");
             } else {
                 \ini_restore($name);
             }
@@ -79,7 +103,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
      * @param array $putenvs In the format ['ENV_1=value1', 'ENV_2=value2']
      * @return void
      */
-    protected function putEnvAndReloadConfig($putenvs = [])
+    public static function putEnvAndReloadConfig($putenvs = [])
     {
         foreach ($putenvs as $putenv) {
             self::putEnv($putenv);
@@ -89,7 +113,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 
     protected function assertStringContains($needle, $haystack, $message = '')
     {
-        if (PHPUNIT_MAJOR >= 9) {
+        if (PHPUNIT_MAJOR >= 8) {
             parent::assertStringContainsString($needle, $haystack, $message);
         } else {
             parent::assertContains($needle, $haystack, $message);
@@ -98,7 +122,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 
     protected function assertStringNotContains($needle, $haystack, $message = '')
     {
-        if (PHPUNIT_MAJOR >= 9) {
+        if (PHPUNIT_MAJOR >= 8) {
             parent::assertStringNotContainsString($needle, $haystack, $message);
         } else {
             parent::assertNotContains($needle, $haystack, $message);
@@ -111,6 +135,24 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
             parent::expectException($class, $exceptionMessage);
         } else {
             parent::setExpectedException($class, $exceptionMessage, $exceptionCode);
+        }
+    }
+
+    protected function assertRegularExpression($pattern, $string, $message = '')
+    {
+        if (PHPUNIT_MAJOR >= 9) {
+            parent::assertMatchesRegularExpression($pattern, $string, $message);
+        } else {
+            parent::assertRegExp($pattern, $string, $message);
+        }
+    }
+
+    protected function assertFileNotExist($filename, $message = '')
+    {
+        if (PHPUNIT_MAJOR >= 9) {
+            parent::assertFileDoesNotExist($filename, $message);
+        } else {
+            parent::assertFileNotExists($filename, $message);
         }
     }
 

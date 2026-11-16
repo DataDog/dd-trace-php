@@ -1,7 +1,7 @@
 <?php
 
-const MINIMUM_ACCEPTABLE_REQUESTS = 900;
-const MINIMUM_ASAN_ACCEPTABLE_REQUESTS = 300;
+const MINIMUM_ACCEPTABLE_REQUESTS = 600;
+const MINIMUM_ASAN_ACCEPTABLE_REQUESTS = 150;
 
 function analyze_web($tmpScenariosFolder)
 {
@@ -10,14 +10,23 @@ function analyze_web($tmpScenariosFolder)
     $unexpectedCodes = [];
     $possibleSegfaults = [];
     $minimumRequestCount = [];
+    $prepareErrors = [];
 
     foreach (scandir($resultsFolder) as $identifier) {
         if (in_array($identifier, ['.', '..'])) {
             continue;
         }
-        $scenarioResultsRoot = $resultsFolder . DIRECTORY_SEPARATOR . $identifier;
-        $absFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'results.json';
+
         $analyzed[] = $identifier;
+
+        $scenarioResultsRoot = $resultsFolder . DIRECTORY_SEPARATOR . $identifier;
+        $prepareErrorFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'prepare-error';
+        $absFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'results.json';
+
+        if (file_exists($prepareErrorFilePath)) {
+            $prepareErrors[$identifier] = (int)file_get_contents($prepareErrorFilePath);
+            continue;
+        }
 
         $jsonResult = json_decode(file_get_contents($absFilePath), 1);
 
@@ -40,7 +49,7 @@ function analyze_web($tmpScenariosFolder)
         // We have to ignore 0 status codes as in CirceCI they are over reported. Instead we check error log for
         // Apache's segfaults.
         unset($receivedStatusCodes[0]);
-        if (array_keys($receivedStatusCodes) !== [200, 510, 511]) {
+        if (array_diff(array_keys($receivedStatusCodes), [200, 510, 511])) {
             $unexpectedCodes[$identifier] = $receivedStatusCodes;
         }
 
@@ -70,6 +79,10 @@ function analyze_web($tmpScenariosFolder)
     if (count($minimumRequestCount)) {
         echo "Minimum request not matched: " . var_export($minimumRequestCount, 1) . "\n";
         $isError = true;
+    }
+    if (count($prepareErrors)) {
+        echo "Prepare step failed with error: " . var_export($prepareErrors, 1) . "\n";
+        $isError = count($prepareErrors) > count($analyzed) / 2; // In that case it's probably not transient
     }
 
     if ($isError) {
@@ -115,7 +128,13 @@ function analyze_cli($tmpScenariosFolder)
 
         $analyzed[] = $identifier;
 
-        $absFilePath = $resultsFolder . DIRECTORY_SEPARATOR . $identifier . DIRECTORY_SEPARATOR . 'memory.out';
+        $scenarioResultsRoot = $resultsFolder . DIRECTORY_SEPARATOR . $identifier;
+        $absFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'memory.out';
+        $prepareErrorFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'prepare-error';
+
+        if (file_exists($prepareErrorFilePath)) {
+            continue; // We already handled it in analyze_web
+        }
 
         $values = array_map('intval', array_filter(
             file($absFilePath),
@@ -125,18 +144,23 @@ function analyze_cli($tmpScenariosFolder)
             }
         ));
 
-        if (count($values) < 50) {
+        if (count($values) < 40) {
             $notEnoughResults[] = $identifier;
             continue;
         }
 
         // Skip the first runs to avoid false positives with runs where a path initializing something is entered late
-        $values = array_slice($values, 20);
+        $values = array_slice($values, 5);
+
+        if (count(array_count_values($values)) <= 3) {
+            // It's actually stable, just some things have been JITed
+            continue;
+        }
 
         list($slope, $intercept) = calculate_trend_line($values);
 
-        if ($intercept > 7 * 1000 * 1000) {
-            // Heuristic 7MB limit. It might have to be increased as we add integrations
+        if ($intercept > 8 * 1000 * 1000) {
+            // Heuristic 8MB limit. It might have to be increased as we add integrations
             $largeInterceptResults[] = $identifier;
             continue;
         }

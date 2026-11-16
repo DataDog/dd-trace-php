@@ -1,0 +1,191 @@
+#include "remote_config.h"
+#include "datadog.h"
+#include "ffi_utils.h"
+#include "sidecar.h"
+#include <zai_string/string.h>
+#include <components/log/log.h>
+#include "threads.h"
+#include <components-rs/sidecar.h>
+#include <tracer/tracer_api.h>
+#include <tracer/live_debugger.h>
+
+#if PHP_VERSION_ID < 70100
+#include <interceptor/php7/interceptor.h>
+#define zend_interrupt_function zai_interrupt_function
+#define zend_vm_interrupt zai_vm_interrupt
+#endif
+
+ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+#ifdef _WIN32
+static struct ddog_RemoteConfigNotification *remote_config_notification;
+
+static void datadog_remote_config_notify(void *context);
+#endif
+
+static void (*dd_prev_interrupt_function)(zend_execute_data *execute_data);
+static void dd_vm_interrupt(zend_execute_data *execute_data) {
+    if (dd_prev_interrupt_function) {
+        dd_prev_interrupt_function(execute_data);
+    }
+    if (DATADOG_G(reread_remote_configuration)) {
+        DATADOG_G(reread_remote_configuration) = 0;
+        if (DATADOG_G(request_initialized) && DATADOG_G(remote_config_state)) {
+            LOG(INFO, "Rereading remote configurations after interrupt");
+            ddog_process_remote_configs(DATADOG_G(remote_config_state));
+        }
+    }
+}
+
+// The Windows remote configuration notification invokes this asynchronously.
+DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
+    // broadcast interrupt to all threads on ZTS
+#if ZTS
+    // Also called outside of the signal handler
+    datadog_threads_lock_state state;
+    datadog_threads_lock(&state);
+
+    void *TSRMLS_CACHE; // EG() accesses a variable named TSRMLS_CACHE. Make use of variable shadowing in scopes...
+    ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
+#endif
+        // Set reread_remote_configuration before vm_interrupt so that threads
+        // cannot wake up, find no need to reread remote config, and then have
+        // to wait until the next vm_interrupt to pick up the changes. The next
+        // interrupt may not be for some time, depending on what else is
+        // also setting vm_interrupt. This improves responsiveness.
+        DATADOG_G(reread_remote_configuration) = 1;
+#if PHP_VERSION_ID >= 80200
+        zend_atomic_bool_store_ex(&EG(vm_interrupt), 1);
+#elif PHP_VERSION_ID >= 70100
+        EG(vm_interrupt) = 1;
+#else
+        DATADOG_G(zai_vm_interrupt) = 1;
+#endif
+#if ZTS
+    } ZEND_HASH_FOREACH_END();
+
+    datadog_threads_unlock(&state);
+#endif
+}
+
+void datadog_check_for_new_config_now(void) {
+    if (DATADOG_G(request_initialized) && DATADOG_G(remote_config_state) &&
+        !DATADOG_G(reread_remote_configuration) &&
+        ddog_process_remote_configs(DATADOG_G(remote_config_state))) {
+        // If we blocked the signal, notify the other threads too
+        datadog_set_all_thread_vm_interrupt();
+    }
+}
+
+#ifndef _WIN32
+static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
+    UNUSED(signal, siginfo, ctx);
+    datadog_set_all_thread_vm_interrupt();
+
+#if defined(__linux__) && defined(ZTS)
+    if (!tsrm_is_managed_thread()) {
+        return;
+    }
+#endif
+
+#ifdef TRACER
+    ddtrace_live_debugger_handle_sigvtalarm();
+#endif
+}
+#endif
+
+static zend_string *dd_dynamic_configuration_update(ddog_CharSlice config, zend_string *value, ddog_DynamicConfigUpdateMode mode) {
+    zend_string *name = dd_CharSlice_to_zend_string(config);
+    zend_string *ret = NULL;
+    if (mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE) {
+        zend_restore_ini_entry(name, PHP_INI_STAGE_RUNTIME);
+    } else if (mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE) {
+        zend_ini_entry *ini_entry = zend_hash_find_ptr(EG(ini_directives), name);
+        zend_string *old = ini_entry->modified && ini_entry->value ? zend_string_copy(ini_entry->value) : NULL;
+        if (zend_alter_ini_entry(name, value, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME) == SUCCESS) {
+            if (old) {
+                ret = old;
+            } else {
+                ret = ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED;
+            }
+        }
+        zend_string_release(value);
+        if (old && ret != old) {
+            zend_string_release(old);
+        }
+    } else if (mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ) {
+        zend_ini_entry *ini_entry = zend_hash_find_ptr(EG(ini_directives), name);
+        if (ini_entry->modified && ini_entry->value) {
+            ret = ini_entry->value;
+        } else {
+            ret = ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED;
+        }
+    } else {
+        ZEND_ASSERT(mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE);
+        DATADOG_G(remote_config_writing) = true;
+        zend_alter_ini_entry(name, value, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+        DATADOG_G(remote_config_writing) = false;
+        zend_string_release(value);
+    }
+    zend_string_release(name);
+    return ret;
+}
+
+void datadog_minit_remote_config(void) {
+#ifdef TRACER
+    ddog_setup_remote_config(dd_dynamic_configuration_update, &ddtrace_live_debugger_setup);
+#else
+    ddog_setup_remote_config(dd_dynamic_configuration_update, NULL);
+#endif
+    dd_prev_interrupt_function = zend_interrupt_function;
+    zend_interrupt_function = dd_vm_interrupt;
+
+#ifdef _WIN32
+    datadog_ffi_try("Failed to initialize remote config notification",
+                    ddog_sidecar_remote_config_notification_new(datadog_remote_config_notify, NULL,
+                                                                &remote_config_notification));
+#else
+    struct sigaction act = {0};
+    act.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
+    act.sa_sigaction = dd_sigvtalarm_handler;
+    sigaction(SIGVTALRM, &act, NULL);
+#endif
+}
+
+void datadog_mshutdown_remote_config(void) {
+#ifdef _WIN32
+    ddog_sidecar_remote_config_notification_drop(remote_config_notification);
+    remote_config_notification = NULL;
+#else
+    struct sigaction act = {0};
+    act.sa_handler = SIG_IGN;
+    sigaction(SIGVTALRM, &act, NULL);
+#endif
+}
+
+#ifdef _WIN32
+const struct ddog_RemoteConfigNotification *datadog_remote_config_notification_get(void) {
+    return remote_config_notification;
+}
+
+static void datadog_remote_config_notify(void *context) {
+    UNUSED(context);
+    datadog_set_all_thread_vm_interrupt();
+}
+#endif
+
+void datadog_rinit_remote_config(void) {
+    DATADOG_G(reread_remote_configuration) = 0;
+
+#ifndef _WIN32
+    // Threaded SAPIs may run requests with all signals blocked (e.g. the apache worker and event MPMs), where no thread would receive the notifications.
+    sigset_t x;
+    sigemptyset(&x);
+    sigaddset(&x, SIGVTALRM);
+    sigprocmask(SIG_UNBLOCK, &x, NULL);
+#endif
+}
+
+void datadog_rshutdown_remote_config(void) {
+    ddog_rshutdown_remote_config(DATADOG_G(remote_config_state));
+}

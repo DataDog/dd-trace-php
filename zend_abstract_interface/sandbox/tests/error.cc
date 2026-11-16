@@ -23,7 +23,9 @@ static int fatal_errors[] = {
 static int non_fatal_errors[] = {
     E_DEPRECATED,
     E_NOTICE,
-    E_STRICT,
+#if PHP_VERSION_ID < 80400
+    E_STRICT, // deprecated in 8.4
+#endif
     E_USER_DEPRECATED,
     E_USER_NOTICE,
 };

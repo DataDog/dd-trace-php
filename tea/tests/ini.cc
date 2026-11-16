@@ -107,11 +107,11 @@ TEA_TEST_CASE_BARE("tea/ini", "append several INI entries", {
 
     len = tea_ini_realloc_append(&entries, (size_t)len, "abc", "123");
     len = tea_ini_realloc_append(&entries, (size_t)len, "extension", "ddtrace.so");
-    len = tea_ini_realloc_append(&entries, (size_t)len, "ddtrace.request_init_hook", "/path/to/init_hook.php");
+    len = tea_ini_realloc_append(&entries, (size_t)len, "datadog.trace.sources_path", "/path/to/src");
 
     REQUIRE(entries != NULL);
-    REQUIRE(len == 94);
-    REQUIRE(strcmp("foo=bar\nabc=123\nabc=123\nextension=ddtrace.so\nddtrace.request_init_hook=/path/to/init_hook.php\n", entries) == 0);
+    REQUIRE(len == 85);
+    REQUIRE(strcmp("foo=bar\nabc=123\nabc=123\nextension=ddtrace.so\ndatadog.trace.sources_path=/path/to/src\n", entries) == 0);
 
     tea_ini_free(&entries);
 })

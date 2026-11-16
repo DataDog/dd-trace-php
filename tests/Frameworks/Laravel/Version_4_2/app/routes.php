@@ -13,6 +13,7 @@
 
 Route::get('/simple', ['uses' => 'HomeController@simple', 'as' => 'simple_route']);
 Route::get('/simple_view', 'HomeController@simple_view');
+Route::get('dynamic_route/{param01}/static/{param02?}', 'HomeController@dynamicRoute');
 Route::get('/error', ['uses' => 'HomeController@error', 'as' => 'error']);
 Route::get('/eloquent/get', 'EloquentTestController@get');
 Route::get('/eloquent/insert', 'EloquentTestController@insert');
@@ -20,3 +21,14 @@ Route::get('/eloquent/update', 'EloquentTestController@update');
 Route::get('/eloquent/delete', 'EloquentTestController@delete');
 Route::get('/eloquent/destroy', 'EloquentTestController@destroy');
 Route::get('/eloquent/refresh', 'EloquentTestController@refresh');
+Route::get('/login/auth', 'LoginTestController@auth');
+Route::get('/login/signup', 'LoginTestController@register');
+Route::group(array('before' => 'auth'), function()
+{
+   Route::get('/behind_auth', 'LoginTestController@behind_auth');
+});
+Route::get('rasp', 'RaspTestController@rasp');
+Route::get('/telemetry', function () {
+   dd_trace_internal_fn("finalize_telemetry");
+   return response('Done');
+});

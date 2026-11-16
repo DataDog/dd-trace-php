@@ -1,0 +1,19 @@
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}/library/debian@sha256:f324c7ff54321e8d9c588493a20244965938ce0aa50bbd1022d38010e9ffc4b1 AS toolchain
+
+RUN apt-get update && apt-get install -y \
+  binutils \
+  build-essential \
+  curl \
+  git \
+  patchelf \
+  wget \
+  xz-utils \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY . /build/
+
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz && \
+  grep -F "cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz" ./build/CHECKSUMS | sha512sum --check && \
+  tar --strip-components=1 -C /usr/local -xvzf cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz && \
+  rm cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz

@@ -54,6 +54,11 @@ final class RoadrunnerServer implements Sapi
         $this->version = $version;
         $this->workerFile = $workerFile;
 
+        $token = ini_get('datadog.trace.agent_test_session_token');
+        if ($token != "") {
+            $envs["DD_TRACE_AGENT_TEST_SESSION_TOKEN"] = $token;
+        }
+
         $logPath = dirname($workerFile) . '/' . self::ERROR_LOG;
 
         switch (php_uname('m')) {
@@ -66,10 +71,17 @@ final class RoadrunnerServer implements Sapi
                 $this->target = "amd64";
         }
 
+        if (getenv('PHPUNIT_COVERAGE')) {
+            $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
+            $xdebugExtension = end($xdebugExtension);
+            $inis['zend_extension'] = $xdebugExtension;
+            $inis['xdebug.mode'] = 'coverage';
+        }
+
         $replacements = [
             '{{roadrunner_host}}' => $host,
             '{{roadrunner_port}}' => $port,
-            '{{roadrunner_php}}' => sprintf("php %s %s", new IniSerializer($inis), $this->workerFile),
+            '{{roadrunner_php}}' => sprintf("%s %s %s", PHP_BINARY, new IniSerializer($inis), $this->workerFile),
             '{{env}}' => json_encode($envs + ['DD_TRACE_CLI_ENABLED' => 1]),
             '{{error_log}}' => $logPath,
         ];
@@ -89,9 +101,14 @@ final class RoadrunnerServer implements Sapi
 
     private static function downloadRoadrunner($target, $version)
     {
-        // phpcs:disable Generic.Files.LineLength.TooLong
-        exec("curl -L https://github.com/roadrunner-server/roadrunner/releases/download/v$version/roadrunner-$version-linux-$target.tar.gz | tar xz -O -f - roadrunner-$version-linux-$target/rr > '" . __DIR__ . "/rr-$version-$target'; chmod +x '" . __DIR__ . "/rr-$version-$target'");
-        // phpcs:enable Generic.Files.LineLength.TooLong
+        $baseUrl = getenv('GITHUB_RELEASES_MIRROR') ?: 'https://github.com';
+        $url = "$baseUrl/roadrunner-server/roadrunner/releases/download/v$version/"
+            . "roadrunner-$version-linux-$target.tar.gz";
+        $binary = __DIR__ . "/rr-$version-$target";
+
+        exec("curl -L " . escapeshellarg($url)
+            . " | tar xz -O -f - roadrunner-$version-linux-$target/rr > " . escapeshellarg($binary)
+            . "; chmod +x " . escapeshellarg($binary));
     }
 
     public function start()

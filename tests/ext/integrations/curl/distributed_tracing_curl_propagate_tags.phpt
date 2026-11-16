@@ -6,7 +6,7 @@ Distributed tracing header tags propagate with curl_exec()
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 HTTP_X_DATADOG_TRACE_ID=42
-HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,_dd.p.foo=bar,_dd.p.dm=abcdef-2
+HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,_dd.p.foo=bar,_dd.p.dm=-2
 --FILE--
 <?php
 
@@ -19,7 +19,7 @@ function query_headers() {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
-    curl_close($ch);
+    if (PHP_VERSION_ID < 80000) { curl_close($ch); }
     return dt_decode_headers_from_httpbin($response);
 }
 
@@ -36,4 +36,4 @@ dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-tags']);
 
 ?>
 --EXPECT--
-x-datadog-tags: _dd.p.foo=bar,_dd.p.dm=abcdef-2
+x-datadog-tags: _dd.p.foo=bar,_dd.p.dm=-4

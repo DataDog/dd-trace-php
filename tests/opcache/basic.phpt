@@ -31,6 +31,10 @@ echo "Done.";
 ?>
 --EXPECT--
 bool(true)
+Executed negativeMethod
+Executed negative_function
+Executed negativeMethod
 NegativeClass::negative_method
+Executed negative_function
 negative_function
 Done.

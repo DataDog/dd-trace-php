@@ -1,0 +1,1471 @@
+use std::{
+    cell::Cell,
+    collections::{hash_map::Entry, HashMap},
+    fmt,
+    pin::Pin,
+    sync::{
+        atomic::{self, AtomicU64},
+        Arc,
+    },
+    time::{Duration, Instant},
+};
+
+use anyhow::{anyhow, Context};
+use datadog_sidecar::service::{
+    telemetry::{InProcessTelemetryClient, InProcessTelemetryClientFactory},
+    ConnectionSessionHandle,
+};
+use futures::stream::Stream;
+use libddwaf::{object::WafObjectType, RunnableContext};
+use log::{debug, error, info, warning as warn};
+use protocol::{ClientInitResp, CommandResponse, ConfigFeaturesResp};
+use thiserror::Error;
+use tokio::sync::{mpsc, oneshot};
+use tokio_stream::{wrappers::ReceiverStream, StreamExt};
+use tokio_util::{bytes::BytesMut, codec::Encoder, sync::CancellationToken};
+
+use crate::{
+    client::{
+        protocol::{RequestExecOptions, WafRunType},
+        sidecar_msg::HelperRequest,
+    },
+    service::{Service, ServiceFixedConfig, ServiceManager},
+    telemetry::{
+        error_tel_ctx::{
+            clear_error_telemetry_context, update_error_telemetry_context,
+            with_error_telemetry_handle,
+        },
+        SpanMetaGenerator, SpanMetaName, SpanMetricName, SpanMetricsGenerator,
+        SpanMetricsSubmitter, TelemetryLogsGenerator, TelemetryMetricsGenerator,
+        TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter,
+    },
+};
+
+pub use sidecar_msg::{
+    clear_inherited_state, on_disconnect, on_message, start_accepting_messages,
+    stop_accepting_messages, MessageResponse,
+};
+
+mod attributes;
+pub mod log;
+mod metrics;
+pub mod protocol;
+mod sidecar_msg;
+
+type CommandStream = Pin<
+    Box<
+        dyn Stream<
+                Item = std::result::Result<
+                    (
+                        protocol::Command,
+                        oneshot::Sender<sidecar_msg::HelperResponse>,
+                    ),
+                    FatalRequestError,
+                >,
+            > + Send,
+    >,
+>;
+
+/// Smart pointer that tracks worker count for a service.
+/// Increments on creation, decrements on drop.
+struct TrackedService {
+    service: Arc<Service>,
+}
+
+impl TrackedService {
+    fn new(service: Arc<Service>) -> Self {
+        service.increment_worker_count();
+        Self { service }
+    }
+}
+
+impl Drop for TrackedService {
+    fn drop(&mut self) {
+        self.service.decrement_worker_count();
+    }
+}
+
+impl std::ops::Deref for TrackedService {
+    type Target = Service;
+    fn deref(&self) -> &Self::Target {
+        &self.service
+    }
+}
+
+pub struct Client {
+    pub id: u64,
+    service_manager: &'static ServiceManager,
+    service: Option<TrackedService>,
+    telemetry_client_factory: InProcessTelemetryClientFactory,
+    /// The sidecar connection of the extension, which telemetry is submitted with.
+    session: ConnectionSessionHandle,
+    telemetry_client: Option<InProcessTelemetryClient>,
+    metrics_last_registered: Cell<Option<Instant>>,
+}
+
+static CLIENT_SERIAL: AtomicU64 = AtomicU64::new(1);
+impl Client {
+    pub fn new(
+        service_manager: &'static ServiceManager,
+        telemetry_client_factory: InProcessTelemetryClientFactory,
+        session: ConnectionSessionHandle,
+    ) -> Self {
+        Self {
+            id: CLIENT_SERIAL.fetch_add(1, atomic::Ordering::Relaxed),
+            service_manager,
+            service: None,
+            telemetry_client_factory,
+            session,
+            telemetry_client: None,
+            metrics_last_registered: Cell::new(None),
+        }
+    }
+
+    pub async fn entrypoint(
+        self,
+        rx: mpsc::Receiver<HelperRequest>,
+        cancel_token: CancellationToken,
+    ) {
+        // wrap entrypoint with the task locals that allow:
+        // - client id in the logs
+        // - submission of errors to telemetry (if they happen after client_init)
+        let client_id = self.id;
+        let entrypoint_fut = self.do_entrypoint(rx, cancel_token);
+        log::with_scoped_client_id(client_id, with_error_telemetry_handle(entrypoint_fut)).await;
+    }
+
+    async fn do_entrypoint(
+        self,
+        rx: mpsc::Receiver<HelperRequest>,
+        cancel_token: CancellationToken,
+    ) {
+        info!("starting");
+
+        let res = do_client_entrypoint(self, rx, cancel_token).await;
+        match res {
+            Ok(_) => {
+                info!("ended normally");
+            }
+            Err(err) if err.is::<ForcefulDisconnect>() => {
+                info!("ended due to client connectivity issue: {:#}", err);
+            }
+            Err(err) => {
+                error!("ended with failure: {:#}", err);
+            }
+        }
+    }
+
+    /// Can't be called before client_init
+    pub fn get_service(&self) -> &Service {
+        self.service.as_ref().expect("service not initialized")
+    }
+}
+
+/// Indicates a clean client shutdown - happened after good bye.
+#[derive(Debug, Error)]
+#[error("Client closed connection cleanly")]
+struct CleanShutdown;
+
+/// Indicates the client disconnected unexpectedly (no client_shutdown received,
+/// or client_shutdown reported an unclean exit).
+#[derive(Debug, Error)]
+#[error("client disconnected forcefully: {0}")]
+struct ForcefulDisconnect(String);
+
+/// A fatal error occurred while processing a request.  The extension will be
+/// sent a FatalError response and the client will be abandoned.
+#[derive(Error)]
+#[error("{0}")]
+struct FatalRequestError(anyhow::Error, oneshot::Sender<sidecar_msg::HelperResponse>);
+
+impl fmt::Debug for FatalRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+async fn do_client_entrypoint(
+    mut client: Client,
+    rx: mpsc::Receiver<HelperRequest>,
+    cancel_token: CancellationToken,
+) -> anyhow::Result<()> {
+    let mut cmd_stream = make_command_stream(rx);
+
+    // first, client_init
+    match recv_command(&mut cmd_stream, &cancel_token).await {
+        Ok((protocol::Command::ClientInit(args), response_tx)) => {
+            let resp = handle_client_init(&mut client, *args);
+            match resp {
+                Ok(resp) => {
+                    send_command_resp(response_tx, resp)?;
+                }
+                Err(err) => {
+                    let cir = ClientInitResp {
+                        version: protocol::VERSION_FOR_PROTO,
+                        status: "fail".to_string(),
+                        errors: vec![err.to_string()],
+                        ..Default::default()
+                    };
+                    send_command_resp(response_tx, CommandResponse::ClientInit(cir))?;
+                    return Err(err);
+                }
+            }
+        }
+        Ok((cmd, response_tx)) => {
+            send_command_resp(response_tx, CommandResponse::FatalError)?;
+            anyhow::bail!("expected client_init, got {:?}", cmd);
+        }
+        Err(e) if e.is::<FatalRequestError>() => {
+            let FatalRequestError(inner_err, response_tx) = e
+                .downcast::<FatalRequestError>()
+                .expect("is fatal request error");
+            send_fatal_reinitialize(response_tx)?;
+            return Err(inner_err.context("failed while receiving initial command"));
+        }
+        Err(e) => {
+            return Err(e);
+        }
+    };
+
+    // then the request loop
+    loop {
+        match do_request_loop_iter(&mut client, &mut cmd_stream, &cancel_token).await {
+            Ok(_) => {
+                debug!("request done; waiting for new one");
+            }
+            Err(err) if err.is::<CleanShutdown>() => {
+                return Ok(());
+            }
+            Err(err) if err.is::<FatalRequestError>() => {
+                let fatal_error = err
+                    .downcast::<FatalRequestError>()
+                    .expect("is fatal request error"); // until if let can be used instead of if err.is
+                let inner_error = fatal_error.0.context("error in request loop");
+                send_fatal_reinitialize(fatal_error.1)
+                    .context("failed to send fatal reinitialize response to client")?;
+                return Err(inner_error);
+            }
+            Err(err) => {
+                return Err(err.context("request loop failed"));
+            }
+        }
+    }
+}
+
+fn make_command_stream(rx: mpsc::Receiver<HelperRequest>) -> CommandStream {
+    let cmd_stream = ReceiverStream::new(rx);
+    let cmd_stream = StreamExt::map(cmd_stream, |msg| {
+        (
+            protocol::CommandCodec::decode_message(&msg.command),
+            msg.response_tx,
+        )
+    });
+    let cmd_stream = cmd_stream.map(|r| match r {
+        (Ok(cmd), response_tx) => Ok((cmd, response_tx)),
+        (Err(e), response_tx) => {
+            let fatal_error = FatalRequestError(
+                anyhow::Error::new(e).context("Error decoding command"),
+                response_tx,
+            );
+            Err(fatal_error)
+        }
+    });
+    Box::pin(cmd_stream)
+}
+
+fn handle_client_init(
+    client: &mut Client,
+    args: protocol::ClientInitArgs,
+) -> anyhow::Result<protocol::CommandResponse<'_>> {
+    let telemetry_settings = args.telemetry_settings.clone();
+    let sd = ServiceFixedConfig::new(
+        args.appsec_enabled == Some(true),
+        args.waf_config.clone(),
+        args.remote_config.clone(),
+        args.telemetry_settings,
+    );
+
+    let telemetry_client = client.telemetry_client_factory.create_client(
+        client.session.clone(),
+        telemetry_settings.service_name.clone(),
+        telemetry_settings.env_name.clone(),
+    );
+
+    update_error_telemetry_context(telemetry_client.clone());
+
+    let mut tel_metric_submitter =
+        TelemetrySidecarMetricSubmitter::create(&telemetry_client, &client.metrics_last_registered);
+
+    let service = client
+        .service_manager
+        .get_service(&sd, tel_metric_submitter.as_mut());
+
+    drop(tel_metric_submitter);
+
+    let mut cir = ClientInitResp {
+        version: protocol::VERSION_FOR_PROTO,
+        ..Default::default()
+    };
+
+    match service {
+        Ok(service) => {
+            if let Some(diag) = service.take_pending_init_diagnostics_legacy() {
+                diag.generate_span_metrics(&mut cir)
+            }
+
+            cir.meta.insert(
+                crate::telemetry::WAF_VERSION.0.to_string(),
+                Service::waf_version().to_string(),
+            );
+
+            client.service = Some(TrackedService::new(service));
+            client.telemetry_client = Some(telemetry_client);
+            cir.status = "ok".to_string();
+            Ok(CommandResponse::ClientInit(cir))
+        }
+        Err(err) => {
+            clear_error_telemetry_context();
+            error!("client init handling error: {:?}", err);
+            Err(err).context("client init handling error")
+        }
+    }
+}
+
+fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
+    let Some(ref service) = client.service else {
+        error!("ConfigSync received before client_init");
+        return;
+    };
+
+    let cur_disc = service.fixed_config();
+    let telemetry_settings = args.telemetry_settings.clone();
+    let new_disc = cur_disc.new_from_config_sync(args);
+
+    let new_disc = match new_disc {
+        None => {
+            debug!(
+                "Settings did not change after config_sync, still {:?}",
+                cur_disc.config_sync_settings()
+            );
+            return;
+        }
+        Some(new_disc) => {
+            debug!(
+                "Settings changed after config_sync, {:?} -> {:?}",
+                cur_disc.config_sync_settings(),
+                new_disc.config_sync_settings()
+            );
+            new_disc
+        }
+    };
+
+    // We are swapping service
+
+    // the old service may go away at the end, so submit its telemetry now
+    if let Some(ref service) = client.service {
+        submit_service_telemetry(client, service);
+    }
+
+    let Some(new_telemetry) = client.telemetry_client.as_ref().map(|telemetry| {
+        telemetry.with_new_service_env(
+            telemetry_settings.service_name.clone(),
+            telemetry_settings.env_name.clone(),
+        )
+    }) else {
+        error!("Cannot update telemetry client: client_init telemetry is missing");
+        clear_error_telemetry_context();
+        return;
+    };
+    client.metrics_last_registered.set(None);
+    update_error_telemetry_context(new_telemetry.clone());
+
+    // ... and create a new telemetry metrics submitter because creating a new
+    // service generates telemetry (more likely we're not creating a new
+    // service though, we're just fetching the existing one)
+    let mut tel_metric_submitter =
+        TelemetrySidecarMetricSubmitter::create(&new_telemetry, &client.metrics_last_registered);
+
+    let new_service = client
+        .service_manager
+        .get_service(&new_disc, &mut *tel_metric_submitter);
+
+    drop(tel_metric_submitter);
+
+    match new_service {
+        Ok(new_service) => {
+            client.service = Some(TrackedService::new(new_service));
+            client.telemetry_client = Some(new_telemetry);
+        }
+        Err(e) => {
+            if let Some(telemetry) = &client.telemetry_client {
+                update_error_telemetry_context(telemetry.clone());
+            }
+            error!("Failed to get service with new RC path: {}; will continue running with old service!", e);
+        }
+    }
+}
+
+async fn do_request_loop_iter(
+    client: &mut Client,
+    cmd_stream: &mut CommandStream,
+    cancel_token: &CancellationToken,
+) -> anyhow::Result<()> {
+    // wait for any number of config_syncs, followed by request_init.
+    // client_shutdown may be gotten at any time
+    let (req_init_args, response_tx) = match recv_command(cmd_stream, cancel_token).await? {
+        (protocol::Command::ClientShutdown(args), response_tx) => {
+            return handle_client_shutdown(response_tx, *args);
+        }
+        (protocol::Command::RequestInit(req), response_tx) => {
+            let service = client.get_service();
+            let config_snapshot = service.config_snapshot();
+
+            // if ASM is disabled, send ConfigFeatures(false) and we're done
+            if !config_snapshot.asm_enabled {
+                debug!("ASM disabled, sending config_features(enabled=false) to request_init");
+                let resp = protocol::CommandResponse::ConfigFeatures(ConfigFeaturesResp {
+                    enabled: false,
+                });
+                send_command_resp(response_tx, resp)?;
+                return Ok(());
+            }
+
+            (req, response_tx)
+        }
+
+        (protocol::Command::ConfigSync(args), response_tx) => {
+            handle_config_sync(client, *args);
+
+            let service = client.get_service();
+            let enabled = service.config_snapshot().asm_enabled;
+            let resp = if enabled {
+                protocol::CommandResponse::ConfigFeatures(ConfigFeaturesResp { enabled: true })
+            } else {
+                protocol::CommandResponse::ConfigSync
+            };
+            send_command_resp(response_tx, resp)?;
+
+            submit_service_telemetry(client, service);
+
+            return Ok(());
+        }
+
+        (command, response_tx) => {
+            anyhow::bail!(FatalRequestError(
+                anyhow::anyhow!("unexpected command {:?}", command),
+                response_tx
+            ));
+        }
+    };
+
+    let mut req_ctx = {
+        let service = client.get_service();
+        ReqContext::new(service, service.config_snapshot().clone())
+    };
+
+    let result = run_request(
+        client,
+        cmd_stream,
+        cancel_token,
+        &mut req_ctx,
+        req_init_args,
+        response_tx,
+    )
+    .await;
+
+    // Submit unconditionally: even if a fatal error occurs.
+    submit_context_telemetry_metrics(client, &mut req_ctx);
+    submit_service_telemetry(client, client.get_service());
+
+    result
+}
+
+async fn run_request(
+    client: &mut Client,
+    cmd_stream: &mut CommandStream,
+    cancel_token: &CancellationToken,
+    req_ctx: &mut ReqContext,
+    req_init: Box<protocol::RequestInitArgs>,
+    response_tx: oneshot::Sender<sidecar_msg::HelperResponse>,
+) -> anyhow::Result<()> {
+    let result = match req_ctx.run_waf(req_init.data, &protocol::RequestExecOptions::regular()) {
+        Ok(r) => r,
+        Err(e) => return Err(FatalRequestError(e, response_tx).into()),
+    };
+
+    let resp = protocol::CommandResponse::RequestInit(protocol::RequestInitResp {
+        triggers: &result.triggers,
+        actions: &result.actions,
+        force_keep: req_ctx.should_force_keep(client.get_service(), result.waf_keep),
+        settings: req_ctx.settings(),
+    });
+    send_command_resp(response_tx, resp)?;
+
+    loop {
+        match recv_command(cmd_stream, cancel_token).await? {
+            (protocol::Command::ClientShutdown(args), response_tx) => {
+                return handle_client_shutdown(response_tx, *args);
+            }
+            (protocol::Command::RequestExec(req), response_tx) => {
+                let req_options = if req.options.subctx_id.is_some() {
+                    &req.options
+                } else if has_server_request_address(&req.data) {
+                    // allow overriding of server.request.* variables in request_exec
+                    debug!(
+                        "Running WAF on the main WAF context because \
+                            server.request.* variables are present: {:?}",
+                        req.data
+                    );
+                    &RequestExecOptions::regular()
+                } else {
+                    // by default, run on a transient subcontext
+                    &RequestExecOptions {
+                        subctx_id: Some("request_exec_transient".into()),
+                        subctx_last_call: true,
+                        ..req.options
+                    }
+                };
+
+                let result = match req_ctx.run_waf(req.data, req_options) {
+                    Ok(r) => r,
+                    Err(e) => return Err(FatalRequestError(e, response_tx).into()),
+                };
+
+                let resp = protocol::CommandResponse::RequestExec(protocol::RequestExecResp {
+                    triggers: result.triggers,
+                    actions: result.actions,
+                    force_keep: req_ctx.should_force_keep(client.get_service(), result.waf_keep),
+                    settings: HashMap::default(),
+                });
+                send_command_resp(response_tx, resp)?;
+                continue;
+            }
+            (protocol::Command::RequestShutdown(req), response_tx) => {
+                let data = if client
+                    .get_service()
+                    .should_extract_schema(req.api_sec_samp_key)
+                {
+                    use libddwaf::waf_map;
+                    let context_processor = waf_map! {("extract-schema", true)};
+
+                    let old_len = req.data.len();
+                    let mut new_data = match libddwaf::object::WafMap::new(old_len + 1) {
+                        Ok(data) => data,
+                        Err(e) => {
+                            return Err(FatalRequestError(e.into(), response_tx).into());
+                        }
+                    };
+                    for (i, entry) in req.data.into_iter().enumerate() {
+                        new_data[i] = entry;
+                    }
+                    new_data[old_len] = ("waf.context.processor", context_processor).into();
+                    new_data
+                } else {
+                    req.data
+                };
+
+                let result = match req_ctx.run_waf(data, &protocol::RequestExecOptions::regular()) {
+                    Ok(r) => r,
+                    Err(e) => return Err(FatalRequestError(e, response_tx).into()),
+                };
+
+                req_ctx.record_shutdown_context(req.input_truncated);
+
+                // span metrics / meta
+                let mut span_submitter = metrics::CollectingMetricsSubmitter::default();
+                req_ctx.generate_span_metrics(&mut span_submitter);
+                req_ctx.generate_meta(&mut span_submitter);
+
+                let force_keep = req_ctx.should_force_keep(client.get_service(), result.waf_keep);
+
+                let resp =
+                    protocol::CommandResponse::RequestShutdown(protocol::RequestShutdownResp {
+                        triggers: result.triggers,
+                        actions: result.actions,
+                        force_keep,
+                        settings: HashMap::default(),
+                        meta: span_submitter.take_meta(),
+                        metrics: span_submitter.take_metrics(),
+                    });
+                send_command_resp(response_tx, resp)?;
+
+                break;
+            }
+            (command, response_tx) => {
+                anyhow::bail!(FatalRequestError(
+                    anyhow::anyhow!("unexpected command {:?}", command),
+                    response_tx
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn submit_service_telemetry(client: &Client, service: &Service) {
+    if let Some(telemetry) = &client.telemetry_client {
+        debug!("Submitting service telemetry to sidecar");
+        let mut submitter = TelemetrySidecarLogSubmitter::create(telemetry);
+        service.generate_telemetry_logs(&mut *submitter);
+
+        let mut submitter =
+            TelemetrySidecarMetricSubmitter::create(telemetry, &client.metrics_last_registered);
+        service.generate_telemetry_metrics(&mut *submitter);
+    } else {
+        debug!("Cannot submit service telemetry: telemetry client is not bound");
+    }
+}
+
+fn submit_context_telemetry_metrics(client: &Client, req_ctx: &mut ReqContext) {
+    let Some(telemetry) = &client.telemetry_client else {
+        warn!("Cannot submit context telemetry metrics: telemetry client is not bound");
+        return;
+    };
+    let mut tel_metric_submitter =
+        TelemetrySidecarMetricSubmitter::create(telemetry, &client.metrics_last_registered);
+
+    let waf_metrics = req_ctx.take_waf_metrics();
+    waf_metrics.generate_telemetry_metrics(&mut *tel_metric_submitter);
+}
+
+struct WafRunResult {
+    triggers: Vec<String>,
+    actions: Vec<protocol::ActionInstance>,
+    waf_keep: bool,
+}
+
+struct ReqContext {
+    waf_ctx: libddwaf::Context,
+    waf_subctxs: HashMap<String, libddwaf::Subcontext>,
+    config_snapshot: Arc<crate::service::ConfigSnapshot>,
+    limiter_result: Option<bool>,
+    waf_metrics: metrics::WafMetrics,
+    waf_attributes: attributes::CollectedWafAttributes,
+    waf_timeout: Duration,
+}
+impl ReqContext {
+    const DEFAULT_WAF_TIMEOUT: Duration = Duration::from_millis(50);
+    const MAX_PLAIN_SCHEMA_ALLOWED: usize = 260;
+    const MAX_SCHEMA_SIZE: usize = 25000;
+
+    fn new(service: &Service, config_snapshot: Arc<crate::service::ConfigSnapshot>) -> Self {
+        let rules_version = config_snapshot.rules_version.clone();
+        let waf_timeout = service
+            .configured_waf_timeout()
+            .unwrap_or(Self::DEFAULT_WAF_TIMEOUT);
+
+        Self {
+            waf_ctx: service.new_context(),
+            waf_subctxs: HashMap::new(),
+            config_snapshot,
+            limiter_result: None,
+            waf_metrics: metrics::WafMetrics::new(rules_version),
+            waf_attributes: attributes::CollectedWafAttributes::new(
+                Self::MAX_PLAIN_SCHEMA_ALLOWED,
+                Self::MAX_SCHEMA_SIZE,
+            ),
+            waf_timeout,
+        }
+    }
+
+    /// Records a WAF evaluation error against the appropriate metric: appsec.waf.error
+    /// for non-RASP runs, appsec.rasp.error for RASP runs (RFC-1012).
+    fn record_eval_error(&mut self, error_code: i32, options: &protocol::RequestExecOptions) {
+        match &options.run_type {
+            WafRunType::NonRasp => self.waf_metrics.record_non_rasp_error_eval(error_code),
+            WafRunType::RaspRule {
+                rule_type,
+                rule_variant,
+            } => self.waf_metrics.record_rasp_error_eval(
+                error_code,
+                rule_type,
+                rule_variant.as_deref().unwrap_or(""),
+            ),
+        }
+    }
+
+    fn run_waf(
+        &mut self,
+        data: libddwaf::object::WafMap,
+        options: &protocol::RequestExecOptions,
+    ) -> anyhow::Result<WafRunResult> {
+        debug!("Running WAF with: {:?}, options: {:?}", data, options);
+
+        let waf_timeout = self.waf_timeout;
+        let mut ctx = self.get_waf_runnable(options)?;
+        // Evaluation is CPU-bound and bounded by the WAF timeout. Running it directly avoids
+        // handing the runtime worker core to another thread for every request phase.
+        let maybe_res = ctx.run(data, waf_timeout);
+        drop(ctx);
+        let res = match maybe_res {
+            Ok(res) => res,
+            Err(err) => {
+                let error_code = match err {
+                    libddwaf::RunError::InternalError => -3i32,
+                    libddwaf::RunError::InvalidObject => -2i32,
+                    libddwaf::RunError::InvalidArgument => -1i32,
+                    _ => -127i32,
+                };
+                self.record_eval_error(error_code, options);
+                anyhow::bail!("WAF evaluation error: {}", err);
+            }
+        };
+
+        debug!("WAF run result: {:?}", res);
+        let run_output = match res {
+            libddwaf::RunResult::Match(result) => result,
+            libddwaf::RunResult::NoMatch(result) => result,
+        };
+
+        let triggers = match run_output.events() {
+            Some(events) => convert_events_to_json(events.value())?,
+            None => Vec::new(),
+        };
+        let actions = match run_output.actions() {
+            Some(actions) => convert_actions(actions.value(), !triggers.is_empty())?,
+            None => Vec::new(),
+        };
+        let waf_keep = run_output.keep();
+
+        if let Some(attributes) = run_output.attributes() {
+            for attr_kv in attributes.value().iter() {
+                self.waf_attributes.add_attribute(attr_kv);
+            }
+        }
+
+        match &options.run_type {
+            WafRunType::NonRasp => {
+                self.waf_metrics.record_non_rasp_eval(&run_output);
+            }
+            WafRunType::RaspRule {
+                rule_type,
+                rule_variant,
+            } => {
+                self.waf_metrics.record_rasp_eval(
+                    rule_type,
+                    rule_variant.as_deref().unwrap_or(""),
+                    &run_output,
+                );
+            }
+        }
+
+        Ok(WafRunResult {
+            triggers,
+            actions,
+            waf_keep,
+        })
+    }
+
+    /// Depending on the options, return either the context or a (possibly new)
+    /// subcontext. The subcontext may be dropped after the return is dropped,
+    /// depending on the options.subctx_last_call flag.
+    fn get_waf_runnable(
+        &mut self,
+        options: &protocol::RequestExecOptions,
+    ) -> anyhow::Result<impl RunnableContext + '_> {
+        enum RunnableCtx<'a> {
+            Borrowed(&'a mut dyn libddwaf::RunnableContext),
+            Owned(libddwaf::Subcontext),
+        }
+        impl<'a> libddwaf::RunnableContext for RunnableCtx<'a> {
+            fn run(
+                &mut self,
+                data: libddwaf::object::WafMap,
+                timeout: Duration,
+            ) -> Result<libddwaf::RunResult, libddwaf::RunError> {
+                match self {
+                    RunnableCtx::Borrowed(ctx) => ctx.run(data, timeout),
+                    RunnableCtx::Owned(ctx) => ctx.run(data, timeout),
+                }
+            }
+
+            fn run_batches(
+                &mut self,
+                data: libddwaf::object::WafArray,
+                timeout: Duration,
+            ) -> Result<libddwaf::RunResult, libddwaf::RunError> {
+                match self {
+                    RunnableCtx::Borrowed(ctx) => ctx.run_batches(data, timeout),
+                    RunnableCtx::Owned(ctx) => ctx.run_batches(data, timeout),
+                }
+            }
+        }
+        match options.subctx_id.as_ref() {
+            None => Ok(RunnableCtx::Borrowed(&mut self.waf_ctx)),
+            Some(subctx_id) => {
+                if options.subctx_last_call {
+                    let subctx = self
+                        .waf_subctxs
+                        .remove(subctx_id)
+                        .or_else(|| self.waf_ctx.new_subcontext().ok()) // error should not happen
+                        .ok_or_else(|| anyhow!("Failed to create subcontext"))?;
+                    Ok(RunnableCtx::Owned(subctx))
+                } else {
+                    let waf_ctx = &mut self.waf_ctx;
+                    let entry = self.waf_subctxs.entry(subctx_id.clone());
+                    match entry {
+                        Entry::Occupied(entry) => Ok(RunnableCtx::Borrowed(entry.into_mut())),
+                        Entry::Vacant(entry) => {
+                            let subctx = entry.insert(
+                                waf_ctx
+                                    .new_subcontext()
+                                    .map_err(|e| anyhow!("Failed to create subcontext: {}", e))?,
+                            );
+                            Ok(RunnableCtx::Borrowed(subctx))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn should_force_keep(&mut self, service: &Service, waf_keep: bool) -> bool {
+        // The limiter slot is only consumed when the WAF triggered; clean requests
+        // must not burn a slot even if this function is called multiple times.
+        if !waf_keep {
+            return false;
+        }
+        match self.limiter_result {
+            Some(result) => result,
+            None => {
+                let result = service.should_force_keep();
+                self.limiter_result = Some(result);
+                result
+            }
+        }
+    }
+
+    fn settings(&self) -> HashMap<&'static str, String> {
+        HashMap::from([(
+            "auto_user_instrum",
+            self.config_snapshot.auto_user_instrum.as_str().to_string(),
+        )])
+    }
+
+    pub fn record_shutdown_context(&mut self, input_truncated: bool) {
+        self.waf_metrics.set_input_truncated(input_truncated);
+    }
+
+    pub fn take_waf_metrics(&mut self) -> metrics::WafMetrics {
+        self.waf_metrics
+            .set_rate_limited(matches!(self.limiter_result, Some(false)));
+
+        std::mem::take(&mut self.waf_metrics)
+    }
+}
+
+impl crate::telemetry::SpanMetricsGenerator for ReqContext {
+    fn generate_span_metrics(&'_ self, submitter: &mut dyn crate::telemetry::SpanMetricsSubmitter) {
+        self.waf_metrics.generate_span_metrics(submitter);
+        self.waf_attributes.generate_span_metrics(submitter);
+    }
+}
+
+impl crate::telemetry::SpanMetaGenerator for ReqContext {
+    fn generate_meta(&'_ self, submitter: &mut dyn crate::telemetry::SpanMetricsSubmitter) {
+        // EVENT_RULES_VERSION is sent on every request_shutdown
+        // (WAF_VERSION and EVENT_RULES_ERRORS are sent only on client_init)
+        if let Some(rules_ver) = self.config_snapshot.rules_version.as_deref() {
+            submitter.submit_meta(crate::telemetry::EVENT_RULES_VERSION, rules_ver.to_string());
+        }
+    }
+}
+
+fn convert_events_to_json(events: &libddwaf::object::WafArray) -> anyhow::Result<Vec<String>> {
+    events
+        .iter()
+        .try_fold(Vec::new(), |mut acc, event| -> anyhow::Result<_> {
+            let event_str = serde_json::to_string(event)?;
+            acc.push(event_str);
+            Ok(acc)
+        })
+}
+
+// the extension expects different names in the protocol message
+fn map_action_name(waf_action: &str) -> Option<&'static str> {
+    match waf_action {
+        "block_request" => Some("block"),
+        "redirect_request" => Some("redirect"),
+        "generate_stack" => Some("stack_trace"),
+        "generate_schema" => Some("extract_schema"),
+        // "monitor" is reserved but not used in the WAF
+        _ => None,
+    }
+}
+
+// convert ddwaf map {<action name>: {<param>: <value>}} to Vec<ActionInstance>,
+// with some massaging to make inject "record" action.
+fn convert_actions(
+    actions: &libddwaf::object::WafMap,
+    has_triggers: bool,
+) -> anyhow::Result<Vec<protocol::ActionInstance>> {
+    let conv_actions = actions
+        .iter()
+        .try_fold(Vec::new(), |mut acc, kv| -> anyhow::Result<_> {
+            let waf_action_name = kv.key_str().map_err(|e| anyhow!(e.to_string()))?;
+            let action = match map_action_name(waf_action_name) {
+                Some(mapped) => mapped,
+                None => {
+                    warn!("Unknown WAF action type: {}", waf_action_name);
+                    return Ok(acc); // skip unknown actions
+                }
+            };
+            let parameters = kv
+                .value()
+                .as_type::<libddwaf::object::WafMap>()
+                .ok_or_else(|| anyhow!("Action parameter map not a map"))?
+                .iter()
+                .try_fold(HashMap::new(), |mut acc, kv| -> anyhow::Result<_> {
+                    let key = kv.key_str().map_err(|e| anyhow!(e.to_string()))?;
+                    let value = kv.value();
+                    let value_str: String = match value.object_type()  {
+                        WafObjectType::String => {
+                            value.as_type::<libddwaf::object::WafString>()
+                            .expect("We just checked it was a string")
+                            .as_str()
+                            .with_context(|| "Action parameter value is not a UTF-8 String")?
+                            .into()
+                                                }
+                        WafObjectType::Unsigned =>
+                            value.as_type::<libddwaf::object::WafUnsigned>()
+                            .expect("We just checked it was an unsigned")
+                            .value().to_string(),
+                        _ => {
+                            anyhow::bail!("Action parameter value is not a string or unsigned: got {:?}. Full actions: {:?}", kv.value(), actions)
+                        }
+                    };
+                    acc.insert(key.to_owned(), value_str);
+                    Ok(acc)
+                })?;
+            acc.push(protocol::ActionInstance { action, parameters });
+            Ok(acc)
+        });
+
+    match conv_actions {
+        Ok(mut conv_actions) => {
+            maybe_inject_record_action(&mut conv_actions, has_triggers);
+            Ok(conv_actions)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Injects a "record" action if there are triggers but no actions or
+/// if there is a stack_trace action with no block/redirect/record action.
+/// The extension only saves triggers if there is a record action.
+fn maybe_inject_record_action(actions: &mut Vec<protocol::ActionInstance>, has_triggers: bool) {
+    if actions.is_empty() && has_triggers {
+        actions.push(protocol::ActionInstance {
+            action: "record",
+            parameters: HashMap::default(),
+        });
+    }
+
+    let mut event_action = false;
+    let mut stack_trace = false;
+
+    for action in &*actions {
+        match action.action {
+            "block" | "redirect" | "record" => {
+                event_action = true;
+            }
+            "stack_trace" => {
+                stack_trace = true;
+            }
+            _ => {}
+        }
+    }
+
+    if !event_action && stack_trace {
+        // Stacktrace needs to send a record as well so Appsec event is generated
+        actions.push(protocol::ActionInstance {
+            action: "record",
+            parameters: HashMap::default(),
+        });
+    }
+}
+
+fn has_server_request_address(data: &libddwaf::object::WafMap) -> bool {
+    data.iter().any(|kv| {
+        kv.key_str()
+            .map(|k| k.starts_with("server.request."))
+            .unwrap_or(false)
+    })
+}
+
+/// Types of errors:
+/// - CleanShutdown: the cancel token fired
+/// - ForcefulDisconnect: the stream returned None without a prior client_shutdown
+/// - FatalRequestError: error decoding the command
+async fn recv_command(
+    stream: &mut CommandStream,
+    cancel_token: &CancellationToken,
+) -> anyhow::Result<(
+    protocol::Command,
+    oneshot::Sender<sidecar_msg::HelperResponse>,
+)> {
+    debug!("Waiting for command");
+
+    tokio::select! {
+        maybe_msg = stream.next() => {
+            match maybe_msg {
+                Some(Ok((msg, response_tx))) => {
+                    debug!("Received command: {:?}", msg);
+                    Ok((msg, response_tx))
+                }
+                Some(Err(fatal_error)) => {
+                    let anyhow_error: anyhow::Error = fatal_error.into();
+                    Err(anyhow_error.context("Error receiving command"))
+                }
+                None => {
+                    Err(ForcefulDisconnect("connection closed without client_shutdown".into()).into())
+                }
+            }
+        }
+
+        _ = cancel_token.cancelled() => {
+            info!("Cancellation during client recv");
+            Err(CleanShutdown.into())
+        }
+    }
+}
+
+fn handle_client_shutdown(
+    response_tx: oneshot::Sender<sidecar_msg::HelperResponse>,
+    args: protocol::ClientShutdownArgs,
+) -> anyhow::Result<()> {
+    if let Err(e) = send_command_resp(response_tx, CommandResponse::ClientShutdown) {
+        debug!("error sending client_shutdown ack: {}", e);
+    }
+    if args.inner.clean {
+        debug!("client_shutdown received (clean)");
+        Err(CleanShutdown.into())
+    } else {
+        let reason = args
+            .inner
+            .error
+            .unwrap_or_else(|| "worker exited with error".into());
+        warn!("client_shutdown received (unclean): {}", reason);
+        Err(ForcefulDisconnect(reason).into())
+    }
+}
+
+fn send_command_resp(
+    response_tx: oneshot::Sender<sidecar_msg::HelperResponse>,
+    cmd: protocol::CommandResponse<'_>,
+) -> anyhow::Result<()> {
+    debug!("Sending command: {:?}", cmd);
+
+    let is_fatal_error = matches!(cmd, CommandResponse::FatalError);
+
+    let mut buf = BytesMut::new();
+    if let Err(e) = protocol::CommandCodec.encode(cmd, &mut buf) {
+        if !is_fatal_error {
+            let mut err_buf = BytesMut::new();
+            if let Err(e2) =
+                protocol::CommandCodec.encode(CommandResponse::FatalError, &mut err_buf)
+            {
+                return Err(e2).with_context(|| {
+                    format!(
+                        "Error encoding fatal error after failing to encoding another command: {e}"
+                    )
+                });
+            }
+            let resp = sidecar_msg::HelperResponse::Reinitialize(err_buf.into());
+            response_tx.send(resp).map_err(|_| {
+                anyhow::anyhow!(
+                    "Error sending fatal error after failing to encode response command"
+                )
+            })?;
+            return Err(e).context("Error encoding response command; sent fatal error instead");
+        } else {
+            return Err(e).context("Error encoding fatal error response command");
+        }
+    }
+
+    let resp = sidecar_msg::HelperResponse::Data(buf.into());
+    response_tx
+        .send(resp)
+        .map_err(|_| anyhow::anyhow!("Error sending response command"))
+}
+
+fn send_fatal_reinitialize(
+    response_tx: oneshot::Sender<sidecar_msg::HelperResponse>,
+) -> anyhow::Result<()> {
+    let mut buf = BytesMut::new();
+    protocol::CommandCodec
+        .encode(CommandResponse::FatalError, &mut buf)
+        .context("Error encoding fatal error response command")?;
+    response_tx
+        .send(sidecar_msg::HelperResponse::Reinitialize(buf.into()))
+        .map_err(|_| anyhow::anyhow!("Error sending fatal reinitialize response"))
+}
+
+impl SpanMetricsSubmitter for ClientInitResp {
+    fn submit_metric(&mut self, key: SpanMetricName, value: f64) {
+        self.metrics.insert(key.0.into(), value);
+    }
+    fn submit_meta(&mut self, key: SpanMetaName, value: String) {
+        self.meta.insert(key.0.into(), value);
+    }
+    fn submit_meta_dyn_key(&mut self, key: String, value: String) {
+        self.meta.insert(key, value);
+    }
+    fn submit_metric_dyn_key(&mut self, key: String, value: f64) {
+        self.metrics.insert(key, value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rmp_serde::Serializer;
+    use std::io;
+    use std::path::PathBuf;
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::UnixStream;
+
+    fn serialize_message<T: serde::Serialize>(command: &T) -> Vec<u8> {
+        let mut buf = Vec::new();
+        let mut serializer = Serializer::new(&mut buf);
+        command.serialize(&mut serializer).unwrap();
+        serialize_message_raw(buf)
+    }
+
+    fn serialize_message_raw(buf: Vec<u8>) -> Vec<u8> {
+        let size = buf.len() as u32;
+        let mut full_message = Vec::with_capacity(8 + buf.len());
+        full_message.extend_from_slice(b"dds\0");
+        full_message.extend_from_slice(&size.to_le_bytes());
+        full_message.extend_from_slice(&buf);
+        full_message
+    }
+
+    fn make_client_init_message() -> Vec<u8> {
+        let client_init_args = (
+            12345u32,
+            "1.0.0",
+            "8.0",
+            Some(true),
+            (
+                Some("/path/to/rules"),
+                1000u64,
+                10u32,
+                Option::<&str>::None,
+                Some(".*"),
+                (true, 0.5f64),
+            ),
+            (true, PathBuf::from("/dev/shm/remote")),
+            ("my-service", "production"),
+        );
+        serialize_message(&("client_init", client_init_args))
+    }
+
+    /// Tests that demonstrate how Framed<UnixStream, CommandCodec> behaves
+    /// with various shutdown scenarios.
+    mod framed_behavior {
+        use super::*;
+
+        /// When the client cleanly closes the connection (after writing all data),
+        /// framed.next() returns None.
+        #[tokio::test]
+        async fn test_clean_shutdown_returns_none() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            client.shutdown().await.unwrap();
+
+            let result = framed.next().await;
+            assert!(
+                result.is_none(),
+                "Clean shutdown should return None, got {:?}",
+                result
+            );
+        }
+
+        /// When the client sends a complete message then closes cleanly,
+        /// we get the message first, then None on the next read.
+        #[tokio::test]
+        async fn test_message_then_clean_shutdown() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let msg = make_client_init_message();
+            client.write_all(&msg).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let first = framed.next().await;
+            assert!(
+                matches!(first, Some(Ok(protocol::Command::ClientInit(_)))),
+                "Should receive client_init message, got {:?}",
+                first
+            );
+
+            let second = framed.next().await;
+            assert!(
+                second.is_none(),
+                "After message, clean shutdown should return None, got {:?}",
+                second
+            );
+        }
+
+        /// When the client drops without shutdown (simulating crash/kill),
+        /// the behavior depends on whether there's partial data in the buffer.
+        /// With no partial data, it returns None (same as clean shutdown).
+        #[tokio::test]
+        async fn test_drop_without_shutdown_no_partial_data() {
+            let (server, client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            drop(client);
+
+            let result = framed.next().await;
+            assert!(
+                result.is_none(),
+                "Drop without partial data returns None (indistinguishable from clean shutdown), got {:?}",
+                result
+            );
+        }
+
+        /// When the client sends partial data (incomplete header) then drops,
+        /// Framed returns an io::Error with ErrorKind::Other and message
+        /// "bytes remaining on stream". This is tokio_util's way of indicating
+        /// the stream closed with incomplete data in the buffer.
+        #[tokio::test]
+        async fn test_incomplete_header_then_drop() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            client.write_all(b"dds").await.unwrap();
+            drop(client);
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(e.kind(), io::ErrorKind::Other);
+                    let msg = e.to_string();
+                    assert!(
+                        msg.contains("bytes remaining on stream"),
+                        "Expected 'bytes remaining on stream' error, got: {}",
+                        msg
+                    );
+                }
+                other => panic!("Expected Some(Err(...)), got {:?}", other),
+            }
+        }
+
+        /// When the client sends a valid header but incomplete body then drops,
+        /// Framed returns "bytes remaining on stream" error.
+        #[tokio::test]
+        async fn test_incomplete_body_then_drop() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let mut partial = Vec::new();
+            partial.extend_from_slice(b"dds\0");
+            partial.extend_from_slice(&100u32.to_le_bytes());
+            partial.extend_from_slice(b"partial body");
+
+            client.write_all(&partial).await.unwrap();
+            drop(client);
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(e.kind(), io::ErrorKind::Other);
+                    let msg = e.to_string();
+                    assert!(
+                        msg.contains("bytes remaining on stream"),
+                        "Expected 'bytes remaining on stream' error, got: {}",
+                        msg
+                    );
+                }
+                other => panic!("Expected Some(Err(...)), got {:?}", other),
+            }
+        }
+
+        /// When the client sends an invalid header marker, we get InvalidData error.
+        #[tokio::test]
+        async fn test_invalid_header_marker() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let mut invalid = Vec::new();
+            invalid.extend_from_slice(b"bad\0");
+            invalid.extend_from_slice(&10u32.to_le_bytes());
+            invalid.extend_from_slice(b"0123456789");
+
+            client.write_all(&invalid).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(
+                        e.kind(),
+                        io::ErrorKind::InvalidData,
+                        "Invalid marker should give InvalidData, got {:?}",
+                        e.kind()
+                    );
+                }
+                other => panic!("Expected Some(Err(InvalidData)), got {:?}", other),
+            }
+        }
+
+        /// When the client sends a valid header but invalid msgpack body,
+        /// we get InvalidData error from deserialization.
+        #[tokio::test]
+        async fn test_invalid_msgpack_body() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let mut invalid = Vec::new();
+            invalid.extend_from_slice(b"dds\0");
+            invalid.extend_from_slice(&10u32.to_le_bytes());
+            invalid.extend_from_slice(b"not msgpack");
+
+            client.write_all(&invalid).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(
+                        e.kind(),
+                        io::ErrorKind::InvalidData,
+                        "Invalid msgpack should give InvalidData, got {:?}",
+                        e.kind()
+                    );
+                }
+                other => panic!("Expected Some(Err(InvalidData)), got {:?}", other),
+            }
+        }
+
+        /// When the client sends an unknown command name, we get InvalidData error.
+        #[tokio::test]
+        async fn test_unknown_command_name() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let msg = serialize_message(&("unknown_command", ()));
+            client.write_all(&msg).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(
+                        e.kind(),
+                        io::ErrorKind::InvalidData,
+                        "Unknown command should give InvalidData, got {:?}",
+                        e.kind()
+                    );
+                }
+                other => panic!("Expected Some(Err(InvalidData)), got {:?}", other),
+            }
+        }
+    }
+
+    /// Tests for recv_command error classification
+    mod recv_command_errors {
+        use super::*;
+
+        fn make_channel() -> (mpsc::Sender<HelperRequest>, mpsc::Receiver<HelperRequest>) {
+            mpsc::channel(5)
+        }
+
+        fn enqueue_messages(tx: &mpsc::Sender<HelperRequest>, messages: Vec<Vec<u8>>) {
+            for command in messages {
+                let (response_tx, _response_rx) = oneshot::channel();
+                tx.try_send(HelperRequest {
+                    command,
+                    response_tx,
+                })
+                .expect("test setup should enqueue message");
+            }
+        }
+
+        /// Bare EOF without a prior client_shutdown is treated as a forceful disconnect
+        #[tokio::test]
+        async fn test_eof_without_goodbye_returns_forceful_disconnect() {
+            let (tx, rx) = make_channel();
+            drop(tx);
+            let mut stream = make_command_stream(rx);
+            let cancel_token = CancellationToken::new();
+            let err = match recv_command(&mut stream, &cancel_token).await {
+                Ok(_) => panic!("expected forceful disconnect error"),
+                Err(err) => err,
+            };
+            assert!(
+                err.is::<ForcefulDisconnect>(),
+                "EOF without goodbye should return ForcefulDisconnect, got: {:?}",
+                err
+            );
+        }
+
+        /// Incomplete data should return a fatal request decode error
+        #[tokio::test]
+        async fn test_incomplete_data_returns_fatal_request_error() {
+            let (tx, rx) = make_channel();
+            enqueue_messages(&tx, vec![b"dds".to_vec()]);
+            drop(tx);
+            let mut stream = make_command_stream(rx);
+            let cancel_token = CancellationToken::new();
+            let err = match recv_command(&mut stream, &cancel_token).await {
+                Ok(_) => panic!("expected decode failure"),
+                Err(err) => err,
+            };
+            assert!(
+                err.downcast_ref::<FatalRequestError>().is_some(),
+                "Incomplete data should return FatalRequestError in chain, got: {:?}",
+                err,
+            );
+        }
+
+        /// Invalid protocol (bad header) should return a fatal request decode error
+        #[tokio::test]
+        async fn test_invalid_header_returns_io_error() {
+            let mut invalid = Vec::new();
+            invalid.extend_from_slice(b"bad\0");
+            invalid.extend_from_slice(&10u32.to_le_bytes());
+            invalid.extend_from_slice(b"0123456789");
+
+            let (tx, rx) = make_channel();
+            enqueue_messages(&tx, vec![invalid]);
+            drop(tx);
+            let mut stream = make_command_stream(rx);
+            let cancel_token = CancellationToken::new();
+            let err = match recv_command(&mut stream, &cancel_token).await {
+                Ok(_) => panic!("expected invalid header error"),
+                Err(err) => err,
+            };
+            assert!(
+                err.is::<FatalRequestError>(),
+                "Should be a FatalRequestError, got: {:?}",
+                err
+            );
+        }
+
+        /// Cancellation should return CleanShutdown (treated same as clean close)
+        #[tokio::test]
+        async fn test_cancellation_returns_clean_shutdown() {
+            let (_tx, rx) = make_channel();
+            let mut stream = make_command_stream(rx);
+            let cancel_token = CancellationToken::new();
+
+            cancel_token.cancel();
+
+            // _tx stays alive so only the cancel branch is immediately ready in select!
+            let err = match recv_command(&mut stream, &cancel_token).await {
+                Ok(_) => panic!("expected cancellation as clean shutdown"),
+                Err(err) => err,
+            };
+            assert!(
+                err.is::<CleanShutdown>(),
+                "Cancellation should return CleanShutdown, got: {:?}",
+                err
+            );
+        }
+    }
+}

@@ -1,0 +1,430 @@
+<?php
+
+namespace DDTrace\Integrations\Kafka;
+
+use DDTrace\HookData;
+use DDTrace\Integrations\Integration;
+use DDTrace\SpanKind;
+use DDTrace\SpanLink;
+use DDTrace\Tag;
+use DDTrace\Type;
+use DDTrace\Util\ObjectKVStore;
+
+class KafkaIntegration extends Integration
+{
+    const NAME = 'kafka';
+
+    // Header carrying the Data Streams Monitoring pathway context.
+    const DSM_CONTEXT_HEADER = 'dd-pathway-ctx-base64';
+
+    // How long a producer that has not had its brokers' first answer waits for it, for the
+    // cluster id, when no process has shared one for its bootstrap servers. Only its first
+    // produce waits.
+    const DSM_CLUSTER_ID_WAIT_MS = 100;
+
+    // Set while the integration installs its own callback on a Conf, so that the hooks on the
+    // setters do not wrap it a second time.
+    private static $installingDataStreamsCallback = false;
+
+    const METADATA_MAPPING = [
+        'metadata.broker.list' => Tag::KAFKA_HOST_LIST,
+        'group.id' => Tag::KAFKA_GROUP_ID,
+        'client.id' => Tag::KAFKA_CLIENT_ID
+    ];
+
+    public static function init(): int
+    {
+        if (strtok(phpversion('rdkafka'), '.') < 6) {
+            return Integration::NOT_LOADED;
+        }
+
+        self::installProducerTopicHooks();
+        self::installConsumerHooks();
+        self::installConfigurationHooks();
+        self::installDataStreamsCallbackHooks();
+
+        return Integration::LOADED;
+    }
+
+    private static function installProducerTopicHooks()
+    {
+        \DDTrace\install_hook(
+            'RdKafka\ProducerTopic::producev',
+            static function (HookData $hook) {
+                /** @var \RdKafka\ProducerTopic $this */
+                KafkaIntegration::setupKafkaProduceSpan($hook, $hook->instance);
+            }
+        );
+    }
+
+    public static function setupKafkaProduceSpan(HookData $hook, \RdKafka\ProducerTopic $producerTopic)
+    {
+        $span = $hook->span();
+        self::setupCommonSpanMetadata($span, Tag::KAFKA_PRODUCE, SpanKind::PRODUCER, Tag::MQ_OPERATION_SEND);
+
+        $span->attributes[Tag::MQ_DESTINATION] = $producerTopic->getName();
+        $span->attributes[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
+
+        $conf = ObjectKVStore::get($producerTopic, 'conf');
+        self::addProducerSpanMetadata($span, $conf, $hook->args);
+
+        $headers = [];
+        $inject = \dd_trace_env_config('DD_DISTRIBUTED_TRACING');
+        if ($inject) {
+            $headers = \DDTrace\generate_distributed_tracing_headers();
+        }
+        $context = self::setDataStreamsProduceCheckpoint($producerTopic, $hook->args, $headers);
+        if ($context !== null) {
+            $headers[self::DSM_CONTEXT_HEADER] = $context;
+            $inject = true;
+        }
+        if ($inject) {
+            $hook->args = self::injectHeadersIntoArgs($hook->args, $headers);
+            $hook->overrideArguments($hook->args);
+        }
+    }
+
+    /**
+     * @return string|null the pathway context to send with the message, or null when DSM is off
+     */
+    public static function setDataStreamsProduceCheckpoint(\RdKafka\ProducerTopic $producerTopic, array $args, array $headers)
+    {
+        if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+            return null;
+        }
+
+        // The message as it is sent, but for the context header the checkpoint computes.
+        $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
+            + self::headersSize(array_merge($args[4] ?? [], $headers));
+        $producer = ObjectKVStore::get($producerTopic, 'kafka');
+        // Waiting on every produce would hold up all of them for as long as the brokers do not
+        // answer, so a producer waits once.
+        $waitMs = 0;
+        if ($producer && !ObjectKVStore::get($producer, 'dsm_cluster_id_waited', false)) {
+            ObjectKVStore::put($producer, 'dsm_cluster_id_waited', true);
+            $waitMs = self::DSM_CLUSTER_ID_WAIT_MS;
+        }
+        return \DDTrace\Internal\dsm_set_checkpoint(array_merge([
+            'direction:out',
+            'topic:' . $producerTopic->getName(),
+            'type:kafka',
+        ], self::clusterIdTags($producer, $waitMs)), null, $payloadSize);
+    }
+
+    public static function addProducerSpanMetadata($span, $conf, $args)
+    {
+        self::addMetadataToSpan($span, $conf);
+        $span->attributes[Tag::KAFKA_PARTITION] = $args[0];
+        $span->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($args[2]);
+        if (isset($args[3])) {
+            $span->attributes[Tag::KAFKA_MESSAGE_KEY] = $args[3];
+        }
+    }
+
+    private static function injectHeadersIntoArgs(array $args, array $headers): array
+    {
+        // public RdKafka\ProducerTopic::producev (
+        //      integer $partition ,
+        //      integer $msgflags ,
+        //      string $payload [,
+        //      string $key = NULL [,
+        //      array $headers = NULL [,
+        //      integer $timestamp_ms = NULL [,
+        //      string $opaque = NULL
+        // ]]]] ) : void
+        $argsCount = count($args);
+        if ($argsCount >= 5) {
+            $args[4] = array_merge($args[4] ?? [], $headers);
+        } elseif ($argsCount === 4) {
+            $args[] = $headers;
+        } elseif ($argsCount === 3) {
+            $args[] = null;  // $key
+            $args[] = $headers;
+        }
+        return $args;
+    }
+
+    private static function installConsumerHooks()
+    {
+        $consumerMethods = [
+            'RdKafka\KafkaConsumer::consume',
+            'RdKafka\Queue::consume'
+        ];
+
+        foreach ($consumerMethods as $method) {
+            \DDTrace\install_hook(
+                $method,
+                static function (HookData $hook) {
+                    $hook->data['start'] = microtime(true);
+                },
+                static function (HookData $hook) {
+                    /** @var \RdKafka\Message $message */
+                    $message = $hook->returned;
+
+                    if ($message) {
+                        if ($message->headers && $link = SpanLink::fromHeaders($message->headers)) {
+                            if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
+                                $span = \DDTrace\start_trace_span($hook->data['start']);
+                                \DDTrace\consume_distributed_tracing_headers($message->headers);
+                            } else {
+                                $span = \DDTrace\start_span($hook->data['start']);
+                                $span->links[] = $link;
+                            }
+                        } else {
+                            $span = \DDTrace\start_span($hook->data['start']);
+                        }
+
+                        $span->attributes[Tag::MQ_DESTINATION] = $message->topic_name;
+                        $span->attributes[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
+                        $span->attributes[Tag::KAFKA_PARTITION] = $message->partition;
+                        $span->attributes[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
+                        $span->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload ?? '');
+                    } else {
+                        $span = \DDTrace\start_span($hook->data['start']);
+                    }
+
+                    if (!$message || $message->payload === null || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+                        $span->attributes[Tag::KAFKA_TOMBSTONE] = true;
+                    }
+
+                    $hook->data['span'] = $span;
+                    KafkaIntegration::setupKafkaConsumeSpan($hook, $hook->instance);
+                    if ($message) {
+                        KafkaIntegration::setDataStreamsConsumeCheckpoint($message, $hook->instance);
+                    }
+                    \DDTrace\collect_code_origins(1);
+                    \DDTrace\close_span();
+                }
+            );
+        }
+    }
+
+    public static function setupKafkaConsumeSpan(HookData $hook, $consumer)
+    {
+        $span = $hook->data['span'];
+        self::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, SpanKind::CONSUMER, Tag::MQ_OPERATION_RECEIVE);
+
+        $conf = ObjectKVStore::get($consumer, 'conf');
+        self::addMetadataToSpan($span, $conf);
+    }
+
+    public static function setDataStreamsConsumeCheckpoint(\RdKafka\Message $message, $consumer)
+    {
+        if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED') || $message->err !== RD_KAFKA_RESP_ERR_NO_ERROR) {
+            return;
+        }
+
+        $edgeTags = ['direction:in'];
+        $conf = ObjectKVStore::get($consumer, 'conf');
+        if (isset($conf['group.id'])) {
+            $edgeTags[] = 'group:' . $conf['group.id'];
+        }
+        $edgeTags[] = 'topic:' . $message->topic_name;
+        $edgeTags[] = 'type:kafka';
+        $kafka = $consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : $consumer;
+        $edgeTags = array_merge($edgeTags, self::clusterIdTags($kafka));
+
+        \DDTrace\Internal\dsm_set_checkpoint(
+            $edgeTags,
+            $message->headers[self::DSM_CONTEXT_HEADER] ?? null,
+            strlen($message->payload ?? '') + strlen($message->key ?? '') + self::headersSize($message->headers ?? [])
+        );
+    }
+
+    // Bytes of the headers' names and values, as the Java tracer counts them.
+    private static function headersSize($headers): int
+    {
+        $size = 0;
+        foreach ((array) $headers as $name => $value) {
+            $size += strlen((string) $name) + strlen((string) $value);
+        }
+        return $size;
+    }
+
+    /**
+     * librdkafka reports the offset a message was produced at only to a delivery report
+     * callback, and the offsets a consumer group commits - automatically or not - only to an
+     * offset commit callback. The integration wraps the application's callbacks, and installs
+     * its own where there are none, to record these as Data Streams Monitoring backlogs.
+     *
+     * Known limit: this happens only if DSM is on when the Conf is set up. When Remote Config
+     * turns DSM on later, checkpoints work at once, but clients created before that have no
+     * backlog offsets until they are recreated.
+     */
+    private static function installDataStreamsCallbackHooks()
+    {
+        $wrapCallback = static function ($wrap) {
+            return static function (HookData $hook) use ($wrap) {
+                if (KafkaIntegration::$installingDataStreamsCallback
+                        || !\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
+                        || !isset($hook->args[0])) {
+                    return;
+                }
+                ObjectKVStore::put($hook->instance, $wrap, true);
+                $hook->args[0] = KafkaIntegration::$wrap($hook->args[0]);
+                $hook->overrideArguments($hook->args);
+            };
+        };
+        \DDTrace\install_hook('RdKafka\Conf::setDrMsgCb', $wrapCallback('trackProduceOffsets'));
+        \DDTrace\install_hook('RdKafka\Conf::setOffsetCommitCb', $wrapCallback('trackCommitOffsets'));
+    }
+
+    /**
+     * Give `$conf` the integration's own `$wrap` callback, unless the application has set one,
+     * which is already wrapped.
+     */
+    public static function installDataStreamsCallback($conf, string $setter, string $wrap)
+    {
+        if (!$conf instanceof \RdKafka\Conf
+                || !\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
+                || ObjectKVStore::get($conf, $wrap, false)) {
+            return;
+        }
+        ObjectKVStore::put($conf, $wrap, true);
+        self::$installingDataStreamsCallback = true;
+        try {
+            $conf->$setter(self::$wrap(null));
+        } finally {
+            self::$installingDataStreamsCallback = false;
+        }
+    }
+
+    /** A delivery report callback recording produce offsets, then calling `$callback`. */
+    public static function trackProduceOffsets($callback)
+    {
+        return static function ($kafka = null, $message = null) use ($callback) {
+            if ($message instanceof \RdKafka\Message && $message->err === RD_KAFKA_RESP_ERR_NO_ERROR) {
+                try {
+                    \DDTrace\Internal\dsm_track_backlog(array_merge([
+                        'topic:' . $message->topic_name,
+                        'type:kafka_produce',
+                        'partition:' . $message->partition,
+                    ], self::clusterIdTags($kafka)), $message->offset);
+                } catch (\Throwable $e) {
+                }
+            }
+            if ($callback !== null) {
+                return $callback($kafka, $message);
+            }
+        };
+    }
+
+    /** An offset commit callback recording committed offsets, then calling `$callback`. */
+    public static function trackCommitOffsets($callback)
+    {
+        return static function ($kafka = null, $err = null, $partitions = null) use ($callback) {
+            if ($err === RD_KAFKA_RESP_ERR_NO_ERROR && is_array($partitions)) {
+                try {
+                    $conf = $kafka ? ObjectKVStore::get($kafka, 'conf') : null;
+                    $group = 'consumer_group:' . ($conf['group.id'] ?? '');
+                    $cluster = self::clusterIdTags($kafka);
+                    foreach ($partitions as $partition) {
+                        if (!$partition instanceof \RdKafka\TopicPartition
+                                || (method_exists($partition, 'getErr') && $partition->getErr())) {
+                            continue;
+                        }
+                        \DDTrace\Internal\dsm_track_backlog(array_merge([
+                            'topic:' . $partition->getTopic(),
+                            'type:kafka_commit',
+                            $group,
+                            'partition:' . $partition->getPartition(),
+                        ], $cluster), $partition->getOffset());
+                    }
+                } catch (\Throwable $e) {
+                }
+            }
+            if ($callback !== null) {
+                return $callback($kafka, $err, $partitions);
+            }
+        };
+    }
+
+    /**
+     * The tag naming the cluster `$kafka` is connected to. librdkafka has its id from the client's
+     * last metadata response, and delivery reports, commits and consumed messages only come after
+     * one. A producer too new to have had one gets the id another client with the same bootstrap
+     * servers read, in this process or another one of the sidecar's, or waits up to `$waitMs` for
+     * its own. Anything but a client has none: kafka_cluster_id() would throw, losing the
+     * checkpoint or backlog with it.
+     */
+    private static function clusterIdTags($kafka, int $waitMs = 0): array
+    {
+        if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
+            return [];
+        }
+        $conf = ObjectKVStore::get($kafka, 'conf');
+        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null, $waitMs);
+        return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
+    }
+
+    private static function addMetadataToSpan($span, $conf)
+    {
+        foreach (self::METADATA_MAPPING as $configKey => $tagKey) {
+            if (isset($conf[$configKey])) {
+                $span->attributes[$tagKey] = $conf[$configKey];
+            }
+        }
+    }
+
+    public static function setupCommonSpanMetadata($span, string $name, int $spanKind, string $operation)
+    {
+        $span->name = $name;
+        $span->type = Type::QUEUE;
+        $span->spanKind = $spanKind;
+        $span->component = self::NAME;
+        $span->attributes[Tag::MQ_SYSTEM] = self::NAME;
+        $span->attributes[Tag::MQ_OPERATION] = $operation;
+    }
+
+    private static function installConfigurationHooks()
+    {
+        $configurationHooks = [
+            'RdKafka\KafkaConsumer' => ['__construct'],
+            'RdKafka\Producer' => ['__construct', 'newTopic'],
+            'RdKafka\Consumer' => ['__construct', 'newQueue']
+        ];
+
+        foreach ($configurationHooks as $class => $methods) {
+            foreach ($methods as $method) {
+                self::installConfigurationHook($class, $method);
+            }
+        }
+    }
+
+    private static function installConfigurationHook(string $class, string $method)
+    {
+        \DDTrace\install_hook(
+            "$class::$method",
+            static function (HookData $hook) use ($class, $method) {
+                if ($method === '__construct') {
+                    $conf = $hook->args[0] ?? null;
+                    // A Producer or Consumer constructed without a Conf gets librdkafka's
+                    // defaults, which an empty Conf has too. Pass one, for the integration to
+                    // read and to put its callbacks on. A KafkaConsumer requires a Conf: passing
+                    // one would replace the error about the missing Conf with one about group.id.
+                    if ($conf === null && $class !== 'RdKafka\KafkaConsumer') {
+                        $conf = new \RdKafka\Conf();
+                        $hook->overrideArguments([$conf]);
+                    }
+                    ObjectKVStore::put($hook->instance, 'conf', $conf->dump());
+                    // The constructor copies the Conf, so callbacks must be on it beforehand. A
+                    // low-level Consumer gets none of its own: it serves commit results only
+                    // when the application polls it, which it need not do.
+                    if ($class === 'RdKafka\Producer') {
+                        KafkaIntegration::installDataStreamsCallback($conf, 'setDrMsgCb', 'trackProduceOffsets');
+                    } elseif ($class === 'RdKafka\KafkaConsumer') {
+                        KafkaIntegration::installDataStreamsCallback($conf, 'setOffsetCommitCb', 'trackCommitOffsets');
+                    }
+                }
+            },
+            static function (HookData $hook) use ($method) {
+                if (in_array($method, ['newTopic', 'newQueue'])) {
+                    $conf = ObjectKVStore::get($hook->instance, 'conf');
+                    ObjectKVStore::put($hook->returned, 'conf', $conf);
+                    // The client, for its cluster id
+                    ObjectKVStore::put($hook->returned, 'kafka', $hook->instance);
+                }
+            }
+        );
+    }
+}

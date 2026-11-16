@@ -3,6 +3,7 @@ TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 DOCKER_IMAGE_VERSION := 2
+CENTOS_DOCKER_IMAGE_VERSION := 3
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
@@ -11,47 +12,54 @@ VERSIONS := *
 PLATFORMS := *
 ARCHITECTURE := $(shell uname -m)
 
-publish: publish.centos7 publish.buster
+publish: publish.centos publish.buster
 
-pull: pull.centos7 pull.buster
+pull: pull.centos pull.buster
 
-publish.centos7: \
-	publish.centos7.7.0 \
-	publish.centos7.7.1 \
-	publish.centos7.7.2 \
-	publish.centos7.7.3 \
-	publish.centos7.7.4 \
-	publish.centos7.8.0 \
-	publish.centos7.8.1 \
-	publish.centos7.8.2
+publish.centos: \
+	publish.centos.7.0 \
+	publish.centos.7.1 \
+	publish.centos.7.2 \
+	publish.centos.7.3 \
+	publish.centos.7.4 \
+	publish.centos.8.0 \
+	publish.centos.8.1 \
+	publish.centos.8.2 \
+	publish.centos.8.3
 
 publish.buster: \
 	publish.buster.7.4 \
 	publish.buster.8.0 \
 	publish.buster.8.1 \
-	publish.buster.8.2
+	publish.buster.8.2 \
+	publish.buster.8.3
 
-publish.centos7.%: build.centos7.%
-	docker buildx bake --push php-$(*)
+publish.centos.%:
+	docker buildx bake --push centos-$(*)
 
-pull.centos7: \
-	pull.centos7.7.0 \
-	pull.centos7.7.1 \
-	pull.centos7.7.2 \
-	pull.centos7.7.3 \
-	pull.centos7.7.4 \
-	pull.centos7.8.0 \
-	pull.centos7.8.1 \
-	pull.centos7.8.2
+publish.buster.%:
+	docker buildx bake --push buster-$(*)
+
+pull.centos: \
+	pull.centos.7.0 \
+	pull.centos.7.1 \
+	pull.centos.7.2 \
+	pull.centos.7.3 \
+	pull.centos.7.4 \
+	pull.centos.8.0 \
+	pull.centos.8.1 \
+	pull.centos.8.2 \
+	pull.centos.8.3
 
 pull.buster: \
 	pull.buster.7.4 \
 	pull.buster.8.0 \
 	pull.buster.8.1 \
-	pull.buster.8.2
+	pull.buster.8.2 \
+	pull.buster.8.3
 
-pull.centos7.%:
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
+pull.centos.%:
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(CENTOS_DOCKER_IMAGE_VERSION)
 
 pull.buster.%:
 	@docker pull $(DOCKER_IMAGE_PREFIX)buster-$(*)-$(DOCKER_IMAGE_VERSION)
@@ -59,7 +67,7 @@ pull.buster.%:
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@cp ../../build/packages/dd-library-php-*-$(ARCHITECTURE)-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
+	@cp ../../dd-library-php-*-$(ARCHITECTURE)-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
 
 library.download:
 	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
@@ -89,7 +97,7 @@ scenarios_clean:
 results_folder:
 	@mkdir -p $(TMP_RESULTS_FOLDER)
 
-test: clean_results
+test: clean_results results_folder
 	@echo "Starting tests with $(CONCURRENT_JOBS) concurrent runs."
 	@make -C $(TMP_SCENARIO_FOLDER) --jobs=$(CONCURRENT_JOBS) test DURATION=$(DURATION)
 
@@ -102,4 +110,4 @@ clean:
 clean_results:
 	@rm -rf $(TMP_RESULTS_FOLDER)
 
-.PHONY: build.centos7 publish.centos7 pull.centos7
+.PHONY: publish.centos pull.centos publish.buster pull.buster

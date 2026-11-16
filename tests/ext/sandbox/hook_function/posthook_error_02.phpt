@@ -1,7 +1,8 @@
 --TEST--
 DDTrace\hook_function posthook error is sandboxed (debug)
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
 --INI--
 error_reporting=E_ALL
 --FILE--
@@ -26,5 +27,5 @@ greet('Datadog');
 --EXPECTF--
 Hello, Datadog.
 greet hooked.
-%s in ddtrace's closure defined at %s:%d for greet(): Undefined variable%sthis_normally_raises_an_%s
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [warning] [%d] %s in ddtrace's closure defined at %s:%d for greet(): Undefined variable%sthis_normally_raises_an_%s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s

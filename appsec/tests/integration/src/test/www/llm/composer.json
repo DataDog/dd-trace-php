@@ -1,0 +1,8 @@
+{
+    "name": "datadog/appsec-integration-tests",
+    "type": "project",
+    "require": {
+        "openai-php/client": "*",
+        "guzzlehttp/guzzle": "*"
+    }
+}

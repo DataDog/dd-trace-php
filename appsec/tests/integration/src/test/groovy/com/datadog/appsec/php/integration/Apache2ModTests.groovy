@@ -1,0 +1,76 @@
+package com.datadog.appsec.php.integration
+
+import com.datadog.appsec.php.docker.AppSecContainer
+import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
+import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.model.Trace
+import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.condition.DisabledIf
+import org.junit.jupiter.api.Test
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
+
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+
+import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
+import static com.datadog.appsec.php.integration.TestParams.getTracerVersion
+import static com.datadog.appsec.php.integration.TestParams.getVariant
+import static java.net.http.HttpResponse.BodyHandlers.ofString
+import static org.testcontainers.containers.Container.ExecResult
+
+@Testcontainers
+@Slf4j
+@Tag('zts-musl')
+class Apache2ModTests implements CommonTests {
+    static boolean zts = variant.contains('zts')
+
+    @Container
+    @FailOnUnmatchedTraces
+    public static final AppSecContainer CONTAINER =
+            new AppSecContainer(
+                    workVolume: this.name,
+                    baseTag: 'apache2-mod-php',
+                    phpVersion: phpVersion,
+                    phpVariant: variant,
+                    www: 'base',
+            )
+
+    static void main(String[] args) {
+        InspectContainerHelper.run(CONTAINER)
+    }
+
+    @Test
+    void 'trace without attack after soft restart'() {
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> it ->
+            assert it.body().text == 'Hello world!'
+        }
+        assert trace.first().metrics."_dd.appsec.enabled" == 1.0d
+
+        List<String> reloadCommand = variant.contains('musl') ?
+                ['httpd', '-k', 'graceful'] :
+                ['service', 'apache2', 'reload']
+        ExecResult res = CONTAINER.execInContainer(*reloadCommand)
+        if (res.exitCode != 0) {
+            throw new AssertionError("Failed reloading apache2: $res.stderr")
+        }
+        log.info "Result of restart: STDOUT: $res.stdout , STDERR: $res.stderr"
+
+        trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> it ->
+            assert it.body().text == 'Hello world!'
+        }
+        assert trace.first().metrics."_dd.appsec.enabled" == 1.0d
+    }
+
+    @Test
+    void 'test authorization header'() {
+        //This test is only on Apache2mod because it requires to configure webserver to pass down authorization headers
+        HttpRequest req = container.buildReq('/phpinfo.php')
+                .header('Authorization', 'digest 1234567890').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
+    }
+}

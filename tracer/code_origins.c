@@ -1,0 +1,104 @@
+#include "code_origins.h"
+#include "configuration.h"
+#include "zend_generators.h"
+#include <Zend/zend_API.h>
+
+static inline bool dd_is_dir_sep(const char c) {
+#ifdef _WIN32
+    return c == '/' || c == '\\';
+#else
+    return c == '/';
+#endif
+}
+
+void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frames) {
+    zend_array *attributes = ddtrace_property_array(&span->property_attributes);
+
+    zend_long max_frames = get_DD_CODE_ORIGIN_MAX_USER_FRAMES();
+    int current_frame = 0, collected_frames = 0;
+    for (zend_execute_data *execute_data = EG(current_execute_data); execute_data && collected_frames < max_frames; execute_data = EX(prev_execute_data)) {
+        if (UNEXPECTED(!EX(func))) {
+            execute_data = zend_generator_check_placeholder_frame(execute_data);
+        }
+        if (!EX(func)) {
+            continue;
+        }
+
+        if (skip_frames > 0) {
+            --skip_frames;
+            continue;
+        }
+
+        if (!ZEND_USER_CODE(EX(func)->type) || !EX(func)->op_array.filename) {
+            ++current_frame;
+            continue;
+        }
+
+        // Heuristically exclude code outside of the git repository, essentially
+        const char *vendor = zend_memnistr(ZSTR_VAL(EX(func)->op_array.filename), ZEND_STRL("vendor"), ZSTR_VAL(EX(func)->op_array.filename) + ZSTR_LEN(EX(func)->op_array.filename));
+        if (vendor && dd_is_dir_sep(vendor[-1]) && dd_is_dir_sep(vendor[6])) {
+            ++current_frame;
+            continue;
+        }
+
+        if (collected_frames == 0) {
+            zval type;
+            zend_long kind = zval_get_long(&span->property_span_kind);
+            ZVAL_STRING(&type, (kind ? kind == DDTRACE_SPAN_KIND_SERVER || kind == DDTRACE_SPAN_KIND_PRODUCER : &span->root->span == span) ? "entry" : "exit");
+            if (!zend_hash_str_add(attributes, ZEND_STRL("_dd.code_origin.type"), &type)) {
+                zend_string_release(Z_STR(type));
+                return; // skip if already present
+            }
+        }
+
+        zval zv;
+        zend_string *key;
+
+        key = zend_strpprintf(0, "_dd.code_origin.frames.%d.file", current_frame);
+        ZVAL_STR_COPY(&zv, EX(func)->op_array.filename);
+        zend_hash_update(attributes, key, &zv);
+        zend_string_release(key);
+
+        key = zend_strpprintf(0, "_dd.code_origin.frames.%d.line", current_frame);
+        ZVAL_LONG(&zv, current_frame == 0 ? EX(func)->op_array.line_start : EX(opline)->lineno);
+        zend_hash_update(attributes, key, &zv);
+        zend_string_release(key);
+
+        if (EX(func)->op_array.function_name) {
+            key = zend_strpprintf(0, "_dd.code_origin.frames.%d.method", current_frame);
+            ZVAL_STR_COPY(&zv, EX(func)->op_array.function_name);
+            zend_hash_update(attributes, key, &zv);
+            zend_string_release(key);
+        }
+
+        if (EX(func)->op_array.scope) {
+            key = zend_strpprintf(0, "_dd.code_origin.frames.%d.type", current_frame);
+            ZVAL_STR_COPY(&zv, EX(func)->op_array.scope->name);
+            zend_hash_update(attributes, key, &zv);
+            zend_string_release(key);
+        }
+
+        ++collected_frames;
+        ++current_frame;
+    }
+}
+
+void ddtrace_maybe_add_code_origin_information(ddtrace_span_data *span, int skip_frames) {
+    if (get_DD_CODE_ORIGIN_FOR_SPANS_ENABLED()) {
+        zval *type = &span->property_type;
+        ZVAL_DEREF(type);
+        if (Z_TYPE_P(type) == IS_STRING && Z_STRLEN_P(type) != 0) {
+            // If it's identical, we don't add it to the child so that only the parent span will be added the code origin information
+            if (span->parent && zend_is_identical(type, &span->parent->property_type)) {
+                zend_long kind = zval_get_long(&span->property_span_kind);
+                zend_long parent_kind = zval_get_long(&span->parent->property_span_kind);
+                // span.kind must match, otherwise websocket has false positives for example, where both entry and exit span have type websocket
+                if (!kind || !parent_kind || kind == parent_kind) {
+                    return;
+                }
+            }
+
+            ddtrace_add_code_origin_information(span, skip_frames);
+        }
+    }
+}

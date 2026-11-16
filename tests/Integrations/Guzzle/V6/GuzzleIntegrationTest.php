@@ -2,12 +2,15 @@
 
 namespace DDTrace\Tests\Integrations\Guzzle\V6;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tests\Common\SnapshotTestTrait;
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tracer;
 use DDTrace\Tag;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -17,12 +20,13 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
-    const URL = 'http://httpbin_integration';
+    use SnapshotTestTrait;
+
+    const URL = 'http://' . HTTPBIN_INTEGRATION . '';
 
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        IntegrationsLoader::load();
     }
 
     protected function getMockedClient(array $responseStack = null)
@@ -37,12 +41,16 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         return new Client();
     }
 
-    protected function ddTearDown()
+    protected function envsToCleanUpAtTearDown()
     {
-        parent::ddTearDown();
-        self::putenv('DD_DISTRIBUTED_TRACING');
-        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
-        self::putenv('DD_DISTRIBUTED_TRACING');
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_DISTRIBUTED_TRACING',
+            'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+            'DD_CODE_ORIGIN_MAX_USER_FRAMES',
+        ];
     }
 
     /**
@@ -55,13 +63,14 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
                 ]),
         ]);
     }
@@ -81,28 +90,79 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testSend()
     {
-        $traces = $this->isolateTracer(function () {
+        self::putenv('DD_CODE_ORIGIN_MAX_USER_FRAMES=1');
+        $traces = $this->isolateTracer(function () use (&$line) {
             $request = new Request('put', 'http://example.com');
+            $line = __LINE__ + 1;
             $this->getMockedClient()->send($request);
         });
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
+                    // Note that the leaf span is guzzle, not the curl inside
+                    '_dd.code_origin.frames.1.file' => '%s/GuzzleIntegrationTest.php',
+                    '_dd.code_origin.frames.1.line' => $line,
+                    '_dd.code_origin.frames.1.method' => '%s}', // closure format differs on PHP versions
+                    '_dd.code_origin.frames.1.type' => 'DDTrace\Tests\Integrations\Guzzle\%s\GuzzleIntegrationTest',
+                    '_dd.code_origin.type' => 'exit',
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
-                        ->setTraceAnalyticsCandidate()
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'PUT',
                             'http.url' => 'http://example.com',
+                            'network.destination.name' => 'example.com',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
-                            Tag::COMPONENT => 'guzzle'
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
+                        ]),
+                ])
+        ]);
+    }
+
+    public function testSendHttpErrorException()
+    {
+        $traces = $this->isolateTracer(function () {
+            $request = new Request('put', 'http://example.com');
+            try {
+                // HandlerStack::create() adds the http_errors middleware turning the 404 into a ClientException
+                $client = new Client(['handler' => HandlerStack::create(new MockHandler([new Response(404)]))]);
+                $client->send($request);
+                $this->fail('Expected a ClientException');
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+            }
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+                ->setError('GuzzleHttp\Exception\ClientException', '404 Not Found', true)
+                ->withExactAttributes([
+                    'http.method' => 'PUT',
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '404',
+                    'network.destination.name' => 'example.com',
+                    TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
+                ])
+                ->withChildren([
+                    SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                        ->setError('http_error', 'HTTP 404: Not Found')
+                        ->withExactAttributes([
+                            'http.method' => 'PUT',
+                            'http.url' => 'http://example.com',
+                            'network.destination.name' => 'example.com',
+                            'http.status_code' => '404',
+                            TAG::SPAN_KIND => 'client',
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
                         ]),
                 ])
         ]);
@@ -115,13 +175,14 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
                 ]),
         ]);
     }
@@ -134,13 +195,14 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
                 ]),
         ]);
     }
@@ -167,11 +229,11 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        self::assertSame($traces[0][0]['trace_id'], $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame(SpanChecker::traceIdLow($traces[0]), $found['headers']['X-Datadog-Trace-Id']);
 
         // parent is: curl_exec, used under the hood
         $curl_exec = null;
-        foreach ($traces[0] as $span) {
+        foreach ($traces[0]['spans'] as $span) {
             if ($span['name'] === 'curl_exec') {
                 $curl_exec = $span;
                 break;
@@ -216,13 +278,16 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             function ($execute) use (&$found) {
                 $found = json_decode($execute(GetSpec::create(
                     __FUNCTION__,
-                    '/guzzle_in_distributed_web_request.php',
+                    '/guzzle_in_distributed_web_request.php?version=' . basename(dirname(str_replace("\\", "/", static::class))),
                     [
                     'x-datadog-sampling-priority: ' . PrioritySampling::AUTO_KEEP,
                     ]
                 )), 1);
             },
-            __DIR__ . '/guzzle_in_distributed_web_request.php'
+            __DIR__ . '/guzzle_in_distributed_web_request.php',
+            [],
+            // keep the response JSON: guzzlehttp/promises' Is class is a deprecated class name on 8.6+
+            ['display_errors' => '0']
         );
 
         $this->assertOneSpan(
@@ -234,26 +299,19 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             ])
         );
 
+        $this->assertCount(2, $found);
         foreach ($found as $data) {
-            /*
-             * Ideally the distributed traces for curl multi would be children
-             * of the GuzzleHttp\Client.transfer span, but we do not currently
-             * support this concurrency model so the parent span of curl multi
-             * distributed traces will be whichever span resolves the promise.
-             * In this particular case it is the root span that is active when
-             * $curl->tick() is called.
-             */
-            $rootSpan = $traces[0][0];
+            self::assertContains($data['headers']['X-Datadog-Parent-Id'], array_map(function($span) {
+                return $span['span_id'];
+            }, array_filter($traces[0]['spans'], function($span) {
+                return $span['name'] === 'curl_exec';
+            })));
             self::assertSame(
-                $rootSpan['span_id'],
-                $data['headers']['X-Datadog-Parent-Id']
-            );
-            self::assertSame(
-                $rootSpan['trace_id'],
+                SpanChecker::traceIdLow($traces[0]),
                 $data['headers']['X-Datadog-Trace-Id']
             );
             self::assertSame(
-                (float) $rootSpan['metrics']['_sampling_priority_v1'],
+                (float) $traces[0]['priority'],
                 (float) $data['headers']['X-Datadog-Sampling-Priority']
             );
             self::assertSame('preserved_value', $data['headers']['Honored']);
@@ -283,13 +341,14 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'host-example.com', 'http', 'transfer')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ]),
         ]);
     }
@@ -316,9 +375,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        self::assertSame($traces[0][0]['trace_id'], $found['headers']['X-Datadog-Trace-Id']);
-        self::assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
-        self::assertEquals(1, sizeof($traces[0]));
+        self::assertSame(SpanChecker::traceIdLow($traces[0]), $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0]['spans'][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
+        self::assertEquals(1, sizeof($traces[0]['spans']));
 
         self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
@@ -334,13 +393,14 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'host-example.com', 'http', 'transfer')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ]),
         ]);
     }
@@ -354,13 +414,14 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'host-example.com', 'http', 'transfer')
-                ->setTraceAnalyticsCandidate()
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ]),
         ]);
     }
@@ -369,27 +430,30 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     {
         $traces = $this->inWebServer(
             function ($execute) {
-                $execute(GetSpec::create('GET', '/guzzle_in_web_request.php'));
+                $execute(GetSpec::create('GET', '/guzzle_in_web_request.php?version=' . basename(dirname(str_replace("\\", "/", static::class)))));
             },
             __DIR__ . '/guzzle_in_web_request.php',
             [
                 'DD_SERVICE' => 'top_level_app',
                 'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withExistingAttributeNames(['http.method', 'http.url', 'http.status_code', 'span.kind', 'component'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                        ->setTraceAnalyticsCandidate()
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             TAG::SPAN_KIND => 'client',
-                            Tag::COMPONENT => 'guzzle'
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('GuzzleHttp\Client.transfer')
@@ -398,6 +462,144 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                                 ]),
                         ]),
                 ]),
+        ]);
+    }
+
+    public function testPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $request = new Request('put', 'http://example.com');
+            $this->getMockedClient()->send($request);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+                ->withExactAttributes([
+                    'http.method' => 'PUT',
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
+                    TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
+                ])
+                ->withChildren([
+                    SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                        ->withExactAttributes([
+                            'http.method' => 'PUT',
+                            'http.url' => 'http://example.com',
+                            'network.destination.name' => 'example.com',
+                            'http.status_code' => '200',
+                            TAG::SPAN_KIND => 'client',
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
+                            'peer.service' => 'example.com',
+                            'peer.service' => 'example.com',
+                            '_dd.peer.service.source' => 'network.destination.name',
+                        ]),
+                ])
+        ]);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://example.com');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'configured_service', 'http', 'transfer')
+                ->withExactAttributes([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
+                    TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle',
+                ]),
+        ]);
+    }
+
+    public function testMultiExec()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true',
+            'DD_SERVICE=my-shop',
+            'DD_TRACE_GENERATE_ROOT_SPAN=0'
+        ]);
+        \dd_trace_serialize_closed_spans();
+
+        $this->isolateTracerSnapshot(function () {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+
+            $client = $this->getRealClient();
+            try {
+                $promises = [
+                    $client->getAsync('https://google.wrong/', ['http_errors' => false]),
+                    $client->getAsync(self::URL . '/redirect-to?url=' . self::URL . '/status/200'),
+                    $client->getAsync(self::URL . '/status/200'),
+                    $client->getAsync(self::URL . '/status/201'),
+                    $client->getAsync(self::URL . '/status/202'),
+                    $client->getAsync('https://google.still.wrong/', ['http_errors' => false]),
+                    $client->getAsync('https://www.google.com/'),
+                    $client->getAsync('https://www.google.com/'),
+                    $client->getAsync('https://www.google.com/'),
+                ];
+                Utils::unwrap($promises);
+            } catch (\Exception $e) {
+                echo $e->getMessage();
+            }
+
+            sleep(1);
+
+            $span->finish();
+        }, [
+            'start',
+            'metrics.php.compilation.total_time_ms',
+            'metrics.php.memory.peak_usage_bytes',
+            'metrics.php.memory.peak_real_usage_bytes',
+            'meta.error.stack',
+            'meta._dd.p.tid',
+            'metrics.curl.appconnect_time_us',
+            'metrics.curl.connect_time',
+            'metrics.curl.connect_time_us',
+            'metrics.curl.download_content_length',
+            'metrics.curl.filetime',
+            'metrics.curl.header_size',
+            'metrics.curl.http_version',
+            'metrics.curl.namelookup_time',
+            'metrics.curl.namelookup_time_us',
+            'metrics.curl.pretransfer_time',
+            'metrics.curl.pretransfer_time_us',
+            'metrics.curl.protocol',
+            'metrics.curl.redirect_time',
+            'metrics.curl.redirect_time_us',
+            'metrics.curl.request_size',
+            'meta.curl.scheme',
+            'metrics.curl.speed_download',
+            'metrics.curl.speed_upload',
+            'metrics.curl.ssl_verifyresult',
+            'metrics.curl.starttransfer_time',
+            'metrics.curl.starttransfer_time_us',
+            'metrics.curl.total_time',
+            'metrics.curl.total_time_us',
+            'metrics.curl.upload_content_length',
+            'metrics.network.bytes_read',
+            'metrics.network.bytes_written',
+            'meta.network.client.ip',
+            'metrics.network.client.port',
+            'meta.network.destination.ip',
+            'metrics.network.destination.port',
+            'meta._dd.base_service',
         ]);
     }
 }

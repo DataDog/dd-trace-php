@@ -8,28 +8,37 @@ class Tag
     const ENV = 'env';
     const SPAN_TYPE = 'span.type';
     const SPAN_KIND = 'span.kind';
+    const SPAN_KIND_VALUE_SERVER = 'server';
+    const SPAN_KIND_VALUE_CLIENT = 'client';
+    const SPAN_KIND_VALUE_PRODUCER = 'producer';
+    const SPAN_KIND_VALUE_CONSUMER = 'consumer';
+    const SPAN_KIND_VALUE_INTERNAL = 'internal';
     const COMPONENT = 'component';
     const SERVICE_NAME = 'service.name';
     const MANUAL_KEEP = 'manual.keep';
     const MANUAL_DROP = 'manual.drop';
     const PID = 'process_id';
     const RESOURCE_NAME = 'resource.name';
-    const DB_STATEMENT = 'sql.query';
+    const DB_STATEMENT = self::DB_STMT;
     const ERROR = 'error';
     const ERROR_MSG = 'error.message'; // string representing the error message
     const ERROR_TYPE = 'error.type'; // string representing the type of the error
     const ERROR_STACK = 'error.stack'; // human readable version of the stack
     const HTTP_METHOD = 'http.method';
+    const HTTP_ROUTE = 'http.route';
     const HTTP_STATUS_CODE = 'http.status_code';
     const HTTP_URL = 'http.url';
+    const HTTP_VERSION = 'http.version';
     const LOG_EVENT = 'event';
     const LOG_ERROR = 'error';
     const LOG_ERROR_OBJECT = 'error.object';
     const LOG_MESSAGE = 'message';
     const LOG_STACK = 'stack';
+    const NETWORK_DESTINATION_NAME = 'network.destination.name';
     const TARGET_HOST = 'out.host';
     const TARGET_PORT = 'out.port';
     const BYTES_OUT = 'net.out.bytes';
+    /** @deprecated App Analytics is deprecated; setting this metric no longer has any effect. */
     const ANALYTICS_KEY = '_dd1.sr.eausr';
     const HOSTNAME = '_dd.hostname';
     const ORIGIN = '_dd.origin';
@@ -43,8 +52,35 @@ class Tag
     const ELASTICSEARCH_URL = 'elasticsearch.url';
 
     // Database
+    const DB_NAME = 'db.name';
+    const DB_CHARSET = 'db.charset';
+    const DB_INSTANCE = 'db.instance';
+    const DB_TYPE = 'db.type';
     const DB_SYSTEM = 'db.system';
     const DB_ROW_COUNT = 'db.row_count';
+    const DB_STMT = 'sql.query';
+    const DB_USER = 'db.user';
+    const PROPAGATED_HASH = '_dd.propagated_hash';
+
+    // Kafka
+    const KAFKA_CLIENT_ID = 'messaging.kafka.client_id';
+    const KAFKA_GROUP_ID = 'messaging.kafka.group_id';
+    const KAFKA_HOST_LIST = 'messaging.kafka.bootstrap.servers';
+    const KAFKA_MESSAGE_KEY = 'messaging.kafka.message_key';
+    const KAFKA_MESSAGE_OFFSET = 'messaging.kafka.message_offset';
+    const KAFKA_PARTITION = 'messaging.kafka.partition';
+    const KAFKA_TOMBSTONE = 'messaging.kafka.tombstone';
+
+    const KAFKA_PRODUCE = 'kafka.produce';
+    const KAFKA_CONSUME = 'kafka.consume';
+
+    // Laravel Queue
+    const LARAVELQ_ATTEMPTS = 'messaging.laravel.attempts';
+    const LARAVELQ_BATCH_ID = 'messaging.laravel.batch_id';
+    const LARAVELQ_CONNECTION = 'messaging.laravel.connection';
+    const LARAVELQ_MAX_TRIES = 'messaging.laravel.max_tries';
+    const LARAVELQ_NAME = 'messaging.laravel.name';
+    const LARAVELQ_TIMEOUT = 'messaging.laravel.timeout';
 
     // MongoDB
     const MONGODB_BSON_ID = 'mongodb.bson.id';
@@ -58,4 +94,33 @@ class Tag
 
     // REDIS
     const REDIS_RAW_COMMAND = 'redis.raw_command';
+
+    // Message Queue
+    const MQ_SYSTEM = 'messaging.system';
+    const MQ_DESTINATION = 'messaging.destination';
+    const MQ_DESTINATION_KIND = 'messaging.destination_kind';
+    const MQ_TEMP_DESTINATION = 'messaging.temp_destination';
+    const MQ_PROTOCOL = 'messaging.protocol';
+    const MQ_PROTOCOL_VERSION = 'messaging.protocol_version';
+    const MQ_URL = 'messaging.url';
+    const MQ_MESSAGE_ID = 'messaging.message_id';
+    const MQ_CONVERSATION_ID = 'messaging.conversation_id';
+    const MQ_MESSAGE_PAYLOAD_SIZE = 'messaging.message_payload_size_bytes';
+    const MQ_OPERATION = 'messaging.operation';
+    const MQ_CONSUMER_ID = 'messaging.consumer_id';
+
+    const MQ_OPERATION_PROCESS = 'process';
+    const MQ_OPERATION_RECEIVE = 'receive';
+    const MQ_OPERATION_SEND = 'send';
+
+    // RabbitMQ
+    const RABBITMQ_DELIVERY_MODE = 'messaging.rabbitmq.delivery_mode';
+    const RABBITMQ_EXCHANGE = 'messaging.rabbitmq.exchange';
+    const RABBITMQ_ROUTING_KEY = 'messaging.rabbitmq.routing_key';
+
+    // Exec
+    const EXEC_CMDLINE_EXEC = 'cmd.exec';
+    const EXEC_CMDLINE_SHELL = 'cmd.shell';
+    const EXEC_TRUNCATED = 'cmd.truncated';
+    const EXEC_EXIT_CODE = 'cmd.exit_code';
 }

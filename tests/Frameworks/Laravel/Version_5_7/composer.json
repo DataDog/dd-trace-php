@@ -16,7 +16,7 @@
         "fzaninotto/faker": "^1.4",
         "mockery/mockery": "^1.0",
         "nunomaduro/collision": "^2.0",
-        "phpunit/phpunit": "^7.0"
+        "phpunit/phpunit": "<10"
     },
     "autoload": {
         "classmap": [
@@ -26,6 +26,9 @@
         "psr-4": {
             "App\\": "app/"
         }
+    },
+    "autoload-dev": {
+        "files": ["../../../Appsec/Mock.php"]
     },
     "extra": {
         "laravel": {
@@ -42,7 +45,9 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover"
+            "@php -r \"(new PDO('mysql:host=mysql-integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel57');\"",
+            "@php artisan package:discover",
+            "@php artisan migrate:fresh --force"
         ],
         "test": "phpunit --colors=always"
     },
@@ -52,6 +57,9 @@
         "optimize-autoloader": true,
         "allow-plugins": {
             "kylekatarnls/update-helper": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "minimum-stability": "dev",

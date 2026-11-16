@@ -10,9 +10,11 @@ imports:
 monolog:
     handlers:
         main:
-            type: fingers_crossed
-            action_level: error
+            type: stream
+            action_level: debug
             handler: nested
+            path: '%kernel.logs_dir%/%kernel.environment%.log'
+            channels: [ '!event' ]
         nested:
             type: stream
             path: '%kernel.logs_dir%/%kernel.environment%.log'
