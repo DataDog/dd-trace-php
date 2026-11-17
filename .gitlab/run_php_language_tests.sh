@@ -83,6 +83,28 @@ MTIME_CHECK;
     file_put_contents($phar_gzip_test, str_replace($mtime_check . "\n", '', $contents));
 }
 
+// phpinfo module diagnostics can query a live agent and change between calls.
+// This zlib regression needs stable input, not repeated extension diagnostics.
+$zlib_phpinfo_test = 'ext/zlib/tests/bug60761.phpt';
+if (is_file($zlib_phpinfo_test)) {
+    $contents = file_get_contents($zlib_phpinfo_test);
+    file_put_contents($zlib_phpinfo_test, str_replace('phpinfo();', 'phpinfo(INFO_ALL & ~INFO_MODULES);', $contents));
+}
+
+// The old fixture finds an unused PID with ps, then sends SIGKILL: another
+// parallel test may have acquired that PID in between. Linux's pid_max limit
+// is at most 2^22; INT_MAX fits pid_t but cannot name a live Linux process.
+$posix_kill_test = 'ext/posix/tests/posix_kill_basic.phpt';
+if (is_file($posix_kill_test)) {
+    $contents = file_get_contents($posix_kill_test);
+    $contents = preg_replace(
+        '/\$pid = 999;\s*do \{.*?\} while \(stripos\(\$result, \(string\)\$pid\) != FALSE\);/s',
+        '$pid = 2147483647;',
+        $contents
+    );
+    file_put_contents($posix_kill_test, $contents);
+}
+
 foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))) as $f) {
     $c = file_get_contents($f);
     $n = preg_replace(["/\)#[0-9]+ \(/", "/[0-9]+ is not a valid/"], [")#%d (", "%d is not a valid"], $c);
@@ -102,7 +124,7 @@ elif [[ ${PHP_MAJOR_MINOR} =~ ^7\.[123]$ && $(nproc) -gt 1 ]]; then
   parallelize=("${CI_PROJECT_DIR}/tooling/parallelize-run-tests.sh" "-j$(nproc)")
   # Old suites share files and ports across directories; keep them in one ordered batch.
   for suite in tests/{basic,security} sapi/cli/tests \
-      ext/standard/tests/{http,network,streams,url,file,dir} \
+      ext/standard/tests/{http,network,streams,url,file,dir,mail} \
       ext/{session,curl,openssl,sockets,opcache,soap,phar,spl}/tests; do
     while IFS= read -r -d '' dir; do
       printf 'legacy-shared\n' > "$dir/CONFLICTS"
