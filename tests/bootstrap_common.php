@@ -78,8 +78,10 @@ namespace {
             if (!$initialized) {
                 ftruncate(GLOBAL_AUTO_PREPEND_RSRC, 0);
                 fseek(GLOBAL_AUTO_PREPEND_RSRC, 0);
+                // file_get_contents/fopen would activate filesystem/RASP hooks
+                // before the application (and its AppSec mock) is initialized.
                 fwrite(GLOBAL_AUTO_PREPEND_RSRC, "<?php " . (getenv('PHPUNIT_COVERAGE') ? " require '" . __DIR__ . "/save_code_coverage.php';" : "")
-                    . " ini_set('datadog.trace.agent_test_session_token', file_get_contents(" . var_export($tokenFile, true) . "));");
+                    . " ini_set('datadog.trace.agent_test_session_token', implode('', file(" . var_export($tokenFile, true) . ")));");
                 $initialized = true;
                 register_shutdown_function(function () use ($tokenFile) {
                     @unlink($tokenFile);
