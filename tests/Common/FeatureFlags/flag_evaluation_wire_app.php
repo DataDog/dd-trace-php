@@ -116,6 +116,8 @@ $original = 'after-submission';
 // Follow the existing broken-pipe telemetry test: a normal shared-sender
 // operation notices the broken connection and replays its configuration.
 dd_trace_internal_fn('break_sidecar_connection');
+// Allow the subprocess connection cooldown to expire before reconnecting.
+sleep(10);
 dd_trace_internal_fn('stats_sidecar');
 if (!\DDTrace\Internal\record_ffe_flag_evaluation(
     'recovered', 'blue', null, $protectedKey, $protectedAttributes, null, false, false, 1700000000123

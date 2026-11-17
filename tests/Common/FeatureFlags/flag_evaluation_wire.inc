@@ -26,7 +26,7 @@ $exitedAt = null;
 $exitCode = null;
 $lastCaptureAt = 0;
 try {
-    $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10);
+    $deadline = microtime(true) + 10 + (getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10);
     do {
         $stdout .= ffeTestProcessRead($pipes[1]);
         $stderr .= ffeTestProcessRead($pipes[2]);

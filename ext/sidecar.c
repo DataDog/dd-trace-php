@@ -1232,6 +1232,7 @@ void datadog_sidecar_rshutdown(void) {
 void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
 #ifdef __linux__
     dd_sidecar_cancel_retry();
+    dd_sidecar_transport_generation = 0;
 #endif
     if (datadog_globals->sidecar) {
         datadog_sidecar_clear_reconnect_fn(&datadog_globals->sidecar);
