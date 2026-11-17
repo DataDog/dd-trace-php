@@ -1,5 +1,5 @@
 --TEST--
-APM opt-out suppresses client-side stats for kept and rejected traces
+APM opt-out suppresses client-side stats and preserves kept and rejected traces
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php
@@ -42,15 +42,37 @@ $rr = new RequestReplayer();
 // Block until the sidecar has received the agent's /info response before stats are computed
 dd_trace_internal_fn('await_agent_info');
 
-foreach ([0, 1] as $priority) {
+foreach ([0, 2] as $priority) {
     $root = \DDTrace\start_trace_span();
-    $root->name = 'apm-disabled';
+    $root->name = "apm-disabled-$priority";
     $root->service = 'stats-test-service';
-    \DDTrace\set_priority_sampling($priority);
+    if ($priority === 2) {
+        // Security events stay kept regardless of the standalone heartbeat limiter.
+        \DDTrace\Testing\emit_asm_event();
+    } else {
+        \DDTrace\set_priority_sampling($priority);
+    }
     \DDTrace\close_span();
 }
 \DDTrace\flush();
 dd_trace_internal_fn('synchronous_flush', 5000);
+
+// APM opt-out must not activate the client-side stats optimization that drops P0 traces.
+$request = $rr->waitForDataAndReplay();
+$headers = array_change_key_case($request['headers'], CASE_LOWER);
+echo "client-computed-stats: " . $headers['datadog-client-computed-stats'] . "\n";
+$payload = json_decode($request['body'], true);
+$priorities = [];
+foreach ($payload['chunks'] ?? $payload as $chunk) {
+    foreach ($chunk['spans'] ?? $chunk as $span) {
+        if ($span['service'] === 'stats-test-service') {
+            $priorities[$span['name']] = $chunk['priority'] ?? $span['metrics']['_sampling_priority_v1'];
+        }
+    }
+}
+ksort($priorities);
+foreach ($priorities as $name => $priority) echo "$name: priority=$priority\n";
+
 // The synchronous sidecar flush drains both the trace and stats pipelines.
 $groups = [];
 foreach ($rr->replayAllStats() ?? [] as $request) {
@@ -64,5 +86,8 @@ foreach ($rr->replayAllStats() ?? [] as $request) {
 var_dump($groups);
 ?>
 --EXPECT--
+client-computed-stats: true
+apm-disabled-0: priority=0
+apm-disabled-2: priority=2
 array(0) {
 }

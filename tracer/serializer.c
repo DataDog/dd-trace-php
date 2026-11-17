@@ -1359,7 +1359,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddt
     ddtrace_span_precomputed pre;
     ddtrace_precompute_span(span, &pre);
 
-    bool client_side_stats = get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED();
+    bool client_side_stats = get_global_DD_APM_TRACING_ENABLED() && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED();
 
     // Trace-level filter: when stats computation is enabled, drop the span from the
     // entire pipeline (trace sending + stats) if its trace is filtered.
