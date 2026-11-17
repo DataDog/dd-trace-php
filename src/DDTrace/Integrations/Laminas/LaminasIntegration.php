@@ -1773,17 +1773,22 @@ class LaminasIntegration extends Integration
         return $states;
     }
 
-    /** @var array<string, string|null> cached template lookups keyed by stack-hash + name */
-    private static $namedStackTemplateCache = [];
-
+    /**
+     * The template lookups are cached on the route stack itself, so that they
+     * live as long as it does: spl_object_hash() is reused once a stack is
+     * destroyed, and another stack would then get its templates.
+     */
     public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
     {
-        $cacheKey = \spl_object_hash($stack) . "\0" . $matchedName;
-        if (\array_key_exists($cacheKey, self::$namedStackTemplateCache)) {
-            return self::$namedStackTemplateCache[$cacheKey];
+        $cache = ObjectKVStore::get($stack, 'laminas.route_templates', []);
+        if (\array_key_exists($matchedName, $cache)) {
+            return $cache[$matchedName];
         }
-        return self::$namedStackTemplateCache[$cacheKey]
-            = self::computeHttpRouteTemplateFromNamedRouteStack($stack, $matchedName);
+        $template = self::computeHttpRouteTemplateFromNamedRouteStack($stack, $matchedName);
+        $cache[$matchedName] = $template;
+        ObjectKVStore::put($stack, 'laminas.route_templates', $cache);
+
+        return $template;
     }
 
     private static function computeHttpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string

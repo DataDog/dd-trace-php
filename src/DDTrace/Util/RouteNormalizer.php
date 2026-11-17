@@ -13,6 +13,14 @@ class RouteNormalizer
     /** Separator characters Symfony's RouteCompiler moves into an optional. */
     const OPTIONAL_SEPARATORS = ',;.:-_~+*=@|';
 
+    /**
+     * A variable name in a Symfony route, and so in a Laravel one, which
+     * Laravel compiles with Symfony's RouteCompiler: word characters and
+     * non-ASCII bytes. Braces around anything else, such as {file-name},
+     * are literal text.
+     */
+    const BRACE_VARIABLE_NAME = '[\w\x80-\xFF]+';
+
     /** Cache key prefix for the per-rule WordPress safety scan. */
     const WORDPRESS_RULE_CACHE_PREFIX = "wordpress-rule\0";
 
@@ -45,9 +53,9 @@ class RouteNormalizer
     public static function normalizeFromSymfony(string $path, array $matchedParams)
     {
         // Mark params absent from the URL as optional so normalizeBraceSegment drops them.
-        // Use [^}?:]+ to match any param name including UTF-8 characters.
+        // Only valid variable names are variables (see BRACE_VARIABLE_NAME).
         $path = preg_replace_callback(
-            '/\{([^}?:]+)\}/',
+            '/\{(' . self::BRACE_VARIABLE_NAME . ')\}/',
             static function ($m) use ($matchedParams) {
                 return array_key_exists($m[1], $matchedParams) ? $m[0] : '{' . $m[1] . '?}';
             },
@@ -113,13 +121,20 @@ class RouteNormalizer
             if (!$parts) {
                 continue;
             }
+            // Adjacent static fragments are joined before encoding, so that
+            // an escape split across them (e.g. '%' and 'C3') is kept whole.
             $out = '';
+            $static = '';
             foreach ($parts as $part) {
-                $out .= $part[0] === 'param'
-                    ? '{' . $finalNames[$part[1]] . '}'
-                    : self::encodeStaticSegment($part[1], $percentIsEscape);
+                if ($part[0] === 'param') {
+                    $out .= self::encodeStaticSegment($static, $percentIsEscape)
+                        . '{' . $finalNames[$part[1]] . '}';
+                    $static = '';
+                } else {
+                    $static .= $part[1];
+                }
             }
-            $normalized[] = $out;
+            $normalized[] = $out . self::encodeStaticSegment($static, $percentIsEscape);
         }
 
         if (!$normalized) {
@@ -813,11 +828,6 @@ class RouteNormalizer
         $trailingSlash = strlen($route) > 1 && substr($route, -1) === '/';
         $route = rtrim($route, '/');
 
-        // Strip inline constraints (e.g. {name:[^/]+} → {name}) before
-        // splitting so that a '/' inside a constraint does not break the segment
-        // split. The optional marker '?' is preserved: {name?:[0-9]+} → {name?}.
-        $route = preg_replace('/\{([^}?:]+(\?)?):([^}]*)\}/', '{$1}', $route);
-
         $elements = [];
         foreach (explode('/', ltrim($route, '/')) as $segment) {
             if ($segment === '') {
@@ -868,11 +878,17 @@ class RouteNormalizer
             if ($isOptional) {
                 $raw = substr($raw, 0, -1);
             }
-            $colon = strpos($raw, ':');
-            if ($colon !== false) {
-                $raw = substr($raw, 0, $colon);
+            $name = $raw;
+            if (!preg_match('/^' . self::BRACE_VARIABLE_NAME . '$/', $name)) {
+                // Not a variable for Symfony or Laravel: literal text.
+                $lastIndex = count($parts) - 1;
+                if ($lastIndex >= 0 && $parts[$lastIndex][0] === 'static') {
+                    $parts[$lastIndex][1] .= $piece;
+                } else {
+                    $parts[] = ['static', $piece];
+                }
+                continue;
             }
-            $name = trim($raw);
 
             if ($isOptional && !array_key_exists($name, $matchedParams)) {
                 $lastIndex = count($parts) - 1;
