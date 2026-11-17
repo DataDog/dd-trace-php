@@ -1,0 +1,150 @@
+# Analyzer settings (UNCONFIDENCE_THRESHOLD, DISABLE_NHST, CI_TYPE,
+# MD_REPORT_ONLY_CHANGES) live in the CI job's `variables:`, not here.
+# bp-runner configs have no top-level `env:`, and experiment env does not
+# reach teardown steps. Every step inherits the CI process environment.
+
+global_setup:
+  - name: Capture hardware/software info
+    run: collect_hardware_software_info
+
+experiments:
+  - name: microbenchmarks
+    # Environment previously exported once by steps/run-benchmarks.sh before
+    # the runs. `unset CI` from the old script lives in the run script below,
+    # where it takes effect; the experiment env cannot unset variables.
+    env:
+      COMPOSER_ALLOW_SUPERUSER: "1"
+      DD_TRACE_AUTOLOAD_NO_COMPILE: "true"
+      CFLAGS: "-O2 -falign-functions=64"
+      RUN_WEB_BENCHES_WITH_DDPROF: "1"
+    setup:
+      - name: datadog-agent
+        run: datadog_agent
+        cpus: 24-25
+        config_sh: .gitlab/benchmarks/steps/update-dd-agent-config.sh
+
+      # One-time setup only. run_microbenchmarks executes the run script once
+      # for the candidate and once for the baseline, so the ini appends, the
+      # mysql/redis start and the sysctl must NOT live there.
+      - name: one-time setup
+        run: shell
+        cpus: 26-47
+        script: |
+          set -ex
+
+          # The built-in capture step doesn't know about PHP; keep the PHP
+          # version capture steps/capture-hardware-software-info.sh used to do.
+          (which php && php -v > "$ARTIFACTS_DIR/php.txt") || :
+
+          if [ "$BP_SCENARIO" = "tracer" ] || [ "$BP_SCENARIO" = "appsec" ]; then
+            echo "extension=ddtrace.so" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+            if [ "$BP_SCENARIO" = "appsec" ]; then
+              echo "extension=ddappsec.so" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+              echo "datadog.appsec.cli_start_on_rinit=true" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+              echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+              echo "datadog.appsec.rules=/tmp/recommended.json" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+              echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+              echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+              echo "datadog.appsec.log_file=/tmp/logs/appsec.log" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+              echo "datadog.appsec.helper_log_file=/tmp/logs/helper.log" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
+            fi
+            taskset -c 26-29 service mysql start
+            taskset -c 30-33 redis-server --daemonize yes
+          fi
+
+          echo "127.0.0.1 mysql-integration" >> /etc/hosts
+          echo "127.0.0.1 redis-integration" >> /etc/hosts
+
+          echo "display_errors=stderr" >> /etc/php/8.2/cli/php.ini
+          echo "error_log=/tmp/logs/php-error.log" >> /etc/php/8.2/cli/php.ini
+          echo "display_startup_errors=1" >> /etc/php/8.2/cli/php.ini
+          echo "display_errors=stderr" >> /etc/php/8.2/cgi/conf.d/php.ini
+          echo "error_log=/tmp/logs/php-error-cgi.log" >> /etc/php/8.2/cgi/conf.d/php.ini
+          echo "display_startup_errors=1" >> /etc/php/8.2/cgi/conf.d/php.ini
+
+          # Ensure ddprof can run
+          if ! sysctl -w kernel.perf_event_paranoid=2; then
+            echo -e "\e[41mERROR: Failed to set kernel.perf_event_paranoid to 2. This is required by ddprof.\e[0m"
+            echo -e "\e[41mPlease check if the container is running with --privileged.\e[0m"
+            exit 1
+          fi
+
+    steps:
+      - name: Run benchmarks
+        run: run_microbenchmarks
+        repo: DataDog/dd-trace-php
+        cpus: 26-47
+        # The default fetch does not initialise submodules, and the suites need
+        # the libdatadog and google-benchmark submodules. The clone follows the
+        # branch tip, so the submodules must be re-synced after the SHA checkout.
+        how_to_fetch_release: |
+          git clone --recurse-submodules --branch $BRANCH https://github.com/DataDog/dd-trace-php/ "$CODE_SRC"
+          cd "$CODE_SRC" && git checkout $COMMIT_SHA
+          git submodule update --init --recursive
+        # Runs once per release: bp-runner sets CODE_SRC, BRANCH, COMMIT_SHA and
+        # BASELINE_OR_CANDIDATE (candidate first, then the baseline at the merge
+        # base, with baseline resolution left to bp-runner's auto lookup).
+        # runall.sh writes fixed, unprefixed names into $ARTIFACTS_DIR; this
+        # script renames each result to
+        # $ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-<name>.<ext> — the layout the
+        # analyze steps below and the fail-on-regression gate glob — gives the
+        # OPCache and AppSec subjects their distinguishing suffixes, and tars
+        # the run's logs.
+        how_to_run_benchmarks: |
+          export SCENARIO=$BP_SCENARIO
+          unset CI
+
+          GITLAB_ARTIFACTS_PATH="/go/src/github.com/DataDog/apm-reliability/dd-trace-php/"
+
+          cd "$CODE_SRC/benchmark/"
+          rm -rf /tmp/logs/
+          mkdir -p /tmp/logs
+          taskset -c 34-47 ./runall.sh
+
+          if [ "$SCENARIO" = "profiler" ]; then
+            mv "$ARTIFACTS_DIR/sirun_timeline.ndjson" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-sirun_timeline.ndjson"
+            mv "$ARTIFACTS_DIR/sirun_exceptions.ndjson" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-sirun_exceptions.ndjson"
+          elif [ "$SCENARIO" = "tracer" ]; then
+            # Give the OPCache subjects an "-opcache" suffix so they don't
+            # collide with the non-OPCache subjects (third column is the subject).
+            awk -F ',' -v OFS=',' 'NR == 1 { print } NR > 1 { $3 = $3 "-opcache"; print }' \
+              "$ARTIFACTS_DIR/tracer-bench-results-opcache.csv" > "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp" && \
+              mv "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results-opcache.csv"
+            mv "$ARTIFACTS_DIR/tracer-bench-results.csv" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results.csv"
+            mv "$ARTIFACTS_DIR/tracer-tea-bench-results.json" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-tea-bench-results.json"
+          elif [ "$SCENARIO" = "appsec" ]; then
+            # Give the AppSec subjects an "-appsec" suffix so they don't collide
+            # with the tracer subjects (third column is the subject).
+            awk -F ',' -v OFS=',' 'NR == 1 { print } NR > 1 { $3 = $3 "-appsec"; print }' \
+              "$ARTIFACTS_DIR/appsec-bench-results.csv" > "$ARTIFACTS_DIR/appsec-bench-results.tmp" && \
+              mv "$ARTIFACTS_DIR/appsec-bench-results.tmp" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-appsec-bench-results.csv"
+          fi
+
+          # Save all logs as artifacts
+          tar -zcvf "$GITLAB_ARTIFACTS_PATH/$BASELINE_OR_CANDIDATE.tar.gz" /tmp/logs
+          rm -rf /tmp/logs
+
+      # One analyze step per framework; each step no-ops on the scenarios
+      # whose result files its filter doesn't match.
+      - name: Analyze PHPBench results
+        run: analyze_microbenchmarks
+        framework: PHPBench
+        input_filter_pattern: $ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-*-bench-results*.csv
+        group_by_pattern: '^(.*)\.csv$'
+
+      - name: Analyze tea results
+        run: analyze_microbenchmarks
+        framework: GoogleBenchmark
+        input_filter_pattern: $ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-tea-bench-results.json
+
+      - name: Analyze sirun results
+        run: analyze_microbenchmarks
+        framework: Sirun
+        input_filter_pattern: $ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-sirun_*.ndjson
+        group_by_pattern: '^(.*)\.ndjson$'
+
+    teardown:
+      - name: Upload to S3
+        run: upload_to_s3
+        # If BP_EXTERNAL_S3_URL is empty, bp-runner uses its default S3 destination.
+        url: $BP_EXTERNAL_S3_URL

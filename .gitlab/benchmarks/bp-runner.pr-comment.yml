@@ -1,0 +1,10 @@
+experiments:
+  - name: Post PR comment
+    steps:
+      - name: Post PR comment
+        run: post_pr_comment
+
+global_teardown:
+  - name: Upload to BP API
+    run: upload_to_bp_api
+    project: dd-trace-php

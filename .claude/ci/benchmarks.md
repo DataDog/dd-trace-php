@@ -4,11 +4,13 @@
 
 **Source:**
 - `.gitlab/generate-package.php` — declares `include: .gitlab/benchmarks.yml` and the pipeline stages
-- `.gitlab/benchmarks.yml` — all benchmark job definitions (if present; may be in the `DataDog/benchmarking-platform` repo instead)
+- `.gitlab/benchmarks.yml` — all benchmark job definitions; the microbenchmark
+  steps, container and gate configs live in `.gitlab/benchmarks/` (see
+  `.gitlab/benchmarks/README.md`)
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
-| `benchmarks-tracer` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev` | Runs PHP tracer microbenchmarks via the `benchmarking-platform` framework; skips automatically if no tracer-relevant files changed |
+| `benchmarks-tracer` | `$MICROBENCHMARKS_CI_IMAGE` (see `.gitlab/benchmarks.yml`; built in-repo from `.gitlab/benchmarks/container/`) | Runs PHP tracer microbenchmarks via the Benchmarking Platform framework; skips automatically if no tracer-relevant files changed |
 | `benchmarks-appsec` | same | Runs appsec microbenchmarks; produces `candidate.tar.gz` and `baseline.tar.gz` artifacts |
 | `benchmarks-profiler` | same | Runs profiler microbenchmarks |
 | `macrobenchmarks: [{PHP_VERSION}]` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld` | Runs a Laravel Realworld application under k6 load at three traffic levels; PHP 7.4 and 8.1 |
@@ -34,7 +36,7 @@ Runner: `runner:apm-k8s-tweaked-metal` (microbenchmarks); `runner:apm-k8s-same-c
 ## What It Tests
 
 Microbenchmarks measure overhead of the tracer, appsec, and profiler components
-using the `DataDog/benchmarking-platform` framework (`dd-trace-php` branch). The
+using the Benchmarking Platform framework (steps in `.gitlab/benchmarks/`). The
 scenario name is passed as `BP_SCENARIO` to `bp-runner`.
 
 Macrobenchmarks run a realistic PHP application (Laravel Realworld) under k6 load
@@ -55,7 +57,7 @@ dev container.
 
 ### Running the benchmarks
 
-The `benchmarking-platform` repo (branch `dd-trace-php`) is only the
+The `.gitlab/benchmarks/` directory is only the
 CI orchestrator — it calls `make benchmarks` and friends. You do not
 need `bp-runner` for local runs. Three approaches, from simplest to
 most flexible:
@@ -179,8 +181,7 @@ Or filter them out:
 ## Investigating a Regression
 
 When `check-big-regressions` fails, download the `reports/` artifact from the
-`benchmarks-tracer` job. The gate runs `bp-runner.fail-on-regression.yml` from the
-`benchmarking-platform` repo (cloned into `/platform`). To read the job log directly:
+`benchmarks-tracer` job. The gate runs `.gitlab/benchmarks/bp-runner.fail-on-regression.yml`. To read the job log directly:
 
 ```bash
 curl -s -H "PRIVATE-TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN" \
@@ -196,7 +197,7 @@ curl -s -H "PRIVATE-TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN" \
 
 - The macrobenchmark image (`php_laravel-realworld`) is maintained on the
   `php/laravel-realworld` branch of `DataDog/benchmarking-platform`, distinct from
-  the microbenchmark image (`dd-trace-php` branch).
+  the microbenchmark image (built in-repo from `.gitlab/benchmarks/container/`).
 
 - The PHP extension dir (`/opt/php/...`) is outside the overlayfs
   project tree, so `ddtrace.so` must be installed into it on every

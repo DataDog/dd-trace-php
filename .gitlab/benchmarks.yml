@@ -1,5 +1,7 @@
 include:
   - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/build-ci-images.template.yml'
+  - project: 'DataDog/benchmarking-platform-tools'
     file: 'images/templates/gitlab/check-slo-breaches.template.yml'
   - project: 'DataDog/benchmarking-platform-tools'
     file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
@@ -105,15 +107,27 @@ php-wordpress-parallel-upload-results:
   rules: *macrobenchmarks-rules
 
 variables:
-  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
-  # The Dockerfile to this image is located at:
-  # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
+  # Microbenchmarks CI image, consumed by the benchmark jobs below. Repin to the
+  # tag pushed by a `build-benchmark-ci-images` run after changing anything in
+  # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
+  MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-152770667
+  # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
+  # Image build, consumed by the included build-ci-images template. The per-pipeline
+  # suffix pins each build to a unique tag so a rebuild can't shift what older
+  # pipelines pulled.
+  BASE_CI_IMAGE_SUFFIX: dd-trace-php-${CI_PIPELINE_ID}
+  BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/php/laravel-realworld
   DSM_THROUGHPUT_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-dsm
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/php/data-streams-monitoring
+
+# The template puts this job in the ci-image stage; run it next to the
+# benchmarks it builds for instead.
+build-benchmark-ci-images:
+  stage: benchmarks
 
 workflow:
   auto_cancel:
@@ -201,10 +215,14 @@ workflow:
   tags: ["runner:apm-k8s-tweaked-metal"]
   needs: []
   image:
-    name: $BASE_CI_IMAGE
+    name: $MICROBENCHMARKS_CI_IMAGE
   timeout: 90m
   script:
+    # Keep the prelude: the gate and the bp-runner configs both depend on
+    # ARTIFACTS_DIR pointing at reports/ and on github.com/DataDog being
+    # rewritten to gitlab.ddbuild.io for the benchmark checkouts.
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
     - |
       # Allows benchmark flakiness monitoring pipelines to run this job.
       # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
@@ -219,15 +237,12 @@ workflow:
         fi
         echo "Tracer-related file changes detected - proceeding with benchmarks"
       fi
-    - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
-    - ./steps/capture-hardware-software-info.sh
-    # Keep submodules at the selected candidate and baseline revisions.
+    # Keep submodules at the selected candidate and baseline revisions. The
+    # whole flow (agent, one-time setup, run, analyze, S3) is driven by the
+    # bp-runner config; baseline resolution is bp-runner's auto lookup.
     - >-
       GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=submodule.recurse GIT_CONFIG_VALUE_0=true
-      BP_SCENARIO=$SCENARIO bp-runner bp-runner.yml --debug -t
-    - ./steps/analyze-results.sh
-    - "./steps/upload-results-to-s3.sh || :"
-    - "./steps/post-pr-comment.sh || :"
+      BP_SCENARIO=$SCENARIO bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.yml" --debug -t
   artifacts:
     name: "reports"
     paths:
@@ -243,6 +258,13 @@ workflow:
     DD_SIDECAR_DISABLE_DIRECT_EXEC: 1
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     FLAKY_BENCHMARKS_REGEX: ""
+    # Benchmark analyzer settings, previously exported by
+    # steps/config-benchmark-analyzer.sh. Every bp-runner step inherits the CI
+    # process environment, so the settings live here instead of the config.
+    UNCONFIDENCE_THRESHOLD: "2.0"
+    DISABLE_NHST: "1"
+    CI_TYPE: "theoretical"
+    MD_REPORT_ONLY_CHANGES: "1"
 
 benchmarks-profiler:
   extends: .microbenchmarks
@@ -266,14 +288,57 @@ benchmarks-tracer:
 benchmarks-appsec:
   extends: .microbenchmarks
   rules: *benchmarks-appsec-rules
+  # reports/ is needed by benchmarks-pr-comment (like the other scenarios);
+  # the log tarballs are the scenario's own diagnostics.
   artifacts:
-    name: "logs"
+    name: "reports"
+    when: always
     paths:
+      - reports/
       - candidate.tar.gz
       - baseline.tar.gz
-    expire_in: 2 days
+    expire_in: 3 months
   variables:
     SCENARIO: "appsec"
+
+# Posts the benchmark comparison on the PR and uploads the results to the
+# Benchmarking Platform API, for whichever of the three scenarios ran in this
+# pipeline (their reports/ artifacts are all collected here). Allow-failure
+# keeps a broken upload or a missing PR from blocking the gate, preserving the
+# old `|| :` semantics, and running it in a separate job avoids the
+# parallel-teardown race with the S3 upload.
+benchmarks-pr-comment:
+  stage: benchmarks-report
+  # Only the always-running job may be needed here: a manual job that is
+  # present but not run makes GitLab skip the dependent.
+  needs:
+    - benchmarks-tracer
+  allow_failure: true
+  when: on_success
+  tags: ["arch:amd64"]
+  image: $MICROBENCHMARKS_CI_IMAGE
+  timeout: 30m
+  rules: *benchmarks-tracer-rules
+  variables:
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
+    # Benchmark analyzer settings, previously exported by
+    # steps/config-benchmark-analyzer.sh. The PR comment's comparison output
+    # depends on them.
+    UNCONFIDENCE_THRESHOLD: "2.0"
+    DISABLE_NHST: "1"
+    CI_TYPE: "theoretical"
+    MD_REPORT_ONLY_CHANGES: "1"
+  script:
+    - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
+    - bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.pr-comment.yml" --debug
+  artifacts:
+    name: "reports"
+    when: always
+    paths:
+      - reports/
+    expire_in: 3 months
 
 # Kafka and RabbitMQ produce/consume throughput with Data Streams Monitoring
 # off and on, against real brokers and agent; fails if DSM adds more than 3%
@@ -336,12 +401,8 @@ check-big-regressions:
     else
       echo "Reports directory found with content - running regression check"
       export ARTIFACTS_DIR="$(pwd)/reports/"
-      if [[ -n "$CI_JOB_TOKEN" ]]; then
-        git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-      fi
-      git clone --branch dd-trace-php https://github.com/DataDog/benchmarking-platform /platform
-      export PATH="$PATH:/platform/steps"
-      bp-runner /platform/bp-runner.fail-on-regression.yml --debug
+      export PATH="$PATH:${CI_PROJECT_DIR}/.gitlab/benchmarks/steps"
+      bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.fail-on-regression.yml" --debug
     fi
   variables:
     # Gitlab and BP specific env vars. Do not modify.
