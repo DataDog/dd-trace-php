@@ -752,7 +752,7 @@ class WordPressIntegrationLoader
                             $This->request
                         );
                         if ($normalizedRoute !== null) {
-                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                            $rootSpan->attributes[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                         }
                     }
                 }

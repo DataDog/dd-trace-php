@@ -459,7 +459,7 @@ class SymfonyIntegration extends Integration
                 if ($apiSecurity) {
                     $normalizedRoute = EndpointCatalog::normalizedRouteFromCacheEntry($entry, $request->getPathInfo());
                     if ($normalizedRoute !== null) {
-                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        $rootSpan->attributes[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                     }
                 }
             };

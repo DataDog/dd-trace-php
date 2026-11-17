@@ -353,7 +353,7 @@ class LaminasIntegration extends Integration
                             // another URL by application code) records nothing: keep
                             // the normalized route of the request's own routing.
                             $_keepRequestRoute = $normalizedRoute === null && $_records === null
-                                && isset($rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE]);
+                                && isset($rootSpan->attributes[Tag::APPSEC_NORMALIZED_ROUTE]);
                             if ($normalizedRoute === null && !$_keepRequestRoute) {
                                 // Not cached: a route name and http.route do not
                                 // identify the route definitions it is built from.
@@ -372,7 +372,7 @@ class LaminasIntegration extends Integration
                                 unset($_elements);
                             }
                             if ($normalizedRoute !== null) {
-                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                                $rootSpan->attributes[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                             }
                             unset($_records, $_signature, $_keepRequestRoute);
                         }
