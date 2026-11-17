@@ -112,7 +112,7 @@ variables:
   # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
   MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-152770667
   # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
-  # Image build, consumed by the included build-ci-images template. The per-pipeline
+  # The per-pipeline
   # suffix pins each build to a unique tag so a rebuild can't shift what older
   # pipelines pulled.
   BASE_CI_IMAGE_SUFFIX: dd-trace-php-${CI_PIPELINE_ID}
@@ -258,9 +258,8 @@ workflow:
     DD_SIDECAR_DISABLE_DIRECT_EXEC: 1
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     FLAKY_BENCHMARKS_REGEX: ""
-    # Benchmark analyzer settings, previously exported by
-    # steps/config-benchmark-analyzer.sh. Every bp-runner step inherits the CI
-    # process environment, so the settings live here instead of the config.
+    # Analyzer settings. Every bp-runner step inherits the CI process environment,
+    # so the settings live here instead of the config.
     UNCONFIDENCE_THRESHOLD: "2.0"
     DISABLE_NHST: "1"
     CI_TYPE: "theoretical"
@@ -301,12 +300,9 @@ benchmarks-appsec:
   variables:
     SCENARIO: "appsec"
 
-# Posts the benchmark comparison on the PR and uploads the results to the
-# Benchmarking Platform API, for whichever of the three scenarios ran in this
-# pipeline (their reports/ artifacts are all collected here). Allow-failure
-# keeps a broken upload or a missing PR from blocking the gate, preserving the
-# old `|| :` semantics, and running it in a separate job avoids the
-# parallel-teardown race with the S3 upload.
+# Posts the comparison and uploads results. allow_failure preserves the old || :
+# semantics, and a separate job avoids the parallel-teardown race with the S3
+# upload. needs only benchmarks-tracer, so only tracer results are collected.
 benchmarks-pr-comment:
   stage: benchmarks-report
   # Only the always-running job may be needed here: a manual job that is
@@ -322,9 +318,7 @@ benchmarks-pr-comment:
   variables:
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     FLAKY_BENCHMARKS_REGEX: ""
-    # Benchmark analyzer settings, previously exported by
-    # steps/config-benchmark-analyzer.sh. The PR comment's comparison output
-    # depends on them.
+    # Analyzer settings the PR comment's comparison output depends on.
     UNCONFIDENCE_THRESHOLD: "2.0"
     DISABLE_NHST: "1"
     CI_TYPE: "theoretical"

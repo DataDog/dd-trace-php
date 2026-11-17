@@ -24,8 +24,7 @@ experiments:
         script: |
           set -ex
 
-          # The built-in capture step doesn't know about PHP; keep the PHP
-          # version capture steps/capture-hardware-software-info.sh used to do.
+          # The built-in capture step doesn't know about PHP, so capture the PHP version here.
           (which php && php -v > "$ARTIFACTS_DIR/php.txt") || :
 
           if [ "$BP_SCENARIO" = "tracer" ] || [ "$BP_SCENARIO" = "appsec" ]; then
