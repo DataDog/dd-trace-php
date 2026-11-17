@@ -229,7 +229,9 @@ class Helper {
 
     function wait_for_daemon_ready() {
         $handle = fopen($this->lock_path, "w+");
-        $attempts = 10;
+        // 100 ms per attempt, so 2.5 s. In CI, mock_helper has been seen taking
+        // about 1.4 s to start.
+        $attempts = 25;
         while (flock($handle, LOCK_EX | LOCK_NB)) {
             flock($handle, LOCK_UN);
             if ($attempts-- == 0) {
