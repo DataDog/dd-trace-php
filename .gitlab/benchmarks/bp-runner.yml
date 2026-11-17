@@ -91,10 +91,11 @@ experiments:
         # OPCache and AppSec subjects their distinguishing suffixes, and tars
         # the run's logs.
         how_to_run_benchmarks: |
+          set -e
           export SCENARIO=$BP_SCENARIO
           unset CI
 
-          GITLAB_ARTIFACTS_PATH="/go/src/github.com/DataDog/apm-reliability/dd-trace-php/"
+          GITLAB_ARTIFACTS_PATH="$CI_PROJECT_DIR"
 
           cd "$CODE_SRC/benchmark/"
           rm -rf /tmp/logs/

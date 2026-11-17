@@ -401,7 +401,6 @@ check-big-regressions:
     else
       echo "Reports directory found with content - running regression check"
       export ARTIFACTS_DIR="$(pwd)/reports/"
-      export PATH="$PATH:${CI_PROJECT_DIR}/.gitlab/benchmarks/steps"
       bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.fail-on-regression.yml" --debug
     fi
   variables:
