@@ -46,8 +46,10 @@ Invalid values fall back to their defaults.
 
 Each CDN request sends the service of the root spans in the `DD-Service`
 header, so usage can be attributed to the service. The service is `DD_SERVICE`
-(or `OTEL_SERVICE_NAME`), else the default PHP service name. libdatadog sends
-the name that APM shows, and no header if that name is not printable ASCII.
+(or `OTEL_SERVICE_NAME`), else the default PHP service name. libdatadog
+normalizes the name with its trace normalizer, so `My Service` sends
+`my_service`. There is no header if the result is not printable ASCII or is
+the normalizer fallback `unnamed-service`.
 
 Settings problems are logged once, on the first flag evaluation, so
 applications that never evaluate flags get no feature flag diagnostics.
