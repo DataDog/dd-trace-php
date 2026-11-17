@@ -499,8 +499,12 @@ class RouteNormalizerTest extends BaseTestCase
     public function testRfcParameterNames()
     {
         // Tests 30-34.
-        $this->assertSame('/users/{user_id}', RouteNormalizer::normalizeFromLaravel('/users/{user-id}'));
-        $this->assertSame('/items/{item_id}', RouteNormalizer::normalizeFromSymfony('/items/{item.id}', ['item.id' => true]));
+        $this->assertSame('/users/{user_id}', RouteNormalizer::normalizeElements([
+            ['static', '/users/'], ['param', 'user-id'],
+        ]));
+        $this->assertSame('/items/{item_id}', RouteNormalizer::normalizeElements([
+            ['static', '/items/'], ['param', 'item.id'],
+        ]));
         $this->assertSame('/a/{user_id_2}/{user_id}', RouteNormalizer::normalizeElements([
             ['static', '/a/'], ['param', 'user-id'], ['static', '/'], ['param', 'user_id'],
         ]));
@@ -611,5 +615,29 @@ class RouteNormalizerTest extends BaseTestCase
         foreach (['/a(?:b|c)/x', '/a.b', '/x(?=y)', '/a{2}', '/[a-z]+', '/a\d', '(*UTF8)/a', '/a{}'] as $regex) {
             $this->assertNull(RouteNormalizer::regexFallbackElements($regex), $regex);
         }
+    }
+
+    public function testBracesAroundAnInvalidVariableNameAreLiteralText()
+    {
+        // Symfony's RouteCompiler, which Laravel also uses, only takes word
+        // characters as a variable name: {file-name} is literal text.
+        $this->assertSame('/docs/%7Bfile-name%7D', RouteNormalizer::normalizeFromSymfony('/docs/{file-name}', []));
+        $this->assertSame('/docs/%7Bfile-name%7D', RouteNormalizer::normalizeFromLaravel('/docs/{file-name}'));
+        $this->assertSame(
+            '/docs/%7Bfile-name%7D/{id}',
+            RouteNormalizer::normalizeFromSymfony('/docs/{file-name}/{id}', ['id' => true])
+        );
+    }
+
+    public function testStaticFragmentsAreJoinedBeforeEncoding()
+    {
+        // A Regex fallback yields one static element per character; the
+        // escape must still be recognized across them.
+        $this->assertSame('/caf%C3%A9/{id}', RouteNormalizer::normalizeElements(
+            RouteNormalizer::regexFallbackElements('/caf%C3%A9/(?<id>[0-9]+)')
+        ));
+        $this->assertSame('/caf%C3%A9/{id}', RouteNormalizer::normalizeElements([
+            ['static', '/caf%'], ['static', 'C3%A9/'], ['param', 'id'],
+        ]));
     }
 }
