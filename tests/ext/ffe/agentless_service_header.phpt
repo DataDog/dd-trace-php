@@ -17,8 +17,8 @@ DD_TRACE_AGENT_URL=http://127.0.0.1:1
 --FILE--
 <?php
 require __DIR__ . '/stubs/agentless_service_header.inc';
-// libdatadog normalizes the name with its trace normalizer. It sends no header if the result
-// is not printable ASCII or is the normalizer fallback unnamed-service.
+// libdatadog normalizes the name with its trace normalizer. It sends non-ASCII names as UTF-8,
+// and no header if the result is empty or is the normalizer fallback unnamed-service.
 ffeTestAgentlessServiceHeader('dd_service', 'My Service', null);
 ffeTestAgentlessServiceHeader('leading_space', ' svc', null);
 ffeTestAgentlessServiceHeader('not_ascii', 'café-api', null);
@@ -32,8 +32,8 @@ ffeTestAgentlessServiceHeader('default', null, null);
 --EXPECT--
 dd_service=my_service
 leading_space=svc
-not_ascii=(none)
-not_ascii_cjk=(none)
+not_ascii=café-api
+not_ascii_cjk=支付
 normalizer_fallback=(none)
 dd_service_over_otel=checkout
 otel_service_name=otel-checkout
