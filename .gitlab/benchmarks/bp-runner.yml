@@ -4,9 +4,6 @@ global_setup:
 
 experiments:
   - name: microbenchmarks
-    # Environment previously exported once by steps/run-benchmarks.sh before
-    # the runs. `unset CI` from the old script lives in the run script below,
-    # where it takes effect; the experiment env cannot unset variables.
     env:
       COMPOSER_ALLOW_SUPERUSER: "1"
       DD_TRACE_AUTOLOAD_NO_COMPILE: "true"
@@ -21,7 +18,7 @@ experiments:
       # One-time setup only. run_microbenchmarks executes the run script once
       # for the candidate and once for the baseline, so the ini appends, the
       # mysql/redis start and the sysctl must NOT live there.
-      - name: one-time setup
+      - name: One-time setup
         run: shell
         cpus: 26-47
         script: |
