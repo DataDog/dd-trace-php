@@ -356,6 +356,13 @@ class RouteNormalizer
                     return false;
                 }
                 $inClass = true;
+                // A ']' right after '[' or '[^' is literal, not the end of the class.
+                if (isset($rule[$i + 1]) && $rule[$i + 1] === '^') {
+                    $i++;
+                }
+                if (isset($rule[$i + 1]) && $rule[$i + 1] === ']') {
+                    $i++;
+                }
                 continue;
             }
             if ($char === '(') {
@@ -863,7 +870,15 @@ class RouteNormalizer
      */
     private static function normalizeBraceSegment(string $segment, array $matchedParams): array
     {
-        $pieces = preg_split('/(\{[^}]+\})/', $segment, -1, PREG_SPLIT_DELIM_CAPTURE);
+        // Only braces around a valid variable name are a variable, as for
+        // Symfony's RouteCompiler: anything else, including braces around a
+        // variable ({{id}}), is literal text.
+        $pieces = preg_split(
+            '/(\{' . self::BRACE_VARIABLE_NAME . '\??\})/',
+            $segment,
+            -1,
+            PREG_SPLIT_DELIM_CAPTURE
+        );
         $parts = [];
         foreach ($pieces as $i => $piece) {
             if ($i % 2 === 0) {
@@ -879,16 +894,6 @@ class RouteNormalizer
                 $raw = substr($raw, 0, -1);
             }
             $name = $raw;
-            if (!preg_match('/^' . self::BRACE_VARIABLE_NAME . '$/', $name)) {
-                // Not a variable for Symfony or Laravel: literal text.
-                $lastIndex = count($parts) - 1;
-                if ($lastIndex >= 0 && $parts[$lastIndex][0] === 'static') {
-                    $parts[$lastIndex][1] .= $piece;
-                } else {
-                    $parts[] = ['static', $piece];
-                }
-                continue;
-            }
 
             if ($isOptional && !array_key_exists($name, $matchedParams)) {
                 $lastIndex = count($parts) - 1;
