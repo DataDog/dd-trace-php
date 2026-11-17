@@ -13,6 +13,7 @@ foreach ($modes as $mode) {
     $environment['DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS'] = '1';
     $environment['DD_TRACE_AGENTLESS'] = strpos($mode, 'trace-agentless') === 0 ? 'true' : 'false';
     $environment['DD_TRACE_SIDECAR_TRACE_SENDER'] = $sender;
+    $environment['DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN'] = 'false';
     $environment['PHP_FFE_TRANSPORT_FAILURE'] = strpos($mode, 'managed-') === 0 ? 'true' : 'false';
     $tokens = $mode === 'trace-agentless-token' ? array('transport-session-a', 'transport-session-b') : array('transport-session');
     $environment['DD_TRACE_AGENT_TEST_SESSION_TOKEN'] = $tokens[0];
@@ -31,23 +32,7 @@ foreach ($modes as $mode) {
     // Under valgrind the sidecar builds its TLS root store inside the first
     // timed request, which alone can exceed the default 5s agent timeout.
     if (getenv('USE_ZEND_ALLOC') === '0') $environment['DD_TRACE_AGENT_TIMEOUT'] = '30000';
-    if (PHP_OS === 'WINNT') {
-        // Windows spawns every sidecar from %TEMP%\datadog-ipc-helper-<session>,
-        // keeping one ".old" slot for a still-running predecessor. This test's
-        // own shared sidecar and the previous child's lingering one fill both
-        // slots, so give each child a private temp directory.
-        $temp = sys_get_temp_dir() . '\\ffe-evp-' . getmypid() . '-' . $mode . '-' . $sender;
-        if (!is_dir($temp) && !mkdir($temp)) throw new RuntimeException('cannot create child temp directory');
-        // Best effort: a sidecar that is still lingering keeps its executable.
-        register_shutdown_function(function () use ($temp) {
-            foreach (glob($temp . '\\*') ?: array() as $file) @unlink($file);
-            @rmdir($temp);
-        });
-        foreach (array_keys($environment) as $key) {
-            if (in_array(strtoupper($key), array('TMP', 'TEMP'), true)) unset($environment[$key]);
-        }
-        $environment['TMP'] = $environment['TEMP'] = $temp;
-    }
+    $environment = ffeTestIsolatedSidecarEnvironment($environment);
     $process = ffeTestProcess(__DIR__ . '/agentless_evp_app.php', $pipes, $environment);
     $events = array();
     $expected = strpos($mode, 'managed-') === 0 ? array('flagevaluation') : array('exposures', 'flagevaluation');
@@ -56,10 +41,14 @@ foreach ($modes as $mode) {
     $exitCode = null;
     $exitedAt = null;
     $lastCaptureAt = 0;
+    $stdout = $stderr = '';
+    $released = false;
     $prefix = $mode === 'remote-config' ? '/evp_proxy/v2/api/v2/' : '/evp_proxy/v4/api/v2/';
     try {
-        $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
+        $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 150 : 60);
         do {
+            $stdout .= ffeTestProcessRead($pipes[1]);
+            $stderr .= ffeTestProcessRead($pipes[2]);
             if ($request = ffeTestHttpRequest($server, $clients)) {
                 list($connection, $path, $headers, $body) = $request;
                 try {
@@ -104,6 +93,12 @@ foreach ($modes as $mode) {
                     fclose($connection);
                 }
             }
+            if (!$released && strpos($stdout, "submitted\n") !== false
+                && count($events) === count($expected) * count($tokens)) {
+                fwrite($pipes[0], "delivered\n");
+                fclose($pipes[0]);
+                $released = true;
+            }
             if ($exitedAt === null) {
                 $status = proc_get_status($process);
                 if (!$status['running']) {
@@ -117,16 +112,18 @@ foreach ($modes as $mode) {
             if ($exitedAt !== null && count($events) === count($expected) * count($tokens)
                 && microtime(true) - max($exitedAt, $lastCaptureAt) > 0.5) break;
         } while (microtime(true) < $deadline);
-        if ($exitCode !== 0) throw new RuntimeException('child failed: ' . ffeTestProcessRead($pipes[1]) . ffeTestProcessRead($pipes[2]));
+        $stdout .= ffeTestProcessRead($pipes[1]);
+        $stderr .= ffeTestProcessRead($pipes[2]);
+        if ($exitCode !== 0) throw new RuntimeException($mode . ': child failed or timed out (exit=' . var_export($exitCode, true) . '): ' . $stdout . $stderr);
         if (count($events) !== count($expected) * count($tokens)) {
             throw new RuntimeException($mode . ': missing event stream; received ' . implode(', ', array_keys($events))
-                . '; child output: ' . ffeTestProcessRead($pipes[1]) . ffeTestProcessRead($pipes[2]));
+                . '; child output: ' . $stdout . $stderr);
         }
         echo $mode, '/', $sender, $mode === 'trace-agentless-invalid' ? ': invalid local endpoint handled'
             : ': expected streams delivered with PHP identity, token and no API key', "\n";
     } finally {
-        if ($exitCode === null) proc_terminate($process);
-        foreach ($pipes as $pipe) fclose($pipe);
+        foreach ($pipes as $pipe) if (is_resource($pipe)) fclose($pipe);
+        if ($exitCode === null) ffeTestProcessTerminate($process);
         proc_close($process);
         foreach ($clients as $client) fclose($client['stream']);
         fclose($server);

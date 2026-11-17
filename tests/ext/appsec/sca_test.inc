@@ -1,4 +1,5 @@
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 DDTrace\start_span();
 $root = DDTrace\root_span();
 
@@ -17,18 +18,9 @@ dd_trace_internal_fn("finalize_telemetry");
 for ($i = 0; $i < 300; ++$i) {
     usleep(100000);
     if (file_exists(__DIR__ . '/'.$id.'-telemetry.out')) {
-        $batches = [];
-        foreach (file(__DIR__ . '/'.$id.'-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                if ($json) {
-                    if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
-                        continue;
-                    }
-                    array_push($batches, ...($json["request_type"] == "message-batch" ? $json["payload"] : [$json]));
-                }
-            }
-        }
+        $batches = array_filter(read_telemetry_file(__DIR__ . '/'.$id.'-telemetry.out'), function ($json) {
+            return !in_array($json["application"]["service_name"], ["background_sender-php-service", "datadog-ipc-helper"], true);
+        });
         $found = null;
         foreach ($batches as $json) {
             if ($json["request_type"] !== "app-started" && $json["request_type"] !== "app-client-configuration-change") {

@@ -16,6 +16,7 @@ DD_TRACE_RETRY_INTERVAL=1
 datadog.trace.agent_url="file://{PWD}/composer-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 DDTrace\start_span();
 
@@ -28,24 +29,13 @@ $initial_deps = [];
 
 for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
-    if (file_exists(__DIR__ . '/composer-telemetry.out')) {
-        foreach (file(__DIR__ . '/composer-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                if (!is_array($json)) {
-                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
-                }
-                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    if ($json["request_type"] == "app-started") {
-                        $initial_deps = $json["payload"]["dependencies"] ?? [];
-                    }
-                    if ($json["request_type"] == "app-dependencies-loaded") {
-                        print_r(array_merge($initial_deps, $json["payload"]["dependencies"]));
-                        break 3;
-                    }
-                }
-            }
+    foreach (read_telemetry_file(__DIR__ . '/composer-telemetry.out') as $json) {
+        if ($json["request_type"] == "app-started") {
+            $initial_deps = $json["payload"]["dependencies"] ?? [];
+        }
+        if ($json["request_type"] == "app-dependencies-loaded") {
+            print_r(array_merge($initial_deps, $json["payload"]["dependencies"]));
+            break 2;
         }
     }
 }

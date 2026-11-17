@@ -37,26 +37,16 @@ foo();
 
 dd_trace_internal_fn("finalize_telemetry");
 
+require __DIR__ . '/../includes/telemetry_file.inc';
 for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
-    if (file_exists(__DIR__ . '/integration-runtime-error-telemetry.out')) {
-        foreach (file(__DIR__ . '/integration-runtime-error-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                if (!is_array($json)) {
-                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
-                }
-                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    if ($json["request_type"] == "logs") {
-                        $logs = $json['payload']['logs'];
-                        ksort($logs);
-                        var_dump(array_values($logs));
+    foreach (read_telemetry_file(__DIR__ . '/integration-runtime-error-telemetry.out') as $json) {
+        if ($json["request_type"] == "logs") {
+            $logs = $json['payload']['logs'];
+            ksort($logs);
+            var_dump(array_values($logs));
 
-                        break 3;
-                    }
-                }
-            }
+            break 2;
         }
     }
     if ($i == 300) {
