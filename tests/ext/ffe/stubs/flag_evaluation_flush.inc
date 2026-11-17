@@ -8,7 +8,8 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
         $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
         if (!$listener) throw new RuntimeException($error);
         putenv('DD_TRACE_AGENT_URL=http://' . stream_socket_get_name($listener, false));
-        $process = ffeTestProcess($flushApp ?? __DIR__ . '/flag_evaluation_flush_app.php', $pipes);
+        $environment = ffeTestIsolatedSidecarEnvironment(getenv());
+        $process = ffeTestProcess($flushApp ?? __DIR__ . '/flag_evaluation_flush_app.php', $pipes, $environment);
         $stdout = $stderr = '';
         $exitCode = null;
         $exitedAt = null;
@@ -19,7 +20,7 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
             // Valgrind also instruments the child, including startup and
             // shutdown. Keep the HTTP barrier below unchanged; only allow
             // more time for the instrumented process to finish.
-            $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
+            $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : (PHP_OS === 'WINNT' ? 45 : 15));
             do {
                 $stdout .= ffeTestProcessRead($pipes[1]);
                 $stderr .= ffeTestProcessRead($pipes[2]);
@@ -82,15 +83,15 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
             } while (microtime(true) < $deadline);
             $stdout .= ffeTestProcessRead($pipes[1]);
             $stderr .= ffeTestProcessRead($pipes[2]);
-            if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . $stderr);
+            if ($exitCode !== 0) throw new RuntimeException($sidecarTraceSender . '/' . $mode . ': child failed or timed out (exit=' . var_export($exitCode, true) . '): ' . $stdout . $stderr);
             $expected = $mode === 'fork' ? array('flush-child' => 1, 'flush-flag' => 1) : array('flush-flag' => 1);
             ksort($counts);
             echo $sidecarTraceSender, '/', $mode, ': ';
             $terminates = in_array($mode, array('shutdown', 'sigterm', 'sigint'), true);
             var_dump($counts === $expected && $blocked && ($terminates || strpos($stdout, 'returned') !== false));
         } finally {
-            if ($exitCode === null) proc_terminate($process);
             foreach ($pipes as $pipe) fclose($pipe);
+            if ($exitCode === null) ffeTestProcessTerminate($process);
             proc_close($process);
             fclose($listener);
         }
