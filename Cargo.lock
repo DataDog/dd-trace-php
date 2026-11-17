@@ -1368,6 +1368,7 @@ dependencies = [
  "rand 0.8.8",
  "rmp-serde",
  "rmpv",
+ "semver",
  "serde",
  "serde_json",
  "serde_with",
