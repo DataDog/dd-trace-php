@@ -220,7 +220,7 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
     ddtrace_span_data *parent = span->parent ? SPANDATA(span->parent)
         : span->std.ce == ddtrace_ce_root_span_data ? ddtrace_get_inferred_span(ROOTSPANDATA(&span->std)) : NULL;
     pre->has_top_level = parent ? ddtrace_span_service_differs_from_parent(parent, pre->service)
-        : ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0);
+        : span->std.ce == ddtrace_ce_inferred_span_data || ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0);
     zval *is_measured = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.measured"));
     pre->is_measured = is_measured && zval_get_double(is_measured) != 0.0;
     pre->is_partial_snapshot = false;
@@ -289,7 +289,9 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
     ddog_CharSlice type_slice     = dd_zend_string_to_CharSlice(pre->type);
 
     bool is_root_span  = span->std.ce == ddtrace_ce_root_span_data;
-    bool is_trace_root = is_root_span && (span->root->parent_id == 0);
+    bool is_trace_root = span->root->parent_id == 0
+        && (span->std.ce == ddtrace_ce_inferred_span_data
+            || (is_root_span && !ddtrace_get_inferred_span(span->root)));
     bool is_error = dd_compute_span_is_error(pre);
 
     // HTTP and gRPC fields only appear on service entry spans, which are always stats-eligible.
@@ -460,6 +462,11 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
 }
 
 void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_span_precomputed *pre) {
+    // Client-side stats require the sidecar trace sender and APM tracing.
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER() || !get_global_DD_APM_TRACING_ENABLED()) {
+        return;
+    }
+
     ddog_CharSlice env_slice = dd_zend_string_to_CharSlice(pre->env);
     // versions can change per service, always look at root span
     zend_string *version_zstr;

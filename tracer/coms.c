@@ -965,11 +965,9 @@ static void dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trace
     for (struct curl_slist *current = dd_agent_curl_headers; current; current = current->next) {
         headers = curl_slist_append(headers, current->data);
     }
-    if (!get_global_DD_APM_TRACING_ENABLED() || (get_global_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation())) {
+    // The background sender leaves stats computation to the agent, except for the APM opt-out.
+    if (!get_global_DD_APM_TRACING_ENABLED()) {
         headers = curl_slist_append(headers, "Datadog-Client-Computed-Stats: true");
-    }
-    if (get_global_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
-        headers = curl_slist_append(headers, "Datadog-Client-Computed-Top-Level: true");
     }
     headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
     headers = curl_slist_append(headers, "Content-Type: application/msgpack");

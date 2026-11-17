@@ -1,6 +1,7 @@
 --TEST--
-Client-side stats: _dd.top_level metric is not set when stats disabled (default)
+Client-side stats: _dd.top_level metric is not set when stats are explicitly disabled
 --ENV--
+DD_TRACE_STATS_COMPUTATION_ENABLED=false
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
@@ -15,7 +16,7 @@ $root->service = "my-service";
 $spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 
 foreach ($spans as $span) {
-    $has_top_level = isset($span["metrics"]["_dd.top_level"]);
+    $has_top_level = isset($span["attributes"]["_dd.top_level"]);
     echo $span["name"] . ": _dd.top_level=" . ($has_top_level ? "1" : "not set") . "\n";
 }
 

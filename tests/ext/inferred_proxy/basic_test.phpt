@@ -78,6 +78,7 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
             "process_id": %d,
             "foo": "bar",
             "http.status_code": "200",
+            "_dd.top_level": 1,
             "php.compilation.total_time_ms": %f,
             "php.memory.peak_usage_bytes": %d,
             "php.memory.peak_real_usage_bytes": %d
@@ -100,6 +101,7 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
             "stage": "aws-prod",
             "_dd.inferred_span": 1,
             "http.status_code": "200",
+            "_dd.top_level": 1,
             "_dd.agent_psr": 1
         }
     },

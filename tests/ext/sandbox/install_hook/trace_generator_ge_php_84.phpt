@@ -41,5 +41,6 @@ spans(\DDTrace\SpanData) (1) {
   {closure:%s.php:%d\{closure} (trace_generator_ge_php_84.php, {closure:%s.php:%d\{closure}, cli)
     closure.declaration => %s:%d
     result => 3
+    _dd.top_level => 1
      (trace_generator_ge_php_84.php, cli)
 }

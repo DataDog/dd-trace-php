@@ -108,5 +108,5 @@ bool ddtrace_trace_passes_filter(ddtrace_span_data *span) {
               ? dd_zend_string_to_CharSlice(Z_STR_P(root_name_zv))
               : DDOG_CHARSLICE_C("");
     }
-    return ddog_check_stats_trace_filter(resource, span, ddtrace_root_tag_value);
+    return ddog_check_stats_trace_filter(resource, &span->root->span, ddtrace_root_tag_value);
 }
