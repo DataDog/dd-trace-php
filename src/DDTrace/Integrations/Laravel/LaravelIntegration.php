@@ -172,7 +172,7 @@ class LaravelIntegration extends Integration
                             }
                         }
                         if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                            $rootSpan->attributes[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                         }
                     }
                 }
