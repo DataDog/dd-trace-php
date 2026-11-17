@@ -4,6 +4,19 @@ Sidecar sender + v1-capable agent serializes the v1 wire (/v1.0/traces, chunks)
 <?php
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
+if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
+if (PHP_VERSION_ID >= 80100) {
+    echo "nocache\n";
+}
+// Pre-seed a v1 /info from a 7.79+ agent for this session token: the sidecar falls back to v0.4 for agents older than 7.79.0-rc.6, which includes the request-replayer's default 7.66.0.
+$ctx = stream_context_create(['http' => [
+    'method' => 'PUT',
+    'header' => ["Content-Type: application/json", "X-Datadog-Test-Session-Token: serializer_wire_sidecar_v1"],
+    'content' => json_encode(["endpoints" => ["/v0.4/traces", "/v0.6/stats", "/v0.7/config", "/v1.0/traces", "/telemetry/proxy/", "/evp_proxy/v2/"], "client_drop_p0s" => false, "version" => "7.79.0"]),
+]]);
+if (@file_get_contents("http://request-replayer/set-agent-info", false, $ctx) === false) {
+    die("skip: request-replayer not reachable");
+}
 ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=error,startup=off

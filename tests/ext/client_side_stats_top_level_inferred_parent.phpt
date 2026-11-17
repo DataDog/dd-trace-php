@@ -36,5 +36,5 @@ foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] as $span) {
 ?>
 --EXPECT--
 web.request (aws-server): _dd.top_level=not set
-aws.apigateway (aws-server): _dd.top_level=not set
+aws.apigateway (aws-server): _dd.top_level=1
 child_other_service (other-service): _dd.top_level=1
