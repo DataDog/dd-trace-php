@@ -5,6 +5,8 @@ require_once __DIR__ . '/ffe_process.inc';
 // Prints the DD-Service header of the CDN requests from one PHP process.
 function ffeTestAgentlessServiceHeader($name, $service, $otelService)
 {
+    // Valgrind makes this fixture slow, so it gets longer request timeouts.
+    $instrumented = getenv('USE_ZEND_ALLOC') === '0';
     $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
     if (!$server) throw new RuntimeException($error);
     $environment = getenv();
@@ -13,13 +15,18 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService)
     if ($service !== null) $environment['DD_SERVICE'] = $service;
     if ($otelService !== null) $environment['OTEL_SERVICE_NAME'] = $otelService;
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE'] = 'agentless';
-    $environment['DD_TRACE_SIDECAR_CONNECTION_MODE'] = 'subprocess';
-    $environment['_DD_DEBUG_SIDECAR_IPC_MODE'] = 'instance_per_process';
-    $environment['_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS'] = '1';
+    // On Windows a sidecar spawn can fail while other sidecars run (os error 80), so there all
+    // cases share one sidecar. Each case still gets its own fetcher, because its base URL and
+    // service are different.
+    if (PHP_OS !== 'WINNT') {
+        $environment['DD_TRACE_SIDECAR_CONNECTION_MODE'] = 'subprocess';
+        $environment['_DD_DEBUG_SIDECAR_IPC_MODE'] = 'instance_per_process';
+        $environment['_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS'] = '1';
+    }
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL'] =
         'http://' . stream_socket_get_name($server, false) . '/configuration';
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS'] = '1';
-    $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS'] = '1';
+    $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS'] = $instrumented ? '10' : '1';
     $environment['DD_API_KEY'] = 'local-fixture-must-not-receive-this';
     $environment['NO_PROXY'] = '127.0.0.1,localhost';
     $process = ffeTestProcess(__DIR__ . '/agentless_service_header_app.php', $pipes, $environment);
@@ -27,7 +34,7 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService)
     $values = array();
     $running = true;
     $exitCode = null;
-    $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
+    $deadline = microtime(true) + ($instrumented ? 60 : 15);
     $configuration = array(
         'createdAt' => '2026-05-22T00:00:00Z', 'format' => 'SERVER',
         'environment' => array('name' => 'test'), 'flags' => new stdClass(),
@@ -49,9 +56,12 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService)
             $pump();
             if (!$running) throw new RuntimeException('child exited: ' . $stdout . ' ' . $stderr);
             if (!$connection = @stream_socket_accept($server, 0.1)) continue;
-            stream_set_timeout($connection, 2);
+            stream_set_timeout($connection, $instrumented ? 10 : 2);
             try {
-                $route = trim((string) fgets($connection));
+                // A client that timed out can close the connection before the request line.
+                // Its next poll is a retry, so wait for that poll.
+                if (($route = fgets($connection)) === false) continue;
+                $route = trim($route);
                 $headers = array();
                 while (($line = fgets($connection)) !== false && trim($line) !== '') {
                     $pair = explode(':', $line, 2);
