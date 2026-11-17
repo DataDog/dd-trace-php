@@ -66,9 +66,25 @@ namespace {
     function update_test_agent_session_token($token) {
         if (defined('GLOBAL_AUTO_PREPEND_RSRC')) {
             ini_set("datadog.trace.agent_test_session_token", $token);
-            ftruncate(GLOBAL_AUTO_PREPEND_RSRC, 0);
-            fseek(GLOBAL_AUTO_PREPEND_RSRC, 0);
-            fwrite(GLOBAL_AUTO_PREPEND_RSRC, "<?php " . (getenv('PHPUNIT_COVERAGE') ? " require '" . __DIR__ . "/save_code_coverage.php';" : ""). " ini_set('datadog.trace.agent_test_session_token', '$token');");
+
+            // Apache workers can keep the auto-prepend script in OPcache after
+            // its contents change. Cache stable code which reads the current
+            // token as data, rather than embedding a different token per test.
+            $tokenFile = GLOBAL_AUTO_PREPEND_FILE . '.token';
+            file_put_contents($tokenFile . '.tmp', $token);
+            rename($tokenFile . '.tmp', $tokenFile);
+
+            static $initialized = false;
+            if (!$initialized) {
+                ftruncate(GLOBAL_AUTO_PREPEND_RSRC, 0);
+                fseek(GLOBAL_AUTO_PREPEND_RSRC, 0);
+                fwrite(GLOBAL_AUTO_PREPEND_RSRC, "<?php " . (getenv('PHPUNIT_COVERAGE') ? " require '" . __DIR__ . "/save_code_coverage.php';" : "")
+                    . " ini_set('datadog.trace.agent_test_session_token', file_get_contents(" . var_export($tokenFile, true) . "));");
+                $initialized = true;
+                register_shutdown_function(function () use ($tokenFile) {
+                    @unlink($tokenFile);
+                });
+            }
         }
     }
 
