@@ -640,4 +640,19 @@ class RouteNormalizerTest extends BaseTestCase
             ['static', '/caf%'], ['static', 'C3%A9/'], ['param', 'id'],
         ]));
     }
+
+    public function testParameterSurroundedByLiteralBraces()
+    {
+        // Symfony's RouteCompiler finds the variable {id} inside {{id}}.
+        $this->assertSame('/items/%7B{id}%7D', RouteNormalizer::normalizeFromSymfony('/items/{{id}}', ['id' => true]));
+        $this->assertSame('/items/%7B{id}%7D', RouteNormalizer::normalizeFromLaravel('/items/{{id}}'));
+    }
+
+    public function testWordPressRuleWithALeadingBracketInACharacterClassIsRejected()
+    {
+        // A ']' right after '[' is literal, so the parentheses of [](] and
+        // [])] are inside the classes and '[^/]+' is outside any capture.
+        $this->assertNull(RouteNormalizer::normalizeFromWordPress('^docs/([](])[^/]+[])]$', 'docs/(alice)'));
+        $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics('^docs/([](])[^/]+[])]$'));
+    }
 }
