@@ -1225,7 +1225,7 @@ void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdo
                     p0_trace = ddtrace_fetch_priority_sampling_from_span(span->root) <= 0;
                     // Inspect the complete available chunk before dropping any spans. This includes
                     // unmeasured children and attached stacks, without serializing rejected P0 spans.
-                    if (p0_trace && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+                    if (p0_trace && get_global_DD_APM_TRACING_ENABLED() && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
                         keep_error_chunk = ddtrace_chunk_has_error(span, next_stack);
                     }
                     sampling_decided = true;
