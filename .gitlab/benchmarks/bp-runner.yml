@@ -1,8 +1,3 @@
-# Analyzer settings (UNCONFIDENCE_THRESHOLD, DISABLE_NHST, CI_TYPE,
-# MD_REPORT_ONLY_CHANGES) live in the CI job's `variables:`, not here.
-# bp-runner configs have no top-level `env:`, and experiment env does not
-# reach teardown steps. Every step inherits the CI process environment.
-
 global_setup:
   - name: Capture hardware/software info
     run: collect_hardware_software_info
