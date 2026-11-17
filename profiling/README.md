@@ -130,20 +130,22 @@ The `run-tests.php` version has to match the PHP version used to run the tests.
 
 The PHP timeline and exception workloads use `sirun` to compare profiling
 disabled, profiling enabled, and profiling with timeline enabled. Their
-definitions load the standalone development artifact, not a combined release
-build. Use PHP configuration that does not auto-load another tracer/profiler.
-Cargo features are fixed at configure time: if `tmp/build_profiler/` already
-exists with different features, remove that generated build directory before
-changing `PROFILER_FEATURES`. From the repository root:
+definitions load the combined development artifact, as shipped to users, with
+the tracer, AppSec, telemetry and the sidecar trace sender disabled. Use PHP
+configuration that does not auto-load another tracer/profiler. From the
+repository root:
 
 ```sh
-make compile_profiler PROFILER_FEATURES=trigger_time_sample
+make compile_combined
 cd profiling
 sirun benches/timeline.json
 sirun benches/exceptions.json
 ```
 
-The timeline workload needs `trigger_time_sample` to collect samples explicitly.
+The timeline workload needs `trigger_time_sample` to collect samples
+explicitly; `compile_combined` enables it. Cargo features are fixed at
+configure time: if `tmp/build_combined/` was configured without that feature,
+remove that generated build directory first.
 
 ## Troubleshooting
 
