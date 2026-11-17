@@ -226,7 +226,7 @@ fn sidecar_connect(cfg: config::Config) -> anyhow::Result<Box<SidecarTransport>>
     // Generally the Send buffer ought to be big enough for instantaneous transmission
     _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
     _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
-    // We do not put reconnect_fn into sidecar_connect, as the reconnect shall not reconnect again on error to prevent recursion
+    // PHP installs its reconnect factory after this returns.
     Ok(stream)
 }
 
@@ -236,7 +236,6 @@ pub extern "C" fn ddog_sidecar_connect_php(
     error_path: *const c_char,
     log_level: CharSlice,
     enable_telemetry: bool,
-    on_reconnect: Option<extern "C" fn(*mut SidecarTransport)>,
     crashtracker_endpoint: Option<&Endpoint>,
     backpressure_bytes: u64,
     backpressure_queue: u64,
@@ -275,17 +274,7 @@ pub extern "C" fn ddog_sidecar_connect_php(
 
     cfg.pipe_buffer_size = backpressure_bytes as usize;
 
-    let reconnect_fn = on_reconnect.map(|on_reconnect| {
-        let cfg = cfg.clone();
-        Box::new(move || {
-            let mut transport = sidecar_connect(cfg.clone()).ok()?;
-            on_reconnect(transport.as_mut() as *mut _);
-            Some(transport)
-        }) as Box<dyn Fn() -> _>
-    });
-
     let mut stream = try_c!(sidecar_connect(cfg));
-    stream.reconnect_fn = reconnect_fn;
     let _ = stream.set_backpressure(backpressure_bytes as usize, backpressure_queue);
     *connection = Box::into_raw(stream);
 
