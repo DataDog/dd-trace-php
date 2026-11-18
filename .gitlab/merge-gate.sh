@@ -28,28 +28,36 @@ AUTH="PRIVATE-TOKEN: ${GITLAB_TOKEN}"
 
 # A retried job hides its failed attempt from `scope[]=failed` until it finishes, so first wait
 # (bounded) until nothing but this job is in flight. API errors exit 75; a timeout exits 1.
-INFLIGHT_SCOPES="scope[]=created&scope[]=waiting_for_resource&scope[]=preparing&scope[]=pending&scope[]=running&scope[]=scheduled"
+INFLIGHT_STATUSES=(created waiting_for_resource preparing pending running scheduled)
+INFLIGHT_SCOPES=$(printf '&scope[]=%s' "${INFLIGHT_STATUSES[@]}")
 INFLIGHT_POLL_SECONDS=30
-INFLIGHT_MAX_WAIT_SECONDS=3000  # the job runs under the 1 h project default timeout
+# Job timeout minus startup (~80 s), classification, and a stalled poll and re-check (~100 s each).
+INFLIGHT_MAX_WAIT_SECONDS=$(( ${CI_JOB_TIMEOUT:-3600} - 600 ))
+# A stalled or throttled call fails within 92 s (60 s retry window + 2 s delay + 30 s try); exit 75.
 _gitlab_get() {
-  curl -g -sf --retry 5 --retry-delay 2 --retry-connrefused -H "${AUTH}" \
-    "${GITLAB_API}/projects/${CI_PROJECT_ID}/$1"
+  curl -g -sf --connect-timeout 10 --max-time 30 --retry 5 --retry-delay 2 --retry-max-time 60 \
+    --retry-connrefused -H "${AUTH}" "${GITLAB_API}/projects/${CI_PROJECT_ID}/$1"
 }
-# Prints one line per in-flight job (parent + children) or parent bridge; fails on any API error.
-# One page per pipeline is enough: any hit means wait.
+# Prints one line per in-flight job (parent + children) or parent bridge, minus parent `.post` (runs after
+# the gate); fails on API errors and non-list bodies. One page per pipeline is enough: any hit means wait.
 _list_inflight() {
-  local data child pid pids=("${CI_PIPELINE_ID}")
-  data=$(_gitlab_get "pipelines/${CI_PIPELINE_ID}/bridges?per_page=100") || return 1
-  data=$(echo "${data}" | jq -r '.[] | select(.downstream_pipeline != null) | .downstream_pipeline.id') || return 1
+  local bridges children jobs child pid pids=("${CI_PIPELINE_ID}")
+  bridges=$(_gitlab_get "pipelines/${CI_PIPELINE_ID}/bridges?per_page=100") || return 1
+  children=$(echo "${bridges}" | jq -rn 'input | if type == "array" then .[] else error("not a list") end
+    | select(.downstream_pipeline != null) | .downstream_pipeline.id') || return 1
   while read -r child; do
     [ -n "${child}" ] && pids+=("${child}")
-  done <<< "${data}"
-  data=$(_gitlab_get "pipelines/${CI_PIPELINE_ID}/bridges?${INFLIGHT_SCOPES}&per_page=100") || return 1
-  echo "${data}" | jq -r --arg p "${CI_PIPELINE_ID}" '.[] | "  … \(.status): \(.name) (pipeline \($p))"' || return 1
+  done <<< "${children}"
+  echo "${bridges}" | jq -rn --arg st "${INFLIGHT_STATUSES[*]}" --arg p "${CI_PIPELINE_ID}" \
+    'input | if type == "array" then .[] else error("not a list") end
+    | select(.stage != ".post" and (.status as $s | $st | split(" ") | any(. == $s)))
+    | "  … \(.status): \(.name) (pipeline \($p))"' || return 1
   for pid in "${pids[@]}"; do
-    data=$(_gitlab_get "pipelines/${pid}/jobs?${INFLIGHT_SCOPES}&per_page=100") || return 1
-    echo "${data}" | jq -r --arg self "${CI_JOB_ID}" --arg p "${pid}" \
-      '.[] | select((.id | tostring) != $self) | "  … \(.status): \(.name) (pipeline \($p))"' || return 1
+    jobs=$(_gitlab_get "pipelines/${pid}/jobs?per_page=100${INFLIGHT_SCOPES}") || return 1
+    echo "${jobs}" | jq -rn --arg self "${CI_JOB_ID}" --arg p "${pid}" --arg parent "${CI_PIPELINE_ID}" \
+      'input | if type == "array" then .[] else error("not a list") end
+      | select((.id | tostring) != $self and ($p != $parent or .stage != ".post"))
+      | "  … \(.status): \(.name) (pipeline \($p))"' || return 1
   done
 }
 wait_start=${SECONDS}
@@ -118,6 +126,14 @@ done < failed_jobs.txt
 if [ "${blocking}" -ne 0 ]; then
   echo ""
   echo "Merge gate FAILED — a required (non-flaky) job failed. See ✗ lines above."
+  exit 1
+fi
+# A job (re)started after the wait could hide a failure from the query above, so never pass then.
+inflight=$(_list_inflight) || { echo "ERROR: could not list in-flight jobs" >&2; exit 75; }
+if [ -n "${inflight}" ]; then
+  echo ""
+  echo "Merge gate FAILED — job(s) started while judging; retry merge-gate:"
+  echo "${inflight}"
   exit 1
 fi
 echo ""
