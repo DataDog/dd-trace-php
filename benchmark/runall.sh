@@ -11,6 +11,9 @@ make_combined() {
 # The profiler feature is fixed at configure time, so it is enabled for every
 # scenario: a build directory shared between scenarios must not lack it.
 export DDTRACE_PROFILING_FEATURES=trigger_time_sample
+# The benchmark platform runs a real agent: keep remote configuration it could
+# deliver from changing the behaviour being measured.
+export DD_REMOTE_CONFIG_ENABLED=false
 cd ..
 COMBINED_SO=tmp/build_combined/modules/ddtrace.so
 if [ -z "${DD_TRACE_ASSUME_COMPILED:-}" ]; then
