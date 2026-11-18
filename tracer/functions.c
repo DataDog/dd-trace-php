@@ -1810,10 +1810,6 @@ static void ddtrace_ffe_update_empty_array_property(zval *object, const char *na
     zval_ptr_dtor(&property_value);
 }
 
-static zend_string *ddtrace_ffe_char_slice_to_string(ddog_CharSlice slice) {
-    return zend_string_init(slice.ptr ? slice.ptr : "", slice.len, 0);
-}
-
 // A flat JSON object of key => scalar, or NULL when the map is empty.
 static zend_string *ddtrace_ffe_features_json(HashTable *features) {
     if (!features || zend_hash_num_elements(features) == 0) {
@@ -1853,7 +1849,7 @@ static zend_string *ddtrace_ffe_exposure_features_json(struct ddog_FfeFeatures *
                     ZVAL_BOOL(&value, feature.bool_value);
                     break;
                 default:
-                    ZVAL_STR(&value, ddtrace_ffe_char_slice_to_string(feature.string_value));
+                    ZVAL_STR(&value, dd_CharSlice_to_zend_string(feature.string_value));
                     break;
             }
             zend_symtable_str_update(Z_ARRVAL(map), feature.key.ptr ? feature.key.ptr : "", feature.key.len, &value);
@@ -1883,15 +1879,15 @@ static void ddtrace_ffe_update_features_property(zval *object, struct ddog_FfeFe
                 ZVAL_BOOL(&value, feature.bool_value);
                 break;
             default:
-                ZVAL_STR(&value, ddtrace_ffe_char_slice_to_string(feature.string_value));
+                ZVAL_STR(&value, dd_CharSlice_to_zend_string(feature.string_value));
                 break;
         }
         array_init_size(&destinations, feature.destinations_count);
         for (size_t d = 0; d < feature.destinations_count; d++) {
-            add_next_index_str(&destinations, ddtrace_ffe_char_slice_to_string(ddog_ffe_features_destination(features, i, d)));
+            add_next_index_str(&destinations, dd_CharSlice_to_zend_string(ddog_ffe_features_destination(features, i, d)));
         }
         array_init_size(&entry, 3);
-        add_assoc_str(&entry, "key", ddtrace_ffe_char_slice_to_string(feature.key));
+        add_assoc_str(&entry, "key", dd_CharSlice_to_zend_string(feature.key));
         add_assoc_zval(&entry, "value", &value);
         add_assoc_zval(&entry, "destinations", &destinations);
         add_next_index_zval(&list, &entry);

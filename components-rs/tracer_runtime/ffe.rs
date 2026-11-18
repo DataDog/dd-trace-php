@@ -349,9 +349,9 @@ pub extern "C" fn ddog_ffe_features_count(features: &FfeFeatures) -> usize {
 #[no_mangle]
 pub extern "C" fn ddog_ffe_features_get(features: &FfeFeatures, index: usize) -> FfeFeature<'_> {
     let mut view = FfeFeature {
-        key: CharSlice::from(""),
+        key: CharSlice::empty(),
         value_type: ATTR_TYPE_STRING,
-        string_value: CharSlice::from(""),
+        string_value: CharSlice::empty(),
         number_value: 0.0,
         bool_value: false,
         destinations_count: 0,
