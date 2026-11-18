@@ -156,8 +156,7 @@ literal text and mandatory captures; a Wildcard adds nothing) when:
 
 The tag is not set, as the route cannot be expressed, when a `Regex` route
 can match text outside its captures that is not plain literal text (a
-character class, `.`, an escape such as `\d`, a repeated part, a lookaround,
-a POSIX class such as `[:alpha:]`),
+character class, `.`, an escape such as `\d`, a repeated part, a lookaround),
 and when the fallback is needed but the named route has a `Regex` route with
 an alternation outside an optional part, a `Segment` with translated
 literals, or a route type laminas-router does not ship.
@@ -201,7 +200,7 @@ The tag is not set, as the route cannot be expressed, when:
 
 - the rule can consume text that is not inside a capture group: outside
   captures it uses `.`, a character class, `*`, `+`, `{`, an escape such as
-  `\d` or `\w`, an inline option, a lookaround or a POSIX class such as `[:alpha:]`. This rejects WordPress's
+  `\d` or `\w`, an inline option or a lookaround. This rejects WordPress's
   index permalink rules (`index.php/...`) and its default attachment rules;
 - the fallback is needed and the rule has an alternation outside an optional
   part (which branch matched is unknown);

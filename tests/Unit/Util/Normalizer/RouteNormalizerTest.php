@@ -672,14 +672,24 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertNull(RouteNormalizer::normalizeFromWordPressRule('^foo/.+$'));
     }
 
-    public function testRegexWithAPosixClassIsRejected()
+    public function testPosixClassesAreReadAsPcreReadsThem()
     {
-        // The ']' of [:alpha:] does not end the enclosing class, which the
-        // scanners do not model: such a rule cannot be expressed.
+        // The ']' of [:alpha:] does not end the enclosing class: here the ')'
+        // is inside the second class, the capture never closes, and the rule
+        // is rejected rather than letting uncaptured text through.
         $rule = '^docs/([:alpha:[^/]+[[:alpha:])]$';
         $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics($rule));
         $this->assertNull(RouteNormalizer::normalizeFromWordPress($rule, 'docs/(alice)'));
         $this->assertNull(RouteNormalizer::normalizeFromWordPressRule($rule));
-        $this->assertNull(RouteNormalizer::regexFallbackElements('/docs/(?<id>[[:digit:]]+)'));
+
+        // A POSIX class inside a capture is part of the capture: the route
+        // can be expressed (RFC-1125), so it gets a tag.
+        $this->assertTrue(RouteNormalizer::regexHasOnlyCapturedDynamics('^docs/([[:alpha:]]+)$'));
+        $this->assertSame('/docs/{param1}', RouteNormalizer::normalizeFromWordPress('^docs/([[:alpha:]]+)$', 'docs/alice'));
+        $this->assertSame('/docs/{id}', RouteNormalizer::normalizeElements(
+            RouteNormalizer::regexFallbackElements('/docs/(?<id>[[:digit:]]+)')
+        ));
+        // A class holding ')' after a POSIX class keeps it a literal.
+        $this->assertSame('/docs/{param1}', RouteNormalizer::normalizeFromWordPress('^docs/([[:alpha:])]+)$', 'docs/a)b'));
     }
 }
