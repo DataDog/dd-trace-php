@@ -119,6 +119,20 @@ static bool dd_sidecar_can_connect(void) {
     return false;
 }
 
+// A failed join of a recovered generation leaves the shared deadline untouched, possibly in the past.
+// Push it forward so the absolute timer cannot fire immediately and loop on the failing connect.
+static void dd_sidecar_defer_retry(void) {
+    uint64_t now = zend_hrtime();
+    uint64_t retry_after = atomic_load(&dd_sidecar_retry_after_ns);
+    while (retry_after <= now) {
+        uint64_t deadline = now + 10 * ZEND_NANO_IN_SEC;
+        if (atomic_compare_exchange_weak(&dd_sidecar_retry_after_ns, &retry_after, deadline)) {
+            retry_after = deadline;
+        }
+    }
+    dd_sidecar_schedule_retry(retry_after);
+}
+
 static bool dd_sidecar_process_died(void) {
     if (!dd_sidecar_transport_generation) {
         return false;
@@ -527,7 +541,7 @@ static ddog_SidecarTransport *dd_sidecar_connect_transport(bool as_worker) {
                     get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(),
                     datadog_endpoint, (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_BYTES(), (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE()))) {
 #ifdef __linux__
-            dd_sidecar_schedule_retry(atomic_load(&dd_sidecar_retry_after_ns));
+            dd_sidecar_defer_retry();
 #endif
             return NULL;
         }
