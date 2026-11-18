@@ -34,13 +34,11 @@ try {
         }
         $connection = @stream_socket_accept($server, 0.1);
         if (!$connection) continue;
-        stream_set_timeout($connection, 2);
-        $route = trim(fgets($connection));
-        $headers = array();
-        while (($line = fgets($connection)) !== false && trim($line) !== '') {
-            $pair = explode(':', $line, 2);
-            if (count($pair) === 2) $headers[strtolower($pair[0])] = trim($pair[1]);
+        if (!$request = ffeTestReadRequest($connection)) {
+            fclose($connection);
+            continue;
         }
+        list($route, $headers) = $request;
         $requests[] = array($route, $headers, $expectedEtag);
         // Keep stale/304 states observable even when sanitizers preempt the
         // child for an entire poll interval. The child must acknowledge each.
