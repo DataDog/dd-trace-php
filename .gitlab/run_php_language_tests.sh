@@ -38,8 +38,8 @@ if [[ ${PHP_MAJOR_MINOR} == 7.* && -f $socket_test ]]; then
   sed -Ei 's#udp://0\.0\.0\.0:[0-9]+#udp://0.0.0.0:0#g' "$socket_test"
 fi
 
-if [[ ${PHP_MAJOR_MINOR} == 8.0 ]]; then
-  curl_patch="${CI_PROJECT_DIR}/.gitlab/patches/php-8.0-curl-server-startup.patch"
+if [[ ${PHP_MAJOR_MINOR} == 8.* ]]; then
+  curl_patch="${CI_PROJECT_DIR}/.gitlab/patches/php-8-curl-server-startup.patch"
   if ! patch -p1 --reverse --force --dry-run --fuzz=0 < "$curl_patch" > /dev/null; then
     patch -p1 --forward --fuzz=0 < "$curl_patch"
   fi
