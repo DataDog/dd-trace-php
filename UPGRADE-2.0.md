@@ -25,6 +25,7 @@ The supported PHP versions are unchanged: PHP 7.0 and newer (profiling requires 
 
 To ensure a smooth transition to version 2.0, follow these migration steps:
 
+- **Upgrade the datadog-agent** (optional): Make sure you have at least `7.79` installed for optimal performance.
 - **Remove standalone extensions**: Make sure there is no `extension=ddappsec.so` and `extension=datadog-profiling.so` in your INI files anymore. `datadog-setup.php` does this for you.
 - **Enable profiling explicitly**: If you configure the extension manually rather than with `datadog-setup.php`, set `DD_PROFILING_ENABLED=true` (or `datadog.profiling.enabled=On`) to keep profiling.
 - **Drop trace analytics settings**: Remove `DD_TRACE_ANALYTICS_ENABLED` and the `DD_TRACE_<INTEGRATION>_ANALYTICS_*` settings and their API calls.
@@ -75,6 +76,8 @@ The sidecar sends traces using the V1 efficient trace payload protocol (`/v1.0/t
 | Configuration Option              | Values                              | Default |
 |-----------------------------------|-------------------------------------|---------|
 | `DD_TRACE_AGENT_PROTOCOL_VERSION` | `1.0` (V1 when supported), `0.4`    | `1.0`   |
+
+Note that down-conversion to protocol `0.4` is a noticeable performance penalty and should be avoided. Upgrading the agent is strongly advised.
 
 ### Client-side stats
 

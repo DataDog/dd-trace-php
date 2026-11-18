@@ -18,6 +18,9 @@ A more elaborate summary of the breaking changes can be found in our upgrading g
 - Remove `DD_TRACE_WARN_LEGACY_DD_TRACE` and the internal functions `dd_trace_serialize_msgpack()`, `dd_trace_send_traces_via_thread()`, `dd_trace_buffer_span()`, `dd_trace_coms_trigger_writer_flush()`, `dd_trace_reset()` and `dd_trace_noop()` #4453
 - Deprecate (with `E_DEPRECATED`) `DDTrace\trace_id()`, `DDTrace\current_context()`, `ddtrace_config_app_name()`, `ddtrace_config_distributed_tracing_enabled()`, `ddtrace_config_trace_enabled()`, `dd_trace_set_trace_id()`, `dd_trace_compile_time_microseconds()`, `dd_trace_function()` and `dd_trace_method()` #4453
 
+### Performance
+- Using the new trace protocol significantly reduces the overhead of our sidecar process. Make sure to have at least datadog-agent version `7.79` installed, to actually use it. Otherwise it will fall back to the old one, incurring a conversion penalty.
+
 ## All products
 ### Changed
 - Reduce sidecar memory usage: an idle sidecar thread no longer keeps a 4 MiB IPC receive buffer resident DataDog/libdatadog#2743
@@ -28,6 +31,7 @@ A more elaborate summary of the breaking changes can be found in our upgrading g
 - Fix a race between writers and a forced drain of the sidecar's shared-memory buffers, e.g. at shutdown DataDog/libdatadog#2885
 - Fix a file descriptor leak in the sidecar's remote config handling, and stop remote config indexes from pointing at files that were already removed DataDog/libdatadog#2880
 - Fix sidecar connections on macOS closing on messages within 16 bytes of the socket buffer limit DataDog/libdatadog#2743
+- Drop the chmod of the removed appsec lib dir in the installer #4518
 
 ### Internal
 - Update and deduplicate Rust dependencies #4457, #4458, #4459
@@ -60,3 +64,4 @@ A more elaborate summary of the breaking changes can be found in our upgrading g
 
 ### Internal
 - Remove AppSec dead code and tracer logic that was duplicated in AppSec #4417, #4467
+- Helper: troubleshoot fd exhaustion errors #4505
