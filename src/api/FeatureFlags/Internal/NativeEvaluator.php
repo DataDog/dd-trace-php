@@ -13,8 +13,9 @@ final class NativeEvaluator implements Evaluator
     private $mapper;
     private $recordMetrics;
     private $flagEvaluationRecorder;
+    private $recordExposures;
 
-    private function __construct($mapper = null, bool $recordMetrics = true, $flagEvaluationRecorder = null)
+    private function __construct($mapper = null, bool $recordMetrics = true, $flagEvaluationRecorder = null, $recordExposures = true)
     {
         if ($mapper !== null && !$mapper instanceof ResultMapper) {
             throw new \InvalidArgumentException('Expected a ResultMapper instance');
@@ -23,6 +24,7 @@ final class NativeEvaluator implements Evaluator
         $this->mapper = $mapper ?: new ResultMapper();
         $this->recordMetrics = $recordMetrics;
         $this->flagEvaluationRecorder = $flagEvaluationRecorder;
+        $this->recordExposures = (bool) $recordExposures;
     }
 
     public static function isAvailable()
@@ -30,10 +32,15 @@ final class NativeEvaluator implements Evaluator
         return function_exists('DDTrace\\ffe_evaluate');
     }
 
-    /** @param callable|null $flagEvaluationRecorder Internal adapter for terminal OpenFeature reporting. */
-    public static function create($recordMetrics = true, $flagEvaluationRecorder = null)
+    /**
+     * @param callable|null $flagEvaluationRecorder Internal adapter for terminal OpenFeature reporting.
+     * @param bool $recordExposures False when the caller records exposures with record_ffe_exposure().
+     */
+    public static function create($recordMetrics = true, $flagEvaluationRecorder = null, $recordExposures = true)
     {
-        return self::isAvailable() ? new self(null, $recordMetrics, $flagEvaluationRecorder) : new UnavailableEvaluator();
+        return self::isAvailable()
+            ? new self(null, $recordMetrics, $flagEvaluationRecorder, $recordExposures)
+            : new UnavailableEvaluator();
     }
 
     public function evaluate(
@@ -51,7 +58,8 @@ final class NativeEvaluator implements Evaluator
             $this->typeId($expectedType),
             $targetingKey,
             $normalizedAttributes,
-            $this->recordMetrics
+            $this->recordMetrics,
+            $this->recordExposures
         );
 
         if (is_array($rawResult) || is_object($rawResult)) {
@@ -92,7 +100,8 @@ final class NativeEvaluator implements Evaluator
                 $details->getVariant() === null && !isset($exposure['serialId']),
                 $consent,
                 $evaluationTimestampMs,
-                $targetingKeyInvalid
+                $targetingKeyInvalid,
+                SplitFeatures::withPrefix($details->getFlagMetadata(), SplitFeatures::EVALUATION_PREFIX)
             );
             if ($this->flagEvaluationRecorder !== null) {
                 // Keep only the native inspection budget plus one overflow

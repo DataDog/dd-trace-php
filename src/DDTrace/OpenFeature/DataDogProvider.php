@@ -13,6 +13,7 @@ use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\FeatureFlags\Internal\SplitFeatures;
 use DDTrace\Log\Logger as GlobalLogger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\LogLevel;
@@ -33,14 +34,19 @@ final class DataDogProvider extends AbstractProvider
 {
     private const ALLOCATION_KEY_METADATA_KEY = 'allocationKey';
 
-    protected static string $NAME = 'Datadog';
+    public const NAME = 'Datadog';
+
+    protected static string $NAME = self::NAME;
 
     private Evaluator $evaluator;
     private LoggerInterface $datadogLogger;
     private bool $warnedAboutRuntimeNotReady = false;
+    private bool $warnedAboutUnhookedResolution = false;
     private EvaluationMetricRecorder $metricRecorder;
     private object $mainObservationScope;
     private \WeakMap $fiberObservationScopes;
+    /** @var callable|null */
+    private $exposureRecorder = null;
 
     public function __construct(?LoggerInterface $logger = null)
     {
@@ -55,7 +61,10 @@ final class DataDogProvider extends AbstractProvider
             } else {
                 NativeEvaluator::submitFlagEvaluation($observation);
             }
-        });
+        }, false);
+        if (function_exists('DDTrace\\Internal\\record_ffe_exposure')) {
+            $this->exposureRecorder = 'DDTrace\\Internal\\record_ffe_exposure';
+        }
         $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
         // Register only when enabled: debug-off evaluations run no diagnostic hooks.
@@ -114,7 +123,7 @@ final class DataDogProvider extends AbstractProvider
     {
         // The SDK asks once per invocation. A fresh hook keeps finalization
         // state separate even when a before hook fails before ours runs.
-        return array_merge(parent::getHooks(), [new FlagEvaluationHook($this->observationScope())]);
+        return array_merge(parent::getHooks(), [new FlagEvaluationHook($this->observationScope(), $this->exposureRecorder)]);
     }
 
     private function observationScope(): object
@@ -133,7 +142,8 @@ final class DataDogProvider extends AbstractProvider
     public static function createWithDependencies(
         ?Evaluator $evaluator = null,
         ?LoggerInterface $logger = null,
-        $metricRecorder = null
+        $metricRecorder = null,
+        ?callable $exposureRecorder = null
     ): self {
         $provider = new self($logger);
         if ($evaluator !== null) {
@@ -141,6 +151,9 @@ final class DataDogProvider extends AbstractProvider
         }
         if ($metricRecorder !== null) {
             $provider->metricRecorder = new EvaluationMetricRecorder($metricRecorder);
+        }
+        if ($exposureRecorder !== null) {
+            $provider->exposureRecorder = $exposureRecorder;
         }
 
         return $provider;
@@ -235,10 +248,16 @@ final class DataDogProvider extends AbstractProvider
         $this->recordEvaluationMetric($flagKey, $details);
         // APM span enrichment is recorded inside NativeEvaluator::evaluate()
         // (the shared choke point), so there is nothing to do here.
+        $this->captureExposure($flagKey, $context, $normalizedContext, $details);
 
         $builder = (new ResolutionDetailsBuilder())
             ->withValue($details->getValue())
             ->withReason($this->mapReason($details->getReason()));
+
+        $metadata = $this->openFeatureMetadata($details);
+        if ($metadata !== [] && method_exists($builder, 'withMetadata')) {
+            $builder->withMetadata($metadata);
+        }
 
         $variant = $details->getVariant();
         if ($variant !== null && $variant !== '') {
@@ -253,6 +272,62 @@ final class DataDogProvider extends AbstractProvider
         }
 
         return $builder->build();
+    }
+
+    /**
+     * Hands the evaluation to this invocation's FlagEvaluationHook, which
+     * records the exposure once every after hook has succeeded. Without that
+     * hook (a direct call, or a child of a MultiProvider, which does not run
+     * child hooks) no exposure is recorded, as in the other Datadog SDKs.
+     *
+     * @param array{targetingKey?: ?string, attributes?: array<string, bool|int|float|string>} $context
+     */
+    private function captureExposure(
+        string $flagKey,
+        ?EvaluationContext $evaluationContext,
+        array $context,
+        EvaluationDetails $details
+    ): void {
+        $recorder = $this->observationScope()->recorder;
+        if ($recorder === null) {
+            if (!$this->warnedAboutUnhookedResolution) {
+                $this->warnedAboutUnhookedResolution = true;
+                $this->datadogLogger->warning('Feature Flags: exposures require the Datadog provider set directly on OpenFeature and evaluated through an OpenFeature client; no exposures are recorded for this provider when it is called directly or used inside a MultiProvider');
+            }
+            return;
+        }
+        $exposure = $details->getExposureData();
+        $allocationKey = $this->allocationKey($details);
+        $variant = $details->getVariant();
+        $recorder->captureExposure([
+            'flagKey' => $flagKey,
+            // Later hooks can still change the targeting key of the shared context.
+            'context' => $evaluationContext !== null ? ExposureEvaluation::copyContext($evaluationContext) : null,
+            'targetingKey' => $context['targetingKey'] ?? null,
+            'attributes' => $context['attributes'] ?? [],
+            'allocationKey' => $allocationKey,
+            'variant' => $variant,
+            'serialId' => isset($exposure['serialId']) && is_int($exposure['serialId']) ? $exposure['serialId'] : null,
+            'features' => SplitFeatures::withPrefix($details->getFlagMetadata(), SplitFeatures::HOOK_PREFIX),
+            'exposureFeatures' => SplitFeatures::withPrefix($details->getFlagMetadata(), SplitFeatures::EXPOSURE_PREFIX),
+            'isExposure' => $details->getErrorCode() === null
+                && ($exposure['doLog'] ?? false) === true
+                && $allocationKey !== null
+                && is_string($variant) && $variant !== '',
+        ]);
+    }
+
+    /** @return array<string, bool|string|int|float> */
+    private function openFeatureMetadata(EvaluationDetails $details): array
+    {
+        $metadata = [];
+        foreach ($details->getFlagMetadata() as $key => $value) {
+            if (is_string($key) && (is_bool($value) || is_string($value) || is_int($value) || is_float($value))) {
+                $metadata[$key] = $value;
+            }
+        }
+
+        return $metadata;
     }
 
     private function recordEvaluationMetric(string $flagKey, EvaluationDetails $details): void
