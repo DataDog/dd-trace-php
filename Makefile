@@ -76,8 +76,9 @@ RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(RUST_SYMBOL_FILES
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '*.inc' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-# Canonical FFE fixtures (git submodule) read by tests/ext/ffe/system_test_data_evaluate.phpt; shipped in the PECL package only
-FFE_FIXTURE_FILES = $(shell find tests/FeatureFlags/ffe-system-test-data -name '*.json' -not -path '*/.git/*')
+# Canonical FFE fixtures (git submodule) read by tests/ext/ffe/system_test_data_evaluate.phpt; shipped in the PECL package only.
+# The evaluation-suites (scale, scale-json: about 24 MB) are read only by the API tests and benchmarks, so they stay out of the package.
+FFE_FIXTURE_FILES = $(shell find tests/FeatureFlags/ffe-system-test-data -name '*.json' -not -path '*/.git/*' -not -path '*/evaluation-suites/*')
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
 XDEBUG_SO_FILE = $(shell find $(shell php-config --extension-dir) -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
