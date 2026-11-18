@@ -692,7 +692,7 @@ foreach ($windows_build_platforms as $platform) {
     $ntsCode = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
-    if ($ntsCode -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ntsCode } }
+    if ($ntsCode -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download','could not download file' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ntsCode } }
 
     # Reuse the common/tracer Cargo build (fail if move fails)
     docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target-common' 'app\\x64\\Release_TS\\target-common' -ErrorAction Stop"
@@ -706,7 +706,7 @@ foreach ($windows_build_platforms as $platform) {
     $ztsCode = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
-    if ($ztsCode -ne 0) { if (Select-String -Path zts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download' -Quiet) { Write-Host "Transient network failure during zts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ztsCode } }
+    if ($ztsCode -ne 0) { if (Select-String -Path zts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download','could not download file' -Quiet) { Write-Host "Transient network failure during zts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ztsCode } }
 
     # Try to stop the container, don't care if we fail
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
