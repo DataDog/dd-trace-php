@@ -136,7 +136,7 @@ final class ResultMapper
 
     private function decodeValue($rawResult, $expectedType, &$decoded)
     {
-        if ($this->has($rawResult, 'value')) {
+        if ($this->hasTypedValue($rawResult)) {
             $value = $this->read($rawResult, array('value'), null);
         } else {
             $valueJson = $this->read($rawResult, array('value_json', 'valueJson'), null);
@@ -163,13 +163,23 @@ final class ResultMapper
             return false;
         }
 
-        if ($this->has($rawResult, 'value')) {
+        if ($this->hasTypedValue($rawResult)) {
             return $this->read($rawResult, array('value'), null) === null;
         }
 
         $valueJson = $this->read($rawResult, array('value_json', 'valueJson'), null);
 
         return is_string($valueJson) && trim($valueJson) === 'null';
+    }
+
+    /**
+     * The extension returns scalars typed in `value`, and JSON values as text
+     * in `valueJson`. JSON text, when present, takes precedence.
+     */
+    private function hasTypedValue($rawResult)
+    {
+        return $this->has($rawResult, 'value')
+            && $this->read($rawResult, array('value_json', 'valueJson'), null) === null;
     }
 
     private function coerceValue($value, $expectedType, &$coerced)

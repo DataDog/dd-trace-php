@@ -60,6 +60,7 @@ namespace DDTrace {
     const FFE_OBJECT = UNKNOWN;
 
     final class FfeResult {
+        public $value = null;
         public ?string $valueJson = null;
         public ?string $variant = null;
         public ?string $allocationKey = null;

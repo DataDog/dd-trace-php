@@ -36,7 +36,7 @@ var_dump(DDTrace\Testing\ffe_load_config(json_encode(array(
 foreach (array_keys($values) as $key) {
     $result = DDTrace\ffe_evaluate($key, DDTrace\FFE_OBJECT, null, array());
     echo $key . ': ' . $result->reason . ' ' . $result->errorCode
-        . ' ' . json_encode($result->variant) . ' ' . $result->valueJson
+        . ' ' . json_encode($result->variant) . ' ' . json_encode($result->value) . ' ' . $result->valueJson
         . ' ' . json_encode($result->doLog) . "\n";
 }
 
@@ -53,11 +53,11 @@ foreach (array('json-object', 'json-list') as $key) {
 ?>
 --EXPECT--
 bool(true)
-json-int: 5 1 null null false
-json-string: 5 1 null null false
-json-null: 5 1 null null false
-json-object: 0 0 "on" {"a":1} true
-json-list: 0 0 "on" [1,2] true
+json-int: 5 1 null null  false
+json-string: 5 1 null null  false
+json-null: 5 1 null null  false
+json-object: 0 0 "on" null {"a":1} true
+json-list: 0 0 "on" null [1,2] true
 found
 found
 found

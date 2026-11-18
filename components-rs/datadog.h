@@ -298,7 +298,8 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
                                         ddog_CharSlice targeting_key,
                                         const struct ddog_FfeAttribute *attributes,
-                                        uintptr_t attributes_count);
+                                        uintptr_t attributes_count,
+                                        bool include_value_json);
 
 void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
 

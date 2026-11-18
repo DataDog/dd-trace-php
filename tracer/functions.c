@@ -1788,6 +1788,49 @@ static void ddtrace_ffe_update_nullable_string_property(zval *object, const char
     zval_ptr_dtor(&property_value);
 }
 
+// Mirrors the VALUE_* constants in components-rs/tracer_runtime/ffe.rs.
+#define DDTRACE_FFE_VALUE_STRING 1
+#define DDTRACE_FFE_VALUE_INTEGER 2
+#define DDTRACE_FFE_VALUE_FLOAT 3
+#define DDTRACE_FFE_VALUE_BOOLEAN 4
+#define DDTRACE_FFE_VALUE_JSON 5
+
+// Sets `value` to the typed scalar, with the types json_decode() returned
+// before: an integer that does not fit a zend_long becomes a float. Takes
+// ownership of result->value_string. JSON values stay in `valueJson`.
+static void ddtrace_ffe_update_value_property(zval *object, struct ddog_FfeResult *result) {
+    zval value;
+
+    switch (result->value_type) {
+        case DDTRACE_FFE_VALUE_STRING:
+            if (!result->value_string) {
+                return;
+            }
+            ZVAL_STR(&value, result->value_string);
+            break;
+        case DDTRACE_FFE_VALUE_INTEGER:
+#if SIZEOF_ZEND_LONG < 8
+            if (result->value_integer < ZEND_LONG_MIN || result->value_integer > ZEND_LONG_MAX) {
+                ZVAL_DOUBLE(&value, (double) result->value_integer);
+                break;
+            }
+#endif
+            ZVAL_LONG(&value, (zend_long) result->value_integer);
+            break;
+        case DDTRACE_FFE_VALUE_FLOAT:
+            ZVAL_DOUBLE(&value, result->value_float);
+            break;
+        case DDTRACE_FFE_VALUE_BOOLEAN:
+            ZVAL_BOOL(&value, result->value_boolean);
+            break;
+        default:
+            return;
+    }
+
+    ddtrace_ffe_update_property(object, ZEND_STRL("value"), &value);
+    zval_ptr_dtor(&value);
+}
+
 static void ddtrace_ffe_update_long_property(zval *object, const char *name, size_t name_len, zend_long value) {
     zval property_value;
 
@@ -1903,7 +1946,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         type_id,
         dd_zend_string_to_CharSlice(targeting_key),
         c_attrs,
-        attrs_count
+        attrs_count,
+        // The debug log shows the raw value as JSON.
+        ddog_shall_log(DDOG_LOG_DEBUG)
     );
     if (c_attrs) {
         efree(c_attrs);
@@ -1958,7 +2003,13 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_log_evaluation(flag_key, type_id, targeting_key, attrs_zv, &result);
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
+    ddtrace_ffe_update_value_property(return_value, &result);
+    if (result.value_type == DDTRACE_FFE_VALUE_JSON) {
+        ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
+    } else if (value_json) {
+        // Only requested for the debug log.
+        zend_string_release(value_json);
+    }
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), variant);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), allocation_key);
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));

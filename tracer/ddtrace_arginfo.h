@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: b741b723e7554234ab3d63328800d8f79eeb236d */
+ * Stub hash: 8a54de9826668c33efbec58ac4359674503d15da */
 
 #include "zend_constants.h"
 
@@ -636,6 +636,12 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "FfeResult", NULL);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
+
+	zval property_value_default_value;
+	ZVAL_NULL(&property_value_default_value);
+	zend_string *property_value_name = zend_string_init("value", sizeof("value") - 1, true);
+	zend_declare_typed_property(class_entry, property_value_name, &property_value_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_NONE(0));
+	zend_string_release_ex(property_value_name, true);
 
 	zval property_valueJson_default_value;
 	ZVAL_NULL(&property_valueJson_default_value);

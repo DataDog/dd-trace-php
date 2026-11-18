@@ -282,4 +282,62 @@ final class ResultMapperTest extends TestCase
 
         $this->assertArrayNotHasKey('serialId', $details->getExposureData());
     }
+
+    /**
+     * @dataProvider typedValueProvider
+     */
+    public function testTypedNativeValueIsReturnedWithoutJson($expectedType, $value)
+    {
+        $rawResult = new \stdClass();
+        $rawResult->value = $value;
+        $rawResult->valueJson = null;
+        $rawResult->variant = 'on';
+        $rawResult->reason = ResultMapper::BRIDGE_REASON_STATIC;
+        $rawResult->errorCode = ResultMapper::BRIDGE_ERROR_NONE;
+
+        $details = (new ResultMapper())->map($rawResult, $expectedType, null);
+
+        $this->assertSame($value, $details->getValue());
+        $this->assertSame(EvaluationReason::STATIC_REASON, $details->getReason());
+        $this->assertNull($details->getErrorCode());
+    }
+
+    public function typedValueProvider()
+    {
+        return array(
+            'string' => array(EvaluationType::STRING, 'blue'),
+            'integer' => array(EvaluationType::INTEGER, 9007199254740993),
+            'float' => array(EvaluationType::FLOAT, 1.5),
+            'boolean' => array(EvaluationType::BOOLEAN, false),
+        );
+    }
+
+    public function testJsonTextTakesPrecedenceOverTypedValue()
+    {
+        $rawResult = new \stdClass();
+        $rawResult->value = null;
+        $rawResult->valueJson = '{"enabled":true}';
+        $rawResult->variant = 'on';
+        $rawResult->reason = ResultMapper::BRIDGE_REASON_STATIC;
+        $rawResult->errorCode = ResultMapper::BRIDGE_ERROR_NONE;
+
+        $details = (new ResultMapper())->map($rawResult, EvaluationType::OBJECT, array());
+
+        $this->assertSame(array('enabled' => true), $details->getValue());
+    }
+
+    public function testNullTypedValueWithDefaultReasonReturnsDefault()
+    {
+        $rawResult = new \stdClass();
+        $rawResult->value = null;
+        $rawResult->valueJson = null;
+        $rawResult->reason = ResultMapper::BRIDGE_REASON_DEFAULT;
+        $rawResult->errorCode = ResultMapper::BRIDGE_ERROR_NONE;
+
+        $details = (new ResultMapper())->map($rawResult, EvaluationType::STRING, 'fallback');
+
+        $this->assertSame('fallback', $details->getValue());
+        $this->assertSame(EvaluationReason::DEFAULT_REASON, $details->getReason());
+        $this->assertNull($details->getErrorCode());
+    }
 }
