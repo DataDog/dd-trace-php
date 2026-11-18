@@ -335,6 +335,9 @@ class RouteNormalizer
      */
     public static function regexHasOnlyCapturedDynamics(string $rule): bool
     {
+        if (self::regexHasPosixClassSyntax($rule)) {
+            return false;
+        }
         $groups = [];
         $captureDepth = 0;
         $inClass = false;
@@ -571,6 +574,9 @@ class RouteNormalizer
      */
     public static function regexFallbackElements(string $regex)
     {
+        if (self::regexHasPosixClassSyntax($regex)) {
+            return null;
+        }
         $i = 0;
         $elements = self::regexFallbackSequence($regex, $i);
         return $elements === null || $i !== strlen($regex) ? null : $elements;
@@ -773,6 +779,18 @@ class RouteNormalizer
         }
 
         return $wrappers;
+    }
+
+    /**
+     * Whether a regex may hold a POSIX class ([:alpha:]), collating element
+     * ([.a.]) or equivalence class ([=a=]). Their ']' does not end the
+     * enclosing character class, which the scanners here do not model, so
+     * such a regex is rejected: the route cannot be expressed. Conservative:
+     * an escaped '\\[:' is rejected too.
+     */
+    private static function regexHasPosixClassSyntax(string $regex): bool
+    {
+        return preg_match('/\\[[:.=]/', $regex) === 1;
     }
 
     /** Whether the group opened at $open is an unnamed capture with a named capture inside. */

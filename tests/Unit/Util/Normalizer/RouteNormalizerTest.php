@@ -671,4 +671,15 @@ class RouteNormalizerTest extends BaseTestCase
         // A rule that cannot be expressed gets no fallback either.
         $this->assertNull(RouteNormalizer::normalizeFromWordPressRule('^foo/.+$'));
     }
+
+    public function testRegexWithAPosixClassIsRejected()
+    {
+        // The ']' of [:alpha:] does not end the enclosing class, which the
+        // scanners do not model: such a rule cannot be expressed.
+        $rule = '^docs/([:alpha:[^/]+[[:alpha:])]$';
+        $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics($rule));
+        $this->assertNull(RouteNormalizer::normalizeFromWordPress($rule, 'docs/(alice)'));
+        $this->assertNull(RouteNormalizer::normalizeFromWordPressRule($rule));
+        $this->assertNull(RouteNormalizer::regexFallbackElements('/docs/(?<id>[[:digit:]]+)'));
+    }
 }
