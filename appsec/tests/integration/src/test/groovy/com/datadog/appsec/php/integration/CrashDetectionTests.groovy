@@ -91,6 +91,8 @@ class CrashDetectionTests {
     @Test
     @Order(100)
     void 'sidecar exits normally with no crashes after Apache restart'() {
+        // The preceding test kills the sidecar; allow its connection cooldown to expire.
+        Thread.sleep(10_000)
         CONTAINER.traceFromRequest('/hello.php')
 
         // Restart Apache so old workers exit and drop their sidecar connections.
