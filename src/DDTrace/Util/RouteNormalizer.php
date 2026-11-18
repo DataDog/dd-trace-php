@@ -220,9 +220,9 @@ class RouteNormalizer
      * is a prefix route, and the rest of the path is its implicit unnamed
      * catch-all.
      *
-     * $urlPath is required: without it we cannot determine which optional
-     * captures participated in the match, and inferring participation purely
-     * from the rule would violate the normalization spec.
+     * $urlPath is required to tell which optional captures took part. When
+     * the rule does not match it, the route falls back to the rule's
+     * mandatory parts (see normalizeFromWordPressRule()).
      *
      * @param string $matchedRule Value of $wp->matched_rule
      * @param string $urlPath     Value of $wp->request, the subject WordPress
@@ -250,7 +250,9 @@ class RouteNormalizer
             $subject = urldecode($subject);
             $percentIsEscape = false;
             if (@preg_match($pattern, $subject, $matches, $flags) !== 1) {
-                return null;
+                // WordPress matched another subject: which captures took part
+                // is unknown, so fall back to the rule's mandatory parts.
+                return self::normalizeFromWordPressRule($matchedRule);
             }
         }
         if ($matches[0][1] !== 0) {
@@ -274,6 +276,24 @@ class RouteNormalizer
         }
 
         return self::normalizeElements($elements, $percentIsEscape);
+    }
+
+    /**
+     * The fallback route of a WordPress rule when the subject WordPress matched
+     * it against is unknown (RFC-1125): its literal text and its mandatory
+     * captures, without the optional parts, whose presence cannot be
+     * determined. Null when the rule cannot be expressed as a route.
+     *
+     * @return string|null
+     */
+    public static function normalizeFromWordPressRule(string $matchedRule)
+    {
+        if (!self::wordPressRulePlan($matchedRule)['safe']) {
+            return null;
+        }
+        $elements = self::regexFallbackElements($matchedRule);
+
+        return $elements === null ? null : self::normalizeElements($elements);
     }
 
     /**

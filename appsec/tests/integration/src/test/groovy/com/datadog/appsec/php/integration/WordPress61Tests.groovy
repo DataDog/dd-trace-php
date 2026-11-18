@@ -190,7 +190,7 @@ class WordPress61Tests extends AbstractWordPressAppsecTests {
 
     @Test
     @Order(12)
-    void 'normalized route is absent when WordPress matched a PATH_INFO request'() {
+    void 'PATH_INFO request falls back to the mandatory parts of the rule'() {
         // Apache passes PATH_INFO=/normalized-pathinfo/tail; WordPress keeps
         // it in WP::$request but, after the anchor rule, matches later rules
         // against 'index.php/normalized-pathinfo/tail'. Capture 1 took
@@ -206,7 +206,9 @@ class WordPress61Tests extends AbstractWordPressAppsecTests {
         Span span = trace.first()
         assert span.meta.'http.route' ==
                 '(?:([^/]+)/)?normalized-pathinfo/([^/]+)/?$'
-        assert span.meta.'_dd.appsec.normalized_route' == null
+        // Which captures took part is unknown: RFC-1125 falls back to the
+        // rule's mandatory parts, without the optional leading capture.
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized-pathinfo/{param1}'
     }
 
     @Test
