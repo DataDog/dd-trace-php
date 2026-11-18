@@ -1,0 +1,75 @@
+--TEST--
+Sidecar sender + v1-capable agent serializes the v1 wire (/v1.0/traces, chunks)
+--SKIPIF--
+<?php
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
+if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
+if (PHP_VERSION_ID >= 80100) {
+    echo "nocache\n";
+}
+// Pre-seed a v1 /info from a 7.79+ agent for this session token: the sidecar falls back to v0.4 for agents older than 7.79.0-rc.6, which includes the request-replayer's default 7.66.0.
+$ctx = stream_context_create(['http' => [
+    'method' => 'PUT',
+    'header' => ["Content-Type: application/json", "X-Datadog-Test-Session-Token: serializer_wire_sidecar_v1"],
+    'content' => json_encode(["endpoints" => ["/v0.4/traces", "/v0.6/stats", "/v0.7/config", "/v1.0/traces", "/telemetry/proxy/", "/evp_proxy/v2/"], "client_drop_p0s" => false, "version" => "7.79.0"]),
+]]);
+if (@file_get_contents("http://request-replayer/set-agent-info", false, $ctx) === false) {
+    die("skip: request-replayer not reachable");
+}
+?>
+--ENV--
+DD_TRACE_LOG_LEVEL=error,startup=off
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_TRACE_AGENT_FLUSH_INTERVAL=333
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=1
+--INI--
+datadog.trace.agent_test_session_token=serializer_wire_sidecar_v1
+--FILE--
+<?php
+include __DIR__ . '/../includes/request_replayer.inc';
+$rr = new RequestReplayer();
+$rr->clearDumpedData();
+
+// The sidecar sends v0.4 until its own /info fetch has advertised /v1.0/traces, and may batch
+// several traces per payload: resend "root" until it shows up in any chunk of a v1 request.
+$req = null;
+$foundSpan = null;
+$deadline = microtime(true) + 40; // wall-clock cap: a synchronous flush can take seconds under load
+while ($req === null && microtime(true) < $deadline) {
+    $s = \DDTrace\start_span();
+    $s->name = "root";
+    $s->service = "svc";
+    $s->attributes['empty'] = [];
+    \DDTrace\close_span();
+    dd_trace_internal_fn("synchronous_flush");
+    usleep(100000);
+    foreach (($rr->replayAllRequests() ?: []) as $r) {
+        if (strpos($r["uri"], "/v1.0/traces") === false) continue;
+        // Decoded as objects so that an empty list ([]) and an empty map ({}) stay distinct.
+        foreach ((json_decode($r["body"])->chunks ?? []) as $chunk) {
+            foreach (($chunk->spans ?? []) as $span) {
+                if (($span->name ?? null) === "root" && ($span->service ?? null) === "svc") {
+                    $req = $r;
+                    $foundSpan = $span;
+                }
+            }
+        }
+    }
+}
+echo "uri=" . ($req["uri"] ?? "none") . "\n";
+// Derived from the matched span itself, not from $req's truthiness: proves the
+// v1 payload actually carries the span's own name/service, not just any chunk.
+echo "span_name=" . ($foundSpan->name ?? "none") . "\n";
+echo "span_service=" . ($foundSpan->service ?? "none") . "\n";
+// An empty array attribute is an empty V1 list.
+echo "empty_attribute=" . (isset($foundSpan->attributes->empty) ? json_encode($foundSpan->attributes->empty) : "absent") . "\n";
+?>
+--EXPECT--
+uri=/v1.0/traces
+span_name=root
+span_service=svc
+empty_attribute=[]

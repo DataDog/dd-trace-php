@@ -4,13 +4,11 @@ Trace are reported when helper indicates so
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
 use function datadog\appsec\push_addresses;
-use function datadog\appsec\testing\{decode_msgpack};
 include __DIR__ . '/inc/ddtrace_version.php';
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -37,10 +35,8 @@ one("foo");
 
 DDTrace\close_span(0);
 
-$span = dd_trace_serialize_closed_spans();
-$meta_struct = $span[0]["meta_struct"];
-
-var_dump(decode_msgpack($meta_struct["_dd.stack"]));
+$span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+var_dump($span[0]["attributes"]["_dd.stack"]);
 DDTrace\flush();
 
 ?>
@@ -59,7 +55,7 @@ array(1) {
         [0]=>
         array(4) {
           ["line"]=>
-          int(20)
+          int(19)
           ["function"]=>
           string(3) "two"
           ["file"]=>
@@ -70,7 +66,7 @@ array(1) {
         [1]=>
         array(4) {
           ["line"]=>
-          int(27)
+          int(26)
           ["function"]=>
           string(3) "one"
           ["file"]=>

@@ -91,6 +91,14 @@ class RequestReplayer
         } while (true);
     }
 
+    /** The sampling priority of the first chunk, from the replayer's v1 JSON view or a v0.4 payload. */
+    public static function chunkPriority($payload)
+    {
+        return $payload["chunks"][0]["priority"]
+            ?? $payload["chunks"][0]["spans"][0]["metrics"]["_sampling_priority_v1"]
+            ?? $payload[0][0]["metrics"]["_sampling_priority_v1"] ?? null;
+    }
+
     public function waitForDataAndReplay($ignoreTelemetry = true)
     {
         $i = 0;

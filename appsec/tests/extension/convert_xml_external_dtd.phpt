@@ -3,8 +3,6 @@ _convert_xml function (external dtd)
 --DESCRIPTION--
 When an external DTD is referenced but blocked (for security), parsing continues
 and unresolved entities are preserved as literal text in the output.
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 $entity = <<<XML

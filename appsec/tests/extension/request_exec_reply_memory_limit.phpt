@@ -1,7 +1,6 @@
 --TEST--
 Memory exhaustion processing a RASP reply still sends one request_shutdown
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.cli_start_on_rinit=false
 memory_limit=64M

@@ -2,8 +2,6 @@
 Backtrace do not contains datadog frames
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 namespace DDTrace {

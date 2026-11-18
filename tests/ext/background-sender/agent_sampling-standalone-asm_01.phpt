@@ -46,12 +46,11 @@ for ($i = 0; $i < $maxIterations; $i++)
 	if (!is_array($root)) {
 		continue;
 	}
-    $spans = $root["chunks"][0]["spans"] ?? ($root[0] ?? null);
-	$spanRecords[] = $spans;
-	if (!is_array($spans) || !isset($spans[0]["metrics"]["_sampling_priority_v1"])) {
+    $sampling = RequestReplayer::chunkPriority($root);
+	$spanRecords[] = $root;
+	if ($sampling === null) {
 		continue;
 	}
-    $sampling = $spans[0]["metrics"]["_sampling_priority_v1"];
 
 	if ($sampling == 1) { // First pick this minute (or minute rollover)
         $picked = 1;

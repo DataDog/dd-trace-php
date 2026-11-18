@@ -3,8 +3,6 @@ DD_APPSEC_STACK_TRACE_ENABLED can be disabled
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_APPSEC_STACK_TRACE_ENABLED=0
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -25,8 +23,8 @@ DDTrace\start_span();
 $root = DDTrace\active_span();
 one("foo");
 DDTrace\close_span(0);
-$span = dd_trace_serialize_closed_spans();
-var_dump(isset($span[0]["meta_struct"]));
+$span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? [];
+var_dump(isset($span[0]["attributes"]["_dd.stack"]));
 DDTrace\flush();
 ?>
 --EXPECTF--

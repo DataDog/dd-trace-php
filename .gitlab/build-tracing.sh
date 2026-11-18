@@ -18,6 +18,10 @@ suffix="${1:-}"
 catch_warnings="${2:-1}"
 mkdir -p extensions_$(uname -m) standalone_$(uname -m)
 
+# PHP 7.0 ships the tracer with AppSec. Pass this through the environment: the
+# static target appends the Rust library split option to it.
+export EXTRA_CONFIGURE_OPTIONS="${EXTRA_CONFIGURE_OPTIONS:+${EXTRA_CONFIGURE_OPTIONS} }--enable-ddtrace-appsec"
+
 ECHO_ARG="-e"
 CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra"
 if [ "${suffix}" = "-alpine" ]; then

@@ -2,10 +2,6 @@
 
 require 'date'
 
-EXCLUSIONS = %w{
-  src/extension/version.h
-}
-
 base_dir = File.realdirpath('..', __dir__)
 files = Dir.glob('{tests,src}/**/*.{cpp,c,hpp,h}', 0, base: base_dir)
            .map { |f| File.realpath(f, base_dir) }
@@ -46,7 +42,6 @@ EXP_TEXT = Regexp.escape(' Unless explicitly stated otherwise all files in this 
   .instance_eval { |r| Regexp.compile r }
 
 def verify_file(file)
-  return if EXCLUSIONS.any? { |e| file.end_with? e }
   File.open(file) do |f|
     first_lines = 5.times.map { f.gets }.map { |s| s&.chomp("\n") }
     first_lines.each do |l|

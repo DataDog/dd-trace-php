@@ -1,6 +1,6 @@
 ARG PHP_BUILDONLY_REPOSITORY=datadog/php-buildonly
-# datadog/php-buildonly:1.0.5
-FROM ${PHP_BUILDONLY_REPOSITORY}@sha256:1c5bdea65b77f83c1f0210a7c4f546a790a5f52a5b6ce85b4b80641e6127565a
+# datadog/php-buildonly:1.1.0
+FROM ${PHP_BUILDONLY_REPOSITORY}@sha256:89b9ffbf1290c97561a4a1714e9164451c98acc83cf0abde9ed87442deaf63f6
 
 ENV CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \

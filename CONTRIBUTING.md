@@ -70,6 +70,10 @@ $ docker compose run --rm 8.2-bookworm bash
 $ docker compose run --rm 8.3-bookworm bash
 # For 8.4
 $ docker compose run --rm 8.4-bookworm bash
+# For 8.5
+$ docker compose run --rm 8.5-bookworm bash
+# For 8.6
+$ docker compose run --rm 8.6-bookworm bash
 ```
 
 > :memo: **Note:** To run the container in debug mode, pass `docker-compose` an environment variable: `DD_TRACE_DOCKER_DEBUG=1`, eg:

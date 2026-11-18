@@ -7,12 +7,11 @@
 // NOLINTNEXTLINE(misc-header-include-cycle)
 #include <php.h>
 
-#include "compatibility.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
-#include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
+#include <ext/compatibility.h>
 
 #if !MPACK_HAS_CONFIG
 #    error "MPACK_HAS_CONFIG is not defined"
@@ -59,16 +58,6 @@ void dd_mpack_write_nullable_cstr_lim(
             len = max_len;
         }
         mpack_write_str(w, cstr, len);
-    } else {
-        mpack_write_str(w, "", 0);
-    }
-}
-
-void dd_mpack_write_nullable_str(
-    mpack_writer_t *nonnull w, const char *nullable str, size_t len)
-{
-    if (str) {
-        mpack_write_str(w, str, len);
     } else {
         mpack_write_str(w, "", 0);
     }
@@ -125,19 +114,6 @@ void dd_mpack_write_nullable_zstr_lim(
     }
 }
 
-void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv)
-{
-    if (mpack_writer_error(w) != mpack_ok) {
-        return;
-    }
-    if (!zv) {
-        mpack_write_nil(w);
-        return;
-    }
-
-    _mpack_write_zval(w, zv, 0);
-}
-
 // NOLINTNEXTLINE(misc-no-recursion)
 static void _dd_mpack_write_array(
     mpack_writer_t *nonnull w, const zend_array *nullable arr, size_t depth)
@@ -175,8 +151,8 @@ static void _dd_mpack_write_array(
             if (key_s) {
                 dd_mpack_write_zstr(w, key_s);
             } else {
-                char buf[ZEND_LTOA_BUF_LEN];
-                ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
+                char buf[MAX_LENGTH_OF_LONG + 1];
+                snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
                 mpack_write(w, buf);
             }
             _mpack_write_zval(w, val, depth);
@@ -243,8 +219,8 @@ static void _mpack_write_array_lim(mpack_writer_t *nonnull w,
             if (key_s) {
                 dd_mpack_write_zstr_lim(w, key_s, limits->max_string_length);
             } else {
-                char buf[ZEND_LTOA_BUF_LEN];
-                ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
+                char buf[MAX_LENGTH_OF_LONG + 1];
+                snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
                 mpack_write(w, buf);
             }
             dd_mpack_write_zval_lim(w, val, limits);
@@ -636,7 +612,7 @@ static bool parse_element(mpack_reader_t *nonnull reader, size_t depth,
                 // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
                 zend_hash_add_new(Z_ARRVAL_P(output), Z_STR(key), &value);
             }
-            zval_dtor(&key);
+            zval_ptr_dtor_nogc(&key);
         }
         mpack_done_map(reader);
         break;

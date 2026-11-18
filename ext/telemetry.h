@@ -33,8 +33,8 @@ void datadog_telemetry_lifecycle_end(void);
 void datadog_telemetry_register_services(ddog_SidecarTransport **sidecar);
 
 // public API
-DATADOG_PUBLIC void datadog_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns);
-DATADOG_PUBLIC bool datadog_metric_add_point(zend_string *name, double value, zend_string *tags);
+void datadog_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns);
+bool datadog_metric_add_point(zend_string *name, double value, zend_string *tags);
 
 DATADOG_PUBLIC extern bool datadog_loaded_by_ssi;
 

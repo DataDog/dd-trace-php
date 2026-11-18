@@ -5,7 +5,7 @@ The profiler's phpinfo section contains important debugging information. This
 test verifies that certain information is present.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
 --ENV--
@@ -16,7 +16,7 @@ assert.exception=1
 <?php
 
 ob_start();
-$extension = new ReflectionExtension('datadog-profiling');
+$extension = new ReflectionExtension(extension_loaded('datadog-profiling') ? 'datadog-profiling' : 'ddtrace');
 $extension->info();
 $output = ob_get_clean();
 

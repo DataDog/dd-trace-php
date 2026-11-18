@@ -135,7 +135,7 @@ stages:
 "test appsec extension":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_CPU_LIMIT: 3
@@ -145,6 +145,7 @@ stages:
     KUBERNETES_HELPER_CPU_LIMIT: 1
     KUBERNETES_HELPER_MEMORY_REQUEST: 3Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 3Gi
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/appsec-extension-tests.xml"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -158,6 +159,7 @@ stages:
         SWITCH_PHP_VERSION: debug-zts-asan
   script:
     - switch-php $SWITCH_PHP_VERSION
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - cd appsec/build
     - if [[ "$SWITCH_PHP_VERSION" == *"asan"* ]]; then ASAN_FLAG=ON; else ASAN_FLAG=OFF; fi
     # FetchContent downloads boost and rapidjson at configure time: a Depot 503 or a boost transfer error there exits 75 and is retried.
@@ -166,6 +168,14 @@ stages:
 	  -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
       -DENABLE_ASAN=$ASAN_FLAG || exit $?"
     - ASAN_OPTIONS=malloc_context_size=0 ../../.gitlab/run-with-retryable-download.sh make -j 4 xtest || exit $?
+  after_script:
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:appsec/"
+  artifacts:
+    reports:
+      junit: "artifacts/tests/*.xml"
+    paths:
+      - "artifacts/"
+    when: "always"
 
 .appsec_integration_tests:
   stage: test
@@ -240,6 +250,8 @@ stages:
           - test8.4-release-zts
           - test8.5-release
           - test8.5-release-zts
+          - test8.6-release
+          - test8.6-release-zts
           - test8.5-release-musl
           - test8.5-release-zts-musl
 
@@ -426,7 +438,7 @@ stages:
 "appsec code coverage":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-14
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -439,7 +451,7 @@ stages:
     - cd appsec/build
     - |
       ../../.gitlab/run-with-retryable-download.sh cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
-        -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+        -DDD_APPSEC_TESTING=ON -DDD_APPSEC_DDTRACE_ALT=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_C_COMPILER=/usr/bin/clang-21 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-21 \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" || exit $?
@@ -450,8 +462,9 @@ stages:
     - |
       cd /tmp/cov-ext
       llvm-profdata-21 merge -sparse *.profraw -o default.profdata
-      llvm-cov-21 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
+      llvm-cov-21 export "$CI_PROJECT_DIR"/appsec/build/ddtrace.so \
         -format=lcov -instr-profile=default.profdata \
+        "$CI_PROJECT_DIR"/appsec/src/extension \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
     - |
       echo "Uploading coverage to Datadog"
@@ -528,7 +541,7 @@ stages:
 "appsec lint":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-14
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 9Gi
@@ -539,10 +552,9 @@ stages:
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
-        -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+        -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_DDTRACE_ALT=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
         -DCLANG_TIDY=/usr/bin/run-clang-tidy-21 \
         -DCLANG_FORMAT=/usr/bin/clang-format-21
-    - make -j 4 extension
     - make format tidy

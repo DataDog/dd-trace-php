@@ -1,7 +1,6 @@
 --TEST--
 A destructor bailout during user request cleanup leaves no stale globals
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.cli_start_on_rinit=false
 display_errors=0

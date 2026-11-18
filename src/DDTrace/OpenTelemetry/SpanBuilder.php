@@ -7,6 +7,7 @@ namespace OpenTelemetry\SDK\Trace;
 use DDTrace\OpenTelemetry\API\Trace as DDTraceAPI;
 
 use DDTrace\Tag;
+use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
@@ -181,6 +182,10 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $this->applySpanKind();
 
         $parentContext = Context::resolve($this->parentContext);
+        // Spans started via the OTel API are never current without being activated: skip them right away, so that
+        // Context::getCurrent() finds the closest other dd span without walking across all of them
+        $activeSpan = \DDTrace\active_span();
+        $ddParentSpan = $activeSpan ? (ObjectKVStore::get($activeSpan, 'otel_parent_span') ?? $activeSpan) : false;
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
 
@@ -194,9 +199,8 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
         $samplingContext = $restartOrIgnore ? Context::getRoot() : $parentContext;
 
-        $samplingResult = $this
-            ->tracerSharedState
-            ->getSampler()
+        $sampler = $this->tracerSharedState->getSampler();
+        $samplingResult = $sampler
             ->shouldSample(
                 $samplingContext,
                 $traceId,
@@ -208,8 +212,12 @@ final class SpanBuilder implements API\SpanBuilderInterface
             );
 
         $span = $span ?? \DDTrace\start_trace_span($this->startEpochNanos);
-        $samplingDecision = $samplingResult->getDecision();
-        $sampled = SamplingResult::RECORD_AND_SAMPLE === $samplingDecision;
+        // Starting a span does not change the current context, until the span is activated
+        ObjectKVStore::put($span, 'otel_parent_span', $ddParentSpan);
+        // DROP is upgraded to RECORD_ONLY (an implicit AlwaysRecord sampler): like with the native tracer API, unsampled
+        // spans are still recorded, so that trace metrics get accurate durations, and the started ddtrace span is closed
+        // by Span::end() instead of being leaked as part of a NonRecordingSpan
+        $sampled = SamplingResult::RECORD_AND_SAMPLE === $samplingResult->getDecision();
         $samplingResultTraceState = $samplingResult->getTraceState();
 
         if ($parentSpanContext->isValid() && !$restartOrIgnore) {
@@ -236,12 +244,14 @@ final class SpanBuilder implements API\SpanBuilderInterface
             \DDTrace\root_span()->tracestate = (string) $samplingResultTraceState;
         }
 
+        // A custom sampler decides the sampling of a new trace. Not of one restarted from a local parent though: the
+        // extraction behavior is only meant for contexts from other services, and applied to local parents by accident
+        if ((!$parentSpanContext->isValid() || ($restartOrIgnore && $parentSpanContext->isRemote())) && self::isCustomSampler($sampler)) {
+            \DDTrace\set_priority_sampling($sampled ? \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP : \DD_TRACE_PRIORITY_SAMPLING_USER_REJECT);
+        }
+
         $hexSpanId = $span->hexId();
         $spanContext = DDTraceAPI\SpanContext::createFromLocalSpan($span, $sampled, $traceId, $hexSpanId);
-
-        if (!in_array($samplingDecision, [SamplingResult::RECORD_AND_SAMPLE, SamplingResult::RECORD_ONLY], true)) {
-            return Span::wrap($spanContext);
-        }
 
         $span->resource = $this->spanName; // OTel.name => DD.resource
 
@@ -274,6 +284,29 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $this->totalNumberOfLinksAdded,
             $this->events
         );
+    }
+
+    /**
+     * The default sampler always samples. And a sampler built from OTEL_TRACES_SAMPLER (e.g. by the SDK autoloader) is
+     * already applied by the tracer itself, as OTEL_TRACES_SAMPLER is mapped to DD_TRACE_SAMPLE_RATE (or overridden by
+     * it). Applying its decision a second time would bypass the rate limiter and the sampling rules.
+     */
+    private static function isCustomSampler(SamplerInterface $sampler): bool
+    {
+        $isCustom = ObjectKVStore::get($sampler, 'dd_custom_sampler');
+        if ($isCustom === null) {
+            $description = $sampler->getDescription();
+            $isCustom = !in_array($description, ['ParentBased+AlwaysOnSampler', 'AlwaysOnSampler'], true);
+            if ($isCustom && class_exists(SamplerFactory::class)) {
+                try {
+                    $isCustom = (new SamplerFactory())->create()->getDescription() !== $description;
+                } catch (Throwable $e) {
+                    // Not a sampler name the SDK (nor the tracer) knows about
+                }
+            }
+            ObjectKVStore::put($sampler, 'dd_custom_sampler', $isCustom);
+        }
+        return $isCustom;
     }
 
     private function applySpanKind(): void

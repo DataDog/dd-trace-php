@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Build the PHP-independent SSI implementation without PHP capture or codegen.
+set -euo pipefail
+[[ $# -eq 1 ]] || { echo 'usage: build-ssi-common /absolute/output/libdatadog_php.so' >&2; exit 1; }
+exec "$(dirname "$0")/build-ssi-rust" "$1"

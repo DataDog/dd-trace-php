@@ -33,8 +33,11 @@ class B3MultiPropagatorTest extends TestCase
 
     private B3MultiPropagator $b3MultiPropagator;
 
+    private $previousStorage;
+
     protected function setUp(): void
     {
+        $this->previousStorage = Context::storage();
         Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         $this->b3MultiPropagator = B3MultiPropagator::getInstance();
         $b3MultiFields = $this->b3MultiPropagator->fields();
@@ -42,6 +45,11 @@ class B3MultiPropagatorTest extends TestCase
         $this->SPAN_ID = $b3MultiFields[1];
         $this->SAMPLED = $b3MultiFields[3];
         $this->DEBUG_FLAG = $b3MultiFields[4];
+    }
+
+    protected function tearDown(): void
+    {
+        Context::setStorage($this->previousStorage); // Keep the storage which follows fibers for the next tests
     }
 
     public function test_fields(): void

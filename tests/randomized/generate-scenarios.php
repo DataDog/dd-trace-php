@@ -161,7 +161,7 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restric
         [
             'identifier' => $identifier,
             'scenario_folder' => $scenarioFolder,
-            'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion-2",
+            'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion-" . ($selectedOs == "centos7" ? 3 : 2),
             'php_version' => $selectedPhpVersion,
             'installation_method' => $selectedInstallationMethod,
             'project_root' => '../../../../',

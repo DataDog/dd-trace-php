@@ -58,8 +58,11 @@ The following packages are required:
 
 ### Building the extension and helper
 
-CMake builds the AppSec extension. The Rust helper is part of the repository
-workspace and is embedded in the tracer's sidecar.
+The AppSec extension is part of `ddtrace.so`, built with
+`--enable-ddtrace-appsec` (`make compile_appsec` in the repository root). The
+Rust helper is part of the repository workspace and is embedded in the
+tracer's sidecar. The CMake project in this directory runs the extension tests
+and the linters.
 
 First of all, it is required to initialize all submodules on the repository. If you haven´t done so yet, run:
 
@@ -73,14 +76,12 @@ Once you have all the submodules initialized run the following commands in the a
 mkdir build
 cd build
 cmake ..
-make -j
 ```
-This will produce the extension, `ddappsec.so`.
 
-To skip building the extension (e.g. to only run linting), you can disable it on the cmake step:
-```
-cmake .. -DDD_APPSEC_BUILD_EXTENSION=OFF
-```
+The tests build ddtrace.so with AppSec through the root Makefile. To test an
+existing build instead, pass `-DDD_APPSEC_TEST_TRACER=/path/to/ddtrace.so`;
+`-DDD_APPSEC_DDTRACE_ALT=ON` builds ddtrace.so with CMake, which `make tidy`
+needs for its compilation database.
 
 #### Testing the extension
 

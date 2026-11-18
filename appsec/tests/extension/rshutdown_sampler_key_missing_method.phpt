@@ -1,7 +1,6 @@
 --TEST--
 request_shutdown — missing method
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --GET--
 key=val
@@ -25,8 +24,8 @@ var_dump(rinit());
 $helper->get_commands(); // ignore
 
 $rootSpan = root_span();
-$rootSpan->meta["http.route"] = "/foo/bar";
-unset($rootSpan->meta["http.method"]);
+$rootSpan->attributes["http.route"] = "/foo/bar";
+unset($rootSpan->attributes["http.method"]);
 
 
 var_dump(rshutdown());

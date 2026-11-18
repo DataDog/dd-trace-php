@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Private linker input; always build its matching common DSO in the same graph.
+set -euo pipefail
+[[ $# -ge 1 && $# -le 2 ]] || {
+    echo 'usage: build-ddtrace-php-abi-archive /absolute/php-abi.a [/absolute/libdatadog_php.so]' >&2
+    exit 1
+}
+exec "$(dirname "$0")/build-ssi-rust" "${2:-$(dirname "$1")/libdatadog_php.so}" "$1"

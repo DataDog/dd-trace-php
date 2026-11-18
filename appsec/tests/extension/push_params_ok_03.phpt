@@ -1,7 +1,6 @@
 --TEST--
 Push address are sent on request_exec - integer
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

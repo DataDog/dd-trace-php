@@ -1,7 +1,6 @@
 --TEST--
 A fatal parser allocation releases parser memory before the Zend bailout
 --INI--
-extension=ddtrace.so
 display_errors=0
 --FILE--
 <?php

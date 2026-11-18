@@ -5,7 +5,7 @@
  *
  * Source of truth (NO duplication):
  *   - each $dirs compose file      : service name -> image:TAG
- *   - dockerfiles/ci/bookworm/.env : $BOOKWORM_NEXT_VERSION etc.
+ *   - each $dirs .env              : $BOOKWORM_NEXT_VERSION etc.
  *
  * The compose service name is the `docker buildx bake` target and the build
  * matrix value; the `image:` tag (with env vars resolved) is the published tag.
@@ -87,6 +87,8 @@ $dirs = [
     "CentOS"   => "dockerfiles/ci/centos/7",
     "Alpine"   => "dockerfiles/ci/alpine_compile_extension",
     "Services" => "dockerfiles/services",
+    "Packaging" => "dockerfiles/packaging/fpm_packaging",
+    "Randomized" => "tests/randomized",
 ];
 
 $registryOverrides = [

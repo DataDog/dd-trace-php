@@ -1,7 +1,6 @@
 --TEST--
 User request shutdown may exceed the limit temporarily and restores it afterwards
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.cli_start_on_rinit=false
 datadog.appsec.max_body_buff_size=4194304
@@ -30,7 +29,7 @@ register_shutdown_function(function () use (&$helper, &$completed, &$outsideLine
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
     response_list(response_request_shutdown([
-        [['ok', []]], [], false, [], ['guard.reply' => 'received'], ['guard.reply' => 1]
+        [['ok', []]], [], false, [], ['guard.reply' => 'received'], ['guard.reply_count' => 1]
     ]))
 ]);
 $span = start_span();
@@ -43,7 +42,7 @@ $limit = memory_get_usage(true);
 ini_set('memory_limit', (string)$limit);
 notify_commit($span, 200, $headers, $body);
 $completed = true;
-var_dump($span->meta['guard.reply'], $span->metrics['guard.reply']);
+var_dump($span->attributes['guard.reply'], $span->attributes['guard.reply_count']);
 $outsideLine = __LINE__ + 1;
 $outside = str_repeat('x', $limit + 2 * 1024 * 1024);
 echo "Limit was not restored\n";

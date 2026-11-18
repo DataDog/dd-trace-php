@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OpenTelemetry\Context;
 
 use DDTrace\SpanData;
-use DDTrace\Tag;
+use DDTrace\SpanKind;
 use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Baggage\Baggage;
@@ -87,10 +87,11 @@ final class Context implements ContextInterface
             self::deactivateEndedParents($ddSpanFromContext);
         }
 
-        self::activateParent(active_span());
+        $currentContext = self::activateParent(active_span());
 
+        // The context of the global storage is derived from the active dd span (e.g. NoopSpanBuilder passes that storage)
         return $context
-            ?? ($contextStorage ?? self::storage())->current()
+            ?? ($contextStorage && $contextStorage !== self::storage() ? $contextStorage->current() : $currentContext)
             ?: self::getRoot();
     }
 
@@ -144,18 +145,18 @@ final class Context implements ContextInterface
         self::deactivateEndedParents($currentSpan->parent);
     }
 
-    private static function convertDDSpanKindToOtel(string $spanKind)
+    private static function convertDDSpanKindToOtel(int $spanKind)
     {
         switch ($spanKind) {
-            case Tag::SPAN_KIND_VALUE_CLIENT:
+            case SpanKind::CLIENT:
                 return API\SpanKind::KIND_CLIENT;
-            case Tag::SPAN_KIND_VALUE_SERVER:
+            case SpanKind::SERVER:
                 return API\SpanKind::KIND_SERVER;
-            case Tag::SPAN_KIND_VALUE_PRODUCER:
+            case SpanKind::PRODUCER:
                 return API\SpanKind::KIND_PRODUCER;
-            case Tag::SPAN_KIND_VALUE_CONSUMER:
+            case SpanKind::CONSUMER:
                 return API\SpanKind::KIND_CONSUMER;
-            case Tag::SPAN_KIND_VALUE_INTERNAL:
+            case SpanKind::INTERNAL:
             default:
                 return API\SpanKind::KIND_INTERNAL;
         }
@@ -170,11 +171,29 @@ final class Context implements ContextInterface
         /** @var SDK\Span $OTelCurrentSpan */
         $OTelCurrentSpan = ObjectKVStore::get($currentSpan, 'otel_span'); // Note: SDK\Span::startSpan() associates the DDTrace span with the OTel span when it is created
         if ($OTelCurrentSpan !== null) { // If the current span has been activated, nothing to do, trigger backtalk
+            // Set by SpanBuilder::startSpan(): the closest dd span below which was not started via the OTel API, or false
+            $ddParentSpan = ObjectKVStore::get($currentSpan, 'otel_parent_span');
+            if ($ddParentSpan !== null) {
+                // Started via the OTel API: the span is current only as long as its context is the current one
+                $storageContext = self::storage()->current();
+                $storageSpan = API\Span::fromContext($storageContext);
+                if ($storageSpan === $OTelCurrentSpan) {
+                    return $storageContext;
+                }
+                // Otherwise the dd span below is current. Unless the activated span from the storage sits in between: it is
+                // then another span started via the OTel API on top of that same dd span
+                if ($storageSpan instanceof SDK\Span && ObjectKVStore::get($storageSpan->getDDSpan(), 'otel_parent_span') === $ddParentSpan) {
+                    return $storageContext;
+                }
+                return self::activateParent($ddParentSpan ?: null);
+            }
+
             // Return the context associated with the current span
             if (ObjectKVStore::get($currentSpan, 'ddtrace_scope_activated')) {
                 return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
             } else {
-                return self::storage()->current();
+                // A span from the legacy API, which is not activated
+                return self::activateParent($currentSpan->parent);
             }
         }
 
@@ -211,7 +230,7 @@ final class Context implements ContextInterface
             $currentSpan,
             API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
             self::getDDInstrumentationScope(), // $instrumentationScope
-            isset($currentSpan->meta[Tag::SPAN_KIND]) ? self::convertDDSpanKindToOtel($currentSpan->meta[Tag::SPAN_KIND]) : API\SpanKind::KIND_INTERNAL, // $kind
+            self::convertDDSpanKindToOtel($currentSpan->spanKind), // $kind
             API\Span::fromContext($parentContext), // $parentSpan (TODO: Handle null parent span) ?
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor
@@ -223,11 +242,11 @@ final class Context implements ContextInterface
             false // The span was created using the DD Api
         );
         ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);
-        $currentContext = $parentContext->with(self::$spanContextKey, $OTelCurrentSpan); // Sets the current span in the context
         ObjectKVStore::put($currentSpan, 'ddtrace_scope_activated', true);
-        self::storage()->attach($currentContext); // TODO: Handle Detach
 
-        return $currentContext;
+        // Not attached to the storage: there would be nothing detaching it once the dd span is closed. The context is
+        // derived from the active dd span instead, on each getCurrent()
+        return $parentContext->with(self::$spanContextKey, $OTelCurrentSpan); // Sets the current span in the context
     }
 
     public function activate(): ScopeInterface

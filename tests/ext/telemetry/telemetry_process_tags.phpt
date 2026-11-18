@@ -18,6 +18,7 @@ DD_TRACE_RETRY_INTERVAL=1
 datadog.trace.agent_url="file://{PWD}/process-tags-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 DDTrace\start_span();
 
@@ -31,17 +32,9 @@ dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
-    if (file_exists(__DIR__ . '/process-tags-telemetry.out')) {
-        foreach (file(__DIR__ . '/process-tags-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                if (!is_array($json)) {
-                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
-                }
-                var_dump($json["application"]["process_tags"]);
-                break 2;
-            }
-        }
+    foreach (read_telemetry_file(__DIR__ . '/process-tags-telemetry.out') as $json) {
+        var_dump($json["application"]["process_tags"]);
+        break 2;
     }
 }
 if ($i == 300) {

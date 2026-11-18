@@ -48,19 +48,27 @@ else()
     endif()
 endif()
 
-set(FILE_LIST "")
-macro(append_target_sources target)
-    get_target_property(_srcs ${target} SOURCES)
-    foreach(_src_file IN LISTS _srcs)
-        list(APPEND FILE_LIST ${_src_file})
+# clang-tidy takes the compile flags from compile_commands.json, which only has
+# entries for AppSec's sources when this project compiles them, i.e. builds
+# ddtrace.so (DD_APPSEC_DDTRACE_ALT). CMake rewrites it whenever it regenerates
+# the build system, which make checks before building any target, so it is
+# up to date when tidy runs.
+if(NOT DD_APPSEC_DDTRACE_ALT)
+    foreach(_tidy_target tidy tidy_fix)
+        add_custom_target(${_tidy_target}
+            COMMAND ${CMAKE_COMMAND} -E echo
+                "${_tidy_target} needs -DDD_APPSEC_DDTRACE_ALT=ON for the compilation database"
+            COMMAND ${CMAKE_COMMAND} -E false)
     endforeach()
-endmacro()
-
-if(DD_APPSEC_BUILD_EXTENSION)
-    append_target_sources(extension)
+    return()
 endif()
 
+set(FILE_LIST ${APPSEC_EXTENSION_SOURCES})
+
 set(TIDY_DEPS "")
+if(TARGET update_version_h)
+    list(APPEND TIDY_DEPS update_version_h)
+endif()
 if(TARGET boost_build)
     list(APPEND TIDY_DEPS boost_build)
 endif()

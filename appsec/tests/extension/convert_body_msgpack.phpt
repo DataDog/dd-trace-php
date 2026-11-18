@@ -1,7 +1,5 @@
 --TEST--
 JSON and XML testing functions decode their MessagePack results internally
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 

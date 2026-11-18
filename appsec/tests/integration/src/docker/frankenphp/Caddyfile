@@ -4,7 +4,7 @@
     debug
     frankenphp {
         num_threads 2
-        max_threads 2
+        max_threads 3
         worker {
             file /var/www/public/index.php
             num 1

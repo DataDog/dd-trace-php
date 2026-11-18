@@ -1,7 +1,6 @@
 --TEST--
 User requests: no warnings when appsec is disabled
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=false
 datadog.appsec.cli_start_on_rinit=false
 datadog.appsec.log_level=warning

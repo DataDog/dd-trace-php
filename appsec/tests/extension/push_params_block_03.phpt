@@ -1,7 +1,6 @@
 --TEST--
 Push address gets blocked even when within a hook
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

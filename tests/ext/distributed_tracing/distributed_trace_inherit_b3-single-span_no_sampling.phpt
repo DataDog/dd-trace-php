@@ -4,6 +4,8 @@ Transmit distributed header information to spans via single B3 header without sa
 HTTP_B3=12345678901234567890-12345678901234567890123456789012
 DD_TRACE_PROPAGATION_STYLE_EXTRACT=B3 single header
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 
@@ -15,7 +17,8 @@ var_dump($root->propagatedSamplingPriority == DD_TRACE_PRIORITY_SAMPLING_UNKNOWN
 DDTrace\close_span();
 
 ?>
---EXPECT--
+--EXPECTF--
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 string(19) "8687463697196027922"
 string(23) "85968058271978839505040"
 bool(true)

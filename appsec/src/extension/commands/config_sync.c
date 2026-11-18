@@ -8,9 +8,9 @@
 #include <php.h>
 
 #include "../commands_helpers.h"
-#include "../ddtrace.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
+#include "../tracer_bridge.h"
 #include "config_sync.h"
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);

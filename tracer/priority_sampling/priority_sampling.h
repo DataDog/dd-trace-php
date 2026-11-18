@@ -25,8 +25,8 @@ enum dd_sampling_mechanism {
 
 void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism);
 void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
-DATADOG_PUBLIC void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
-DATADOG_PUBLIC zend_long ddtrace_get_priority_sampling_on_span_zobj(zend_object *root_span);
+void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
+zend_long ddtrace_get_priority_sampling_on_span_zobj(zend_object *root_span);
 zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root_span);
 zend_long ddtrace_fetch_priority_sampling_from_root(void);
 void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span);

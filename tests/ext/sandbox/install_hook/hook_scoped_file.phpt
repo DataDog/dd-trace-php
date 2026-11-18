@@ -32,7 +32,6 @@ dd_dump_spans();
 test
 spans(\DDTrace\SpanData) (1) {
   A.include (hook_scoped_file.php, A.include, cli)
-    _dd.p.dm => -0
-    _dd.p.tid => %s
+    _dd.top_level => 1
     %stestinclude.inc (hook_scoped_file.php, %stestinclude.inc, cli)
 }

@@ -69,7 +69,7 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -129,8 +129,11 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
 
     # Start the container network and services
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+    # Force a pull so a runner with a stale cached digest doesn't skip the rebuilt image.
+    docker pull registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
-    docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0_windows
+    docker pull registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
+    docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
     docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Enable NTFS long path support so cargo's libgit2-based git checkouts of
@@ -139,12 +142,14 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name LongPathsEnabled -Value 1 -Type DWord"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local registry tweak, not network — fail fast (no retry)
 
-    # Build <?= $thread_safety ?>
-
+    # Build <?= $thread_safety ?>. PowerShell does not automatically fail when a
+    # native command returns non-zero, so propagate docker/nmake failures explicitly.
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php <?= $thread_safety ?>; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     # Set test environment variables
     docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_TRACE_IGNORE_AGENT_SAMPLING_RATES 1; setx DD_TRACE_RATE_LIMIT 1000000"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     # Exclude tests that deadlock the php-cgi SKIPIF skip-task on Windows.
 <?php foreach ([
@@ -158,7 +163,9 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     # keep WER enabled for every PHPT child process.
     docker exec ${CONTAINER_NAME} powershell.exe -File C:\Users\ContainerAdministrator\app\.gitlab\enable-windows-test-dumps.ps1
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    docker exec -e _DD_DEBUG_SIDECAR_LOG_LEVEL=trace ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
+    # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4; -q keeps the arg non-empty)
+    $runTestsJobs = if ([version]$env:PHP_MAJOR_MINOR -ge [version]'7.4') { '-j1' } else { '-q' }
+    docker exec -e _DD_DEBUG_SIDECAR_LOG_LEVEL=trace -e RUN_TESTS_JOBS=$runTestsJobs ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php $env:RUN_TESTS_JOBS -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
   after_script:
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
@@ -303,7 +310,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
   before_script:
-    - composer update --no-interaction
+    - .gitlab/run-with-retryable-download.sh composer update --no-interaction
   script:
     - make generate
   artifacts:
@@ -313,7 +320,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
   timeout: 60m
   interruptible: true
   rules:
@@ -504,9 +511,11 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   timeout: 20m
   script:
+    # The junit upload only scans artifacts/; JUNIT_RESULTS_DIR defaults to the repo root.
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     # Run twice: shared state between .phpt tests only surfaces on a second pass.
-    - make test_extension_ci_normal
-    - make test_extension_ci_normal
+    - make test_extension_ci_normal JUNIT_RESULTS_DIR="${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_extension_ci_normal JUNIT_RESULTS_DIR="${CI_PROJECT_DIR}/artifacts/tests"
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "test_extension_ci: [<?= $major_minor ?>, valgrind]":
@@ -537,7 +546,8 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   timeout: 30m
   script:
-    - make test_extension_ci_valgrind
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+    - make test_extension_ci_valgrind JUNIT_RESULTS_DIR="${CI_PROJECT_DIR}/artifacts/tests"
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "Unit tests: [<?= $major_minor ?>]":
@@ -657,7 +667,7 @@ foreach ($all_minor_major_targets as $major_minor):
 "PHP Language Tests: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
-    - !reference [.services, test-agent]
+    - !reference [.services, test-agent-standalone]
   needs:
     - job: "compile extension: debug"
       parallel:
@@ -670,7 +680,6 @@ foreach ($all_minor_major_targets as $major_minor):
     ARCH: "amd64"
     DD_TRACE_STARTUP_LOGS: "0"
     DD_TRACE_WARN_CALL_STACK_DEPTH: "0"
-    DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
     DD_TRACE_GIT_METADATA_ENABLED: "0"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
@@ -730,9 +739,9 @@ endforeach;
     COMPOSER_VERSION: 2
   before_script:
 <?php before_script_steps(true) ?>
-    - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
-    - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
-    - make composer_tests_update
+    - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then .gitlab/run-with-retryable-download.sh sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
+    - COMPOSER_MEMORY_LIMIT=-1 .gitlab/run-with-retryable-download.sh composer update --no-interaction # disable composer memory limit completely
+    - .gitlab/run-with-retryable-download.sh make composer_tests_update
     - .gitlab/wait-for-service-ready.sh
   script:
     # The Fabric proxy changes network failure semantics in integration tests.
@@ -953,12 +962,13 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     ARCH: "amd64"
     REPORT_EXIT_STATUS: "1"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make install_all
     - '# Run xdebug tests'
-    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
+    - TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/xdebug-phpt.xml" php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
 <?php if ($xdebug != "2.7.2" && $xdebug != "2.9.2"): ?>
     - '# Run unit tests with xdebug'
-    - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="test-results/php-unit/results_unit.xml"
+    - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/php-tests.xml"
 <?php endif; ?>
 <?php after_script(has_test_agent: true); ?>
 

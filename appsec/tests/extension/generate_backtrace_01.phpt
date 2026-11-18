@@ -1,7 +1,5 @@
 --TEST--
 Generate backtrace
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 

@@ -51,6 +51,7 @@
 #endif
 #include "distributed_tracing_headers.h"
 #include "engine_hooks.h"
+#include "data_streams.h"
 #include "ffe.h"
 #include "handlers_internal.h"
 #include "inferred_proxy_headers.h"
@@ -160,21 +161,21 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 }
 
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_service), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_env), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_version), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }
@@ -223,6 +224,8 @@ void ddtrace_activate_early(void) {
     ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
+    // Borrowed from the previous request's configuration, which is gone by now.
+    DDTRACE_G(stats_additional_tags).computed = false;
 }
 
 void ddtrace_activate_late(void) {
@@ -321,11 +324,6 @@ void ddtrace_pre_config_minit() {
         datadog_config_entries[DATADOG_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SIGTERM].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
         datadog_config_entries[DATADOG_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SIGINT].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
     }
-
-    // Background sender does not send a Content-Length header, but sidecar does. Force-enable it thus, as the background sender does not work at all.
-    if (getenv("AWS_LAMBDA_FUNCTION_NAME")) {
-        datadog_config_entries[DATADOG_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
-    }
 #endif
 
     // Make sure it's available for appsec, before any early returns
@@ -382,6 +380,7 @@ void ddtrace_minit_late() {
 }
 
 void ddtrace_mshutdown() {
+    ddtrace_ffe_shutdown();
     zai_uhook_mshutdown();
     zai_hook_mshutdown();
     zai_line_hook_mshutdown();
@@ -552,7 +551,7 @@ void ddtrace_rinit(void) {
             if (datadog_endpoint) {
                 DDTRACE_G(agent_config_reader) = ddog_agent_remote_config_reader_for_endpoint(datadog_endpoint);
             }
-#if !defined(_WIN32) && defined(DDTRACE)
+#if !defined(_WIN32) && defined(TRACER)
         } else if (ddtrace_coms_agent_config_handle) {
             ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(agent_config_reader));
 #endif
@@ -602,6 +601,7 @@ static void dd_clean_globals(void) {
     }
 
     ddtrace_internal_handlers_rshutdown();
+    ddtrace_dsm_rshutdown();
 #ifndef _WIN32
     ddtrace_dogstatsd_client_rshutdown();
 #endif
@@ -727,7 +727,8 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 }
 
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
-    flags->ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
+    ddtrace_ffe_startup();
+    flags->ffe_enabled = ddtrace_ffe_remote_config_enabled();
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
     if (flags->ffe_enabled) {
         LOG(DEBUG, "Feature Flags: effective settings (sdk_env=%s, poll_interval_seconds=%g, agent_timeout_ms=%" PRId64 "); source=Agent Remote Configuration, no direct flag endpoint or initialization timeout",
@@ -746,8 +747,10 @@ bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
         }
     }
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
-        || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
-        || get_global_DD_METRICS_OTEL_ENABLED();
+        || flags->ffe_enabled
+        || ddtrace_ffe_agentless_enabled()
+        || get_global_DD_METRICS_OTEL_ENABLED()
+        || get_global_DD_DATA_STREAMS_ENABLED();
 }
 
 #if defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
@@ -779,6 +782,7 @@ void ddtrace_internal_handle_fork() {
 #endif
     // Acquire the child's shared line-hook references and re-establish inherited trampolines.
     zai_line_hook_handle_fork();
+    ddtrace_ffe_handle_fork();
 
     if (DATADOG_G(sidecar)) {
         // Unconditionally send, even if root span is NULL

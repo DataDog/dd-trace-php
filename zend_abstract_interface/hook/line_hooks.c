@@ -9,7 +9,7 @@
 
 #include <interceptor/line_hook.h>
 
-#ifdef DDTRACE
+#ifdef TRACER
 #include <components/log/log.h>
 #else
 #define LOG(...) ((void)0)
@@ -31,6 +31,7 @@ typedef struct {
     size_t dynamic;      /* payload bytes handed to each invocation */
     bool eager_range;    /* open a range at every begin, rather than on request */
     bool removed;        /* removal was requested; no further begin fires, but open ranges still close */
+    bool reported;       /* aux.resolved already ran */
     uint32_t open_count; /* frames with this range currently open, across the whole request */
     HashTable guards;    /* zai_line_guard* -> itself: the guards this def is keeping alive */
     /* Sites armed by this definition: mixed opline key -> raw opline.
@@ -1104,13 +1105,40 @@ static bool zai_line_arm_range(zai_line_def *def, zend_op_array *op_array, zend_
     return true;
 }
 
+typedef struct {
+    uint32_t line;
+    HashTable candidates; /* op_array pointer -> op_array, all resolving to line */
+} zai_line_resolution;
+
+static void zai_line_resolution_free(zval *zv) {
+    zai_line_resolution *resolution = Z_PTR_P(zv);
+    zend_hash_destroy(&resolution->candidates);
+    efree(resolution);
+}
+
+static bool zai_line_range_belongs_to_outer(zai_line_def *def, zend_op_array *op_array, zai_line_resolution *resolution) {
+    /* A range contained in the function, or starting inside it, cannot disambiguate it.
+       Exact function boundaries are ambiguous too, including a single-line closure. */
+    if (zend_hash_num_elements(&resolution->candidates) < 2 || def->line > op_array->line_start || def->end_line < op_array->line_end || (def->line == op_array->line_start && def->end_line == op_array->line_end)) {
+        return false;
+    }
+
+    zend_op_array *outer;
+    ZEND_HASH_FOREACH_PTR(&resolution->candidates, outer) {
+        if (outer->line_start <= op_array->line_start && outer->line_end >= op_array->line_end && (outer->line_start < op_array->line_start || outer->line_end > op_array->line_end)) {
+            return true;
+        }
+    } ZEND_HASH_FOREACH_END();
+    return false;
+}
+
 /* Resolve in two passes per file: find the smallest executable line >= the request across candidate op_arrays, then arm only that line.
    This avoids independently sliding enclosing functions or file scope to unrelated code.
    Visit nested closures and declared classes as well. */
 static bool zai_line_resolve_op_array(zai_line_def *def, zend_op_array *op_array, HashTable *by_file, bool arm) {
     bool armed = false;
 
-    if (op_array->type != ZEND_USER_FUNCTION || !op_array->filename || !zai_hook_match_filepath(op_array->filename, def->file)) {
+    if (op_array->type != ZEND_USER_FUNCTION || !op_array->filename || !zai_hook_match_filepath_ci(op_array->filename, def->file)) {
         return false;
     }
 
@@ -1122,17 +1150,24 @@ static bool zai_line_resolve_op_array(zai_line_def *def, zend_op_array *op_array
         if (!arm) {
             /* Track the minimum per file, so suffix-matched files resolve independently while their enclosing op_arrays share one result. */
             if (zai_line_find_opline(op_array, def->line, 0, &resolved)) {
-                zval *min = zend_hash_find(by_file, op_array->filename);
-                if (!min || (uint32_t)Z_LVAL_P(min) > resolved) {
-                    zval zv;
-                    ZVAL_LONG(&zv, resolved);
-                    zend_hash_update(by_file, op_array->filename, &zv);
+                zai_line_resolution *resolution = zend_hash_find_ptr(by_file, op_array->filename);
+                if (!resolution) {
+                    resolution = emalloc(sizeof(*resolution));
+                    resolution->line = resolved;
+                    zend_hash_init(&resolution->candidates, 4, NULL, NULL, 0);
+                    zend_hash_add_ptr(by_file, op_array->filename, resolution);
+                } else if (resolution->line > resolved) {
+                    resolution->line = resolved;
+                    zend_hash_clean(&resolution->candidates);
+                }
+                if (resolution->line == resolved) {
+                    zend_hash_index_add_ptr(&resolution->candidates, (zend_ulong)(uintptr_t)op_array, op_array);
                 }
             }
         } else {
-            zval *min = zend_hash_find(by_file, op_array->filename);
-            if (min) {
-                opline = zai_line_find_opline(op_array, def->line, (uint32_t)Z_LVAL_P(min), &resolved);
+            zai_line_resolution *resolution = zend_hash_find_ptr(by_file, op_array->filename);
+            if (resolution && !zai_line_range_belongs_to_outer(def, op_array, resolution)) {
+                opline = zai_line_find_opline(op_array, def->line, resolution->line, &resolved);
             }
         }
 
@@ -1239,6 +1274,7 @@ static void zai_line_preloaded_add(zend_op_array *op_array) {
         zend_hash_add_ptr(&zai_line_preloaded, op_array->filename, list);
     }
     zend_llist_add_element(list, &op_array);
+    zai_hook_register_dynamic_functions(op_array);
 }
 
 static void zai_line_preloaded_list_free(zval *zv) {
@@ -1249,7 +1285,8 @@ static void zai_line_preloaded_list_free(zval *zv) {
 
 /* Preloaded declarations bypass this request's observers.
    Index ZEND_ACC_PRELOADED functions once by filename, so later resolution scans matching files without revisiting every declaration. */
-static void zai_line_preloaded_build(void) {
+/* TODO for future: Check whether we can persist that after preloading */
+void zai_line_hooks_index_preloaded(void) {
     if (zai_line_preloaded_built) {
         return;
     }
@@ -1296,12 +1333,12 @@ static void zai_line_preloaded_build(void) {
 
 static bool zai_line_resolve_preloaded(zai_line_def *def, HashTable *by_file, bool arm) {
     bool armed = false;
-    zai_line_preloaded_build();
+    zai_line_hooks_index_preloaded();
 
     zend_string *filename;
     zend_llist *list;
     ZEND_HASH_FOREACH_STR_KEY_PTR(&zai_line_preloaded, filename, list) {
-        if (!filename || !zai_hook_match_filepath(filename, def->file)) {
+        if (!filename || !zai_hook_match_filepath_ci(filename, def->file)) {
             continue;
         }
         for (zend_llist_element *el = list->head; el; el = el->next) {
@@ -1314,7 +1351,18 @@ static bool zai_line_resolve_preloaded(zai_line_def *def, HashTable *by_file, bo
 }
 #endif
 
-/* Resolve through the filename location map and live file scopes; extra is a newly compiled file scope.
+typedef struct {
+    zai_line_def *def;
+    HashTable *by_file;
+    bool arm;
+} zai_line_location_context;
+
+static bool zai_line_resolve_location(zend_op_array *op_array, void *context) {
+    zai_line_location_context *ctx = context;
+    return zai_line_resolve_op_array(ctx->def, op_array, ctx->by_file, ctx->arm);
+}
+
+/* Resolve through the declaration registry and live file scopes; extra is a newly compiled file scope.
    PHP 7's compile-time table delta includes runtime-key declarations.
    PHP 8 supplements top-level observers by traversing nested closures and classes.
    Preloaded declarations use a separate file index; PHP 8.0 also needs the symbol-table fallback. */
@@ -1331,18 +1379,9 @@ static bool zai_line_resolve_pass(zai_line_def *def, zend_op_array *extra, HashT
         }
     }
 
-    /* The resolver's compile hooks populate the location map before this outer hook re-resolves the file. */
-    zend_string *filename;
-    zai_function_location_entry *entry;
-    ZEND_HASH_FOREACH_STR_KEY_PTR(zai_hook_function_location_map(), filename, entry) {
-        if (!filename || !zai_hook_match_filepath(filename, def->file)) {
-            continue;
-        }
-        for (uint32_t i = 0; i < entry->size; ++i) {
-            armed |= zai_line_resolve_op_array(def, &entry->functions[i]->op_array, by_file, arm);
-        }
-    }
-    ZEND_HASH_FOREACH_END();
+    /* Compile/link observers register declarations before this outer hook re-resolves the file. */
+    zai_line_location_context context = {def, by_file, arm};
+    armed |= zai_hook_visit_function_locations(def->file, zai_line_resolve_location, &context);
 
 #if PHP_VERSION_ID >= 70400
     /* Always include preloaded files.
@@ -1358,16 +1397,23 @@ static bool zai_line_resolve_pass(zai_line_def *def, zend_op_array *extra, HashT
     return armed;
 }
 
-/* Resolve one executable line per file, then arm every matching op_array.
+/* Resolve one executable line per file, then use the range to disambiguate matching op_arrays.
    Repeated resolution is idempotent per (opline, def). */
 static bool zai_line_resolve(zai_line_def *def, zend_op_array *extra) {
-    HashTable by_file; /* filename -> smallest executable lineno >= def->line in that file */
-    zend_hash_init(&by_file, 4, NULL, NULL, 0);
+    HashTable by_file; /* filename -> zai_line_resolution */
+    zend_hash_init(&by_file, 4, NULL, zai_line_resolution_free, 0);
 
     zai_line_resolve_pass(def, extra, &by_file, false);
     bool armed = zend_hash_num_elements(&by_file) && zai_line_resolve_pass(def, extra, &by_file, true);
 
     zend_hash_destroy(&by_file);
+
+    if (armed && !def->reported && !def->removed) {
+        def->reported = true;
+        if (def->aux.resolved) {
+            def->aux.resolved(def->aux.data);
+        }
+    }
     return armed;
 }
 
@@ -1379,7 +1425,8 @@ void zai_line_hooks_file_compiled(zend_op_array *op_array) {
 
     zai_line_def *def;
     ZEND_HASH_FOREACH_PTR(&zai_line_defs, def) {
-        if (zai_hook_match_filepath(op_array->filename, def->file)) {
+        /* A removed definition only waits for its open ranges to close; it must not arm new sites. */
+        if (!def->removed && zai_hook_match_filepath_ci(op_array->filename, def->file)) {
             /* Full rescan rather than just this op_array: the functions the file declares are early-bound into the function table by now, and are not reachable through its dynamic_func_defs. */
             zai_line_resolve(def, op_array);
         }
@@ -1480,7 +1527,7 @@ const char *zai_line_hooks_conflict(zend_string *file, uint32_t line, uint32_t e
     zai_line_def *other;
     ZEND_HASH_FOREACH_PTR(&zai_line_defs, other) {
         /* Either may be the shorter spelling, so the suffix match has to be tried both ways round. */
-        if (!zai_hook_match_filepath(other->file, file) && !zai_hook_match_filepath(file, other->file)) {
+        if (!zai_hook_match_filepath_ci(other->file, file) && !zai_hook_match_filepath_ci(file, other->file)) {
             continue;
         }
         bool starts_inside = line >= other->line && line <= other->end_line;

@@ -1,3 +1,9 @@
+# GNU Make exports silent mode to submakes in MAKEFLAGS. Pass it to Cargo too,
+# for every target that invokes Cargo (including xlang-lto).
+ifneq ($(findstring s,$(filter-out -%,$(firstword $(MAKEFLAGS)))),)
+export CARGO_TERM_QUIET := true
+endif
+
 Q := @
 , := ,
 PROJECT_ROOT := ${PWD}
@@ -8,7 +14,6 @@ APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
 BUILD_SUFFIX = extension
 BUILD_DIR_NAME = tmp/build_$(BUILD_SUFFIX)
 BUILD_DIR = $(PROJECT_ROOT)/$(BUILD_DIR_NAME)
-BUILD_DIR_APPSEC = $(BUILD_DIR)/appsec/
 ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
@@ -31,6 +36,8 @@ ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CI_COMMIT_SHA}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
+# Repository builds have rust-src; PECL's configure default remains disabled.
+export DD_RUST_BUILD_STD ?= 1
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 MAX_TEST_PARALLELISM ?= $(shell nproc)
 # macOS CI runs on bare-metal runners that leak GitLab's infra-monitoring DD_* env vars into the
@@ -59,14 +66,13 @@ RUN_TESTS_PARALLELIZE := $(if $(RUN_TESTS_IS_PARALLEL),,$(PROJECT_ROOT)/tooling/
 # explicitly via --ENV--, which a global -d override here would clobber.
 RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM)) $(if $(filter Darwin,$(shell uname -s)), -d datadog.agent_host=127.0.0.1 -d datadog.trace.agent_port=1)
 
-C_FILES = $(shell find components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+C_FILES = $(shell find appsec/src/extension components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 SIDECAR_RUST_FILES = appsec/recommended.json $(shell find sidecar appsec/helper-rust appsec/third_party/libddwaf-rust \( -type l -o -type f \) \( -path "*/src*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -name '*.c' \) -not -path "*/target/*" -not -path "*/.git/*")
 RUST_SYMBOL_FILES = $(addprefix $(BUILD_DIR)/, \
 	components-rs/libdatadog-php.sym \
 	components-rs/libdatadog-php-unix.sym)
 RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(RUST_SYMBOL_FILES) $(shell find components-rs profiling -name '*.c' -o -name '*.h' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find tracer -name '*.rs' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog \( -type l -o -type f \) \( -name '*.rs' -o -path '*/src*' -o -path '*/examples*' -o -name 'Cargo.toml' \) -not -path '*/target/*' -not -path '*/.git/*') $(SIDECAR_RUST_FILES)
-RUST_FILES += $(BUILD_DIR)/components-rs/appsec_body/Cargo.lock
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '*.inc' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -139,6 +145,8 @@ $(BUILD_DIR)/configure: $(M4_FILES) \
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
 	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
+	test $(PHP_MAJOR_MINOR) -lt 86 || sed -i "s/\$$stat\['stopsig'\]/\$$stat['termsig']/" $(BUILD_DIR)/run-tests.php # 8.6+ only (tests are spawned without a shell there): run-tests prints stopsig (always 0) for signaled tests
+	test $(PHP_MAJOR_MINOR) -lt 86 || sed -i 's/^\( *\)\$$stat = proc_get_status(\$$proc);/\1do { $$stat = proc_get_status($$proc); } while ($$stat["running"] \&\& usleep(1000) === null);/' $(BUILD_DIR)/run-tests.php # 8.6+ only: stdout EOF can precede the exit; wait for it so the exit status/signal is not lost (proc_close waits anyway)
 
 # ensure list of rust files is up to date
 $(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
@@ -148,7 +156,7 @@ $(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
 		|| mv $(BUILD_DIR)/.rust_files_list.tmp $(BUILD_DIR)/.rust_files_list
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure $(BUILD_DIR)/.rust_files_list
-	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug --disable-ddtrace-libddwaf-source $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
+	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug --$(if $(filter 1,$(DD_RUST_BUILD_STD)),enable,disable)-ddtrace-rust-build-std --disable-ddtrace-libddwaf-source $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
 	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
@@ -163,7 +171,7 @@ $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
 
 set_static_option:
-	$(eval EXTRA_CONFIGURE_OPTIONS := --enable-ddtrace-rust-library-split)
+	$(eval EXTRA_CONFIGURE_OPTIONS := $(EXTRA_CONFIGURE_OPTIONS) --enable-ddtrace-rust-library-split)
 
 static: set_static_option $(AR_FILE)
 
@@ -175,12 +183,13 @@ install_ini: $(INI_FILE)
 delete_ini:
 	$(SUDO) rm $(INI_FILE)
 
-install_appsec:
-	cmake -S $(APPSEC_SOURCE_DIR) -DCMAKE_BUILD_TYPE=RelWithDebInfo -B $(BUILD_DIR_APPSEC)
-	$(MAKE) -C $(BUILD_DIR_APPSEC) extension
-	cp -v $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
+# Tracer with AppSec, without profiling (which does not support PHP 7.0)
+compile_appsec:
+	$(MAKE) BUILD_SUFFIX=appsec EXTRA_CONFIGURE_OPTIONS="$(EXTRA_CONFIGURE_OPTIONS) --enable-ddtrace-appsec" all
+
+install_appsec: compile_appsec
+	$(SUDO) cp $(PROJECT_ROOT)/tmp/build_appsec/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so
 	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
-	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.cli_start_on_rinit=true" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.rules=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.log_file=/tmp/logs/appsec.log" | $(SUDO) tee -a $(INI_FILE)
@@ -425,12 +434,49 @@ strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
 
 PROFILER_BUILD_SUFFIX ?= profiler
-# Extra Cargo features for the profiler, comma-separated (`profiling` is always
-# enabled), e.g. PROFILER_FEATURES=trigger_time_sample for correctness tests and
-# benchmarks. Features are baked in at configure time: remove
-# tmp/build_$(PROFILER_BUILD_SUFFIX) when changing them.
+# Extra Cargo features for the profiler, comma-separated. Features are fixed
+# at configure time; remove the corresponding tmp/build_* dir when changing them.
 PROFILER_FEATURES ?=
 
+# Combined tracer+profiling+AppSec in a single ddtrace.so, as shipped to users. This is
+# the target most people should use locally when they need profiling -- the
+# standalone profiler below (compile_profiler/install_profiler) is only for
+# testing the legacy standalone artifact itself, not a general substitute.
+compile_combined:
+	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec" all
+
+# Linux release CI alias for the self-contained, non-SSI ddtrace.so.
+# Both names use the same build and output directory. Switch to the desired
+# NTS/ZTS PHP toolchain first; PHP 7.0 is tracer-only and debug stays non-LTO.
+.PHONY: xlang-lto
+xlang-lto: build-tracer-profiler
+
+# Distinct products for the selected NTS or ZTS PHP ABI.
+# Keeping the Rust target cache shared lets Cargo reuse unaffected dependencies,
+# while each feature combination gets its own top-level crate and final link.
+VARIANTS_DIR ?= $(PROJECT_ROOT)/tmp/release-variants/$(ARCHITECTURE)/php-$(or $(PHP_VERSION),$(shell php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;'))/$(shell php -n -r 'echo PHP_DEBUG ? "debug" : (PHP_ZTS ? "zts" : "nts");')
+.PHONY: build-profiler-standalone build-tracer-profiler build-ssi-common build-ssi-ddtrace
+build-profiler-standalone:
+	./tooling/bin/build-xlang-lto standalone "$(VARIANTS_DIR)/standalone"
+
+build-tracer-profiler:
+	./tooling/bin/build-xlang-lto combined "$(VARIANTS_DIR)/combined"
+
+build-ssi-common:
+	./tooling/bin/build-xlang-lto ssi-common "$(VARIANTS_DIR)/ssi"
+
+build-ssi-ddtrace:
+	./tooling/bin/build-xlang-lto ssi-combined "$(VARIANTS_DIR)/ssi"
+
+install_combined: compile_combined
+	$(SUDO) cp $(PROJECT_ROOT)/tmp/build_combined/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so
+
+install_all_combined: install_combined install_ini
+
+# Standalone profiler only (no tracer). Not what CI ships or what most local
+# testing needs -- prefer compile_combined/install_combined unless you're
+# specifically testing the standalone artifact (e.g. standalone/combined
+# conflict tests).
 compile_profiler:
 	DDTRACE_PROFILING_FEATURES="$(PROFILER_FEATURES)" $(MAKE) BUILD_SUFFIX=$(PROFILER_BUILD_SUFFIX) PROFILING=1 EXTRA_CONFIGURE_OPTIONS="--disable-ddtrace-tracer --enable-ddtrace-profiling" all
 
@@ -452,6 +498,9 @@ PROFILER_ASAN_ENV = RUSTC_BOOTSTRAP=1 \
 
 compile_profiler_asan:
 	$(PROFILER_ASAN_ENV) $(MAKE) PROFILER_BUILD_SUFFIX=profiler_asan compile_profiler
+
+compile_combined_asan:
+	$(PROFILER_ASAN_ENV) $(MAKE) BUILD_SUFFIX=combined_asan EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec" all
 
 clang_find_files_to_lint:
 	@find . \( \
@@ -487,6 +536,7 @@ remove_cbindgen:
 
 generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
 	( \
+		set -e; \
 		cbindgen --crate datadog-php  \
 			--config cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/datadog.h; \
@@ -528,6 +578,9 @@ define FPM_FILES
 	extensions_$(shell test $(1) = arm64 && echo aarch64 || echo $(1))/=$(EXT_DIR)/extensions \
 		$(shell test $(1) = windows || echo package/post-install.sh=$(EXT_DIR)/bin/post-install.sh) package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 		docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md \
+		profiling/LICENSE=$(EXT_DIR)/docs/profiling/LICENSE \
+		profiling/LICENSE-3rdparty.csv=$(EXT_DIR)/docs/profiling/LICENSE-3rdparty.csv \
+		profiling/NOTICE=$(EXT_DIR)/docs/profiling/NOTICE \
 		src=$(EXT_DIR)/dd-trace-sources
 endef
 define FPM_OPTS
@@ -1267,6 +1320,51 @@ TEST_WEB_85 := \
 	test_web_custom \
 	test_web_zend_1_21
 
+# No frankenphp on 8.6 yet: FrankenPHP does not build against 8.6's zend_arg_info change; re-add at GA
+TEST_INTEGRATIONS_86 := \
+	test_integrations_amqp2 \
+	test_integrations_amqp_latest \
+	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_kafka \
+	test_integrations_laminaslog2 \
+	test_integrations_memcache \
+	test_integrations_memcached \
+	test_integrations_mongodb_latest \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog_latest \
+	test_integrations_mysqli \
+	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
+	test_opentelemetry_1 \
+	test_integrations_guzzle_latest \
+	test_integrations_pcntl \
+	test_integrations_exec \
+	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
+	test_integrations_elasticsearch_latest \
+	test_integrations_predis_2 \
+	test_integrations_predis_latest \
+	test_integrations_ratchet \
+	test_integrations_sqlsrv \
+	test_opentracing_10
+
+# No cakephp_latest on 8.6 yet: laminas-diactoros caps php at ~8.5; re-add at GA
+TEST_WEB_86 := \
+	test_metrics \
+	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
+	test_web_lumen_100 \
+	test_web_slim_312 \
+	test_web_symfony_73 \
+	test_web_symfony_latest \
+	test_web_wordpress_59 \
+	test_web_wordpress_61 \
+	test_web_custom \
+	test_web_zend_1_21
+
 # to check: test_web_drupal_95, test_web_laravel_latest, test_web_slim_latest, test_integrations_phpredis6
 
 FILTER ?= .
@@ -1294,7 +1392,7 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 83 && echo 1) || echo 0) -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 83 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 83 && echo 1) || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage

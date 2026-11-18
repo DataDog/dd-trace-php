@@ -7,6 +7,7 @@
 #include <php.h>
 #include <stdbool.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_smart_str.h>
 
 #include <components-rs/datadog.h>
 #include <components/log/log.h>
@@ -17,6 +18,7 @@
 #include "ddtrace.h"
 #include <ext/sidecar.h>
 #include "span.h"
+#include "span_tags_view.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
@@ -39,24 +41,130 @@ static const size_t GRPC_META_KEY_LENS[] = {
 // agent, which is larger and must be scanned in full.
 #define DDTRACE_MAX_PEER_TAGS 32
 
-void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
-    pre->meta    = ddtrace_property_array(&span->property_meta);
-    pre->metrics = ddtrace_property_array(&span->property_metrics);
+#define DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT 100
+#define DD_STATS_ADDITIONAL_TAGS_MAX_CARDINALITY_LIMIT 1000000
 
-    // Service: meta["service.name"] override then span property, then apply DD_SERVICE_MAPPING.
-    zval *service_name_meta = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("service.name")) : NULL;
-    pre->service_from_meta = (service_name_meta != NULL);
-    pre->service = NULL;
-    if (service_name_meta) {
-        pre->service = datadog_convert_to_str(service_name_meta);
-    } else {
-        zval *prop_service = &span->property_service;
-        ZVAL_DEREF(prop_service);
-        if (Z_TYPE_P(prop_service) > IS_NULL) {
-            pre->service = datadog_convert_to_str(prop_service);
+// The configuration last warned about, so that it is reported once and not with every span.
+ZEND_TLS zend_ulong dd_stats_additional_tags_warned_keys;
+// We want to only warn once about that.
+ZEND_TLS zend_long dd_stats_additional_tags_warned_limit = DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT;
+
+static int dd_zend_string_cmp(const zend_string *a, const zend_string *b) {
+    return zend_binary_strcmp(ZSTR_VAL(a), ZSTR_LEN(a), ZSTR_VAL(b), ZSTR_LEN(b));
+}
+
+// The configuration can differ per request (e.g. per vhost) and change mid-request. Startup values
+// are interned, so their keys are hashed already and shared read-only across threads; runtime
+// values belong to the request.
+static void dd_stats_additional_tags_from_config(ddtrace_stats_additional_tags *tags) {
+    zend_array *configured = get_DD_TRACE_STATS_ADDITIONAL_TAGS();
+    tags->count = 0;
+    tags->cardinality_limit = DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT;
+    if (!zend_hash_num_elements(configured)) {
+        return;
+    }
+
+    zend_string *key;
+    ZEND_HASH_FOREACH_STR_KEY(configured, key) {
+        if (!key) {
+            continue;
+        }
+        // Insert into the sorted keys, dropping whichever ends up past the maximum.
+        size_t pos = tags->count;
+        while (pos > 0 && dd_zend_string_cmp(key, tags->keys[pos - 1]) < 0) {
+            pos--;
+        }
+        if (pos == ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS) {
+            continue;
+        }
+        if (tags->count < ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS) {
+            tags->count++;
+        }
+        for (size_t i = tags->count - 1; i > pos; i--) {
+            tags->keys[i] = tags->keys[i - 1];
+        }
+        tags->keys[pos] = key;
+    } ZEND_HASH_FOREACH_END();
+
+    if (zend_hash_num_elements(configured) > ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS) {
+        zend_ulong signature = 0;
+        ZEND_HASH_FOREACH_STR_KEY(configured, key) {
+            if (key) {
+                signature += zend_string_hash_val(key);
+            }
+        } ZEND_HASH_FOREACH_END();
+        if (signature != dd_stats_additional_tags_warned_keys) {
+            dd_stats_additional_tags_warned_keys = signature;
+            zend_string *last_kept = tags->keys[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS - 1];
+            smart_str dropped = {0};
+            ZEND_HASH_FOREACH_STR_KEY(configured, key) {
+                if (key && dd_zend_string_cmp(key, last_kept) > 0) {
+                    if (dropped.s) {
+                        smart_str_appends(&dropped, ", ");
+                    }
+                    smart_str_append(&dropped, key);
+                }
+            } ZEND_HASH_FOREACH_END();
+            smart_str_0(&dropped);
+            LOG(WARN, "DD_TRACE_STATS_ADDITIONAL_TAGS has %u keys, more than the maximum of %d; dropping: %s",
+                zend_hash_num_elements(configured), ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS, ZSTR_VAL(dropped.s));
+            smart_str_free(&dropped);
         }
     }
-    if (pre->service) {
+
+    zend_long limit = get_DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT();
+    if (limit <= 0 || limit > DD_STATS_ADDITIONAL_TAGS_MAX_CARDINALITY_LIMIT) {
+        if (limit != dd_stats_additional_tags_warned_limit) {
+            dd_stats_additional_tags_warned_limit = limit;
+            LOG(WARN, "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT must be positive and smaller than a million, got " ZEND_LONG_FMT "; using the default of %d",
+                limit, DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT);
+        }
+        limit = DD_STATS_ADDITIONAL_TAGS_DEFAULT_CARDINALITY_LIMIT;
+    }
+    tags->cardinality_limit = (uint32_t)limit;
+}
+
+static const ddtrace_stats_additional_tags *dd_stats_additional_tags(void) {
+    ddtrace_stats_additional_tags *tags = &DDTRACE_G(stats_additional_tags);
+    if (!tags->computed) {
+        dd_stats_additional_tags_from_config(tags);
+        tags->computed = true;
+    }
+    return tags;
+}
+
+bool ddtrace_alter_stats_additional_tags(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_value, new_str);
+    DDTRACE_G(stats_additional_tags).computed = false;
+    return true;
+}
+
+bool ddtrace_span_service_differs_from_parent(ddtrace_span_data *parent_span, zend_string *service) {
+    // Compare with the nearest non-dropped ancestor, the parent the serializer emits.
+    while (parent_span->parent && ddtrace_span_is_dropped(parent_span)) {
+        parent_span = SPANDATA(parent_span->parent);
+    }
+    zval *parent_service = &parent_span->property_service;
+    ZVAL_DEREF(parent_service);
+    if (Z_TYPE_P(parent_service) <= IS_NULL || !service) {
+        return (Z_TYPE_P(parent_service) > IS_NULL) != (service != NULL);
+    }
+    zend_string *parent = datadog_convert_to_str(parent_service);
+    zval *mapped = zend_hash_find(get_DD_SERVICE_MAPPING(), parent);
+    bool differs = !zend_string_equals(service, mapped ? Z_STR_P(mapped) : parent);
+    zend_string_release(parent);
+    return differs;
+}
+
+void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
+    pre->attributes = ddtrace_property_array(&span->property_attributes);
+
+    // Service: span property, then apply DD_SERVICE_MAPPING.
+    pre->service = NULL;
+    zval *prop_service = &span->property_service;
+    ZVAL_DEREF(prop_service);
+    if (Z_TYPE_P(prop_service) > IS_NULL) {
+        pre->service = datadog_convert_to_str(prop_service);
         zval *mapped = zend_hash_find(get_DD_SERVICE_MAPPING(), pre->service);
         if (mapped) {
             zend_string_release(pre->service);
@@ -64,125 +172,78 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         }
     }
 
-    // Name: meta["operation.name"] (lowercased!) or span property.
-    zval *operation_name = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("operation.name")) : NULL;
     pre->name = NULL;
-    if (operation_name && Z_TYPE_P(operation_name) == IS_STRING) {
-        pre->name = zend_string_tolower(Z_STR_P(operation_name));
-        pre->name_from_meta = true;
-    } else {
-        zval *prop_name = &span->property_name;
-        ZVAL_DEREF(prop_name);
-        if (Z_TYPE_P(prop_name) > IS_NULL) {
-            pre->name = datadog_convert_to_str(prop_name);
-        }
-        pre->name_from_meta = false;
+    zval *prop_name = &span->property_name;
+    ZVAL_DEREF(prop_name);
+    if (Z_TYPE_P(prop_name) > IS_NULL) {
+        pre->name = datadog_convert_to_str(prop_name);
     }
 
-    // Resource: meta["resource.name"] or span property, falling back to name.
-    zval *resource_name = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("resource.name")) : NULL;
-    pre->resource_from_meta = (resource_name != NULL);
+    // Resource: span property, falling back to name.
     pre->resource = NULL;
-    if (resource_name) {
-        pre->resource = datadog_convert_to_str(resource_name);
-    } else {
-        zval *prop_resource = &span->property_resource;
-        ZVAL_DEREF(prop_resource);
-        if (Z_TYPE_P(prop_resource) > IS_FALSE &&
-            (Z_TYPE_P(prop_resource) != IS_STRING || Z_STRLEN_P(prop_resource) > 0)) {
-            pre->resource = datadog_convert_to_str(prop_resource);
-        }
+    zval *prop_resource = &span->property_resource;
+    ZVAL_DEREF(prop_resource);
+    if (Z_TYPE_P(prop_resource) > IS_FALSE &&
+        (Z_TYPE_P(prop_resource) != IS_STRING || Z_STRLEN_P(prop_resource) > 0)) {
+        pre->resource = datadog_convert_to_str(prop_resource);
     }
     if (!pre->resource && pre->name) {
         pre->resource = zend_string_copy(pre->name);
     }
 
-    // Type: meta["span.type"] or span property.
-    zval *span_type = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("span.type")) : NULL;
-    pre->type_from_meta = (span_type != NULL);
     pre->type = NULL;
-    zval *prop_type = span_type ? span_type : &span->property_type;
+    zval *prop_type = &span->property_type;
     ZVAL_DEREF(prop_type);
     if (Z_TYPE_P(prop_type) > IS_NULL) {
         pre->type = datadog_convert_to_str(prop_type);
     }
 
-    // Env: prefer deprecated meta["env"] (with a warning), else span property.
     pre->env = NULL;
-    zval *meta_env = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("env")) : NULL;
-    if (meta_env) {
-        pre->env_deprecated = true;
-        LOG(DEPRECATED, "Using \"env\" in meta is deprecated. Instead specify the env property directly on the span.");
-        zend_string *str = datadog_convert_to_str(meta_env);
-        if (ZSTR_LEN(str) > 0) {
-            pre->env = str;
-        } else {
-            zend_string_release(str);
-        }
-    } else {
-        pre->env_deprecated = false;
-        zval *prop_env = &span->property_env;
-        ZVAL_DEREF(prop_env);
-        if (Z_TYPE_P(prop_env) > IS_NULL) {
-            zend_string *str = datadog_convert_to_str(prop_env);
-            if (ZSTR_LEN(str) > 0) {
-                pre->env = str;
-            } else {
-                zend_string_release(str);
-            }
-        }
+    zval *prop_env = &span->property_env;
+    ZVAL_DEREF(prop_env);
+    if (Z_TYPE_P(prop_env) == IS_STRING && Z_STRLEN_P(prop_env) > 0) {
+        pre->env = zend_string_copy(Z_STR_P(prop_env));
     }
 
-    // Version: prefer deprecated meta["version"] (with a warning), else the span's own property.
     pre->version = NULL;
-    zval *meta_version = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("version")) : NULL;
-    if (meta_version) {
-        pre->version_deprecated = true;
-        LOG(DEPRECATED, "Using \"version\" in meta is deprecated. Instead specify the version property directly on the span.");
-        zend_string *str = datadog_convert_to_str(meta_version);
-        if (ZSTR_LEN(str) > 0) {
-            pre->version = str;
-        } else {
-            zend_string_release(str);
-        }
-    } else {
-        pre->version_deprecated = false;
-        zval *prop_version = &span->property_version;
-        ZVAL_DEREF(prop_version);
-        if (Z_TYPE_P(prop_version) > IS_NULL) {
-            zend_string *str = datadog_convert_to_str(prop_version);
-            if (ZSTR_LEN(str) > 0) {
-                pre->version = str;
-            } else {
-                zend_string_release(str);
-            }
-        }
+    zval *prop_version = &span->property_version;
+    ZVAL_DEREF(prop_version);
+    if (Z_TYPE_P(prop_version) == IS_STRING && Z_STRLEN_P(prop_version) > 0) {
+        pre->version = zend_string_copy(Z_STR_P(prop_version));
     }
 
-    // has_exception: used by dd_compute_span_is_error() for exception-based error detection.
-    zval *exception_zv = &span->property_exception;
-    pre->has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT &&
-                         instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
-
-    zval *error_ignored_zv = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("error.ignored")) : NULL;
-    pre->ignore_error = error_ignored_zv && zend_is_true(error_ignored_zv);
+    ddtrace_precompute_span_error(span, pre);
 
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
-    pre->has_top_level = ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0) || (span->parent && !zend_is_identical(&span->property_service, &span->parent->property_service));
-    zval *is_measured = pre->metrics ? zend_hash_str_find(pre->metrics, ZEND_STRL("_dd.measured")) : NULL;
+    // A root's parent is its inferred span, if any, as the serializer emits it.
+    ddtrace_span_data *parent = span->parent ? SPANDATA(span->parent)
+        : span->std.ce == ddtrace_ce_root_span_data ? ddtrace_get_inferred_span(ROOTSPANDATA(&span->std)) : NULL;
+    pre->has_top_level = parent ? ddtrace_span_service_differs_from_parent(parent, pre->service)
+        : span->std.ce == ddtrace_ce_inferred_span_data || ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0);
+    zval *is_measured = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.measured"));
     pre->is_measured = is_measured && zval_get_double(is_measured) != 0.0;
     pre->is_partial_snapshot = false;
-    zval *span_kind_zv = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("span.kind")) : NULL;
-    pre->span_kind = (span_kind_zv && Z_TYPE_P(span_kind_zv) == IS_STRING) ? Z_STR_P(span_kind_zv) : NULL;
+    pre->span_kind = zval_get_long(&span->property_span_kind);
+}
+
+void ddtrace_precompute_span_error(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
+    // The chunk error scan must not separate arrays or release invalid property values:
+    // those operations can run destructors before the span rings have been drained.
+    zval *attributes = &span->property_attributes;
+    ZVAL_DEREF(attributes);
+    pre->attributes = Z_TYPE_P(attributes) == IS_ARRAY ? Z_ARR_P(attributes) : NULL;
+    zval *exception_zv = &span->property_exception;
+    pre->has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT &&
+                         instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
+    pre->ignore_error = zend_is_true(&span->property_ignore_error);
 }
 
 bool dd_compute_span_is_error(const ddtrace_span_precomputed *pre) {
     if (pre->ignore_error) {
         return false;
     }
-    if (pre->meta && (zend_hash_str_find(pre->meta, ZEND_STRL("error.message")) != NULL ||
-                      zend_hash_str_find(pre->meta, ZEND_STRL("error.type")) != NULL)) {
+    if (pre->attributes && (zend_hash_str_find(pre->attributes, ZEND_STRL("error.message")) || zend_hash_str_find(pre->attributes, ZEND_STRL("error.type")))) {
         return true;
     }
     return pre->has_exception;
@@ -222,36 +283,36 @@ typedef struct {
 static ddog_PhpSpanStats ddtrace_build_span_stats_core(
     ddtrace_span_data *span, const ddtrace_span_precomputed *pre, ddog_CharSlice span_kind_slice
 ) {
-    zend_array *meta    = pre->meta;
-    zend_array *metrics = pre->metrics;
-
     ddog_CharSlice service_slice  = dd_zend_string_to_CharSlice(pre->service);
     ddog_CharSlice name_slice     = dd_zend_string_to_CharSlice(pre->name);
     ddog_CharSlice resource_slice = dd_zend_string_to_CharSlice(pre->resource);
     ddog_CharSlice type_slice     = dd_zend_string_to_CharSlice(pre->type);
 
     bool is_root_span  = span->std.ce == ddtrace_ce_root_span_data;
-    bool is_trace_root = is_root_span && (span->root->parent_id == 0);
+    bool is_trace_root = span->root->parent_id == 0
+        && (span->std.ce == ddtrace_ce_inferred_span_data
+            || (is_root_span && !ddtrace_get_inferred_span(span->root)));
     bool is_error = dd_compute_span_is_error(pre);
 
     // HTTP and gRPC fields only appear on service entry spans, which are always stats-eligible.
     // They are fetched here (after the eligibility check) rather than in ddtrace_precompute_span.
-    zval *http_status_str_zv = meta ? zend_hash_str_find(meta, ZEND_STRL("http.status_code")) : NULL;
+    // Attributes may hold references (by-ref uses of $attributes or the $meta/$metrics views): read through them.
+    zval *http_status_str_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("http.status_code"));
     ddog_CharSlice http_status_str_slice = http_status_str_zv && Z_TYPE_P(http_status_str_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_status_str_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_method_zv = meta ? zend_hash_str_find(meta, ZEND_STRL("http.method")) : NULL;
+    zval *http_method_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("http.method"));
     ddog_CharSlice http_method_slice = http_method_zv && Z_TYPE_P(http_method_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_method_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_endpoint_zv = meta ? zend_hash_str_find(meta, ZEND_STRL("http.endpoint")) : NULL;
+    zval *http_endpoint_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("http.endpoint"));
     ddog_CharSlice http_endpoint_slice = http_endpoint_zv && Z_TYPE_P(http_endpoint_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_endpoint_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_route_zv = meta ? zend_hash_str_find(meta, ZEND_STRL("http.route")) : NULL;
+    zval *http_route_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("http.route"));
     ddog_CharSlice http_route_slice = http_route_zv && Z_TYPE_P(http_route_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_route_zv))
         : DDOG_CHARSLICE_C("");
@@ -262,7 +323,7 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
         ? dd_zend_string_to_CharSlice(Z_STR_P(origin_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *service_source_zv = meta ? zend_hash_str_find(meta, ZEND_STRL("_dd.svc_src")) : NULL;
+    zval *service_source_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("_dd.svc_src"));
     ddog_CharSlice service_source_slice = service_source_zv && Z_TYPE_P(service_source_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(service_source_zv))
         : DDOG_CHARSLICE_C("");
@@ -272,17 +333,12 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
     for (int i = 0; i < ddog_PHP_GRPC_KEY_COUNT; i++) {
         grpc_meta[i]    = DDOG_CHARSLICE_C("");
         grpc_metrics[i] = NAN;
-        if (meta) {
-            zval *gm = zend_hash_str_find(meta, GRPC_META_KEYS[i], GRPC_META_KEY_LENS[i]);
-            if (gm && Z_TYPE_P(gm) == IS_STRING) {
-                grpc_meta[i] = dd_zend_string_to_CharSlice(Z_STR_P(gm));
-            }
-        }
-        if (metrics) {
-            zval *gv = zend_hash_str_find(metrics, GRPC_META_KEYS[i], GRPC_META_KEY_LENS[i]);
-            if (gv) {
-                grpc_metrics[i] = zval_get_double(gv);
-            }
+        // A string tag lands in the meta slot, a number in the metrics slot.
+        zval *ga = zend_hash_str_find_deref(pre->attributes, GRPC_META_KEYS[i], GRPC_META_KEY_LENS[i]);
+        if (ga && Z_TYPE_P(ga) == IS_STRING) {
+            grpc_meta[i] = dd_zend_string_to_CharSlice(Z_STR_P(ga));
+        } else if (ga) {
+            grpc_metrics[i] = zval_get_double(ga);
         }
     }
 
@@ -323,7 +379,12 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
     ddtrace_span_data *span = data->span;
     const ddtrace_span_precomputed *pre = data->pre;
 
-    ddog_CharSlice span_kind_slice = dd_zend_string_to_CharSlice(pre->span_kind);
+    // No ternary here: MSVC 2017 (PHP 7.x on Windows) dropped its NULL branch and ran strlen(NULL).
+    const char *span_kind = ddtrace_span_kind_str(pre->span_kind);
+    if (!span_kind) {
+        span_kind = "";
+    }
+    ddog_CharSlice span_kind_slice = { .ptr = span_kind, .len = strlen(span_kind) };
 
     if (!ddog_span_concentrator_is_eligible(c, pre->has_top_level, pre->is_measured, span_kind_slice, pre->is_partial_snapshot)) {
         return NULL;
@@ -338,13 +399,13 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
     ddog_PhpPeerTag peer_tags[DDTRACE_MAX_PEER_TAGS];
     size_t actual_peer_tags = 0;
 
-    if (pre->span_kind && (zend_string_equals_literal(pre->span_kind, "client") || zend_string_equals_literal(pre->span_kind, "producer") || zend_string_equals_literal(pre->span_kind, "consumer"))) {
+    if (pre->span_kind == DDTRACE_SPAN_KIND_CLIENT || pre->span_kind == DDTRACE_SPAN_KIND_PRODUCER || pre->span_kind == DDTRACE_SPAN_KIND_CONSUMER) {
         size_t peer_tag_keys_count = 0;
         const ddog_CharSlice *peer_tag_keys = ddog_span_concentrator_peer_tag_keys(c, &peer_tag_keys_count);
         if (peer_tag_keys_count > 0 && peer_tag_keys) {
             for (size_t i = 0; i < peer_tag_keys_count && actual_peer_tags < DDTRACE_MAX_PEER_TAGS; i++) {
                 const ddog_CharSlice *k = &peer_tag_keys[i];
-                zval *val = zend_hash_str_find(pre->meta, k->ptr, k->len);
+                zval *val = zend_hash_str_find_deref(pre->attributes, k->ptr, k->len);
                 if (val && Z_TYPE_P(val) == IS_STRING) {
                     peer_tags[actual_peer_tags].key   = *k;
                     peer_tags[actual_peer_tags].value = dd_zend_string_to_CharSlice(Z_STR_P(val));
@@ -352,10 +413,10 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
                 }
             }
         }
-    } else if (!pre->span_kind || !zend_string_equals_literal(pre->span_kind, "server")) {
+    } else if (pre->span_kind != DDTRACE_SPAN_KIND_SERVER) {
         // internal or no span.kind: use _dd.base_service only if it marks a service override
         static const ddog_CharSlice BASE_SERVICE_KEY = DDOG_CHARSLICE_C_BARE("_dd.base_service");
-        zval *base_svc_zv = zend_hash_str_find(pre->meta, ZEND_STRL("_dd.base_service"));
+        zval *base_svc_zv = zend_hash_str_find_deref(pre->attributes, ZEND_STRL("_dd.base_service"));
         if (base_svc_zv && Z_TYPE_P(base_svc_zv) == IS_STRING) {
             peer_tags[0].key   = BASE_SERVICE_KEY;
             peer_tags[0].value = dd_zend_string_to_CharSlice(Z_STR_P(base_svc_zv));
@@ -366,10 +427,46 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
     stats.peer_tags_count = actual_peer_tags;
     stats.peer_tags = actual_peer_tags > 0 ? peer_tags : NULL;
 
-    return ddog_span_concentrator_add_php_span(c, &stats);
+    // Additional metric tags: the configured keys present in the $meta view (incl. aliased properties
+    // like component and span.kind), stringified. Arrays and objects have no scalar value of the key itself.
+    const ddtrace_stats_additional_tags *configured = dd_stats_additional_tags();
+    ddog_PhpPeerTag additional_tags[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS];
+    zend_string *additional_tag_values[ddog_PHP_STATS_ADDITIONAL_TAGS_MAX_KEYS];
+    size_t actual_additional_tags = 0;
+    for (uint32_t i = 0; i < configured->count; i++) {
+        zval tmp;
+        if (!ddtrace_span_read_tag(span, configured->keys[i], &tmp)) {
+            continue;
+        }
+        if (Z_TYPE(tmp) <= IS_NULL || Z_TYPE(tmp) == IS_LONG || Z_TYPE(tmp) == IS_DOUBLE || Z_TYPE(tmp) == IS_ARRAY || Z_TYPE(tmp) == IS_OBJECT) {
+            zval_ptr_dtor(&tmp);
+            continue;
+        }
+        zend_string *str = datadog_convert_to_str(&tmp);
+        zval_ptr_dtor(&tmp);
+        additional_tag_values[actual_additional_tags] = str;
+        additional_tags[actual_additional_tags].key   = dd_zend_string_to_CharSlice(configured->keys[i]);
+        additional_tags[actual_additional_tags].value = dd_zend_string_to_CharSlice(str);
+        actual_additional_tags++;
+    }
+    stats.additional_tags_count = actual_additional_tags;
+    stats.additional_tags = actual_additional_tags > 0 ? additional_tags : NULL;
+    stats.additional_tags_cardinality_limit = configured->cardinality_limit;
+
+    // The tags are copied into SHM, or into the returned span for IPC.
+    ddog_OwnedShmSpanInput *owned_span = ddog_span_concentrator_add_php_span(c, &stats);
+    for (size_t i = 0; i < actual_additional_tags; i++) {
+        zend_string_release(additional_tag_values[i]);
+    }
+    return owned_span;
 }
 
 void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_span_precomputed *pre) {
+    // Client-side stats require the sidecar trace sender and APM tracing.
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER() || !get_global_DD_APM_TRACING_ENABLED()) {
+        return;
+    }
+
     ddog_CharSlice env_slice = dd_zend_string_to_CharSlice(pre->env);
     // versions can change per service, always look at root span
     zend_string *version_zstr;

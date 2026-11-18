@@ -230,3 +230,4 @@ After this you can start run the tests again with address sanitizer enabled.
 ## Rebuilding docker containers
 
 The randomized tests docker containers are based on our CentOS 7 or Debian Buster containers.
+The centos7 images are built by the manual `Randomized build` and `Randomized publish` jobs of the `ci-images` child pipeline (see `dockerfiles/ci/README.md`); their tags carry a generation from `tests/randomized/.env` (`RANDOMIZED_CENTOS_NEXT_VERSION`). The buster ones are still pushed by hand with `make publish.buster`.

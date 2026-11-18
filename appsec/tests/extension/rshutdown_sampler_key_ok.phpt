@@ -1,7 +1,6 @@
 --TEST--
 request_shutdown — sampler key is sent
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --GET--
 key=val
@@ -25,8 +24,8 @@ var_dump(rinit());
 $helper->get_commands(); // ignore
 
 $rootSpan = root_span();
-$rootSpan->meta["http.method"] = "GET";
-$rootSpan->meta["http.route"] = "/foo/bar";
+$rootSpan->attributes["http.method"] = "GET";
+$rootSpan->attributes["http.route"] = "/foo/bar";
 
 
 var_dump(rshutdown());

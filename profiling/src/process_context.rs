@@ -30,11 +30,15 @@ pub(crate) struct ProcessIdentityRef<'a> {
 pub(crate) enum ThreadContextRead {
     /// No valid OTel Thread Context is currently attached.
     Inactive(std::sync::Arc<crate::profiling::profile_tags::UnifiedServiceTagSegment>),
+    #[cfg_attr(not(feature = "otel-context"), allow(dead_code))]
     Active(ThreadContext),
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "otel-context"))]
 #[path = "process_context/linux.rs"]
+mod platform;
+#[cfg(all(target_os = "linux", not(feature = "otel-context")))]
+#[path = "process_context/basic.rs"]
 mod platform;
 
 #[cfg(target_os = "linux")]

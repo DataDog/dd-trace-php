@@ -1,7 +1,6 @@
 --TEST--
 Request parser memory-limit exhaustion is fatal with native femalloc or its fallback
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.cli_start_on_rinit=false
 datadog.appsec.max_body_buff_size=4194304

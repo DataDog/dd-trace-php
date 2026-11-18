@@ -1,12 +1,10 @@
 --TEST--
 Redirect from DDTrace\set_user
---INI--
-extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\track_user_login_success_event;
 use function datadog\appsec\testing\rinit;
 

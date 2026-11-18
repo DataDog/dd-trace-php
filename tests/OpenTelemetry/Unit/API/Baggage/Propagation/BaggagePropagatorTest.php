@@ -18,11 +18,20 @@ use OpenTelemetry\Context\ContextStorage;
  */
 class BaggagePropagatorTest extends BaseTestCase
 {
+    private $previousStorage;
+
     protected function ddSetUp()
     {
         \dd_trace_serialize_closed_spans();
+        $this->previousStorage = Context::storage();
         Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         parent::ddSetUp();
+    }
+
+    protected function ddTearDown()
+    {
+        Context::setStorage($this->previousStorage); // Keep the storage which follows fibers for the next tests
+        parent::ddTearDown();
     }
 
     public function test_fields(): void

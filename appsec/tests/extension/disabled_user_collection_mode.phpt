@@ -3,6 +3,7 @@ Value "invalid" for user collection mode (no warning)
 --INI--
 error_reporting=2147483647
 datadog.appsec.testing=0
+datadog.appsec.enabled=0
 --ENV--
 DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=disabled
 --FILE--

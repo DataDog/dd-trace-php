@@ -6,6 +6,7 @@ use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -45,7 +46,6 @@ class SQLSRVIntegration extends Integration
 
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_query', $query);
-            self::addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
@@ -99,7 +99,6 @@ class SQLSRVIntegration extends Integration
                 $query = resource_weak_get($stmt, self::QUERY_TAGS_KEY);
             }
             self::setDefaultAttributes($stmt, $span, 'sqlsrv_execute', $query ?? "", $retval);
-            self::addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             if ($retval) {
                 self::setMetrics($span, $args[0]);
@@ -132,11 +131,9 @@ class SQLSRVIntegration extends Integration
             $connectionMetadata[Tag::DB_INSTANCE] = $instanceName;
         }
 
-        $port = '';
         if (preg_match('/,\s?(\d+)/', $serverName, $matches)) {
-            $port = $matches[1];
+            $connectionMetadata[Tag::TARGET_PORT] = (int)$matches[1];
         }
-        $connectionMetadata[Tag::TARGET_PORT] = empty($port) ? '<default>' : $port;
 
         $connectionInfo = $connectionArguments[1];
         if (is_array($connectionInfo)) {
@@ -170,19 +167,19 @@ class SQLSRVIntegration extends Integration
         $span->resource = $query ?? $name;
         $span->type = Type::SQL;
         Integration::handleInternalSpanServiceName($span, self::NAME);
-        $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
+        $span->spanKind = SpanKind::CLIENT;
+        $span->component = self::NAME;
+        $span->attributes[Tag::DB_SYSTEM] = self::SYSTEM;
 
         foreach ($storedConnectionInfo as $tag => $value) {
-            $span->meta[$tag] = $value;
+            $span->attributes[$tag] = $value;
         }
 
         $targetName = $storedConnectionInfo[Tag::DB_INSTANCE] ?? $storedConnectionInfo[Tag::TARGET_HOST] ?? "<default>";
         if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE")) {
             if ($targetName !== "<default>") {
                 $span->service .= '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($targetName);
-                $span->meta['_dd.svc_src'] = 'opt.db_client_split_by_instance';
+                $span->attributes['_dd.svc_src'] = 'opt.db_client_split_by_instance';
             }
         }
     }
@@ -210,8 +207,8 @@ class SQLSRVIntegration extends Integration
             );
         }, $errors));
 
-        $span->meta[Tag::ERROR_MSG] = $errorMessages;
-        $span->meta[Tag::ERROR_TYPE] = 'SQLSRV error';
+        $span->attributes[Tag::ERROR_MSG] = $errorMessages;
+        $span->attributes[Tag::ERROR_TYPE] = 'SQLSRV error';
     }
 
     protected static function setMetrics(SpanData $span, $stmt)
@@ -223,7 +220,7 @@ class SQLSRVIntegration extends Integration
                 // in a result set can be retrieved only after all rows in the result set
                 // have been read, and we cannot do that without fetching all the rows, which
                 // could lead to some non-negligible overhead.
-                $span->metrics[Tag::DB_ROW_COUNT] = $numRows;
+                $span->attributes[Tag::DB_ROW_COUNT] = $numRows;
             } else {
                 self::setMetricRowsAffected($span, $stmt);
             }
@@ -236,7 +233,7 @@ class SQLSRVIntegration extends Integration
             $rowsAffected = \sqlsrv_rows_affected($stmt);
             if ($rowsAffected !== false && $rowsAffected !== -1) {
                 // If the function returns -1, the number of rows cannot be determined.
-                $span->metrics[Tag::DB_ROW_COUNT] = $rowsAffected;
+                $span->attributes[Tag::DB_ROW_COUNT] = $rowsAffected;
             }
         }
     }

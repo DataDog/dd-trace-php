@@ -3,13 +3,11 @@ Report backtrace
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_AUTO_FLUSH_ENABLED=0
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
 
-use function datadog\appsec\testing\{report_exploit_backtrace, decode_msgpack};
+use function datadog\appsec\testing\report_exploit_backtrace;
 
 function two($param01, $param02)
 {
@@ -25,9 +23,8 @@ DDTrace\start_span();
 $root = DDTrace\active_span();
 one("foo");
 DDTrace\close_span(0);
-$span = dd_trace_serialize_closed_spans();
-$meta_struct = $span[0]["meta_struct"];
-var_dump(decode_msgpack($meta_struct["_dd.stack"]));
+$span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+var_dump($span[0]["attributes"]["_dd.stack"]);
 DDTrace\flush();
 ?>
 --EXPECTF--

@@ -1,14 +1,13 @@
 --TEST--
 Track an automated user login success event with an empty user login and verify the logs
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --ENV--
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\internal\track_user_login_success_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
@@ -21,12 +20,15 @@ track_user_login_success_event_automated('test', "", "automatedID",
     "email" => "noneofyour@business.com"
 ]);
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
+    [process_id] => %d
     [runtime-id] => %s
 )

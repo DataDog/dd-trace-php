@@ -2,7 +2,9 @@
 #define DD_LIVE_DEBUGGER_H
 
 #include <components-rs/live-debugger.h>
+#include <main/php_version.h>
 #include <Zend/zend_types.h>
+#include <Zend/zend_compile.h>
 
 extern ddog_LiveDebuggerSetup ddtrace_live_debugger_setup;
 
@@ -15,6 +17,18 @@ static inline void ddtrace_snapshot_redacted_name(ddog_CaptureValue *capture_val
     if (ddog_snapshot_redacted_name(name)) {
         capture_value->not_captured_reason = DDOG_CHARSLICE_C("redactedIdent");
     }
+}
+
+// arg_info names are zend_strings, except for internal functions before PHP 8.6
+static inline ddog_CharSlice ddtrace_arg_name(const zend_function *func, uint32_t arg) {
+#if PHP_VERSION_ID < 80600
+    if (!ZEND_USER_CODE(func->type)) {
+        const char *name = func->internal_function.arg_info[arg].name;
+        return (ddog_CharSlice){ .len = strlen(name), .ptr = name };
+    }
+#endif
+    zend_string *name = func->common.arg_info[arg].name;
+    return (ddog_CharSlice){ .len = ZSTR_LEN(name), .ptr = ZSTR_VAL(name) };
 }
 
 static inline ddog_CharSlice ddtrace_capture_bound_charslice(ddog_CharSlice slice, uint32_t max_length) {

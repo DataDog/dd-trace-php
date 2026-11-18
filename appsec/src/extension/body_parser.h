@@ -6,7 +6,7 @@
 #pragma once
 
 #include "attributes.h"
-#include "ddtrace.h"
+#include "tracer_bridge.h"
 #include "msgpack_helpers.h"
 
 void dd_body_parser_startup(void);

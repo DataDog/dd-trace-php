@@ -550,7 +550,6 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
         String artifactVariant = phpVariant.replace('-musl', '')
         if (System.getProperty('SSI')) {
-            addVolumeMount("php-appsec-$phpVersion-$artifactVariant", '/appsec')
             def ssiTracerVol = System.getProperty('USE_CMAKE')
                 ? "php-tracer-ssi-cmake-$phpVersion-$phpVariant"
                 : "php-tracer-ssi-$phpVersion-$phpVariant"
@@ -585,7 +584,6 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 cmd.hostConfig.withCapAdd(com.github.dockerjava.api.model.Capability.SYS_PTRACE)
             }
         } else {
-            addVolumeMount("php-appsec-$phpVersion-$artifactVariant", '/appsec')
             def tracerVol = System.getProperty('USE_CMAKE')
                 ? "php-tracer-cmake-$phpVersion-$artifactVariant"
                 : "php-tracer-$phpVersion-$artifactVariant"

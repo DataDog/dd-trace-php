@@ -14,6 +14,19 @@ services:
         BUILD_BASE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:bookworm-$BOOKWORM_NEXT_VERSION
         MAKE_JOBS: ${MAKE_JOBS:-}
 
+  php-8.6:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.6_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-8.6/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        BUILD_BASE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:bookworm-$BOOKWORM_NEXT_VERSION
+        phpVersion: "8.6"
+        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC7.tar.gz
+        phpSha256Hash: "68b753e1d45e1417c6874008500de66102963cf0791e8c541211e9386318722e"
+
   php-8.5:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_bookworm-$BOOKWORM_NEXT_VERSION
     build:

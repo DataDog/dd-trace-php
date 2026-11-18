@@ -1,7 +1,6 @@
 --TEST--
 User request shutdown enforces the memory limit after retaining reply tags
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.cli_start_on_rinit=false
 memory_limit=64M

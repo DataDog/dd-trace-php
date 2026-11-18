@@ -58,19 +58,8 @@
 #    define ATTR_TLS_LOCAL_DYNAMIC
 #endif
 
-#if defined(__has_attribute) && __has_attribute(unused)
-#    define ATTR_UNUSED __attribute((unused))
-#    define UNUSED(x)                                                          \
-        do {                                                                   \
-            ATTR_UNUSED __auto_type _ignored = (x);                            \
-        } while (0)
-#else
-#    define ATTR_UNUSED
-#    define UNUSED(x)                                                          \
-        do {                                                                   \
-            (void)(x);                                                         \
-        } while (0)
-#endif
+// ATTR_UNUSED and UNUSED
+#include <ext/compatibility.h>
 
 #if defined(__GNUC__) && (__GNUC__ > 3 || __GNUC__ == 3 && __GNUC_MINOR__ > 0)
 #    define may_alias __attribute((__may_alias__))

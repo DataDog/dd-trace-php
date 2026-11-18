@@ -39,6 +39,8 @@ elif [[ $PHP_VERSION_ID -le 73 ]]; then
   MONGODB_VERSION=-1.16.2
 elif [[ $PHP_VERSION_ID -le 80 ]]; then
   MONGODB_VERSION=-1.20.1
+elif [[ $PHP_VERSION_ID -ge 86 ]]; then
+  MONGODB_VERSION=-2.5.3
 fi
 
 AMQP_VERSION=
@@ -128,8 +130,31 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   # TODO Add ext/pdo_mysql, ext/pdo_pgsql, and ext/pdo_sqlite
 else
   pecl channel-update pecl.php.net;
-  yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
-  pecl install ast$AST_VERSION; echo "extension=ast.so" >> ${iniDir}/ast.ini;
+  if [[ $PHP_VERSION_ID -ge 86 ]]; then
+    # No PHP 8.6 compatible apcu / ast release on PECL yet: build pinned git commits.
+    pushd /tmp
+    git clone https://github.com/krakjoe/apcu.git
+    cd apcu
+    git checkout ebbcd3d153df21eaee3395413de515a30b48ef05
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
+    cd ..
+    git clone https://github.com/nikic/php-ast.git
+    cd php-ast
+    git checkout 64ea7276bcd9cf8e503b719aafbec4d802c9eacc
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
+    popd
+    echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
+    echo "extension=ast.so" >> ${iniDir}/ast.ini;
+  else
+    yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
+    pecl install ast$AST_VERSION; echo "extension=ast.so" >> ${iniDir}/ast.ini;
+  fi
   if [[ $PHP_VERSION_ID -ge 71 && $PHP_VERSION_ID -le 80 ]]; then
     yes '' | CFLAGS="-Wno-incompatible-function-pointer-types" pecl install mcrypt$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -1.0.0; fi); echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini;
   fi
@@ -152,13 +177,27 @@ else
     # memcached master version
     git clone https://github.com/php-memcached-dev/php-memcached.git
     cd php-memcached
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install && echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
+    git checkout 0b52d3657140750fa0eddd20cdbfc6edc8fbdadd
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
+    echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
     cd ..
 
     # memcache master version
     git clone https://github.com/websupport-sk/pecl-memcache.git
     cd pecl-memcache
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install && echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
+    git checkout ac8e8c521a18aae14c8f2859694536ead304ce97
+    if [[ $PHP_VERSION_ID -ge 86 ]]; then
+      # PHP 8.6 build fix (PR #120) and session handlers (PR #122), both unmerged upstream.
+      git apply /home/circleci/memcache-php86.patch
+    fi
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
+    echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
     cd ..
 
     pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
@@ -166,16 +205,58 @@ else
     # Xdebug master version (disabled by default)
     git clone https://github.com/xdebug/xdebug.git
     cd xdebug
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install;
+    git checkout 64007df3a0925808022fb87b6c6f06febf058ee2
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
     cd ..
   fi
-  pecl install rdkafka; echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
-  pecl install sqlsrv$SQLSRV_VERSION;
-  echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini;
+  if [[ $PHP_VERSION_ID -ge 86 ]]; then
+    # rdkafka 6.0.5 and sqlsrv 5.13.3 don't build on PHP 8.6 yet (XtOffsetOf, zval_dtor,
+    # EMPTY_SWITCH_DEFAULT_CASE, INI_INT/INI_BOOL removed; php_stream_wrapper_log_error() changed).
+    # Patch the pinned releases until upstream ships PHP 8.6 support.
+    pushd /tmp
+    pecl download rdkafka-6.0.5
+    echo "0af6b665c963c8c7d1109cec738034378d9c8863cbf612c0bd3235e519a708f1  rdkafka-6.0.5.tgz" | sha256sum -c -
+    tar xzf rdkafka-6.0.5.tgz
+    cd rdkafka-6.0.5
+    sed -i -e 's/XtOffsetOf/offsetof/g' -e 's/zval_dtor(/zval_ptr_dtor_nogc(/g' \
+           -e 's/EMPTY_SWITCH_DEFAULT_CASE();/default: ZEND_UNREACHABLE(); break;/' *.c *.h
+    # Fail if the sed missed a site (`! grep` would not trip set -e).
+    if grep -n 'XtOffsetOf\|zval_dtor(\|EMPTY_SWITCH_DEFAULT_CASE' *.c *.h; then exit 1; fi
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
+    cd ..
+    pecl download sqlsrv-5.13.3
+    echo "1c3092ca793bb67002ca022c412aacabb79a3297ee7005e3b7cc91b1e7166d22  sqlsrv-5.13.3.tgz" | sha256sum -c -
+    tar xzf sqlsrv-5.13.3.tgz
+    cd sqlsrv-5.13.3
+    sed -i -e 's/INI_BOOL( *\([a-z_]*\) *)/((bool) zend_ini_long(\1, strlen(\1), 0))/' \
+           -e 's/INI_INT( *\([a-z_]*\) *)/zend_ini_long(\1, strlen(\1), 0)/' init.cpp
+    sed -i 's/php_stream_wrapper_log_error(wrapper, options, /php_stream_wrapper_log_error(wrapper, NULL, options, E_WARNING, false, ZEND_ENUM_StreamErrorCode_Generic, /' shared/core_stream.cpp
+    if grep -n 'INI_INT(\|INI_BOOL(' init.cpp; then exit 1; fi
+    grep -q 'php_stream_wrapper_log_error(wrapper, NULL, options, E_WARNING' shared/core_stream.cpp
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
+    popd
+    echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
+  else
+    pecl install rdkafka; echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
+    pecl install sqlsrv$SQLSRV_VERSION;
+  fi
+  # Since PHP 8.5, opcache is always built in and there is no opcache.so to load.
+  if [[ $PHP_VERSION_ID -lt 85 ]]; then
+    echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini;
+  fi
 
   # ext-parallel needs PHP 8 ZTS
   if [[ $PHP_VERSION_ID -ge 80 && $PHP_ZTS -eq 1 ]]; then
-    pecl install parallel;
+    pecl install parallel$(if [[ $PHP_VERSION_ID -ge 86 ]]; then echo -1.2.15; fi);
     echo "extension=parallel" >> ${iniDir}/parallel.ini;
   fi
 
@@ -225,7 +306,11 @@ else
     if [[ $PHP_VERSION_ID -ge 85 ]]; then
       git clone https://github.com/phpredis/phpredis.git
       cd phpredis
-      phpize && ./configure && make -j"$MAKE_JOBS" && make install
+      git checkout 146ec813ea7ca85c9e3a7cff2caf977096e16acf
+      phpize
+      ./configure
+      make -j"$MAKE_JOBS"
+      make install
     else
       pecl install redis-6.1.0
     fi

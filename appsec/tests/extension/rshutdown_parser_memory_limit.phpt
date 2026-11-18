@@ -1,7 +1,6 @@
 --TEST--
 PHP shutdown parser preflight uses the raised limit, including without femalloc
 --INI--
-extension=ddtrace.so
 expose_php=0
 datadog.appsec.enabled=1
 --GET--

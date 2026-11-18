@@ -16,6 +16,18 @@
 #include "otel_context.h"
 #endif
 
+// V1 payload build context threaded through serialization. `chunk` is DD_CHUNK_NONE until the
+// first span of the current stack creates its chunk (ddtrace_serialize_closed_spans resets it per
+// stack). It points into the builder and is only used until the next chunk is created.
+#define DD_CHUNK_NONE (NULL)
+typedef struct {
+    struct ddog_TracerPayloadBytes *builder;
+    struct ddog_TraceChunkBytes *chunk;
+    bool process_tags_set;  // the payload's _dd.tags.process / _dd.sdk.otlp_export attributes were decided
+    bool payload_fields_set;  // the payload env/app_version/hostname/git were taken from a root span
+    bool mark_top_level;  // mark `_dd.top_level` on every top-level span (the sidecar sender declares client-computed top-level)
+} ddtrace_serialize_ctx;
+
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
 
@@ -39,6 +51,22 @@ typedef struct {
     enum dd_sampling_mechanism mechanism;
 } ddtrace_rule_result;
 
+// DDTrace\SpanKind constants (SpanData::$spanKind), as the V1 span kind field encodes them.
+enum ddtrace_span_kind {
+    DDTRACE_SPAN_KIND_UNSPECIFIED = 0,
+    DDTRACE_SPAN_KIND_INTERNAL = 1,
+    DDTRACE_SPAN_KIND_SERVER = 2,
+    DDTRACE_SPAN_KIND_CLIENT = 3,
+    DDTRACE_SPAN_KIND_PRODUCER = 4,
+    DDTRACE_SPAN_KIND_CONSUMER = 5,
+};
+
+// The span.kind string of a DDTrace\SpanKind value; NULL when unspecified or unknown.
+static inline const char *ddtrace_span_kind_str(zend_long kind) {
+    static const char *const names[] = {NULL, "internal", "server", "client", "producer", "consumer"};
+    return kind > 0 && kind <= DDTRACE_SPAN_KIND_CONSUMER ? names[kind] : NULL;
+}
+
 enum ddtrace_trace_limited {
     DD_TRACE_LIMIT_UNCHECKED,
     DD_TRACE_LIMITED,
@@ -52,8 +80,6 @@ typedef union ddtrace_span_properties {
         zval property_name;
         zval property_resource;
         zval property_service;
-        zval property_env;
-        zval property_version;
         zval property_meta_struct;
         zval property_type;
         zval property_meta;
@@ -76,6 +102,12 @@ typedef union ddtrace_span_properties {
         };
         zval property_on_close;
         zval property_baggage;
+        zval property_env;
+        zval property_version;
+        zval property_component;
+        zval property_span_kind;
+        zval property_attributes;
+        zval property_ignore_error;
     };
 } ddtrace_span_properties;
 
@@ -96,6 +128,7 @@ struct ddtrace_span_data {
     uint32_t active_child_spans;
     struct ddtrace_span_data *next;
     struct ddtrace_root_span_data *root;
+    zval tags_views[2];  // cached $meta / $metrics views, exposed through get_gc (span_tags_view.c)
 
     union {
         ddtrace_span_properties;
@@ -104,7 +137,7 @@ struct ddtrace_span_data {
 };
 
 static inline ddtrace_span_data *OBJ_SPANDATA(zend_object *obj) {
-    return (ddtrace_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_span_data, std));
+    return (ddtrace_span_data *)((char *)(obj) - offsetof(ddtrace_span_data, std));
 }
 
 static inline ddtrace_span_data *SPANDATA(ddtrace_span_properties *obj) {
@@ -119,7 +152,7 @@ struct ddtrace_inferred_span_data {
 };
 
 static inline ddtrace_inferred_span_data *INFERRED_SPANDATA(zend_object *obj) {
-    return (ddtrace_inferred_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_inferred_span_data, std));
+    return (ddtrace_inferred_span_data *)((char *)(obj) - offsetof(ddtrace_inferred_span_data, std));
 }
 
 struct ddtrace_root_span_data {
@@ -160,7 +193,7 @@ struct ddtrace_root_span_data {
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
-    return (ddtrace_root_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_root_span_data, std));
+    return (ddtrace_root_span_data *)((char *)(obj) - offsetof(ddtrace_root_span_data, std));
 }
 
 struct ddtrace_span_stack {
@@ -205,7 +238,6 @@ struct ddtrace_span_link {
             zval property_span_id;
             zval property_trace_state;
             zval property_attributes;
-            zval property_dropped_attributes_count;
         };
     };
 };
@@ -262,10 +294,13 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_e
 void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 
 // Note that this function is used externally by the appsec extension.
-DATADOG_PUBLIC zend_object *ddtrace_get_root_span(void);
+zend_object *ddtrace_get_root_span(void);
 
 uint64_t ddtrace_nanoseconds_realtime(void);
 void dd_trace_stop_span_time(ddtrace_span_data *span);
+/* The code a span covers finished: record an exception propagating out of it, unless one is already set, and stop its clock.
+   NULL, dummy, dropped and closed spans are left alone. */
+void dd_trace_stop_span_time_with_exception(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);
 void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until);
 int ddtrace_close_userland_spans_until(ddtrace_span_data *until);
@@ -275,9 +310,8 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span);
 void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
-// Return false after an allocation failure; only release remaining detached spans.
-bool ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown);
-bool ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown);
+void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdown);
+void ddtrace_serialize_closed_spans_with_cycle(ddtrace_serialize_ctx *ctx, bool fast_shutdown);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *datadog_trace_id_as_string(datadog_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);

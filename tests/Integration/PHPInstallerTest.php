@@ -58,6 +58,72 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertFalse(\is_truthy('dIsAbLeD'));
     }
 
+    /**
+     * @dataProvider legacyProfilingConfigurations
+     */
+    public function testLegacyProfilingNeedsEnabling($contents, $expected)
+    {
+        $this->assertSame($expected, \legacy_profiler_needs_enabling($contents));
+    }
+
+    public function legacyProfilingConfigurations()
+    {
+        return [
+            'active extension, commented default' => [
+                "extension = datadog-profiling.so\n;datadog.profiling.enabled = 1\n", true,
+            ],
+            'active zend extension' => [
+                "zend_extension = /opt/datadog/datadog-profiling.so\n", true,
+            ],
+            'quoted Windows extension' => [
+                'extension = "C:\\Datadog\\php_datadog-profiling.dll"', true,
+            ],
+            'commented extension' => [";extension = datadog-profiling.so\n", false],
+            'commented extension after a newline' => ["\n ; extension = datadog-profiling.so\n", false],
+            'profiler mentioned only in a comment' => [
+                "extension = ddtrace.so ; replaces datadog-profiling.so\n", false,
+            ],
+            'explicitly disabled' => [
+                "extension = datadog-profiling.so\ndatadog.profiling.enabled = Off\n", false,
+            ],
+            'explicitly enabled' => [
+                "extension = datadog-profiling.so\ndatadog.profiling.enabled = On\n", false,
+            ],
+            'already combined' => ["extension = ddtrace.so\n", false],
+            'empty configuration' => ['', false],
+        ];
+    }
+
+    public function testConfigCommandsShiftOffAllExtensionSettings()
+    {
+        $settings = \get_ini_settings('', '');
+        $shifted = array_slice($settings, 0, \CMD_CONFIG_NUM_SHIFT);
+        $configurable = array_slice($settings, \CMD_CONFIG_NUM_SHIFT);
+
+        $this->assertSame(['extension'], array_unique(array_column($shifted, 'name')));
+        $this->assertNotContains('extension', array_column($configurable, 'name'));
+        $this->assertNotContains('zend_extension', array_column($configurable, 'name'));
+    }
+
+    public function testLegacyExtensionsAreOnlyAddedForLegacyPackages()
+    {
+        $extensions = function (array $settings) {
+            $defaults = [];
+            foreach ($settings as $setting) {
+                if ($setting['name'] === 'extension') {
+                    $defaults[] = $setting['default'];
+                }
+            }
+            return $defaults;
+        };
+
+        $this->assertSame(['ddtrace.so'], $extensions(\get_ini_settings('', '')));
+        $this->assertSame(
+            ['ddtrace.so', 'datadog-profiling.so', 'ddappsec.so'],
+            $extensions(\get_ini_settings('', '', true, true))
+        );
+    }
+
     public function testBuildCommandNamesMatrix()
     {
         $names = \build_known_command_names_matrix();

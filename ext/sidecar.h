@@ -24,18 +24,13 @@ extern ddog_Endpoint *datadog_endpoint;
 extern dd_sidecar_active_mode_t datadog_sidecar_active_mode;
 extern int32_t datadog_sidecar_master_pid;
 
-#ifdef ZTS
-DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void *tsrm_ls);
-#else
-DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void);
-#endif
 struct telemetry_rc_info {
     const char *rc_path;
     zend_string *service_name;
     zend_string *env_name;
     // caller does not own the data
 };
-DATADOG_PUBLIC struct telemetry_rc_info datadog_get_telemetry_rc_info(void);
+struct telemetry_rc_info datadog_get_telemetry_rc_info(void);
 
 // Lifecycle functions
 void datadog_sidecar_minit(void);
@@ -43,6 +38,7 @@ void datadog_sidecar_setup(ddog_RemoteConfigFlags flags);
 void datadog_sidecar_handle_fork(void);
 bool datadog_sidecar_should_enable(ddog_RemoteConfigFlags *flags);
 void datadog_sidecar_ensure_active(void);
+void datadog_sidecar_check_liveness(void);
 void datadog_sidecar_update_process_tags(void);
 void datadog_sidecar_refresh_user_service_defined(void);
 void datadog_sidecar_finalize(bool clear_application);

@@ -10,8 +10,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define STR_FOR_FMT(a) ((a) != NULL ? (a) : "(null)")
-
 #define STR_CONS_EQ(str, len, cons)                                            \
     (sizeof("" cons) - 1 == len && memcmp(str, cons, len) == 0)
 
@@ -20,7 +18,6 @@
 
 #define LSTRLEN(str) (sizeof(str "") - 1)
 #define LSTRARG(str) (str ""), LSTRLEN(str)
-#define LSTRLEN_MAX(a, b) (LSTRLEN(a) > LSTRLEN(b) ? LSTRLEN(a) : LSTRLEN(b))
 
 #define ZSTR_PRINTF(zstr)                                                      \
     ((zstr) && ZSTR_LEN(zstr) < INT_MAX) ? (int)ZSTR_LEN(zstr)                 \

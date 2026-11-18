@@ -13,6 +13,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=1
 DD_TRACE_SIDECAR_CONNECTION_MODE=thread
 DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=0
+DD_SPAN_SAMPLING_RULES=[{"sample_rate":1}]
 --INI--
 datadog.trace.agent_test_session_token=background-sender/agent_sampling_sidecar
 --FILE--
@@ -61,10 +62,13 @@ $rr = new RequestReplayer();
 $rr->replayRequest(); // cleanup possible leftover
 
 $errors = [];
+// Single-span sampling keeps rejected traces available for checking their priority.
 $get_sampling = function($label, $expected) use ($rr, &$errors) {
-    $root = json_decode($rr->waitForDataAndReplay()["body"], true);
-    $spans = $root["chunks"][0]["spans"] ?? $root[0];
-    $priority = $spans[0]["metrics"]["_sampling_priority_v1"];
+    $request = $rr->waitForRequest(function ($request) {
+        return strpos($request['uri'], '/traces') !== false;
+    });
+    $root = json_decode($request["body"], true);
+    $priority = RequestReplayer::chunkPriority($root);
     if ($priority != $expected) {
         $errors[] = "{$label} sampling priority: expected {$expected}, got {$priority}";
     }

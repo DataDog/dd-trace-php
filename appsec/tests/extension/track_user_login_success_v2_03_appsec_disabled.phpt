@@ -1,7 +1,6 @@
 --TEST--
 Test \datadog\appsec\v2\track_user_login_success login parameter takes precedence over login value on user object with appsec disabled
 --INI--
-extension=ddtrace.so
 datadog.appsec.testing=0
 --ENV--
 DD_APPSEC_ENABLED=0
@@ -21,19 +20,13 @@ ddtrace_version_at_least('0.85.0');
     "metakey2" => "metavalue02",
 ]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+$attributes = $root->attributes;
+ksort($attributes);
+var_dump($attributes);
 
 ?>
 --EXPECTF--
-array(11) {
-  ["runtime-id"]=>
-  string(%s) %s
-  ["appsec.events.users.login.success.usr.id"]=>
-  string(%s) "1234"
-  ["appsec.events.users.login.success.usr.login"]=>
-  string(%s) "login"
-  ["appsec.events.users.login.success.track"]=>
-  string(%s) "true"
+array(12) {
   ["_dd.appsec.events.users.login.success.sdk"]=>
   string(%s) "true"
   ["_dd.appsec.user.collection_mode"]=>
@@ -42,6 +35,16 @@ array(11) {
   string(%s) "metavalue"
   ["appsec.events.users.login.success.metakey2"]=>
   string(%s) "metavalue02"
+  ["appsec.events.users.login.success.track"]=>
+  string(%s) "true"
+  ["appsec.events.users.login.success.usr.id"]=>
+  string(%s) "1234"
+  ["appsec.events.users.login.success.usr.login"]=>
+  string(%s) "login"
+  ["process_id"]=>
+  int(%d)
+  ["runtime-id"]=>
+  string(%s) %s
   ["usr.id"]=>
   string(%s) "1234"
   ["usr.metakey1"]=>

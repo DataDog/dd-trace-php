@@ -1,7 +1,6 @@
 --TEST--
 User request shutdown restores the memory limit when a parser allocation bails out
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.cli_start_on_rinit=false
 memory_limit=8M

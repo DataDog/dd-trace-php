@@ -1,6 +1,8 @@
+#[cfg(feature = "profiling")]
 #[path = "../profiling/build.rs"]
 mod profiling_build;
 
+#[cfg(feature = "appsec")]
 #[path = "appsec_body/tools/isolate.rs"]
 mod appsec_body_build;
 
@@ -46,18 +48,25 @@ fn assert_no_aws_lc_sys() {
 fn main() {
     assert_no_aws_lc_sys();
 
-    if std::env::var_os("CARGO_FEATURE_APPSEC").is_some()
-        && std::env::var("CARGO_CFG_TARGET_FAMILY").as_deref() == Ok("unix")
-    {
-        let source =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("components-rs/appsec_body");
+    #[cfg(feature = "appsec")]
+    if std::env::var("CARGO_CFG_TARGET_FAMILY").as_deref() == Ok("unix") {
+        // Both Cargo packages use this build script, from different manifest directories.
+        let parser_path = if env!("CARGO_PKG_NAME") == "datadog-php-common" {
+            "../appsec_body"
+        } else {
+            "components-rs/appsec_body"
+        };
+        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join(parser_path)
+            .canonicalize()
+            .unwrap();
         for entry in std::fs::read_dir(&source).unwrap() {
             let path = entry.unwrap().path();
             if path.is_file() {
                 println!("cargo:rerun-if-changed={}", path.display());
             }
         }
-        for name in ["DD_APPSEC_OBJCOPY", "DD_APPSEC_NM"] {
+        for name in ["DD_APPSEC_OBJCOPY", "DD_APPSEC_NM", "DD_RUST_BUILD_STD"] {
             println!("cargo:rerun-if-env-changed={name}");
         }
         let out =
@@ -76,22 +85,20 @@ fn main() {
     }
 
     println!("cargo:rustc-check-cfg=cfg(standalone_profiler)");
-    if std::env::var_os("CARGO_FEATURE_PROFILING").is_some()
-        && std::env::var_os("CARGO_FEATURE_TRACER").is_none()
-    {
+    if std::env::var_os("CARGO_FEATURE_PROFILING_STANDALONE").is_some() {
         println!("cargo:rustc-cfg=standalone_profiler");
     }
 
     // This entry point belongs only to the common/tracer cdylib used by SSI.
     // The standalone profiler must remain an ordinary PHP shared library.
-    if std::env::var_os("CARGO_FEATURE_TRACER").is_some()
+    if std::env::var_os("CARGO_FEATURE_SIDECAR").is_some()
+        && std::env::var_os("CARGO_FEATURE_PROFILING_STANDALONE").is_none()
         && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
     {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-e,ddog_spawn_direct_entry");
         println!("cargo:rustc-cdylib-link-arg=-Wl,-soname,libdatadog_php.so");
     }
 
-    if std::env::var_os("CARGO_FEATURE_PROFILING").is_some() {
-        profiling_build::build();
-    }
+    #[cfg(feature = "profiling")]
+    profiling_build::build();
 }

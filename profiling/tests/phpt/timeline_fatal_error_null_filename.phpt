@@ -12,7 +12,7 @@ Reproduces the upstream Zend/tests/bug50005.phpt and bug64821.3.phpt crashes
 that only triggered with the profiler loaded and timeline enabled.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 // The crash is specific to PHP 8.0: the error observer receives a raw C
 // string there (NULL-unsafe), while 8.1+ gets a NULL-safe zend_string. Also,

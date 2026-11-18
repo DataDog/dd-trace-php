@@ -79,7 +79,8 @@ namespace
 
     DDTrace\close_span();
 
-    $spans = dd_trace_serialize_closed_spans();
+    $payload = dd_trace_serialize_closed_spans();
+    $spans = $payload['chunks'][0]['spans'];
     $names = [];
     foreach ($spans as $span) {
         $names[$span['name']] = (isset($names[$span['name']]) ? $names[$span['name']] : 0) + 1;
@@ -89,7 +90,7 @@ namespace
         echo "span[$name] = $count\n";
     }
 
-    dd_drupal_render_report($spans, ['twig_render_template']);
+    dd_drupal_render_report($payload, ['twig_render_template']);
 }
 ?>
 --EXPECT--

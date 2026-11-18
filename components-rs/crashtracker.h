@@ -407,34 +407,6 @@ bool ddog_crasht_init_windows(ddog_CharSlice module,
                               struct ddog_crasht_Metadata metadata);
 #endif
 
-#if (defined(_CRASHTRACKING_COLLECTOR) && defined(_WIN32))
-HRESULT OutOfProcessExceptionEventSignatureCallback(const void *_context,
-                                                    const WER_RUNTIME_EXCEPTION_INFORMATION *_exception_information,
-                                                    int32_t _index,
-                                                    uint16_t *_name,
-                                                    uint32_t *_name_size,
-                                                    uint16_t *_value,
-                                                    uint32_t *_value_size);
-#endif
-
-#if (defined(_CRASHTRACKING_COLLECTOR) && defined(_WIN32))
-HRESULT OutOfProcessExceptionEventDebuggerLaunchCallback(const void *_context,
-                                                         const WER_RUNTIME_EXCEPTION_INFORMATION *_exception_information,
-                                                         BOOL *_is_custom_debugger,
-                                                         uint16_t *_debugger_launch,
-                                                         uint32_t *_debugger_launch_size,
-                                                         BOOL *_is_debugger_auto_launch);
-#endif
-
-#if (defined(_CRASHTRACKING_COLLECTOR) && defined(_WIN32))
-HRESULT OutOfProcessExceptionEventCallback(const void *context,
-                                           const WER_RUNTIME_EXCEPTION_INFORMATION *exception_information,
-                                           BOOL *_ownership_claimed,
-                                           uint16_t *_event_name,
-                                           uint32_t *_size,
-                                           uint32_t *_signature_count);
-#endif
-
 /**
  * # Safety
  * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,

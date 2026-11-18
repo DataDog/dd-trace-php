@@ -1,7 +1,6 @@
 --TEST--
 Multiple addresses can be sent at once
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php

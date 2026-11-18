@@ -1,7 +1,6 @@
 --TEST--
 appsec.api_security.request.schema is reported when the helper returns schemas
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test_apisec_schema.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
@@ -35,10 +34,10 @@ var_dump(rinit());
 $helper->get_commands(); // ignore
 
 $rootSpan = root_span();
-$rootSpan->meta["http.method"] = "GET";
-$rootSpan->meta["http.route"] = "/foo/bar";
+$rootSpan->attributes["http.method"] = "GET";
+$rootSpan->attributes["http.route"] = "/foo/bar";
 // framework names are normalized: lowercased, spaces replaced with underscores
-$rootSpan->meta["component"] = "Laravel Framework";
+$rootSpan->component = "Laravel Framework";
 
 var_dump(rshutdown());
 $helper->get_commands(); // ignore

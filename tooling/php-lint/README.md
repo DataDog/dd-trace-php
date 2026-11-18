@@ -29,7 +29,7 @@ must never land" checks.
 
 The linter runs once, on a current NTS PHP, as a text analysis of
 `src/`. It does not compile the extension and is not matrixed across
-PHP 7.0-8.5. Version-sensitive checks (for example `php -l` /
+PHP 7.0-8.6. Version-sensitive checks (for example `php -l` /
 `Generic.PHP.Syntax`) stay off because they inherit the runner's
 parser.
 

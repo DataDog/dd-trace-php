@@ -10,8 +10,6 @@ if (PHP_VERSION_ID < 70100) {
     die('skip &test; entity is not resolved in this PHP version');
 }
 ?>
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 $entity = <<<XML

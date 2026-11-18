@@ -6,7 +6,7 @@ require __DIR__ . "/../{$_GET["version"]}/vendor/autoload.php";
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Promise\Is;
+use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Response;
 
@@ -35,7 +35,7 @@ $promise2 = $client->getAsync($url, [
 ])->then($resolver);
 
 $aggregate = Utils::all([$promise1, $promise2]);
-while (!Is::settled($aggregate)) {
+while ($aggregate->getState() === PromiseInterface::PENDING) {
     $curl->tick();
 }
 

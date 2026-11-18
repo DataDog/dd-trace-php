@@ -34,4 +34,18 @@ instance, this implies that a `dd_module_init()` should be defined before
 `dd_module_deinit()`, assuming that `deinit` is rolling back state set up by
 `init`.
 
+File Naming
+-----------
+
+A module is a `module_name.h` header and its `module_name.c` compilation unit.
+Its globals are named `dd_module_name_<suffix>`.
+
+Testing Code
+------------
+
+The build always defines `TESTING`; the testing functions are only registered
+when `datadog.appsec.testing` is enabled. Code that is only reachable in that
+mode is still wrapped in `#ifdef TESTING`: it documents which sections are
+testing-only.
+
 <!-- vim: set spell tw=80: -->

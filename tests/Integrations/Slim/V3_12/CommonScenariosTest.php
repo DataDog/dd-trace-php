@@ -51,7 +51,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'slim_test_app',
                         'web',
                         'GET simple-route'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'slim.route.controller' => 'Closure::__invoke',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
@@ -65,7 +65,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'slim_test_app',
                             'web',
                             'Closure::__invoke'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'slim',
                         ])
                     ]),
@@ -76,7 +76,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'slim_test_app',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'slim.route.controller' => 'App\SimpleViewController::index',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
@@ -90,7 +90,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'slim_test_app',
                             'web',
                             'App\SimpleViewController::index'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'slim',
                         ])->withChildren([
                             SpanAssertion::build(
@@ -98,7 +98,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'slim_test_app',
                                 'web',
                                 'simple_view.phtml'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 'slim.view' => 'simple_view.phtml',
                                 Tag::COMPONENT => 'slim',
                             ])
@@ -111,7 +111,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'slim_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'slim.route.controller' => 'Closure::__invoke',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/error?key=value&<redacted>',
@@ -126,9 +126,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'slim_test_app',
                                 'web',
                                 'Closure::__invoke'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => 'slim',
-                            ])->withExistingTagsNames([
+                            ])->withExistingAttributeNames([
                                 'error.stack',
                             ])->setError(null, 'Foo error')
                         ]),
@@ -139,7 +139,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'slim_test_app',
                         'web',
                         'GET /parameterized/{value}'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'slim.route.controller' => 'Closure::__invoke',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/parameterized/paramValue',
@@ -153,7 +153,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'slim_test_app',
                             'web',
                             'Closure::__invoke'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'slim',
                         ])
                     ]),

@@ -6,5 +6,6 @@ function foobar () {
 
 include(__DIR__.'/timeline_call.php');
 
-// Keep eval compilation above the analyzer's 1% floor despite sleep jitter.
-eval(str_repeat('$unused = 1;', 100) . 'usleep(1);');
+// Give the eval compilation event enough duration to survive percentage rounding
+// in the correctness analyzer on older PHP versions and fast CI runners.
+eval(str_repeat('$timelineEvalValue = 1;', 512) . 'usleep(1);');

@@ -1,7 +1,6 @@
 --TEST--
 Test \datadog\appsec\v2\track_user_login_failure invalid login with appsec disabled
 --INI--
-extension=ddtrace.so
 datadog.appsec.testing=0
 --ENV--
 DD_APPSEC_ENABLED=0
@@ -16,11 +15,15 @@ $emptyLogin = "";
   false
 );
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+$attributes = $root->attributes;
+ksort($attributes);
+var_dump($attributes);
 
 ?>
 --EXPECTF--
-array(1) {
+array(2) {
+  ["process_id"]=>
+  int(%d)
   ["runtime-id"]=>
   string(%d) %s
 }

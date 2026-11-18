@@ -1,7 +1,6 @@
 --TEST--
 No api_security metric is reported for a routeless 404
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test_apisec_404.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
@@ -37,7 +36,7 @@ $helper->get_commands(); // ignore
 // an endpoint that does not exist has no route to speak of; it must not be
 // counted as a missing route
 $rootSpan = root_span();
-$rootSpan->meta["http.method"] = "GET";
+$rootSpan->attributes["http.method"] = "GET";
 
 var_dump(rshutdown());
 $helper->get_commands(); // ignore

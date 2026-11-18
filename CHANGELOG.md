@@ -1,66 +1,67 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
+A more elaborate summary of the breaking changes can be found in our upgrading guide [UPGRADE-2.0.md](https://github.com/DataDog/dd-trace-php/blob/ddtrace-2.0.0/UPGRADE-2.0.md).
+
+## Breaking changes
+- Ship the tracer, the profiler and AppSec as a single `ddtrace.so` extension; `datadog-profiling.so` and `ddappsec.so` are no longer shipped #4179, #4369
+  - Loading an old `ddappsec.so` together with `ddtrace.so` is a fatal startup error. `datadog-setup.php` deletes a leftover `ddappsec.so` and comments out `datadog-profiling.so` entries.
+  - PECL builds include profiling and AppSec only when configured with `--enable-ddtrace-profiling` and `--enable-ddtrace-appsec`.
+- Profiling is now opt-in: `DD_PROFILING_ENABLED` defaults to `false`. Use `datadog-setup.php --enable-profiling` or set `datadog.profiling.enabled=On`. When upgrading an installation that loaded `datadog-profiling.so`, `datadog-setup.php` keeps profiling enabled #4179
+- Use the sidecar as the default trace sender on all PHP versions (previously PHP 8.3+ and Windows only); `DD_TRACE_SIDECAR_TRACE_SENDER=0` selects the in-process sender #4453
+- Enable client-side stats computation by default; disable it with `DD_TRACE_STATS_COMPUTATION_ENABLED=false`. Stats are computed only with the sidecar trace sender #4498, #4510
+- Change how span data is stored and serialized #4453
+  - `SpanData::$meta` and `SpanData::$metrics` are deprecated views onto the new `SpanData::$attributes`.
+  - Legacy `DDTrace\Span`: `setTag($key, null)` and `setMetric($key, null)` remove the key, boolean tags become `"true"`/`"false"` (previously `"1"`/`""`), and `getAllTags()` also returns `service.name`, `operation.name` and `span.type`.
+  - A non-empty `$tags` in `#[DDTrace\Trace]` still works but raises `E_DEPRECATED`. Use `$attributes` instead.
+  - `SpanLink` and `SpanEvent` no longer implement `JsonSerializable`.
+- Remove trace analytics: the `DD_TRACE_ANALYTICS_ENABLED`, `DD_TRACE_<INTEGRATION>_ANALYTICS_ENABLED` and `DD_TRACE_<INTEGRATION>_ANALYTICS_SAMPLE_RATE` settings (and their `DD_<INTEGRATION>_ANALYTICS_*` aliases), `DDTrace\Config\integration_analytics_enabled()` and `DDTrace\Config\integration_analytics_sample_rate()`. The `analytics.event` tag is no longer mapped to `_dd1.sr.eausr` #4453
+- Remove `DD_TRACE_WARN_LEGACY_DD_TRACE` and the internal functions `dd_trace_serialize_msgpack()`, `dd_trace_send_traces_via_thread()`, `dd_trace_buffer_span()`, `dd_trace_coms_trigger_writer_flush()`, `dd_trace_reset()` and `dd_trace_noop()` #4453
+- Deprecate (with `E_DEPRECATED`) `DDTrace\trace_id()`, `DDTrace\current_context()`, `ddtrace_config_app_name()`, `ddtrace_config_distributed_tracing_enabled()`, `ddtrace_config_trace_enabled()`, `dd_trace_set_trace_id()`, `dd_trace_compile_time_microseconds()`, `dd_trace_function()` and `dd_trace_method()` #4453
+
+### Performance
+- Using the new trace protocol significantly reduces the overhead of our sidecar process. Make sure to have at least datadog-agent version `7.79` installed, to actually use it. Otherwise it will fall back to the old one, incurring a conversion penalty.
+
 ## All products
 ### Changed
-- Write sidecar logs when it runs in thread mode #4235
-- `datadog-setup.php` now reports that macOS is not supported #4284 (thank you @staabm for the report!)
+- Reduce sidecar memory usage: an idle sidecar thread no longer keeps a 4 MiB IPC receive buffer resident DataDog/libdatadog#2743
+- Asynchronously watch the sidecar for being alive #4511
 
 ### Fixed
-- Stop spawning a new sidecar while a PHP worker shuts down, which left orphaned sidecar processes #4164
-- Correctly handle a thread-mode sidecar that takes over as the new master process #4270
-- Fix sidecar telemetry lock inversions, premature sidecar idle shutdown and a hang on Windows when the sidecar pipe is full #4219
-- Avoid a race between the SSI loader's background `dlclose()` and process exit #4229
-- Crash reports now respect proxy environment variables, and the agent host/port takes priority over a UDS socket for error tracking uploads DataDog/libdatadog#2462, DataDog/libdatadog#2633
-- Authenticate sidecar connections and shared memory (peer credential checks, trusted shared memory directory), fixing https://github.com/DataDog/dd-trace-php/security/advisories/GHSA-j3g8-6962-2xqq and https://github.com/DataDog/dd-trace-php/security/advisories/GHSA-fmrj-jm6v-j549 DataDog/libdatadog#2551
+- Fix heap corruption in a newly forked worker whose first request fails while PHP parses POST data, if PHP logged a line during module startup (e.g. the SSI loader with `DD_TRACE_DEBUG`) #4468
+- Fix a race between writers and a forced drain of the sidecar's shared-memory buffers, e.g. at shutdown DataDog/libdatadog#2885
+- Fix a file descriptor leak in the sidecar's remote config handling, and stop remote config indexes from pointing at files that were already removed DataDog/libdatadog#2880
+- Fix sidecar connections on macOS closing on messages within 16 bytes of the socket buffer limit DataDog/libdatadog#2743
+- Drop the chmod of the removed appsec lib dir in the installer #4518
 
 ### Internal
-- Update Rust dependencies to fix RustSec advisories; building from source now requires Rust 1.91.1 #4188
-- Publish the OTel process context during MINIT #4213
+- Update and deduplicate Rust dependencies #4457, #4458, #4459
 
 ## Tracer
 ### Added
-- Support OTel sampling (`ot.th`/`ot.rv` tracestate) in distributed tracing #4177
+- Send traces using the V1 efficient trace payload protocol to agents that support it (7.79+), falling back to v0.4 otherwise. `DD_TRACE_AGENT_PROTOCOL_VERSION=0.4` always sends v0.4 #4453
+- Fetch feature flag configuration from the Datadog CDN without an agent, enabled with `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless`. Exposures and evaluation counts then go straight to the intake, using `DD_API_KEY` and `DD_SITE` #4312, #4489
+- Enable and disable Data Streams Monitoring at runtime via Remote Config #4472
 
 ### Changed
-- Update the default query string obfuscation regex, fixing a security vulnerability, as described in https://github.com/DataDog/dd-trace-php/security/advisories/GHSA-49fg-59cp-2hqj #4282
-- Improve stability of the tracer on macOS #4187
-- Client-side stats obfuscation now follows the agent's full SQL obfuscation config DataDog/libdatadog#2535
+- Keep the PHP type of span, span link and span event attribute values: numbers and booleans are sent typed, and arrays are nested. `http.status_code`, `env`, `version` and IDs stay strings. Spans get a typed `SpanData::$attributes` store and the `$env`, `$version`, `$component` and `$spanKind` (`DDTrace\SpanKind`) properties, and `#[DDTrace\Trace]` accepts `$attributes`, `$kind` and `$component` #4453
 
 ### Fixed
-- Fix crashes at shutdown: on PHP 7.0/7.1 ZTS #4185, in `atexit` after ddtrace was unloaded #4197, in the zend extension shutdown #4218, and in remote config shutdown #4220
-- Fix rare use-after-frees in the in-process background sender, during request processing #4189 and at shutdown when the writer thread gets detached #4278 (thank you @alexandre-daubois!)
-- Make the flush on SIGTERM/SIGINT safe against crashes in the allocator #4222
-- Fix a crash when walking the stack after a generator was destroyed during an aborted call #4272
-- Fix JIT blacklisting on PHP 8.5+ and for generator memory #4226, #4236
-- Fix multi-hooking with dynamic payloads and a crash when subclassing `HookData` #4236
-- Do not start the background writer when the tracer is disabled during MINIT #4233
-- Avoid starvation of synchronous flushes with the in-process background sender #4224
-- Fix sidecar connection from threads impersonating another user under Windows #4280
-- Make Windows remote config notifications safe against unloading ddtrace #4219
-- Evaluate the sampling decision once per trace chunk during serialization #4219
-- Set `peer.service` sources in the Predis and PDO connect integrations #4285, #4286 (thank you @redpanda for the reports!)
-- Report `http.status_code` for Guzzle requests that throw on non-2xx responses, and fix `DD_TRACE_HTTP_CLIENT_ERROR_STATUSES` handling #4287 (thank you @fbaumann-ph for the report!)
-- Fix client-side stats: `http.endpoint` takes precedence over `http.route` again, and deeply nested SQL can no longer exhaust the stack during obfuscation DataDog/libdatadog#2582, DataDog/libdatadog#2441
-- Fix a possible divide-by-zero panic in the shared rate limiter #4259
+- Honour `DD_SITE` for agentless trace submission (`DD_TRACE_AGENTLESS`), which always sent traces to `datadoghq.com` #4501
+- Attribute feature flag evaluation counts to the application's service, env and version DataDog/libdatadog#2716
 
 ### Internal
-- Add the `_dd.sdk.otlp_export` marker to trace chunks #4240
+- Stop sending `app-started` and `app-closing` telemetry events from forked children DataDog/libdatadog#2837
 
 ## Profiling
-### Changed
-- Speed up sample processing, reducing dropped samples under load #4194
-
-### Fixed
-- Fix several I/O profiling issues: `poll` readiness, `fread`/`fwrite` byte counts, RELRO protection after GOT patching, and loader bounds checks #4156
-- Fix a wall-time crash after ext-grpc runs PHP code on a native thread; I/O profiling is disabled when ext-grpc is loaded #4198
-- Report allocator-rounded allocation sizes and fix upscaling of samples with varying allocation sizes #4230
-- Block signals before spawning profiler helper threads #4224
+### Internal
+- Move PHP-independent Rust code, including profile aggregation and export, into the shared SSI library `libdatadog_php.so` #4455
 
 ## AppSec
-### Changed
-- Update libddwaf to 2.1.0 and build it from source for PECL packages, fixing offline builds #4203 (thank you @remicollet for the report!)
-- Update vendored libxml2 to 2.15.4 #4224
-
 ### Fixed
-- Fix loading AppSec on musl ZTS builds (e.g. Alpine, FrankenPHP), and a crash on ZTS thread exit #4180
-- Fix protocol failures caused by empty AppSec data #4216
+- Keep the trace of a request blocked by AppSec during request startup when `DD_TRACE_AUTO_FLUSH_ENABLED=1` is set on a web SAPI #4445
+- Recover when a startup bailout skipped the previous request's shutdown. This could release freed memory or leave the next request unprotected #4465
+- Apply the tracer's query string filtering and obfuscation to the `http.url` tag set by AppSec #4467
+
+### Internal
+- Remove AppSec dead code and tracer logic that was duplicated in AppSec #4417, #4467
+- Helper: troubleshoot fd exhaustion errors #4505

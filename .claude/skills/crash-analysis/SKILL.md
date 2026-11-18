@@ -90,7 +90,7 @@ When the Datadog SSI package is installed, the process loads **four** binaries i
 | `dd_library_loader.so` | ~28 KiB | Zend extension (loaded via `zend_extension=`); bootstraps everything else |
 | `libdatadog_php.so` | ~10 MiB | Shared library with sidecar, crashtracker, and Rust components; loaded by the loader with `RTLD_GLOBAL` |
 | `ddtrace.so` (SSI standalone) | ~750 KiB | PHP extension with most tracer logic; much smaller than monolithic ddtrace.so |
-| `ddappsec.so` | ~630 KiB | AppSec extension; same binary for SSI and non-SSI |
+| `ddappsec.so` | ~630 KiB | AppSec extension of older versions; same binary for SSI and non-SSI. Newer versions build AppSec into `ddtrace.so` |
 
 (Sizes vary across versions, but should be of those orders of magnitude)
 
@@ -137,7 +137,8 @@ crash to profiler activity.
 
 From the mapped files, determine:
 - **Products loaded**: look for `ddtrace.so`, `ddappsec.so`,
-  `datadog-profiling.so`
+  `datadog-profiling.so` (newer versions have profiling and AppSec inside
+  `ddtrace.so`)
 - **SSI mode**: check for `libdatadog_php.so` and `dd_library_loader.so` — if
   present, the process is running the SSI (Single-Step Instrumentation)
   package. See [SSI architecture](#ssi-architecture) below.

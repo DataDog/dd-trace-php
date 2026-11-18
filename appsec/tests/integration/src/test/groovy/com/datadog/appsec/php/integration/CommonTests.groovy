@@ -259,7 +259,7 @@ trait CommonTests {
             assert resp.statusCode() == 200
             def content = resp.body().text
             assert content.contains('module_ddtrace')
-            assert content.contains('module_ddappsec')
+            assert content.contains('Application Security')
         }
 
         Span span = trace.first()
@@ -765,7 +765,7 @@ trait CommonTests {
     void 'module does not have STATIC_TLS flag'() {
         Container.ExecResult res = container.execInContainer(
                 'bash', '-c',
-                '''! { readelf -d "$(DD_TRACE_CLI_ENABLED=0 php -r 'echo ini_get("extension_dir");')"/ddappsec.so | grep STATIC_TLS; }''')
+                '''! { readelf -d "$(DD_TRACE_CLI_ENABLED=0 php -r 'foreach (file("/proc/self/maps") as $l) { if (strpos($l, "ddtrace.so")) { echo trim(substr($l, strrpos($l, " "))); break; } }')" | grep STATIC_TLS; }''')
         if (res.exitCode != 0) {
             throw new AssertionError("Module has STATIC_TLS flag: $res.stdout")
         }

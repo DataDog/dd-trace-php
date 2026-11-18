@@ -3,22 +3,21 @@
 #include "commands/config_sync.h"
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
-#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "ddtrace.h"
 #include "duration_acc.h"
 #include "entity_body.h"
 #include "helper_process.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
 #include "string_helpers.h"
 #include "tags.h"
 #include "telemetry.h"
+#include "tracer_bridge.h"
+#include <ext/compatibility.h>
 
 #include <SAPI.h>
 #include <Zend/zend_exceptions.h>
@@ -36,7 +35,7 @@ static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv);
 static zend_string *nullable _extract_ip_from_autoglobal(void);
 static zend_string *nullable _get_entity_as_string(zval *rbe_zv);
 static void _set_cur_span(zend_object *nullable span);
-static void _reset_globals(void);
+static void _reset_globals(bool release);
 static zend_long _raise_shutdown_memory_limit(void);
 static bool _restore_shutdown_memory_limit(zend_long limit);
 static zend_array *_request_finish_user_req(bool ignore_verdict,
@@ -58,6 +57,9 @@ static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 static THREAD_LOCAL_ON_ZTS bool _request_blocked;
+// Set by request init and cleared by request shutdown. If AppSec's RINIT finds
+// it set, the previous request's shutdown was skipped.
+static THREAD_LOCAL_ON_ZTS bool _shutdown_pending;
 enum { MAX_LENGTH_OF_REM_CFG_PATH = 31 };
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
@@ -98,6 +100,9 @@ void dd_req_lifecycle_startup(void)
     _register_testing_objects();
 }
 
+// force is true when the testing function rinit() calls this instead of
+// AppSec's RINIT. It runs even in testing mode and, as it does not start a new
+// PHP request, never takes a pending shutdown for a skipped one.
 void dd_req_lifecycle_rinit(bool force)
 {
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
@@ -105,6 +110,15 @@ void dd_req_lifecycle_rinit(bool force)
             "Skipping request init actions because appsec is fully disabled");
         return;
     }
+
+    if (!force && _shutdown_pending) {
+        mlog(dd_log_info, "AppSec's shutdown did not run for the previous "
+                          "request; discarding its state");
+        _reset_globals(false);
+        // resets the connection bookkeeping; drops a connection mid-request
+        dd_helper_abandon_request();
+    }
+    _shutdown_pending = true;
 
     if (_enabled_user_req) {
         mlog(dd_log_debug, "Skipping automatic request init on CLI because "
@@ -215,6 +229,14 @@ static zend_array *nullable _do_request_begin(
         .entity = rbe,
     };
 
+    // The helper only accepts request_exec, request_shutdown or
+    // client_shutdown while it is inside a request; never start a new one on
+    // top of it.
+    dd_conn *cur_conn = dd_helper_mgr_cur_conn();
+    if (cur_conn && cur_conn->request_started) {
+        dd_helper_abandon_request();
+    }
+
     // we want to retry once only if we're connected from a previous request
     int retries_left = dd_helper_mgr_cur_conn() ? 1 : 0;
 
@@ -292,7 +314,7 @@ cleanup:
 
     dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
     if (res == dd_oom) {
-        _reset_globals();
+        _reset_globals(true);
         zend_error_noreturn(E_ERROR,
             "Failed to allocate memory while parsing the AppSec request body");
     }
@@ -304,6 +326,8 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force);
 
 void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 {
+    _shutdown_pending = false;
+
     // temporarily remove the memory limit to avoid bailouts
     // and as a safety net do a try-catch
     zend_long orig_mem_limit = _raise_shutdown_memory_limit();
@@ -326,7 +350,7 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
                 "Bailout in request shutdown; disconnecting from helper");
         }
         (void)_restore_shutdown_memory_limit(orig_mem_limit);
-        _reset_globals();
+        _reset_globals(true);
     }
     zend_end_try();
 
@@ -346,7 +370,7 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 
     if (get_global_DD_APPSEC_TESTING() && !force) {
         mlog_g(dd_log_debug, "Skipping automatic request shutdown in testing");
-        _reset_globals();
+        _reset_globals(true);
         return;
     }
 
@@ -356,7 +380,7 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
                 "Finishing user request whose corresponding "
                 "span is presumably still unclosed on rshutdown");
             _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
-            _reset_globals();
+            _reset_globals(true);
         }
     } else {
         _do_request_finish_php(ignore_verdict);
@@ -442,7 +466,7 @@ static void _do_request_finish_php(bool ignore_verdict)
     }
     dd_tags_rshutdown();
 
-    _reset_globals();
+    _reset_globals(true);
 
     dd_req_lifecycle_abort(
         REQUEST_STAGE_REQUEST_END, verdict, &ctx.req_info.block_params);
@@ -464,7 +488,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     {
         dd_helper_close_conn(false, NULL, 0);
         (void)_restore_shutdown_memory_limit(orig_mem_limit);
-        _reset_globals();
+        _reset_globals(true);
         zend_bailout();
     }
     zend_end_try();
@@ -473,7 +497,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
         if (result) {
             zend_array_destroy(result);
         }
-        _reset_globals();
+        _reset_globals(true);
         zend_error_noreturn(E_ERROR,
             "Failed to restore memory limit after AppSec request shutdown");
     }
@@ -569,23 +593,34 @@ static bool _restore_shutdown_memory_limit(zend_long limit)
 }
 
 // Detach request-owned values before releasing them: user destructors can bail.
-static void _reset_globals(void)
+// Without release, the values are only forgotten: AppSec's shutdown was skipped
+// for their request, so they went away with its heap (or leaked, if the SAPI
+// did not shut that request down at all).
+static void _reset_globals(bool release)
 {
     zend_object *span = _cur_req_span;
     zend_array *superglob_equiv = _superglob_equiv;
+    zend_string *client_ip = _client_ip;
     zval blocking_function = _blocking_function;
     _cur_req_span = NULL;
+    dd_trace_root_span_changed();
     _superglob_equiv = NULL;
     ZVAL_UNDEF(&_blocking_function);
-
-    if (_client_ip && _client_ip != CLIENT_IP_LOOKUP_FAILED) {
-        zend_string_release(_client_ip);
-    }
     _client_ip = NULL;
     _shutdown_done_on_commit = false;
     _request_blocked = false;
-    dd_tags_rshutdown();
     dd_duration_reset_globals();
+
+    if (!release) {
+        // forgets the fragments and user ids without freeing them
+        dd_tags_rinit();
+        return;
+    }
+
+    if (client_ip && client_ip != CLIENT_IP_LOOKUP_FAILED) {
+        zend_string_release(client_ip);
+    }
+    dd_tags_rshutdown();
 
     if (span && GC_DELREF(span) == 0) {
         zend_objects_store_del(span);
@@ -620,6 +655,7 @@ static void _set_cur_span(zend_object *nullable span)
     if (previous && GC_DELREF(previous) == 0) {
         zend_objects_store_del(previous);
     }
+    dd_trace_root_span_changed();
 }
 
 bool dd_req_lifecycle_is_active(void)
@@ -671,7 +707,7 @@ static zend_array *nullable _start_user_req(
                              "previous request before starting the new one");
         zend_array *spec =
             _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
-        _reset_globals();
+        _reset_globals(true);
         UNUSED(spec);
         assert(spec == NULL);
     }
@@ -883,7 +919,7 @@ static void _finish_user_req(
     if (_shutdown_done_on_commit) {
         mlog(dd_log_debug, "Skipping user request shutdown because it was "
                            "already done on commit");
-        _reset_globals();
+        _reset_globals(true);
         return;
     }
 
@@ -893,7 +929,7 @@ static void _finish_user_req(
             "root span currently associated through the "
             "request started span (or it was cleared already). "
             "Resetting");
-        _reset_globals();
+        _reset_globals(true);
         return;
     }
     if (_cur_req_span != span) {
@@ -901,7 +937,7 @@ static void _finish_user_req(
             "Request finished callback called, but the root span currently "
             "associated is not the same as the one that was provided. "
             "Resetting");
-        _reset_globals();
+        _reset_globals(true);
     }
 
     mlog(dd_log_debug, "Finishing user request for span %p", (void *)span);
@@ -910,7 +946,7 @@ static void _finish_user_req(
         _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
     UNUSED(arr);
     assert(arr == NULL);
-    _reset_globals();
+    _reset_globals(true);
 }
 
 const zend_array *nonnull _get_server_equiv(
@@ -1095,6 +1131,17 @@ static inline uint64_t _hash_zend_string(
     return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str));
 }
 
+// Attributes may hold references (by-ref uses of $attributes or $meta).
+static zval *nullable _find_attribute(
+    zval *nonnull attributes, const char *nonnull key, size_t key_len)
+{
+    zval *zv = zend_hash_str_find(Z_ARRVAL_P(attributes), key, key_len);
+    if (zv) {
+        ZVAL_DEREF(zv);
+    }
+    return zv;
+}
+
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     dd_api_sec_outcome *nonnull outcome)
 {
@@ -1114,8 +1161,8 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
         return 0;
     }
 
-    zval *nullable meta = dd_trace_span_get_meta(root_span);
-    if (!meta) {
+    zval *nullable attributes = dd_trace_span_get_attributes(root_span);
+    if (!attributes) {
         return 0;
     }
 
@@ -1131,14 +1178,14 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     zend_string *route_or_endpoint = NULL;
     bool free_route_or_endpoint = false;
 
-    zval *route = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.route"));
+    zval *route = _find_attribute(attributes, ZEND_STRL("http.route"));
     const bool has_http_route = route && Z_TYPE_P(route) == IS_STRING;
     if (has_http_route) {
         route_or_endpoint = Z_STR_P(route);
     } else {
         // http.route is absent, check for http.endpoint
         zval *endpoint =
-            zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.endpoint"));
+            _find_attribute(attributes, ZEND_STRL("http.endpoint"));
         const bool has_http_endpoint =
             endpoint && Z_TYPE_P(endpoint) == IS_STRING;
         if (has_http_endpoint) {
@@ -1154,8 +1201,7 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
         } else {
             // http.endpoint not computed, compute it now without setting the
             // tag
-            zval *url =
-                zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.url"));
+            zval *url = _find_attribute(attributes, ZEND_STRL("http.url"));
             const bool has_http_url = url && Z_TYPE_P(url) == IS_STRING;
             if (has_http_url) {
                 route_or_endpoint = dd_trace_guess_endpoint_from_url(
@@ -1177,8 +1223,7 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
         goto missing_route;
     }
 
-    zval *method =
-        zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.method"));
+    zval *method = _find_attribute(attributes, ZEND_STRL("http.method"));
     if (!method || Z_TYPE_P(method) != IS_STRING) {
         mlog_g(dd_log_debug, "No http.method tag; not sampling");
         // we treat the absence of http.method also as a missing route, because

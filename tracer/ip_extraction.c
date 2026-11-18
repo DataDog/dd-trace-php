@@ -132,7 +132,7 @@ bool ddtrace_parse_client_ip_header_config(zai_str value, zval *decoded_value, b
     return true;
 }
 
-DATADOG_PUBLIC zend_string *ddtrace_ip_extraction_find(zval *server) {
+zend_string *ddtrace_ip_extraction_find(zval *server) {
     if (!server || Z_TYPE_P(server) != IS_ARRAY) {
         return NULL;
     }
@@ -213,7 +213,7 @@ static zend_string *dd_fetch_arr_str(const zval *server, zend_string *key) {
     return Z_STR_P(value);
 }
 
-void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta)
+void ddtrace_extract_ip_from_headers(zval *server, zend_array *attributes)
 {
     zend_string *val = ddtrace_ip_extraction_find(server);
     if (!val) {
@@ -221,7 +221,7 @@ void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta)
     }
     zval http_client_ip;
     ZVAL_STR(&http_client_ip, val);
-    zend_hash_str_update(meta, ZEND_STRL("http.client_ip"), &http_client_ip);
+    zend_hash_str_update(attributes, ZEND_STRL("http.client_ip"), &http_client_ip);
 }
 
 static zend_string *dd_ipaddr_to_zstr(const ipaddr *ipaddr) {

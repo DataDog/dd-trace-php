@@ -1,7 +1,6 @@
 --TEST--
 Record response from request_init and ancillary tags in root span
 --INI--
-extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
@@ -18,19 +17,21 @@ HTTP_USER_AGENT=my user agent
 a=b
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rshutdown,ddtrace_rshutdown,root_span_get_meta};
+use function datadog\appsec\testing\{rinit, rshutdown, ddtrace_rshutdown, root_span_get_attributes};
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createRun([
     response_list(
-        response_client_init(['ok', phpversion('ddappsec'), [],
+        response_client_init(['ok', phpversion('ddtrace'), [],
         ["meta_1" => "value_1", "meta_2" => "value_2"],
         ["metric_1" => 2.0, "metric_2" => 10.0], null])
     ),
@@ -69,14 +70,14 @@ $helper->finished_with_commands();
 
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
-    [runtime-id] => %s
-    [http.url] => https://localhost:8888/foo
     [http.method] => GET
-    [span.kind] => server
+    [http.url] => https://localhost:8888/foo
     [http.useragent] => my user agent
+    [process_id] => %d
+    [runtime-id] => %s
 )
 rinit
 bool(true)
@@ -94,6 +95,7 @@ Array
     [_dd.runtime_family] => php
     [_dd.sdk.otlp_export] => false
     [appsec.event] => true
+    [component] => web
     [http.endpoint] => /foo
     [http.method] => GET
     [http.request.headers.user-agent] => my user agent

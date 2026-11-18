@@ -18,7 +18,7 @@ final class HttpClientIntegrationHelperTest extends BaseTestCase
     private static function newSpan()
     {
         $span = new \stdClass();
-        $span->meta = [];
+        $span->attributes = [];
         return $span;
     }
 
@@ -64,16 +64,16 @@ final class HttpClientIntegrationHelperTest extends BaseTestCase
 
         $span = self::newSpan();
         $this->assertTrue(HttpClientIntegrationHelper::setClientError($span, 403));
-        $this->assertSame('http_error', $span->meta[Tag::ERROR_TYPE]);
-        $this->assertSame('HTTP 403 Error', $span->meta[Tag::ERROR_MSG]);
+        $this->assertSame('http_error', $span->attributes[Tag::ERROR_TYPE]);
+        $this->assertSame('HTTP 403 Error', $span->attributes[Tag::ERROR_MSG]);
 
         $span = self::newSpan();
         $this->assertTrue(HttpClientIntegrationHelper::setClientError($span, 412, 'Precondition Failed'));
-        $this->assertSame('HTTP 412: Precondition Failed', $span->meta[Tag::ERROR_MSG]);
+        $this->assertSame('HTTP 412: Precondition Failed', $span->attributes[Tag::ERROR_MSG]);
 
         $span = self::newSpan();
         $this->assertFalse(HttpClientIntegrationHelper::setClientError($span, 200));
-        $this->assertSame([], $span->meta);
+        $this->assertSame([], $span->attributes);
     }
 
     public function testSetClientErrorKeepsExistingError()
@@ -81,9 +81,9 @@ final class HttpClientIntegrationHelperTest extends BaseTestCase
         self::putEnvAndReloadConfig(['DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=403']);
 
         $span = self::newSpan();
-        $span->meta[Tag::ERROR] = 1;
+        $span->attributes[Tag::ERROR] = 1;
         $this->assertFalse(HttpClientIntegrationHelper::setClientError($span, 403));
-        $this->assertArrayNotHasKey(Tag::ERROR_TYPE, $span->meta);
+        $this->assertArrayNotHasKey(Tag::ERROR_TYPE, $span->attributes);
     }
 
     public function testSetClientErrorKeepsTransportError()
@@ -95,13 +95,13 @@ final class HttpClientIntegrationHelperTest extends BaseTestCase
             Tag::ERROR_MSG => 'Operation timed out after 100 milliseconds with 1 out of 100 bytes received',
         ];
         // Either field can flag an existing error; preserve both when present.
-        foreach ([$error, [Tag::ERROR_TYPE => $error[Tag::ERROR_TYPE]], [Tag::ERROR_MSG => $error[Tag::ERROR_MSG]]] as $meta) {
+        foreach ([$error, [Tag::ERROR_TYPE => $error[Tag::ERROR_TYPE]], [Tag::ERROR_MSG => $error[Tag::ERROR_MSG]]] as $attributes) {
             $span = self::newSpan();
-            $span->meta = $meta + [Tag::HTTP_STATUS_CODE => '404'];
-            $expected = $span->meta;
+            $span->attributes = $attributes + [Tag::HTTP_STATUS_CODE => '404'];
+            $expected = $span->attributes;
 
             $this->assertFalse(HttpClientIntegrationHelper::setClientError($span, 404));
-            $this->assertSame($expected, $span->meta);
+            $this->assertSame($expected, $span->attributes);
         }
     }
 
@@ -111,6 +111,6 @@ final class HttpClientIntegrationHelperTest extends BaseTestCase
 
         $span = self::newSpan();
         $this->assertFalse(HttpClientIntegrationHelper::setClientError($span, 404));
-        $this->assertSame([], $span->meta);
+        $this->assertSame([], $span->attributes);
     }
 }

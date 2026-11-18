@@ -24,8 +24,8 @@ impl WafRuleset {
         // Rules paths come from workers, so thread mode needs a constrained open.
         let file = {
             #[cfg(unix)]
-            if libdd_common::unix_utils::worker_file_outputs_restricted() {
-                libdd_common::unix_utils::open_regular_for_read(path.as_ref())?
+            if libdd_process_utils::unix_utils::worker_file_outputs_restricted() {
+                libdd_process_utils::unix_utils::open_regular_for_read(path.as_ref())?
             } else {
                 File::open(&path)?
             }

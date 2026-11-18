@@ -73,7 +73,7 @@ static void zai_config_restore_runtime_ini(const char *name, size_t name_len) {
     zend_string_release(zs_name);
 }
 
-static char *zai_config_ini_string(const char *name, size_t name_len) {
+static const char *zai_config_ini_string(const char *name, size_t name_len) {
     return zend_ini_string((char *) name, name_len, 0);
 }
 

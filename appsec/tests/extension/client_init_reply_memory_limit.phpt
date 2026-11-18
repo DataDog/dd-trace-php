@@ -1,7 +1,6 @@
 --TEST--
 Memory exhaustion processing client_init leaves no reusable connection after shutdown
 --INI--
-extension=ddtrace.so
 datadog.appsec.enabled=1
 datadog.appsec.cli_start_on_rinit=false
 memory_limit=64M
@@ -31,7 +30,7 @@ for ($i = 0; $i < 9000; $i++) {
 }
 $helper = Helper::createRun([
     response_list(response_client_init([
-        'ok', phpversion('ddappsec'), [], $tags, new ArrayObject(), null
+        'ok', phpversion('ddtrace'), [], $tags, new ArrayObject(), null
     ]))
 ], ['no_wait_shutdown' => true]);
 unset($tags);

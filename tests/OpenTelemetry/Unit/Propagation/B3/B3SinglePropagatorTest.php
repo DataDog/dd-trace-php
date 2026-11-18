@@ -33,6 +33,8 @@ class B3SinglePropagatorTest extends BaseTestCase
 
     private B3SinglePropagator $b3SinglePropagator;
 
+    private $previousStorage;
+
     protected function ddSetUp()
     {
         dd_trace_close_all_spans_and_flush();
@@ -43,7 +45,7 @@ class B3SinglePropagatorTest extends BaseTestCase
 
     protected function ddTearDown()
     {
-        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
+        Context::setStorage($this->previousStorage); // Keep the storage which follows fibers for the next tests
         parent::ddTearDown();
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');
@@ -51,6 +53,8 @@ class B3SinglePropagatorTest extends BaseTestCase
 
     protected function setUp(): void
     {
+        $this->previousStorage = Context::storage();
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         $this->b3SinglePropagator = B3SinglePropagator::getInstance();
         [$this->B3] = $this->b3SinglePropagator->fields();
     }

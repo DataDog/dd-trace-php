@@ -13,10 +13,10 @@
 #include "../entity_body.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "../php_compat.h" // NOLINT(unused-includes)
 #include "../php_helpers.h"
 #include "../string_helpers.h"
 #include "request_init.h"
+#include <ext/compatibility.h> // NOLINT(unused-includes)
 #include <mpack.h>
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
@@ -263,8 +263,8 @@ static void _pack_files_field_names(
         if (key_s) {
             dd_mpack_write_zstr(w, key_s);
         } else {
-            char buf[ZEND_LTOA_BUF_LEN];
-            ZEND_LTOA((zend_long)key_i, buf, ZEND_LTOA_BUF_LEN);
+            char buf[MAX_LENGTH_OF_LONG + 1];
+            snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
             mpack_write(w, buf);
         }
     }

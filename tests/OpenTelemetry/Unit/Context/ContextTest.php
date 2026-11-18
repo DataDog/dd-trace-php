@@ -17,16 +17,20 @@ use stdClass;
  */
 class ContextTest extends BaseTestCase
 {
+    private $previousStorage;
+
     protected function setUp(): void
     {
         \dd_trace_serialize_closed_spans();
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+        $this->previousStorage = Context::storage();
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         parent::setUp();
     }
 
     protected function tearDown() : void
     {
-        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
+        Context::setStorage($this->previousStorage); // Keep the storage which follows fibers for the next tests
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         parent::tearDown();
         \dd_trace_serialize_closed_spans();

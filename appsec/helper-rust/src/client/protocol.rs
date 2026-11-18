@@ -145,7 +145,6 @@ pub struct ClientInitResp {
     pub errors: Vec<String>,
     pub meta: HashMap<String, String>,
     pub metrics: HashMap<String, f64>,
-    pub helper_runtime: Option<String>,
 }
 
 #[derive(Debug, Deserialize_tuple)]
@@ -621,7 +620,6 @@ mod tests {
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
-            helper_runtime: None,
         });
 
         let mut buf = BytesMut::new();
@@ -644,7 +642,6 @@ mod tests {
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
-            helper_runtime: None,
         });
         let res = encoder.encode(huge, &mut buf);
         assert!(res.is_err());

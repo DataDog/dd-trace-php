@@ -25,7 +25,7 @@ $build_platforms = [
     ],
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7-3",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -36,7 +36,7 @@ $build_platforms = [
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7-3",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -89,16 +89,54 @@ function system_tests_run_scenarios(string $scenarios): void
 <?php
 }
 
+// Files a PR branch changed since its merge-base with master, listed by generate-templates.
+// No list (master, releases, tags, schedules, web/api runs, or a git failure) means every job runs.
+$branch_changed_files = array_filter(explode("\n", (string)@file_get_contents(__DIR__ . "/changed-files.txt")));
+
+// A PR branch runs these job families only when it changes one of their paths; master and the rest run them always.
+// Generic build inputs (sources, config.m4, shared build scripts) stay out: the always-on compile and test jobs cover them.
+$generator_paths = [".gitlab/generate-package.php", ".gitlab/generate-common.php"];
+$ssi_test_paths = array_merge($generator_paths, ["libdatadog", "loader/*", ".gitlab/build-loader.sh", ".gitlab/build-sidecar.sh",
+    ".gitlab/build-ssi-combined-alpine.sh", "tooling/bin/build-ssi-common", "tooling/bin/build-xlang-lto",
+    "tooling/bin/build-ddtrace-php-abi-archive", "tooling/bin/generate-ssi-package.sh", ".gitlab/one-pipeline.locked.yml",
+    ".gitlab/prepare-oci-package.sh", "Cargo.lock"]);
+$installer_test_paths = array_merge($generator_paths, ["datadog-setup.php", "dockerfiles/verify_packages/*", "tooling/bin/*"]);
+$verify_paths = array_merge($installer_test_paths, ["package/*", "dockerfiles/packaging/*", ".gitlab/package-extension.sh", ".gitlab/link-tracing-extension.sh", ".gitlab/build-*.sh", ".gitlab/compile_extension.sh", "config.m4", "Makefile", "compile_rust.sh", "*.sym", "rust-toolchain*"]);
+
+/**
+ * Rules making a job manual on a PR branch that changes none of $globs (`*` also matches `/`).
+ * Empty without a changed-file list, so the job runs as before.
+ *
+ * @param string[] $never_if Conditions of the job's own `when: never` rules, kept ahead of the manual one.
+ */
+function manual_unless_changed(array $globs, array $never_if = []): string
+{
+    global $branch_changed_files;
+    if (!$branch_changed_files) {
+        return "";
+    }
+    foreach ($globs as $glob) {
+        if (preg_grep('(^' . str_replace('\*', '.*', preg_quote($glob)) . '$)', $branch_changed_files)) {
+            return "";
+        }
+    }
+    $rules = "  rules:\n";
+    foreach ($never_if as $condition) {
+        $rules .= "    - if: $condition\n      when: never\n";
+    }
+    return $rules . "    - when: manual\n      allow_failure: true\n";
+}
+
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-11",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-14",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-11",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-14",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -120,8 +158,7 @@ $windows_build_platforms = [
 
 stages:
   - prepare
-  - profiler
-  - appsec
+  - combined
   - tracing
   - packaging
   - benchmarks
@@ -150,9 +187,18 @@ variables:
   SYSTEM_TESTS_LIBRARY: php
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
-  # One pipeline injection package size ratchet
+  # One pipeline injection package size ratchet.
+  # LIB_INJECTION_IMAGE_MAX_SIZE_BYTES was set to 210M in April as a tightening
+  # of the template's 250M default. Since then, real measured size has grown
+  # to ~292-306M compressed (per-arch) purely from upstream libdatadog/Rust
+  # dependency growth (crashtracker, stats computation, FFE metrics, dynamic
+  # multi-config, etc.) -- NOT from combining tracer+profiling into one
+  # ddtrace.so (that change actually reduces per-PHP-API-version size, since
+  # it eliminates a second, separately-linked copy of the shared Rust runtime).
+  # Raised to give headroom over the current measured max; revisit if it
+  # keeps climbing.
   OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
-  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 320_000_000
 
   REPO_NOTIFICATION_CHANNEL: "#guild-dd-php"
 
@@ -185,6 +231,13 @@ configure_system_tests:
   after_script:
     - test -f system_tests_pipeline.yml && cat .gitlab/green-ci-exclude-job.yml >> system_tests_pipeline.yml
 <?php endif; ?>
+<?php $ssi_test_rules = manual_unless_changed($ssi_test_paths, ['$SKIP_SHARED_PIPELINE == "true"', '$DANGEROUSLY_SKIP_SHARED_PIPELINE_TESTS == "true"']); ?>
+<?= $ssi_test_rules ?>
+<?php if ($ssi_test_rules): ?>
+
+system_tests:
+<?= $ssi_test_rules ?>
+<?php endif; ?>
 
 package-oci:
   # Linux only: prepare-oci-package.sh exits at once for other OSes, after downloading both loaders.
@@ -201,6 +254,28 @@ foreach ($arch_targets as $arch) {
 <?php
 }
 ?>
+
+# Local override: the shared one-pipeline.yml template only reports the
+# final decomposed image size against LIB_INJECTION_IMAGE_MAX_SIZE_BYTES, not
+# what's actually inside it. This prints a per-file size breakdown of both
+# architectures' decomposed package contents (which the template's own
+# script already produces at /scripts/lib-injection/decomposed-{amd64,arm64}/
+# contents, before the size check runs) so we can see what's driving the
+# size without needing to reproduce the build locally. Runs unconditionally
+# (not just on failure) so we always have a trend, not just a snapshot when
+# it's already over threshold.
+create-multiarch-lib-injection-image:
+  after_script:
+    - |
+      for arch in amd64 arm64; do
+        dir="/scripts/lib-injection/decomposed-${arch}/contents"
+        if [ -d "$dir" ]; then
+          echo "=== ${arch} decomposed package contents (total: $(du -sh "$dir" | cut -f1)) ==="
+          find "$dir" -type f -printf '%s\t%p\n' | sort -rn | awk 'BEGIN{FS="\t"} {printf "%10.1f MB  %s\n", $1/1048576, $2}' | head -50
+        else
+          echo "=== ${arch} decomposed package directory not found at ${dir} ==="
+        fi
+      done
 
 requirements_json_test:
   rules:
@@ -227,7 +302,7 @@ finished:
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
-      composer update --no-interaction
+      .gitlab/run-with-retryable-download.sh composer update --no-interaction
     # Compiling dd-tace-php files into single file
     - make generate
     # Showing folder containing generated files
@@ -246,8 +321,8 @@ foreach ($build_platforms as $platform) {
         // NTS and ZTS are independent builds, so they run as two parallel jobs.
         foreach (["nts", "zts"] as $flavour) {
 ?>
-"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]":
-  stage: profiler
+"compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]":
+  stage: combined
   image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
   tags: [ "arch:$ARCH" ]
   needs:
@@ -263,10 +338,33 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "<?= $flavour ?>"
+<?php if ($platform['host_os'] === 'linux-gnu'): ?>
+<?php if ($flavour === 'nts'): ?>
+    # CentOS 7 release artifacts use Clang/Rust ThinLTO for NTS and ZTS.
+    - switch-php "${PHP_VERSION}"
+    - make -s xlang-lto
+    - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}.so"
+    # The PHP debug ABI still uses the regular non-LTO build.
+    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "debug" "combined" "ddtrace-${ABI_NO}-debug.so"
+<?php else: ?>
+    - switch-php "${PHP_VERSION}-zts"
+    - make -s xlang-lto
+    - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-zts.so"
+<?php endif; ?>
+<?php else: ?>
+    # Alpine exposes switch_php as a function; switch-php is only an alias,
+    # which the non-interactive runner shell does not expand.
+    - source "$BASH_ENV"
+    - switch_php "${PHP_VERSION}<?= $flavour === 'zts' ? '-zts' : '' ?>"
+    - make -s xlang-lto
+    - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine<?= $flavour === 'zts' ? '-zts' : '' ?>.so"
+<?php endif; ?>
   artifacts:
     paths:
-      - "datadog-profiling"
+      - "extensions_*"
 
 <?php
         }
@@ -274,81 +372,11 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
-<?php foreach ($arch_targets as $arch): ?>
-# Keeps package loader under the 50-needs limit now that each profiler build is two jobs.
-"aggregate profiler extension: [<?= $arch ?>]":
-  stage: profiler
-  image: registry.ddbuild.io/images/mirror/alpine:3.20
-  tags: [ "arch:amd64" ]
-  script: ls ./
-  variables:
-    GIT_STRATEGY: none
-  needs:
-<?php
-    foreach ($build_platforms as $platform):
-        if ($platform["arch"] == $arch):
-            foreach ($profiler_minor_major_targets as $major_minor):
-                foreach (["nts", "zts"] as $flavour):
-?>
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]"
-      artifacts: true
-<?php
-                endforeach;
-            endforeach;
-        endif;
-    endforeach;
-?>
-  artifacts:
-    paths:
-      - "datadog-profiling"
-<?php endforeach; ?>
 
-
-<?php
-foreach ($build_platforms as $platform) {
-    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-        $image = sprintf($platform['image_template'], $major_minor);
-        $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
-?>
-"compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: appsec
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
-  variables:
-    IMAGE: "<?= $image ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
-    PHP_VERSION: "<?= $major_minor ?>"
-    MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
-  script:
-    # Fix for $BASH_ENV not having a newline at the end of the file
-    - echo "" >> "$BASH_ENV"
-<?php
-if ($suffix == "-alpine") {
-?>
-    - apk add cmake gcc g++ git python3 autoconf coreutils
-<?php
- }
-?>
-    - .gitlab/build-appsec.sh <?= $suffix ?> || exit $?
-
-  artifacts:
-    paths:
-      - "appsec_*"
-
-<?php
-    }
-}
-?>
 
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -358,18 +386,54 @@ if ($suffix == "-alpine") {
     paths:
       - pecl
 
+# Package sources, root-vendor dependencies, then build/install/test both PHP ABIs.
+"pecl offline vendored build":
+  stage: verify
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.4_bookworm-14"
+  tags: [ "arch:amd64" ]
+  services:
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
+  needs:
+    - job: "pecl build"
+      artifacts: true
+  variables:
+    MAKE_JOBS: 8
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - sudo apt-get update -qq
+    - sudo apt-get install -y --no-install-recommends gcc g++ rpm pigz
+  script:
+    - switch-php nts
+    - HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 tooling/bin/pecl-offline-vendored-build ./pecl/datadog_trace-*.tgz
+  artifacts:
+    when: always
+    paths:
+      - artifacts/pecl-offline/
+    reports:
+      junit: artifacts/pecl-offline/*-junit.xml
+
 <?php
 foreach ($build_platforms as $platform) {
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+        if ($major_minor !== "7.0") {
+            continue;
+        }
         $image = sprintf($platform['image_template'], $major_minor);
         $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
-        $catch_warnings = ($major_minor == "7.3" && $suffix != "-alpine") ? "0" : "1";
 ?>
 "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: tracing
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
   variables:
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -383,11 +447,34 @@ foreach ($build_platforms as $platform) {
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
-    - ./.gitlab/build-tracing.sh "<?= $suffix ?>" "<?= $catch_warnings ?>"
+    - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
+<?php if ($platform['host_os'] === 'linux-musl'): ?>
+    # Load the function in this shell too, not just the build-tracing subprocess.
+    - source "$BASH_ENV"
+<?php endif; ?>
+    # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
+    # Every SSI common rebuild must match the canonical DSO, including DWARF.
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?><?= $suffix ?>.so"
+    - export CARGO_BUILD_JOBS=12
+    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
+    - make -s xlang-lto
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/libdatadog_php.so"
+    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
+    - make -s xlang-lto
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/libdatadog_php.so"
   artifacts:
+    when: always
     paths:
       - "extensions_*"
       - "standalone_*"
+      # Retain the candidate common DSO if its identity check failed.
+      - "tmp/release-variants/**/ssi/libdatadog_php.so"
       - "ddtrace_*-fat.ldflags"
       - "ddtrace_*-fat.sym"
 
@@ -399,7 +486,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -408,12 +495,10 @@ foreach ($build_platforms as $platform) {
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
-            foreach ($all_minor_major_targets as $major_minor):
 ?>
-    - job: "compile tracing extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+    - job: "link tracing extension: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
-            endforeach;
         endif;
     endforeach;
 ?>
@@ -464,20 +549,103 @@ foreach ($build_platforms as $platform) {
 
 <?php
 foreach ($build_platforms as $platform) {
+    foreach ($profiler_minor_major_targets as $major_minor) {
+        $abi_no = $php_versions_to_abi[$major_minor];
+        $image = sprintf($platform['image_template'], $major_minor);
+        $arch_dir = $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64';
+        $suffix = $platform['host_os'] === 'linux-musl' ? '-alpine' : '';
+?>
+"compile SSI combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    HOST_OS: "<?= $platform['host_os'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    CARGO_BUILD_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 5Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
+  script:
+    - echo "" >> "$BASH_ENV"
+    - mkdir -p "ssi_<?= $arch_dir ?>"
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir . $suffix ?>.so"
+<?php if ($platform['host_os'] === 'linux-gnu'): ?>
+    - switch-php "${PHP_VERSION}"
+    - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
+    - mv "ssi_<?= $arch_dir ?>/ddtrace.so" "ssi_<?= $arch_dir ?>/ddtrace-${ABI_NO}.so"
+    - switch-php "${PHP_VERSION}-zts"
+    - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
+    - mv "ssi_<?= $arch_dir ?>/ddtrace.so" "ssi_<?= $arch_dir ?>/ddtrace-${ABI_NO}-zts.so"
+<?php else: ?>
+    - ./.gitlab/build-ssi-combined-alpine.sh "ssi_<?= $arch_dir ?>" "${ABI_NO}"
+<?php endif; ?>
+    # The shared DSO is packaged from the single sidecar job, not each PHP job.
+    - rm "ssi_<?= $arch_dir ?>/libdatadog_php.so"
+  artifacts:
+    when: always
+    paths:
+      - "ssi_*"
+<?php
+    }
+}
+?>
+
+<?php foreach ($arch_targets as $arch): ?>
+"aggregate SSI combined extension: [<?= $arch ?>]":
+  stage: tracing
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
+  tags: [ "arch:amd64" ]
+  variables:
+    GIT_STRATEGY: none
+  script: ls ssi_*
+  needs:
+<?php
+    foreach ($build_platforms as $platform):
+        if ($platform['arch'] !== $arch) continue;
+        foreach ($profiler_minor_major_targets as $major_minor):
+?>
+    - job: "compile SSI combined extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+        endforeach;
+    endforeach;
+?>
+  artifacts:
+    paths:
+      - "ssi_*"
+<?php endforeach; ?>
+
+<?php
+foreach ($build_platforms as $platform) {
     $image = sprintf($platform['image_template'], "8.1");
     $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
 ?>
 "link tracing extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+
   stage: tracing
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
   needs:
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
+    - job: "compile tracing extension: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
 <?php
-foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
-    - job: "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
+      artifacts: true
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
       artifacts: true
 <?php
 }
@@ -486,7 +654,6 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
@@ -497,6 +664,8 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
   artifacts:
     paths:
       - "extensions_*"
+      - "standalone_*"
+      - "ddtrace_*.ldflags"
 <?php
 }
 ?>
@@ -568,7 +737,7 @@ foreach ($windows_build_platforms as $platform) {
     $ntsCode = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
-    if ($ntsCode -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ntsCode } }
+    if ($ntsCode -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download','could not download file' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ntsCode } }
 
     # Reuse the common/tracer Cargo build (fail if move fails)
     docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target-common' 'app\\x64\\Release_TS\\target-common' -ErrorAction Stop"
@@ -582,7 +751,7 @@ foreach ($windows_build_platforms as $platform) {
     $ztsCode = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
-    if ($ztsCode -ne 0) { if (Select-String -Path zts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download' -Quiet) { Write-Host "Transient network failure during zts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ztsCode } }
+    if ($ztsCode -ne 0) { if (Select-String -Path zts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download','could not download file' -Quiet) { Write-Host "Transient network failure during zts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ztsCode } }
 
     # Try to stop the container, don't care if we fail
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
@@ -624,16 +793,28 @@ foreach ($build_platforms as $platform) {
 
 .package_extension_base:
   stage: packaging
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-5
   tags: [ "arch:amd64" ]
+  after_script:
+    - |
+      if [ -d packages ]; then
+        echo "Package artifact total size:"
+        du -sh packages
+        echo "Package artifact files, sorted by size:"
+        find packages -type f -exec du -h {} + | sort -h
+      fi
+      echo "Extension input total sizes:"
+      du -sh extensions_*
+      echo "Extension input files, sorted by size:"
+      find extensions_* -type f -exec du -h {} + | sort -h
   artifacts:
     paths:
       - "packages/"
 
 <?php
 // needs: of a platform's "package extension" jobs. Native installers (FPM_FILES) hold only the
-// linked tracer; $bundle_inputs adds the appsec and profiler extensions the bundles need.
-$package_extension_needs = function (array $platform, bool $bundle_inputs = true) use ($php_versions_to_abi, $profiler_minor_major_targets) {
+// linked tracer; $bundle_inputs adds the combined extensions the bundles need.
+$package_extension_needs = function (array $platform, bool $bundle_inputs = true) use ($profiler_minor_major_targets) {
 ?>
   needs:
     - job: "prepare code"
@@ -651,22 +832,12 @@ $package_extension_needs = function (array $platform, bool $bundle_inputs = true
     if (!$bundle_inputs) {
         return;
     }
-    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-?>
-    # Compile appsec extension
-    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-    }
-?>
-
-<?php
     foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
-    # Profiler extension
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
+    # Combined tracer+profiling+AppSec extension
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
       artifacts: true
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
       artifacts: true
 <?php
     }
@@ -766,23 +937,18 @@ foreach ($windows_minor_major_targets as $major_minor) {
       artifacts: true
     - job: "compile loader: [linux-musl, <?= $arch ?>]"
       artifacts: true
-    - job: "aggregate tracing extension: [<?= $arch ?>]"
-      artifacts: true
-    - job: "aggregate profiler extension: [<?= $arch ?>]"
+    - job: "aggregate SSI combined extension: [<?= $arch ?>]"
       artifacts: true
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
 ?>
+    # PHP 7.0 still uses the split SSI extension (tracer and AppSec only).
+    - job: "compile tracing extension: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
-            foreach ($all_minor_major_targets as $major_minor):
-?>
-    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
         endif;
     endforeach;
 endforeach;
@@ -790,7 +956,7 @@ endforeach;
 
 "datadog-setup.php":
   stage: packaging
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-5
   tags: [ "arch:amd64" ]
   script:
     - mkdir -p "build/packages"
@@ -802,6 +968,92 @@ endforeach;
   artifacts:
     paths:
       - "packages/datadog-setup.php"
+
+# Loading compatibility consumes ordinary release artifacts, not correctness
+# builds with test-only functions that can collide before MINIT.
+"profiler product-loading":
+  stage: verify
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  needs:
+    - job: "compile combined extension: [8.5, amd64, x86_64-unknown-linux-gnu, nts]"
+      artifacts: true
+    - job: "compile combined extension: [8.5, amd64, x86_64-unknown-linux-gnu, zts]"
+      artifacts: true
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    PHP_MAJOR_MINOR: "8.5"
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    CARGO_HOME: "${CI_PROJECT_DIR}/.cache/product-loading-cargo"
+    CARGO_TARGET_DIR: "${CI_PROJECT_DIR}/tmp/product-loading-cargo"
+    REPORT_EXIT_STATUS: "1"
+    DD_PROFILING_ENABLED: "false"
+    DD_PROFILING_LOG_LEVEL: "off"
+    DD_TRACE_ENABLED: "false"
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
+    DD_REMOTE_CONFIG_ENABLED: "false"
+  cache:
+    key:
+      prefix: "profiler-product-loading-${PHP_MAJOR_MINOR}-${FLAVOUR}"
+      files:
+        - Cargo.lock
+        - rust-toolchain.toml
+    paths:
+      - .cache/product-loading-cargo/registry/index/
+      - .cache/product-loading-cargo/registry/cache/
+      - tmp/product-loading-cargo/
+  parallel:
+    matrix:
+      - FLAVOUR: [nts, zts]
+  before_script:
+<?php unset_dd_runner_env_vars(); ?>
+  script:
+    - switch-php "${FLAVOUR}"
+    # Reuse combined NTS/ZTS artifacts from the release build. Only build the
+    # standalone comparison product here, without extra profiler features.
+    - make compile_profiler PROFILER_BUILD_SUFFIX=product_standalone PROFILER_FEATURES=
+    - |
+      export TEST_PHP_EXECUTABLE="$(command -v php)"
+      php_api="$(php -n -i | awk '/^PHP API => / {print $4}')"
+      suffix=
+      if [ "${FLAVOUR}" = "zts" ]; then suffix=-zts; fi
+      export DDTRACE_TEST_TRACER_EXTENSION="${CI_PROJECT_DIR}/extensions_x86_64/ddtrace-${php_api}${suffix}.so"
+      export DDTRACE_TEST_PROFILER_EXTENSION="${CI_PROJECT_DIR}/tmp/build_product_standalone/modules/datadog-profiling.so"
+      # Ensure both artifacts load alone, without test-only profiler functions.
+      for extension in "${DDTRACE_TEST_TRACER_EXTENSION}" "${DDTRACE_TEST_PROFILER_EXTENSION}"; do
+        php -n -d "extension=${extension}" -r '
+          if (ini_get("datadog.profiling.enabled") === false
+              || function_exists("Datadog\\Profiling\\trigger_time_sample")
+              || function_exists("Datadog\\Profiling\\run_on_native_thread")) {
+              exit(1);
+          }
+        '
+      done
+      mkdir -p "${CI_PROJECT_DIR}/artifacts/product-loading"
+      TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/product-loading/conflicts-${FLAVOUR}.xml" \
+        php "$(php-config --prefix)/lib/php/build/run-tests.php" -q --show-diff \
+          profiling/tests/phpt/standalone_conflict_ddtrace_first.phpt \
+          profiling/tests/phpt/standalone_conflict_profiler_first.phpt
+  artifacts:
+    when: always
+    reports:
+      junit: artifacts/product-loading/*.xml
+    paths:
+      - artifacts/product-loading/
+      - profiling/tests/phpt/standalone_conflict_*.out
+      - profiling/tests/phpt/standalone_conflict_*.diff
+      - profiling/tests/phpt/standalone_conflict_*.log
 
 "x-profiling phpt tests on Alpine":
   stage: verify
@@ -821,7 +1073,8 @@ endforeach;
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
-    - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+    # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
+    - php run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
 <?php foreach ($build_platforms as $platform): ?>
 <?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
@@ -829,7 +1082,7 @@ endforeach;
 # pthread destructors that musl's no-op dlclose cannot catch (issue #4349).
 "frankenphp profiler shutdown: [<?= $platform['arch'] ?>]":
   stage: verify
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-14
   tags: [ "arch:<?= $platform['arch'] ?>" ]
   needs:
     - job: "package extension (per-api bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
@@ -853,7 +1106,7 @@ endforeach;
     - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - tooling/bin/install-frankenphp.sh || exit $?
     - sudo php packages/datadog-setup.php --php-bin php --enable-profiling --enable-appsec --file packages/dd-library-php-*-$(uname -m)-linux-gnu-<?= $php_versions_to_abi['8.5'] ?>-zts.tar.gz
-    - php --ri datadog-profiling
+    - "php --ri ddtrace | grep 'Profiling Enabled'"
   script:
     - bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
   artifacts:
@@ -899,7 +1152,7 @@ endforeach;
     # The only two the official image lacks out of what composer.json and tests/composer.json ask
     # for (zip for the root install, sockets for tests/).
     - install-php-extensions sockets zip || exit 75
-    - php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+    - .gitlab/download-file.sh https://getcomposer.org/installer /tmp/composer-setup.php
     - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
@@ -907,8 +1160,8 @@ endforeach;
     - tar -xzf packages/dd-library-php-*-aarch64-linux-musl.tar.gz
     - php_api=$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
     - cp "dd-library-php/trace/ext/${php_api}/ddtrace-zts.so" tmp/build_extension/modules/ddtrace.so
-    - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction
-    - make composer_tests_update
+    - COMPOSER_MEMORY_LIMIT=-1 .gitlab/run-with-retryable-download.sh composer update --no-interaction
+    - .gitlab/run-with-retryable-download.sh make composer_tests_update
     - .gitlab/wait-for-service-ready.sh
   script:
     # The Fabric proxy changes network failure semantics in integration tests.
@@ -1007,6 +1260,7 @@ endforeach;
   stage: verify
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
+<?= manual_unless_changed($installer_test_paths) ?>
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -1111,6 +1365,10 @@ endforeach;
       tests/ext/sandbox/fatal_errors_are_tracked_002.phpt
       tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt
     - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
+    # Ubuntu's PHP is GCC-built (HYBRID VM): the only place the JIT declare-handler register bugs can show up.
+    - phpenmod -v 8.1 -s cli opcache
+    - php -d opcache.enable_cli=1 -d opcache.jit_buffer_size=64M -r 'exit((int) !opcache_get_status()["jit"]["on"]);' || { echo "JIT is not enabled, the JIT tests would be meaningless"; exit 1; }
+    - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1 -d opcache.protect_memory=1" tests/opcache/resolver_jit.phpt tests/opcache/resolver_jit_function.phpt tests/opcache/override_argument_jit.phpt
 
 "framework test":
   stage: verify
@@ -1164,6 +1422,7 @@ endforeach;
   stage: verify
   image: "registry.ddbuild.io/images/mirror/$IMAGE"
   tags: [ "arch:amd64" ]
+<?= manual_unless_changed($verify_paths) ?>
   services:
     - !reference [.services, request-replayer]
   variables:
@@ -1196,7 +1455,8 @@ endforeach;
           - alpine:3.16
           - alpine:3.21
           - alpine:3.24
-      - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      # Pre-GA versions only exist as -rc tags on Docker Hub.
+      - IMAGE: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*"php:$v-rc-fpm-alpine"*/ : "php:$v-fpm-alpine"; }, $all_minor_major_targets))), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1244,11 +1504,12 @@ endforeach;
     - mkdir build
     - mv packages build
     - '# Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore - https://serverfault.com/a/1161847'
-    - sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
+    - '# vault.centos.org is read through the depot cache: vault answers 403 for 20+ min windows under our parallel jobs'
+    - sed -i 's|http://mirror.centos.org|https://depot-read-api-bzl.us1.ddbuild.io/vault.centos.org|g' /etc/yum.repos.d/*.repo
     - sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
     - sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
     - |
-      # Retry yum update as vault.centos.org can be slow/unreliable
+      # Retry yum update as the CentOS vault can be slow/unreliable
       for i in 1 2 3; do
         if yum update -y; then
           echo "yum update succeeded on attempt $i"
@@ -1287,7 +1548,7 @@ endforeach;
     INSTALL_MODE: sury
   parallel:
     matrix:
-      - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
+      - PHP_VERSION: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*broken for PHP 8.6 currently*/ : $v; }, $all_minor_major_targets))), "\n" ?>
         IMAGE:
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
@@ -1346,7 +1607,7 @@ endforeach;
   extends: .verify_job
   variables:
     INSTALL_MODE: sury
-    PHP_VERSION: "<?= end($all_minor_major_targets) ?>"
+    PHP_VERSION: "<?= $latest_ga_minor_major ?>"
     INSTALL_TYPE: native_package
     IMAGE: "debian:bookworm-slim"
   script:
@@ -1359,6 +1620,7 @@ endforeach;
   stage: verify
   image: registry.ddbuild.io/images/mirror/debian:bookworm-slim
   tags: [ "arch:<?= $arch ?>" ]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
@@ -1381,6 +1643,7 @@ endforeach;
   stage: verify
   image: registry.ddbuild.io/images/mirror/alpine:3.12
   tags: [ "arch:amd64" ]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
@@ -1395,6 +1658,7 @@ endforeach;
 "verify windows":
   stage: verify
   tags: [ "windows-v2:2019"]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     GIT_STRATEGY: none
   needs:
@@ -1428,7 +1692,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-11"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-14"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1464,7 +1728,7 @@ endforeach;
 
 "min install tests":
   stage: verify
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-11
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-14
   tags: [ "arch:amd64" ]
   variables:
     MAX_TEST_PARALLELISM: 8
@@ -1540,6 +1804,11 @@ endforeach;
     - source venv/bin/activate
     - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
     - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
+    # The mirror builder keeps another copy of the weblog layers and of the library bundle in its build context.
+    # The scenarios only run the loaded images: free that space for their services, RabbitMQ blocks publishers
+    # below 50 MB of free disk.
+    - docker buildx rm --force system-tests-mirror 2>/dev/null || true
+    - docker system df || true
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
@@ -1559,6 +1828,7 @@ endforeach;
   parallel:
     matrix:
       - TESTSUITE:
+        - APM_TRACING_EFFICIENT_PAYLOAD
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
@@ -1707,7 +1977,7 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-11
+    CONTAINER_SUFFIX: bookworm-14
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"
@@ -1771,6 +2041,15 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
     - cp ${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so modules/
   script:
     - ./bin/test.sh
+    - |
+      # Profiling starts at PHP 7.1. Run only NTS because multiple ZTS threads could race
+      # while writing to the single DD_PROFILING_OUTPUT_PPROF file used by this test.
+      if [[ "$PHP_FLAVOUR" == "nts" ]] && php -r 'exit(PHP_VERSION_ID >= 70100 ? 0 : 1);'; then
+        SSI_PROFILE_ARTIFACT_DIR="${CI_PROJECT_DIR}/artifacts/loader-ssi-profile/${ARCH}/${MAJOR_MINOR}" \
+          ./bin/test_ssi_profile.sh
+      else
+        echo "Skipping SSI profile validation for PHP ${MAJOR_MINOR} ${PHP_FLAVOUR}"
+      fi
 
     # FIXME: Now that we strip the symbols, our suppression file is useless
     #if [[ "$MINOR_MAJOR" == "8.3" ]]; then
@@ -1778,6 +2057,11 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
     #  <<# parameters.use_valgrind >>echo "Run with Valgrind" ; TEST_USE_VALGRIND=1 ./bin/test.sh<</ parameters.use_valgrind >>
     #fi
     - ./bin/check_glibc_version.sh
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - artifacts/loader-ssi-profile/
 
 "Loader test on <?= $arch ?> alpine":
   stage: verify
@@ -1810,7 +2094,7 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   tags: [ "arch:$ARCH" ]
   variables:
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-11
+    CONTAINER_SUFFIX: bookworm-14
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"
@@ -2060,6 +2344,9 @@ deploy_to_reliability_env:
       when: on_success
     - when: manual
       allow_failure: true
+  # Global variables (GIT_SUBMODULE_*) are forwarded downstream and override the reliability-env checkout.
+  inherit:
+    variables: [ RELIABILITY_ENV_BRANCH ]
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $RELIABILITY_ENV_BRANCH

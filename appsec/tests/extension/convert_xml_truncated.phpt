@@ -3,8 +3,6 @@ _convert_xml function (truncated XML)
 --DESCRIPTION--
 Tests parsing of truncated/partial XML documents. The parser should recover
 gracefully and return whatever structure was successfully parsed.
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 // Test 1: Truncated in the middle of an element

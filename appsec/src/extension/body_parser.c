@@ -4,13 +4,12 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2026 Datadog, Inc.
 #include "body_parser.h"
-#include "compatibility.h"
 #include "ddappsec.h"
-#include "ddtrace.h"
 #include "logging.h"
-#include "php_compat.h"
 #include "php_objects.h"
+#include "tracer_bridge.h"
 #include <alloc.h>
+#include <ext/compatibility.h>
 
 struct _parser_alloc_context {
     bool bailed_out;

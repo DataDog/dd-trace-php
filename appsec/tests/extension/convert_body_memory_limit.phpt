@@ -1,7 +1,6 @@
 --TEST--
 JSON parser memory limit failure cleans up with native femalloc or its fallback
 --INI--
-extension=ddtrace.so
 memory_limit=8M
 display_errors=0
 --FILE--

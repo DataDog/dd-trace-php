@@ -1,7 +1,5 @@
 --TEST--
 Parser allocation failure releases scratch/output and allows subsequent calls
---INI--
-extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\body_parser_fail_after;

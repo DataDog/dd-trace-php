@@ -9,7 +9,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
-DATADOG_PUBLIC void ddtrace_emit_asm_event() {
+void ddtrace_emit_asm_event() {
     if (!DDTRACE_G(active_stack)) {
         return;
     }

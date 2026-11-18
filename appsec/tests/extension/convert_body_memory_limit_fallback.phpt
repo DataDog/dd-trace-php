@@ -1,7 +1,6 @@
 --TEST--
 Parser allocator fallback reserves chunk headroom and reports a fatal after cleanup
 --INI--
-extension=ddtrace.so
 memory_limit=-1
 display_errors=0
 --SKIPIF--

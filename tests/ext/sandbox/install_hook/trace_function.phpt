@@ -49,9 +49,9 @@ include __DIR__ . '/../dd_dumper.inc';
 --EXPECTF--
 spans(\DDTrace\SpanData) (2) {
   test\foo (trace_function.php, 0, cli)
-    _dd.p.tid => %s
     result => 1
+    _dd.top_level => 1
   test\bar.foo (trace_function.php, 1, cli)
-    _dd.p.tid => %s
     result => 2
+    _dd.top_level => 1
 }
