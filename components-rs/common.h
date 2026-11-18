@@ -598,6 +598,19 @@ typedef struct ddog_DsmIdentity {
 } ddog_DsmIdentity;
 
 typedef struct ddog_FfeResult {
+  /**
+   * One of the VALUE_* constants. VALUE_NONE for errors and defaults.
+   */
+  int32_t value_type;
+  _zend_string * value_string;
+  int64_t value_integer;
+  double value_float;
+  bool value_boolean;
+  /**
+   * The raw JSON text of a VALUE_JSON value. For other values it is set
+   * only when the caller asks for it (`include_value_json`), for the
+   * debug log: scalars are returned typed, without a JSON round trip.
+   */
   _zend_string * value_json;
   _zend_string * variant;
   _zend_string * allocation_key;

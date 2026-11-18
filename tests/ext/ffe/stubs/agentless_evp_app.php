@@ -9,7 +9,7 @@ if (!$failed && !\DDTrace\Testing\ffe_load_config(file_get_contents(__DIR__ . '/
 foreach (explode(',', getenv('PHP_FFE_TRANSPORT_TOKENS')) as $token) {
     ini_set('datadog.trace.agent_test_session_token', $token);
     $result = \DDTrace\ffe_evaluate('transport-flag', \DDTrace\FFE_STRING, 'transport-user-' . $token, array());
-    if (!$failed && (!$result || $result->valueJson !== '"blue"')) throw new RuntimeException('evaluation failed');
+    if (!$failed && (!$result || $result->value !== 'blue')) throw new RuntimeException('evaluation failed');
     // Native error code 6 is PROVIDER_NOT_READY.
     if ($failed && (\DDTrace\ffe_has_config() || !$result || $result->errorCode !== 6)) {
         throw new RuntimeException('expected provider-not-ready evaluation');

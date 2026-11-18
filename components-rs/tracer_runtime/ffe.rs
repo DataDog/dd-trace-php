@@ -301,8 +301,25 @@ const TYPE_FLOAT: i32 = 2;
 const TYPE_BOOLEAN: i32 = 3;
 const TYPE_OBJECT: i32 = 4;
 
+// Which FfeResult field holds the value. tracer/functions.c mirrors these.
+const VALUE_NONE: i32 = 0;
+const VALUE_STRING: i32 = 1;
+const VALUE_INTEGER: i32 = 2;
+const VALUE_FLOAT: i32 = 3;
+const VALUE_BOOLEAN: i32 = 4;
+const VALUE_JSON: i32 = 5;
+
 #[repr(C)]
 pub struct FfeResult {
+    /// One of the VALUE_* constants. VALUE_NONE for errors and defaults.
+    pub value_type: i32,
+    pub value_string: MaybeOwnedZendString,
+    pub value_integer: i64,
+    pub value_float: f64,
+    pub value_boolean: bool,
+    /// The raw JSON text of a VALUE_JSON value. For other values it is set
+    /// only when the caller asks for it (`include_value_json`), for the
+    /// debug log: scalars are returned typed, without a JSON round trip.
     pub value_json: MaybeOwnedZendString,
     pub variant: MaybeOwnedZendString,
     pub allocation_key: MaybeOwnedZendString,
@@ -338,6 +355,7 @@ pub extern "C" fn ddog_ffe_evaluate(
     targeting_key: CharSlice<'_>,
     attributes: *const FfeAttribute<'_>,
     attributes_count: usize,
+    include_value_json: bool,
 ) -> FfeResult {
     if flag_key.as_raw_parts().0.is_null() {
         return invalid_result();
@@ -394,9 +412,9 @@ pub extern "C" fn ddog_ffe_evaluate(
             if let Ok(assignment) = &assignment {
                 debug!("Feature Flags: native resolution failed (flagKey={flag_key:?}, configVersion={}): expected object/array, resolved raw JSON={}", state.version, assignment_value_to_json(&assignment.value));
             }
-            error_result(ERROR_TYPE_MISMATCH, REASON_ERROR)
+            error_result(ERROR_TYPE_MISMATCH, REASON_ERROR, include_value_json)
         } else {
-            result_from_assignment(assignment)
+            result_from_assignment(assignment, include_value_json)
         };
         result.observe_full_evaluation_data = state
             .config
@@ -456,12 +474,13 @@ fn parse_attributes(
     parsed
 }
 
-fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) -> FfeResult {
+fn result_from_assignment(
+    assignment: Result<ffe::Assignment, EvaluationError>,
+    include_value_json: bool,
+) -> FfeResult {
     match assignment {
         Ok(assignment) => {
-            let value_json = assignment_value_to_json(&assignment.value);
-            FfeResult {
-                value_json: Some(value_json.as_str().into()),
+            let mut result = FfeResult {
                 variant: Some(assignment.variation_key.as_str().into()),
                 allocation_key: Some(assignment.allocation_key.as_str().into()),
                 reason: match assignment.reason {
@@ -476,7 +495,13 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 do_log: assignment.do_log,
                 observe_full_evaluation_data: false,
                 valid: true,
+                ..value_fields(&assignment.value)
+            };
+            if include_value_json && result.value_json.is_none() {
+                result.value_json =
+                    Some(assignment_value_to_json(&assignment.value).as_str().into());
             }
+            result
         }
         Err(error) => {
             let (error_code, reason) = match &error {
@@ -492,28 +517,57 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 _ => (ERROR_GENERAL, REASON_ERROR),
             };
 
-            error_result(error_code, reason)
+            error_result(error_code, reason, include_value_json)
         }
     }
 }
 
-fn error_result(error_code: i32, reason: i32) -> FfeResult {
+/// The typed value fields for an assignment value. Only a JSON value keeps
+/// its JSON text.
+fn value_fields(value: &AssignmentValue) -> FfeResult {
+    let mut result = invalid_result();
+    match value {
+        AssignmentValue::String(value) => {
+            result.value_type = VALUE_STRING;
+            result.value_string = Some(value.as_str().into());
+        }
+        AssignmentValue::Integer(value) => {
+            result.value_type = VALUE_INTEGER;
+            result.value_integer = *value;
+        }
+        AssignmentValue::Float(value) => {
+            result.value_type = VALUE_FLOAT;
+            result.value_float = *value;
+        }
+        AssignmentValue::Boolean(value) => {
+            result.value_type = VALUE_BOOLEAN;
+            result.value_boolean = *value;
+        }
+        AssignmentValue::Json { raw, .. } => {
+            result.value_type = VALUE_JSON;
+            result.value_json = Some(raw.get().into());
+        }
+    }
+    result
+}
+
+fn error_result(error_code: i32, reason: i32, include_value_json: bool) -> FfeResult {
     FfeResult {
-        value_json: Some("null".into()),
-        variant: None,
-        allocation_key: None,
+        value_json: include_value_json.then(|| "null".into()),
         reason,
         error_code,
-        serial_id: 0,
-        has_serial_id: false,
-        do_log: false,
-        observe_full_evaluation_data: false,
         valid: true,
+        ..invalid_result()
     }
 }
 
 fn invalid_result() -> FfeResult {
     FfeResult {
+        value_type: VALUE_NONE,
+        value_string: None,
+        value_integer: 0,
+        value_float: 0.0,
+        value_boolean: false,
         value_json: None,
         variant: None,
         allocation_key: None,
@@ -712,16 +766,19 @@ mod tests {
             CharSlice::from(""),
             std::ptr::null(),
             0,
+            false,
         );
 
         assert!(result.valid);
         assert_eq!(result.reason, REASON_SPLIT);
         assert_eq!(result.error_code, ERROR_NONE);
         assert_eq!(result.do_log, true);
+        assert_eq!(result.value_type, VALUE_STRING);
         assert_eq!(
-            std::str::from_utf8(result.value_json.as_ref().unwrap().as_ref()).unwrap(),
-            r#""empty-targeting-key""#
+            std::str::from_utf8(result.value_string.as_ref().unwrap().as_ref()).unwrap(),
+            "empty-targeting-key"
         );
+        assert!(result.value_json.is_none(), "scalars skip the JSON text");
         clear_config();
     }
 
@@ -759,7 +816,76 @@ mod tests {
             CharSlice::from("user"),
             std::ptr::null(),
             0,
+            false,
         )
+    }
+
+    fn typed_flag_config(variation_type: &str, value: &str) -> CString {
+        CString::new(json_flag_config(value).into_string().unwrap().replace(
+            r#""variationType": "JSON""#,
+            &format!(r#""variationType": "{variation_type}""#),
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn scalars_are_typed_and_json_text_is_only_for_logs() {
+        setup_zend_string_functions();
+        clear_config();
+        let flag_key = CString::new("json.flag").unwrap();
+        let evaluate = |variation_type, value, expected_type, include_value_json| {
+            assert!(ddog_ffe_load_config(char_slice(&typed_flag_config(
+                variation_type,
+                value
+            ))));
+            ddog_ffe_evaluate(
+                char_slice(&flag_key),
+                expected_type,
+                CharSlice::from("user"),
+                std::ptr::null(),
+                0,
+                include_value_json,
+            )
+        };
+        let text = |value: &MaybeOwnedZendString| {
+            value
+                .as_ref()
+                .map(|value| String::from_utf8(value.as_ref().to_vec()).unwrap())
+        };
+
+        let result = evaluate("INTEGER", "9007199254740993", TYPE_INTEGER, false);
+        assert_eq!(
+            (result.value_type, result.value_integer),
+            (VALUE_INTEGER, 9007199254740993)
+        );
+        assert!(result.value_json.is_none());
+        let result = evaluate("NUMERIC", "1.5", TYPE_FLOAT, false);
+        assert_eq!((result.value_type, result.value_float), (VALUE_FLOAT, 1.5));
+        let result = evaluate("BOOLEAN", "true", TYPE_BOOLEAN, false);
+        assert_eq!(
+            (result.value_type, result.value_boolean),
+            (VALUE_BOOLEAN, true)
+        );
+        let result = evaluate("STRING", r#""a\"b""#, TYPE_STRING, true);
+        assert_eq!(result.value_type, VALUE_STRING);
+        assert_eq!(text(&result.value_string).as_deref(), Some(r#"a"b"#));
+        assert_eq!(text(&result.value_json).as_deref(), Some(r#""a\"b""#));
+        let result = evaluate("JSON", r#"{"a": 1}"#, TYPE_OBJECT, false);
+        assert_eq!(result.value_type, VALUE_JSON);
+        assert_eq!(text(&result.value_json).as_deref(), Some(r#"{"a": 1}"#));
+
+        let missing = CString::new("missing").unwrap();
+        let result = ddog_ffe_evaluate(
+            char_slice(&missing),
+            TYPE_STRING,
+            CharSlice::from("user"),
+            std::ptr::null(),
+            0,
+            true,
+        );
+        assert_eq!(result.value_type, VALUE_NONE);
+        assert_eq!(text(&result.value_json).as_deref(), Some("null"));
+        clear_config();
     }
 
     #[test]
@@ -795,6 +921,7 @@ mod tests {
                 CharSlice::from(""),
                 std::ptr::null(),
                 0,
+                false,
             )
         };
         assert!(!evaluate(TYPE_STRING).observe_full_evaluation_data);
