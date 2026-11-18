@@ -6,7 +6,8 @@ if (PHP_VERSION_ID < 80100) die('skip: fibers require PHP 8.1+');
 if (!is_file(__DIR__ . '/vendor/autoload.php')) die('skip: OpenFeature test dependencies required');
 ?>
 --INI--
-datadog.trace.log_file={PWD}/dependent_exposures_final_outcome.debug.log
+datadog.trace.log_file=./tests/OpenFeature/dependent_exposures_final_outcome.debug.log
+error_log=./tests/OpenFeature/dependent_exposures_final_outcome.debug.log
 datadog.trace.log_level="debug,ddtrace=trace"
 --ENV--
 DD_METRICS_OTEL_ENABLED=0
