@@ -369,7 +369,7 @@ class RouteNormalizer
                 $escaped = $rule[++$i];
                 if ($escaped === 'Q') {
                     $inQuote = true;
-                } elseif ($captureDepth === 0 && ctype_alnum($escaped)) {
+                } elseif ($captureDepth === 0 && self::isAsciiAlnum($escaped)) {
                     return false;
                 }
                 continue;
@@ -658,7 +658,7 @@ class RouteNormalizer
                     }
                     continue;
                 }
-                if (ctype_alnum($regex[$i + 1])) {
+                if (self::isAsciiAlnum($regex[$i + 1])) {
                     return null;
                 }
                 $text = $regex[$i + 1];
@@ -996,8 +996,8 @@ class RouteNormalizer
                 $percentIsEscape &&
                 $c === '%' &&
                 $i + 2 < $len &&
-                ctype_xdigit($segment[$i + 1]) &&
-                ctype_xdigit($segment[$i + 2])
+                self::isHexDigit($segment[$i + 1]) &&
+                self::isHexDigit($segment[$i + 2])
             ) {
                 $result .= '%' . strtoupper($segment[$i + 1]) . strtoupper($segment[$i + 2]);
                 $i += 2;
@@ -1006,6 +1006,21 @@ class RouteNormalizer
             }
         }
         return $result;
+    }
+
+    /**
+     * Whether $char is an ASCII letter or digit. ctype is an optional
+     * extension, so it is not used here.
+     */
+    private static function isAsciiAlnum(string $char): bool
+    {
+        return $char !== '' && strspn($char, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') === 1;
+    }
+
+    /** Whether $char is a hexadecimal digit, without the optional ctype extension. */
+    private static function isHexDigit(string $char): bool
+    {
+        return $char !== '' && strspn($char, '0123456789ABCDEFabcdef') === 1;
     }
 
     /**
