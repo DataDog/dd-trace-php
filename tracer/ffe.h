@@ -34,6 +34,15 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
     zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data,
     int64_t evaluation_timestamp_ms, bool targeting_key_invalid);
 
+// Sets dst to the decoded array of a JSON flag value: an immutable array that
+// lives as long as the configuration, shared by every evaluation of that
+// value on this thread. Leaves dst undefined if it cannot provide one.
+void ddtrace_ffe_json_value(zval *dst, const ddog_FfeResult *result);
+// Frees the arrays of replaced configurations, once no request uses them.
+void ddtrace_ffe_json_cache_post_deactivate(void);
+// Takes the fields of the globals being destroyed, which may be another thread's.
+void ddtrace_ffe_json_cache_gshutdown(HashTable **cache, HashTable **retired);
+
 void ddtrace_ffe_record_exposure(zend_string *flag_key, zend_string *targeting_key, zend_string *subject_attributes_json, zend_string *allocation_key, zend_string *variant, int32_t serial_id, bool has_serial_id);
 bool ddtrace_ffe_flush_exposures(void);
 

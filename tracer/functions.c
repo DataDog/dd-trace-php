@@ -1797,7 +1797,7 @@ static void ddtrace_ffe_update_nullable_string_property(zval *object, const char
 
 // Sets `value` to the typed scalar, with the types json_decode() returned
 // before: an integer that does not fit a zend_long becomes a float. Takes
-// ownership of result->value_string. JSON values stay in `valueJson`.
+// ownership of result->value_string. JSON values are set separately.
 static void ddtrace_ffe_update_value_property(zval *object, struct ddog_FfeResult *result) {
     zval value;
 
@@ -1950,6 +1950,17 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         // The debug log shows the raw value as JSON.
         ddog_shall_log(DDOG_LOG_DEBUG)
     );
+    // The JSON text is borrowed from the configuration: decode it, or copy it
+    // for ResultMapper, before anything can load another configuration.
+    zval json_value;
+    zend_string *json_text = NULL;
+    ZVAL_UNDEF(&json_value);
+    if (result.valid && result.value_type == DDTRACE_FFE_VALUE_JSON) {
+        ddtrace_ffe_json_value(&json_value, &result);
+        if (Z_ISUNDEF(json_value)) {
+            json_text = zend_string_init(result.json_text.ptr, result.json_text.len, 0);
+        }
+    }
     if (c_attrs) {
         efree(c_attrs);
     }
@@ -2004,9 +2015,13 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
     ddtrace_ffe_update_value_property(return_value, &result);
-    if (result.value_type == DDTRACE_FFE_VALUE_JSON) {
-        ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
-    } else if (value_json) {
+    if (!Z_ISUNDEF(json_value)) {
+        ddtrace_ffe_update_property(return_value, ZEND_STRL("value"), &json_value);
+        zval_ptr_dtor(&json_value);
+    } else if (json_text) {
+        ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), json_text);
+    }
+    if (value_json) {
         // Only requested for the debug log.
         zend_string_release(value_json);
     }

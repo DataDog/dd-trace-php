@@ -111,7 +111,7 @@ show('success', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array(
     'ignored' => array('drop'),
 )));
 $object = \DDTrace\ffe_evaluate('object.flag', 4, 'user-1', array());
-show('object_success_value', json_decode($object->valueJson, true));
+show('object_success_value', $object->value);
 show('object_success_metadata', array(
     'variant' => $object->variant,
     'allocation_key' => $object->allocationKey,

@@ -140,6 +140,10 @@ typedef struct {
         uint64_t serialization_error;
         uint64_t payload_limit;
     } ffe_submission_drops;
+    // Decoded JSON flag values of one configuration version, see ffe.c.
+    HashTable *ffe_json_cache;
+    uint64_t ffe_json_cache_version;
+    HashTable *ffe_json_retired;
 
 } ddtrace_globals;
 
