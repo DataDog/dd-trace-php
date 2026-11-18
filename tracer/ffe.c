@@ -13,6 +13,9 @@
 #include <ext/sidecar.h>
 #include <ext/zend_hrtime.h>
 #include <ext/standard/php_string.h>
+#include <ext/json/php_json.h>
+#include <json/json.h>
+#include <limits.h>
 #include <php.h>
 #include <string.h>
 
@@ -27,6 +30,204 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 #define DD_FFE_METRIC_BUFFER_LIMIT 1000
 #define DD_FFE_EXPOSURE_BUFFER_LIMIT 1000
 #define DD_FFE_CONTEXT_FIELD_LIMIT 256
+
+#if PHP_VERSION_ID >= 70300
+// JSON flag values are decoded once per configuration and thread (the Rust
+// configuration is thread-local too), then shared by every later evaluation,
+// in this request or a later one. The arrays are persistent and immutable,
+// like the literal arrays of opcache: a copy shares them, and a write first
+// separates a request-local copy. A new configuration starts with an empty
+// cache; the arrays of the previous one are freed after the request ends.
+
+static zend_string *dd_ffe_json_persist_string(zend_string *str) {
+    zend_string *persistent = zend_string_init(ZSTR_VAL(str), ZSTR_LEN(str), 1);
+    zend_string_hash_val(persistent);
+    // Flagged as interned, so that copies never change its refcount. It is in
+    // no interned string table: dd_ffe_json_free_array() frees it.
+#ifdef IS_STR_PERMANENT
+    GC_ADD_FLAGS(persistent, IS_STR_INTERNED | IS_STR_PERMANENT);
+#else
+    GC_ADD_FLAGS(persistent, IS_STR_INTERNED);
+#endif
+    return persistent;
+}
+
+static zend_array *dd_ffe_json_persist_array(zend_array *src);
+
+static void dd_ffe_json_persist_zval(zval *dst, zval *src) {
+    switch (Z_TYPE_P(src)) {
+        case IS_STRING:
+            ZVAL_INTERNED_STR(dst, dd_ffe_json_persist_string(Z_STR_P(src)));
+            break;
+        case IS_ARRAY:
+            if (zend_hash_num_elements(Z_ARR_P(src)) == 0) {
+                ZVAL_EMPTY_ARRAY(dst);
+                break;
+            }
+            ZVAL_ARR(dst, dd_ffe_json_persist_array(Z_ARR_P(src)));
+            Z_TYPE_FLAGS_P(dst) = 0;
+            break;
+        default:
+            ZVAL_COPY_VALUE(dst, src);
+            break;
+    }
+}
+
+// The same immutable form as zai_config_intern_zval(), in the key order and
+// with the key types that json_decode() produced.
+static zend_array *dd_ffe_json_persist_array(zend_array *src) {
+    zend_array *ht = pemalloc(sizeof(zend_array), 1);
+    zend_hash_init(ht, zend_hash_num_elements(src), NULL, NULL, 1);
+    if (HT_IS_PACKED(src)) {
+        zend_hash_real_init_packed(ht);
+    } else {
+        zend_hash_real_init_mixed(ht);
+    }
+
+    zend_ulong index;
+    zend_string *key;
+    zval *val;
+    ZEND_HASH_FOREACH_KEY_VAL(src, index, key, val) {
+        zval copy;
+        dd_ffe_json_persist_zval(&copy, val);
+        if (key) {
+            zend_hash_add_new(ht, dd_ffe_json_persist_string(key), &copy);
+        } else {
+            zend_hash_index_add_new(ht, index, &copy);
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    GC_ADDREF(ht);
+    GC_ADD_FLAGS(ht, IS_ARRAY_IMMUTABLE);
+    return ht;
+}
+
+static void dd_ffe_json_free_array(zend_array *ht) {
+    if (ht == (zend_array *) &zend_empty_array) {
+        return;
+    }
+
+    zend_string *key;
+    zval *val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, val) {
+        if (key) {
+            pefree(key, 1);
+        }
+        if (Z_TYPE_P(val) == IS_STRING) {
+            pefree(Z_STR_P(val), 1);
+        } else if (Z_TYPE_P(val) == IS_ARRAY) {
+            dd_ffe_json_free_array(Z_ARR_P(val));
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    GC_DEL_FLAGS(ht, IS_ARRAY_IMMUTABLE);
+    GC_DELREF(ht);
+    zend_hash_destroy(ht);
+    pefree(ht, 1);
+}
+
+static HashTable *dd_ffe_json_new_table(void) {
+    HashTable *table = pemalloc(sizeof(HashTable), 1);
+    zend_hash_init(table, 8, NULL, NULL, 1);
+    return table;
+}
+
+static void dd_ffe_json_retire_all(void) {
+    HashTable *cache = DDTRACE_G(ffe_json_cache);
+    if (!cache || zend_hash_num_elements(cache) == 0) {
+        return;
+    }
+    if (!DDTRACE_G(ffe_json_retired)) {
+        DDTRACE_G(ffe_json_retired) = dd_ffe_json_new_table();
+    }
+
+    zend_array *array;
+    ZEND_HASH_FOREACH_PTR(cache, array) {
+        zend_hash_next_index_insert_ptr(DDTRACE_G(ffe_json_retired), array);
+    } ZEND_HASH_FOREACH_END();
+    zend_hash_clean(cache);
+}
+
+void ddtrace_ffe_json_value(zval *dst, const ddog_FfeResult *result) {
+    ZVAL_UNDEF(dst);
+
+    if (!DDTRACE_G(ffe_json_cache)) {
+        DDTRACE_G(ffe_json_cache) = dd_ffe_json_new_table();
+    }
+    uint64_t version = ddog_ffe_config_version();
+    if (DDTRACE_G(ffe_json_cache_version) != version) {
+        // The ids belong to the previous configuration: they may be reused.
+        dd_ffe_json_retire_all();
+        DDTRACE_G(ffe_json_cache_version) = version;
+    }
+
+    zend_array *array = zend_hash_index_find_ptr(DDTRACE_G(ffe_json_cache), (zend_ulong) result->json_id);
+    if (!array) {
+        if (result->json_text.len > INT_MAX) {
+            return;
+        }
+
+        // The JSON scanner reads up to a terminating NUL, which the borrowed
+        // text does not have. This copy happens once per value.
+        zend_string *text = zend_string_init(result->json_text.ptr, result->json_text.len, 0);
+        zval decoded;
+        int status = zai_json_decode_assoc_safe(&decoded, ZSTR_VAL(text), (int) ZSTR_LEN(text), PHP_JSON_PARSER_DEFAULT_DEPTH, false);
+        zend_string_release(text);
+        if (status != SUCCESS) {
+            return;
+        }
+        if (Z_TYPE(decoded) != IS_ARRAY) {
+            zval_ptr_dtor(&decoded);
+            return;
+        }
+
+        zval persistent;
+        dd_ffe_json_persist_zval(&persistent, &decoded);
+        zval_ptr_dtor(&decoded);
+        array = Z_ARR(persistent);
+        zend_hash_index_add_new_ptr(DDTRACE_G(ffe_json_cache), (zend_ulong) result->json_id, array);
+    }
+
+    ZVAL_ARR(dst, array);
+    Z_TYPE_FLAGS_P(dst) = 0;
+}
+
+static void dd_ffe_json_free_table(HashTable **table) {
+    if (!*table) {
+        return;
+    }
+
+    zend_array *array;
+    ZEND_HASH_FOREACH_PTR(*table, array) {
+        dd_ffe_json_free_array(array);
+    } ZEND_HASH_FOREACH_END();
+    zend_hash_destroy(*table);
+    pefree(*table, 1);
+    *table = NULL;
+}
+
+void ddtrace_ffe_json_cache_post_deactivate(void) {
+    // No request value refers to a retired array any more.
+    dd_ffe_json_free_table(&DDTRACE_G(ffe_json_retired));
+}
+
+void ddtrace_ffe_json_cache_gshutdown(HashTable **cache, HashTable **retired) {
+    dd_ffe_json_free_table(retired);
+    dd_ffe_json_free_table(cache);
+}
+#else
+// Before PHP 7.3, ResultMapper decodes the JSON text.
+void ddtrace_ffe_json_value(zval *dst, const ddog_FfeResult *result) {
+    (void) result;
+    ZVAL_UNDEF(dst);
+}
+
+void ddtrace_ffe_json_cache_post_deactivate(void) {}
+void ddtrace_ffe_json_cache_gshutdown(HashTable **cache, HashTable **retired) {
+    (void) cache;
+    (void) retired;
+}
+#endif
 
 bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
     zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,

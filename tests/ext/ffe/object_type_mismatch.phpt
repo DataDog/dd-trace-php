@@ -56,8 +56,8 @@ bool(true)
 json-int: 5 1 null null  false
 json-string: 5 1 null null  false
 json-null: 5 1 null null  false
-json-object: 0 0 "on" null {"a":1} true
-json-list: 0 0 "on" null [1,2] true
+json-object: 0 0 "on" {"a":1}  true
+json-list: 0 0 "on" [1,2]  true
 found
 found
 found

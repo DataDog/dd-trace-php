@@ -317,10 +317,16 @@ pub struct FfeResult {
     pub value_integer: i64,
     pub value_float: f64,
     pub value_boolean: bool,
-    /// The raw JSON text of a VALUE_JSON value. For other values it is set
-    /// only when the caller asks for it (`include_value_json`), for the
-    /// debug log: scalars are returned typed, without a JSON round trip.
+    /// A copy of the raw JSON text of the value, only when the caller asks
+    /// for it (`include_value_json`), for the debug log.
     pub value_json: MaybeOwnedZendString,
+    /// The raw JSON text of a VALUE_JSON value, borrowed from the active
+    /// configuration: it stays valid until this thread loads or clears a
+    /// configuration. Read it before anything else can change it.
+    pub json_text: CharSlice<'static>,
+    /// Identifies a VALUE_JSON value within the active configuration. A cache
+    /// of decoded values keys on it together with ddog_ffe_config_version().
+    pub json_id: usize,
     pub variant: MaybeOwnedZendString,
     pub allocation_key: MaybeOwnedZendString,
     pub reason: i32,
@@ -497,7 +503,7 @@ fn result_from_assignment(
                 valid: true,
                 ..value_fields(&assignment.value)
             };
-            if include_value_json && result.value_json.is_none() {
+            if include_value_json {
                 result.value_json =
                     Some(assignment_value_to_json(&assignment.value).as_str().into());
             }
@@ -522,8 +528,8 @@ fn result_from_assignment(
     }
 }
 
-/// The typed value fields for an assignment value. Only a JSON value keeps
-/// its JSON text.
+/// The typed value fields for an assignment value. A JSON value is passed as
+/// its borrowed text, without a copy.
 fn value_fields(value: &AssignmentValue) -> FfeResult {
     let mut result = invalid_result();
     match value {
@@ -545,7 +551,12 @@ fn value_fields(value: &AssignmentValue) -> FfeResult {
         }
         AssignmentValue::Json { raw, .. } => {
             result.value_type = VALUE_JSON;
-            result.value_json = Some(raw.get().into());
+            let text = raw.get();
+            // SAFETY: the configuration owns `raw` until it is replaced or
+            // cleared, which the json_text contract leaves to the caller.
+            result.json_text =
+                unsafe { CharSlice::from_raw_parts(text.as_ptr().cast(), text.len()) };
+            result.json_id = Arc::as_ptr(raw).cast::<u8>() as usize;
         }
     }
     result
@@ -569,6 +580,8 @@ fn invalid_result() -> FfeResult {
         value_float: 0.0,
         value_boolean: false,
         value_json: None,
+        json_text: CharSlice::empty(),
+        json_id: 0,
         variant: None,
         allocation_key: None,
         reason: REASON_ERROR,
@@ -872,7 +885,24 @@ mod tests {
         assert_eq!(text(&result.value_json).as_deref(), Some(r#""a\"b""#));
         let result = evaluate("JSON", r#"{"a": 1}"#, TYPE_OBJECT, false);
         assert_eq!(result.value_type, VALUE_JSON);
-        assert_eq!(text(&result.value_json).as_deref(), Some(r#"{"a": 1}"#));
+        assert!(
+            result.value_json.is_none(),
+            "JSON text is borrowed, not copied"
+        );
+        assert_eq!(result.json_text.try_to_utf8().unwrap(), r#"{"a": 1}"#);
+        let repeat = ddog_ffe_evaluate(
+            char_slice(&flag_key),
+            TYPE_OBJECT,
+            CharSlice::from("user"),
+            std::ptr::null(),
+            0,
+            false,
+        );
+        assert_ne!(result.json_id, 0);
+        assert_eq!(
+            repeat.json_id, result.json_id,
+            "one id per variant and configuration"
+        );
 
         let missing = CString::new("missing").unwrap();
         let result = ddog_ffe_evaluate(

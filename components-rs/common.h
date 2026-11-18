@@ -607,11 +607,21 @@ typedef struct ddog_FfeResult {
   double value_float;
   bool value_boolean;
   /**
-   * The raw JSON text of a VALUE_JSON value. For other values it is set
-   * only when the caller asks for it (`include_value_json`), for the
-   * debug log: scalars are returned typed, without a JSON round trip.
+   * A copy of the raw JSON text of the value, only when the caller asks
+   * for it (`include_value_json`), for the debug log.
    */
   _zend_string * value_json;
+  /**
+   * The raw JSON text of a VALUE_JSON value, borrowed from the active
+   * configuration: it stays valid until this thread loads or clears a
+   * configuration. Read it before anything else can change it.
+   */
+  ddog_CharSlice json_text;
+  /**
+   * Identifies a VALUE_JSON value within the active configuration. A cache
+   * of decoded values keys on it together with ddog_ffe_config_version().
+   */
+  uintptr_t json_id;
   _zend_string * variant;
   _zend_string * allocation_key;
   int32_t reason;

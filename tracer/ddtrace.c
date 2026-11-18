@@ -256,6 +256,7 @@ void ddtrace_ginit(zend_datadog_globals *ddtrace_globals) {
 }
 
 void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
+    ddtrace_ffe_json_cache_gshutdown(&datadog_globals->ddtrace.ffe_json_cache, &datadog_globals->ddtrace.ffe_json_retired);
     zai_hook_gshutdown();
     zai_line_hook_gshutdown();
 
@@ -684,6 +685,7 @@ void ddtrace_rshutdown(bool fast_shutdown) {
 
 void ddtrace_post_deactivate(void) {
     ddtrace_telemetry_rshutdown();
+    ddtrace_ffe_json_cache_post_deactivate();
 
     zai_interceptor_deactivate();
 
