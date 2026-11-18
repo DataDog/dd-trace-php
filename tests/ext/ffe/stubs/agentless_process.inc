@@ -18,6 +18,12 @@ $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
 $address = stream_socket_get_name($server, false);
 putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL=http://' . $address . '/configuration');
+$diagnose = $scenario === 'restart';
+if ($diagnose) {
+    require_once __DIR__ . '/agentless_restart_diagnostics.inc';
+    FfeRestartDiagnostics::start($address);
+}
+$retainedSeen = false;
 $application = $scenario === 'swoole' ? '/agentless_swoole_app.php' : '/agentless_process_app.php';
 if ($scenario === 'threads') $application = '/agentless_threads_app.php';
 $process = ffeTestProcess(__DIR__ . $application, $pipes);
@@ -37,7 +43,14 @@ try {
     do {
         $stdout .= ffeTestProcessRead($pipes[1]);
         $stderr .= ffeTestProcessRead($pipes[2]);
-        if ($readyAt === null && strpos($stdout, "fixture_child_ready\n") !== false) $readyAt = microtime(true);
+        if ($readyAt === null && strpos($stdout, "fixture_child_ready\n") !== false) {
+            $readyAt = microtime(true);
+            if ($diagnose) FfeRestartDiagnostics::event('fixture_child_ready');
+        }
+        if ($diagnose && !$retainedSeen && strpos($stdout, "last_configuration_retained\n") !== false) {
+            $retainedSeen = true;
+            FfeRestartDiagnostics::event('last_configuration_retained');
+        }
         $status = proc_get_status($process);
         if (!$status['running']) {
             $running = false;
@@ -49,11 +62,15 @@ try {
             if ($sidecarPid === null) throw new RuntimeException('cannot locate the dedicated sidecar');
             if (!posix_kill($sidecarPid, SIGKILL)) throw new RuntimeException('cannot stop dedicated sidecar');
             $restarted = true;
+            $killedAt = microtime(true);
+            FfeRestartDiagnostics::event("killed sidecar pid=$sidecarPid");
+            FfeRestartDiagnostics::sample();
             fwrite($pipes[0], "sidecar_killed\n");
         }
         if ($scenario === 'restart' && !$terminated && strpos($stdout, "sidecar_restarted_and_refreshed\n") !== false) {
             $replacement = ffeTestWaitForSidecarPid($status['pid'], $sidecarPid, $instrumented ? 30 : 3);
             if ($replacement === null) throw new RuntimeException('replacement sidecar missing');
+            FfeRestartDiagnostics::event("refreshed; replacement sidecar pid=$replacement");
             if (!posix_kill($replacement, SIGTERM)) throw new RuntimeException('cannot signal replacement sidecar');
             $deadline = microtime(true) + ($instrumented ? 45 : 3);
             while (ffeTestSidecarPid($status['pid']) === $replacement && microtime(true) < $deadline) usleep(20000);
@@ -62,10 +79,25 @@ try {
             fwrite($pipes[0], "sidecar_terminated\n");
             fclose($pipes[0]);
         }
+        if ($diagnose && $restarted && !$terminated) {
+            FfeRestartDiagnostics::sampleEvery(2);
+            if (microtime(true) - $killedAt > ($instrumented ? 60 : 6)) {
+                FfeRestartDiagnostics::maybeSnapshotSidecar($status['pid'], $sidecarPid);
+            }
+        }
         $connection = @stream_socket_accept($server, 0.1);
         if (!$connection) continue;
+        $acceptedAt = microtime(true);
         stream_set_timeout($connection, 1);
-        while (($line = fgets($connection)) !== false && trim($line) !== '') {}
+        $headerLines = 0;
+        $requestLine = '';
+        while (($line = fgets($connection)) !== false && trim($line) !== '') {
+            if ($headerLines++ === 0) $requestLine = trim($line);
+        }
+        if ($diagnose) {
+            FfeRestartDiagnostics::event(sprintf('accept #%d restarted=%d header_lines=%d complete=%d read=%.3fs request="%s"',
+                $requests + 1, $restarted, $headerLines, $line !== false, microtime(true) - $acceptedAt, substr($requestLine, 0, 60)));
+        }
         $requests++;
         if ($scenario === 'swoole' && getenv('PHP_FFE_SWOOLE_COLD') === 'expired' && $requests === 1) {
             // Withhold configuration until the parent has timed out and its worker evaluates.
@@ -161,8 +193,12 @@ try {
                 'type' => 'universal-flag-configuration', 'attributes' => $configuration,
             )));
         }
-        fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nContent-Length: "
+        $written = fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
+        if ($diagnose) {
+            FfeRestartDiagnostics::event(sprintf('respond #%d %s value=%s written=%s', $requests, $code,
+                $code === '200 OK' ? $value : '-', var_export($written, true)));
+        }
         fclose($connection);
     } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 210 : 30)));
     $stdout .= ffeTestProcessRead($pipes[1]);
@@ -178,6 +214,10 @@ try {
     echo implode("\n", $lines), "\n";
     if ($scenario === 'shutdown') echo "shutdown_cancelled_inflight_request\n";
     if ($scenario === 'isolation') echo "cdn_request_outside_php\n";
+    if ($diagnose) FfeRestartDiagnostics::succeed();
+} catch (\Throwable $e) {
+    if ($diagnose) FfeRestartDiagnostics::fail($e);
+    throw $e;
 } finally {
     if (is_resource($pipes[0])) fclose($pipes[0]);
     fclose($pipes[1]);
