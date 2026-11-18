@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\BaseTestCase;
 /**
  * matchSubjectMayDiverge decides whether WP::parse_request may have matched
  * rewrite rules against "$requested_file/$requested_path" instead of
- * WP::$request. True omits _dd.appsec.normalized_route, since the subject
+ * WP::$request. True falls back to the rule's mandatory parts, since the subject
  * WordPress used is not kept and the replay cannot be shown to be exact.
  */
 class WordPressIntegrationLoaderTest extends BaseTestCase
@@ -111,7 +111,7 @@ class WordPressIntegrationLoaderTest extends BaseTestCase
     {
         // Both come from the same variable unless WP took the permalink from
         // the path info; an empty request proves nothing either way, so this
-        // stays omitted even though WP would not have swapped.
+        // uses the fallback even though WP would not have swapped.
         $this->assertTrue(
             WordPressIntegrationLoader::matchSubjectMayDiverge('/blog', '/blog', '')
         );

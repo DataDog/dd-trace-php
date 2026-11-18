@@ -655,4 +655,20 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertNull(RouteNormalizer::normalizeFromWordPress('^docs/([](])[^/]+[])]$', 'docs/(alice)'));
         $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics('^docs/([](])[^/]+[])]$'));
     }
+
+    public function testWordPressRuleNotMatchingTheSubjectFallsBackToMandatoryParts()
+    {
+        // RFC-1125: never omit the tag because optional parts cannot be resolved.
+        $this->assertSame(
+            '/normalized-pathinfo/{param1}',
+            RouteNormalizer::normalizeFromWordPress('(?:([^/]+)/)?normalized-pathinfo/([^/]+)/?$', 'other')
+        );
+        $this->assertSame('/blog/{param1}', RouteNormalizer::normalizeFromWordPressRule('^blog/([^/]+)/?$'));
+        $this->assertSame(
+            '/named/{first}-{second}',
+            RouteNormalizer::normalizeFromWordPressRule('^named/(?P<first>[^/]+)-(?P<second>[^/]+)/?$')
+        );
+        // A rule that cannot be expressed gets no fallback either.
+        $this->assertNull(RouteNormalizer::normalizeFromWordPressRule('^foo/.+$'));
+    }
 }

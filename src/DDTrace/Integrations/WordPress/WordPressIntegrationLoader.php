@@ -735,8 +735,7 @@ class WordPressIntegrationLoader
                     $rootSpan->attributes[Tag::HTTP_ROUTE] = $matchedRule;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
                         && dd_trace_env_config("DD_API_SECURITY_ENABLED")
-                        && \property_exists($This, 'request') && is_string($This->request)
-                        && !self::requestHasPathInfo($This->request)) {
+                        && \property_exists($This, 'request') && is_string($This->request)) {
                         // The route is not cached, because unlike a Laravel or
                         // Symfony template a rule plus the captures that took
                         // part does not determine it: '^([^/]+)(?:/x)?/([^/]+)$'
@@ -747,10 +746,12 @@ class WordPressIntegrationLoader
                         // telling them apart is the whole computation. What is
                         // cached per rule is the safety scan, in
                         // RouteNormalizer::wordPressRulePlan().
-                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress(
-                            $matchedRule,
-                            $This->request
-                        );
+                        // When WordPress may have matched another subject than
+                        // WP::$request, which captures took part is unknown: fall
+                        // back to the rule's mandatory parts (RFC-1125).
+                        $normalizedRoute = self::requestHasPathInfo($This->request)
+                            ? \DDTrace\Util\RouteNormalizer::normalizeFromWordPressRule($matchedRule)
+                            : \DDTrace\Util\RouteNormalizer::normalizeFromWordPress($matchedRule, $This->request);
                         if ($normalizedRoute !== null) {
                             $rootSpan->attributes[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                         }
@@ -767,7 +768,8 @@ class WordPressIntegrationLoader
      * WP::$request. WP::parse_request matches against WP::$request only until
      * a rule starts with the requested file; from there on, for every later
      * rule, it matches "$requested_file/$requested_path" instead, and that
-     * subject is not kept. It cannot be reproduced, so the route is omitted.
+     * subject is not kept. It cannot be reproduced, so the route falls back to
+     * the rule's mandatory parts.
      *
      * That swap is guarded by "! empty( $requested_file ) && $requested_file
      * != $requested_path", so a non-empty PATH_INFO is not by itself the
@@ -778,7 +780,7 @@ class WordPressIntegrationLoader
      * whole class of deployments, so they are recovered here.
      *
      * Only WP's own derivation of $requested_file is mirrored, and only to
-     * prove it empty; anything that cannot be proven stays omitted. WP strips
+     * prove it empty; anything that cannot be proven uses the fallback. WP strips
      * the home path from $req_uri after this point, which can only shrink it
      * further, so a value proven empty here is empty for WP as well.
      */

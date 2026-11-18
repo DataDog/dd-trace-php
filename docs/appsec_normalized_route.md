@@ -179,24 +179,31 @@ outside the captures that took part is static text, each such capture is a
 parameter (named captures keep their name, unnamed ones get `param<N>`, the
 smallest N not used), and a capture that matched an empty string is absent.
 WordPress matches `#^rule#`, so a rule without `$` is a prefix route: the
-rest of the path is its unnamed catch-all. Rewrite rules declare no optional
-parameters, so there is no mandatory-only route to fall back to. The tag is
-not set when:
+rest of the path is its unnamed catch-all.
+
+It falls back to the rule's mandatory parts (its literal text and the
+captures outside optional parts, without the optional ones) when which
+captures took part cannot be determined:
+
+- WordPress may have matched a subject that is not kept. It swaps the
+  subject for `$requested_file/$requested_path` from the first rule that
+  starts with the requested file, so the fallback is used when `PATH_INFO` is
+  not empty (e.g. `/index.php/foo`) and the requested file cannot be shown to
+  be empty. A site whose server rewrites every request to `index.php/$1` has
+  the whole request URI consumed by the path info, leaving an empty requested
+  file: no swap can happen there and the rule is replayed. A subdirectory
+  installation whose request URI is exactly the home path uses the fallback,
+  though WordPress would not have swapped;
+- the rule matches neither `WP::$request` nor its URL-decoded form.
+
+The tag is not set, as the route cannot be expressed, when:
 
 - the rule can consume text that is not inside a capture group: outside
   captures it uses `.`, a character class, `*`, `+`, `{`, an escape such as
-  `\d` or `\w`, an inline option or a lookaround. The route cannot be
-  expressed. This rejects WordPress's index permalink rules (`index.php/...`)
-  and its default attachment rules;
-- WordPress may have matched a subject that is not kept, so no route is
-  determined. It swaps the subject for `$requested_file/$requested_path`
-  from the first rule that starts with the requested file, so the tag is
-  omitted when `PATH_INFO` is not empty (e.g. `/index.php/foo`) and the
-  requested file cannot be shown to be empty. A site whose server rewrites
-  every request to `index.php/$1` has the whole request URI consumed by the
-  path info, leaving an empty requested file: no swap can happen there and
-  the tag is kept. A subdirectory installation whose request URI is exactly
-  the home path is omitted, though WordPress would not have swapped;
+  `\d` or `\w`, an inline option or a lookaround. This rejects WordPress's
+  index permalink rules (`index.php/...`) and its default attachment rules;
+- the fallback is needed and the rule has an alternation outside an optional
+  part (which branch matched is unknown);
 - the capture names do not line up with their groups.
 
 Deliberate simplifications:
