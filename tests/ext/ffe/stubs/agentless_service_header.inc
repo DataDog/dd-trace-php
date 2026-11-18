@@ -2,8 +2,9 @@
 
 require_once __DIR__ . '/ffe_process.inc';
 
-// Prints the DD-Service header of the CDN requests from one PHP process.
-function ffeTestAgentlessServiceHeader($name, $service, $otelService)
+// Prints the DD-Service header of the CDN requests from one PHP process, and the service of
+// its serialized root span.
+function ffeTestAgentlessServiceHeader($name, $service, $otelService, $mapping = null)
 {
     // Valgrind makes this fixture slow, so it gets longer request timeouts.
     $instrumented = getenv('USE_ZEND_ALLOC') === '0';
@@ -11,9 +12,14 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService)
     if (!$server) throw new RuntimeException($error);
     $environment = getenv();
     foreach (array('DD_FEATURE_FLAGS_ENABLED', 'DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED',
-        'DD_SERVICE', 'OTEL_SERVICE_NAME') as $key) unset($environment[$key]);
+        'DD_SERVICE', 'OTEL_SERVICE_NAME', 'DD_SERVICE_MAPPING') as $key) unset($environment[$key]);
     if ($service !== null) $environment['DD_SERVICE'] = $service;
     if ($otelService !== null) $environment['OTEL_SERVICE_NAME'] = $otelService;
+    if ($mapping !== null) $environment['DD_SERVICE_MAPPING'] = $mapping;
+    // The child traces one span and serializes it itself, so nothing is sent to an agent.
+    $environment['DD_TRACE_ENABLED'] = '1';
+    $environment['DD_TRACE_GENERATE_ROOT_SPAN'] = '0';
+    $environment['DD_TRACE_AUTO_FLUSH_ENABLED'] = '0';
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE'] = 'agentless';
     // On Windows a sidecar spawn can fail while other sidecars run (os error 80), so there all
     // cases share one sidecar. Each case still gets its own fetcher, because its base URL and
@@ -78,7 +84,8 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService)
         fwrite($pipes[0], "finish\n");
         while ($running) $pump();
         if ($exitCode !== 0) throw new RuntimeException('child failed: ' . $stdout . ' ' . $stderr);
-        echo $name, '=', implode(',', array_unique($values)), "\n";
+        if (!preg_match('/^span_service=(.*)$/m', $stdout, $span)) throw new RuntimeException('no span: ' . $stdout);
+        echo $name, '=', implode(',', array_unique($values)), ' span=', $span[1], "\n";
     } finally {
         if ($running) proc_terminate($process);
         foreach ($pipes as $pipe) fclose($pipe);

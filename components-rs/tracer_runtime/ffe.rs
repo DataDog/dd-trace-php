@@ -198,7 +198,7 @@ pub enum FfeCdnConfigError {
 /// A non-empty `base_url` is fetched as given and never receives the API key.
 /// Otherwise the managed endpoint of `site` is used, filtered to `env`.
 /// The intervals must already be within the ranges accepted by the sidecar.
-/// `service` is the service of the root spans. Requests send it in `DD-Service`.
+/// Requests send `service` in `DD-Service`. An empty `service` sends no header.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_cdn_config_new(
     base_url: CharSlice,

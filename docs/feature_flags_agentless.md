@@ -44,13 +44,13 @@ the request timeout to 5 seconds. They are set with
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS`.
 Invalid values fall back to their defaults.
 
-Each CDN request sends the service of the root spans in the `DD-Service`
-header, so usage can be attributed to the service. The service is `DD_SERVICE`
-(or `OTEL_SERVICE_NAME`), else the default PHP service name. libdatadog
-normalizes the name with its trace normalizer, so `My Service` sends
-`my_service`. A non-ASCII name such as `café-api` is sent as UTF-8. There is
-no header if the result is empty or is the normalizer fallback
-`unnamed-service`.
+Each CDN request sends the service in the `DD-Service` header, so usage can be
+attributed to the service. The service is `DD_SERVICE` (or `OTEL_SERVICE_NAME`),
+with `DD_SERVICE_MAPPING` applied as for spans. libdatadog normalizes the name
+with its trace normalizer, so `My Service` sends `my_service`. There is no
+header if the normalized name is empty, for example from `___`. There is also
+no header if neither variable is set, because an integration can change the
+default service of the root span (for example Laravel uses `APP_NAME`).
 
 Settings problems are logged once, on the first flag evaluation, so
 applications that never evaluate flags get no feature flag diagnostics.

@@ -11,7 +11,6 @@
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
 #include <ext/sidecar.h>
-#include <ext/target_metadata.h>
 #include <ext/zend_hrtime.h>
 #include <ext/standard/php_string.h>
 #include <php.h>
@@ -218,8 +217,15 @@ void ddtrace_ffe_startup(void) {
     if (!dd_ffe.enabled || dd_ffe.source != DDTRACE_FFE_SOURCE_AGENTLESS) {
         return;
     }
-    // The root spans use DD_SERVICE (or OTEL_SERVICE_NAME), else the default PHP service name.
-    zend_string *service = ZSTR_LEN(get_global_DD_SERVICE()) ? zend_string_copy(get_global_DD_SERVICE()) : datadog_default_service_name();
+    // Usage gets the service that APM shows, or no service. That is DD_SERVICE (or
+    // OTEL_SERVICE_NAME), with DD_SERVICE_MAPPING applied as the serializer does. Without it,
+    // an integration can set the root span service later (Laravel from APP_NAME), so the
+    // requests send no service.
+    zend_string *service = get_global_DD_SERVICE();
+    zval *mapped = ZSTR_LEN(service) ? zend_hash_find(get_global_DD_SERVICE_MAPPING(), service) : NULL;
+    if (mapped) {
+        service = Z_STR_P(mapped);
+    }
     ddog_FfeCdnConfigError error;
     dd_ffe.cdn_config = ddog_ffe_cdn_config_new(
         dd_zend_string_to_CharSlice(get_global_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL()),
@@ -228,7 +234,6 @@ void ddtrace_ffe_startup(void) {
         dd_zend_string_to_CharSlice(get_global_DD_API_KEY()),
         dd_zend_string_to_CharSlice(service),
         (uint32_t)poll_interval, (uint32_t)request_timeout, &error);
-    zend_string_release(service);
     if (!dd_ffe.cdn_config) {
         switch (error) {
             case DDOG_FFE_CDN_CONFIG_ERROR_MISSING_API_KEY: dd_ffe.failure = DD_FFE_FAILURE_MISSING_API_KEY; break;
