@@ -19,6 +19,7 @@ datadog.trace.agent_url="file://{PWD}/integration-telemetry-03.out"
 <?php
 namespace
 {
+    require __DIR__ . '/../includes/telemetry_file.inc';
     //Here we use one wrapped function
     file_put_contents('/tmp/dummy', 'foo');
 
@@ -27,18 +28,10 @@ namespace
 
     for ($i = 0; $i < 300; ++$i) {
         usleep(100000);
-        if (file_exists($file )) {
-            foreach (file($file) as $l) {
-                if ($l && $l[0] == '{') {
-                    $json = json_decode($l, true);
-                    $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                    foreach ($batch as $json) {
-                        if ($json["request_type"] == "app-integrations-change") {
-                            var_dump($json["payload"]);
-                            break 3;
-                        }
-                    }
-                }
+        foreach (read_telemetry_file($file) as $json) {
+            if ($json["request_type"] == "app-integrations-change") {
+                var_dump($json["payload"]);
+                break 2;
             }
         }
     }

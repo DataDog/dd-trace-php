@@ -226,7 +226,7 @@ fn sidecar_connect(cfg: config::Config) -> anyhow::Result<Box<SidecarTransport>>
     // Generally the Send buffer ought to be big enough for instantaneous transmission
     _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
     _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
-    // We do not put reconnect_fn into sidecar_connect, as the reconnect shall not reconnect again on error to prevent recursion
+    // PHP installs its reconnect factory after this returns.
     Ok(stream)
 }
 
@@ -236,7 +236,6 @@ pub extern "C" fn ddog_sidecar_connect_php(
     error_path: *const c_char,
     log_level: CharSlice,
     enable_telemetry: bool,
-    on_reconnect: Option<extern "C" fn(*mut SidecarTransport)>,
     crashtracker_endpoint: Option<&Endpoint>,
     backpressure_bytes: u64,
     backpressure_queue: u64,
@@ -275,17 +274,7 @@ pub extern "C" fn ddog_sidecar_connect_php(
 
     cfg.pipe_buffer_size = backpressure_bytes as usize;
 
-    let reconnect_fn = on_reconnect.map(|on_reconnect| {
-        let cfg = cfg.clone();
-        Box::new(move || {
-            let mut transport = sidecar_connect(cfg.clone()).ok()?;
-            on_reconnect(transport.as_mut() as *mut _);
-            Some(transport)
-        }) as Box<dyn Fn() -> _>
-    });
-
     let mut stream = try_c!(sidecar_connect(cfg));
-    stream.reconnect_fn = reconnect_fn;
     let _ = stream.set_backpressure(backpressure_bytes as usize, backpressure_queue);
     *connection = Box::into_raw(stream);
 
@@ -359,6 +348,57 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
 #[allow(clippy::borrowed_box)]
 pub extern "C" fn ddog_sidecar_transport_raw_fd(transport: &Box<SidecarTransport>) -> i32 {
     transport.as_raw_fd()
+}
+
+/// Mark a notified process death and recover only while the reconnect callback is enabled.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_check_liveness(
+    transport: &mut Box<SidecarTransport>,
+    process_died: bool,
+) {
+    if process_died {
+        transport.inner.channel.0.mark_closed();
+    }
+    transport.ensure_alive();
+}
+
+/// Arm a quiet death notification before transferring its writer to the sidecar.
+/// The caller owns the returned reader; neither the transport nor its replay state retains
+/// a writer. Closing the reader also releases the sidecar's process watch.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_watch_process(
+    transport: &mut Box<SidecarTransport>,
+    reader_fd: &mut i32,
+) -> MaybeError {
+    use datadog_sidecar::service::sidecar_interface::SidecarInterfaceRequest;
+    use libdd_ipc::platform::PlatformHandle;
+    use std::os::fd::{AsRawFd, IntoRawFd};
+
+    // Linux UAPI F_SETSIG (asm-generic/fcntl.h), not exposed by the libc crate.
+    const F_SETSIG: libc::c_int = 10;
+    let (reader, writer) = try_c!(std::io::pipe());
+    let fd = reader.as_raw_fd();
+    // SAFETY: the pipe descriptors remain owned here until after registration and transfer.
+    for (fd, command, value) in [
+        (fd, libc::F_SETOWN, unsafe { libc::getpid() }),
+        (fd, F_SETSIG, libc::SIGVTALRM),
+        (fd, libc::F_SETFL, libc::O_NONBLOCK | libc::O_ASYNC),
+        (writer.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK),
+    ] {
+        if unsafe { libc::fcntl(fd, command, value) } < 0 {
+            return MaybeError::Some(std::io::Error::last_os_error().to_string().into());
+        }
+    }
+    let request = SidecarInterfaceRequest::RegisterLiveness {
+        writer: PlatformHandle::from(writer),
+    };
+    try_c!(transport.inner.channel.send_request_blocking(&request));
+    // Drop every local writer reference now, including the serialized request's handle.
+    drop(request);
+    *reader_fd = reader.into_raw_fd();
+    MaybeError::None
 }
 
 const SHM_LIMITER_GRANULARITY: Duration = Duration::from_secs(1);

@@ -1358,6 +1358,7 @@ dependencies = [
  "libdd-telemetry",
  "libdd-tinybytes",
  "libdd-trace-model",
+ "libdd-trace-normalization",
  "libdd-trace-stats",
  "libdd-trace-utils",
  "manual_future",
@@ -1368,6 +1369,7 @@ dependencies = [
  "rand 0.8.8",
  "rmp-serde",
  "rmpv",
+ "semver",
  "serde",
  "serde_json",
  "serde_with",
@@ -3420,6 +3422,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "libc",
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
@@ -3436,6 +3439,7 @@ dependencies = [
  "sha2",
  "strum",
  "strum_macros",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -3543,6 +3547,7 @@ dependencies = [
  "arbitrary",
  "criterion",
  "duplicate",
+ "libdd-trace-model",
  "libdd-trace-protobuf",
  "rand 0.8.8",
 ]
@@ -3566,6 +3571,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tools",
 ]
 
 [[package]]

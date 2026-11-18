@@ -2463,6 +2463,12 @@ void ddog_endpoint_drop(struct ddog_Endpoint*);
 void ddog_Error_drop(struct ddog_Error *error);
 
 /**
+ * Drops and frees a boxed error, such as the one returned by
+ * `ddog_endpoint_from_api_key_and_site`. Null is accepted.
+ */
+void ddog_Error_free(struct ddog_Error *error);
+
+/**
  * Returns a CharSlice of the error's message that is valid until the error
  * is dropped.
  * # Safety

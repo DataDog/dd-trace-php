@@ -18,8 +18,11 @@ require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 
 // Logs go to v2/input until the sidecar knows the agent lacks it; it knows once the info is visible here.
-if (!dd_trace_internal_fn("await_agent_info")) {
-    echo "The agent info was not received\n";
+// Instrumented sidecar startup and its first /info request can exceed the
+// helper's ordinary five-second budget under parallel Valgrind workers.
+$agentInfoTimeout = getenv('USE_ZEND_ALLOC') === '0' ? 30000 : 5000;
+if (!dd_trace_internal_fn("await_agent_info", $agentInfoTimeout)) {
+    throw new RuntimeException("The agent info was not received");
 }
 
 function &foo($arg) {
