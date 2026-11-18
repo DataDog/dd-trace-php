@@ -60,9 +60,9 @@ jobs:
             cargo fetch --locked -Zbuild-std=std,panic_abort \
               --target aarch64-unknown-linux-gnu \
               --target x86_64-unknown-linux-gnu
-          # appsec_body is a standalone workspace with its own lockfile (and
-          # dev-dependencies), built offline by tools/isolate.rs with std
-          # rebuilt using panic_unwind.
+          # appsec_body is built offline by tools/isolate.rs with std rebuilt
+          # using panic_unwind. Fetch its dev-dependencies and target-specific
+          # std dependencies too.
           RUSTC_BOOTSTRAP=1 cargo fetch --locked \
             --manifest-path components-rs/appsec_body/Cargo.toml \
             -Zbuild-std=std,panic_unwind \

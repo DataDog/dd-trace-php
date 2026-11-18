@@ -73,6 +73,37 @@ linux-php-wordpress-parallel:
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
+# The suites' follow-up jobs consume their run job's artifacts through
+# `needs`. GitLab starts a job that needs an optional manual job without
+# waiting for it, so the follow-up jobs take the run jobs' rules: they run
+# where the run jobs run and stay manual elsewhere.
+php-laravel-realworld-parallel-generate-slos:
+  rules: *macrobenchmarks-rules
+
+php-laravel-realworld-parallel-check-slo-breaches:
+  rules: *macrobenchmarks-rules
+
+php-laravel-realworld-parallel-upload-results:
+  rules: *macrobenchmarks-rules
+
+php-symfony-realworld-parallel-generate-slos:
+  rules: *macrobenchmarks-rules
+
+php-symfony-realworld-parallel-check-slo-breaches:
+  rules: *macrobenchmarks-rules
+
+php-symfony-realworld-parallel-upload-results:
+  rules: *macrobenchmarks-rules
+
+php-wordpress-parallel-generate-slos:
+  rules: *macrobenchmarks-rules
+
+php-wordpress-parallel-check-slo-breaches:
+  rules: *macrobenchmarks-rules
+
+php-wordpress-parallel-upload-results:
+  rules: *macrobenchmarks-rules
+
 variables:
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
   # The Dockerfile to this image is located at:

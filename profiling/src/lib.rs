@@ -309,7 +309,7 @@ pub extern "C" fn ddog_php_prof_minit(_type: c_int, module_number: c_int) -> Zen
     // and SSL_CERT_DIR environment variables safely before any threads are
     // spawned, avoiding potential getenv/setenv race conditions.
     {
-        let _connector = libdd_common::connector::Connector::default();
+        let _connector = libdd_networking::connector::Connector::default();
     }
 
     // Initialize the lazy locks holding the env vars for new origin detection,

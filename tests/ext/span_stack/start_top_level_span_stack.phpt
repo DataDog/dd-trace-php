@@ -46,6 +46,5 @@ Now, we are back on the global span stack: bool(true)
 Impliying we also have no active span: bool(true)
 spans(\DDTrace\SpanData) (1) {
   start_top_level_span_stack.php (start_top_level_span_stack.php, start_top_level_span_stack.php, cli)
-    _dd.p.dm => -0
-    _dd.p.tid => %s
+    _dd.top_level => 1
 }

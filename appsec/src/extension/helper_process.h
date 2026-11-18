@@ -14,20 +14,12 @@
 #include "dddefs.h"
 #include "network.h"
 
-typedef enum _helper_runtime {
-    HELPER_RUNTIME_UNKNOWN = 0,
-    HELPER_RUNTIME_RUST = 2,
-} helper_runtime;
-
-helper_runtime dd_helper_get_runtime(void);
-void dd_helper_set_runtime(helper_runtime rt);
-
-
 void dd_helper_startup(void);
 void dd_helper_shutdown(void);
 void dd_helper_mshutdown(void);
 void dd_helper_gshutdown(ddappsec_globals *nonnull globals);
 void dd_helper_rshutdown(void);
+void dd_helper_abandon_request(void);
 
 typedef dd_result (*client_init_func)(dd_conn *nonnull, void *unspecnull ctx);
 dd_conn *nullable dd_helper_mgr_acquire_conn(

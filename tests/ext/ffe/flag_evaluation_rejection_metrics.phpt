@@ -57,6 +57,8 @@ do {
 var_dump($accepted);
 var_dump(recordEvaluation('still-disconnected'));
 var_dump(recordEvaluation('still-disconnected'));
+// Allow the subprocess connection cooldown to expire before reconnecting.
+sleep(10);
 dd_trace_internal_fn('stats_sidecar');
 var_dump(recordEvaluation('recovered'));
 // Finish accepted EVP writes before CLEAN removes the shared capture file.

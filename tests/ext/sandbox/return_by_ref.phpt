@@ -22,7 +22,7 @@ var_dump($data);
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECT--
 array(1) {

@@ -54,7 +54,7 @@ foreach (['legacy_range', 'attribute_range'] as $function) {
     }
 }
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === (PHP_VERSION_ID < 80000 ? 9 : 17), 'all spans serialized');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === (PHP_VERSION_ID < 80000 ? 9 : 17), 'all spans serialized');
 echo "OK\n";
 ?>
 --EXPECT--

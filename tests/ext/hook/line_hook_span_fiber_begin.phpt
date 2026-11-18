@@ -42,7 +42,7 @@ foreach ([false, true] as $reverse) {
     foreach ($ids as $id) DDTrace\remove_hook($id);
 }
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === 5, 'all spans serialized once');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === 5, 'all spans serialized once');
 echo "OK\n";
 ?>
 --EXPECT--

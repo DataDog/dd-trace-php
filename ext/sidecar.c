@@ -18,11 +18,20 @@
 #include "target_metadata.h"
 #include "ffi_utils.h"
 #include <tracer/tracer_api.h>
+#ifdef TRACER
+#include <tracer/ffe.h>
+#endif
 #ifdef APPSEC
 #include <appsec/src/extension/ddappsec_api.h>
 #endif
 #ifndef _WIN32
 #include <tracer/coms.h>
+#endif
+#ifdef __linux__
+#include <poll.h>
+#include <sys/syscall.h>
+#include <time.h>
+#include "zend_hrtime.h"
 #endif
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
@@ -43,6 +52,133 @@ DATADOG_PUBLIC _Atomic(int) datadog_sidecar_crash_fd = -1;
 dd_sidecar_active_mode_t datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_NONE;
 int32_t datadog_sidecar_master_pid = 0;
 
+#ifdef __linux__
+// One quiet death notification per PHP process, shared by all of its thread connections.
+// Publish the fd and its generation in one 64-bit CAS, including when fd numbers are reused.
+typedef struct {
+    int32_t fd;
+    uint32_t generation;
+} dd_sidecar_liveness_t;
+_Static_assert(sizeof(dd_sidecar_liveness_t) == sizeof(uint64_t), "Sidecar watch must fit in 64 bits");
+static _Atomic(dd_sidecar_liveness_t) dd_sidecar_liveness = (dd_sidecar_liveness_t){.fd = -1};
+ZEND_TLS uint32_t dd_sidecar_transport_generation;
+static _Atomic(uint64_t) dd_sidecar_retry_after_ns;
+ZEND_TLS timer_t dd_sidecar_retry_timer;
+ZEND_TLS bool dd_sidecar_retry_timer_created;
+
+static void dd_sidecar_cancel_retry(void) {
+    if (dd_sidecar_retry_timer_created) {
+        timer_delete(dd_sidecar_retry_timer);
+        dd_sidecar_retry_timer_created = false;
+    }
+}
+
+static void dd_sidecar_schedule_retry(uint64_t deadline) {
+    if (!dd_sidecar_retry_timer_created) {
+        // As with the debugger timeout, deliver directly to this thread without creating one.
+#ifndef sigev_notify_thread_id
+#define sigev_notify_thread_id _sigev_un._tid
+#endif
+        struct sigevent event = {0};
+        event.sigev_notify = SIGEV_THREAD_ID;
+        event.sigev_signo = SIGVTALRM;
+        event.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid);
+        if (timer_create(CLOCK_MONOTONIC, &event, &dd_sidecar_retry_timer) != 0) {
+            LOG(WARN, "Failed creating sidecar retry timer");
+            return;
+        }
+        dd_sidecar_retry_timer_created = true;
+    }
+    struct itimerspec timer = {
+        .it_value = {.tv_sec = deadline / ZEND_NANO_IN_SEC, .tv_nsec = deadline % ZEND_NANO_IN_SEC},
+    };
+    if (timer_settime(dd_sidecar_retry_timer, TIMER_ABSTIME, &timer, NULL) != 0) {
+        LOG(WARN, "Failed arming sidecar retry timer");
+    }
+}
+
+static int dd_sidecar_poll_liveness(int fd) {
+    struct pollfd watched = {.fd = fd, .events = 0};
+    return poll(&watched, 1, 0);
+}
+
+static bool dd_sidecar_can_connect(void) {
+    dd_sidecar_liveness_t watch = atomic_load(&dd_sidecar_liveness);
+    if (watch.generation != dd_sidecar_transport_generation
+        && watch.fd >= 0 && dd_sidecar_poll_liveness(watch.fd) <= 0) {
+        // Other threads can join an already recovered generation immediately.
+        return true;
+    }
+    uint64_t now = zend_hrtime();
+    uint64_t retry_after = atomic_load(&dd_sidecar_retry_after_ns);
+    if (now >= retry_after && atomic_compare_exchange_strong(
+            &dd_sidecar_retry_after_ns, &retry_after, now + 10 * ZEND_NANO_IN_SEC)) {
+        return true;
+    }
+    dd_sidecar_schedule_retry(retry_after);
+    return false;
+}
+
+// A failed join of a recovered generation leaves the shared deadline untouched, possibly in the past.
+// Push it forward so the absolute timer cannot fire immediately and loop on the failing connect.
+static void dd_sidecar_defer_retry(void) {
+    uint64_t now = zend_hrtime();
+    uint64_t retry_after = atomic_load(&dd_sidecar_retry_after_ns);
+    while (retry_after <= now) {
+        uint64_t deadline = now + 10 * ZEND_NANO_IN_SEC;
+        if (atomic_compare_exchange_weak(&dd_sidecar_retry_after_ns, &retry_after, deadline)) {
+            retry_after = deadline;
+        }
+    }
+    dd_sidecar_schedule_retry(retry_after);
+}
+
+static bool dd_sidecar_process_died(void) {
+    if (!dd_sidecar_transport_generation) {
+        return false;
+    }
+    dd_sidecar_liveness_t watch = atomic_load(&dd_sidecar_liveness);
+    if (watch.generation != dd_sidecar_transport_generation) {
+        return true;
+    }
+    bool died = dd_sidecar_poll_liveness(watch.fd) > 0;
+    // A concurrent replacement may have closed and reused the fd while poll ran.
+    dd_sidecar_liveness_t current = atomic_load(&dd_sidecar_liveness);
+    return died || current.generation != watch.generation;
+}
+
+static void dd_sidecar_watch_transport(ddog_SidecarTransport *transport) {
+    dd_sidecar_liveness_t watch = atomic_load(&dd_sidecar_liveness);
+    // All connections use the same sidecar. Replace the watch only on confirmed hangup.
+    if (watch.fd >= 0 && dd_sidecar_poll_liveness(watch.fd) <= 0) {
+        dd_sidecar_transport_generation = watch.generation;
+        return;
+    }
+
+    int fd = -1;
+    if (!datadog_ffi_try("Failed watching sidecar process", ddog_sidecar_watch_process(&transport, &fd))) {
+        dd_sidecar_transport_generation = 0;
+        return;
+    }
+    uint32_t generation = watch.generation + 1;
+    dd_sidecar_liveness_t replacement = {.fd = fd, .generation = generation ? generation : 1};
+    int previous_fd = watch.fd;
+    if (atomic_compare_exchange_strong(&dd_sidecar_liveness, &watch, replacement)) {
+        // Create and publish the replacement before releasing the old fd.
+        if (previous_fd >= 0) {
+            close(previous_fd);
+            // Wake connections which deferred while this thread was starting the replacement.
+            datadog_set_all_thread_vm_interrupt();
+        }
+        watch = replacement;
+    } else {
+        // Another connection installed a watch first. CAS supplied its state in watch.
+        close(fd);
+    }
+    dd_sidecar_transport_generation = watch.generation;
+}
+#endif
+
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
     if (zai_config_is_initialized()) {
         if (ZSTR_LEN(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
@@ -53,12 +189,25 @@ static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
     }
 }
 
+static ddog_Endpoint *dd_agentless_endpoint(void) {
+    ddog_CharSlice api_key = dd_zend_string_to_CharSlice(get_global_DD_API_KEY());
+    ddog_Endpoint *endpoint = NULL;
+    ddog_Error *err = ddog_endpoint_from_api_key_and_site(api_key, dd_zend_string_to_CharSlice(get_global_DD_SITE()), &endpoint);
+    if (err) {
+        ddog_CharSlice msg = ddog_Error_message(err);
+        LOG(ERROR, "Invalid DD_SITE %s, falling back to datadoghq.com: %.*s", ZSTR_VAL(get_global_DD_SITE()), (int) msg.len, msg.ptr);
+        ddog_Error_free(err); // frees the box too; ddog_Error_drop only clears the message
+        endpoint = ddog_endpoint_from_api_key(api_key);
+    }
+    return endpoint;
+}
+
 // Set the globals that stay unchanged in case of fork
 static void dd_set_non_resettable_sidecar_globals(void) {
     datadog_endpoint = datadog_sidecar_agent_endpoint();
 
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
-        dogstatsd_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+        dogstatsd_endpoint = dd_agentless_endpoint();
     } else {
         char *dogstatsd_url = datadog_dogstatsd_url();
         dogstatsd_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = dogstatsd_url, .len = strlen(dogstatsd_url)});
@@ -176,16 +325,51 @@ static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
 }
 
 #ifdef TRACER
-static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport) {
+static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport, ddog_CharSlice test_token) {
     // Both FFE writers share this target. Replace it when the test token changes
-    // so new observations use the new session and queued ones keep the old one.
+    // so batches already handed to the sidecar keep their previous session.
+    // PHP-buffered exposures and deferred userland observations use the session
+    // active at handoff, not necessarily the one active during evaluation.
     const ddog_EvpProducerIdentity ffe_producer = {
         .origin = DDOG_CHARSLICE_C("dd-trace-php"),
         .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
     };
-    datadog_ffi_try("Failed configuring PHP FFE EVP transport",
-        ddog_sidecar_session_set_evp_transport(transport, DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
-            datadog_endpoint, NULL, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+    bool agentless = ddtrace_ffe_agentless_enabled();
+    ddog_Endpoint *direct_endpoint = agentless ? ddog_ffe_evp_endpoint_new(
+        dd_zend_string_to_CharSlice(get_global_DD_SITE()),
+        dd_zend_string_to_CharSlice(get_global_DD_API_KEY())) : NULL;
+    if (direct_endpoint) {
+        ddog_endpoint_set_test_token_if_changed(direct_endpoint, test_token);
+    }
+    // Trace-agentless mode uses an intake descriptor for datadog_endpoint.
+    // FFE agentless discovery still needs the configured local Agent URL.
+    ddog_Endpoint *local_endpoint = datadog_endpoint;
+    if (agentless) {
+        char *agent_url = datadog_agent_url();
+        local_endpoint = datadog_parse_agent_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
+        free(agent_url);
+        if (!local_endpoint) {
+            // The FFI requires a non-null local endpoint. A relative URI has
+            // no receiver: discovery fails locally, allowing direct fallback.
+            local_endpoint = ddog_endpoint_from_url(DDOG_CHARSLICE_C("/"));
+        }
+        if (local_endpoint) {
+            ddog_endpoint_set_test_token_if_changed(local_endpoint, test_token);
+            ddog_endpoint_set_timeout(local_endpoint, get_global_DD_TRACE_AGENT_TIMEOUT());
+        }
+    }
+    if (local_endpoint) {
+        datadog_ffi_try("Failed configuring PHP FFE EVP transport",
+            ddog_sidecar_session_set_evp_transport(transport,
+                agentless ? DDOG_EVP_TRANSPORT_MODE_PREFER_LOCAL_THEN_DIRECT : DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
+                local_endpoint, direct_endpoint, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+    }
+    if (agentless && local_endpoint) {
+        ddog_endpoint_drop(local_endpoint);
+    }
+    if (direct_endpoint) {
+        ddog_endpoint_drop(direct_endpoint);
+    }
 }
 #endif
 
@@ -245,7 +429,8 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
                                     dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
                                     dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
                                     root_session_id,
-                                    parent_session_id
+                                    parent_session_id,
+                                    get_global_DD_TRACE_AGENT_PROTOCOL_VERSION() == DD_TRACE_AGENT_PROTOCOL_VERSION_V04
                                 );
     if (normalized_service_name) {
         ddog_free_normalized_tag_value(normalized_service_name);
@@ -258,7 +443,8 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
     // Configure during ordinary connection setup, including fork recovery.
     // The transport replays its configuration after reconnects.
     // Remote Config keeps the fixed Agent EVP v2 route.
-    dd_sidecar_configure_ffe_transport(transport);
+    dd_sidecar_configure_ffe_transport(transport, dd_zend_string_to_CharSlice(zai_config_is_initialized()
+        ? get_DD_TRACE_AGENT_TEST_SESSION_TOKEN() : get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
 #endif
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
@@ -289,13 +475,6 @@ void datadog_sidecar_refresh_user_service_defined(void) {
 
 static void datadog_sidecar_setup_thread_mode(void);
 static ddog_SidecarTransport *datadog_sidecar_connect_callback(void);
-
-// Called by the subprocess mode transport with each new connection replacing a broken one.
-static void dd_sidecar_reconnected(ddog_SidecarTransport *transport) {
-    dd_sidecar_on_connect(&transport);
-    // Reconnect callbacks run before the new connection replaces the one of DATADOG_G(sidecar).
-    dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), transport, true);
-}
 
 // Connects a new transport. It is not configured yet: that is only needed for a transport which
 // does not replace the connection of an existing one.
@@ -350,20 +529,30 @@ static ddog_SidecarTransport *dd_sidecar_connect_transport(bool as_worker) {
             }
         }
         datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
-        // Worker connections fall back to becoming master, when their connection to the parent gets lost
-        datadog_sidecar_set_reconnect_fn(&sidecar_transport, datadog_sidecar_connect_callback);
     } else {
+#ifdef __linux__
+        if (!dd_sidecar_can_connect()) {
+            return NULL;
+        }
+#endif
         if (!datadog_ffi_try("Failed connecting to the sidecar (subprocess mode)",
                 ddog_sidecar_connect_php(&sidecar_transport, logpath,
                     dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                     get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(),
-                    dd_sidecar_reconnected,
                     datadog_endpoint, (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_BYTES(), (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE()))) {
+#ifdef __linux__
+            dd_sidecar_defer_retry();
+#endif
             return NULL;
         }
         datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_SUBPROCESS;
+#ifdef __linux__
+        dd_sidecar_cancel_retry();
+        dd_sidecar_watch_transport(sidecar_transport);
+#endif
     }
 
+    datadog_sidecar_set_reconnect_fn(&sidecar_transport, datadog_sidecar_connect_callback);
     dd_sidecar_on_connect(&sidecar_transport);
 
     return sidecar_transport;
@@ -641,6 +830,16 @@ static ddog_SidecarTransport *dd_sidecar_connect_after_fork(void) {
 void datadog_sidecar_handle_fork(void) {
 #ifndef _WIN32
 #ifdef __linux__
+    // Do not change O_ASYNC/F_SETOWN on the inherited reader: its open file description
+    // still belongs to the parent.
+    dd_sidecar_liveness_t watch = atomic_exchange(&dd_sidecar_liveness, ((dd_sidecar_liveness_t){.fd = -1}));
+    if (watch.fd >= 0) {
+        close(watch.fd);
+    }
+    dd_sidecar_transport_generation = 0;
+    // POSIX timers are not inherited across fork.
+    dd_sidecar_retry_timer_created = false;
+    atomic_store(&dd_sidecar_retry_after_ns, 0);
     datadog_signals_reset_sidecar_flush_after_fork();
 #endif
     atomic_store(&dd_sidecar_signal_owner, 0);
@@ -688,7 +887,14 @@ void datadog_sidecar_ensure_active(void) {
         // Restore reconnect_fn cleared during the previous RSHUTDOWN so that automatic
         // reconnects work again for this request.
         datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
-        datadog_sidecar_reconnect(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
+#ifdef __linux__
+        if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
+            ddog_sidecar_check_liveness(&DATADOG_G(sidecar), dd_sidecar_process_died());
+        } else
+#endif
+        {
+            datadog_sidecar_reconnect(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
+        }
     } else if (datadog_endpoint) {
         // First RINIT on this thread: the process-level setup already ran (endpoint is
         // set), so establish this thread's own connection now.
@@ -696,6 +902,21 @@ void datadog_sidecar_ensure_active(void) {
     }
     // Takes over if the previous owner thread is gone.
     dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), DATADOG_G(sidecar), false);
+}
+
+void datadog_sidecar_check_liveness(void) {
+#ifdef __linux__
+    if (DATADOG_G(request_initialized)
+        && datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
+        // Pipe EOF can precede socket EOF during process exit. Other threads still need
+        // to recover after the first thread replaces the watch with a healthy generation.
+        if (DATADOG_G(sidecar)) {
+            ddog_sidecar_check_liveness(&DATADOG_G(sidecar), dd_sidecar_process_died());
+        } else if (datadog_endpoint) {
+            datadog_sidecar_ensure_active();
+        }
+    }
+#endif
 }
 
 void datadog_sidecar_finalize(bool clear_application) {
@@ -718,6 +939,14 @@ void datadog_sidecar_finalize(bool clear_application) {
 }
 
 void datadog_sidecar_shutdown(void) {
+#ifdef __linux__
+    dd_sidecar_cancel_retry();
+    dd_sidecar_liveness_t watch = atomic_exchange(&dd_sidecar_liveness, ((dd_sidecar_liveness_t){.fd = -1}));
+    if (watch.fd >= 0) {
+        close(watch.fd);
+    }
+    dd_sidecar_transport_generation = 0;
+#endif
     // Prevent reconnect from firing during shutdown-phase sidecar calls.
     if (DATADOG_G(sidecar)) {
         datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));
@@ -779,7 +1008,7 @@ ddog_Endpoint *datadog_sidecar_agent_endpoint(void) {
     ddog_Endpoint *agent_endpoint;
 
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
-        agent_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+        agent_endpoint = dd_agentless_endpoint();
     } else {
         char *agent_url = datadog_agent_url();
         agent_endpoint = datadog_parse_agent_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
@@ -958,6 +1187,11 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
         datadog_ffi_try("Failed sending config data",
                         ddog_sidecar_set_application(transport, service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
 
+        if (DATADOG_G(remote_config_state)) {
+            datadog_ffi_try("Failed registering the agentless feature flags source",
+                ddog_remote_config_register_cdn(DATADOG_G(remote_config_state), transport));
+        }
+
         if (DATADOG_G(telemetry_buffer)) {
             datadog_ffi_try("Failed flushing filtered telemetry buffer",
                 ddog_sidecar_telemetry_filter_flush(transport, datadog_telemetry_buffer(), datadog_telemetry_cache(), service_slice, env_slice));
@@ -1010,6 +1244,10 @@ void datadog_sidecar_rshutdown(void) {
 }
 
 void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
+#ifdef __linux__
+    dd_sidecar_cancel_retry();
+    dd_sidecar_transport_generation = 0;
+#endif
     if (datadog_globals->sidecar) {
         datadog_sidecar_clear_reconnect_fn(&datadog_globals->sidecar);
         dd_sidecar_disarm_signal_transport(datadog_globals->sidecar);
@@ -1030,7 +1268,8 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
                         ddog_sidecar_set_test_session_token(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
 #ifdef TRACER
         if (token_changed) {
-            dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar));
+            // The INI callback runs before the new value is visible through the getter.
+            dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
         }
 #endif
     }

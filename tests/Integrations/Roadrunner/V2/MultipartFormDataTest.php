@@ -50,9 +50,9 @@ EOT);
             $this->call($spec);
         });
 
-        $trace = $traces[0][0];
-        $this->assertSame("<redacted>", $trace["meta"]["http.request.post.password"]);
-        $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.username"]);
-        $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.foo.bar"]);
+        $trace = $traces[0]['spans'][0];
+        $this->assertSame("<redacted>", $trace["attributes"]["http.request.post.password"]);
+        $this->assertSame("should_not_redact", $trace["attributes"]["http.request.post.username"]);
+        $this->assertSame("should_not_redact", $trace["attributes"]["http.request.post.foo.bar"]);
     }
 }

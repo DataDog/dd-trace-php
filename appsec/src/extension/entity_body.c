@@ -16,25 +16,11 @@
 #include "php_objects.h"
 #include "string_helpers.h"
 #include <SAPI.h>
-#include <dlfcn.h>
-#include <ext/json/php_json.h>
 #include <limits.h>
 // clang-format on
 
 static typeof(zend_write(NULL, 0)) _dd_save_output_zend_write(
     const char *str, size_t str_length);
-
-#if PHP_VERSION_ID < 70200
-typedef void (*json_decode_ex_t)(zval *return_value, char *str, size_t str_len,
-    zend_long options, zend_long depth);
-#elif PHP_VERSION_ID < 80200
-typedef int (*json_decode_ex_t)(zval *return_value, const char *str,
-    size_t str_len, zend_long options, zend_long depth);
-#else
-typedef zend_result (*json_decode_ex_t)(zval *return_value, const char *str,
-    size_t str_len, zend_long options, zend_long depth);
-#endif
-static json_decode_ex_t _json_decode_ex;
 
 // response body buffer
 
@@ -52,24 +38,6 @@ void dd_entity_body_startup(void)
 {
     orig_zend_write = zend_write;
     zend_write = _dd_save_output_zend_write;
-
-#if PHP_VERSION_ID < 80000
-    void *handle = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL);
-    if (handle == NULL) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        mlog(dd_log_error, "Failed load process symbols: %s", dlerror());
-    } else {
-        _json_decode_ex =
-            (json_decode_ex_t)(uintptr_t)dlsym(handle, "php_json_decode_ex");
-        if (!_json_decode_ex) {
-            mlog(dd_log_warning, "Failed to load php_json_decode_ex: %s",
-                dlerror()); // NOLINT(concurrency-mt-unsafe)
-        }
-        dlclose(handle);
-    }
-#else
-    _json_decode_ex = php_json_decode_ex;
-#endif
 
 #ifdef TESTING
     if (get_global_DD_APPSEC_TESTING()) {

@@ -1318,7 +1318,11 @@ buildRunInDockerTask(
         needsBoostCache: false,
         inputs: [
                 dirs: ['../../../components-rs/appsec_body'],
-                files: ['../../../rust-toolchain.toml'],
+                files: [
+                        '../../../Cargo.lock',
+                        '../../../Cargo.toml',
+                        '../../../rust-toolchain.toml',
+                ],
         ],
         outputs: [
                 volume: 'php-appsec-body-coverage',
@@ -1332,8 +1336,7 @@ buildRunInDockerTask(
                 """
                 ${appsecBodyRustEnvSetup}
                 export RUSTC_BOOTSTRAP=ddtrace_appsec_body
-                cargo llvm-cov test --release --locked \\
-                    --manifest-path components-rs/appsec_body/Cargo.toml --lcov \\
+                cargo llvm-cov test --package ddtrace-appsec-body --release --locked --lcov \\
                     --ignore-filename-regex='components-rs/appsec_body/(tests/|tools/|render[.]rs)' \\
                     --output-path /helper-rust-build/coverage-unit.lcov
                 """

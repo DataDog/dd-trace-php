@@ -1,7 +1,7 @@
 {
   "scale_by_duration": false,
   "test_name": "php_io_upscaling",
-  "note": "163840 10 KiB operations produce 1677721600 bytes (1600 MiB). With a 100 KiB sampling interval, about 16000 samples per metric give roughly 0.8% standard deviation in estimated bytes; the 6% margin exceeds seven standard deviations.",
+  "note": "163840 10 KiB operations produce 1677721600 bytes (1600 MiB). With a 100 KiB sampling interval, about 16000 samples per metric give roughly 0.8% standard deviation in estimated bytes; the 6% margin exceeds seven standard deviations. The fixture completes short operations and yields every 64 operations to avoid overflowing the profiler sample queue; byte totals and tolerances are unchanged.",
   "stacks": [
     {
       "profile-type": "file-io-write-size",

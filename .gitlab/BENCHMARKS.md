@@ -33,6 +33,9 @@ All benchmark jobs are defined in `benchmarks.yml`.
   `linux-php-wordpress-parallel`: included from
   [apm-sdks-benchmarks](https://github.com/DataDog/apm-sdks-benchmarks/tree/main/.gitlab).
     - Change them there.
+    - `benchmarks.yml` applies `macrobenchmarks-rules` to the run jobs and to
+      their `generate-slos`, `check-slo-breaches` and `upload-results`
+      follow-up jobs, which consume the run jobs' artifacts.
 
 ## Marking a benchmark as flaky
 

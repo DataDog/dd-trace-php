@@ -26,6 +26,7 @@ DD_VERSION=1.2.3-sensitive-test
 datadog.trace.agent_url="file://{PWD}/sensitive-config-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 DDTrace\start_span();
 
@@ -66,20 +67,10 @@ for ($i = 0; $i < 300; ++$i) {
     }
 
     $allConfigs = [];
-    foreach (file(__DIR__ . '/sensitive-config-telemetry.out') as $l) {
-        if (!$l || $l[0] != '{') {
-            continue;
-        }
-        $json = json_decode($l, true);
-        if (!is_array($json)) {
-            continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
-        }
-        $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-        foreach ($batch as $event) {
-            if (isset($event["payload"]["configuration"])) {
-                foreach ($event["payload"]["configuration"] as $c) {
-                    $allConfigs[] = $c;
-                }
+    foreach (read_telemetry_file(__DIR__ . '/sensitive-config-telemetry.out') as $event) {
+        if (isset($event["payload"]["configuration"])) {
+            foreach ($event["payload"]["configuration"] as $c) {
+                $allConfigs[] = $c;
             }
         }
     }

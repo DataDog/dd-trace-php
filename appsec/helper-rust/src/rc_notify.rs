@@ -4,15 +4,19 @@ use std::path::Path;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
-use datadog_sidecar::shm_remote_config::{ddog_set_rc_notify_fn, path_for_remote_config};
-use libdd_remote_config::fetch::ConfigInvariants;
+use datadog_sidecar::shm_remote_config::{
+    ddog_set_rc_notify_fn, path_for_remote_config, RemoteConfigInvariants,
+};
 use libdd_remote_config::Target;
 
 use crate::service::ServiceManager;
 
 static SERVICE_MANAGER: AtomicPtr<ServiceManager> = AtomicPtr::new(std::ptr::null_mut());
 
-extern "C" fn rc_notify_callback(invariants: *const ConfigInvariants, target: *const Arc<Target>) {
+extern "C" fn rc_notify_callback(
+    invariants: *const RemoteConfigInvariants,
+    target: *const Arc<Target>,
+) {
     let service_manager = SERVICE_MANAGER.load(Ordering::Acquire);
     if service_manager.is_null() {
         log::warn!("No service manager to notify of remote config updates");

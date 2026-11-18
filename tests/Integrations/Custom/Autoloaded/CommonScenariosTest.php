@@ -45,11 +45,12 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web.request',
                         'web',
                         'GET /simple'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         'span.kind' => 'server',
+                        'component' => 'web',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -58,11 +59,12 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web.request',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         'span.kind' => 'server',
+                        'component' => 'web',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -71,11 +73,12 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web.request',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         'span.kind' => 'server',
+                        'component' => 'web',
                     ])->setError(),
                 ],
             ]

@@ -17,6 +17,7 @@ DD_TRACE_RETRY_INTERVAL=1
 datadog.trace.agent_url="file://{PWD}/metrics-logs-created-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 dd_trace_internal_fn("test_logs");
 
@@ -24,31 +25,23 @@ dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
-    if (file_exists(__DIR__ . '/metrics-logs-created-telemetry.out')) {
-        foreach (file(__DIR__ . '/metrics-logs-created-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
-                    continue;
+    foreach (read_telemetry_file(__DIR__ . '/metrics-logs-created-telemetry.out') as $json) {
+        if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
+            continue;
+        }
+        if ($json["request_type"] == "generate-metrics") {
+            $series = [];
+            foreach ($json['payload']['series'] as $serie) {
+                if ($serie['metric'] !== 'logs_created') {
+                  continue;
                 }
-                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    if ($json["request_type"] == "generate-metrics") {
-                        $series = [];
-                        foreach ($json['payload']['series'] as $serie) {
-                            if ($serie['metric'] !== 'logs_created') {
-                              continue;
-                            }
-                            $key = $serie['namespace'].$serie['metric'].implode(',', $serie['tags']);
-                            $series[$key] = $serie;
-                        };
-                        ksort($series);
-                        var_dump(array_values($series));
+                $key = $serie['namespace'].$serie['metric'].implode(',', $serie['tags']);
+                $series[$key] = $serie;
+            };
+            ksort($series);
+            var_dump(array_values($series));
 
-                        break 3;
-                    }
-                }
-            }
+            break 2;
         }
     }
     if ($i == 300) {

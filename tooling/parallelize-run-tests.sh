@@ -134,8 +134,14 @@ foreach (file($list, FILE_IGNORE_NEW_LINES) as $test) {
     if (!isset($dir_keys[$d])) {
         $dir_keys[$d] = is_file("$d/CONFLICTS") ? $parse(file("$d/CONFLICTS")) : [];
     }
+    $contents = file_get_contents($test);
+    // Redirects expand into tests that may share files with other batches.
+    if (preg_match('/^--REDIRECTTEST--\r?$/m', $contents)) {
+        $serial[] = $test;
+        continue;
+    }
     $keys = $dir_keys[$d];
-    if (preg_match("/^--CONFLICTS--\s*$(.*?)(?=^--[A-Z_]+--\s*$|\z)/ms", file_get_contents($test), $m)) {
+    if (preg_match("/^--CONFLICTS--\s*$(.*?)(?=^--[A-Z_]+--\s*$|\z)/ms", $contents, $m)) {
         $keys = array_merge($keys, $parse(explode("\n", $m[1])));
     }
     if (!$keys) {
@@ -254,7 +260,8 @@ while (($line = fgets(STDIN)) !== false) {
             }
             break;
         case "r":
-            list($rc, $expected, $batch) = explode("\t", $s);
+            list($rc, $expected, $batch, $inputs) = explode("\t", $s);
+            $total += $expected - $inputs;
             echo $buf[$w];
             $buf[$w] = "";
             if ($rc != 0) {
@@ -323,13 +330,18 @@ EOF
 php -n -r "$planner" -- "$tmp" "$batch_size" "$tmp/all" || exit 1
 
 run_batch() {
-  local worker=$1 batch=$2 header=$3 extra_env=() extra_opts=() rc
+  local worker=$1 batch=$2 header=$3 extra_env=() extra_opts=() rc expected inputs
+  local batch_runner="$tmp/runner-$worker/run-tests.php"
+  # Redirect expressions resolve __FILE__ relative to the original runner.
+  [[ $batch == "$tmp/serial/"* ]] && batch_runner=$runner
   [[ -n $junit ]] && extra_env+=("TEST_PHP_JUNIT=$batch.xml")
   [[ -n $output_file ]] && extra_opts+=(-s "$batch.out")
-  env "${assigns[@]}" "${extra_env[@]}" "${launcher[@]}" "$tmp/runner-$worker/run-tests.php" "${runner_opts[@]}" "${extra_opts[@]}" -r "$batch" 2>&1 \
+  env "${assigns[@]}" "${extra_env[@]}" "${launcher[@]}" "$batch_runner" "${runner_opts[@]}" "${extra_opts[@]}" -r "$batch" 2>&1 \
     | php -n -r "$filter" -- "$worker" "$header" "$batch.log"
   rc=${PIPESTATUS[0]}
-  printf '%s\tr\t%s\t%s\t%s\n' "$worker" "$rc" "$(wc -l < "$batch")" "$batch"
+  inputs=$(wc -l < "$batch")
+  expected=$(awk '/^Number of tests :/ {print $5; exit}' "$batch.log")
+  printf '%s\tr\t%s\t%s\t%s\t%s\n' "$worker" "$rc" "${expected:-$inputs}" "$batch" "$inputs"
 }
 
 # Each worker runs its own copy of run-tests.php: before 7.4 it probes the

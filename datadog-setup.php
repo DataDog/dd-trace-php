@@ -603,7 +603,6 @@ function install($options)
             "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
             (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
         );
-        set_mode_recursive($installDir . '/lib');
         set_mode_recursive($installDir . '/etc');
     }
     $appSecRulesPath = $installDir . '/etc/recommended.json';
@@ -2533,34 +2532,10 @@ function get_ini_settings(
             ],
         ],
         [
-            'name' => 'datadog.trace.<integration_name>_analytics_enabled',
-            'default' => 'Off',
-            'commented' => true,
-            'description' => [
-                'Whether analytics for the integration is enabled.',
-                'Integrations names available at: see https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#integration-names',
-            ],
-        ],
-        [
-            'name' => 'datadog.trace.<integration_name>_analytics_sample_rate',
-            'default' => '1.0',
-            'commented' => true,
-            'description' => [
-                'Sampling rate for analyzed spans. Valid values are between 0.0 and 1.0.',
-                'Integrations names available at: see https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#integration-names',
-            ],
-        ],
-        [
             'name' => 'datadog.distributed_tracing',
             'default' => 'On',
             'commented' => true,
             'description' => 'Enables distributed tracing',
-        ],
-        [
-            'name' => 'datadog.trace.analytics_enabled',
-            'default' => 'Off',
-            'commented' => true,
-            'description' => 'Global switch for trace analytics',
         ],
         [
             'name' => 'datadog.trace.bgs_connect_timeout',

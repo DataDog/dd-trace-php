@@ -1,7 +1,7 @@
 use crate::log::Log;
 use datadog_sidecar::service::telemetry::{path_for_telemetry, TelemetryCachedClientShmData};
 
-use hashbrown::{Equivalent, HashMap};
+use hashbrown::HashTable;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -270,29 +270,31 @@ pub struct ShmCache {
     pub reader: OneWayShmReader<NamedShmHandle, ShmCacheKey>,
 }
 
-#[derive(Hash, Eq, PartialEq)]
 pub struct ShmCacheKey(String, String);
 
-impl Equivalent<ShmCacheKey> for (&str, &str) {
-    fn equivalent(&self, key: &ShmCacheKey) -> bool {
-        *self.0 == key.0 && *self.1 == key.1
+impl ShmCacheKey {
+    fn matches(&self, service: &str, env: &str) -> bool {
+        self.0 == service && self.1 == env
     }
 }
 
-impl From<&(&str, &str)> for ShmCacheKey {
-    fn from(key: &(&str, &str)) -> Self {
-        Self(key.0.to_owned(), key.1.to_owned())
-    }
+fn shm_cache_hash(service: &str, env: &str) -> u64 {
+    let mut hasher = ZwoHasher::default();
+    service.hash(&mut hasher);
+    env.hash(&mut hasher);
+    hasher.finish()
 }
 
+// Careful: entries are hashed by `reader.extra`, so never modify it after insertion.
 #[derive(Default)]
 pub struct ShmCacheMap {
-    entries: HashMap<ShmCacheKey, ShmCache>,
+    entries: HashTable<ShmCache>,
 }
 
 impl ShmCacheMap {
     pub(crate) fn reconnect(&self) {
-        for (key, cache) in &self.entries {
+        for cache in &self.entries {
+            let key = &cache.reader.extra;
             cache.reader.reconnect(&path_for_telemetry(&key.0, &key.1));
         }
     }
@@ -331,18 +333,25 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
 
     let service_str = service.to_utf8_lossy();
     let env_str = env.to_utf8_lossy();
+    let (service, env) = (service_str.as_ref(), env_str.as_ref());
 
+    // Look up by borrowed strings; allocate the owned key only on insertion.
     let cached_entry = cache
         .entries
-        .entry_ref(&(service_str.as_ref(), env_str.as_ref()))
+        .entry(
+            shm_cache_hash(service, env),
+            |cache| cache.reader.extra.matches(service, env),
+            |cache| shm_cache_hash(&cache.reader.extra.0, &cache.reader.extra.1),
+        )
         .or_insert_with(|| ShmCache {
             reader: OneWayShmReader::new_with_opener(
                 None,
-                ShmCacheKey(service_str.to_string(), env_str.to_string()),
+                ShmCacheKey(service.to_owned(), env.to_owned()),
                 |key| open_named_shm(&path_for_telemetry(&key.0, &key.1)).ok(),
             ),
             shared: TelemetryCachedClientShmData::default(),
-        });
+        })
+        .into_mut();
 
     refresh_cache(cached_entry);
     cached_entry
@@ -391,4 +400,36 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
         .last_endpoints_push
         .elapsed()
         .map_or(false, |d| d < Duration::from_secs(1800)) // 30 minutes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn telemetry_cache_reuses_entries_per_service_and_env() {
+        let mut cache = ShmCacheMap::default();
+        let lookup = |cache: &mut ShmCacheMap, service: &str, env: &str| unsafe {
+            ddog_sidecar_telemetry_cache_get_or_update(cache, service.into(), env.into())
+                as *const ShmCache
+        };
+
+        let first = lookup(&mut cache, "service", "prod");
+        assert_eq!(lookup(&mut cache, "service", "prod"), first);
+        assert_eq!(cache.entries.len(), 1);
+
+        lookup(&mut cache, "service", "staging");
+        lookup(&mut cache, "other", "prod");
+        assert_eq!(cache.entries.len(), 3);
+        for (service, env) in [
+            ("service", "prod"),
+            ("service", "staging"),
+            ("other", "prod"),
+        ] {
+            let found = cache.entries.find(shm_cache_hash(service, env), |cache| {
+                cache.reader.extra.matches(service, env)
+            });
+            assert!(found.is_some(), "{service}/{env} missing");
+        }
+    }
 }

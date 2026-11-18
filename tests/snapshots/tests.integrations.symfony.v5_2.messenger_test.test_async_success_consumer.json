@@ -265,8 +265,10 @@
          "db.type": "mysql",
          "db.user": "test",
          "out.host": "mysql-integration",
-         "out.port": "3306",
          "span.kind": "client"
+       },
+       "metrics": {
+         "out.port": 3306
        }
      },
      {
@@ -287,10 +289,10 @@
          "db.type": "mysql",
          "db.user": "test",
          "out.host": "mysql-integration",
-         "out.port": "3306",
          "span.kind": "client"
        },
        "metrics": {
-         "db.row_count": 1
+         "db.row_count": 1,
+         "out.port": 3306
        }
      }]]
