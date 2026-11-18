@@ -203,7 +203,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
 
 "macos test_c":
   stage: test
-  tags: ["macos:tart"]
+  tags: ["macos:tart-experimental"]
   # Builds the extension from source: of the compile stage it only needs the generated bridge files.
   needs:
     - job: "Prepare code"
