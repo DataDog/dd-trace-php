@@ -335,9 +335,6 @@ class RouteNormalizer
      */
     public static function regexHasOnlyCapturedDynamics(string $rule): bool
     {
-        if (self::regexHasPosixClassSyntax($rule)) {
-            return false;
-        }
         $groups = [];
         $captureDepth = 0;
         $inClass = false;
@@ -355,7 +352,10 @@ class RouteNormalizer
                 continue;
             }
             if ($inClass) {
-                if ($char === '\\' && isset($rule[$i + 1])) {
+                $posixEnd = self::regexPosixClassEnd($rule, $i);
+                if ($posixEnd !== null) {
+                    $i = $posixEnd;
+                } elseif ($char === '\\' && isset($rule[$i + 1])) {
                     $i++;
                 } elseif ($char === ']') {
                     $inClass = false;
@@ -574,9 +574,6 @@ class RouteNormalizer
      */
     public static function regexFallbackElements(string $regex)
     {
-        if (self::regexHasPosixClassSyntax($regex)) {
-            return null;
-        }
         $i = 0;
         $elements = self::regexFallbackSequence($regex, $i);
         return $elements === null || $i !== strlen($regex) ? null : $elements;
@@ -758,7 +755,10 @@ class RouteNormalizer
                     $i++;
                 }
                 while ($i < $length && $regex[$i] !== ']') {
-                    if ($regex[$i] === '\\') {
+                    $posixEnd = self::regexPosixClassEnd($regex, $i);
+                    if ($posixEnd !== null) {
+                        $i = $posixEnd;
+                    } elseif ($regex[$i] === '\\') {
                         $i++;
                     }
                     $i++;
@@ -782,15 +782,32 @@ class RouteNormalizer
     }
 
     /**
-     * Whether a regex may hold a POSIX class ([:alpha:]), collating element
-     * ([.a.]) or equivalence class ([=a=]). Their ']' does not end the
-     * enclosing character class, which the scanners here do not model, so
-     * such a regex is rejected: the route cannot be expressed. Conservative:
-     * an escaped '\\[:' is rejected too.
+     * Where a POSIX bracket expression inside a character class ends:
+     * [:alpha:], [.a.] or [=a=] at $i, as PCRE's check_posix_syntax() reads
+     * it. Its ']' does not end the enclosing class. Returns the index of that
+     * ']', or null when $i does not start one (the '[' is then a literal).
+     *
+     * @return int|null
      */
-    private static function regexHasPosixClassSyntax(string $regex): bool
+    private static function regexPosixClassEnd(string $regex, int $i)
     {
-        return preg_match('/\\[[:.=]/', $regex) === 1;
+        if (!isset($regex[$i + 1]) || $regex[$i] !== '[' || strpos(':.=', $regex[$i + 1]) === false) {
+            return null;
+        }
+        $terminator = $regex[$i + 1];
+        $length = strlen($regex);
+        for ($j = $i + 2; $j < $length; $j++) {
+            $char = $regex[$j];
+            if ($char === '\\' && isset($regex[$j + 1]) && ($regex[$j + 1] === ']' || $regex[$j + 1] === '\\')) {
+                $j++;
+            } elseif (($char === '[' && isset($regex[$j + 1]) && $regex[$j + 1] === $terminator) || $char === ']') {
+                return null;
+            } elseif ($char === $terminator && isset($regex[$j + 1]) && $regex[$j + 1] === ']') {
+                return $j + 1;
+            }
+        }
+
+        return null;
     }
 
     /** Whether the group opened at $open is an unnamed capture with a named capture inside. */
@@ -838,7 +855,10 @@ class RouteNormalizer
                     $i++;
                 }
                 while ($i < $length && $regex[$i] !== ']') {
-                    if ($regex[$i] === '\\') {
+                    $posixEnd = self::regexPosixClassEnd($regex, $i);
+                    if ($posixEnd !== null) {
+                        $i = $posixEnd;
+                    } elseif ($regex[$i] === '\\') {
                         $i++;
                     }
                     $i++;
