@@ -10,6 +10,37 @@ use PHPUnit\Framework\TestCase;
 
 final class ResultMapperTest extends TestCase
 {
+    /**
+     * @dataProvider serialIdMetadataProvider
+     */
+    public function testSerialIdFlagMetadata($serialFields, $enabled, $expectedMetadata)
+    {
+        $rawResult = array_merge(array(
+            'value_json' => '"blue"',
+            'variant' => 'variant-a',
+            'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+            'flag_metadata' => array('owner' => 'ffe'),
+        ), $serialFields);
+
+        foreach (array($rawResult, (object) $rawResult) as $result) {
+            $details = (new ResultMapper())->map($result, EvaluationType::STRING, 'red', $enabled);
+            $this->assertSame($expectedMetadata, $details->getFlagMetadata());
+        }
+    }
+
+    public function serialIdMetadataProvider()
+    {
+        return array(
+            'positive' => array(array('serial_id' => 4242), true, array('owner' => 'ffe', '__dd_split_serial_id' => 4242)),
+            'zero' => array(array('serial_id' => 0), true, array('owner' => 'ffe', '__dd_split_serial_id' => 0)),
+            'camel case' => array(array('serialId' => 7), true, array('owner' => 'ffe', '__dd_split_serial_id' => 7)),
+            'missing' => array(array(), true, array('owner' => 'ffe')),
+            'null' => array(array('serial_id' => null), true, array('owner' => 'ffe')),
+            'gate disabled' => array(array('serial_id' => 4242), false, array('owner' => 'ffe')),
+        );
+    }
+
     public function testMapsSuccessfulBridgeResultToEvaluationDetails()
     {
         $details = (new ResultMapper())->map(array(
