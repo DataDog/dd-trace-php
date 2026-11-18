@@ -1,5 +1,5 @@
 --TEST--
-FFE agentless retains configuration and resubscribes after a sidecar subprocess restart [diagnostic arm A copy 3]
+FFE agentless retains configuration and resubscribes after a sidecar subprocess restart [diagnostic arm control copy 4]
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
@@ -26,7 +26,7 @@ NO_PROXY=127.0.0.1,localhost
 <?php
 // Keep the normal idle lifetime: instrumented startup can exceed one second
 // before the replacement accepts PHP's connection. We stop both sidecars explicitly.
-// Diagnostic copy (arm A): unchanged OTLP metrics endpoint.
+// Diagnostic copy (control arm): fixture unchanged.
 $scenario = 'restart';
 require __DIR__ . '/stubs/agentless_process.inc';
 ?>

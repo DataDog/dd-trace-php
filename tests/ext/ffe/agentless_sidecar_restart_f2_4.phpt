@@ -1,5 +1,5 @@
 --TEST--
-FFE agentless retains configuration and resubscribes after a sidecar subprocess restart [diagnostic arm B copy 3]
+FFE agentless retains configuration and resubscribes after a sidecar subprocess restart [diagnostic arm F2 copy 4]
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
@@ -21,13 +21,13 @@ DD_REMOTE_CONFIG_ENABLED=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_METRICS_OTEL_ENABLED=1
 DD_TRACE_AGENT_URL=http://127.0.0.1:1
-OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://127.0.0.1:1/v1/metrics
+PHP_FFE_FIXTURE_COMPLETE_REQUESTS=1
 NO_PROXY=127.0.0.1,localhost
 --FILE--
 <?php
 // Keep the normal idle lifetime: instrumented startup can exceed one second
 // before the replacement accepts PHP's connection. We stop both sidecars explicitly.
-// Diagnostic copy (arm B): OTLP metrics go to a closed port, not :4318.
+// Diagnostic copy (F2 arm): the fixture only answers complete requests.
 $scenario = 'restart';
 require __DIR__ . '/stubs/agentless_process.inc';
 ?>

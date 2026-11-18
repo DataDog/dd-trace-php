@@ -91,12 +91,23 @@ try {
         stream_set_timeout($connection, 1);
         $headerLines = 0;
         $requestLine = '';
-        while (($line = fgets($connection)) !== false && trim($line) !== '') {
-            if ($headerLines++ === 0) $requestLine = trim($line);
-        }
+        // F2 arm: keep reading until the request head is complete (bounded),
+        // and never reply to an incomplete one. Control reads once, as before.
+        $headDeadline = getenv('PHP_FFE_FIXTURE_COMPLETE_REQUESTS') ? $acceptedAt + ($instrumented ? 20 : 5) : 0;
+        do {
+            while (($line = fgets($connection)) !== false && trim($line) !== '') {
+                if ($headerLines++ === 0) $requestLine = trim($line);
+            }
+            $complete = $line !== false;
+        } while (!$complete && !feof($connection) && microtime(true) < $headDeadline);
         if ($diagnose) {
-            FfeRestartDiagnostics::event(sprintf('accept #%d restarted=%d header_lines=%d complete=%d read=%.3fs request="%s"',
-                $requests + 1, $restarted, $headerLines, $line !== false, microtime(true) - $acceptedAt, substr($requestLine, 0, 60)));
+            FfeRestartDiagnostics::event(sprintf('accept #%d restarted=%d header_lines=%d complete=%d read=%.3fs f2=%d request="%s"',
+                $requests + 1, $restarted, $headerLines, $complete, microtime(true) - $acceptedAt, $headDeadline > 0, substr($requestLine, 0, 60)));
+        }
+        if ($headDeadline && !$complete) {
+            // A reply sent before the request makes hyper fail the poll (UnexpectedMessage).
+            fclose($connection);
+            continue;
         }
         $requests++;
         if ($scenario === 'swoole' && getenv('PHP_FFE_SWOOLE_COLD') === 'expired' && $requests === 1) {
