@@ -446,7 +446,7 @@ libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features 
 libdd-crashtracker-ffi = { path = "libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
 libdd-data-pipeline = { path = "libdatadog/libdd-data-pipeline" }
 libdd-ipc = { path = "libdatadog/libdd-ipc" }
-libdd-library-config = { path = "libdatadog/libdd-library-config", default-features = false, features = ["otel-thread-ctx", "process-context-reader"] }
+libdd-library-config = { path = "libdatadog/libdd-library-config", default-features = false, features = ["process-context-reader"] }
 libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", default-features = false, features = ["std"] }
 libdd-live-debugger = { path = "libdatadog/libdd-live-debugger" }
 libdd-live-debugger-ffi = { path = "libdatadog/libdd-live-debugger-ffi", default-features = false }
