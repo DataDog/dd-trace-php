@@ -18,7 +18,8 @@ function ffeTestAgentlessActivation($name, $source, $enabled, $fetchBefore, $fet
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL'] =
         'http://' . stream_socket_get_name($server, false) . '/configuration';
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS'] = '1';
-    $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS'] = '1';
+    $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS'] =
+        getenv('USE_ZEND_ALLOC') === '0' ? '10' : '1';
     $environment['DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS'] = '1000';
     $environment['DD_API_KEY'] = 'local-fixture-must-not-receive-this';
     $environment['NO_PROXY'] = '127.0.0.1,localhost';
@@ -50,18 +51,14 @@ function ffeTestAgentlessActivation($name, $source, $enabled, $fetchBefore, $fet
             if ($exitCode === null) $exitCode = $status['exitcode'];
         }
         if ($connection = @stream_socket_accept($server, 0.02)) {
-            stream_set_timeout($connection, 2);
             try {
-                $route = trim((string) fgets($connection));
-                $headers = array();
-                while (($line = fgets($connection)) !== false && trim($line) !== '') {
-                    $pair = explode(':', $line, 2);
-                    if (count($pair) === 2) $headers[strtolower($pair[0])] = trim($pair[1]);
-                }
+                // Any connection is a fetch attempt; validate and answer only complete requests.
+                ++$requests;
+                if (!$request = ffeTestReadRequest($connection)) return;
+                list($route, $headers) = $request;
                 if ($route !== 'GET /configuration HTTP/1.1' || isset($headers['dd-api-key'])) {
                     throw new RuntimeException('unexpected CDN request or managed credential forwarding');
                 }
-                ++$requests;
                 fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
                     . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
             } finally {

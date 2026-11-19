@@ -39,18 +39,11 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
                 if ($exitedAt !== null && microtime(true) - max($exitedAt, $lastCaptureAt) > 0.5) break;
                 $connection = @stream_socket_accept($listener, 0.1);
                 if (!$connection) continue;
-                stream_set_timeout($connection, 2);
-                $request = fgets($connection);
-                $length = 0;
-                while (($line = fgets($connection)) !== false && trim($line) !== '') {
-                    if (stripos($line, 'Content-Length:') === 0) $length = (int) substr($line, 15);
+                if (!$read = ffeTestReadRequest($connection)) {
+                    fclose($connection);
+                    continue;
                 }
-                $body = '';
-                while (strlen($body) < $length && !feof($connection)) {
-                    $chunk = fread($connection, $length - strlen($body));
-                    if ($chunk === false || $chunk === '') break;
-                    $body .= $chunk;
-                }
+                list($request, , $body) = $read;
                 if (strpos($request, '/flagevaluation ') !== false) {
                     $lastCaptureAt = microtime(true);
                     $payload = json_decode($body, true);
