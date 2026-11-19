@@ -234,6 +234,7 @@ pub extern "C" fn ddog_ffe_cdn_config_new(
         request_timeout: Duration::from_secs(request_timeout_secs.into()),
         language: "php".to_string(),
         version: include_str!("../../VERSION").trim().into(),
+        service: None,
     })))
 }
 
