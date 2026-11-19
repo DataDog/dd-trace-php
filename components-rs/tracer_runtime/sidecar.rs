@@ -4,6 +4,7 @@ use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::agent_info::AgentInfoReader;
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
+use datadog_sidecar::shm_remote_config::UNSHARED_LIMITER_INDEX;
 use datadog_sidecar::tracer::shm_limiter_path;
 use datadog_sidecar_ffi::AgentRemoteConfigReader;
 use lazy_static::lazy_static;
@@ -413,18 +414,18 @@ enum Limiter {
 /// No limiter (index 0) means unlimited: every key is a candidate and always admitted.
 impl MaybeShmLimiter {
     pub fn open(index: u32) -> Self {
-        MaybeShmLimiter(if index == 0 {
-            None
-        } else {
-            Some(
+        let local = || Limiter::Local(LocalLimiter::default(), SamplingThreshold::default());
+        MaybeShmLimiter(match index {
+            0 => None,
+            // Not a slot offset: looking it up would try to grow the mapping up to it.
+            UNSHARED_LIMITER_INDEX => Some(local()),
+            index => Some(
                 LIMITERS
                     .probes
                     .get(index)
                     .map(Limiter::Shm)
-                    .unwrap_or_else(|| {
-                        Limiter::Local(LocalLimiter::default(), SamplingThreshold::default())
-                    }),
-            )
+                    .unwrap_or_else(local),
+            ),
         })
     }
 

@@ -3,8 +3,8 @@ Live debugger log probes hit within one trace are sampled together
 --DESCRIPTION--
 A sampled probe opens a generation in its trace; every other probe that has not emitted in it yet
 follows, regardless of its own budget. The 1/s probe on inner() leads the first generation, then
-follows each generation the 100/s probe on outer() opened in the previous iteration: 4 snapshots
-instead of a single one, with independently sampled probes.
+follows each generation the 100/s probe on outer() opened in the previous iteration: at least 4
+snapshots of 5 calls, where independent sampling only yields one per second.
 A condition which does not hold must not consume the budget of its probe.
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
@@ -53,12 +53,23 @@ for ($i = 0; $i < 5; ++$i) {
     coordinated_outer($i);
 }
 
-// One more than expected, to show that nothing else is emitted.
-$data = await_debugger_data(11, [], 3);
+// Wait for the snapshots which must arrive, then collect any further ones for a while.
+$data = await_debugger_data(10);
+ob_start();
+foreach (await_debugger_data(PHP_INT_MAX, [], 2)["snapshots"] as $id => $logs) {
+    $data["snapshots"][$id] = array_merge(isset($data["snapshots"][$id]) ? $data["snapshots"][$id] : [], $logs);
+}
+ob_end_clean();
+ksort($data["snapshots"]);
 foreach ($data["snapshots"] as $id => $logs) {
     $traces = array_unique(array_map(function ($log) { return $log["dd.trace_id"]; }, $logs));
     $expected = $id == 3 ? $conditional_trace : $trace;
-    echo "probe $id: ", count($logs), " x ", $logs[0]["message"], ", in the expected trace: ", var_export($traces == [$expected], true), "\n";
+    $count = count($logs);
+    if ($id == 2) {
+        // It may lead the second call too if its budget refilled in between (slow runs).
+        $count = $count >= 4 && $count <= 5 ? "4 or 5" : $count;
+    }
+    echo "probe $id: $count x ", $logs[0]["message"], ", in the expected trace: ", var_export($traces == [$expected], true), "\n";
 }
 
 ?>
@@ -68,7 +79,6 @@ require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 ?>
 --EXPECT--
-Missing 1 snapshot(s)
 probe 1: 5 x outer, in the expected trace: true
-probe 2: 4 x inner, in the expected trace: true
+probe 2: 4 or 5 x inner, in the expected trace: true
 probe 3: 1 x conditional 3, in the expected trace: true
