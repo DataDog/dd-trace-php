@@ -94,7 +94,9 @@ anything. It is up to you to ensure the image you publish actually exists in
   (`*_NEXT_VERSION`), and the Alpine and Windows PHP tags do too
   (`*_NEXT_SUFFIX`): bump it first so the rebuild lands on unused tags. The
   Services tags and the Alpine/Windows base and tool images are rebuilt in
-  place.
+  place. NEXT is shared by every branch that has this `.env` (release branches,
+  open PRs), so for a generation master will consume, skip to a number that no
+  branch has as NEXT (e.g. CURRENT+2).
   (`tar xf` autodetects compression, so a `.tar.gz`, `.tar.xz` or `.tar.bz2` URL
   all work — just use the matching hash.)
 * **Add a new minor**: add a service to the compose file; for bookworm also add
