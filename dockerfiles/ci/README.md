@@ -66,6 +66,17 @@ Windows has an extra manual job, **`Windows sign`** (a matrix with one
 instance per tag), since `Windows build` can't sign its own images (see
 above). Run it after `Windows build`, before `Windows publish`.
 
+### Rebuilding some versions in a new generation
+
+Bookworm, CentOS, Alpine and Windows also have a manual **`<OS> retag`** job.
+It starts the next generation without rebuilding it: every current tag is
+copied by digest to its next-generation tag (the same image, signed again),
+except the `RETAG_EXCLUDE` services (default: the one the generation rebuilds;
+override it when running the job). It logs `<current>@<digest> -> <next>` per
+tag, and refuses to start if any next-generation tag already exists. Run it
+first, then the `<OS> build` of the excluded versions only, then publish every
+next-generation tag, and only then switch the CI references to them.
+
 ### Publishing is independent of building
 
 The `publish` jobs have **no dependencies**: they simply sync whatever currently
@@ -79,9 +90,11 @@ anything. It is up to you to ensure the image you publish actually exists in
 
 * **Bump a patch / RC** (e.g. 8.5.7 → 8.5.8): in that OS's `docker-compose.yml`,
   update the service's `phpTarGzUrl` and `phpSha256Hash`. Bookworm, CentOS,
-  Packaging and Randomized tags carry the `.env` generation: bump
-  `*_NEXT_VERSION` first so the rebuild lands on unused tags. Alpine, Windows
-  and Services tags are rebuilt in place.
+  Packaging and Randomized tags carry the `.env` generation
+  (`*_NEXT_VERSION`), and the Alpine and Windows PHP tags do too
+  (`*_NEXT_SUFFIX`): bump it first so the rebuild lands on unused tags. The
+  Services tags and the Alpine/Windows base and tool images are rebuilt in
+  place.
   (`tar xf` autodetects compression, so a `.tar.gz`, `.tar.xz` or `.tar.bz2` URL
   all work — just use the matching hash.)
 * **Add a new minor**: add a service to the compose file; for bookworm also add
