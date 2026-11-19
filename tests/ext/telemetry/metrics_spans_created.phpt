@@ -43,6 +43,7 @@ namespace DDTrace\Test
 
 namespace
 {
+    require __DIR__ . '/../includes/telemetry_file.inc';
     class Test
     {
         // Must be called to trigger the call of TestSandboxedIntegration::init()
@@ -84,34 +85,23 @@ namespace
 
     for ($i = 0; $i < 300; ++$i) {
         ("us" . "leep")(100000);
-        if (file_exists(__DIR__ . '/metrics-spans_created-telemetry.out')) {
-            foreach (file(__DIR__ . '/metrics-spans_created-telemetry.out') as $l) {
-                if ($l && $l[0] == '{') {
-                    $json = json_decode($l, true);
-                    if (!is_array($json)) {
-                        continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
+        foreach (read_telemetry_file(__DIR__ . '/metrics-spans_created-telemetry.out') as $json) {
+            if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
+                continue;
+            }
+            if ($json["request_type"] == "generate-metrics") {
+                $series = [];
+                foreach ($json['payload']['series'] as $serie) {
+                    if ($serie['metric'] !== 'spans_created') {
+                      continue;
                     }
-                    if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
-                        continue;
-                    }
-                    $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                    foreach ($batch as $json) {
-                        if ($json["request_type"] == "generate-metrics") {
-                            $series = [];
-                            foreach ($json['payload']['series'] as $serie) {
-                                if ($serie['metric'] !== 'spans_created') {
-                                  continue;
-                                }
-                                $key = $serie['namespace'].$serie['metric'].implode(',', $serie['tags']);
-                                $series[$key] = $serie;
-                            };
-                            ksort($series);
-                            var_dump(array_values($series));
+                    $key = $serie['namespace'].$serie['metric'].implode(',', $serie['tags']);
+                    $series[$key] = $serie;
+                };
+                ksort($series);
+                var_dump(array_values($series));
 
-                            break 3;
-                        }
-                    }
-                }
+                break 2;
             }
         }
     }
