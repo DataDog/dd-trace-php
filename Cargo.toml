@@ -429,7 +429,7 @@ zwohash = { version = "0.1.2", default-features = false }
 const-str = { version = "0.5.6" }
 cpu-time = { version = "1.0" }
 dashmap = { version = "6.2.1" }
-datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe", features = ["cdn"] }
+datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe", features = ["cdn", "exposure-events"] }
 datadog-sidecar = { path = "libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "libdatadog/datadog-sidecar-ffi" }
 ddtrace-sidecar = { path = "sidecar" }
