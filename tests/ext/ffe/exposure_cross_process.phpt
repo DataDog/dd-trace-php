@@ -1,10 +1,10 @@
 --TEST--
-FFE exposures that repeat in one process reach the sidecar, which deduplicates across processes (FFL-3790)
+Two workers agree with the sidecar's delivered A, B, A exposure sequence
 --SKIPIF--
 <?php
 if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
-if (!function_exists('proc_open') || !function_exists('stream_socket_server')) die('skip: process and stream sockets required');
+if (!function_exists('proc_open') || !function_exists('stream_socket_server') || !function_exists('stream_socket_pair')) die('skip: process and stream sockets required');
 if (!getenv('TEST_PHP_EXECUTABLE')) die('skip: TEST_PHP_EXECUTABLE required');
 ?>
 --ENV--
@@ -31,19 +31,12 @@ $stdout = $stderr = '';
 $exitCode = null;
 $exitedAt = null;
 $lastCaptureAt = 0;
-$barriers = array('first:', 'other_worker:');
+
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 20);
     do {
         $stdout .= ffeTestProcessRead($pipes[1]);
         $stderr .= ffeTestProcessRead($pipes[2]);
-        // Release the next exposure only once the sidecar sent this one.
-        $released = 2 - count($barriers);
-        if ($barriers && strpos($stdout, $barriers[0]) !== false && count($allocations) > $released) {
-            array_shift($barriers);
-            fwrite($pipes[0], "next\n");
-            fflush($pipes[0]);
-        }
         if ($exitedAt === null) {
             $status = proc_get_status($process);
             if (!$status['running']) {
@@ -87,6 +80,6 @@ try {
 --EXPECT--
 first: cache_hit=false handed_off=true
 other_worker: cache_hit=false handed_off=true
-back: cache_hit=true handed_off=true
-repeat: cache_hit=true handed_off=true
+back: cache_hit=false handed_off=true
+repeat: cache_hit=true handed_off=false
 exposures=["allocation-a","allocation-b","allocation-a"]

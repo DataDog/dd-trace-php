@@ -1,11 +1,16 @@
 --TEST--
-FFE exposures are checked against the process exposure cache, which reports repeats but still queues them
+FFE exposure admission is shared by native and deferred evaluations
+--ENV--
+DD_SERVICE=php-ffe-native-and-deferred
+DD_TRACE_CLI_ENABLED=1
 --INI--
 datadog.trace.log_file={PWD}/exposure_cache.log
 datadog.trace.log_level="debug,ddtrace=trace"
 datadog.trace.generate_root_span=0
 --FILE--
 <?php
+require_once __DIR__ . '/stubs/exposure_sidecar.inc';
+ffeAwaitExposureSidecar();
 require __DIR__ . '/logging.inc';
 
 function config($variant, $serialId) {
@@ -57,13 +62,7 @@ ini_set('datadog.trace.agent_test_session_token', 'session-a');
 echo 'other_session=', json_encode(DDTrace\Internal\record_ffe_exposure('flag', 'later', array(), 'allocation', 'off')), "\n";
 ini_set('datadog.trace.agent_test_session_token', '');
 
-DDTrace\Testing\flush_ffe_exposures();
-$logs = read_log_snapshot(__DIR__ . '/exposure_cache.log');
-// Another process may have exposed a subject to a different allocation since,
-// so only the sidecar can drop a repeat.
-echo 'repeats_queued=', substr_count($logs, ', repeat in this process); delivery awaits sidecar handoff'), "\n";
-echo 'handed_off=', strpos($logs, 'Feature Flags: handed off 10 exposure(s) to sidecar') !== false ? 'yes' : 'no', "\n";
-?>
+echo 'handed_off=', json_encode(DDTrace\Testing\flush_ffe_exposures()), "\n";
 --EXPECT--
 first=false
 repeat=true
@@ -73,13 +72,12 @@ serial_change=false
 no_log=null
 missing=null
 deferred=null
-recorded=true
-recorded_repeat=false
+recorded="admitted"
+recorded_repeat="repeat"
 evaluated_after_record=true
-recorded_without_serial=true
+recorded_without_serial="admitted"
 recorded_empty_variant=null
-other_session=true
-repeats_queued=3
-handed_off=yes
+other_session="admitted"
+handed_off=true
 --CLEAN--
 <?php @unlink(__DIR__ . '/exposure_cache.log'); ?>

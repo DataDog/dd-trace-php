@@ -1,5 +1,7 @@
 --TEST--
 FFE debug logs describe configuration, raw evaluation and exposure outcomes
+--ENV--
+DD_SERVICE=php-ffe-debug-admission
 --INI--
 datadog.trace.log_file={PWD}/debug_logging.log
 datadog.trace.log_level="debug,ddtrace=trace"
@@ -29,8 +31,7 @@ var_dump(DDTrace\Testing\ffe_load_config($config));
 $version = DDTrace\ffe_config_version();
 var_dump(DDTrace\Testing\ffe_load_config('{"secret-invalid-config":'));
 var_dump(DDTrace\ffe_config_version() === $version);
-// Repeats are queued too, so the same subject fills the exposure buffer.
-for ($i = 0; $i < 1001; ++$i) {
+for ($i = 0; $i < 2; ++$i) {
     DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'secret-user', array('email' => 'secret-email'));
 }
 DDTrace\ffe_evaluate('missing', DDTrace\FFE_STRING, 'secret-user', array());
@@ -46,9 +47,8 @@ foreach (array(
     '; retaining previous configuration (version=1)',
     'Feature Flags: native evaluation {"flagKey":"flag","valueType":"string","targetingKey":"secret-user","attributes":{"email":"secret-email"},"valueJson":"\\"secret-value\\"","variant":"on","allocationKey":"allocation","reason":"STATIC","errorCode":null,"configVersion":1,"doLog":true}',
     'Feature Flags: native evaluation {"flagKey":"missing","valueType":"string","targetingKey":"secret-user","attributes":{},"valueJson":"null","variant":null,"allocationKey":null,"reason":"ERROR","errorCode":"FLAG_NOT_FOUND","configVersion":1,"doLog":false}',
-    'Feature Flags: dropped 1 exposure(s); buffer limit reached (1000)',
-    'Feature Flags: handed off 1000 exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher',
-    'Feature Flags: exposure flush complete; empty queue (0 exposures)',
+    'Feature Flags: exposure admission admitted',
+    'Feature Flags: exposure admission repeat',
 ) as $message) {
     echo $message . ': ' . (strpos($logs, $message) !== false ? 'yes' : 'NO') . "\n";
 }
@@ -108,9 +108,8 @@ Feature Flags: configuration rejected: EOF while parsing: yes
 ; retaining previous configuration (version=1): yes
 Feature Flags: native evaluation {"flagKey":"flag","valueType":"string","targetingKey":"secret-user","attributes":{"email":"secret-email"},"valueJson":"\"secret-value\"","variant":"on","allocationKey":"allocation","reason":"STATIC","errorCode":null,"configVersion":1,"doLog":true}: yes
 Feature Flags: native evaluation {"flagKey":"missing","valueType":"string","targetingKey":"secret-user","attributes":{},"valueJson":"null","variant":null,"allocationKey":null,"reason":"ERROR","errorCode":"FLAG_NOT_FOUND","configVersion":1,"doLog":false}: yes
-Feature Flags: dropped 1 exposure(s); buffer limit reached (1000): yes
-Feature Flags: handed off 1000 exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher: yes
-Feature Flags: exposure flush complete; empty queue (0 exposures): yes
+Feature Flags: exposure admission admitted: yes
+Feature Flags: exposure admission repeat: yes
 scalar attributes logged
 non-finite attribute explicit
 bool(true)

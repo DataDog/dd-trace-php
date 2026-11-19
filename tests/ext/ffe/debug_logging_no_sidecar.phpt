@@ -29,13 +29,13 @@ DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, null, array());
 var_dump(DDTrace\Testing\flush_ffe_exposures());
 var_dump(DDTrace\Testing\flush_ffe_exposures());
 $log = read_log_snapshot(__DIR__ . '/debug_logging_no_sidecar.log');
-var_dump(substr_count($log, 'Feature Flags: dropping 1 exposure(s); sidecar or request is not initialized'));
-var_dump(strpos($log, 'Feature Flags: handed off ') === false);
+var_dump(substr_count($log, 'Feature Flags: exposure admission unavailable'));
+var_dump(DDTrace\Internal\record_ffe_exposure('flag', 'test', [], 'allocation', 'on'));
 ?>
 --EXPECT--
 bool(false)
 bool(false)
 int(1)
-bool(true)
+string(11) "unavailable"
 --CLEAN--
 <?php @unlink(__DIR__ . '/debug_logging_no_sidecar.log'); ?>

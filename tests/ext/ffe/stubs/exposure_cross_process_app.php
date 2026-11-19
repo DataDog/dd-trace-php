@@ -1,9 +1,8 @@
 <?php
 
-// The parent and a forked child act as two PHP-FPM workers of one sidecar.
-// Each exposure waits until the test received the previous one, so the
-// sidecar sees them in order.
+require_once __DIR__ . '/exposure_sidecar.inc';
 function expose($step, $allocation) {
+    ffeAwaitExposureSidecar();
     DDTrace\Testing\ffe_load_config(json_encode(array(
         'createdAt' => '2024-01-01T00:00:00Z',
         'environment' => array('name' => 'test'),
@@ -21,21 +20,22 @@ function expose($step, $allocation) {
     echo $step, ': cache_hit=', json_encode($result->exposureCacheHit), ' handed_off=', json_encode($handedOff), "\n";
 }
 
-function await_delivery() {
-    if (trim((string) fgets(STDIN)) !== 'next') throw new RuntimeException('missing delivery barrier');
-}
-
+$parent = getmypid();
 expose('first', 'allocation-a');
-await_delivery();
+list($a, $b) = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
 $pid = pcntl_fork();
 if ($pid === -1) throw new RuntimeException('fork failed');
 if ($pid === 0) {
+    fclose($a);
     expose('other_worker', 'allocation-b');
+    fwrite($b, getmypid() . "\n");
+    if (trim(fgets($b)) !== 'back') exit(2);
+    expose('repeat', 'allocation-a');
     exit(0);
 }
+fclose($b);
+if ((int) fgets($a) !== $pid || $pid === $parent) throw new RuntimeException('worker PID mismatch');
+expose('back', 'allocation-a');
+fwrite($a, "back\n");
 pcntl_waitpid($pid, $status);
 if (!pcntl_wifexited($status) || pcntl_wexitstatus($status) !== 0) throw new RuntimeException('forked child failed');
-await_delivery();
-// This process never saw allocation-b, so its own cache reports a repeat.
-expose('back', 'allocation-a');
-expose('repeat', 'allocation-a');

@@ -1053,7 +1053,7 @@ namespace DDTrace\Testing {
     function ffe_load_config(string $json): bool {}
 
     /**
-     * Flushes native FFE exposure batches for integration tests.
+     * Reports and clears the current request's exposure handoff indicator.
      *
      * @internal Used by extension tests only.
      */

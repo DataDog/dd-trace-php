@@ -42,6 +42,7 @@ $api->addHooks(new \DDTrace\OpenFeature\ExposureHook(function ($evaluation) {
     echo json_encode(array(
         'subject' => $evaluation->getTargetingKey(),
         'exposure' => $evaluation->isExposure(),
+        'status' => $evaluation->getDecisionStatus(),
         'send' => $evaluation->shouldSend(),
         'hit' => $evaluation->isCacheHit(),
         'serial' => $evaluation->getSplitSerialId(),
@@ -59,8 +60,8 @@ echo $client->getStringValue('flag', 'off', $context('rejected')), "\n";
 echo json_encode(array('native' => $native, 'recorded' => $recorded)), "\n";
 ?>
 --EXPECT--
-{"subject":"user","exposure":true,"send":true,"hit":false,"serial":4,"features":{"holdout.key":"h1"}}
-{"subject":"user","exposure":true,"send":false,"hit":true,"serial":4,"features":{"holdout.key":"h1"}}
-{"subject":"rejected","exposure":false,"send":false,"hit":false,"serial":null,"features":[]}
+{"subject":"user","exposure":true,"status":"admitted","send":true,"hit":false,"serial":4,"features":{"holdout.key":"h1"}}
+{"subject":"user","exposure":true,"status":"repeat","send":false,"hit":true,"serial":4,"features":{"holdout.key":"h1"}}
+{"subject":"rejected","exposure":false,"status":"not_exposure","send":false,"hit":false,"serial":null,"features":[]}
 off
 {"native":[null,null,null],"recorded":[["user","admitted"],["user","repeat"]]}
