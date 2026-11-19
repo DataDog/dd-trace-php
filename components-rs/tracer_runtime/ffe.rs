@@ -396,7 +396,9 @@ pub extern "C" fn ddog_ffe_features_drop(features: Option<Box<FfeFeatures>>) {
     drop(features);
 }
 
-// Shared by every thread of the process. The sidecar deduplicates again
+// Shared by every thread of the process. It only tells callers whether this
+// process saw the exposure before: it does not decide what is sent, because it
+// does not see the exposures of other processes. The sidecar deduplicates
 // across processes before sending. Created on first use and swapped without
 // locks, so a forked child can start empty without waiting on a mutex or a
 // first initialization that another thread was running at fork time.
@@ -451,7 +453,9 @@ fn cache_key_text(slice: CharSlice<'_>) -> String {
 }
 
 /// Records the exposure in the process exposure cache. Returns false when the
-/// subject was already exposed to the same allocation, variant and serial id.
+/// subject was already exposed to the same allocation, variant and serial id
+/// in this process. Another process may have exposed it to a different one
+/// since, so a false result must not stop the exposure from reaching the sidecar.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_exposure_cache_record(key: &FfeExposureKey<'_>) -> bool {
     let context = FfeTelemetryContext {

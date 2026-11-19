@@ -8,7 +8,7 @@ use OpenFeature\implementation\flags\Attributes;
 use OpenFeature\implementation\flags\EvaluationContext as ImmutableEvaluationContext;
 use OpenFeature\interfaces\flags\EvaluationContext;
 
-/** A completed flag evaluation and its Datadog exposure decision, as given to an ExposureHook callback. */
+/** A completed flag evaluation and its exposure decision, as given to an ExposureHook callback. */
 final class ExposureEvaluation
 {
     /**
@@ -85,13 +85,16 @@ final class ExposureEvaluation
         return $this->exposure;
     }
 
-    /** True when this subject was already exposed to the same allocation, variant and split. */
+    /** True when this subject was already exposed to the same allocation, variant and split in this PHP process. */
     public function isCacheHit(): bool
     {
         return $this->cacheHit === true;
     }
 
-    /** True for a new or changed exposure: what the provider sends to Datadog when Datadog logging is on. */
+    /**
+     * True for an exposure that is new or changed in this PHP process. The provider sends repeats to the
+     * Datadog sidecar too, which deduplicates across processes.
+     */
     public function shouldSend(): bool
     {
         return $this->cacheHit === false;

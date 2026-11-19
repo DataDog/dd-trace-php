@@ -1141,11 +1141,12 @@ namespace DDTrace\Internal {
     function ffe_provider_state(): array {}
 
     /**
-     * Record an exposure in the process exposure cache and, when it is new or
-     * changed, queue it for Datadog with its EXPOSURE features.
+     * Record an exposure in the process exposure cache and queue it for Datadog
+     * with its EXPOSURE features. Repeats are queued too: only the sidecar
+     * deduplicates across processes.
      *
      * @internal
-     * @return bool|null False for a repeated exposure, null when nothing was recorded.
+     * @return bool|null False for an exposure repeated in this process, null when nothing was recorded.
      */
     function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId = null, array $features = []): ?bool {}
 

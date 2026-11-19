@@ -534,20 +534,22 @@ int ddtrace_ffe_record_exposure(
         .serial_id = serial_id,
         .has_serial_id = has_serial_id,
     };
-    if (!ddog_ffe_exposure_cache_record(&key)) {
-        LOG(DEBUG, "Feature Flags: exposure not queued; subject already exposed to this allocation, variant and serial id");
-        return 0;
-    }
+    // The process cache only tells the caller whether this process saw the
+    // exposure before; it must not stop the exposure. Another process, such as
+    // another PHP-FPM worker, may have exposed the subject to a different
+    // allocation since, which makes this one a change. The sidecar sees the
+    // exposures of every process and deduplicates them before sending.
+    int recorded = ddog_ffe_exposure_cache_record(&key) ? 1 : 0;
 
     if (!get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED()) {
         LOG(DEBUG, "Feature Flags: exposure not queued; DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false");
-        return 1;
+        return recorded;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
         // Reported once per flush rather than per dropped exposure.
         DDTRACE_G(ffe_exposures_dropped)++;
-        return 1;
+        return recorded;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) == DDTRACE_G(ffe_exposure_buffer_cap)) {
@@ -575,8 +577,9 @@ int ddtrace_ffe_record_exposure(
     exposure->serial_id = serial_id;
     exposure->has_serial_id = has_serial_id;
     exposure->features_json = features_json ? zend_string_copy(features_json) : NULL;
-    LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu); delivery awaits sidecar handoff", DDTRACE_G(ffe_exposure_buffer_len));
-    return 1;
+    LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu%s); delivery awaits sidecar handoff",
+        DDTRACE_G(ffe_exposure_buffer_len), recorded ? "" : ", repeat in this process");
+    return recorded;
 }
 
 bool ddtrace_ffe_flush_exposures(void) {
