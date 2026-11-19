@@ -19,7 +19,7 @@ function my_app()
     }
 }
 
-\dd_trace_function('my_app', function (\DDTrace\SpanData $span) {
+\DDTrace\trace_function('my_app', function (\DDTrace\SpanData $span) {
     $span->name = 'my_app';
     $span->service = 'foo_service';
     $span->resource = 'foo_resource';

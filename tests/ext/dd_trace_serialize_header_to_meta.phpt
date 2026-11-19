@@ -13,11 +13,11 @@ application_key=123
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']['http.request.headers.content-type']);
-var_dump($spans[0]['meta']['custom-HeaderKey']);
-var_dump($spans[0]['meta']['t a g']);
-var_dump($spans[0]['meta']['tag']);
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+var_dump($spans[0]['attributes']['http.request.headers.content-type']);
+var_dump($spans[0]['attributes']['custom-HeaderKey']);
+var_dump($spans[0]['attributes']['t a g']);
+var_dump($spans[0]['attributes']['tag']);
 ?>
 --EXPECT--
 string(10) "text/plain"

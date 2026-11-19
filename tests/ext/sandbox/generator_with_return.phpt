@@ -37,7 +37,7 @@ array_map(function($span) {
     echo $span['name'];
     echo isset($span['resource']) ? ', ' . $span['resource'] : '';
     echo PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECT--
 20

@@ -324,11 +324,6 @@ void ddtrace_pre_config_minit() {
         datadog_config_entries[DATADOG_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SIGTERM].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
         datadog_config_entries[DATADOG_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SIGINT].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
     }
-
-    // Background sender does not send a Content-Length header, but sidecar does. Force-enable it thus, as the background sender does not work at all.
-    if (getenv("AWS_LAMBDA_FUNCTION_NAME")) {
-        datadog_config_entries[DATADOG_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
-    }
 #endif
 
     // Make sure it's available for appsec, before any early returns
@@ -781,6 +776,7 @@ void ddtrace_internal_handle_postfork(void) {
 void ddtrace_internal_handle_fork() {
     // The parent owns its already-recorded losses; the child starts fresh.
     memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
+    ddog_ffe_exposure_cache_reset();
 #ifdef __linux__
     ddtrace_otel_detach();
     ddtrace_otel_tid_fork_handler();

@@ -85,12 +85,13 @@ trait SnapshotTestTrait
      *
      * @param string $token The token associated with the snapshotting session
      * @param int $numExpectedTraces The number of traces to wait for. Defaults to 0 (won't check for traces)
-     * @return void
+     * @param callable|null $filter If given, only the traces it accepts are counted
+     * @return array The traces counted, with ids above PHP_INT_MAX as strings
      */
-    private function waitForTraces(string $token, int $numExpectedTraces = 0)
+    private function waitForTraces(string $token, int $numExpectedTraces = 0, $filter = null)
     {
         if ($numExpectedTraces === 0) {
-            return;
+            return [];
         }
 
         $tracesUrl = self::$testAgentUrl . '/test/session/traces?test_session_token=' . $token;
@@ -99,9 +100,12 @@ trait SnapshotTestTrait
                 $ch = curl_init($tracesUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 $response = curl_exec($ch);
-                $traces = json_decode($response, true);
+                $traces = json_decode($response, true, 512, JSON_BIGINT_AS_STRING);
+                if ($traces && $filter) {
+                    $traces = array_values(array_filter($traces, $filter));
+                }
                 if ($traces && count($traces) === $numExpectedTraces) {
-                    return;
+                    return $traces;
                 }
                 usleep(100000); // 100ms
             } catch (\Exception $e) {
@@ -141,6 +145,13 @@ trait SnapshotTestTrait
         }
         if (!in_array('meta._dd.sdk.otlp_export', $fieldsToIgnore, true)) {
             $fieldsToIgnore[] = 'meta._dd.sdk.otlp_export';
+        }
+        // The test agent doesn't rebuild _dd.p.dm from a V1 chunk's sampling_mechanism 0, and copies the chunk
+        // priority onto every span (APMAPI-1545)
+        foreach (['meta._dd.p.dm', 'metrics._sampling_priority_v1'] as $v1Field) {
+            if (!in_array($v1Field, $fieldsToIgnore, true)) {
+                $fieldsToIgnore[] = $v1Field;
+            }
         }
         $url = self::$testAgentUrl . '/test/session/snapshot?ignores=' . implode(',', $fieldsToIgnore) .
             '&test_session_token=' . $token;
@@ -357,10 +368,7 @@ trait SnapshotTestTrait
             \DDTrace\dogstatsd_count("tracer-snapshot-end." . $token, 1);
         }
 
-        $traces = $this->flushAndGetTraces($tracer);
-        if (!empty($traces)) {
-            $this->sendTracesToTestAgent($traces);
-        }
+        $this->flushAndSendTracesToTestAgent();
 
         $this->stopAndCompareSnapshotSession(
             $token,
@@ -378,46 +386,73 @@ trait SnapshotTestTrait
         self::putEnv('DD_CODE_ORIGIN_MAX_USER_FRAMES');
     }
 
+    /**
+     * Snapshots the traces the tracer sends while $fn runs; $fn returns them as parsed from the replayer.
+     * With $filter, only the traces it accepts are snapshotted: they are read back from the test agent
+     * and re-posted to the snapshot session. Long-running servers need a $filter.
+     *
+     * @return array The traces returned by $fn, filtered
+     */
     public function snapshotFromTraces(
-        $traces,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'],
+        callable $fn,
+        $fieldsToIgnore = null,
         $tokenSubstitute = null,
-        $ignoreSampledAway = false
+        $filter = null
     ) {
+        $fieldsToIgnore = $fieldsToIgnore ?? ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'];
         $token = $tokenSubstitute ?: $this->generateToken();
-        $this->startSnapshotSession($token);
         $originalToken = ini_get("datadog.trace.agent_test_session_token");
-        update_test_agent_session_token($token);
+        // Long-running servers keep the token they were started with, so filtered runs stay on it.
+        $runToken = $filter ? $originalToken : $token;
+        $this->startSnapshotSession($runToken);
+        update_test_agent_session_token($runToken);
 
-        if ($ignoreSampledAway) {
-            $traces = $this->ignoreSampledTraces($traces);
+        $traces = $fn();
+
+        if ($filter) {
+            $traces = array_values(array_filter($traces, $filter));
+            $traceIds = array_map([SpanChecker::class, 'traceIdLow'], $traces);
+            $agentTraces = $this->waitForTraces($runToken, \count($traceIds), function ($trace) use ($traceIds) {
+                return isset($trace[0]['trace_id']) && \in_array((string)$trace[0]['trace_id'], $traceIds, true);
+            });
+            $this->startSnapshotSession($token);
+            $this->postTracesToTestAgent($token, $agentTraces);
         }
-
-        $this->sendTracesToTestAgent($traces);
 
         $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, \count($traces));
         update_test_agent_session_token($originalToken);
+
+        return $traces;
     }
 
-    protected function ignoreSampledTraces($traces) {
-        $filteredSpans = [];
-        $sampledTraceIDs = [];
-        foreach ($traces as $trace) {
-            foreach ($trace as $span) {
-                if (isset($span['metrics']['_sampling_priority_v1']) && $span['metrics']['_sampling_priority_v1'] === 0) {
-                    $sampledTraceIDs[$span['trace_id']] = true;
-                }
-            }
-        }
+    protected function isNotSampledAway($chunk)
+    {
+        return ($chunk['priority'] ?? null) !== 0;
+    }
 
-        foreach ($traces as $trace) {
-            foreach ($trace as $span) {
-                if (!isset($sampledTraceIDs[$span['trace_id']])) {
-                    $filteredSpans[] = $span;
-                }
-            }
+    private function postTracesToTestAgent(string $token, array $traces)
+    {
+        // Ids above PHP_INT_MAX were decoded as strings; the test agent wants them as numbers.
+        $json = preg_replace('/"(trace_id|span_id|parent_id)":"(\d+)"/', '"$1":$2', json_encode($traces));
+        $headers = [
+            'Content-Type: application/json',
+            'Datadog-Meta-Lang: php',
+            'X-Datadog-Agent-Proxy-Disabled: true',
+            'X-Datadog-Trace-Count: ' . \count($traces),
+            'X-Datadog-Test-Session-Token: ' . $token,
+        ];
+        $envHeader = getHeaderWithEnvironment();
+        if ($envHeader) {
+            $headers[] = 'X-Datadog-Trace-Env-Variables: ' . $envHeader;
         }
-
-        return [$filteredSpans];
+        $ch = curl_init(self::$testAgentUrl . '/v0.4/traces');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        $response = curl_exec($ch);
+        if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 200) {
+            TestCase::fail('Error re-posting traces to the test agent: ' . $response);
+        }
     }
 }

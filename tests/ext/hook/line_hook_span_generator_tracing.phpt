@@ -50,7 +50,7 @@ foreach (['traced_generator', 'attributed_generator'] as $function) {
     }
 }
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === (PHP_VERSION_ID < 80000 ? 17 : 33), 'all range and function spans serialized');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === (PHP_VERSION_ID < 80000 ? 17 : 33), 'all range and function spans serialized');
 echo "OK\n";
 ?>
 --EXPECT--

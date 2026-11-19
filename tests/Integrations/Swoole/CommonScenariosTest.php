@@ -69,7 +69,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'swoole_test_app',
                         'web',
                         'GET /simple'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
@@ -83,7 +83,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'swoole_test_app',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
@@ -97,7 +97,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'swoole_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',

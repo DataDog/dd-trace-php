@@ -44,7 +44,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
             'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
-            'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
+            'DD_TRACE_PHPREDIS_ENABLED' => 'false', // We are NOT testing the phpredis integration
         ]);
     }
 
@@ -55,24 +55,21 @@ class MessengerTest extends WebFrameworkTestCase
             $this->call($spec);
         }, self::FIELDS_TO_IGNORE);
 
-        list($consumerTraces) = $this->inCli(self::getConsoleScript(), [
-            'DD_TRACE_CLI_ENABLED' => 'true',
-            'DD_TRACE_EXEC_ENABLED' => 'false',
-            'DD_SERVICE' => 'symfony_messenger_test',
-            'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
-            'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
-            'DD_TRACE_DEBUG' => 'true',
-            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
-            'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
-        ], [], ['mess:cons', 'async', '--limit=1']);
-
-        $this->snapshotFromTraces(
-            $consumerTraces,
-            self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v6_2.messenger_test.test_async_success_consumer',
-            true
-        );
+        $this->snapshotFromTraces(function () {
+            list($consumerTraces) = $this->inCli(self::getConsoleScript(), [
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_SERVICE' => 'symfony_messenger_test',
+                'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
+                'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
+                'DD_TRACE_DEBUG' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
+                'DD_TRACE_PHPREDIS_ENABLED' => 'false', // We are NOT testing the phpredis integration
+                'DD_TRACE_AGENT_PROTOCOL_VERSION' => '0.4',
+            ], [], ['mess:cons', 'async', '--limit=1']);
+            return $consumerTraces;
+        }, self::FIELDS_TO_IGNORE, 'tests.integrations.symfony.v6_2.messenger_test.test_async_success_consumer', [$this, 'isNotSampledAway']);
     }
 
     public function testAsyncFailure()
@@ -82,23 +79,20 @@ class MessengerTest extends WebFrameworkTestCase
             $this->call($spec);
         }, self::FIELDS_TO_IGNORE);
 
-        list($consumerTraces) = $this->inCli(self::getConsoleScript(), [
-            'DD_TRACE_CLI_ENABLED' => 'true',
-            'DD_TRACE_EXEC_ENABLED' => 'false',
-            'DD_SERVICE' => 'symfony_messenger_test',
-            'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
-            'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
-            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
-            'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
-        ], [], ['messenger:consume', 'async', '--limit=1']);
-
-        $this->snapshotFromTraces(
-            $consumerTraces,
-            self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v6_2.messenger_test.test_async_failure_consumer',
-            true
-        );
+        $this->snapshotFromTraces(function () {
+            list($consumerTraces) = $this->inCli(self::getConsoleScript(), [
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_SERVICE' => 'symfony_messenger_test',
+                'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
+                'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
+                'DD_TRACE_PHPREDIS_ENABLED' => 'false', // We are NOT testing the phpredis integration
+                'DD_TRACE_AGENT_PROTOCOL_VERSION' => '0.4',
+            ], [], ['messenger:consume', 'async', '--limit=1']);
+            return $consumerTraces;
+        }, self::FIELDS_TO_IGNORE, 'tests.integrations.symfony.v6_2.messenger_test.test_async_failure_consumer', [$this, 'isNotSampledAway']);
     }
 
     public function testAsyncWithTracerDisabledOnConsume()

@@ -10,7 +10,6 @@ if (!getenv('TEST_PHP_EXECUTABLE')) die('skip: TEST_PHP_EXECUTABLE required');
 ?>
 --ENV--
 _DD_DEBUG_SIDECAR_IPC_MODE=instance_per_process
-_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS=1
 DD_FEATURE_FLAGS_ENABLED=1
 DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS=1
 DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless
@@ -25,6 +24,8 @@ DD_TRACE_AGENT_URL=http://127.0.0.1:1
 NO_PROXY=127.0.0.1,localhost
 --FILE--
 <?php
+// Keep the normal idle lifetime: instrumented startup can exceed one second
+// before the replacement accepts PHP's connection. We stop both sidecars explicitly.
 $scenario = 'restart';
 require __DIR__ . '/stubs/agentless_process.inc';
 ?>

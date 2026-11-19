@@ -1,4 +1,5 @@
-FROM composer:2
+FROM composer:2.11@sha256:ca11f643d7791ebdd90a34fc20caf11380d434007ae539a9ea75cd9212e13dca
+COPY --from=mlocati/php-extension-installer:2.13.2 /usr/bin/install-php-extensions /usr/local/bin/
 
 # php-gmp is required to handle intermediate values for 64bit ids
 # while unpacking msgpack payloads.

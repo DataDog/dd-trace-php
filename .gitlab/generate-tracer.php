@@ -129,8 +129,11 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
 
     # Start the container network and services
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+    # Force a pull so a runner with a stale cached digest doesn't skip the rebuilt image.
+    docker pull registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
-    docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0_windows
+    docker pull registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
+    docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
     docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Enable NTFS long path support so cargo's libgit2-based git checkouts of
@@ -221,7 +224,8 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - unset DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
     - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php llvm
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
-    - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
+    - .gitlab/download-file.sh "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" /tmp/php-build/php-src.tar.gz
+    - tar xzf /tmp/php-build/php-src.tar.gz -C /tmp/php-build
     - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
     - ./buildconf --force
     - |
@@ -664,7 +668,7 @@ foreach ($all_minor_major_targets as $major_minor):
 "PHP Language Tests: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
-    - !reference [.services, test-agent]
+    - !reference [.services, test-agent-standalone]
   needs:
     - job: "compile extension: debug"
       parallel:
@@ -677,7 +681,6 @@ foreach ($all_minor_major_targets as $major_minor):
     ARCH: "amd64"
     DD_TRACE_STARTUP_LOGS: "0"
     DD_TRACE_WARN_CALL_STACK_DEPTH: "0"
-    DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
     DD_TRACE_GIT_METADATA_ENABLED: "0"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"

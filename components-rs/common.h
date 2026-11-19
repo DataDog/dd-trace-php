@@ -534,6 +534,8 @@ typedef struct ddog_DslString ddog_DslString;
  */
 typedef struct ddog_FfeCdnConfig ddog_FfeCdnConfig;
 
+typedef struct ddog_FfeFeatures ddog_FfeFeatures;
+
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
@@ -597,6 +599,34 @@ typedef struct ddog_DsmIdentity {
   ddog_CharSlice base_hash;
 } ddog_DsmIdentity;
 
+typedef struct ddog_FfeFeature {
+  ddog_CharSlice key;
+  /**
+   * One of the ATTR_TYPE_* values: 0 string, 1 number, 2 boolean.
+   */
+  int32_t value_type;
+  ddog_CharSlice string_value;
+  double number_value;
+  bool bool_value;
+  uintptr_t destinations_count;
+} ddog_FfeFeature;
+
+typedef struct ddog_FfeExposureKey {
+  /**
+   * Destinations, such as test agent sessions, that must not suppress each other's exposures.
+   */
+  ddog_CharSlice scope;
+  ddog_CharSlice service;
+  ddog_CharSlice env;
+  ddog_CharSlice version;
+  ddog_CharSlice flag_key;
+  ddog_CharSlice subject_id;
+  ddog_CharSlice allocation_key;
+  ddog_CharSlice variant;
+  int32_t serial_id;
+  bool has_serial_id;
+} ddog_FfeExposureKey;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
@@ -608,6 +638,10 @@ typedef struct ddog_FfeResult {
   bool do_log;
   bool observe_full_evaluation_data;
   bool valid;
+  /**
+   * NULL when the selected split has no features. Release with ddog_ffe_features_drop.
+   */
+  struct ddog_FfeFeatures *features;
 } ddog_FfeResult;
 
 typedef struct ddog_FfeAttribute {
@@ -1313,12 +1347,34 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
+typedef struct ddog_TracerPayloadBytes ddog_TracerPayloadBytes;
+typedef struct ddog_TraceChunkBytes ddog_TraceChunkBytes;
 typedef struct ddog_SpanBytes ddog_SpanBytes;
 typedef struct ddog_SpanLinkBytes ddog_SpanLinkBytes;
 typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
 typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
+typedef struct ddog_Attributes ddog_Attributes;
+typedef struct ddog_AttrValue ddog_AttrValue;
 
+
+/**
+ * Attribute value type tags from [`ddog_v1_value_type`], so a C caller picks the matching typed
+ * value getter.
+ */
+#define ddog_DDOG_V1_ATTR_STRING 0
+
+#define ddog_DDOG_V1_ATTR_INT 1
+
+#define ddog_DDOG_V1_ATTR_DOUBLE 2
+
+#define ddog_DDOG_V1_ATTR_BOOL 3
+
+#define ddog_DDOG_V1_ATTR_BYTES 4
+
+#define ddog_DDOG_V1_ATTR_KEYVALUE 5
+
+#define ddog_DDOG_V1_ATTR_LIST 6
 
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
@@ -1367,6 +1423,16 @@ typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
 
 typedef struct ddog_Arc_Target ddog_Arc_Target;
+
+/**
+ * An owned `List` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrList ddog_AttrList;
+
+/**
+ * An owned `KeyValue` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrMap ddog_AttrMap;
 
 /**
  * A mapping of a shared-memory segment, at an address that never changes.
@@ -1584,6 +1650,14 @@ typedef struct ddog_SenderParameters {
   int64_t buffer_size;
   ddog_CharSlice url;
 } ddog_SenderParameters;
+
+/**
+ * Payload-level tracer metadata for the V1 send path not already carried by the sender's
+ * `tracer_headers_tags` (lang, tracer_version, container_id live there and are routed from there).
+ */
+typedef struct ddog_TracerMetadataV1 {
+  ddog_CharSlice runtime_id;
+} ddog_TracerMetadataV1;
 
 /**
  * Raw AppSec response returned by the AppSec message functions.
@@ -1840,6 +1914,11 @@ typedef struct ddog_crasht_Config {
    * (not just the crashing thread) using ptrace-based remote unwinding.
    */
   bool collect_all_threads;
+  /**
+   * If true, the collector will read OTel thread-level context (trace_id, span_id, etc.) from
+   * each thread's TLS and include them in the crash report under `experimental`.
+   */
+  bool collect_otel_thread_contexts;
   bool create_alt_stack;
   bool demangle_names;
   /**
@@ -2416,6 +2495,12 @@ void ddog_endpoint_drop(struct ddog_Endpoint*);
  * Only pass null or a pointer to a valid, mutable `ddog_Error`.
  */
 void ddog_Error_drop(struct ddog_Error *error);
+
+/**
+ * Drops and frees a boxed error, such as the one returned by
+ * `ddog_endpoint_from_api_key_and_site`. Null is accepted.
+ */
+void ddog_Error_free(struct ddog_Error *error);
 
 /**
  * Returns a CharSlice of the error's message that is valid until the error

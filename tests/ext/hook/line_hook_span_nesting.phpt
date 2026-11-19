@@ -57,7 +57,7 @@ foreach ([false, true] as $functionFirst) {
     DDTrace\remove_hook($f);
 }
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === 11, 'all nested spans serialized');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === 11, 'all nested spans serialized');
 
 echo "OK\n";
 ?>

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! FFI wrappers that read from the agent /info SHM (`AgentInfoReader`) and propagate
-//! the results to the concentrator and trace-filter subsystems.
+//! the results to the concentrator and trace-filter subsystems and the v0.4 downgrade.
 //!
 //! Both functions perform a single `reader.read()` call (advancing the internal SHM
 //! position once) and use the returned `changed` flag to decide whether to rebuild
@@ -14,8 +14,14 @@ use libdd_common_ffi::slice::CharSlice;
 use libdd_data_pipeline::agent_info::schema::AgentInfoStruct;
 use std::ffi::c_char;
 use std::ffi::CString;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-fn info_to_concentrator_config(info: &AgentInfoStruct) {
+/// Whether the agent's /info advertises native v0.4 `span_events`, as of the last change.
+static AGENT_SPAN_EVENTS: AtomicBool = AtomicBool::new(false);
+
+/// Applies agent /info data that changed since the last read.
+fn apply_changed_info(info: &AgentInfoStruct) {
+    AGENT_SPAN_EVENTS.store(info.span_events == Some(true), Ordering::Release);
     crate::data_streams::apply_agent_endpoints(info.endpoints.as_deref());
     apply_concentrator_config(
         info.peer_tags.as_deref().unwrap_or(&[]).to_owned(),
@@ -74,7 +80,7 @@ pub unsafe extern "C" fn ddog_apply_agent_info(
             } else {
                 *container_hash_out = CharSlice::empty();
             }
-            info_to_concentrator_config(info);
+            apply_changed_info(info);
         }
     }
 }
@@ -87,7 +93,7 @@ pub unsafe extern "C" fn ddog_agent_info_as_json(reader: &mut AgentInfoReader) -
     let (changed, info) = reader.read();
     if let Some(info) = info {
         if changed {
-            info_to_concentrator_config(info);
+            apply_changed_info(info);
         }
         CString::new(serde_json::to_string(info).unwrap())
             .unwrap()
@@ -119,6 +125,13 @@ pub unsafe extern "C" fn ddog_apply_agent_info_concentrator_config(reader: &mut 
         return;
     }
     if let Some(info) = info {
-        info_to_concentrator_config(info);
+        apply_changed_info(info);
     }
+}
+
+/// Whether the in-process sender's v0.4 downgrade can send native `span_events`: the agent's
+/// /info advertises them. Otherwise span events go to the legacy `events` meta JSON.
+#[no_mangle]
+pub extern "C" fn ddog_agent_has_span_events() -> bool {
+    AGENT_SPAN_EVENTS.load(Ordering::Acquire)
 }
