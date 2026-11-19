@@ -245,8 +245,11 @@ variables:
 # Starts an OS's next image generation without rebuilding it: copies each
 # current tag to its next-generation tag by digest (the manifest is pushed
 # unchanged, so it is the same image) and signs it. RETAG_EXCLUDE services are
-# skipped: run their build job afterwards. It refuses to start if any
-# next-generation tag already exists, so it never overwrites an image.
+# skipped: run their build job afterwards. A next tag that already exists must
+# be a copy from an earlier run (same digest, re-signed) or the output of a
+# RETAG_EXCLUDE build (its digest is printed); any other one aborts the job
+# before it pushes anything, so it never overwrites an image. Re-running it is
+# safe, and verifies every copy.
 .image_retag:
   stage: ci-build
   rules:
@@ -263,16 +266,28 @@ variables:
   script:
     - |
       set -euo pipefail
-      declare -A src
-      # Pre-flight, before any push: every next tag is free, and every copy keeps its digest.
-      while read -r svc from to <&3; do
-        if out=$(docker buildx imagetools inspect "${CI_REGISTRY_IMAGE}:${to}" 2>&1); then
-          echo "ERROR: ${CI_REGISTRY_IMAGE}:${to} already exists"; exit 1
+      # Prints a tag's digest, or nothing if the tag does not exist; fails on any other error.
+      digest_of() {
+        local out
+        if out=$(docker buildx imagetools inspect "${CI_REGISTRY_IMAGE}:$1" --format '{{.Manifest.Digest}}' 2>&1); then
+          echo "${out}"
         elif [[ "${out}" != *": not found"* ]]; then
-          echo "ERROR: cannot check ${CI_REGISTRY_IMAGE}:${to}: ${out}"; exit 1
+          echo "ERROR: cannot check ${CI_REGISTRY_IMAGE}:$1: ${out}" >&2; return 1
         fi
+      }
+      declare -A src dst
+      # Pre-flight, before any push: every next tag is free or already right, and every copy keeps its digest.
+      while read -r svc from to <&3; do
+        dst[$svc]=$(digest_of "${to}")
         if [[ " ${RETAG_EXCLUDE} " == *" ${svc} "* ]]; then continue; fi
-        src[$svc]=$(docker buildx imagetools inspect "${CI_REGISTRY_IMAGE}:${from}" --format '{{.Manifest.Digest}}')
+        src[$svc]=$(digest_of "${from}")
+        if [[ -z "${src[$svc]}" ]]; then echo "ERROR: ${CI_REGISTRY_IMAGE}:${from} does not exist"; exit 1; fi
+        if [[ -n "${dst[$svc]}" ]]; then
+          if [[ "${dst[$svc]}" != "${src[$svc]}" ]]; then
+            echo "ERROR: ${CI_REGISTRY_IMAGE}:${to} already exists as ${dst[$svc]}, not a copy of ${from}@${src[$svc]}"; exit 1
+          fi
+          continue
+        fi
         # --dry-run prints the manifest the copy would push. --prefer-index=false keeps a
         # single-arch manifest as is instead of wrapping it in a new index.
         dry=$(docker buildx imagetools create --dry-run --prefer-index=false -t "${CI_REGISTRY_IMAGE}:${to}" "${CI_REGISTRY_IMAGE}@${src[$svc]}" | head -c -1 | sha256sum)
@@ -281,12 +296,16 @@ variables:
         fi
       done 3<<< "${RETAG_TAGS}"
       while read -r svc from to <&3; do
-        if [[ -z "${src[$svc]:-}" ]]; then echo "Skipping ${svc} (RETAG_EXCLUDE): build ${to} instead"; continue; fi
-        docker buildx imagetools create --prefer-index=false -t "${CI_REGISTRY_IMAGE}:${to}" "${CI_REGISTRY_IMAGE}@${src[$svc]}"
-        new=$(docker buildx imagetools inspect "${CI_REGISTRY_IMAGE}:${to}" --format '{{.Manifest.Digest}}')
-        if [[ "${new}" != "${src[$svc]}" ]]; then echo "ERROR: ${CI_REGISTRY_IMAGE}:${to} is ${new}, not ${src[$svc]}"; exit 1; fi
-        ddsign sign "${CI_REGISTRY_IMAGE}:${to}@${new}"
-        echo "${CI_REGISTRY_IMAGE}:${from}@${src[$svc]} -> ${CI_REGISTRY_IMAGE}:${to}"
+        if [[ " ${RETAG_EXCLUDE} " == *" ${svc} "* ]]; then
+          echo "Skipping ${svc} (RETAG_EXCLUDE): ${CI_REGISTRY_IMAGE}:${to}@${dst[$svc]:-<not built yet>}"; continue
+        fi
+        if [[ -z "${dst[$svc]}" ]]; then
+          docker buildx imagetools create --prefer-index=false -t "${CI_REGISTRY_IMAGE}:${to}" "${CI_REGISTRY_IMAGE}@${src[$svc]}"
+          new=$(digest_of "${to}")
+          if [[ "${new}" != "${src[$svc]}" ]]; then echo "ERROR: ${CI_REGISTRY_IMAGE}:${to} is ${new}, not ${src[$svc]}"; exit 1; fi
+        fi
+        ddsign sign "${CI_REGISTRY_IMAGE}:${to}@${src[$svc]}"
+        echo "${CI_REGISTRY_IMAGE}:${from}@${src[$svc]} -> ${CI_REGISTRY_IMAGE}:${to}${dst[$svc]:+ (already copied)}"
       done 3<<< "${RETAG_TAGS}"
 
 .windows_image_build:

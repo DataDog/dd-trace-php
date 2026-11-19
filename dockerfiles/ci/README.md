@@ -73,9 +73,12 @@ It starts the next generation without rebuilding it: every current tag is
 copied by digest to its next-generation tag (the same image, signed again),
 except the `RETAG_EXCLUDE` services (default: the one the generation rebuilds;
 override it when running the job). It logs `<current>@<digest> -> <next>` per
-tag, and refuses to start if any next-generation tag already exists. Run it
-first, then the `<OS> build` of the excluded versions only, then publish every
-next-generation tag, and only then switch the CI references to them.
+tag. A next-generation tag that already exists must be a copy from an earlier
+run (same digest) or an excluded build's output (its digest is printed);
+any other one aborts the job before it pushes anything. So it is safe to re-run,
+and a re-run verifies every copy. Run it first, then the `<OS> build` of the
+excluded versions only, then publish every next-generation tag, re-run it as a
+check, and only then switch the CI references to them.
 
 ### Publishing is independent of building
 
