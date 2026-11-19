@@ -149,9 +149,9 @@ foreach ($retagExclude as $os => $exclude) {
             $retags[$os][] = "$svc {$from[$svc]} $tag";
         }
     }
+    // NEXT == CURRENT (a temporary in-place rebuild): nothing to copy, so no job.
     if (empty($retags[$os])) {
-        fwrite(STDERR, "ERROR: no next-generation tags for $os retag\n");
-        exit(1);
+        fwrite(STDERR, "NOTE: no $os retag job: its next-generation tags are the current ones\n");
     }
 }
 
