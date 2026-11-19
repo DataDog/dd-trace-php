@@ -755,23 +755,60 @@ pub extern "C" fn ddog_type_can_be_instrumented(
     true
 }
 
-#[no_mangle]
-pub extern "C" fn ddog_global_log_probe_limiter_inc(remote_config: &RemoteConfigState) -> bool {
-    if let Some(boxed) = remote_config
+/// The global snapshot limiter and its per-second limit, if a service configuration sets one.
+fn global_log_probe_limiter(remote_config: &RemoteConfigState) -> Option<(&MaybeShmLimiter, u32)> {
+    let boxed = remote_config
         .live_debugger
         .active
-        .get(&remote_config.live_debugger.config_id)
-    {
-        if let Some(LiveDebuggingData::ServiceConfiguration(config)) =
-            boxed.0.downcast::<LiveDebuggingData>()
-        {
-            boxed.1.inc(config.sampling_snapshots_per_second)
-        } else {
-            true
+        .get(&remote_config.live_debugger.config_id)?;
+    match boxed.0.downcast::<LiveDebuggingData>() {
+        Some(LiveDebuggingData::ServiceConfiguration(config)) => {
+            Some((&boxed.1, config.sampling_snapshots_per_second))
         }
-    } else {
-        true
+        _ => None,
     }
+}
+
+/// Whether a hit that does not follow an open generation could lead one: its sampling key is
+/// within both the probe's and the global threshold, and both limiters have room. Nothing is
+/// consumed, so callers can skip evaluating the probe condition when this fails; a key within a
+/// threshold finding no room tells that threshold it is too high.
+#[no_mangle]
+pub extern "C" fn ddog_log_probe_sampling_precheck(
+    remote_config: &RemoteConfigState,
+    limiter: &MaybeShmLimiter,
+    limit: u32,
+    key: u64,
+) -> bool {
+    limiter.precheck(key, limit)
+        && global_log_probe_limiter(remote_config)
+            .is_none_or(|(global, limit)| global.precheck(key, limit))
+}
+
+/// A follower emits unconditionally, but still draws from both budgets (saturating).
+#[no_mangle]
+pub extern "C" fn ddog_log_probe_sampling_follow(
+    remote_config: &RemoteConfigState,
+    limiter: &MaybeShmLimiter,
+    limit: u32,
+) {
+    limiter.debit(limit);
+    if let Some((global, limit)) = global_log_probe_limiter(remote_config) {
+        global.debit(limit);
+    }
+}
+
+/// Try to lead a new generation: admitted by the probe limiter, then by the global one.
+/// Both adapt their thresholds to the outcome.
+#[no_mangle]
+pub extern "C" fn ddog_log_probe_sampling_lead(
+    remote_config: &RemoteConfigState,
+    limiter: &MaybeShmLimiter,
+    limit: u32,
+) -> bool {
+    limiter.try_lead(limit)
+        && global_log_probe_limiter(remote_config)
+            .is_none_or(|(global, limit)| global.try_lead(limit))
 }
 
 #[no_mangle]

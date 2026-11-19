@@ -102,6 +102,7 @@ typedef struct {
 #endif
     HashTable active_live_debugger_hooks;
     HashTable active_live_debugger_line_probes; // first line hook id -> owned reference to the probe
+    uint64_t debugger_ctx_serial; // last serial handed to a root span, see ddtrace_root_span_data
     HashTable *agent_rate_by_service;
 
     ddog_AgentRemoteConfigReader *agent_config_reader;

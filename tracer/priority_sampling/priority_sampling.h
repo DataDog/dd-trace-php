@@ -23,6 +23,12 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_REMOTE_DYNAMIC_RULE = 12,
 };
 
+// Trace sampling keeps a trace when this is <= sample_rate * UINT64_MAX. Other samplers deciding on
+// the same key agree with it: a lower rate keeps a subset of the traces a higher one keeps.
+static inline uint64_t ddtrace_trace_sampling_key(datadog_trace_id trace_id) {
+    return trace_id.low * UINT64_C(1111111111111111111); // Knuth factor
+}
+
 void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism);
 void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
 void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);

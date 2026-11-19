@@ -308,6 +308,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
             root->parent_id = 0;
             root->trace_flags = DDTRACE_TRACE_FLAG_RANDOM;
         }
+        root->debugger_ctx_serial = ++DDTRACE_G(debugger_ctx_serial);
 
         ZVAL_NULL(&span->property_parent);
         span->parent = NULL;
@@ -1293,6 +1294,15 @@ zend_string *datadog_trace_id_as_hex_string(datadog_trace_id id) {
     zend_string *str = zend_string_alloc(32, 0);
     snprintf(ZSTR_VAL(str), 33, "%016" PRIx64 "%016" PRIx64, id.high, id.low);
     return str;
+}
+
+zend_string *ddtrace_trace_id_as_logs_correlation_string(datadog_trace_id id) {
+    if (!get_DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED()) {
+        // The decimal encoding of the lower-order 64 bits
+        return ddtrace_span_id_as_string(id.low);
+    }
+    // 64-bit ids keep their decimal encoding, 128-bit ones become 32 lower-case hex characters
+    return id.high ? datadog_trace_id_as_hex_string(id) : datadog_trace_id_as_string(id);
 }
 
 void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, zend_string **env, zend_string **version) {

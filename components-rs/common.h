@@ -1342,6 +1342,48 @@ typedef struct ddog_Option_Bool {
   };
 } ddog_Option_Bool;
 
+typedef enum ddog_Option_Method_Tag {
+  DDOG_OPTION_METHOD_SOME_METHOD,
+  DDOG_OPTION_METHOD_NONE_METHOD,
+} ddog_Option_Method_Tag;
+
+typedef struct ddog_Option_Method {
+  ddog_Option_Method_Tag tag;
+  union {
+    struct {
+      enum ddog_Method some;
+    };
+  };
+} ddog_Option_Method;
+
+typedef struct ddog_Slice_CharSlice {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const ddog_CharSlice *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_CharSlice;
+
+typedef struct ddog_Slice_U32 {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const uint32_t *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_U32;
+
 typedef struct ddog_ContextKey {
   uint32_t _0;
   enum ddog_MetricType _1;
@@ -2278,20 +2320,6 @@ typedef struct ddog_CStr {
    */
   uintptr_t length;
 } ddog_CStr;
-
-typedef struct ddog_Slice_CharSlice {
-  /**
-   * Should be non-null and suitably aligned for the underlying type. It is
-   * allowed but not recommended for the pointer to be null when the len is
-   * zero.
-   */
-  const ddog_CharSlice *ptr;
-  /**
-   * The number of elements (not bytes) that `.ptr` points to. Must be less
-   * than or equal to [isize::MAX].
-   */
-  uintptr_t len;
-} ddog_Slice_CharSlice;
 
 typedef struct ddog_ProcessInfo {
   struct ddog_Slice_CharSlice args;
