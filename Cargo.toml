@@ -102,6 +102,7 @@ trigger_time_sample = ["profiling"]
 
 [dependencies]
 libdd-common = { workspace = true }
+libdd-host-identity = { workspace = true }
 libdd-networking = { workspace = true }
 libdd-common-ffi = { workspace = true, optional = true }
 libdd-telemetry = { workspace = true, optional = true }
@@ -437,7 +438,8 @@ dynasmrt = { version = "5.0.0" }
 itertools = { version = "0.11.0" }
 lazy_static = { version = "1.4" }
 libdd-alloc = { path = "libdatadog/libdd-alloc" }
-libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-common = { path = "libdatadog/libdd-common" }
+libdd-host-identity = { path = "libdatadog/libdd-host-identity", features = ["cgroup_testing"] }
 libdd-networking = { path = "libdatadog/libdd-networking" }
 libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false, features = ["std"] }
 libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector"] }
