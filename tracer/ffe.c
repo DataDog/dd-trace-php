@@ -565,6 +565,20 @@ static void dd_ffe_defer(ddog_FfeExposure event, zend_string *flag, zend_string 
     };
 }
 
+bool ddtrace_ffe_test_admission_ready(void) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) return false;
+
+    // Verdict fixtures exercise real IPC under instrumentation at the FFI's maximum budget.
+    DDTRACE_G(ffe_test_admission_budget_us) = 50000;
+    ddog_FfeTelemetryContext context = {.service = DDOG_CHARSLICE_C("ddtrace-phpt-readiness")};
+    ddog_FfeExposure probe = {.flag_key = DDOG_CHARSLICE_C("probe"), .allocation_key = DDOG_CHARSLICE_C("probe"),
+                              .variant = DDOG_CHARSLICE_C("ready")};
+    ddog_FfeAdmission status = ddog_FFE_ADMISSION_UNAVAILABLE;
+    return datadog_ffi_try("FFE readiness probe failed", ddog_sidecar_ffe_admit_v1(
+        &DATADOG_G(sidecar), &context, &probe, false, DDTRACE_G(ffe_test_admission_budget_us), &status)) &&
+        (status == ddog_FFE_ADMISSION_ADMITTED || status == ddog_FFE_ADMISSION_REPEAT);
+}
+
 const char *ddtrace_ffe_admission_name(int status) {
     switch (status) {
         case ddog_FFE_ADMISSION_ADMITTED: return "admitted";
@@ -621,8 +635,9 @@ int ddtrace_ffe_record_exposure(
             status = ddog_FFE_ADMISSION_QUEUE_FULL;
         }
     } else {
+        uint32_t budget = DDTRACE_G(ffe_test_admission_budget_us);
         datadog_ffi_try("FFE exposure admission failed", ddog_sidecar_ffe_admit_v1(
-            &DATADOG_G(sidecar), &context, &event, deliver, DD_FFE_ADMISSION_BUDGET_US, &status));
+            &DATADOG_G(sidecar), &context, &event, deliver, budget ? budget : DD_FFE_ADMISSION_BUDGET_US, &status));
     }
     if (deliver && status == ddog_FFE_ADMISSION_QUEUE_FULL) {
         // Keep subsequent observations in request order for the legacy batch admission.

@@ -11,6 +11,7 @@ datadog.experimental_flagging_provider_enabled=1
 --FILE--
 <?php
 require_once __DIR__ . '/stubs/exposure_sidecar.inc';
+ini_set('datadog.trace.agent_test_session_token', uniqid('ffe-', true));
 ffeAwaitExposureSidecar();
 require __DIR__ . '/logging.inc';
 

@@ -128,6 +128,7 @@ typedef struct {
     dtor_func_t resource_dtor_func;
 
     bool ffe_exposure_handed_off;
+    uint32_t ffe_test_admission_budget_us;
     void *ffe_deferred;
     void *ffe_metric_buffer;
     size_t ffe_metric_buffer_len;

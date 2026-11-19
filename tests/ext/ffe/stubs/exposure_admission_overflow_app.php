@@ -1,10 +1,22 @@
 <?php
 require_once __DIR__ . '/exposure_sidecar.inc';
 ffeAwaitExposureSidecar();
-$counts = array();
-for ($i = 0; $i < 1400; $i++) {
+$required = $uncertain = array();
+$deferred = 0;
+for ($i = 0; count($required) < 1400 && $i < 4000; $i++) {
     $status = DDTrace\Internal\record_ffe_exposure('flag', (string) $i, array('index' => $i), 'allocation', 'A', 0, array('arm' => 'control'));
-    $counts[$status] = 1 + ($counts[$status] ?? 0);
+    if ($status === 'admitted') {
+        $required[] = $i;
+    } elseif ($status === 'unknown') {
+        $uncertain[] = $i;
+    } elseif ($status === 'unavailable') {
+        if (dd_trace_internal_fn('test_ffe_has_deferred_exposures')) {
+            $required[] = $i;
+            $deferred++;
+        }
+    } else {
+        throw new RuntimeException("unexpected verdict $status for subject $i");
+    }
 }
 if (function_exists('pcntl_fork')) {
     $pid = pcntl_fork();
@@ -13,6 +25,8 @@ if (function_exists('pcntl_fork')) {
         throw new RuntimeException('forked child inherited a deferred handoff');
     }
 }
-echo isset($counts['unavailable']) && isset($counts['admitted']) ? "overloaded\n" : "unexpected " . json_encode($counts) . "\n";
+if (!$deferred || $deferred > 1000 || count($required) !== 1400) throw new RuntimeException("unexpected deferred count: $deferred");
+echo json_encode(array($required, $uncertain)), "\n";
 fflush(STDOUT);
-if (trim(fgets(STDIN)) !== 'finish') exit(1);
+if (trim(fgets(STDIN)) !== 'finish' || !DDTrace\Testing\flush_ffe_exposures()) exit(1);
+if (trim(fgets(STDIN)) !== 'delivered') exit(1);

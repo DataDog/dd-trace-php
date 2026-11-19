@@ -10,6 +10,9 @@ datadog.experimental_flagging_provider_enabled=1
 --FILE--
 <?php
 require __DIR__ . '/logging.inc';
+require __DIR__ . '/stubs/exposure_sidecar.inc';
+ini_set('datadog.trace.agent_test_session_token', uniqid('debug-', true));
+ffeAwaitExposureSidecar();
 
 // This request-local value must not change the startup subscription diagnostic.
 ini_set('datadog.experimental_flagging_provider_enabled', '0');

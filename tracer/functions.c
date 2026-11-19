@@ -2167,6 +2167,10 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice slice = ddog_sidecar_dump(&DATADOG_G(sidecar));
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
+        } else if (FUNCTION_NAME_MATCHES("test_ffe_has_deferred_exposures")) {
+            RETURN_BOOL(DDTRACE_G(ffe_deferred) != NULL);
+        } else if (FUNCTION_NAME_MATCHES("test_ffe_admission_ready")) {
+            RETURN_BOOL(ddtrace_ffe_test_admission_ready());
         } else if (FUNCTION_NAME_MATCHES("stats_sidecar")) {
             if (!DATADOG_G(sidecar)) {
                 RETURN_FALSE;

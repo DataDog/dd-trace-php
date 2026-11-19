@@ -670,6 +670,7 @@ void ddtrace_rshutdown(bool fast_shutdown) {
     }
 
     ddtrace_ffe_flush_deferred();
+    DDTRACE_G(ffe_test_admission_budget_us) = 0;
     DDTRACE_G(ffe_exposure_handed_off) = false;
     ddtrace_ffe_flush_evaluation_metrics();
 
