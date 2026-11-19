@@ -1,0 +1,17 @@
+--- a/ext/curl/tests/server.inc
++++ b/ext/curl/tests/server.inc
+@@ -21,3 +21,4 @@
+     stream_set_blocking($pipes[2], false);
+-    for ($i = 0; $i < 60; $i++) {
++    $startup_stderr = '';
++    for ($i = 0; $i < 200; $i++) {
+         usleep(50000); // 50ms per try
+@@ -31,2 +32,3 @@
+         while (($line = fgets($pipes[2])) !== false) {
++            $startup_stderr .= $line;
+             if (preg_match('@PHP \S* Development Server \(https?://(.*?:\d+)\) started@', $line, $matches)) {
+@@ -41,3 +43,3 @@
+     if ($bound === null) {
+-        echo "Server did not output startup message";
++        echo "Server did not output startup message\n", $startup_stderr;
+         proc_terminate($handle);
