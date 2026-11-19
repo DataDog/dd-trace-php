@@ -98,14 +98,20 @@ pub static mut datadog_runtime_id: Uuid = Uuid::nil();
 #[allow(non_upper_case_globals)]
 pub static mut datadog_session_id: Uuid = Uuid::nil();
 
+// These byte arrays have alignment 1. datadog.h declares them by hand, with
+// that alignment, in cbindgen.toml's after_includes.
+
+/// cbindgen:ignore
 #[no_mangle]
 #[allow(non_upper_case_globals)]
 pub static mut datadog_formatted_session_id: [u8; 36] = [0u8; 36];
 
+/// cbindgen:ignore
 #[no_mangle]
 #[allow(non_upper_case_globals)]
 pub static mut datadog_formatted_root_session_id: [u8; 36] = [0u8; 36];
 
+/// cbindgen:ignore
 #[no_mangle]
 #[allow(non_upper_case_globals)]
 pub static mut datadog_formatted_parent_session_id: [u8; 36] = [0u8; 36];

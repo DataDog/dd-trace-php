@@ -11,7 +11,23 @@ no_includes = true
 sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
 includes = ["common.h", "telemetry.h", "sidecar.h"]
 
-after_includes = "#define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1"
+after_includes = """
+
+#define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1
+
+/* These are [u8; 36] statics in Rust, with alignment 1. Without saying so,
+ * Clang applies the x86-64 psABI rule that arrays of 16 bytes or more are
+ * 16-byte aligned, and copies them with movaps, which faults. */
+#ifndef _MSC_VER
+extern _Alignas(1) uint8_t datadog_formatted_session_id[36];
+extern _Alignas(1) uint8_t datadog_formatted_root_session_id[36];
+extern _Alignas(1) uint8_t datadog_formatted_parent_session_id[36];
+#else
+/* MSVC has no _Alignas without /std:c11, and makes no such assumption. */
+extern uint8_t datadog_formatted_session_id[36];
+extern uint8_t datadog_formatted_root_session_id[36];
+extern uint8_t datadog_formatted_parent_session_id[36];
+#endif"""
 
 [defines]
 "feature = profiling" = "DDTRACE_PROFILING"
