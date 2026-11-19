@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
-use libdd_ipc::rate_limiter::{LocalLimiter, ShmLimiter, ShmLimiterMemory};
+use libdd_ipc::rate_limiter::{LocalLimiter, SamplingThreshold, ShmLimiter, ShmLimiterMemory};
 use libdd_telemetry_ffi::try_c;
 #[cfg(windows)]
 use spawn_worker::{get_trampoline_target_data, LibDependency};
@@ -303,7 +303,7 @@ pub extern "C" fn datadog_sidecar_clear_reconnect_fn(transport: &mut Box<Sidecar
 }
 
 struct LimiterReaders {
-    probes: ShmLimiterMemory<()>,
+    probes: ShmLimiterMemory<SamplingThreshold>,
     exceptions: ExceptionHashRateLimiter,
 }
 
@@ -406,10 +406,11 @@ const SHM_LIMITER_GRANULARITY: Duration = Duration::from_secs(1);
 pub struct MaybeShmLimiter(Option<Limiter>);
 
 enum Limiter {
-    Local(LocalLimiter),
-    Shm(ShmLimiter<()>),
+    Local(LocalLimiter, SamplingThreshold),
+    Shm(ShmLimiter<SamplingThreshold>),
 }
 
+/// No limiter (index 0) means unlimited: every key is a candidate and always admitted.
 impl MaybeShmLimiter {
     pub fn open(index: u32) -> Self {
         MaybeShmLimiter(if index == 0 {
@@ -420,23 +421,48 @@ impl MaybeShmLimiter {
                     .probes
                     .get(index)
                     .map(Limiter::Shm)
-                    .unwrap_or_else(|| Limiter::Local(LocalLimiter::default())),
+                    .unwrap_or_else(|| {
+                        Limiter::Local(LocalLimiter::default(), SamplingThreshold::default())
+                    }),
             )
         })
     }
 
     pub fn inc(&self, limit: u32) -> bool {
         match &self.0 {
-            Some(Limiter::Local(limiter)) => limiter.inc(limit, SHM_LIMITER_GRANULARITY),
+            Some(Limiter::Local(limiter, _)) => limiter.inc(limit, SHM_LIMITER_GRANULARITY),
             Some(Limiter::Shm(limiter)) => limiter.inc(limit, SHM_LIMITER_GRANULARITY),
             None => true,
         }
     }
-}
 
-#[no_mangle]
-pub extern "C" fn ddog_shm_limiter_inc(limiter: &MaybeShmLimiter, limit: u32) -> bool {
-    limiter.inc(limit)
+    pub fn debit(&self, limit: u32) {
+        match &self.0 {
+            Some(Limiter::Local(limiter, _)) => limiter.debit(limit, SHM_LIMITER_GRANULARITY),
+            Some(Limiter::Shm(limiter)) => limiter.debit(limit, SHM_LIMITER_GRANULARITY),
+            None => {}
+        }
+    }
+
+    pub fn precheck(&self, key: u64, limit: u32) -> bool {
+        match &self.0 {
+            Some(Limiter::Local(limiter, threshold)) => {
+                limiter.precheck(threshold, key, limit, SHM_LIMITER_GRANULARITY)
+            }
+            Some(Limiter::Shm(limiter)) => limiter.precheck(key, limit, SHM_LIMITER_GRANULARITY),
+            None => true,
+        }
+    }
+
+    pub fn try_lead(&self, limit: u32) -> bool {
+        match &self.0 {
+            Some(Limiter::Local(limiter, threshold)) => {
+                limiter.try_lead(threshold, limit, SHM_LIMITER_GRANULARITY)
+            }
+            Some(Limiter::Shm(limiter)) => limiter.try_lead(limit, SHM_LIMITER_GRANULARITY),
+            None => true,
+        }
+    }
 }
 
 #[no_mangle]
@@ -478,7 +504,7 @@ mod tests {
         }
 
         datadog_sidecar::use_thread_sidecar_shm_namespace(Some(std::process::id()));
-        let mut old = ShmLimiterMemory::<()>::create(shm_limiter_path()).unwrap();
+        let mut old = ShmLimiterMemory::<SamplingThreshold>::create(shm_limiter_path()).unwrap();
         let old_slot = old.alloc().unwrap();
         let reader = MaybeShmLimiter::open(old_slot.index());
         for _ in 0..10 {
@@ -507,7 +533,7 @@ mod tests {
         let other_master = std::process::id() | (1 << 31);
         datadog_sidecar::use_thread_sidecar_shm_namespace(Some(other_master));
         ddog_sidecar_reconnect_readers(Some(&cache), None, None, None);
-        let mut new = ShmLimiterMemory::<()>::create(shm_limiter_path()).unwrap();
+        let mut new = ShmLimiterMemory::<SamplingThreshold>::create(shm_limiter_path()).unwrap();
         let new_slot = new.alloc().unwrap();
         assert_eq!(old_slot.index(), new_slot.index());
         let reader = MaybeShmLimiter::open(new_slot.index());

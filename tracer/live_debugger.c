@@ -4,6 +4,8 @@
 #include <exceptions/exceptions.h>
 #include "zai_string/string.h"
 #include "span.h"
+#include "priority_sampling/priority_sampling.h"
+#include "random.h"
 #include "span_tags_view.h"
 #include "hook/uhook.h"
 #include "hook/uhook_line.h"
@@ -622,7 +624,18 @@ static int64_t dd_set_span_decoration(const ddog_Probe *probe) {
 typedef struct {
     dd_probe_def parent;
     const ddog_MaybeShmLimiter *limiter;
+    // The trace (root span serial) and generation this probe last emitted in.
+    uint64_t gen_serial;
+    uint64_t gen;
 } dd_log_probe_def;
+
+static dd_log_probe_def *dd_log_probe_def_alloc(const ddog_MaybeShmLimiter *limiter) {
+    dd_log_probe_def *def = emalloc(sizeof(*def));
+    def->limiter = limiter;
+    def->gen_serial = 0;
+    def->gen = 0;
+    return def;
+}
 
 typedef struct {
     bool rejected;
@@ -631,15 +644,69 @@ typedef struct {
     dd_capture_arena capture_arena;
 } dd_log_probe_dyn;
 
+/* Coordinated sampling: probes hit within one trace sample together.
+ *
+ * A successful sampling decision opens a new generation in the trace (its root span). Every
+ * probe that has not emitted in the trace's latest generation yet follows it: it emits without
+ * asking its own budget, but still draws from it. Otherwise a probe has to win its own budget,
+ * opening the next generation. Which traces may open one is decided on the trace id against an
+ * adaptive threshold, so that independent probes agree on the same traces.
+ *
+ * Without a trace, each hit is sampled on its own. */
+static ddtrace_root_span_data *dd_sampling_root(void) {
+    return DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
+}
+
+static bool dd_log_probe_follows(const dd_log_probe_def *def, const ddtrace_root_span_data *root) {
+    if (!root) {
+        return false;
+    }
+    uint64_t emitted_in = def->gen_serial == root->debugger_ctx_serial ? def->gen : 0;
+    return root->debugger_generation > emitted_in;
+}
+
+static uint64_t dd_sampling_key(const ddtrace_root_span_data *root) {
+    if (!root) {
+        return ddtrace_generate_span_id();
+    }
+    // The same key as trace sampling, so probes sampling at most at the trace sample rate pick kept traces.
+    // Read on every hit: the trace id may be replaced by distributed tracing headers after the root span started.
+    return ddtrace_trace_sampling_key(root->trace_id);
+}
+
+static bool dd_log_probe_sample(dd_log_probe_def *def, ddtrace_root_span_data *root, bool follows) {
+    uint32_t limit = def->parent.probe.probe.log.sampling_snapshots_per_second;
+    if (follows) {
+        ddog_log_probe_sampling_follow(DATADOG_G(remote_config_state), def->limiter, limit);
+    } else if (!ddog_log_probe_sampling_lead(DATADOG_G(remote_config_state), def->limiter, limit)) {
+        return false;
+    } else if (root) {
+        ++root->debugger_generation;
+    }
+    if (root) {
+        def->gen_serial = root->debugger_ctx_serial;
+        def->gen = root->debugger_generation;
+    }
+    return true;
+}
+
 static bool dd_log_probe_eval_condition(dd_log_probe_def *def, zend_execute_data *execute_data, zval *retval) {
     if (dd_probe_file_mismatch(&def->parent, execute_data)) {
+        return false;
+    }
+
+    ddtrace_root_span_data *root = dd_sampling_root();
+    bool follows = dd_log_probe_follows(def, root);
+    // A hit which could not be sampled anyway does not need its condition evaluated.
+    if (!follows && !ddog_log_probe_sampling_precheck(DATADOG_G(remote_config_state), def->limiter,
+                                                      def->parent.probe.probe.log.sampling_snapshots_per_second, dd_sampling_key(root))) {
         return false;
     }
 
     ddog_ConditionEvaluationResult condition = dd_eval_condition(def->parent.probe.probe.log.when, execute_data, retval);
     switch (condition.tag) {
         case DDOG_CONDITION_EVALUATION_RESULT_SUCCESS:
-            return ddog_shm_limiter_inc(def->limiter, def->parent.probe.probe.log.sampling_snapshots_per_second) && ddog_global_log_probe_limiter_inc(DATADOG_G(remote_config_state));
+            return dd_log_probe_sample(def, root, follows);
         case DDOG_CONDITION_EVALUATION_RESULT_ERROR:
             dd_submit_probe_eval_error_snapshot(&def->parent.probe, condition.error);
             break;
@@ -661,6 +728,14 @@ static void dd_log_probe_ensure_payload(dd_log_probe_dyn *dyn, dd_log_probe_def 
             DDOG_CHARSLICE_C("php"),
             ddtrace_nanoseconds_realtime() / 1000000,
             dd_zend_string_to_CharSlice(datadog_process_tags_get_serialized()));
+        ddtrace_span_data *span = ddtrace_active_span();
+        if (span) {
+            zend_string *trace_id = ddtrace_trace_id_as_logs_correlation_string(span->root->trace_id);
+            zend_string *span_id = ddtrace_span_id_as_string(span->span_id);
+            ddog_snapshot_set_trace_correlation(dyn->payload, dd_zend_string_to_CharSlice(trace_id), dd_zend_string_to_CharSlice(span_id));
+            zend_string_release(trace_id);
+            zend_string_release(span_id);
+        }
     }
 }
 
@@ -1040,8 +1115,7 @@ static bool dd_log_probe_begin(zend_ulong invocation, zend_execute_data *execute
 }
 
 static int64_t dd_set_log_probe(const ddog_Probe *probe, const ddog_MaybeShmLimiter *limiter) {
-    dd_log_probe_def *def = emalloc(sizeof(*def));
-    def->limiter = limiter;
+    dd_log_probe_def *def = dd_log_probe_def_alloc(limiter);
     return dd_init_live_debugger_probe(probe, &def->parent, dd_log_probe_begin, dd_log_probe_end, dd_probe_dtor, sizeof(dd_log_probe_dyn));
 }
 
@@ -1418,8 +1492,7 @@ static int64_t dd_set_probe(const ddog_Probe probe, const ddog_MaybeShmLimiter *
             case DDOG_PROBE_TYPE_METRIC:
                 return dd_init_line_probe(&probe, emalloc(sizeof(dd_probe_def)), &dd_line_metric_callbacks);
             case DDOG_PROBE_TYPE_LOG: {
-                dd_log_probe_def *def = emalloc(sizeof(*def));
-                def->limiter = limiter;
+                dd_log_probe_def *def = dd_log_probe_def_alloc(limiter);
                 return dd_init_line_probe(&probe, &def->parent, &dd_line_log_callbacks);
             }
             case DDOG_PROBE_TYPE_SPAN:

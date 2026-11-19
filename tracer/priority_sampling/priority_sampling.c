@@ -20,7 +20,6 @@
 #include <ext/agent_info.h>
 
 /* Sampling constants */
-static const uint64_t KNUTH_FACTOR = 1111111111111111111ULL;
 static const uint64_t MAX_TRACE_ID = ~0ULL;  // 2^64-1 - This represents the maximum value of a Trace ID
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
@@ -340,7 +339,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     }
 
     // this must be stable on re-evaluation
-    bool sampling = (span->trace_id.low * KNUTH_FACTOR) <= (sample_rate * MAX_TRACE_ID);
+    bool sampling = ddtrace_trace_sampling_key(span->trace_id) <= (sample_rate * MAX_TRACE_ID);
     bool limited = false;
     if (result.mechanism != DD_MECHANISM_MANUAL && ddtrace_limiter_active() && sampling) {
         if (span->trace_is_limited == DD_TRACE_LIMIT_UNCHECKED) {

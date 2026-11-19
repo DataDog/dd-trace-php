@@ -174,6 +174,10 @@ struct ddtrace_root_span_data {
     bool explicit_sampling_priority;
     bool asm_event_emitted;
     enum ddtrace_trace_limited trace_is_limited;
+    // Live debugger coordinated sampling: identifies this trace to probes (never reused, unlike
+    // the address) and the latest probe generation opened in it.
+    uint64_t debugger_ctx_serial;
+    uint64_t debugger_generation;
 
     union {
         ddtrace_span_data;
@@ -316,6 +320,8 @@ zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *datadog_trace_id_as_string(datadog_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
 zend_string *datadog_trace_id_as_hex_string(datadog_trace_id id);
+// The trace id as injected into logs, honoring DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED
+zend_string *ddtrace_trace_id_as_logs_correlation_string(datadog_trace_id id);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_string *new_str);
 void ddtrace_sidecar_submit_root_span_data(void);

@@ -69,6 +69,14 @@ struct ddog_DebuggerPayload *ddog_create_log_probe_snapshot(const struct ddog_Pr
                                                             uint64_t timestamp,
                                                             ddog_CharSlice process_tags);
 
+/**
+ * Attach the active trace and span to a snapshot, already formatted by the caller.
+ * Both are copied, so they need not outlive the payload.
+ */
+void ddog_snapshot_set_trace_correlation(struct ddog_DebuggerPayload *payload,
+                                         ddog_CharSlice trace_id,
+                                         ddog_CharSlice span_id);
+
 void ddog_update_payload_message(struct ddog_DebuggerPayload *payload, ddog_CharSlice message);
 
 ddog_DebuggerCapture *ddog_snapshot_entry(struct ddog_DebuggerPayload *payload);

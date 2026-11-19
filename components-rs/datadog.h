@@ -354,7 +354,31 @@ void ddog_remote_config_loaded_configs_free(char *ptr);
 bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
                                    ddog_CharSlice typename_);
 
-bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remote_config);
+/**
+ * Whether a hit that does not follow an open generation could lead one: its sampling key is
+ * within both the probe's and the global threshold, and both limiters have room. Nothing is
+ * consumed, so callers can skip evaluating the probe condition when this fails; a key within a
+ * threshold finding no room tells that threshold it is too high.
+ */
+bool ddog_log_probe_sampling_precheck(const struct ddog_RemoteConfigState *remote_config,
+                                      const struct ddog_MaybeShmLimiter *limiter,
+                                      uint32_t limit,
+                                      uint64_t key);
+
+/**
+ * A follower emits unconditionally, but still draws from both budgets (saturating).
+ */
+void ddog_log_probe_sampling_follow(const struct ddog_RemoteConfigState *remote_config,
+                                    const struct ddog_MaybeShmLimiter *limiter,
+                                    uint32_t limit);
+
+/**
+ * Try to lead a new generation: admitted by the probe limiter, then by the global one.
+ * Both adapt their thresholds to the outcome.
+ */
+bool ddog_log_probe_sampling_lead(const struct ddog_RemoteConfigState *remote_config,
+                                  const struct ddog_MaybeShmLimiter *limiter,
+                                  uint32_t limit);
 
 struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
 
@@ -504,8 +528,6 @@ void ddog_sidecar_check_liveness(struct ddog_SidecarTransport **transport, bool 
 ddog_MaybeError ddog_sidecar_watch_process(struct ddog_SidecarTransport **transport,
                                            int32_t *reader_fd);
 #endif
-
-bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
                                      uint64_t hash,

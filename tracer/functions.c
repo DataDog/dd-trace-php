@@ -2670,22 +2670,7 @@ PHP_FUNCTION(DDTrace_logs_correlation_trace_id) {
         RETURN_THROWS();
     }
 
-    datadog_trace_id trace_id = ddtrace_peek_trace_id();
-
-    if (get_DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED()) {
-        // The format of the injected trace id is conditional based on the higher-order 64 bits of the trace id
-        uint64_t high = trace_id.high;
-        if (high == 0) {
-            // If zero, the injected trace id will be its decimal string encoding (preserving the current behavior of 64-bit TraceIds)
-            RETURN_STR(datadog_trace_id_as_string(trace_id));
-        } else {
-            // The injected trace id will be encoded as 32 lower-case hexadecimal characters with zero-padding as necessary
-            RETURN_STR(datadog_trace_id_as_hex_string(trace_id));
-        }
-    } else {
-        // The injected trace id is the decimal encoding of the lower-order 64-bits of the trace id
-        RETURN_STR(ddtrace_span_id_as_string(trace_id.low));
-    }
+    RETURN_STR(ddtrace_trace_id_as_logs_correlation_string(ddtrace_peek_trace_id()));
 }
 
 /* {{{ proto array \DDTrace\current_context() */

@@ -62,7 +62,7 @@ reset_request_replayer();
 ?>
 --EXPECTF--
 int(30)
-array(6) {
+array(8) {
   ["service"]=>
   string(22) "debugger_log_probe.php"
   ["ddsource"]=>
@@ -249,4 +249,8 @@ array(6) {
 "
   ["process_tags"]=>
   string(%d) "%s"
+  ["dd.trace_id"]=>
+  string(32) "%x"
+  ["dd.span_id"]=>
+  string(%d) "%d"
 }
