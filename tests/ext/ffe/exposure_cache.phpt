@@ -1,5 +1,5 @@
 --TEST--
-FFE exposures are checked against the process exposure cache before they are queued
+FFE exposures are checked against the process exposure cache, which reports repeats but still queues them
 --INI--
 datadog.trace.log_file={PWD}/exposure_cache.log
 datadog.trace.log_level="debug,ddtrace=trace"
@@ -59,8 +59,10 @@ ini_set('datadog.trace.agent_test_session_token', '');
 
 DDTrace\Testing\flush_ffe_exposures();
 $logs = read_log_snapshot(__DIR__ . '/exposure_cache.log');
-echo 'repeats_logged=', substr_count($logs, 'Feature Flags: exposure not queued; subject already exposed'), "\n";
-echo 'handed_off=', strpos($logs, 'Feature Flags: handed off 7 exposure(s) to sidecar') !== false ? 'yes' : 'no', "\n";
+// Another process may have exposed a subject to a different allocation since,
+// so only the sidecar can drop a repeat.
+echo 'repeats_queued=', substr_count($logs, ', repeat in this process); delivery awaits sidecar handoff'), "\n";
+echo 'handed_off=', strpos($logs, 'Feature Flags: handed off 10 exposure(s) to sidecar') !== false ? 'yes' : 'no', "\n";
 ?>
 --EXPECT--
 first=false
@@ -77,7 +79,7 @@ evaluated_after_record=true
 recorded_without_serial=true
 recorded_empty_variant=null
 other_session=true
-repeats_logged=3
+repeats_queued=3
 handed_off=yes
 --CLEAN--
 <?php @unlink(__DIR__ . '/exposure_cache.log'); ?>

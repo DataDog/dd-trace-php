@@ -13,8 +13,8 @@ use OpenFeature\interfaces\hooks\HookHints;
 use OpenFeature\interfaces\provider\ResolutionDetails;
 
 /**
- * Hands each completed flag evaluation to a callback with the Datadog exposure
- * decision, so an application can record exposures in its own data store.
+ * Hands each completed flag evaluation to a callback with the exposure decision
+ * of the PHP process, so an application can record exposures in its own data store.
  *
  * Register it on the OpenFeature API or a client. The callback runs for every
  * evaluation by the Datadog provider, including errors and repeats;

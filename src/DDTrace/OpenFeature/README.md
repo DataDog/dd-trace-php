@@ -2,8 +2,8 @@
 
 The Datadog OpenFeature provider sends exposures to Datadog. To also record
 exposures in your own data store, register `DDTrace\OpenFeature\ExposureHook`.
-It receives every completed evaluation with the same exposure decision that
-the provider uses for Datadog.
+It receives every completed evaluation with the exposure decision of the PHP
+process.
 
 ```php
 use DDTrace\OpenFeature\ExposureEvaluation;
@@ -32,8 +32,7 @@ OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
   need and write it later, for example after the response is sent.
 - `shouldSend()` is true for a successful evaluation of an allocation that logs
   exposures, for a subject not yet exposed to the same allocation, variant and
-  split serial id in this PHP process. These are the exposures that the
-  provider sends to Datadog when Datadog logging is on.
+  split serial id in this PHP process.
 - `isExposure()` is true for every successful evaluation of an allocation that
   logs exposures, including repeats. `isCacheHit()` tells repeats apart.
 - An evaluation that fails, including one that a later `after` hook fails, is
@@ -49,8 +48,14 @@ OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
   is logged as a warning, later ones at debug level.
 
 The exposure cache holds 65,536 entries per PHP process. A child created with
-`pcntl_fork()` starts with an empty cache. The Datadog sidecar deduplicates
-again across processes before it sends exposures to Datadog.
+`pcntl_fork()` starts with an empty cache. The cache does not see other
+processes: with several workers, such as PHP-FPM, `isCacheHit()` is true for a
+subject that this process exposed to the same allocation before, even if
+another worker exposed it to a different allocation since.
+
+Exposures to Datadog do not depend on this cache. The provider hands every
+exposure, repeats included, to the Datadog sidecar, which deduplicates across
+all PHP processes before it sends exposures to Datadog.
 
 ## Features
 
