@@ -834,6 +834,10 @@ foreach ($services as $part => $service) {
     GOPROXY: "https://depot-read-api-go.us1.ddbuild.io/magicmirror/magicmirror/@current/"
     GOPRIVATE: ""
     GONOPROXY: "none"
+<?php if ($major_minor === "8.6"): ?>
+    # FrankenPHP builds against PHP 8.6 since v1.13.4; the install script's default predates it.
+    FRANKENPHP_VERSION: "v1.13.5"
+<?php endif; ?>
 <?php endif; ?>
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"

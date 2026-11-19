@@ -74,8 +74,7 @@ if (PHP_VERSION_ID >= 80300 && is_file($hard_timeout_test)) {
 // Fixed in 8.4.28, 8.5.13, and 8.6.0RC5.
 $jit_interrupt_test = 'ext/opcache/tests/jit/gh20838.phpt';
 $jit_interrupt_affected = (PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80428)
-    || (PHP_VERSION_ID >= 80500 && PHP_VERSION_ID < 80513)
-    || (PHP_VERSION_ID === 80600 && version_compare(PHP_VERSION, '8.6.0RC5', '<'));
+    || (PHP_VERSION_ID >= 80500 && PHP_VERSION_ID < 80513);
 if ($jit_interrupt_affected && is_file($jit_interrupt_test)) {
     $contents = file_get_contents($jit_interrupt_test);
     if (!preg_match('/^--FLAKY--\r?$/m', $contents)) {
