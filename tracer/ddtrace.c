@@ -669,6 +669,7 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         DDTRACE_G(active_stack) = NULL;
     }
 
+    ddtrace_ffe_flush_deferred();
     DDTRACE_G(ffe_exposure_handed_off) = false;
     ddtrace_ffe_flush_evaluation_metrics();
 
@@ -770,6 +771,7 @@ void ddtrace_internal_handle_postfork(void) {
 void ddtrace_internal_handle_fork() {
     // The parent owns its already-recorded losses; the child starts fresh.
     memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
+    ddtrace_ffe_discard_deferred();
     DDTRACE_G(ffe_exposure_handed_off) = false;
 #ifdef __linux__
     ddtrace_otel_detach();

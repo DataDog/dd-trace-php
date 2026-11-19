@@ -10,6 +10,8 @@ datadog.trace.generate_root_span=0
 --FILE--
 <?php
 require_once __DIR__ . '/stubs/exposure_sidecar.inc';
+$scope = uniqid('admission-', true);
+ini_set('datadog.trace.agent_test_session_token', $scope);
 ffeAwaitExposureSidecar();
 require __DIR__ . '/logging.inc';
 
@@ -58,7 +60,7 @@ echo 'evaluated_after_record=', hit('later'), "\n";
 echo 'recorded_without_serial=', json_encode(DDTrace\Internal\record_ffe_exposure('flag', 'later', array(), 'allocation', 'off')), "\n";
 echo 'recorded_empty_variant=', json_encode(DDTrace\Internal\record_ffe_exposure('flag', 'later', array(), 'allocation', '')), "\n";
 // Test agent sessions are separate destinations, like in the sidecar.
-ini_set('datadog.trace.agent_test_session_token', 'session-a');
+ini_set('datadog.trace.agent_test_session_token', $scope . '-other');
 echo 'other_session=', json_encode(DDTrace\Internal\record_ffe_exposure('flag', 'later', array(), 'allocation', 'off')), "\n";
 ini_set('datadog.trace.agent_test_session_token', '');
 

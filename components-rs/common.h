@@ -1752,6 +1752,11 @@ typedef struct ddog_FfeSnapshotState {
 
 #define ddog_FFE_ADMISSION_UNKNOWN 3
 
+/**
+ * Queue capacity prevented admission. The producer may submit the observation in a batch.
+ */
+#define ddog_FFE_ADMISSION_QUEUE_FULL 4
+
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,
   DDOG_CRASHT_BUILD_ID_TYPE_GO,

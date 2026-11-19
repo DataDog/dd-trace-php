@@ -17,6 +17,8 @@ typedef enum {
 void ddtrace_ffe_startup(void);
 void ddtrace_ffe_shutdown(void);
 void ddtrace_ffe_handle_fork(void);
+void ddtrace_ffe_flush_deferred(void);
+void ddtrace_ffe_discard_deferred(void);
 bool ddtrace_ffe_enabled(void);
 bool ddtrace_ffe_remote_config_enabled(void);
 bool ddtrace_ffe_agentless_enabled(void);

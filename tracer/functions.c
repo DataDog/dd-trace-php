@@ -1388,6 +1388,7 @@ PHP_FUNCTION(DDTrace_Internal_handle_fork) {
 PHP_FUNCTION(DDTrace_Testing_flush_ffe_exposures) {
     ZEND_PARSE_PARAMETERS_NONE();
 
+    ddtrace_ffe_flush_deferred();
     bool handed_off = DDTRACE_G(ffe_exposure_handed_off);
     DDTRACE_G(ffe_exposure_handed_off) = false;
     RETURN_BOOL(handed_off);

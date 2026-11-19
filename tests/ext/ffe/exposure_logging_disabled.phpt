@@ -11,6 +11,8 @@ datadog.trace.generate_root_span=0
 --FILE--
 <?php
 require_once __DIR__ . '/stubs/exposure_sidecar.inc';
+$scope = uniqid('admission-', true);
+ini_set('datadog.trace.agent_test_session_token', $scope);
 ffeAwaitExposureSidecar();
 require __DIR__ . '/logging.inc';
 
