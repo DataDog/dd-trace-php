@@ -364,7 +364,6 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
 
         let mut builder = CrashtrackerConfiguration::builder()
             .collect_all_threads(true)
-            .collect_otel_thread_contexts(true)
             .timeout(std::time::Duration::from_millis(5000))
             .endpoint_use_system_resolver(endpoint.use_system_resolver)
             .endpoint_url(&endpoint.url.to_string());
