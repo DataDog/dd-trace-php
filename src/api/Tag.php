@@ -64,6 +64,7 @@ class Tag
 
     // Kafka
     const KAFKA_CLIENT_ID = 'messaging.kafka.client_id';
+    const KAFKA_CLUSTER_ID = 'messaging.kafka.cluster_id';
     const KAFKA_GROUP_ID = 'messaging.kafka.group_id';
     const KAFKA_HOST_LIST = 'messaging.kafka.bootstrap.servers';
     const KAFKA_MESSAGE_KEY = 'messaging.kafka.message_key';
