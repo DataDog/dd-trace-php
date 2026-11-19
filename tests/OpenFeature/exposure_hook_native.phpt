@@ -63,4 +63,4 @@ echo json_encode(array('native' => $native, 'recorded' => $recorded)), "\n";
 {"subject":"user","exposure":true,"send":false,"hit":true,"serial":4,"features":{"holdout.key":"h1"}}
 {"subject":"rejected","exposure":false,"send":false,"hit":false,"serial":null,"features":[]}
 off
-{"native":[null,null,null],"recorded":[["user",true],["user",false]]}
+{"native":[null,null,null],"recorded":[["user","admitted"],["user","repeat"]]}

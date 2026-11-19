@@ -326,10 +326,8 @@ static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
 
 #ifdef TRACER
 static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport, ddog_CharSlice test_token) {
-    // Both FFE writers share this target. Replace it when the test token changes
-    // so batches already handed to the sidecar keep their previous session.
-    // PHP-buffered exposures and deferred userland observations use the session
-    // active at handoff, not necessarily the one active during evaluation.
+    // The sidecar snapshots this route when it admits an exposure. A new test
+    // token starts a separate admission scope for subsequent observations.
     const ddog_EvpProducerIdentity ffe_producer = {
         .origin = DDOG_CHARSLICE_C("dd-trace-php"),
         .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),

@@ -340,6 +340,21 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      struct ddog_Slice_FfeExposure exposures);
 
 /**
+ * Attempts admission with a local IPC budget capped at 50 ms. An absent transport yields
+ * unavailable.
+ *
+ * # Safety
+ * A populated transport slot must point to a live, exclusively borrowed transport. Supply writable
+ * storage for `out`.
+ */
+ddog_MaybeError ddog_sidecar_ffe_admit_v1(struct ddog_SidecarTransport **transport,
+                                          const struct ddog_FfeTelemetryContext *context,
+                                          const struct ddog_FfeExposure *exposure,
+                                          bool deliver,
+                                          uint32_t budget_us,
+                                          ddog_FfeAdmission *out);
+
+/**
  * Send structured Feature Flags evaluation events to the sidecar. The sidecar owns
  * route selection, JSON serialization, and EVP delivery. This function is
  * caller-driven; callers must aggregate and bound event cardinality before passing

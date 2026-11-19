@@ -25,7 +25,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #define DD_FFE_METRIC_BUFFER_LIMIT 1000
-#define DD_FFE_EXPOSURE_BUFFER_LIMIT 1000
+#define DD_FFE_ADMISSION_BUDGET_US 10000
 #define DD_FFE_CONTEXT_FIELD_LIMIT 256
 
 bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
@@ -356,17 +356,7 @@ typedef struct {
     zend_string *allocation_key;
 } dd_ffe_metric;
 
-typedef struct {
-    uint64_t timestamp_ms;
-    zend_string *flag_key;
-    zend_string *subject_id;
-    zend_string *subject_attributes_json;
-    zend_string *allocation_key;
-    zend_string *variant;
-    int32_t serial_id;
-    bool has_serial_id;
-    zend_string *features_json;
-} dd_ffe_exposure;
+
 
 static void dd_ffe_release_metric(dd_ffe_metric *metric) {
     zend_string_release(metric->flag_key);
@@ -482,29 +472,13 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
     return flushed;
 }
 
-static void dd_ffe_release_exposure(dd_ffe_exposure *exposure) {
-    zend_string_release(exposure->flag_key);
-    zend_string_release(exposure->subject_id);
-    zend_string_release(exposure->subject_attributes_json);
-    zend_string_release(exposure->allocation_key);
-    zend_string_release(exposure->variant);
-    if (exposure->features_json) {
-        zend_string_release(exposure->features_json);
+const char *ddtrace_ffe_admission_name(int status) {
+    switch (status) {
+        case ddog_FFE_ADMISSION_ADMITTED: return "admitted";
+        case ddog_FFE_ADMISSION_REPEAT: return "repeat";
+        case ddog_FFE_ADMISSION_UNKNOWN: return "unknown";
+        default: return "unavailable";
     }
-}
-
-static void dd_ffe_clear_exposures(void) {
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
-    for (size_t i = 0; i < DDTRACE_G(ffe_exposure_buffer_len); i++) {
-        dd_ffe_release_exposure(&buffer[i]);
-    }
-    if (buffer) {
-        efree(buffer);
-    }
-    DDTRACE_G(ffe_exposure_buffer) = NULL;
-    DDTRACE_G(ffe_exposure_buffer_len) = 0;
-    DDTRACE_G(ffe_exposure_buffer_cap) = 0;
-    DDTRACE_G(ffe_exposures_dropped) = 0;
 }
 
 int ddtrace_ffe_record_exposure(
@@ -522,131 +496,33 @@ int ddtrace_ffe_record_exposure(
         return -1;
     }
 
-    ddog_FfeExposureKey key = {
-        .scope = dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()),
-        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
-        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
-        .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
-        .flag_key = dd_zend_string_to_CharSlice(flag_key),
-        .subject_id = dd_zend_string_to_CharSlice(targeting_key),
-        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
-        .variant = dd_zend_string_to_CharSlice(variant),
-        .serial_id = serial_id,
-        .has_serial_id = has_serial_id,
-    };
-    // The process cache only tells the caller whether this process saw the
-    // exposure before; it must not stop the exposure. Another process, such as
-    // another PHP-FPM worker, may have exposed the subject to a different
-    // allocation since, which makes this one a change. The sidecar sees the
-    // exposures of every process and deduplicates them before sending.
-    int recorded = ddog_ffe_exposure_cache_record(&key) ? 1 : 0;
-
-    if (!get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED()) {
-        LOG(DEBUG, "Feature Flags: exposure not queued; DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false");
-        return recorded;
-    }
-
-    if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
-        // Reported once per flush rather than per dropped exposure.
-        DDTRACE_G(ffe_exposures_dropped)++;
-        return recorded;
-    }
-
-    if (DDTRACE_G(ffe_exposure_buffer_len) == DDTRACE_G(ffe_exposure_buffer_cap)) {
-        size_t new_cap = DDTRACE_G(ffe_exposure_buffer_cap) == 0 ? 8 : DDTRACE_G(ffe_exposure_buffer_cap) * 2;
-        if (new_cap > DD_FFE_EXPOSURE_BUFFER_LIMIT) {
-            new_cap = DD_FFE_EXPOSURE_BUFFER_LIMIT;
-        }
-        DDTRACE_G(ffe_exposure_buffer) = safe_erealloc(
-            DDTRACE_G(ffe_exposure_buffer),
-            new_cap,
-            sizeof(dd_ffe_exposure),
-            0
-        );
-        DDTRACE_G(ffe_exposure_buffer_cap) = new_cap;
-    }
-
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
-    dd_ffe_exposure *exposure = &buffer[DDTRACE_G(ffe_exposure_buffer_len)++];
-    exposure->timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000;
-    exposure->flag_key = zend_string_copy(flag_key);
-    exposure->subject_id = targeting_key ? zend_string_copy(targeting_key) : ZSTR_EMPTY_ALLOC();
-    exposure->subject_attributes_json = zend_string_copy(subject_attributes_json);
-    exposure->allocation_key = zend_string_copy(allocation_key);
-    exposure->variant = zend_string_copy(variant);
-    exposure->serial_id = serial_id;
-    exposure->has_serial_id = has_serial_id;
-    exposure->features_json = features_json ? zend_string_copy(features_json) : NULL;
-    LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu%s); delivery awaits sidecar handoff",
-        DDTRACE_G(ffe_exposure_buffer_len), recorded ? "" : ", repeat in this process");
-    return recorded;
-}
-
-bool ddtrace_ffe_flush_exposures(void) {
-    size_t exposure_count = DDTRACE_G(ffe_exposure_buffer_len);
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
-
-    if (exposure_count == 0 || !buffer) {
-        if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
-            LOG(DEBUG, "Feature Flags: exposure flush complete; empty queue (0 exposures)");
-        }
-        return false;
-    }
-
-    LOG(DEBUG, "Feature Flags: exposure flush started (%zu exposure(s)); attempting sidecar handoff", exposure_count);
-
-    if (DDTRACE_G(ffe_exposures_dropped)) {
-        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); buffer limit reached (%d)",
-            DDTRACE_G(ffe_exposures_dropped), DD_FFE_EXPOSURE_BUFFER_LIMIT);
-    }
-
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
-        LOG(DEBUG, "Feature Flags: dropping %zu exposure(s); sidecar or request is not initialized", exposure_count);
-        dd_ffe_clear_exposures();
-        return false;
+        LOG(DEBUG, "Feature Flags: exposure admission unavailable");
+        return ddog_FFE_ADMISSION_UNAVAILABLE;
     }
-
-    ddog_FfeExposure *ffi_exposures = safe_emalloc(exposure_count, sizeof(ddog_FfeExposure), 0);
-    for (size_t i = 0; i < exposure_count; i++) {
-        ffi_exposures[i] = (ddog_FfeExposure) {
-            .timestamp_ms = buffer[i].timestamp_ms,
-            .flag_key = dd_zend_string_to_CharSlice(buffer[i].flag_key),
-            .subject_id = dd_zend_string_to_CharSlice(buffer[i].subject_id),
-            .subject_attributes_json = dd_zend_string_to_CharSlice(buffer[i].subject_attributes_json),
-            .allocation_key = dd_zend_string_to_CharSlice(buffer[i].allocation_key),
-            .variant = dd_zend_string_to_CharSlice(buffer[i].variant),
-            .serial_id = buffer[i].serial_id,
-            .has_serial_id = buffer[i].has_serial_id,
-            .features_json = dd_zend_string_to_CharSlice(buffer[i].features_json),
-        };
-    }
-
     ddog_FfeTelemetryContext context = {
         .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
         .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
         .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
     };
-    ddog_Slice_FfeExposure exposure_slice = {
-        .ptr = ffi_exposures,
-        .len = exposure_count,
+    ddog_FfeExposure event = {
+        .timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000,
+        .flag_key = dd_zend_string_to_CharSlice(flag_key),
+        .subject_id = dd_zend_string_to_CharSlice(targeting_key),
+        .subject_attributes_json = dd_zend_string_to_CharSlice(subject_attributes_json),
+        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
+        .variant = dd_zend_string_to_CharSlice(variant),
+        .serial_id = serial_id,
+        .has_serial_id = has_serial_id,
+        .features_json = dd_zend_string_to_CharSlice(features_json),
     };
-
-    bool flushed = datadog_ffi_try(
-        "Failed sending FFE exposure batch to sidecar",
-        ddog_sidecar_send_ffe_exposure_batch(
-            &DATADOG_G(sidecar),
-            &context,
-            exposure_slice));
-
-    // A successful IPC handoff is not confirmation of delivery to intake.
-    // datadog_ffi_try already logs the failure reason.
-    if (flushed) {
-        LOG(DEBUG, "Feature Flags: handed off %zu exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher", exposure_count);
-    } else {
-        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); sidecar handoff failed and is not retried", exposure_count);
+    bool deliver = get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED();
+    ddog_FfeAdmission status = ddog_FFE_ADMISSION_UNAVAILABLE;
+    datadog_ffi_try("FFE exposure admission failed", ddog_sidecar_ffe_admit_v1(
+        &DATADOG_G(sidecar), &context, &event, deliver, DD_FFE_ADMISSION_BUDGET_US, &status));
+    if (deliver && status == ddog_FFE_ADMISSION_ADMITTED) {
+        DDTRACE_G(ffe_exposure_handed_off) = true;
     }
-
-    efree(ffi_exposures);
-    dd_ffe_clear_exposures();
-    return flushed;
+    LOG(DEBUG, "Feature Flags: exposure admission %s", ddtrace_ffe_admission_name((int) status));
+    return (int) status;
 }

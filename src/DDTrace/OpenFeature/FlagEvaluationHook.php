@@ -26,7 +26,6 @@ final class FlagEvaluationHook implements Hook
     private int $startedAtMs;
     private static ?\WeakMap $exposureEvaluations = null;
 
-    /** @param callable|null $exposureRecorder Returns false for a repeat, null when nothing was recorded. */
     public function __construct(object $scope, ?callable $exposureRecorder = null)
     {
         $this->scope = $scope;
@@ -121,7 +120,7 @@ final class FlagEvaluationHook implements Hook
     {
         try {
             $exposure = $this->details !== null ? $this->exposure : null;
-            $cacheHit = null;
+            $status = $exposure !== null && $exposure['isExposure'] ? 'unavailable' : 'not_exposure';
             if ($exposure !== null && $exposure['isExposure'] && $this->exposureRecorder !== null) {
                 try {
                     $recorded = ($this->exposureRecorder)(
@@ -133,13 +132,15 @@ final class FlagEvaluationHook implements Hook
                         $exposure['serialId'],
                         $exposure['exposureFeatures']
                     );
-                    $cacheHit = is_bool($recorded) ? !$recorded : null;
+                    if (in_array($recorded, ['admitted', 'repeat', 'unknown', 'unavailable'], true)) {
+                        $status = $recorded;
+                    }
                 } catch (\Throwable $ignored) {
                 }
             }
-            if ($cacheHit !== null && method_exists($this->details, 'setMetadata')) {
+            if (($status === 'admitted' || $status === 'repeat') && method_exists($this->details, 'setMetadata')) {
                 $this->details->setMetadata(
-                    [SplitFeatures::EXPOSURE_CACHE_HIT_KEY => $cacheHit] + ($this->details->getMetadata() ?? [])
+                    [SplitFeatures::EXPOSURE_CACHE_HIT_KEY => $status === 'repeat'] + ($this->details->getMetadata() ?? [])
                 );
             }
             self::$exposureEvaluations ??= new \WeakMap();
@@ -147,7 +148,7 @@ final class FlagEvaluationHook implements Hook
                 $context->getFlagKey(),
                 $this->exposure['context'] ?? ExposureEvaluation::copyContext($context->getEvaluationContext()),
                 $exposure !== null && $exposure['isExposure'],
-                $cacheHit,
+                $status,
                 $exposure['variant'] ?? null,
                 $exposure['allocationKey'] ?? null,
                 $exposure['serialId'] ?? null,

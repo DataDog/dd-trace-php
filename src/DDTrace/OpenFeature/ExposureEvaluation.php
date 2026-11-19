@@ -12,7 +12,6 @@ use OpenFeature\interfaces\flags\EvaluationContext;
 final class ExposureEvaluation
 {
     /**
-     * @param ?bool $cacheHit Null unless the evaluation is an exposure that the cache checked.
      * @param array<string, string|float|bool> $features
      * @internal Built by the Datadog provider and ExposureHook.
      */
@@ -20,7 +19,7 @@ final class ExposureEvaluation
         private string $flagKey,
         private EvaluationContext $evaluationContext,
         private bool $exposure = false,
-        private ?bool $cacheHit = null,
+        private string $decisionStatus = 'not_exposure',
         private ?string $variant = null,
         private ?string $allocationKey = null,
         private ?int $splitSerialId = null,
@@ -85,18 +84,18 @@ final class ExposureEvaluation
         return $this->exposure;
     }
 
-    /** True when this subject was already exposed to the same allocation, variant and split in this PHP process. */
-    public function isCacheHit(): bool
+    public function getDecisionStatus(): string
     {
-        return $this->cacheHit === true;
+        return $this->decisionStatus;
     }
 
-    /**
-     * True for an exposure that is new or changed in this PHP process. The provider sends repeats to the
-     * Datadog sidecar too, which deduplicates across processes.
-     */
+    public function isCacheHit(): bool
+    {
+        return $this->decisionStatus === 'repeat';
+    }
+
     public function shouldSend(): bool
     {
-        return $this->cacheHit === false;
+        return $this->decisionStatus === 'admitted';
     }
 }

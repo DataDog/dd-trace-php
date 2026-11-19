@@ -1,12 +1,9 @@
 use crate::bytes::MaybeOwnedZendString;
-use arc_swap::ArcSwapOption;
 use datadog_ffe::cdn::{CdnConfig, CdnEndpoint, EndpointError};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Feature, FeatureValue, Str, UniversalFlagConfig,
 };
-use datadog_ffe::telemetry::exposures::{ExposureDeduplicator, FfeExposure};
-use datadog_ffe::telemetry::FfeTelemetryContext;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -395,86 +392,6 @@ pub extern "C" fn ddog_ffe_features_destination(
 #[no_mangle]
 pub extern "C" fn ddog_ffe_features_drop(features: Option<Box<FfeFeatures>>) {
     drop(features);
-}
-
-// Shared by every thread of the process. It only tells callers whether this
-// process saw the exposure before: it does not decide what is sent, because it
-// does not see the exposures of other processes. The sidecar deduplicates
-// across processes before sending. Created on first use and swapped without
-// locks, so a forked child can start empty without waiting on a mutex or a
-// first initialization that another thread was running at fork time.
-static EXPOSURE_CACHE: ArcSwapOption<ExposureDeduplicator> = ArcSwapOption::const_empty();
-
-fn exposure_cache() -> Arc<ExposureDeduplicator> {
-    if let Some(cache) = EXPOSURE_CACHE.load_full() {
-        return cache;
-    }
-    let fresh = Arc::new(ExposureDeduplicator::default());
-    let previous = EXPOSURE_CACHE.compare_and_swap(&None::<Arc<_>>, Some(fresh.clone()));
-    match &*previous {
-        Some(winner) => winner.clone(),
-        None => fresh,
-    }
-}
-
-/// Gives the calling process an empty exposure cache. Call it in a forked child.
-#[no_mangle]
-pub extern "C" fn ddog_ffe_exposure_cache_reset() {
-    EXPOSURE_CACHE.store(None);
-}
-
-#[repr(C)]
-pub struct FfeExposureKey<'a> {
-    /// Destinations, such as test agent sessions, that must not suppress each other's exposures.
-    pub scope: CharSlice<'a>,
-    pub service: CharSlice<'a>,
-    pub env: CharSlice<'a>,
-    pub version: CharSlice<'a>,
-    pub flag_key: CharSlice<'a>,
-    pub subject_id: CharSlice<'a>,
-    pub allocation_key: CharSlice<'a>,
-    pub variant: CharSlice<'a>,
-    pub serial_id: i32,
-    pub has_serial_id: bool,
-}
-
-/// Cache-key text for a PHP string: distinct byte strings give distinct text,
-/// including invalid UTF-8, which a lossy conversion would merge.
-fn cache_key_text(slice: CharSlice<'_>) -> String {
-    match slice.try_to_utf8() {
-        Ok(text) => format!("u{text}"),
-        Err(_) => {
-            let mut text = String::from("b");
-            for byte in slice.as_bytes() {
-                text.push_str(&format!("{byte:02x}"));
-            }
-            text
-        }
-    }
-}
-
-/// Records the exposure in the process exposure cache. Returns false when the
-/// subject was already exposed to the same allocation, variant and serial id
-/// in this process. Another process may have exposed it to a different one
-/// since, so a false result must not stop the exposure from reaching the sidecar.
-#[no_mangle]
-pub extern "C" fn ddog_ffe_exposure_cache_record(key: &FfeExposureKey<'_>) -> bool {
-    let context = FfeTelemetryContext {
-        service: cache_key_text(key.service),
-        env: cache_key_text(key.env),
-        version: cache_key_text(key.version),
-    };
-    let exposure = FfeExposure {
-        timestamp_ms: 0,
-        flag_key: cache_key_text(key.flag_key),
-        subject_id: cache_key_text(key.subject_id),
-        subject_attributes_json: String::new(),
-        allocation_key: cache_key_text(key.allocation_key),
-        variant: cache_key_text(key.variant),
-        serial_id: key.has_serial_id.then_some(key.serial_id),
-        features_json: String::new(),
-    };
-    exposure_cache().should_send_in_scope(&cache_key_text(key.scope), &context, &exposure)
 }
 
 #[repr(C)]
@@ -1053,82 +970,6 @@ mod tests {
             .features
             .is_none());
         clear_config();
-    }
-
-    #[test]
-    fn exposure_cache_reports_new_and_changed_exposures() {
-        // Invalid UTF-8 must not merge with its lossy replacement.
-        {
-            let record = |subject: &[u8]| {
-                ddog_ffe_exposure_cache_record(&FfeExposureKey {
-                    scope: CharSlice::from(""),
-                    service: CharSlice::from("service"),
-                    env: CharSlice::from("env"),
-                    version: CharSlice::from("1.0"),
-                    flag_key: CharSlice::from("exposure.cache.bytes.flag"),
-                    subject_id: CharSlice::from_bytes(subject),
-                    allocation_key: CharSlice::from("alloc"),
-                    variant: CharSlice::from("on"),
-                    serial_id: 1,
-                    has_serial_id: true,
-                })
-            };
-            assert!(record(b"invalid\xff"));
-            assert!(record(b"invalid\xef\xbf\xbd"));
-            assert!(!record(b"invalid\xff"));
-            assert!(!record(b"invalid\xef\xbf\xbd"));
-            // The hex text that encodes the invalid subject is a distinct valid subject.
-            assert!(record(b"b696e76616c6964ff"));
-        }
-        let record_in = |scope: &str, subject: &str, variant: &str, serial_id: Option<i32>| {
-            ddog_ffe_exposure_cache_record(&FfeExposureKey {
-                scope: CharSlice::from(scope),
-                service: CharSlice::from("service"),
-                env: CharSlice::from("env"),
-                version: CharSlice::from("1.0"),
-                flag_key: CharSlice::from("exposure.cache.flag"),
-                subject_id: CharSlice::from(subject),
-                allocation_key: CharSlice::from("alloc"),
-                variant: CharSlice::from(variant),
-                serial_id: serial_id.unwrap_or(0),
-                has_serial_id: serial_id.is_some(),
-            })
-        };
-        let record = |subject: &str, variant: &str, serial_id: Option<i32>| {
-            record_in("", subject, variant, serial_id)
-        };
-        assert!(record("user", "on", Some(1)));
-        assert!(!record("user", "on", Some(1)));
-        assert!(record_in("session", "user", "on", Some(1)));
-        assert!(!record_in("session", "user", "on", Some(1)));
-        assert!(record("other", "on", Some(1)));
-        assert!(record("user", "off", Some(1)));
-        assert!(record("user", "off", Some(2)));
-        assert!(record("user", "off", None));
-        assert!(record("user", "off", Some(0)));
-        assert!(!record("user", "off", Some(0)));
-        ddog_ffe_exposure_cache_reset();
-        assert!(record("user", "off", Some(0)));
-
-        // Threads that create the cache at the same time share one cache.
-        ddog_ffe_exposure_cache_reset();
-        let barrier = std::sync::Barrier::new(8);
-        let new_exposures = std::thread::scope(|scope| {
-            let handles: Vec<_> = (0..8)
-                .map(|_| {
-                    scope.spawn(|| {
-                        barrier.wait();
-                        record_in("race", "user", "on", Some(1))
-                    })
-                })
-                .collect();
-            handles
-                .into_iter()
-                .map(|handle| handle.join().unwrap())
-                .filter(|&new| new)
-                .count()
-        });
-        assert_eq!(new_exposures, 1);
     }
 
     #[test]

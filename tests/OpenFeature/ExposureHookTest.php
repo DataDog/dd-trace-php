@@ -221,13 +221,15 @@ final class ExposureHookTest extends TestCase
     public function testRecorderUnavailableIsAnExposureWithoutAVerdict(): void
     {
         $this->evaluator->exposure('flag', 'on', 1);
-        $this->cache->verdict = null;
-
-        $this->evaluate('flag');
-
-        self::assertTrue($this->evaluations[0]->isExposure());
-        self::assertFalse($this->evaluations[0]->isCacheHit());
-        self::assertFalse($this->evaluations[0]->shouldSend());
+        foreach ([null, 'unavailable', 'unknown'] as $index => $status) {
+            $this->cache->verdict = $status;
+            $this->evaluate('flag');
+            $evaluation = $this->evaluations[$index];
+            self::assertSame($status ?? 'unavailable', $evaluation->getDecisionStatus());
+            self::assertTrue($evaluation->isExposure());
+            self::assertFalse($evaluation->isCacheHit());
+            self::assertFalse($evaluation->shouldSend());
+        }
     }
 
     public function testCallbackFailureDoesNotAffectTheEvaluation(): void
@@ -462,9 +464,9 @@ final class ExposureTestCache
     public array $features = [];
     /** @var array<string, array> */
     private array $entries = [];
-    public bool|null|string $verdict = 'cache';
+    public ?string $verdict = 'cache';
 
-    public function record(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId, array $features = []): ?bool
+    public function record(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId, array $features = []): ?string
     {
         $this->calls[] = [$flagKey, $targetingKey, $attributes, $allocationKey, $variant, $serialId];
         $this->features[] = $features;
@@ -476,7 +478,7 @@ final class ExposureTestCache
         $new = ($this->entries[$key] ?? null) !== $value;
         $this->entries[$key] = $value;
 
-        return $new;
+        return $new ? 'admitted' : 'repeat';
     }
 }
 

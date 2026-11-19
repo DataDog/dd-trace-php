@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: 44ea4546c9e271567dc03a18612fb515e3733f77 */
+ * Stub hash: 1a7ce6ef43197595bb5a1a3e1eec5727234cb91c */
 
 #include "zend_constants.h"
 
@@ -255,7 +255,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_ffe_provider_state arginfo_DDTrace_current_context
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_exposure, 0, 5, _IS_BOOL, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_exposure, 0, 5, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, targetingKey, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, attributes, IS_ARRAY, 0)
