@@ -29,6 +29,16 @@ class KafkaIntegration extends Integration
     // WeakMap where PHP has one, else null and the entry is in ObjectKVStore.
     private static $clusterIds;
 
+    // Per ProducerTopic: [its producer, the fixed tags of its checkpoints]. Like $clusterIds.
+    private static $produceTags;
+
+    // Per KafkaConsumer or Queue: [the Queue's client or null, [topic => fixed checkpoint tags]].
+    // Like $clusterIds.
+    private static $consumeTags;
+
+    // Topics whose consume tags a consumer keeps, before it starts over.
+    const DSM_CONSUME_TAGS_TOPICS = 128;
+
     // Set while the integration installs its own callback on a Conf, so that the hooks on the
     // setters do not wrap it a second time.
     private static $installingDataStreamsCallback = false;
@@ -45,7 +55,10 @@ class KafkaIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        self::$clusterIds = \class_exists('WeakMap', false) ? new \WeakMap() : null;
+        $weakMaps = \class_exists('WeakMap', false);
+        self::$clusterIds = $weakMaps ? new \WeakMap() : null;
+        self::$produceTags = $weakMaps ? new \WeakMap() : null;
+        self::$consumeTags = $weakMaps ? new \WeakMap() : null;
 
         self::installProducerTopicHooks();
         self::installConsumerHooks();
@@ -105,12 +118,26 @@ class KafkaIntegration extends Integration
         // The message as it is sent, but for the context header the checkpoint computes.
         $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
             + self::headersSize(array_merge($args[4] ?? [], $headers));
-        $producer = ObjectKVStore::get($producerTopic, 'kafka');
-        return \DDTrace\Internal\dsm_set_checkpoint(array_merge([
-            'direction:out',
-            'topic:' . $producerTopic->getName(),
-            'type:kafka',
-        ], self::clusterIdTags($producer, true)), null, $payloadSize);
+        $produceTags = self::$produceTags;
+        $entry = $produceTags
+            ? ($produceTags[$producerTopic] ?? null)
+            : ObjectKVStore::get($producerTopic, 'dsm_produce_tags');
+        if ($entry === null) {
+            $entry = [
+                ObjectKVStore::get($producerTopic, 'kafka'),
+                ['direction:out', 'topic:' . $producerTopic->getName(), 'type:kafka'],
+            ];
+            if ($produceTags) {
+                $produceTags[$producerTopic] = $entry;
+            } else {
+                ObjectKVStore::put($producerTopic, 'dsm_produce_tags', $entry);
+            }
+        }
+        $edgeTags = $entry[1];
+        foreach (self::clusterIdTags($entry[0], true) as $tag) {
+            $edgeTags[] = $tag;
+        }
+        return \DDTrace\Internal\dsm_set_checkpoint($edgeTags, null, $payloadSize);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
@@ -216,15 +243,33 @@ class KafkaIntegration extends Integration
             return;
         }
 
-        $edgeTags = ['direction:in'];
-        $conf = ObjectKVStore::get($consumer, 'conf');
-        if (isset($conf['group.id'])) {
-            $edgeTags[] = 'group:' . $conf['group.id'];
+        $consumeTags = self::$consumeTags;
+        $entry = $consumeTags ? ($consumeTags[$consumer] ?? null) : ObjectKVStore::get($consumer, 'dsm_consume_tags');
+        $topic = $message->topic_name;
+        if (!isset($entry[1][$topic])) {
+            if ($entry === null || count($entry[1]) >= self::DSM_CONSUME_TAGS_TOPICS) {
+                // A KafkaConsumer is its own client; an entry must not hold its WeakMap key.
+                $entry = [$consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : null, []];
+            }
+            $tags = ['direction:in'];
+            $conf = ObjectKVStore::get($consumer, 'conf');
+            if (isset($conf['group.id'])) {
+                $tags[] = 'group:' . $conf['group.id'];
+            }
+            $tags[] = 'topic:' . $topic;
+            $tags[] = 'type:kafka';
+            $entry[1][$topic] = $tags;
+            if ($consumeTags) {
+                $consumeTags[$consumer] = $entry;
+            } else {
+                ObjectKVStore::put($consumer, 'dsm_consume_tags', $entry);
+            }
         }
-        $edgeTags[] = 'topic:' . $message->topic_name;
-        $edgeTags[] = 'type:kafka';
-        $kafka = $consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : $consumer;
-        $edgeTags = array_merge($edgeTags, self::clusterIdTags($kafka));
+        $edgeTags = $entry[1][$topic];
+        $kafka = $consumer instanceof \RdKafka\Queue ? $entry[0] : $consumer;
+        foreach (self::clusterIdTags($kafka) as $tag) {
+            $edgeTags[] = $tag;
+        }
 
         \DDTrace\Internal\dsm_set_checkpoint(
             $edgeTags,

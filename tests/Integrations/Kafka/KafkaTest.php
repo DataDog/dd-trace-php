@@ -124,6 +124,49 @@ class KafkaTest extends IntegrationTestCase
     }
 
     /**
+     * The checkpoints of a producer, a consumer and a low-level consumer's queue each carry the tags
+     * of their message's topic, with two topics each.
+     */
+    public function testDataStreamsCheckpointTagsPerTopic()
+    {
+        $run = uniqid();
+        $script = __DIR__ . '/scripts/dsm-topics.php';
+        $checkpoints = '/^checkpoint: (.*) -> (\d+)$/m';
+        $hashes = [];
+        foreach (['produce', 'consume', 'queue'] as $mode) {
+            list(, $output) = $this->inCli($script, self::DSM_ENV, [], [$mode, $run], true);
+            if ($mode !== 'produce') {
+                $this->assertStringContains('missing: none', $output);
+            }
+            preg_match_all($checkpoints, $output, $matches, PREG_SET_ORDER);
+            if ($mode === 'produce') {
+                $this->assertCount(4, $matches, $output);
+            }
+            $byTopic = [];
+            foreach ($matches as list(, $tags, $hash)) {
+                $this->assertRegularExpression(
+                    '/^direction:' . ($mode === 'produce' ? 'out' : 'in,group:dsm-topics-' . $run)
+                        . ',kafka_cluster_id:[A-Za-z0-9_-]+,topic:test-dsm-[ab]-' . $run . ',type:kafka$/',
+                    $tags
+                );
+                preg_match('/topic:([^,]+)/', $tags, $topic);
+                $byTopic[$topic[1]][$hash] = true;
+            }
+            // Each topic's messages have one pathway, and the two topics different ones.
+            $this->assertCount(2, $byTopic, $output);
+            foreach ($byTopic as $topic => $topicHashes) {
+                $this->assertCount(1, $topicHashes, $output);
+                $hashes[$mode][$topic] = array_keys($topicHashes)[0];
+            }
+            $this->assertCount(2, array_unique($hashes[$mode]), $output);
+        }
+        // Both consumers read the same messages with the same tags.
+        ksort($hashes['consume']);
+        ksort($hashes['queue']);
+        $this->assertSame($hashes['consume'], $hashes['queue']);
+    }
+
+    /**
      * A producer that has not had its brokers' answer yet gets the cluster id another process read
      * from a client with the same bootstrap servers, through the sidecar.
      */
