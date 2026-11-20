@@ -22,6 +22,7 @@ $env = ffeTestIsolatedSidecarEnvironment(array_merge(getenv(), array(
 )));
 $child = ffeTestProcess(__DIR__ . '/stubs/exposure_deferred_lifecycle_app.php', $pipes, $env);
 $seen = array();
+$expected = array('before' => 'deferred-before', 'middle' => 'deferred-middle', 'shutdown' => 'deferred-after');
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 120 : 30);
     while (!isset($seen['shutdown']) && microtime(true) < $deadline) {
@@ -38,7 +39,10 @@ try {
             $payload = json_decode($request[2], true);
             foreach ($payload['exposures'] as $row) {
                 $id = $row['subject']['id'];
-                if (!in_array($id, array('before', 'shutdown'), true) || isset($seen[$id]) ||
+                if (isset($expected[$id]) && $expected[$id] !== $payload['context']['service']) {
+                    throw new RuntimeException('incorrect deferred scope for ' . $id);
+                }
+                if (!isset($expected[$id]) || isset($seen[$id]) ||
                     $row['subject']['attributes']['blob'] !== str_repeat('x', 70 * 1024) || $row['serial_id'] !== 0) {
                     throw new RuntimeException('unexpected row ' . $id);
                 }
@@ -48,7 +52,7 @@ try {
         fwrite($socket, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
         fclose($socket);
     }
-    if ($seen !== array('before' => 'deferred-before', 'shutdown' => 'deferred-after')) {
+    if ($seen !== $expected) {
         throw new RuntimeException(json_encode($seen) . ' ' . ffeTestProcessRead($pipes[1]) . ffeTestProcessRead($pipes[2]));
     }
     echo "payload and original scope preserved through shutdown\n";

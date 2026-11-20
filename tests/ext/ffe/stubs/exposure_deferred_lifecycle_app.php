@@ -9,10 +9,13 @@ if (observe('before', $blob) !== 'unavailable' || !dd_trace_internal_fn('test_ff
     throw new RuntimeException('expected a retained oversize row');
 }
 observe('invalid', array(), '');
+ini_set('datadog.service', 'deferred-middle');
+if (observe('middle', $blob) !== 'unavailable') throw new RuntimeException('expected a retained second scope');
 ini_set('datadog.feature_flags_exposures_datadog_logging_enabled', '0');
 if (observe('only', array()) !== 'admitted' || observe('only', array()) !== 'repeat') {
     throw new RuntimeException('expected a shared hook-only decision');
 }
 ini_set('datadog.feature_flags_exposures_datadog_logging_enabled', '1');
+if (observe('middle', array()) !== 'repeat') throw new RuntimeException('expected the checked delivery verdict');
 ini_set('datadog.service', 'deferred-after');
 if (observe('shutdown', $blob) !== 'unavailable') throw new RuntimeException('expected shutdown handoff');

@@ -164,6 +164,7 @@
     CONFIG(INT, DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS, "10000")                          \
     CONFIG(BOOL, DD_FLAGGING_EVALUATION_COUNTS_ENABLED, "true")                                                \
     CONFIG(BOOL, DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED, "true")                                   \
+    CONFIG(INT, DD_FEATURE_FLAGS_EXPOSURES_ADMISSION_TIMEOUT_US, "10000", .ini_change = zai_config_system_ini_change) \
     DD_INTEGRATIONS
 
 #ifndef DDTRACE_CONFIGURATION
