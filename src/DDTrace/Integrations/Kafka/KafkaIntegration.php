@@ -348,11 +348,15 @@ class KafkaIntegration extends Integration
         return static function ($kafka = null, $message = null) use ($callback) {
             if ($message instanceof \RdKafka\Message && $message->err === RD_KAFKA_RESP_ERR_NO_ERROR) {
                 try {
-                    \DDTrace\Internal\dsm_track_backlog(array_merge([
+                    $tags = [
                         'topic:' . $message->topic_name,
                         'type:kafka_produce',
                         'partition:' . $message->partition,
-                    ], self::clusterIdTags($kafka)), $message->offset);
+                    ];
+                    foreach (self::clusterIdTags($kafka) as $tag) {
+                        $tags[] = $tag;
+                    }
+                    \DDTrace\Internal\dsm_track_backlog($tags, $message->offset);
                 } catch (\Throwable $e) {
                 }
             }
@@ -376,12 +380,16 @@ class KafkaIntegration extends Integration
                                 || (method_exists($partition, 'getErr') && $partition->getErr())) {
                             continue;
                         }
-                        \DDTrace\Internal\dsm_track_backlog(array_merge([
+                        $tags = [
                             'topic:' . $partition->getTopic(),
                             'type:kafka_commit',
                             $group,
                             'partition:' . $partition->getPartition(),
-                        ], $cluster), $partition->getOffset());
+                        ];
+                        foreach ($cluster as $tag) {
+                            $tags[] = $tag;
+                        }
+                        \DDTrace\Internal\dsm_track_backlog($tags, $partition->getOffset());
                     }
                 } catch (\Throwable $e) {
                 }
