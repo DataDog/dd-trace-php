@@ -1,0 +1,299 @@
+{
+  "createdAt": "2026-01-01T00:00:00Z",
+  "environment": {
+    "name": "test"
+  },
+  "observeFullEvaluationData": false,
+  "flags": {
+    "parent": {
+      "key": "parent",
+      "enabled": true,
+      "variationType": "BOOLEAN",
+      "variations": {
+        "on": {
+          "key": "on",
+          "value": true
+        },
+        "off": {
+          "key": "off",
+          "value": false
+        }
+      },
+      "allocations": [
+        {
+          "key": "parent-allocation",
+          "doLog": true,
+          "splits": [
+            {
+              "variationKey": "on",
+              "shards": []
+            }
+          ]
+        }
+      ]
+    },
+    "root": {
+      "key": "root",
+      "enabled": true,
+      "variationType": "BOOLEAN",
+      "variations": {
+        "on": {
+          "key": "on",
+          "value": true
+        },
+        "off": {
+          "key": "off",
+          "value": false
+        }
+      },
+      "allocations": [
+        {
+          "key": "root-allocation",
+          "doLog": true,
+          "splits": [
+            {
+              "variationKey": "on",
+              "shards": []
+            }
+          ],
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "flagEvaluation": {
+                    "key": "parent"
+                  },
+                  "operator": "ONE_OF",
+                  "value": [
+                    "on"
+                  ]
+                },
+                {
+                  "flagEvaluation": {
+                    "key": "parent"
+                  },
+                  "operator": "ONE_OF",
+                  "value": [
+                    "on"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "missing": {
+      "key": "missing",
+      "enabled": true,
+      "variationType": "BOOLEAN",
+      "variations": {
+        "on": {
+          "key": "on",
+          "value": true
+        },
+        "off": {
+          "key": "off",
+          "value": false
+        }
+      },
+      "allocations": [
+        {
+          "key": "missing-allocation",
+          "doLog": true,
+          "splits": [
+            {
+              "variationKey": "on",
+              "shards": []
+            }
+          ],
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "flagEvaluation": {
+                    "key": "absent"
+                  },
+                  "operator": "ONE_OF",
+                  "value": [
+                    "on"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cycle": {
+      "key": "cycle",
+      "enabled": true,
+      "variationType": "BOOLEAN",
+      "variations": {
+        "on": {
+          "key": "on",
+          "value": true
+        },
+        "off": {
+          "key": "off",
+          "value": false
+        }
+      },
+      "allocations": [
+        {
+          "key": "cycle-allocation",
+          "doLog": true,
+          "splits": [
+            {
+              "variationKey": "on",
+              "shards": []
+            }
+          ],
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "flagEvaluation": {
+                    "key": "cycle"
+                  },
+                  "operator": "ONE_OF",
+                  "value": [
+                    "on"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "disabled": {
+      "key": "disabled",
+      "enabled": false,
+      "variationType": "BOOLEAN",
+      "variations": {
+        "on": {
+          "key": "on",
+          "value": true
+        },
+        "off": {
+          "key": "off",
+          "value": false
+        }
+      },
+      "allocations": [
+        {
+          "key": "disabled-allocation",
+          "doLog": true,
+          "splits": [
+            {
+              "variationKey": "on",
+              "shards": []
+            }
+          ]
+        }
+      ]
+    },
+    "requires-disabled": {
+      "key": "requires-disabled",
+      "enabled": true,
+      "variationType": "BOOLEAN",
+      "variations": {
+        "on": {
+          "key": "on",
+          "value": true
+        },
+        "off": {
+          "key": "off",
+          "value": false
+        }
+      },
+      "allocations": [
+        {
+          "key": "requires-disabled-allocation",
+          "doLog": true,
+          "splits": [
+            {
+              "variationKey": "on",
+              "shards": []
+            }
+          ],
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "flagEvaluation": {
+                    "key": "disabled"
+                  },
+                  "operator": "ONE_OF",
+                  "value": [
+                    "on"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "rejected": {
+      "key": "rejected",
+      "enabled": true,
+      "variationType": "BOOLEAN",
+      "variations": {
+        "on": {
+          "key": "on",
+          "value": true
+        },
+        "off": {
+          "key": "off",
+          "value": false
+        }
+      },
+      "allocations": [
+        {
+          "key": "rejected-allocation",
+          "doLog": true,
+          "splits": [
+            {
+              "variationKey": "on",
+              "shards": []
+            }
+          ],
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "flagEvaluation": {
+                    "key": "parent"
+                  },
+                  "operator": "ONE_OF",
+                  "value": [
+                    "on"
+                  ]
+                },
+                {
+                  "attribute": "country",
+                  "operator": "ONE_OF",
+                  "value": [
+                    "FR"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "fallback",
+          "doLog": false,
+          "splits": [
+            {
+              "variationKey": "off",
+              "shards": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -652,6 +652,8 @@ typedef struct ddog_FfeAttribute {
   bool bool_value;
 } ddog_FfeAttribute;
 
+typedef void (*ddog_FfeDependencyCallback)(void*, ddog_CharSlice, struct ddog_FfeResult, bool);
+
 /**
  * Flags selecting which Remote Config products/capabilities to subscribe to.
  *

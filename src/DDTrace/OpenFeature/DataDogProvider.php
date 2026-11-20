@@ -61,7 +61,10 @@ final class DataDogProvider extends AbstractProvider
             } else {
                 NativeEvaluator::submitFlagEvaluation($observation);
             }
-        }, false);
+        }, false, function (array $batch): void {
+            $recorder = $this->observationScope()->recorder;
+            if ($recorder !== null) $recorder->captureExposures($batch);
+        });
         if (function_exists('DDTrace\\Internal\\record_ffe_exposure')) {
             $this->exposureRecorder = 'DDTrace\\Internal\\record_ffe_exposure';
         }

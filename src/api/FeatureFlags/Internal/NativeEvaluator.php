@@ -14,8 +14,9 @@ final class NativeEvaluator implements Evaluator
     private $recordMetrics;
     private $flagEvaluationRecorder;
     private $recordExposures;
+    private $exposureRecorder;
 
-    private function __construct($mapper = null, bool $recordMetrics = true, $flagEvaluationRecorder = null, $recordExposures = true)
+    private function __construct($mapper = null, bool $recordMetrics = true, $flagEvaluationRecorder = null, $recordExposures = true, $exposureRecorder = null)
     {
         if ($mapper !== null && !$mapper instanceof ResultMapper) {
             throw new \InvalidArgumentException('Expected a ResultMapper instance');
@@ -25,6 +26,7 @@ final class NativeEvaluator implements Evaluator
         $this->recordMetrics = $recordMetrics;
         $this->flagEvaluationRecorder = $flagEvaluationRecorder;
         $this->recordExposures = (bool) $recordExposures;
+        $this->exposureRecorder = $exposureRecorder;
     }
 
     public static function isAvailable()
@@ -34,12 +36,13 @@ final class NativeEvaluator implements Evaluator
 
     /**
      * @param callable|null $flagEvaluationRecorder Internal adapter for terminal OpenFeature reporting.
-     * @param bool $recordExposures False when the caller records exposures with record_ffe_exposure().
+     * @param bool $recordExposures False when the caller records the root exposure separately.
+     * @param callable|null $exposureRecorder Receives a detached batch for successful hook finalization.
      */
-    public static function create($recordMetrics = true, $flagEvaluationRecorder = null, $recordExposures = true)
+    public static function create($recordMetrics = true, $flagEvaluationRecorder = null, $recordExposures = true, $exposureRecorder = null)
     {
         return self::isAvailable()
-            ? new self(null, $recordMetrics, $flagEvaluationRecorder, $recordExposures)
+            ? new self(null, $recordMetrics, $flagEvaluationRecorder, $recordExposures, $exposureRecorder)
             : new UnavailableEvaluator();
     }
 
@@ -59,14 +62,45 @@ final class NativeEvaluator implements Evaluator
             $targetingKey,
             $normalizedAttributes,
             $this->recordMetrics,
-            $this->recordExposures
+            $this->recordExposures || $this->exposureRecorder !== null,
+            $this->exposureRecorder !== null
         );
 
         if (is_array($rawResult) || is_object($rawResult)) {
             $rawResult = $this->withProviderState($rawResult);
         }
 
+        if (is_object($rawResult) && isset($rawResult->dependencyEvaluations)) {
+            foreach ($rawResult->dependencyEvaluations as $dependency) {
+                self::submitFlagEvaluation(array(
+                    $dependency['flagKey'],
+                    $dependency['variant'],
+                    $dependency['allocationKey'],
+                    $targetingKeyInvalid ? null : $targetingKey,
+                    $dependency['observeFullEvaluationData'] ? $normalizedAttributes : array(),
+                    $dependency['errorCode'],
+                    $dependency['variant'] === null,
+                    $dependency['observeFullEvaluationData'],
+                    $evaluationTimestampMs,
+                    $targetingKeyInvalid,
+                    SplitFeatures::withPrefix(SplitFeatures::toMetadata($dependency['features']), SplitFeatures::EVALUATION_PREFIX)
+                ));
+            }
+        }
+
         $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
+
+        if ($this->exposureRecorder !== null && is_object($rawResult)
+            && !empty($rawResult->exposureCandidates) && !$details->isError()) {
+            try {
+                $candidates = array_filter($rawResult->exposureCandidates, function ($candidate) use ($flagKey) {
+                    return $this->recordExposures || $candidate['flagKey'] !== $flagKey;
+                });
+                ($this->exposureRecorder)(array(array_values($candidates), $targetingKey, $normalizedAttributes));
+            } catch (\Throwable $ignored) {
+                // Exposure reporting must not change the evaluation result.
+            }
+        }
 
         // Native clients submit now. OpenFeature can retain this snapshot until
         // its hooks finish, independently of native/OTLP metric recording.
@@ -125,6 +159,23 @@ final class NativeEvaluator implements Evaluator
             return \DDTrace\Internal\record_ffe_flag_evaluation(...$observation);
         } catch (\Throwable $ignored) {
             return false;
+        }
+    }
+
+    /** @internal Commit only after the enclosing public evaluation succeeds. */
+    public static function submitExposures(array $batch, $recorder = null)
+    {
+        foreach ($batch[0] as $candidate) {
+            try {
+                $recorder = $recorder ?: 'DDTrace\\Internal\\record_ffe_exposure';
+                $recorder(
+                    $candidate['flagKey'], $batch[1], $batch[2], $candidate['allocationKey'],
+                    $candidate['variant'], $candidate['hasSerialId'] ? $candidate['serialId'] : null,
+                    SplitFeatures::withPrefix(SplitFeatures::toMetadata($candidate['features']), SplitFeatures::EXPOSURE_PREFIX)
+                );
+            } catch (\Throwable $ignored) {
+                // One failed observation must not affect another or the flag result.
+            }
         }
     }
 

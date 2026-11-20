@@ -72,7 +72,9 @@ namespace DDTrace {
         public array $features = [];
         /** Null when the evaluation did not record an exposure. */
         public ?bool $exposureCacheHit = null;
+        public array $dependencyEvaluations = [];
         public array $providerState = [];
+        public array $exposureCandidates = [];
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;
         public ?int $configVersion = null;
@@ -957,12 +959,13 @@ namespace DDTrace {
      * @param int $expectedType One of the DDTrace\FFE_* constants.
      * @param string|null $targetingKey The targeting key for evaluation context.
      * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
-     * @param bool $recordExposure Whether to record the exposure now, rather than through record_ffe_exposure().
+     * @param bool $recordExposure Whether to process exposure-eligible assignments.
+     * @param bool $deferExposures Collect eligible assignments for later finalization instead of recording them now.
      * @return FfeResult|null Object with the native evaluation result fields. Null only if evaluation engine is unavailable.
      *
      * @internal Used by the Datadog feature flag client.
      */
-    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true, bool $recordExposure = true): ?FfeResult {}
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true, bool $recordExposure = true, bool $deferExposures = false): ?FfeResult {}
 
     /**
      * Check if FFE (Feature Flag Evaluation) configuration is loaded.
