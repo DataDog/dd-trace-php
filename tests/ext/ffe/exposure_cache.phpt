@@ -2,6 +2,9 @@
 FFE exposure admission is shared by native and deferred evaluations
 --ENV--
 DD_SERVICE=php-ffe-native-and-deferred
+DDTRACE_PHPT_EXACT_PEER=1
+_DD_DEBUG_SIDECAR_IPC_MODE=instance_per_process
+_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS=45
 DD_TRACE_CLI_ENABLED=1
 --INI--
 datadog.trace.log_file={PWD}/exposure_cache.log

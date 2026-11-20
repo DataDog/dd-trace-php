@@ -135,6 +135,7 @@ typedef struct {
     uint64_t ffe_outcomes[DD_FFE_OUTCOME_COUNT];
     bool ffe_exposure_handed_off;
     uint32_t ffe_test_admission_budget_us;
+    bool ffe_test_exact_peer;
     void *ffe_deferred;
     void *ffe_metric_buffer;
     size_t ffe_metric_buffer_len;

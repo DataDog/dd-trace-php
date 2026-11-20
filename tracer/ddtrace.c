@@ -671,6 +671,7 @@ void ddtrace_rshutdown(bool fast_shutdown) {
 
     ddtrace_ffe_flush_deferred(true);
     DDTRACE_G(ffe_test_admission_budget_us) = 0;
+    DDTRACE_G(ffe_test_exact_peer) = false;
     DDTRACE_G(ffe_exposure_handed_off) = false;
     ddtrace_ffe_flush_evaluation_metrics();
 
@@ -774,6 +775,7 @@ void ddtrace_internal_handle_fork() {
     memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
     memset(DDTRACE_G(ffe_outcomes), 0, sizeof(DDTRACE_G(ffe_outcomes)));
     ddtrace_ffe_discard_deferred();
+    DDTRACE_G(ffe_test_exact_peer) = false;
     DDTRACE_G(ffe_exposure_handed_off) = false;
 #ifdef __linux__
     ddtrace_otel_detach();

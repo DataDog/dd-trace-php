@@ -446,6 +446,22 @@ ddog_MaybeError ddog_sidecar_handle_fork_php(void);
  */
 ddog_MaybeError ddog_sidecar_ensure_appsec_started(struct ddog_SidecarTransport **transport);
 
+ddog_MaybeError ddog_php_ffe_admit_test_peer(struct ddog_SidecarTransport **transport,
+                                             const ddog_FfeTelemetryContext *context,
+                                             const ddog_FfeExposure *exposure,
+                                             bool deliver,
+                                             uint32_t *out);
+
+/**
+ * # Safety
+ * The caller keeps `rows` and their borrowed fields valid for all `len` exposures.
+ */
+ddog_MaybeError ddog_php_ffe_submit_deferred_test_peer(struct ddog_SidecarTransport **transport,
+                                                       const ddog_FfeTelemetryContext *context,
+                                                       const ddog_FfeExposure *rows,
+                                                       uintptr_t len,
+                                                       ddog_FfeDeferredHandoff *out);
+
 bool ddog_php_ffe_supports_ordered_handoff(struct ddog_SidecarTransport **transport,
                                            uint32_t budget_us);
 

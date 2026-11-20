@@ -13,7 +13,9 @@
 #include <ext/sidecar.h>
 #include <ext/zend_hrtime.h>
 #include <ext/standard/php_string.h>
+#include <main/SAPI.h>
 #include <php.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifndef _WIN32
@@ -565,15 +567,21 @@ void ddtrace_ffe_discard_deferred(void) {
     DDTRACE_G(ffe_deferred) = NULL;
 }
 
+static uint32_t dd_ffe_remaining_budget(uint64_t deadline) {
+    if (DDTRACE_G(ffe_test_exact_peer)) return DD_FFE_DEFERRED_BUDGET_US;
+    uint64_t now = zend_hrtime() / 1000;
+    return now < deadline ? (uint32_t)(deadline - now) : 0;
+}
+
 static bool dd_ffe_flush_deferred_until(bool final, uint64_t deadline, size_t max_chunks, size_t max_rows) {
     dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
     if (!batch) return true;
     size_t limit = MIN(batch->len, max_rows), consumed = 0;
     bool confirmed = true;
     if (DATADOG_G(sidecar) && DATADOG_G(request_initialized)) {
-        if (!final) {
-            uint64_t now = zend_hrtime() / 1000;
-            if (now >= deadline || !ddog_php_ffe_supports_ordered_handoff(&DATADOG_G(sidecar), (uint32_t)(deadline - now))) {
+        if (!final && !DDTRACE_G(ffe_test_exact_peer)) {
+            uint32_t remaining = dd_ffe_remaining_budget(deadline);
+            if (!remaining || !ddog_php_ffe_supports_ordered_handoff(&DATADOG_G(sidecar), remaining)) {
                 return false;
             }
         }
@@ -581,16 +589,17 @@ static bool dd_ffe_flush_deferred_until(bool final, uint64_t deadline, size_t ma
         for (size_t i = 0; i < limit; i++) events[i] = batch->rows[i].event;
         size_t context_end = 0;
         while (consumed < limit && max_chunks > 0) {
-            uint64_t now = zend_hrtime() / 1000;
-            if (now >= deadline) break;
+            uint32_t remaining = dd_ffe_remaining_budget(deadline);
+            if (!remaining) break;
             ddog_FfeTelemetryContext context = batch->rows[consumed].context;
             while (context_end < limit && dd_ffe_same_context(context, batch->rows[context_end].context)) {
                 ++context_end;
             }
             ddog_Slice_FfeExposure slice = {.ptr = events + consumed, .len = context_end - consumed};
             ddog_FfeDeferredHandoff chunk = {0};
-            ddog_MaybeError error = ddog_sidecar_ffe_submit_deferred_v1(&DATADOG_G(sidecar), &context, slice,
-                                                                        (uint32_t)(deadline - now), &chunk);
+            ddog_MaybeError error = DDTRACE_G(ffe_test_exact_peer)
+                ? ddog_php_ffe_submit_deferred_test_peer(&DATADOG_G(sidecar), &context, slice.ptr, slice.len, &chunk)
+                : ddog_sidecar_ffe_submit_deferred_v1(&DATADOG_G(sidecar), &context, slice, remaining, &chunk);
             if (error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
                 ddog_MaybeError_drop(error);
                 break;
@@ -684,15 +693,22 @@ static uint32_t dd_ffe_admission_budget(void) {
 bool ddtrace_ffe_test_admission_ready(void) {
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) return false;
 
-    // Verdict fixtures exercise real IPC under instrumentation at the FFI's maximum budget.
+    const char *exact = getenv("DDTRACE_PHPT_EXACT_PEER");
+    bool use_peer = exact && strcmp(exact, "1") == 0 && getenv("TEST_PHP_EXECUTABLE") &&
+                    strcmp(sapi_module.name, "cli") == 0;
     DDTRACE_G(ffe_test_admission_budget_us) = 50000;
     ddog_FfeTelemetryContext context = {.service = DDOG_CHARSLICE_C("ddtrace-phpt-readiness")};
     ddog_FfeExposure probe = {.flag_key = DDOG_CHARSLICE_C("probe"), .allocation_key = DDOG_CHARSLICE_C("probe"),
                               .variant = DDOG_CHARSLICE_C("ready")};
     ddog_FfeAdmission status = ddog_FFE_ADMISSION_UNAVAILABLE;
-    return datadog_ffi_try("FFE readiness probe failed", ddog_sidecar_ffe_admit_v1(
-        &DATADOG_G(sidecar), &context, &probe, false, DDTRACE_G(ffe_test_admission_budget_us), &status)) &&
-        (status == ddog_FFE_ADMISSION_ADMITTED || status == ddog_FFE_ADMISSION_REPEAT);
+    ddog_MaybeError err = use_peer
+        ? ddog_php_ffe_admit_test_peer(&DATADOG_G(sidecar), &context, &probe, false, &status)
+        : ddog_sidecar_ffe_admit_v1(&DATADOG_G(sidecar), &context, &probe, false,
+                                    DDTRACE_G(ffe_test_admission_budget_us), &status);
+    bool ready = datadog_ffi_try("FFE readiness probe failed", err) &&
+                 (status == ddog_FFE_ADMISSION_ADMITTED || status == ddog_FFE_ADMISSION_REPEAT);
+    DDTRACE_G(ffe_test_exact_peer) = ready && use_peer;
+    return ready;
 }
 
 const char *ddtrace_ffe_admission_name(int status) {
@@ -742,13 +758,13 @@ int ddtrace_ffe_record_exposure(
         uint64_t deadline = zend_hrtime() / 1000 + budget;
         size_t prefix = dd_ffe_pending_prefix(context, event);
         bool ordered = !prefix || dd_ffe_flush_deferred_until(false, deadline, SIZE_MAX, prefix);
-        uint64_t now = zend_hrtime() / 1000;
-        budget = ordered && now < deadline ? (uint32_t)(deadline - now) : 0;
+        budget = ordered ? dd_ffe_remaining_budget(deadline) : 0;
     }
     ddog_FfeAdmission status = ddog_FFE_ADMISSION_UNAVAILABLE;
     if (budget && DATADOG_G(sidecar)) {
-        ddog_MaybeError error = ddog_sidecar_ffe_admit_v1(&DATADOG_G(sidecar), &context, &event, deliver,
-                                                           budget, &status);
+        ddog_MaybeError error = DDTRACE_G(ffe_test_exact_peer)
+            ? ddog_php_ffe_admit_test_peer(&DATADOG_G(sidecar), &context, &event, deliver, &status)
+            : ddog_sidecar_ffe_admit_v1(&DATADOG_G(sidecar), &context, &event, deliver, budget, &status);
         if (error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
             ddog_MaybeError_drop(error);
             if (deliver) dd_ffe_outcome(DD_FFE_INVALID, 1);
