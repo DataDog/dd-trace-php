@@ -138,5 +138,6 @@ experiments:
     teardown:
       - name: Upload to S3
         run: upload_to_s3
+        retries_on_failure: 3
         # If BP_EXTERNAL_S3_URL is empty, bp-runner uses its default S3 destination.
         url: $BP_EXTERNAL_S3_URL
