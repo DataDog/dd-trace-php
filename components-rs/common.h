@@ -1384,6 +1384,16 @@ typedef struct ddog_Attributes ddog_Attributes;
 typedef struct ddog_AttrValue ddog_AttrValue;
 
 
+#define ddog_FFE_DEFERRED_REFUSED 0
+
+#define ddog_FFE_DEFERRED_CONFIRMED 1
+
+#define ddog_FFE_DEFERRED_LEGACY_SUBMITTED 2
+
+#define ddog_FFE_DEFERRED_UNKNOWN 3
+
+#define ddog_FFE_DEFERRED_INVALID 4
+
 /**
  * Attribute value type tags from [`ddog_v1_value_type`], so a C caller picks the matching typed
  * value getter.
@@ -1575,6 +1585,11 @@ typedef struct ddog_Slice_FfeExposure {
 } ddog_Slice_FfeExposure;
 typedef uint32_t ddog_FfeAdmission;
 
+typedef struct ddog_FfeDeferredHandoff {
+  uint32_t status;
+  uint32_t rows;
+} ddog_FfeDeferredHandoff;
+
 /**
  * C representation of a Feature Flags evaluation event.
  */
@@ -1756,6 +1771,16 @@ typedef struct ddog_FfeSnapshotState {
  * Queue capacity prevented admission. The producer may submit the observation in a batch.
  */
 #define ddog_FFE_ADMISSION_QUEUE_FULL 4
+
+/**
+ * The schema version this receiver reads.
+ */
+#define ddog_crasht_SpansToClose_VERSION 1
+
+/**
+ * The longest block line a receiver accepts.
+ */
+#define ddog_crasht_SpansToClose_MAX_LEN (64 * 1024)
 
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,

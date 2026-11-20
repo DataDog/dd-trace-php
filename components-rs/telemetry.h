@@ -387,10 +387,18 @@ struct ddog_ContextKey ddog_telemetry_handle_register_metric_context(const ddog_
                                                                      bool common,
                                                                      enum ddog_MetricNamespace namespace_);
 
+/**
+ * Submit a metric point without waiting for buffer space. If the buffer is full,
+ * this call drops the point and returns success.
+ */
 ddog_MaybeError ddog_telemetry_handle_add_point(const ddog_TelemetryWorkerHandle *handle,
                                                 const struct ddog_ContextKey *context_key,
                                                 double value);
 
+/**
+ * Submit a tagged metric point without waiting for buffer space. If the buffer is full,
+ * this call drops the point and returns success. It always takes ownership of `extra_tags`.
+ */
 ddog_MaybeError ddog_telemetry_handle_add_point_with_tags(const ddog_TelemetryWorkerHandle *handle,
                                                           const struct ddog_ContextKey *context_key,
                                                           double value,
