@@ -230,7 +230,7 @@ workflow:
           echo "Could not diff against master - running benchmarks"
           CHANGED_FILES=benchmark/
         fi
-        if ! echo "$CHANGED_FILES" | grep -q -E "^(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/|\.gitlab/benchmarks\.yml|\.gitlab/benchmarks/)"; then
+        if ! echo "$CHANGED_FILES" | grep -q -E "^(ext/|tracer/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/|\.gitlab/benchmarks/|\.gitlab/benchmarks\.yml$)"; then
           echo "No tracer-related file changes detected - skipping benchmark execution"
           echo "Reports directory created but empty (no benchmarks needed)" > "${ARTIFACTS_DIR}/skip-reason.txt"
           exit 0
@@ -238,13 +238,14 @@ workflow:
         echo "Tracer-related file changes detected - proceeding with benchmarks"
       fi
     # Keep submodules at the selected candidate and baseline revisions. The
-    # whole flow (agent, one-time setup, run, analyze, S3) is driven by the
-    # bp-runner config; baseline resolution is bp-runner's auto lookup.
+    # whole flow (agent, one-time setup, paired run, analyze, S3) is driven by
+    # the in-repo bp-runner config and PHP step scripts.
     - >-
       GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=submodule.recurse GIT_CONFIG_VALUE_0=true
       BP_SCENARIO=$SCENARIO bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.yml" --debug -t
   artifacts:
     name: "reports"
+    when: always
     paths:
       - reports/
     expire_in: 3 months
@@ -256,6 +257,9 @@ workflow:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     DD_SIDECAR_DISABLE_DIRECT_EXEC: 1
+    # Empty selects align for comparisons, plain for candidate-only runs.
+    # Override with off/plain/align when comparing binary processing modes.
+    BOLT_MODE: ""
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     # Analyzer settings. Every bp-runner step inherits the CI process environment,
     # so the settings live here instead of the config.
