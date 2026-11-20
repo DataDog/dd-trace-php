@@ -7,8 +7,11 @@ experiments:
     env:
       COMPOSER_ALLOW_SUPERUSER: "1"
       DD_TRACE_AUTOLOAD_NO_COMPILE: "true"
+      # Improve stability of benchmarks
       CFLAGS: "-O2 -falign-functions=64"
       RUN_WEB_BENCHES_WITH_DDPROF: "1"
+    # CPU partition on the 48-core runners: 24-25 agent, 26-29 mysql, 30-33 redis,
+    # 34-47 benchmark process. The setup and run steps span 26-47.
     setup:
       - name: datadog-agent
         run: datadog_agent
@@ -32,7 +35,6 @@ experiments:
             if [ "$BP_SCENARIO" = "appsec" ]; then
               echo "extension=ddappsec.so" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
               echo "datadog.appsec.cli_start_on_rinit=true" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-              echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
               echo "datadog.appsec.rules=/tmp/recommended.json" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
               echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
               echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
@@ -77,8 +79,8 @@ experiments:
         # base, with baseline resolution left to bp-runner's auto lookup).
         # runall.sh writes fixed, unprefixed names into $ARTIFACTS_DIR; this
         # script renames each result to
-        # $ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-<name>.<ext> — the layout the
-        # analyze steps below and the fail-on-regression gate glob — gives the
+        # $ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-<name>.<ext>, the layout the
+        # analyze steps below and the fail-on-regression gate glob, gives the
         # OPCache and AppSec subjects their distinguishing suffixes, and tars
         # the run's logs.
         how_to_run_benchmarks: |

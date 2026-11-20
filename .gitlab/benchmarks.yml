@@ -112,9 +112,6 @@ variables:
   # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
   MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-152770667
   # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
-  # The per-pipeline
-  # suffix pins each build to a unique tag so a rebuild can't shift what older
-  # pipelines pulled.
   BASE_CI_IMAGE_SUFFIX: dd-trace-php-${CI_PIPELINE_ID}
   BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld

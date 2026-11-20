@@ -4,7 +4,7 @@
 
 **Source:**
 - `.gitlab/generate-package.php` — declares `include: .gitlab/benchmarks.yml` and the pipeline stages
-- `.gitlab/benchmarks.yml` — all benchmark job definitions; the microbenchmark
+- `.gitlab/benchmarks.yml`: all benchmark job definitions; the microbenchmark
   steps, container and gate configs live in `.gitlab/benchmarks/` (see
   `.gitlab/benchmarks/README.md`)
 
@@ -13,13 +13,15 @@
 | `benchmarks-tracer` | `$MICROBENCHMARKS_CI_IMAGE` (see `.gitlab/benchmarks.yml`; built in-repo from `.gitlab/benchmarks/container/`) | Runs PHP tracer microbenchmarks via the Benchmarking Platform framework; skips automatically if no tracer-relevant files changed |
 | `benchmarks-appsec` | same | Runs appsec microbenchmarks; produces `candidate.tar.gz` and `baseline.tar.gz` artifacts |
 | `benchmarks-profiler` | same | Runs profiler microbenchmarks |
+| `benchmarks-pr-comment` | `$MICROBENCHMARKS_CI_IMAGE` (see `.gitlab/benchmarks.yml`; built in-repo from `.gitlab/benchmarks/container/`) | Runs `.gitlab/benchmarks/bp-runner.pr-comment.yml`: posts the comparison as a PR comment and uploads the results to the Benchmarking Platform API; needs `benchmarks-tracer` and, optionally, `benchmarks-appsec` and `benchmarks-profiler` (it reports every scenario that ran); allow_failure |
+| `build-benchmark-ci-images` | (built in-repo from `.gitlab/benchmarks/container/`) | Manual job that builds the microbenchmark CI image from `.gitlab/benchmarks/container/`; described in `.gitlab/benchmarks/README.md` § How to rebuild the CI Docker image |
 | `macrobenchmarks: [{PHP_VERSION}]` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld` | Runs a Laravel Realworld application under k6 load at three traffic levels; PHP 7.4 and 8.1 |
 | `check-big-regressions` | `registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:b682acae509fa391ac559705b66df07cac876e4c46641d2457077972a1c0bbb8` | Post-benchmark gate: fails if `benchmarks-tracer` results contain a regression above threshold |
 | `check-slo-breaches` | (benchmarking-platform-tools template) | Post-macrobenchmark gate: evaluates SLO breaches |
 | `notify-slo-breaches` | (benchmarking-platform-tools template) | Posts SLO breach notifications to `#guild-dd-php` Slack channel |
 
 Runner: `runner:apm-k8s-tweaked-metal` (microbenchmarks); `runner:apm-k8s-same-cpu`
-(macrobenchmarks); `arch:amd64` (gate jobs).
+(macrobenchmarks); `arch:amd64` (gate and report jobs).
 
 **Trigger rules:**
 - `benchmarks-tracer` — runs on every push; has an early-exit guard: if none of
