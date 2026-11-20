@@ -1889,7 +1889,7 @@ $system_tests_weblogs = [
 
 // Pack the tracer-release scenarios longest-first into the least-loaded shard, from measured durations
 // (refresh them with .gitlab/refresh-system-tests-durations.py). Every weblog takes ~the same time per scenario.
-$system_tests_shard_count = 4;
+$system_tests_shard_count = 8;
 $system_tests_durations = json_decode(file_get_contents(__DIR__ . "/system-tests-durations.json"), true)["scenarios"];
 arsort($system_tests_durations);
 $system_tests_shards = array_fill(0, $system_tests_shard_count, []);
@@ -1919,12 +1919,7 @@ foreach ($system_tests_durations as $scenario => $seconds) {
     # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
     DOCKER_LOOPBACK_SIZE: 50G
   rules:
-    - if: $CI_COMMIT_REF_NAME == "master"
-      when: on_success
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: on_success
-    - when: manual
-      allow_failure: true
+    - when: on_success
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) && [ -n "$DD_API_KEY" ] || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
