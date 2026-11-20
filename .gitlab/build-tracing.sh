@@ -23,7 +23,7 @@ mkdir -p extensions_$(uname -m) standalone_$(uname -m)
 export EXTRA_CONFIGURE_OPTIONS="${EXTRA_CONFIGURE_OPTIONS:+${EXTRA_CONFIGURE_OPTIONS} }--enable-ddtrace-appsec"
 
 ECHO_ARG="-e"
-CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra"
+export CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -flto=auto -ffat-lto-objects"
 if [ "${suffix}" = "-alpine" ]; then
   CFLAGS="${CFLAGS} -Wno-error=return-local-addr"
 fi
