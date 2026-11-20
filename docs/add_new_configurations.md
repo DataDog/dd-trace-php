@@ -114,6 +114,11 @@ call `getenv()` or `ini_get()` for a `DD_*` key.
    if you don't have the toolchain. Don't edit the JSON by hand, except for
    the `deprecations` and `implementation` values described below, which the
    script keeps.
+
+   Don't special-case individual configs in
+   `tooling/generate-supported-configurations.sh`. If the output doesn't match
+   the registry, fix the config table or the registry entry, or set the
+   `implementation` label by hand.
 6. **Register the configuration** in the Feature Parity Dashboard if no other
    tracer has it, or if PHP's behavior differs from the existing
    implementation. The `validate_supported_configurations_v2_local_file` CI
