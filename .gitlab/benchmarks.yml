@@ -290,7 +290,7 @@ benchmarks-tracer:
 benchmarks-appsec:
   extends: .microbenchmarks
   rules: *benchmarks-appsec-rules
-  # reports/ is needed by benchmarks-pr-comment (like the other scenarios);
+  # reports/ feeds benchmarks-pr-comment (like the other scenarios);
   # the log tarballs are the scenario's own diagnostics.
   artifacts:
     name: "reports"
@@ -305,13 +305,19 @@ benchmarks-appsec:
 
 # Posts the comparison and uploads results. allow_failure preserves the old || :
 # semantics, and a separate job avoids the parallel-teardown race with the S3
-# upload. needs only benchmarks-tracer, so only tracer results are collected.
+# upload.
 benchmarks-pr-comment:
   stage: benchmarks-report
-  # Only the always-running job may be needed here: a manual job that is
-  # present but not run makes GitLab skip the dependent.
+  # Optional needs: appsec and profiler are manual on most pipelines, and a
+  # non-optional need on a manual job that did not run makes GitLab skip this
+  # job. Optional needs collect their artifacts when they ran and proceed
+  # without them otherwise.
   needs:
     - benchmarks-tracer
+    - job: benchmarks-appsec
+      optional: true
+    - job: benchmarks-profiler
+      optional: true
   allow_failure: true
   when: on_success
   tags: ["arch:amd64"]
@@ -329,6 +335,14 @@ benchmarks-pr-comment:
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
+    - |
+      if [ -f "reports/skip-reason.txt" ] && ! ls reports/candidate*.converted.json >/dev/null 2>&1; then
+        echo "Benchmarks were skipped (no relevant file changes) - nothing to report"
+        exit 0
+      elif [ -z "$(ls -A reports/ 2>/dev/null)" ]; then
+        echo "ERROR: Reports directory exists but is empty - benchmarks job had issues"
+        exit 1
+      fi
     - bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.pr-comment.yml" --debug
   artifacts:
     name: "reports"
