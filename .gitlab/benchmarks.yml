@@ -346,14 +346,16 @@ benchmarks-pr-comment:
 
 benchmarks-pr-comment-appsec:
   extends: .benchmarks-report
-  rules: *benchmarks-appsec-rules
+  rules:
+    - when: on_success
   needs: [benchmarks-appsec]
   variables:
     BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment-appsec.yml"
 
 benchmarks-pr-comment-profiler:
   extends: .benchmarks-report
-  rules: *benchmarks-profiler-rules
+  rules:
+    - when: on_success
   needs: [benchmarks-profiler]
   variables:
     BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment-profiler.yml"
