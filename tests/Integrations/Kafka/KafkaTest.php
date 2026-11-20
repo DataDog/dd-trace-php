@@ -121,6 +121,10 @@ class KafkaTest extends IntegrationTestCase
         $this->assertRegularExpression('/^other bootstrap servers: 1 reads for 5 produces, 5 tagged$/m', $output);
         $this->assertRegularExpression('/^unreachable: 5 reads for 5 produces, 0 tagged$/m', $output);
         $this->assertRegularExpression('/^connected after expiry: 1 reads for 1 produces, 1 tagged$/m', $output);
+        $this->assertRegularExpression(
+            '/^connected after clock stepped back: 1 reads for 1 produces, 1 tagged$/m',
+            $output
+        );
     }
 
     /**

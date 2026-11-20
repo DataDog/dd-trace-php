@@ -57,6 +57,20 @@ produce('unreachable', 5);
 // The cached id expires.
 usleep(1100000);
 produce('connected', 1, 'connected after expiry');
+// A clock stepped back leaves an expiry further ahead than an id is reused for: it has expired.
+$clusterIds = new ReflectionProperty(DDTrace\Integrations\Kafka\KafkaIntegration::class, 'clusterIds');
+$clusterIds->setAccessible(true);
+$map = $clusterIds->getValue();
+$client = $producers['connected'][0];
+$entry = $map ? $map[$client] : DDTrace\Util\ObjectKVStore::get($client, 'dsm_cluster_id');
+$now = PHP_VERSION_ID >= 70300 ? hrtime(true) : microtime(true) * 1e9;
+$entry[1] = $now + 10 * DDTrace\Integrations\Kafka\KafkaIntegration::DSM_CLUSTER_ID_CACHE_NS;
+if ($map) {
+    $map[$client] = $entry;
+} else {
+    DDTrace\Util\ObjectKVStore::put($client, 'dsm_cluster_id', $entry);
+}
+produce('connected', 1, 'connected after clock stepped back');
 
 $producers['unreachable'][0]->purge(RD_KAFKA_PURGE_F_QUEUE);
 $producers['connected'][0]->flush(10000);

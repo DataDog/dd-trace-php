@@ -121,7 +121,7 @@ class KafkaIntegration extends Integration
      * Call when DSM is on. `$headers` are all the headers the message is sent with, but the
      * pathway context header, which the checkpoint computes.
      *
-     * @return string|null the pathway context to send with the message, or null when DSM is off
+     * @return string|null the pathway context to send with the message, or null when no checkpoint was set
      */
     public static function setDataStreamsProduceCheckpoint(\RdKafka\ProducerTopic $producerTopic, array $args, array $headers)
     {
@@ -419,8 +419,10 @@ class KafkaIntegration extends Integration
         $clusterIds = self::$clusterIds;
         $entry = $clusterIds ? ($clusterIds[$kafka] ?? null) : ObjectKVStore::get($kafka, 'dsm_cluster_id');
         $now = \PHP_VERSION_ID >= 70300 ? \hrtime(true) : \microtime(true) * 1e9;
-        // A producer's first produce reads the id, to wait for it if need be.
-        if ($entry !== null && $now < $entry[1] && ($entry[2] || !$produce)) {
+        // A producer's first produce reads the id, to wait for it if need be. Before PHP 7.3 the
+        // clock may step back: an expiry too far ahead has expired too.
+        if ($entry !== null && $now < $entry[1] && $entry[1] - $now <= self::DSM_CLUSTER_ID_CACHE_NS
+                && ($entry[2] || !$produce)) {
             return $entry[0];
         }
 
