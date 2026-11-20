@@ -257,13 +257,16 @@ workflow:
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     DD_SIDECAR_DISABLE_DIRECT_EXEC: 1
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
-    FLAKY_BENCHMARKS_REGEX: ""
     # Analyzer settings. Every bp-runner step inherits the CI process environment,
     # so the settings live here instead of the config.
     UNCONFIDENCE_THRESHOLD: "2.0"
     DISABLE_NHST: "1"
     CI_TYPE: "theoretical"
     MD_REPORT_ONLY_CHANGES: "1"
+    # TEMPORARY: the combined extension routes every internal call through the
+    # profiler's zend_execute_internal hook, even with profiling disabled. Remove
+    # once that hook is installed only when profiling is enabled.
+    FLAKY_BENCHMARKS_REGEX: "HookBench|AMQPDataStreamsBench"
 
 benchmarks-profiler:
   extends: .microbenchmarks

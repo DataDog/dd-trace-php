@@ -22,6 +22,8 @@ use crate::{
 };
 
 mod config_manager;
+#[cfg(target_os = "linux")]
+mod fd_diagnostics;
 mod limiter;
 mod metrics;
 mod sampler;
@@ -33,15 +35,29 @@ mod waf_ruleset;
 
 pub struct ServiceManager {
     inner: Mutex<ServiceManagerInner>,
+    #[cfg(target_os = "linux")]
+    fd_diagnostics: Mutex<fd_diagnostics::FdDiagnostics>,
 }
 
 impl ServiceManager {
     pub fn new() -> Self {
         ServiceManager {
+            #[cfg(target_os = "linux")]
+            fd_diagnostics: Mutex::new(fd_diagnostics::FdDiagnostics::new()),
             inner: Mutex::new(ServiceManagerInner {
                 services: HashMap::new(),
                 last_service: None,
             }),
+        }
+    }
+
+    pub fn describe_fd_exhaustion(&self, error: &anyhow::Error) -> String {
+        #[cfg(target_os = "linux")]
+        return self.fd_diagnostics.lock().unwrap().describe_error(error);
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = error;
+            String::new()
         }
     }
 
@@ -80,9 +96,10 @@ impl ServiceManager {
             if let Some(service) = weak.upgrade() {
                 drop(inner);
                 if let Err(e) = service.poll_and_apply_rc() {
+                    let fd_diagnostics = self.describe_fd_exhaustion(&e);
                     error!(
-                        "Failed to apply RC update for {:?} (service with config {:?}): {}",
-                        shmem_path, service.fixed_config, e
+                        "Failed to apply RC update for {:?} (service with config {:?}): {:#}{}",
+                        shmem_path, service.fixed_config, e, fd_diagnostics
                     );
                 }
                 return;

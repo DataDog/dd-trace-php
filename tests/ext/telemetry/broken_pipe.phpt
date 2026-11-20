@@ -32,6 +32,8 @@ dd_trace_serialize_closed_spans();
 
 // force a reconnect, it needs to resubmit telemetry info
 dd_trace_internal_fn("break_sidecar_connection");
+// Allow the subprocess connection cooldown to expire before reconnecting.
+sleep(10);
 dd_trace_internal_fn("stats_sidecar"); // await connection breaking
 
 dd_trace_internal_fn("finalize_telemetry");
