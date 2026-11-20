@@ -553,14 +553,14 @@ void ddtrace_ffe_discard_deferred(void) {
     DDTRACE_G(ffe_deferred) = NULL;
 }
 
-static void dd_ffe_flush_deferred_until(bool final, uint64_t deadline) {
+static void dd_ffe_flush_deferred_until(bool final, uint64_t deadline, size_t max_chunks) {
     dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
     if (!batch) return;
     if (DATADOG_G(sidecar) && DATADOG_G(request_initialized)) {
         ddog_FfeExposure *events = safe_emalloc(batch->len, sizeof(*events), 0);
         for (size_t i = 0; i < batch->len; i++) events[i] = batch->rows[i].event;
         size_t consumed = 0, context_end = 0;
-        while (consumed < batch->len) {
+        while (consumed < batch->len && max_chunks > 0) {
             uint64_t now = zend_hrtime() / 1000;
             if (now >= deadline) break;
             ddog_FfeTelemetryContext context = batch->rows[consumed].context;
@@ -590,6 +590,7 @@ static void dd_ffe_flush_deferred_until(bool final, uint64_t deadline) {
                 break;
             }
             consumed += chunk.rows;
+            --max_chunks;
         }
         efree(events);
         dd_ffe_release_prefix(batch, consumed);
@@ -601,7 +602,13 @@ static void dd_ffe_flush_deferred_until(bool final, uint64_t deadline) {
 }
 
 void ddtrace_ffe_flush_deferred(bool final) {
-    dd_ffe_flush_deferred_until(final, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US);
+    dd_ffe_flush_deferred_until(final, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US, SIZE_MAX);
+}
+
+size_t ddtrace_ffe_test_flush_deferred_prefix(void) {
+    dd_ffe_flush_deferred_until(false, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US, 1);
+    dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
+    return batch ? batch->len : 0;
 }
 
 static void dd_ffe_defer(ddog_FfeTelemetryContext context, ddog_FfeExposure event, zend_string *flag,
@@ -715,7 +722,7 @@ int ddtrace_ffe_record_exposure(
     } else if (batch && batch->hook_only_seen && budget) {
         uint64_t deadline = zend_hrtime() / 1000 + budget;
         batch->hook_only_seen = false;
-        dd_ffe_flush_deferred_until(false, deadline);
+        dd_ffe_flush_deferred_until(false, deadline, SIZE_MAX);
         uint64_t now = zend_hrtime() / 1000;
         budget = now < deadline ? (uint32_t)(deadline - now) : 0;
     }

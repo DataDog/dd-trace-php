@@ -24,14 +24,14 @@ $env = ffeTestIsolatedSidecarEnvironment(array_merge(getenv(), array(
 $child = ffeTestProcess(__DIR__ . '/stubs/exposure_admission_overflow_app.php', $pipes, $env);
 $held = $seen = $required = $allowed = array();
 $out = $err = '';
-$released = false;
+$released = $flushed = false;
 $reply = function ($socket) {
     fwrite($socket, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
     fclose($socket);
 };
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 120 : 45);
-    while (microtime(true) < $deadline && (!$released || array_diff_key($required, $seen))) {
+    while (microtime(true) < $deadline && (!$flushed || array_diff_key($required, $seen))) {
         $out .= ffeTestProcessRead($pipes[1]);
         $err .= ffeTestProcessRead($pipes[2]);
         if (!$released && strpos($out, "\n") !== false) {
@@ -39,12 +39,26 @@ try {
             if (!is_array($manifest) || count($manifest[0]) !== 1400) throw new RuntimeException($out . $err);
             $required = array_fill_keys($manifest[0], true);
             $allowed = $required + array_fill_keys($manifest[1], true);
+            $out = '';
             $released = true;
             foreach ($held as $socket) $reply($socket);
             $held = array();
             fwrite($pipes[0], "finish\n");
             fflush($pipes[0]);
+        } elseif ($released && ($end = strpos($out, "\n")) !== false) {
+            $phase = substr($out, 0, $end);
+            $out = substr($out, $end + 1);
+            if (preg_match('/^pending:[1-9][0-9]*$/D', $phase)) {
+                fwrite($pipes[0], "continue\n");
+                fflush($pipes[0]);
+            } elseif ($phase === 'flushed') {
+                $flushed = true;
+            } else {
+                throw new RuntimeException("unexpected handoff phase $phase: " . $out . $err);
+            }
         }
+        $state = proc_get_status($child);
+        if (!$state['running']) throw new RuntimeException('child exited before sink acknowledgement: ' . $err . ffeTestProcessRead($pipes[1]) . ffeTestProcessRead($pipes[2]));
         $socket = @stream_socket_accept($listener, 0.02);
         if (!$socket) continue;
         $request = ffeTestReadRequest($socket);
@@ -61,7 +75,7 @@ try {
         }
         $reply($socket);
     }
-    if (!$released || array_diff_key($required, $seen) || array_diff_key($seen, $allowed)) {
+    if (!$flushed || array_diff_key($required, $seen) || array_diff_key($seen, $allowed)) {
         throw new RuntimeException('incomplete or unexpected exposure delivery: ' . count($seen) . ' received; ' . $err);
     }
     fwrite($pipes[0], "delivered\n");

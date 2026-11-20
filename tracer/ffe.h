@@ -20,6 +20,7 @@ void ddtrace_ffe_handle_fork(void);
 void ddtrace_ffe_flush_deferred(bool final);
 void ddtrace_ffe_discard_deferred(void);
 bool ddtrace_ffe_test_admission_ready(void);
+size_t ddtrace_ffe_test_flush_deferred_prefix(void);
 bool ddtrace_ffe_enabled(void);
 bool ddtrace_ffe_remote_config_enabled(void);
 bool ddtrace_ffe_agentless_enabled(void);

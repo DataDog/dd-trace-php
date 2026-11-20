@@ -25,12 +25,15 @@ $a = ['alloc', 'on', null];
 $changes = ['allocation' => ['other', 'on', null], 'variant' => ['alloc', 'off', null], 'serial' => ['alloc', 'on', 0]];
 $prefix = uniqid('admission-', true);
 list($parent, $child) = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
-stream_set_timeout($parent, 5);
-stream_set_timeout($child, 5);
+$timeout = getenv('USE_ZEND_ALLOC') === '0' ? 120 : 30;
+stream_set_timeout($parent, $timeout);
+stream_set_timeout($child, $timeout);
+if (observe($prefix . 'authority', $a) !== 'admitted') throw new RuntimeException('parent authority unavailable');
 $pid = pcntl_fork();
 if ($pid === -1) throw new RuntimeException('fork failed');
 if ($pid === 0) {
     fclose($parent);
+    if (observe($prefix . 'authority', $a) !== 'repeat') throw new RuntimeException('child authority mismatch');
     fwrite($child, getmypid() . "\n");
     while (($line = fgets($child)) !== false) {
         list($key, $assignment) = json_decode($line, true);

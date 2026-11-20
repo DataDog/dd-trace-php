@@ -25,8 +25,19 @@ if (function_exists('pcntl_fork')) {
         throw new RuntimeException('forked child inherited a deferred handoff');
     }
 }
-if (!$deferred || $deferred > 1000 || count($required) !== 1400) throw new RuntimeException("unexpected deferred count: $deferred");
+if ($deferred <= 64 || $deferred > 1000 || count($required) !== 1400) throw new RuntimeException("unexpected deferred count: $deferred");
 echo json_encode(array($required, $uncertain)), "\n";
 fflush(STDOUT);
-if (trim(fgets(STDIN)) !== 'finish' || !DDTrace\Testing\flush_ffe_exposures()) exit(1);
+if (trim(fgets(STDIN)) !== 'finish') throw new RuntimeException('missing delivery barrier');
+$remaining = dd_trace_internal_fn('test_ffe_flush_deferred_prefix');
+if ($remaining <= 0) throw new RuntimeException('expected an outstanding suffix after one prefix');
+while ($remaining > 0) {
+    echo "pending:$remaining\n";
+    fflush(STDOUT);
+    if (trim(fgets(STDIN)) !== 'continue') throw new RuntimeException('missing prefix barrier');
+    DDTrace\Testing\flush_ffe_exposures();
+    $remaining = dd_trace_internal_fn('test_ffe_has_deferred_exposures') ? 1 : 0;
+}
+echo "flushed\n";
+fflush(STDOUT);
 if (trim(fgets(STDIN)) !== 'delivered') exit(1);
