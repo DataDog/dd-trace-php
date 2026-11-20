@@ -83,6 +83,9 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService, $mapping =
         }
         fwrite($pipes[0], "finish\n");
         while ($running) $pump();
+        // The child can write its last line after $pump reads and before $pump sees it exit.
+        $stdout .= ffeTestProcessRead($pipes[1]);
+        $stderr .= ffeTestProcessRead($pipes[2]);
         if ($exitCode !== 0) throw new RuntimeException('child failed: ' . $stdout . ' ' . $stderr);
         if (!preg_match('/^span_service=(.*)$/m', $stdout, $span)) throw new RuntimeException('no span: ' . $stdout);
         echo $name, '=', implode(',', array_unique($values)), ' span=', $span[1], "\n";
