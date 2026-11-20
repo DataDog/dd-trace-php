@@ -128,6 +128,56 @@ class KafkaTest extends IntegrationTestCase
     }
 
     /**
+     * A consumer that has had more topics than it keeps the tags of starts over, and its
+     * checkpoints still carry their topic's tags and its client's cluster id.
+     */
+    public function testDataStreamsConsumeTagsCap()
+    {
+        $run = uniqid();
+        $script = __DIR__ . '/scripts/dsm-consume-tags-cap.php';
+        $topics = 2 * \DDTrace\Integrations\Kafka\KafkaIntegration::DSM_CONSUME_TAGS_TOPICS + 1;
+        foreach (['consume', 'queue'] as $mode) {
+            $output = $this->executeCli($script, self::DSM_ENV, [], [$mode, $run], true);
+            $this->assertRegularExpression("/^cluster id: '[A-Za-z0-9_-]+'$/m", $output);
+            $this->assertStringContains('checkpoints: ' . (2 * $topics) . "\n", $output);
+            $this->assertStringContains("wrong: 0\n", $output);
+            $this->assertStringContains(
+                'kept at most: ' . \DDTrace\Integrations\Kafka\KafkaIntegration::DSM_CONSUME_TAGS_TOPICS . "\n",
+                $output
+            );
+        }
+    }
+
+    /**
+     * DSM turned on at runtime, as by Remote Config, checkpoints the messages of clients and topics
+     * created while it was off.
+     */
+    public function testDataStreamsEnabledAtRuntime()
+    {
+        $run = uniqid();
+        $env = ['DD_DATA_STREAMS_ENABLED' => 'false'] + self::DSM_ENV;
+        list(, $output) = $this->inCli(__DIR__ . '/scripts/dsm-enabled-at-runtime.php', $env, [], $run, true);
+        list($off, $on) = explode("dsm on\n", $output, 2) + [1 => ''];
+
+        $this->assertStringNotContains('checkpoint:', $off);
+        $this->assertStringContains("consumer consumed dsm off: no context\n", $off);
+        $this->assertStringContains("queue consumed dsm off: no context\n", $off);
+
+        $this->assertStringContains("consumer consumed dsm on: context\n", $on);
+        $this->assertStringContains("queue consumed dsm on: context\n", $on);
+        $topic = ',topic:test-dsm-runtime-' . $run . ',type:kafka -> \d+$/m';
+        $cluster = 'kafka_cluster_id:[A-Za-z0-9_-]+';
+        preg_match_all('/^checkpoint: /m', $on, $checkpoints);
+        $this->assertCount(3, $checkpoints[0], $output);
+        $this->assertRegularExpression("/^checkpoint: direction:out,$cluster$topic", $on);
+        $this->assertRegularExpression("/^checkpoint: direction:in,group:dsm-runtime-$run,$cluster$topic", $on);
+        $this->assertRegularExpression(
+            "/^checkpoint: direction:in,group:dsm-runtime-queue-$run,$cluster$topic",
+            $on
+        );
+    }
+
+    /**
      * The checkpoints of a producer, a consumer and a low-level consumer's queue each carry the tags
      * of their message's topic, with two topics each.
      */
