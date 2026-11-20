@@ -100,5 +100,9 @@ Datadog exposure for each new or changed assignment in that domain. The default 
 microseconds; range 0–50,000). Zero selects batch-only delivery: an eligible hook reports
 `unavailable`, and a callback using `shouldSend()` skips that observation. Larger valid rows
 (over 65,536 text bytes) can use the deferred delivery lane with their original attributes and
-features. Each request retains up to 1,000 rows within an 8 MiB budget. Exposure outcome
-telemetry records deferred, confirmed, uncertain and dropped observations.
+features. A request in overflow can buffer up to 1,000 rows within an **8 MiB exposure-data
+budget per active request**. In a PHP 8.3 NTS measurement with 70 KiB of attributes per
+observation, PHP worker RSS rose by about 9 MiB (8,972–8,976 KiB) by observation 128 and
+stayed flat through observation 2,048. This measures the PHP worker; the sidecar uses
+separate memory. Exposure outcome telemetry records deferred, confirmed, uncertain and
+dropped observations.
