@@ -175,9 +175,8 @@ See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
   variants without a prebuilt DSO. `aggregate tracing extension` is a no-op
   fan-in **after linking**, not a collector of all-version pre-link archives.
 
-- `compile tracing sidecar` on alpine: the `-alpine` suffix variant force-installs
-  `bindgen-cli` via `cargo install --force --locked` before building, as a workaround
-  for `aws-lc-sys` build failures on musl targets.
+- `compile tracing sidecar` on alpine uses the `bindgen-cli` the image installs in
+  `/usr/local/bin` (needed by `aws-lc-sys` on musl targets).
 
 - The Cargo cache uses the default `pull-push` policy in `cache cargo deps` and
   `policy: pull` (read-only) in `compile combined extension`, `compile SSI combined
