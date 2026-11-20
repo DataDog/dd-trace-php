@@ -6,6 +6,7 @@ if (PHP_VERSION_ID < 70200 || !function_exists('proc_open') || !function_exists(
     !getenv('TEST_PHP_EXECUTABLE')) die('skip: child PHP and stream sockets required');
 ?>
 --ENV--
+DDTRACE_PHPT_EXACT_PEER=1
 DD_TRACE_CLI_ENABLED=1
 DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true
 DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess

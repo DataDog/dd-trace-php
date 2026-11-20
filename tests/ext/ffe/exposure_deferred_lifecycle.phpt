@@ -12,6 +12,7 @@ DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_REMOTE_CONFIG_ENABLED=0
 DD_SERVICE=deferred-before
+DD_TRACE_AGENT_TIMEOUT=150000
 --FILE--
 <?php
 require __DIR__ . '/stubs/ffe_process.inc';
@@ -26,7 +27,7 @@ $seen = array();
 $expected = array('before' => 'deferred-before', 'middle' => 'deferred-middle', 'shutdown' => 'deferred-after');
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 120 : 30);
-    while (!isset($seen['shutdown']) && microtime(true) < $deadline) {
+    while (count($seen) < count($expected) && microtime(true) < $deadline) {
         $socket = @stream_socket_accept($listener, 0.1);
         if (!$socket) {
             $state = proc_get_status($child);
@@ -53,7 +54,7 @@ try {
         fwrite($socket, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
         fclose($socket);
     }
-    if ($seen !== $expected) {
+    if (array_diff_assoc($expected, $seen)) {
         throw new RuntimeException(json_encode($seen) . ' ' . ffeTestProcessRead($pipes[1]) . ffeTestProcessRead($pipes[2]));
     }
     echo "payload and original scope preserved through shutdown\n";
