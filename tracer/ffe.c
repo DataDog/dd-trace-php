@@ -26,6 +26,10 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #define DD_FFE_METRIC_BUFFER_LIMIT 1000
 #define DD_FFE_ADMISSION_BUDGET_US 10000
+#define DD_FFE_DEFERRED_BUDGET_US 50000
+#define DD_FFE_DEFERRED_LIMIT 1000
+#define DD_FFE_DEFERRED_BYTES (8 * 1024 * 1024)
+#define DD_FFE_RETAINED_FIELDS 6
 #define DD_FFE_CONTEXT_FIELD_LIMIT 256
 
 bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
@@ -472,16 +476,27 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
     return flushed;
 }
 
-#define DD_FFE_DEFERRED_LIMIT 1000
+static void dd_ffe_outcome(dd_ffe_outcome_type outcome, size_t rows) {
+    if (!rows) return;
+    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) DDTRACE_G(ffe_outcomes)[outcome] += rows;
+    if (outcome >= DD_FFE_INVALID) {
+        static _Atomic(int64_t) warned_pid;
+        int64_t pid = (int64_t)getpid(), prior = atomic_load(&warned_pid);
+        if (prior != pid && atomic_compare_exchange_strong(&warned_pid, &prior, pid)) {
+            LOG(WARN, "Feature Flags: dropped exposure rows; see exposures.rows telemetry for details");
+        }
+    }
+}
 
 typedef struct {
     ddog_FfeExposure event;
-    zend_string *fields[6];
+    size_t bytes;
+    zend_string *fields[DD_FFE_RETAINED_FIELDS];
 } dd_ffe_deferred_row;
 
 typedef struct {
     zend_string *service, *env, *version;
-    size_t len, cap, dropped;
+    size_t len, cap, bytes;
     dd_ffe_deferred_row *rows;
 } dd_ffe_deferred_batch;
 
@@ -493,24 +508,41 @@ static bool dd_ffe_same_text(zend_string *saved, zend_string *current) {
     return current ? zend_string_equals(saved, current) : ZSTR_LEN(saved) == 0;
 }
 
-static bool dd_ffe_can_defer(ddog_FfeTelemetryContext context, ddog_FfeExposure event) {
-    size_t available = 64 * 1024;
-    const size_t lengths[] = {context.service.len, context.env.len, context.version.len, event.flag_key.len,
-                              event.subject_id.len, event.subject_attributes_json.len, event.allocation_key.len,
-                              event.variant.len, event.features_json.len};
-    for (size_t i = 0; i < sizeof(lengths) / sizeof(lengths[0]); i++) {
-        if (lengths[i] > available) return false;
-        available -= lengths[i];
+static size_t dd_ffe_deferred_bytes(ddog_FfeTelemetryContext context, ddog_FfeExposure event) {
+    size_t size = sizeof(dd_ffe_deferred_row);
+    size_t fields[] = {context.service.len, context.env.len, context.version.len, event.flag_key.len,
+                       event.subject_id.len, event.subject_attributes_json.len, event.allocation_key.len,
+                       event.variant.len, event.features_json.len};
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        if (fields[i] > DD_FFE_DEFERRED_BYTES - size) return SIZE_MAX;
+        size += fields[i];
     }
-    return event.allocation_key.len > 0;
+    return size;
+}
+
+static bool dd_ffe_valid_row(ddog_FfeTelemetryContext context, ddog_FfeExposure event) {
+    ddog_CharSlice fields[] = {context.service, context.env, context.version, event.flag_key,
+                               event.subject_id, event.allocation_key, event.variant, event.subject_attributes_json};
+    if (!event.allocation_key.len) return false;
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        if (!datadog_bytes_are_valid_utf8((const uint8_t *)fields[i].ptr, fields[i].len)) return false;
+    }
+    return true;
+}
+
+static void dd_ffe_release_prefix(dd_ffe_deferred_batch *batch, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        for (size_t j = 0; j < DD_FFE_RETAINED_FIELDS; j++) zend_string_release(batch->rows[i].fields[j]);
+        batch->bytes -= batch->rows[i].bytes;
+    }
+    batch->len -= n;
+    if (batch->len) memmove(batch->rows, batch->rows + n, batch->len * sizeof(*batch->rows));
 }
 
 void ddtrace_ffe_discard_deferred(void) {
     dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
     if (!batch) return;
-    for (size_t i = 0; i < batch->len; i++) {
-        for (size_t j = 0; j < 6; j++) zend_string_release(batch->rows[i].fields[j]);
-    }
+    dd_ffe_release_prefix(batch, batch->len);
     zend_string_release(batch->service);
     zend_string_release(batch->env);
     zend_string_release(batch->version);
@@ -519,7 +551,7 @@ void ddtrace_ffe_discard_deferred(void) {
     DDTRACE_G(ffe_deferred) = NULL;
 }
 
-void ddtrace_ffe_flush_deferred(void) {
+void ddtrace_ffe_flush_deferred(bool final) {
     dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
     if (!batch) return;
     if (DATADOG_G(sidecar) && DATADOG_G(request_initialized)) {
@@ -530,39 +562,79 @@ void ddtrace_ffe_flush_deferred(void) {
         };
         ddog_FfeExposure *events = safe_emalloc(batch->len, sizeof(*events), 0);
         for (size_t i = 0; i < batch->len; i++) events[i] = batch->rows[i].event;
-        ddog_Slice_FfeExposure slice = {.ptr = events, .len = batch->len};
-        if (datadog_ffi_try("Failed sending deferred FFE exposures",
-                ddog_sidecar_send_ffe_exposure_batch(&DATADOG_G(sidecar), &context, slice))) {
-            DDTRACE_G(ffe_exposure_handed_off) = true;
+        size_t consumed = 0;
+        uint64_t deadline = zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US;
+        while (consumed < batch->len) {
+            uint64_t now = zend_hrtime() / 1000;
+            if (now >= deadline) break;
+            ddog_Slice_FfeExposure slice = {.ptr = events + consumed, .len = batch->len - consumed};
+            ddog_FfeDeferredHandoff chunk = {0};
+            ddog_MaybeError error = ddog_sidecar_ffe_submit_deferred_v1(&DATADOG_G(sidecar), &context, slice,
+                                                                        (uint32_t)(deadline - now), &chunk);
+            if (error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+                ddog_MaybeError_drop(error);
+                break;
+            }
+            LOG(DEBUG, "Feature Flags: deferred handoff status=%u rows=%u pending=%zu", chunk.status, chunk.rows, slice.len);
+            if (chunk.status == ddog_FFE_DEFERRED_REFUSED || !chunk.rows || chunk.rows > slice.len) break;
+            if (chunk.status == ddog_FFE_DEFERRED_CONFIRMED) {
+                DDTRACE_G(ffe_exposure_handed_off) = true;
+                dd_ffe_outcome(DD_FFE_CONFIRMED, chunk.rows);
+            } else if (chunk.status == ddog_FFE_DEFERRED_LEGACY_SUBMITTED) {
+                dd_ffe_outcome(DD_FFE_LEGACY, chunk.rows);
+            } else if (chunk.status == ddog_FFE_DEFERRED_UNKNOWN) {
+                dd_ffe_outcome(DD_FFE_UNCERTAIN, chunk.rows);
+            } else if (chunk.status == ddog_FFE_DEFERRED_INVALID) {
+                dd_ffe_outcome(DD_FFE_OVERSIZE, chunk.rows);
+            } else {
+                break;
+            }
+            consumed += chunk.rows;
         }
         efree(events);
+        dd_ffe_release_prefix(batch, consumed);
     }
-    if (batch->dropped) LOG(DEBUG, "Feature Flags: deferred exposure buffer dropped %zu observations", batch->dropped);
-    ddtrace_ffe_discard_deferred();
+    if (final || !batch->len) {
+        dd_ffe_outcome(DD_FFE_UNSENT, batch->len);
+        ddtrace_ffe_discard_deferred();
+    }
 }
 
-static void dd_ffe_defer(ddog_FfeExposure event, zend_string *flag, zend_string *subject, zend_string *attributes,
-                         zend_string *allocation, zend_string *variant, zend_string *features) {
+static void dd_ffe_defer(ddog_FfeTelemetryContext context, ddog_FfeExposure event, zend_string *flag,
+                         zend_string *subject, zend_string *attributes, zend_string *allocation,
+                         zend_string *variant, zend_string *features) {
     dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
+    size_t bytes = dd_ffe_deferred_bytes(context, event);
+    if (bytes > DD_FFE_DEFERRED_BYTES) {
+        dd_ffe_outcome(DD_FFE_OVERSIZE, 1);
+        return;
+    }
+    if (!dd_ffe_valid_row(context, event)) {
+        dd_ffe_outcome(DD_FFE_INVALID, 1);
+        return;
+    }
     if (!batch) {
         DDTRACE_G(ffe_deferred) = batch = ecalloc(1, sizeof(*batch));
         batch->service = dd_ffe_retain(get_DD_SERVICE());
         batch->env = dd_ffe_retain(get_DD_ENV());
         batch->version = dd_ffe_retain(get_DD_VERSION());
     }
-    if (batch->len == DD_FFE_DEFERRED_LIMIT) {
-        batch->dropped++;
+    if (batch->len == DD_FFE_DEFERRED_LIMIT || bytes > DD_FFE_DEFERRED_BYTES - batch->bytes) {
+        dd_ffe_outcome(DD_FFE_OVERFLOW, 1);
         return;
     }
     if (batch->len == batch->cap) {
         batch->cap = MIN(batch->cap ? 2 * batch->cap : 8, DD_FFE_DEFERRED_LIMIT);
         batch->rows = safe_erealloc(batch->rows, batch->cap, sizeof(*batch->rows), 0);
     }
-    // The slices in event borrow the strings retained in this row until the batch is handed off.
+    // The event slices borrow these strings until the sidecar handoff.
     batch->rows[batch->len++] = (dd_ffe_deferred_row){
-        .event = event, .fields = {dd_ffe_retain(flag), dd_ffe_retain(subject), dd_ffe_retain(attributes),
-                                   dd_ffe_retain(allocation), dd_ffe_retain(variant), dd_ffe_retain(features)},
+        .event = event, .bytes = bytes,
+        .fields = {dd_ffe_retain(flag), dd_ffe_retain(subject), dd_ffe_retain(attributes),
+                   dd_ffe_retain(allocation), dd_ffe_retain(variant), dd_ffe_retain(features)},
     };
+    batch->bytes += bytes;
+    dd_ffe_outcome(DD_FFE_DEFERRED, 1);
 }
 
 bool ddtrace_ffe_test_admission_ready(void) {
@@ -603,10 +675,7 @@ int ddtrace_ffe_record_exposure(
         return -1;
     }
 
-    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
-        LOG(DEBUG, "Feature Flags: exposure admission unavailable");
-        return ddog_FFE_ADMISSION_UNAVAILABLE;
-    }
+    if (!DATADOG_G(request_initialized)) return ddog_FFE_ADMISSION_UNAVAILABLE;
     ddog_FfeTelemetryContext context = {
         .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
         .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
@@ -627,25 +696,27 @@ int ddtrace_ffe_record_exposure(
     dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
     if (batch && (!dd_ffe_same_text(batch->service, get_DD_SERVICE()) ||
                   !dd_ffe_same_text(batch->env, get_DD_ENV()) || !dd_ffe_same_text(batch->version, get_DD_VERSION()))) {
-        ddtrace_ffe_flush_deferred();
+        ddtrace_ffe_flush_deferred(true);
     }
     ddog_FfeAdmission status = ddog_FFE_ADMISSION_UNAVAILABLE;
-    if (DDTRACE_G(ffe_deferred)) {
-        if (deliver && dd_ffe_can_defer(context, event)) {
-            status = ddog_FFE_ADMISSION_QUEUE_FULL;
-        }
-    } else {
+    if (DATADOG_G(sidecar) && !(deliver && DDTRACE_G(ffe_deferred))) {
         uint32_t budget = DDTRACE_G(ffe_test_admission_budget_us);
-        datadog_ffi_try("FFE exposure admission failed", ddog_sidecar_ffe_admit_v1(
-            &DATADOG_G(sidecar), &context, &event, deliver, budget ? budget : DD_FFE_ADMISSION_BUDGET_US, &status));
+        ddog_MaybeError error = ddog_sidecar_ffe_admit_v1(&DATADOG_G(sidecar), &context, &event, deliver,
+                                                           budget ? budget : DD_FFE_ADMISSION_BUDGET_US, &status);
+        if (error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+            ddog_MaybeError_drop(error);
+            if (deliver) dd_ffe_outcome(DD_FFE_INVALID, 1);
+            return ddog_FFE_ADMISSION_UNAVAILABLE;
+        }
     }
-    if (deliver && status == ddog_FFE_ADMISSION_QUEUE_FULL) {
-        // Keep subsequent observations in request order for the legacy batch admission.
-        dd_ffe_defer(event, flag_key, targeting_key, subject_attributes_json, allocation_key, variant, features_json);
+    if (deliver && (status == ddog_FFE_ADMISSION_QUEUE_FULL || status == ddog_FFE_ADMISSION_UNAVAILABLE)) {
+        dd_ffe_defer(context, event, flag_key, targeting_key, subject_attributes_json, allocation_key, variant, features_json);
         status = ddog_FFE_ADMISSION_UNAVAILABLE;
-    }
-    if (deliver && status == ddog_FFE_ADMISSION_ADMITTED) {
+    } else if (deliver && status == ddog_FFE_ADMISSION_ADMITTED) {
         DDTRACE_G(ffe_exposure_handed_off) = true;
+        dd_ffe_outcome(DD_FFE_CONFIRMED, 1);
+    } else if (status == ddog_FFE_ADMISSION_UNKNOWN) {
+        dd_ffe_outcome(DD_FFE_UNCERTAIN, 1);
     }
     LOG(DEBUG, "Feature Flags: exposure admission %s", ddtrace_ffe_admission_name((int) status));
     return (int) status;

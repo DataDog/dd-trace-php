@@ -1259,7 +1259,7 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
     bool token_changed =
         Z_TYPE_P(old_value) != IS_STRING || !zend_string_equals(Z_STR_P(old_value), Z_STR_P(new_value));
 #ifdef TRACER
-    if (token_changed) ddtrace_ffe_flush_deferred();
+    if (token_changed) ddtrace_ffe_flush_deferred(true);
 #endif
     if (datadog_endpoint) {
         ddog_endpoint_set_test_token_if_changed(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));

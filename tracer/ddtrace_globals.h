@@ -41,6 +41,11 @@ typedef struct {
     uint32_t cardinality_limit;
 } ddtrace_stats_additional_tags;
 
+typedef enum {
+    DD_FFE_DEFERRED, DD_FFE_CONFIRMED, DD_FFE_LEGACY, DD_FFE_UNCERTAIN,
+    DD_FFE_INVALID, DD_FFE_OVERSIZE, DD_FFE_OVERFLOW, DD_FFE_UNSENT, DD_FFE_OUTCOME_COUNT
+} dd_ffe_outcome_type;
+
 // clang-format off
 typedef struct {
     zend_bool api_is_loaded;
@@ -127,6 +132,7 @@ typedef struct {
     HashTable resource_weak_storage;
     dtor_func_t resource_dtor_func;
 
+    uint64_t ffe_outcomes[DD_FFE_OUTCOME_COUNT];
     bool ffe_exposure_handed_off;
     uint32_t ffe_test_admission_budget_us;
     void *ffe_deferred;
