@@ -333,10 +333,10 @@ foreach ($build_platforms as $platform) {
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
-    CARGO_BUILD_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    CARGO_BUILD_JOBS: 24
+    KUBERNETES_CPU_REQUEST: 24
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
   script:
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
 <?php if ($flavour === 'nts'): ?>
@@ -440,10 +440,10 @@ foreach ($build_platforms as $platform) {
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
-    MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    MAKE_JOBS: 24
+    KUBERNETES_CPU_REQUEST: 24
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
@@ -455,7 +455,7 @@ foreach ($build_platforms as $platform) {
     # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
     # Every SSI common rebuild must match the canonical DSO, including DWARF.
     - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?><?= $suffix ?>.so"
-    - export CARGO_BUILD_JOBS=12
+    - export CARGO_BUILD_JOBS=24
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
@@ -532,10 +532,10 @@ foreach ($build_platforms as $platform) {
     CXX: clang++
     CARGO_TARGET_<?= strtoupper(str_replace('-', '_', $platform['triplet'])) ?>_LINKER: clang
 <?php endif; ?>
-    CARGO_BUILD_JOBS: 16
-    KUBERNETES_CPU_REQUEST: 16
-    KUBERNETES_MEMORY_REQUEST: 5Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    CARGO_BUILD_JOBS: 24
+    KUBERNETES_CPU_REQUEST: 24
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
   script:
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
@@ -571,10 +571,10 @@ foreach ($build_platforms as $platform) {
     HOST_OS: "<?= $platform['host_os'] ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
-    CARGO_BUILD_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 5Gi
-    KUBERNETES_MEMORY_LIMIT: 10Gi
+    CARGO_BUILD_JOBS: 24
+    KUBERNETES_CPU_REQUEST: 24
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
   script:
     - echo "" >> "$BASH_ENV"
     - mkdir -p "ssi_<?= $arch_dir ?>"
