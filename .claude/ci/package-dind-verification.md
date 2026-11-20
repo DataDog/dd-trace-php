@@ -393,7 +393,7 @@ kill %1  # stop HTTP server
 
 - **`installer tests` VERSION mismatch.** The installer compares the installed
   extension version against `VERSION`. CI runs `append-build-id.sh` which bumps
-  it (e.g. `1.17.0` -> `1.18.0+<sha>`). Without this step, tests fail with
+  it (e.g. `1.17.0` -> `1.18.0+dev.<sha>`). Without this step, tests fail with
   "Wrong ddtrace version".
 
 - **`installer tests` downloads from S3 by default.** In CI,
