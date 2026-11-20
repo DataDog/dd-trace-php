@@ -277,11 +277,13 @@ uint64_t ddog_ffe_config_version(void);
  * A non-empty `base_url` is fetched as given and never receives the API key.
  * Otherwise the managed endpoint of `site` is used, filtered to `env`.
  * The intervals must already be within the ranges accepted by the sidecar.
+ * Requests send `service` in `DD-Service`. An empty `service` sends no header.
  */
 struct ddog_FfeCdnConfig *ddog_ffe_cdn_config_new(ddog_CharSlice base_url,
                                                   ddog_CharSlice site,
                                                   ddog_CharSlice env,
                                                   ddog_CharSlice api_key,
+                                                  ddog_CharSlice service,
                                                   uint32_t poll_interval_secs,
                                                   uint32_t request_timeout_secs,
                                                   enum ddog_FfeCdnConfigError *error);

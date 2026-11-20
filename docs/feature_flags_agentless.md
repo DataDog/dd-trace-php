@@ -44,6 +44,14 @@ the request timeout to 5 seconds. They are set with
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS`.
 Invalid values fall back to their defaults.
 
+Each CDN request sends the service in the `DD-Service` header, so usage can be
+attributed to the service. The service is `DD_SERVICE` (or `OTEL_SERVICE_NAME`),
+with `DD_SERVICE_MAPPING` applied as for spans. libdatadog normalizes the name
+with its trace normalizer, so `My Service` sends `my_service`. There is no
+header if the normalized name is empty, for example from `___`. There is also
+no header if neither variable is set, because an integration can change the
+default service of the root span (for example Laravel uses `APP_NAME`).
+
 Settings problems are logged once, on the first flag evaluation, so
 applications that never evaluate flags get no feature flag diagnostics.
 `DDTrace\Internal\ffe_provider_state()` reports the failure reason to the SDK.
@@ -74,8 +82,8 @@ including the AUTO fallback to it, the agentless source is reported as
 - The last accepted configuration stays in use through failed polls, 304
   responses, sidecar restarts and target changes.
 - A valid empty configuration clears the flags.
-- Credentials, endpoint and environment are fixed at process startup. Restart
-  PHP to change them.
+- Credentials, endpoint, environment and service are fixed at process
+  startup. Restart PHP to change them.
 
 ## First evaluation
 
@@ -105,6 +113,7 @@ fixed Agent EVP route. OTLP metric delivery is unchanged.
 - `tests/ext/ffe/agentless_*.phpt` cover:
   - explicit opt-in and no CDN traffic without opt-in, including provider use;
   - source selection and settings diagnostics;
+  - the `DD-Service` header;
   - the first-use deadline, failed polls and recovery;
   - fork, threads, Swoole workers and sidecar restarts;
   - process isolation of the CDN requests.
