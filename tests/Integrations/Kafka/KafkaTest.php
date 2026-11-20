@@ -167,6 +167,77 @@ class KafkaTest extends IntegrationTestCase
     }
 
     /**
+     * The application's headers are sent before the integration's, which replace any of the same
+     * name. A checkpoint's payload size counts the payload, the key and the headers' names and
+     * values; a produce's counts the application's pathway context header, not its own.
+     */
+    public function testDataStreamsHeadersAndPayloadSize()
+    {
+        list(, $output) = $this->inCli(__DIR__ . '/scripts/dsm-headers.php', self::DSM_ENV, [], uniqid(), true);
+        $this->assertSame(2, preg_match_all('/^produce size: (\d+)$/m', $output, $produced), $output);
+        $this->assertSame(2, preg_match_all('/^consume size: (\d+)$/m', $output, $consumed), $output);
+        $this->assertRegularExpression('/^with headers: (\{.*\})$/m', $output);
+        $this->assertRegularExpression('/^without headers: (\{.*\})$/m', $output);
+        preg_match('/^with headers: (\{.*\})$/m', $output, $with);
+        preg_match('/^without headers: (\{.*\})$/m', $output, $without);
+        $with = json_decode($with[1], true);
+        $without = json_decode($without[1], true);
+        $size = function (array $headers) {
+            $size = 0;
+            foreach ($headers as $name => $value) {
+                $size += strlen((string) $name) + strlen((string) $value);
+            }
+            return $size;
+        };
+        $context = 'dd-pathway-ctx-base64';
+
+        $keys = array_keys($with);
+        $this->assertSame(
+            ['x-datadog-trace-id', $context, 'user', 'x-datadog-parent-id'],
+            array_values(array_intersect($keys, ['x-datadog-trace-id', $context, 'user', 'x-datadog-parent-id']))
+        );
+        $this->assertNotSame('42', $with['x-datadog-trace-id']);
+        $this->assertNotSame('application context', $with[$context]);
+        $this->assertSame('value', $with['user']);
+        $keys = array_keys($without);
+        $this->assertSame($context, end($keys));
+        $this->assertArrayHasKey('x-datadog-parent-id', $without);
+
+        $sent = $with;
+        $sent[$context] = 'application context';
+        $sent['empty'] = '';
+        $this->assertEquals(strlen('with headers') + strlen('key') + $size($sent), $produced[1][0]);
+        $sent = $without;
+        unset($sent[$context]);
+        $this->assertEquals(strlen('without headers') + $size($sent), $produced[1][1]);
+        $this->assertEquals(strlen('with headers') + strlen('key') + $size($with), $consumed[1][0]);
+        $this->assertEquals(strlen('without headers') + $size($without), $consumed[1][1]);
+    }
+
+    /**
+     * A header's size is that of its name and value as strings, whatever their types.
+     */
+    public function testHeadersSize()
+    {
+        $method = new \ReflectionMethod(\DDTrace\Integrations\Kafka\KafkaIntegration::class, 'headersSize');
+        $method->setAccessible(true);
+        $cases = [
+            [],
+            ['name' => 'value'],
+            [5 => 'integer name', 'null' => null, 'integer' => 42, 'float' => 1.5, 'true' => true, 'false' => false],
+            ['dd-pathway-ctx-base64' => 'application context', '' => ''],
+        ];
+        foreach ($cases as $headers) {
+            $expected = 0;
+            foreach ($headers as $name => $value) {
+                $expected += strlen((string) $name) + strlen((string) $value);
+            }
+            $this->assertSame($expected, $method->invoke(null, $headers), json_encode($headers));
+        }
+        $this->assertSame(0, $method->invoke(null, null));
+    }
+
+    /**
      * A producer that has not had its brokers' answer yet gets the cluster id another process read
      * from a client with the same bootstrap servers, through the sidecar.
      */

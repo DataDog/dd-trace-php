@@ -95,29 +95,37 @@ class KafkaIntegration extends Integration
         if ($inject) {
             $headers = \DDTrace\generate_distributed_tracing_headers();
         }
-        $context = self::setDataStreamsProduceCheckpoint($producerTopic, $hook->args, $headers);
-        if ($context !== null) {
-            $headers[self::DSM_CONTEXT_HEADER] = $context;
-            $inject = true;
+        $dsm = \dd_trace_env_config('DD_DATA_STREAMS_ENABLED');
+        if (!$inject && !$dsm) {
+            return;
+        }
+        // The headers the message is sent with: the application's, then the integration's.
+        $args = $hook->args;
+        if (isset($args[4])) {
+            $headers = array_merge($args[4], $headers);
+        }
+        if ($dsm) {
+            $context = self::setDataStreamsProduceCheckpoint($producerTopic, $args, $headers);
+            if ($context !== null) {
+                $headers[self::DSM_CONTEXT_HEADER] = $context;
+                $inject = true;
+            }
         }
         if ($inject) {
-            $hook->args = self::injectHeadersIntoArgs($hook->args, $headers);
+            $hook->args = self::injectHeadersIntoArgs($args, $headers);
             $hook->overrideArguments($hook->args);
         }
     }
 
     /**
+     * Call when DSM is on. `$headers` are all the headers the message is sent with, but the
+     * pathway context header, which the checkpoint computes.
+     *
      * @return string|null the pathway context to send with the message, or null when DSM is off
      */
     public static function setDataStreamsProduceCheckpoint(\RdKafka\ProducerTopic $producerTopic, array $args, array $headers)
     {
-        if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
-            return null;
-        }
-
-        // The message as it is sent, but for the context header the checkpoint computes.
-        $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
-            + self::headersSize(array_merge($args[4] ?? [], $headers));
+        $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '') + self::headersSize($headers);
         $produceTags = self::$produceTags;
         $entry = $produceTags
             ? ($produceTags[$producerTopic] ?? null)
@@ -150,6 +158,7 @@ class KafkaIntegration extends Integration
         }
     }
 
+    // `$headers` are all the headers the message is sent with, the application's included.
     private static function injectHeadersIntoArgs(array $args, array $headers): array
     {
         // public RdKafka\ProducerTopic::producev (
@@ -163,7 +172,7 @@ class KafkaIntegration extends Integration
         // ]]]] ) : void
         $argsCount = count($args);
         if ($argsCount >= 5) {
-            $args[4] = array_merge($args[4] ?? [], $headers);
+            $args[4] = $headers;
         } elseif ($argsCount === 4) {
             $args[] = $headers;
         } elseif ($argsCount === 3) {
@@ -281,11 +290,8 @@ class KafkaIntegration extends Integration
     // Bytes of the headers' names and values, as the Java tracer counts them.
     private static function headersSize($headers): int
     {
-        $size = 0;
-        foreach ((array) $headers as $name => $value) {
-            $size += strlen((string) $name) + strlen((string) $value);
-        }
-        return $size;
+        $headers = (array) $headers;
+        return strlen(implode('', array_keys($headers))) + strlen(implode('', $headers));
     }
 
     /**
