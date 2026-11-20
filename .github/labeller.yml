@@ -1,9 +1,13 @@
 labels:
+  - name: "ci"
+    allFilesIn: "(dockerfiles\/ci\/.*|.circleci\/.*|.github\/.*|.gitlab\/.*|benchmark\/.*|github-actions-helpers\/.*|docker-compose.yml)"
+    stopIfMatch: true
+
   - name: "area:asm"
     title: "^\\[?(?i)ASM"
 
   - name: "area:asm"
-    allFilesIn: "(appsec\/.*|docker-compose.yml|.*\/.circleci\/.*)"
+    allFilesIn: "(appsec\/.*|docker-compose.yml|.circleci\/.*)"
 
   - name: "profiling"
     title: "^.*\\(profiler\\)"
@@ -12,7 +16,7 @@ labels:
     title: "^.*\\(profiling\\)"
 
   - name: "profiling"
-    allFilesIn: "(profiling\/.*|docker-compose.yml|.*\/.circleci\/.*)"
+    allFilesIn: "(profiling\/.*|docker-compose.yml|.circleci\/.*)"
 
   - name: "tracing"
     title: "^\\[?(?i)tracer"
@@ -21,4 +25,4 @@ labels:
     title: "^\\[?(?i)tracing"
 
   - name: "tracing"
-    allFilesIn: "(.*\/ext\/.*|.*\/src\/.*|.*\/tests\/.*|.*\/zend_abstract_interface\/.*|docker-compose.yml|.*\/.circleci\/.*)"
+    allFilesIn: "(ext\/.*|src\/.*|tests\/.*|zend_abstract_interface\/.*|docker-compose.yml|.circleci\/.*)"
