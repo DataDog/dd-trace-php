@@ -1961,8 +1961,8 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
 <?php endforeach; ?>
 "System Tests: [parametric]":
   extends: .system_tests
-  # pytest-split (in system-tests' requirements) gives each job half of the tests, as system-tests' own CI does.
-  parallel: 2
+  # pytest-split (in system-tests' requirements) splits the tests across the parallel jobs.
+  parallel: 4
   variables:
     BUILD_SH_ARGS: ""
     # system-tests #8121's buildx --load stores the client image twice, overflowing the 20G default.
