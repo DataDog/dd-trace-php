@@ -1221,6 +1221,7 @@ dependencies = [
  "libdd-crashtracker-ffi",
  "libdd-data-pipeline",
  "libdd-ffe",
+ "libdd-host-identity",
  "libdd-ipc",
  "libdd-library-config",
  "libdd-library-config-ffi",
@@ -1289,6 +1290,7 @@ dependencies = [
  "libdd-crashtracker-ffi",
  "libdd-data-pipeline",
  "libdd-ffe",
+ "libdd-host-identity",
  "libdd-ipc",
  "libdd-library-config",
  "libdd-library-config-ffi",
@@ -1630,12 +1632,6 @@ name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
-
-[[package]]
-name = "elf"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
 
 [[package]]
 name = "embedded-io"
@@ -2146,11 +2142,6 @@ name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
-dependencies = [
- "allocator-api2",
- "equivalent",
- "foldhash 0.2.0",
-]
 
 [[package]]
 name = "hashbrown"
@@ -2904,16 +2895,9 @@ dependencies = [
  "const_format",
  "hex",
  "http 1.4.2",
- "indexmap 2.12.1",
- "libc",
- "libdd-env",
- "libdd-regex",
- "maplit",
  "proptest",
  "serde",
  "static_assertions",
- "tempfile",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2955,9 +2939,10 @@ dependencies = [
  "libdd-gotter",
  "libdd-libunwind-sys",
  "libdd-networking",
- "libdd-otel-thread-ctx",
  "libdd-process-utils",
  "libdd-telemetry",
+ "libdd-trace-model",
+ "libdd-trace-utils",
  "nix 0.29.0",
  "num-derive",
  "num-traits",
@@ -3021,6 +3006,7 @@ dependencies = [
  "libdd-data-pipeline-core",
  "libdd-ddsketch",
  "libdd-dogstatsd-client",
+ "libdd-host-identity",
  "libdd-log",
  "libdd-networking",
  "libdd-regex",
@@ -3060,6 +3046,7 @@ dependencies = [
  "http 1.4.2",
  "libdd-capabilities",
  "libdd-common",
+ "libdd-host-identity",
  "libdd-regex",
  "libdd-tinybytes",
  "libdd-trace-obfuscation",
@@ -3126,6 +3113,7 @@ dependencies = [
  "libdd-networking",
  "libdd-regex",
  "libdd-remote-config",
+ "libdd-trace-normalization",
  "libdd-trace-protobuf",
  "log",
  "lru",
@@ -3151,6 +3139,19 @@ version = "1.1.0"
 dependencies = [
  "libc",
  "tempfile",
+]
+
+[[package]]
+name = "libdd-host-identity"
+version = "1.0.0"
+dependencies = [
+ "indexmap 2.12.1",
+ "libc",
+ "libdd-env",
+ "libdd-regex",
+ "maplit",
+ "tempfile",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3306,6 +3307,7 @@ dependencies = [
  "hyper-rustls",
  "hyper-util",
  "libdd-common",
+ "libdd-host-identity",
  "libdd-process-utils",
  "pin-project",
  "rand 0.8.8",
@@ -3322,16 +3324,6 @@ dependencies = [
  "tower-service",
  "webpki-root-certs",
  "webpki-roots",
-]
-
-[[package]]
-name = "libdd-otel-thread-ctx"
-version = "2.0.0"
-dependencies = [
- "anyhow",
- "elf",
- "libdd-otel-thread-ctx",
- "object 0.36.7",
 ]
 
 [[package]]
@@ -3365,6 +3357,7 @@ dependencies = [
  "indexmap 2.12.1",
  "libdd-alloc",
  "libdd-common",
+ "libdd-host-identity",
  "libdd-networking",
  "libdd-process-utils",
  "libdd-profiling-protobuf",
@@ -3426,6 +3419,7 @@ dependencies = [
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
+ "libdd-host-identity",
  "libdd-networking",
  "libdd-regex",
  "libdd-remote-config",
@@ -3484,6 +3478,7 @@ dependencies = [
  "libdd-common",
  "libdd-ddsketch",
  "libdd-env",
+ "libdd-host-identity",
  "libdd-networking",
  "libdd-shared-runtime",
  "reqwless",
@@ -3649,6 +3644,7 @@ dependencies = [
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
+ "libdd-host-identity",
  "libdd-networking",
  "libdd-regex",
  "libdd-tinybytes",
@@ -3799,11 +3795,11 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.16.4"
+version = "0.18.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
+checksum = "ef9ac18847474e638e3702b76c65d4eb93428471a74778ef0f1be711717f89b5"
 dependencies = [
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
