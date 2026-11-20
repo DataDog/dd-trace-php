@@ -136,6 +136,15 @@ static zend_object *dd_hook_data_create(zend_class_entry *class_type) {
     return &hook_data->std;
 }
 
+static void dd_hook_data_free(zend_object *object) {
+    dd_hook_data *hook_data = dd_hook_data_from_obj(object);
+    // Set after the end hook consumed it, or never consumed
+    if (hook_data->exception_override && hook_data->exception_override != EXCEPTION_OVERRIDE_CLEAR) {
+        OBJ_RELEASE(hook_data->exception_override);
+    }
+    zend_object_std_dtor(object);
+}
+
 bool dd_uhook_frame_is_live(zend_execute_data *frame) {
     if (!frame || !frame->func) {
         return false;
@@ -528,6 +537,17 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
     }
 
     zend_object *exception_override = dyn->hook_data->exception_override;
+    // Consumed here: userland may keep the HookData and call overrideException() again
+    dyn->hook_data->exception_override = NULL;
+#if PHP_VERSION_ID >= 80200
+    // The OOM must keep unwinding
+    if (exception_override && zai_sandbox_has_oom() && EG(exception) && zend_is_unwind_exit(EG(exception))) {
+        if (exception_override != EXCEPTION_OVERRIDE_CLEAR) {
+            OBJ_RELEASE(exception_override);
+        }
+        exception_override = NULL;
+    }
+#endif
     if (exception_override) {
         zend_clear_exception();
         if (exception_override != EXCEPTION_OVERRIDE_CLEAR) {
@@ -1316,6 +1336,7 @@ void zai_uhook_minit(int module_number) {
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
     dd_hook_data_handlers = *zend_get_std_object_handlers();
     dd_hook_data_handlers.offset = offsetof(dd_hook_data, std);
+    dd_hook_data_handlers.free_obj = dd_hook_data_free;
 #if PHP_VERSION_ID >= 80000
     ddtrace_hook_data_returned_prop_info = zend_hash_str_find_ptr(&ddtrace_hook_data_ce->properties_info, ZEND_STRL("returned"));
 #endif

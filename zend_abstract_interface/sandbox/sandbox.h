@@ -101,6 +101,24 @@
 
 extern ZEND_EXT_TLS long zai_sandbox_active;
 
+/* PHP 8.2.35, 8.3.36, 8.4.27, 8.5.12 and 8.6 raise OOMs at the next safe point, possibly inside a sandbox, and the OOM
+ * state then lasts until request shutdown (zend_call_function() fails): the sandbox must let it through. */
+#if PHP_VERSION_ID >= 80600
+#define zai_sandbox_oom_state() EG(delayed_oom).state
+#elif PHP_VERSION_ID >= 80200
+#include "../alloc.h"
+/* These patch releases added _femalloc() along with EG(delayed_oom), appended to the executor globals: check at runtime,
+ * as the headers we build with may be older or newer than the runtime. */
+#define zai_sandbox_oom_state() (zai_resolve__femalloc() ? *(int *)((char *)EG(reserved) + sizeof(EG(reserved))) : 0)
+#else
+#define zai_sandbox_oom_state() 0
+#endif
+/* The zend_oom_state values we check */
+#define ZAI_OOM_STATE_NONE 0
+#define ZAI_OOM_STATE_PENDING 1
+#define ZAI_OOM_STATE_HANDLING 2
+#define zai_sandbox_has_oom() UNEXPECTED(zai_sandbox_oom_state() != ZAI_OOM_STATE_NONE)
+
 #if PHP_VERSION_ID >= 80000
 /********************************** <PHP 8> **********************************/
 #include <Zend/zend_exceptions.h>
@@ -170,23 +188,7 @@ inline void zai_sandbox_exception_state_backup(zai_exception_state *es) {
     }
 }
 
-inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
-    if (EG(exception)) {
-        zend_clear_exception();
-    }
-
-    if (es->exception) {
-        EG(exception) = es->exception;
-#if PHP_VERSION_ID < 80600
-        EG(prev_exception) = es->prev_exception;
-#endif
-        if (EG(current_execute_data)) {
-            // ensure that we continue handling an exception if we were handling one before the sandbox call
-            EG(current_execute_data)->opline = EG(exception_op);
-        }
-        EG(opline_before_exception) = es->opline_before_exception;
-    }
-}
+void zai_sandbox_exception_state_restore(zai_exception_state *es);
 
 inline void zai_sandbox_engine_state_backup(zai_engine_state *es) {
     es->current_execute_data = EG(current_execute_data);

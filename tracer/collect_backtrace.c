@@ -7,6 +7,7 @@
 #endif
 #include <Zend/zend_interfaces.h>
 #include <ext/compatibility.h>
+#include <sandbox/sandbox.h>
 
 /* zend_handle_undef_args() evaluates the defaults of skipped named parameters, pointing to RECV(_INIT), before i_init_func_execute_data() has initialized the (non-arg) CVs.
  * They still hold whatever a previous frame left on the VM stack. If the exception is thrown right there, we'll collect invalid locals.
@@ -622,11 +623,9 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
         prev_stack_frame = stack_frame;
 
         skip_frame:
-#ifdef ZEND_HAS_OOM
-        if (ZEND_HAS_OOM()) {
+        if (zai_sandbox_has_oom()) {
             break;
         }
-#endif
         if (UNEXPECTED(ZEND_CALL_KIND(call) == ZEND_CALL_TOP_FUNCTION)
             && !fake_frame
             && prev
