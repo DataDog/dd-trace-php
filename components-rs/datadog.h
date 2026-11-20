@@ -294,6 +294,34 @@ void ddog_ffe_cdn_config_drop(struct ddog_FfeCdnConfig*);
  */
 struct ddog_Endpoint *ddog_ffe_evp_endpoint_new(ddog_CharSlice site, ddog_CharSlice api_key);
 
+uintptr_t ddog_ffe_features_count(const struct ddog_FfeFeatures *features);
+
+/**
+ * An out-of-range index returns a feature with an empty key and no destinations.
+ */
+struct ddog_FfeFeature ddog_ffe_features_get(const struct ddog_FfeFeatures *features,
+                                             uintptr_t index);
+
+/**
+ * An out-of-range index returns an empty destination.
+ */
+ddog_CharSlice ddog_ffe_features_destination(const struct ddog_FfeFeatures *features,
+                                             uintptr_t index,
+                                             uintptr_t destination);
+
+void ddog_ffe_features_drop(struct ddog_FfeFeatures *features);
+
+/**
+ * Gives the calling process an empty exposure cache. Call it in a forked child.
+ */
+void ddog_ffe_exposure_cache_reset(void);
+
+/**
+ * Records the exposure in the process exposure cache. Returns false when the
+ * subject was already exposed to the same allocation, variant and serial id.
+ */
+bool ddog_ffe_exposure_cache_record(const struct ddog_FfeExposureKey *key);
+
 struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
                                         ddog_CharSlice targeting_key,
@@ -433,7 +461,6 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
                                          const char *error_path,
                                          ddog_CharSlice log_level,
                                          bool enable_telemetry,
-                                         void (*on_reconnect)(struct ddog_SidecarTransport*),
                                          const struct ddog_Endpoint *crashtracker_endpoint,
                                          uint64_t backpressure_bytes,
                                          uint64_t backpressure_queue);
@@ -460,6 +487,23 @@ void ddog_sidecar_reconnect_readers(const struct ddog_ShmCacheMap *telemetry,
  * The fd of the transport's current connection; it changes on reconnect.
  */
 int32_t ddog_sidecar_transport_raw_fd(struct ddog_SidecarTransport *const *transport);
+
+#if defined(__linux__)
+/**
+ * Mark a notified process death and recover only while the reconnect callback is enabled.
+ */
+void ddog_sidecar_check_liveness(struct ddog_SidecarTransport **transport, bool process_died);
+#endif
+
+#if defined(__linux__)
+/**
+ * Arm a quiet death notification before transferring its writer to the sidecar.
+ * The caller owns the returned reader; neither the transport nor its replay state retains
+ * a writer. Closing the reader also releases the sidecar's process watch.
+ */
+ddog_MaybeError ddog_sidecar_watch_process(struct ddog_SidecarTransport **transport,
+                                           int32_t *reader_fd);
+#endif
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 

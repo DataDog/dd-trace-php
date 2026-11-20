@@ -64,8 +64,17 @@ try {
         }
         $connection = @stream_socket_accept($server, 0.1);
         if (!$connection) continue;
+        // A sidecar under valgrind can take over a second to send its request, and hyper
+        // rejects a reply that arrives first: only answer complete request heads.
         stream_set_timeout($connection, 1);
-        while (($line = fgets($connection)) !== false && trim($line) !== '') {}
+        $headDeadline = microtime(true) + ($instrumented ? 20 : 5);
+        do {
+            while (($line = fgets($connection)) !== false && trim($line) !== '') {}
+        } while ($line === false && !feof($connection) && microtime(true) < $headDeadline);
+        if ($line === false) {
+            fclose($connection);
+            continue;
+        }
         $requests++;
         if ($scenario === 'swoole' && getenv('PHP_FFE_SWOOLE_COLD') === 'expired' && $requests === 1) {
             // Withhold configuration until the parent has timed out and its worker evaluates.

@@ -105,10 +105,17 @@ final class RoadrunnerServer implements Sapi
         $url = "$baseUrl/roadrunner-server/roadrunner/releases/download/v$version/"
             . "roadrunner-$version-linux-$target.tar.gz";
         $binary = __DIR__ . "/rr-$version-$target";
+        $archive = "$binary.tar.gz";
 
-        exec("curl -L " . escapeshellarg($url)
-            . " | tar xz -O -f - roadrunner-$version-linux-$target/rr > " . escapeshellarg($binary)
-            . "; chmod +x " . escapeshellarg($binary));
+        exec("curl -fL --retry 5 --retry-delay 2 -o " . escapeshellarg($archive) . " " . escapeshellarg($url)
+            . " && tar xz -O -f " . escapeshellarg($archive) . " roadrunner-$version-linux-$target/rr > " . escapeshellarg($binary)
+            . " && chmod +x " . escapeshellarg($binary), $output, $exitCode);
+        @unlink($archive);
+        if ($exitCode !== 0) {
+            // start() only checks file_exists(), so never leave a partial binary behind
+            @unlink($binary);
+            throw new \Exception("Failed to download RoadRunner from $url (exit code $exitCode)");
+        }
     }
 
     public function start()

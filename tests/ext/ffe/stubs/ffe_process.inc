@@ -21,6 +21,30 @@ function ffeTestProcess($script, &$pipes, $environment = null)
     return $process;
 }
 
+// Returns the request line, headers and body, or null if the client closes or never completes it:
+// a sidecar under valgrind can be slow to send, and hyper rejects a reply that arrives first.
+function ffeTestReadRequest($connection)
+{
+    stream_set_timeout($connection, 1);
+    $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 20 : 5);
+    $lines = array();
+    do {
+        while (($line = fgets($connection)) !== false && trim($line) !== '') $lines[] = trim($line);
+    } while ($line === false && !feof($connection) && microtime(true) < $deadline);
+    if ($line === false || !$lines) return null;
+    $headers = array();
+    foreach (array_slice($lines, 1) as $header) {
+        $pair = explode(':', $header, 2);
+        if (count($pair) === 2) $headers[strtolower($pair[0])] = trim($pair[1]);
+    }
+    $length = isset($headers['content-length']) ? (int) $headers['content-length'] : 0;
+    $body = '';
+    while (strlen($body) < $length && !feof($connection) && microtime(true) < $deadline) {
+        $body .= (string) fread($connection, $length - strlen($body));
+    }
+    return strlen($body) < $length ? null : array($lines[0], $headers, $body);
+}
+
 function ffeTestProcessRead($stream)
 {
     // Clear PHP's EOF state before checking whether the child appended output.
