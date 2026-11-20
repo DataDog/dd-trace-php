@@ -356,6 +356,9 @@ stages:
     - if: $CI_COMMIT_BRANCH == "master"
       interruptible: false
     - when: on_success
+  parallel:
+    matrix:
+      - TARGET: [ "8.3-release-ssi", "8.4-release-zts-ssi" ]
   variables:
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 24Gi
@@ -406,17 +409,14 @@ stages:
       docker run --rm -v php-portable-libdatadog-php:/vol alpine \
         rm -rf /vol/cargo-target
       # Gradle forwards the appsec CMake output: a Depot 503 in its FetchContent exits 75, which is retried.
-      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew test8.3-release-ssi test8.4-release-zts-ssi \
+      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew "test${TARGET}" \
         --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage || exit $?
       TERM=dumb ./gradlew saveCaches --info
     - |
       cd "$CI_PROJECT_DIR"
-      DD_COVERAGE_FLAGS=helper-rust-integration-8.3-release-ssi \
+      DD_COVERAGE_FLAGS="helper-rust-integration-${TARGET}" \
         .gitlab/upload-code-coverage-to-datadog.sh \
-          appsec/tests/integration/build/reports/coverage/8.3-release-ssi/helper-rust-integration.lcov
-      DD_COVERAGE_FLAGS=helper-rust-integration-8.4-release-zts-ssi \
-        .gitlab/upload-code-coverage-to-datadog.sh \
-          appsec/tests/integration/build/reports/coverage/8.4-release-zts-ssi/helper-rust-integration.lcov
+          "appsec/tests/integration/build/reports/coverage/${TARGET}/helper-rust-integration.lcov"
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \; || true
