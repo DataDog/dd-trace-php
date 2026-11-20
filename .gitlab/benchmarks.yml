@@ -260,10 +260,7 @@ workflow:
     DISABLE_NHST: "1"
     CI_TYPE: "theoretical"
     MD_REPORT_ONLY_CHANGES: "1"
-    # TEMPORARY: the combined extension routes every internal call through the
-    # profiler's zend_execute_internal hook, even with profiling disabled. Remove
-    # once that hook is installed only when profiling is enabled.
-    FLAKY_BENCHMARKS_REGEX: "HookBench|AMQPDataStreamsBench"
+    FLAKY_BENCHMARKS_REGEX: ""
 
 benchmarks-profiler:
   extends: .microbenchmarks
