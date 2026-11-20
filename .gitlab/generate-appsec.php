@@ -177,6 +177,47 @@ stages:
       - "artifacts/"
     when: "always"
 
+"appsec portable libdatadog_php":
+  stage: test
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: [ "docker-in-docker:amd64" ]
+  interruptible: true
+  needs: []
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 24Gi
+    KUBERNETES_MEMORY_LIMIT: 30Gi
+    DOCKER_LOOPBACK_SIZE: 30G
+    ARCH: amd64
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
+    ARTIFACT_COMPRESSION_LEVEL: fastest
+  before_script:
+<?php echo $ecrLoginSnippet, "\n"; ?>
+<?php dockerhub_login() ?>
+  script:
+    - .gitlab/run-with-retryable-download.sh apt update
+    - .gitlab/run-with-retryable-download.sh apt install -y openjdk-17-jre
+    - |
+      cd appsec/tests/integration
+      CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
+      if [ -f "$CACHE_PATH" ]; then
+        TERM=dumb ./gradlew loadCaches --info
+      fi
+      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew buildPortableLibdatadogPhp --info || exit $?
+      mkdir -p build/portable
+      docker run --rm -v php-portable-libdatadog-php:/vol -v "$PWD/build/portable:/out" alpine \
+        tar -C /vol --exclude=./cargo-target -cf /out/portable-libdatadog-php.tar .
+  artifacts:
+    paths:
+      - appsec/tests/integration/build/portable/portable-libdatadog-php.tar
+    expire_in: 1 day
+  cache:
+    - key: "appsec int test cache"
+      policy: pull
+      paths:
+        - appsec/tests/integration/build/*.tar.gz
+        - .gradle-home/wrapper/dists/
+
 .appsec_integration_tests:
   stage: test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with java pre-installed?
@@ -189,6 +230,9 @@ stages:
     ARCH: amd64
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
     DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
+  needs:
+    - job: "appsec portable libdatadog_php"
+      artifacts: true
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -204,8 +248,11 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
+      docker volume create php-portable-libdatadog-php
+      docker run --rm -v php-portable-libdatadog-php:/vol -v "$PWD/build/portable:/in" alpine \
+        sh -c "tar -C /vol -xf /in/portable-libdatadog-php.tar && touch /vol/* && chown -R $(id -u):$(id -g) /vol"
       # Gradle forwards the appsec CMake output: a Depot 503 in its FetchContent exits 75, which is retried.
-      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps || exit $?
+      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew $targets -x buildPortableLibdatadogPhp --info -Pbuildscan --scan -PcheckCoreDumps || exit $?
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
