@@ -448,7 +448,7 @@
     ],
     "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": "",
         "sensitive": true
