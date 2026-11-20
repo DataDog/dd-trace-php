@@ -6,6 +6,7 @@ use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
@@ -40,10 +41,10 @@ class MysqliIntegration extends Integration
                 // In case of a procedural connect, we set the database name here so it works also in case of connection
                 // error ($misqli == false). However, we also add it to the returned instance (in case of success) to
                 // propagate it to the queries.
-                $span->meta[Tag::DB_NAME] = $args[3];
+                $span->attributes[Tag::DB_NAME] = $args[3];
             }
             self::setDefaultAttributes($span, 'mysqli_connect', 'mysqli_connect');
-            $span->meta += MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST);
+            $span->attributes += MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST);
 
             if ($result === false) {
                 self::trackPotentialError($span);
@@ -83,7 +84,7 @@ class MysqliIntegration extends Integration
             }
             self::setDefaultAttributes($span, 'mysqli_real_connect', 'mysqli_real_connect');
             if ($host) {
-                $span->meta += MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST);
+                $span->attributes += MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST);
             }
             self::trackPotentialError($span);
 
@@ -108,7 +109,6 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             self::setDefaultAttributes($span, 'mysqli_query', $query);
-            self::addTraceAnalyticsIfEnabled($span);
             self::setConnectionInfo($span, $mysqli);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
@@ -123,7 +123,7 @@ class MysqliIntegration extends Integration
             ObjectKVStore::put($hook->returned, 'host_info', MysqliCommon::extractHostInfo($mysqli));
 
             if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
-                $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
+                $span->attributes[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
             }
         });
 
@@ -133,7 +133,6 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             self::setDefaultAttributes($span, 'mysqli_real_query', $query);
-            self::addTraceAnalyticsIfEnabled($span);
             self::setConnectionInfo($span, $mysqli);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
@@ -168,7 +167,7 @@ class MysqliIntegration extends Integration
             ObjectKVStore::put($hook->returned, self::KEY_MYSQLI_INSTANCE, $mysqli);
 
             if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
-                $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
+                $span->attributes[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
             }
         });
 
@@ -178,7 +177,6 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             MysqliIntegration::setDefaultAttributes($span, 'mysqli.query', $query);
-            MysqliIntegration::addTraceAnalyticsIfEnabled($span);
             MysqliIntegration::setConnectionInfo($span, $hook->instance);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
@@ -195,7 +193,7 @@ class MysqliIntegration extends Integration
             ObjectKVStore::put($hook->returned, 'query', $query);
 
             if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
-                $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
+                $span->attributes[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
             }
         });
 
@@ -205,7 +203,6 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             MysqliIntegration::setDefaultAttributes($span, 'mysqli.real_query', $query);
-            MysqliIntegration::addTraceAnalyticsIfEnabled($span);
             MysqliIntegration::setConnectionInfo($span, $hook->instance);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
@@ -241,7 +238,7 @@ class MysqliIntegration extends Integration
             ObjectKVStore::put($hook->returned, MysqliIntegration::KEY_MYSQLI_INSTANCE, $instance);
 
             if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
-                $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
+                $span->attributes[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
             }
         });
 
@@ -262,7 +259,6 @@ class MysqliIntegration extends Integration
                 $span = $hook->span();
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 self::setDefaultAttributes($span, 'mysqli_execute_query', $query);
-                self::addTraceAnalyticsIfEnabled($span);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
                 self::handleRasp($span);
@@ -277,7 +273,7 @@ class MysqliIntegration extends Integration
                 ObjectKVStore::put($hook->returned, 'query', $query);
 
                 if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
-                    $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
+                    $span->attributes[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
                 }
             });
 
@@ -287,7 +283,6 @@ class MysqliIntegration extends Integration
                 $span = $hook->span();
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 self::setDefaultAttributes($span, 'mysqli.execute_query', $query);
-                self::addTraceAnalyticsIfEnabled($span);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
                 self::handleRasp($span);
@@ -303,7 +298,7 @@ class MysqliIntegration extends Integration
                 ObjectKVStore::put($hook->returned, 'query', $query);
 
                 if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
-                    $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
+                    $span->attributes[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
                 }
             });
         }
@@ -329,7 +324,7 @@ class MysqliIntegration extends Integration
             self::setConnectionInfo($span, $mysqli);
 
             if (isset($args[2])) {
-                $span->meta['db.transaction_name'] = $args[2];
+                $span->attributes['db.transaction_name'] = $args[2];
             }
         });
 
@@ -359,14 +354,13 @@ class MysqliIntegration extends Integration
             MysqliIntegration::setConnectionInfo($span, $this);
 
             if (isset($args[1])) {
-                $span->meta['db.transaction_name'] = $args[1];
+                $span->attributes['db.transaction_name'] = $args[1];
             }
         });
 
         \DDTrace\trace_method('mysqli_stmt', 'execute', function (SpanData $span) {
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.execute');
             MysqliIntegration::setDefaultAttributes($span, 'mysqli_stmt.execute', $resource);
-            MysqliIntegration::addTraceAnalyticsIfEnabled($span);
             MysqliIntegration::setConnectionInfo($span, ObjectKVStore::get($this, MysqliIntegration::KEY_MYSQLI_INSTANCE));
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
@@ -397,11 +391,11 @@ class MysqliIntegration extends Integration
         $span->resource = $resource;
         $span->type = Type::SQL;
         Integration::handleInternalSpanServiceName($span, self::NAME);
-        $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
+        $span->spanKind = SpanKind::CLIENT;
+        $span->component = self::NAME;
+        $span->attributes[Tag::DB_SYSTEM] = self::SYSTEM;
         if (is_object($result) && property_exists($result, 'num_rows')) {
-            $span->metrics[Tag::DB_ROW_COUNT] = $result->num_rows;
+            $span->attributes[Tag::DB_ROW_COUNT] = $result->num_rows;
         }
     }
 
@@ -419,18 +413,18 @@ class MysqliIntegration extends Integration
 
         $hostInfo = MysqliCommon::extractHostInfo($mysqli);
         foreach ($hostInfo as $tagName => $value) {
-            $span->meta[$tagName] = $value;
+            $span->attributes[$tagName] = $value;
         }
         if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE")) {
             if (isset($hostInfo[Tag::TARGET_HOST])) {
                 $span->service .=
                     '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($hostInfo[Tag::TARGET_HOST]);
-                $span->meta['_dd.svc_src'] = 'opt.db_client_split_by_instance';
+                $span->attributes['_dd.svc_src'] = 'opt.db_client_split_by_instance';
             }
         }
         $dbName = ObjectKVStore::get($mysqli, self::KEY_DATABASE_NAME);
         if ($dbName) {
-            $span->meta[Tag::DB_NAME] = $dbName;
+            $span->attributes[Tag::DB_NAME] = $dbName;
         }
     }
 
@@ -443,9 +437,9 @@ class MysqliIntegration extends Integration
     {
         $errorCode = mysqli_connect_errno();
         if ($errorCode > 0) {
-            $span->meta[Tag::ERROR_MSG] = mysqli_connect_error();
-            $span->meta[Tag::ERROR_TYPE] = 'mysqli error';
-            $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception, 2);
+            $span->attributes[Tag::ERROR_MSG] = mysqli_connect_error();
+            $span->attributes[Tag::ERROR_TYPE] = 'mysqli error';
+            $span->attributes[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception, 2);
         }
     }
 

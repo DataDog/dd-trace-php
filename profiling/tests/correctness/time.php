@@ -3,7 +3,9 @@
 function a() {
         $x = 0;
         $i = 0;
-        while ($i < 100000) {
+        // Keep each phase longer than the 10 ms sampling period. Very short
+        // alternating phases can alias with the timer instead of sampling 1:2.
+        while ($i < 10000000) {
                 $x += $i;
                 $i += 1;
         }
@@ -12,7 +14,7 @@ function a() {
 function b() {
         $x = 0;
         $i = 0;
-        while ($i < 200000) {
+        while ($i < 20000000) {
                 $x += $i;
                 $i += 1;
         }

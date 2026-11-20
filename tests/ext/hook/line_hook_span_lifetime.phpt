@@ -26,7 +26,7 @@ foreach ([42, new stdClass()] as $invalid) {
 }
 try { $h->span(null, null); echo "FAIL: accepted extra argument\n"; } catch (TypeError $e) {}
 $weak = WeakReference::create($h);
-$dummy->meta['hook'] = $h;
+$dummy->attributes['hook'] = $h;
 unset($dummy, $h);
 gc_collect_cycles();
 verify($weak->get() === null, 'hidden span reference participates in GC');
@@ -64,7 +64,7 @@ DDTrace\switch_stack($parentStack);
 DDTrace\close_span();
 DDTrace\switch_stack($rootStack);
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === 5, 'dummy spans are not serialized');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === 5, 'dummy spans are not serialized');
 
 echo "OK\n";
 ?>

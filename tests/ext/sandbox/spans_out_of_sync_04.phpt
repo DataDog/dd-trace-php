@@ -19,7 +19,10 @@ shutdown_and_flush();
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-array(0) {
+array(1) {
+  ["chunks"]=>
+  array(0) {
+  }
 }
 [ddtrace] [error] [%d] Cannot run tracing closure for shutdown_and_flush(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
 Done.

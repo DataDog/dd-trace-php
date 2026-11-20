@@ -1,10 +1,14 @@
 {
     "name": "php-profiler-timeline-memory",
-    "run": "php -d extension=../tmp/build_profiler/modules/datadog-profiling.so benches/timeline.php",
+    "run": "php -d extension=../tmp/build_combined/modules/ddtrace.so benches/timeline.php",
     "timeout": 20,
     "iterations": 5,
     "env": {
-        "DD_PROFILING_LOG_LEVEL": "off"
+        "DD_PROFILING_LOG_LEVEL": "off",
+        "DD_TRACE_ENABLED": "false",
+        "DD_APPSEC_ENABLED": "false",
+        "DD_INSTRUMENTATION_TELEMETRY_ENABLED": "false",
+        "DD_TRACE_SIDECAR_TRACE_SENDER": "false"
     },
     "variants": {
         "control": {

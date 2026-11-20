@@ -24,6 +24,7 @@ DD_TRACE_RETRY_INTERVAL=1
 datadog.trace.agent_url="file://{PWD}/local-config-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 function to_str($val)
 {
@@ -44,21 +45,17 @@ for ($i = 0; $i < 100; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/local-config-telemetry.out')) {
         $configurations = [];
-        foreach (file(__DIR__ . '/local-config-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                // On PHP <= 7.3, another PHP process sends telemetry before
-                // the stable config file is taken into account.
-                if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION <= 3 && strpos($l, '42_local_config') === false) {
+        foreach (read_telemetry_file(__DIR__ . '/local-config-telemetry.out') as $json) {
+            if ($json["request_type"] == "app-started" || $json["request_type"] == "app-client-configuration-change") {
+                $config = $json["payload"]["configuration"];
+                // PHP <= 7.3 can send telemetry before the local file is applied.
+                if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION <= 3 && !array_filter($config, function ($c) {
+                    return ($c["config_id"] ?? null) === '42_local_config';
+                })) {
                     continue;
                 }
-                $json = json_decode($l, true);
-                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    if ($json["request_type"] == "app-started" || $json["request_type"] == "app-client-configuration-change") {
-                        foreach ($json["payload"]["configuration"] as $configuration) {
-                            $configurations[$configuration["name"]] = $configuration;
-                        }
-                    }
+                foreach ($config as $configuration) {
+                    $configurations[$configuration["name"]] = $configuration;
                 }
             }
         }

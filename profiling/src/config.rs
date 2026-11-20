@@ -245,29 +245,6 @@ impl Default for AgentEndpoint {
     }
 }
 
-impl TryFrom<AgentEndpoint> for libdd_common::Endpoint {
-    type Error = anyhow::Error;
-
-    fn try_from(value: AgentEndpoint) -> Result<Self, Self::Error> {
-        libdd_common::Endpoint::try_from(&value)
-    }
-}
-
-/// Timeout in milliseconds for the agent endpoint connection.
-const AGENT_ENDPOINT_TIMEOUT_MS: u64 = 10_000;
-
-impl TryFrom<&AgentEndpoint> for libdd_common::Endpoint {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &AgentEndpoint) -> Result<Self, Self::Error> {
-        let endpoint = match value {
-            AgentEndpoint::Uri(uri) => libdd_profiling::exporter::config::agent(uri.clone()),
-            AgentEndpoint::Socket(path) => libdd_profiling::exporter::config::agent_uds(path),
-        }?;
-        Ok(endpoint.with_timeout(AGENT_ENDPOINT_TIMEOUT_MS))
-    }
-}
-
 impl Display for AgentEndpoint {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

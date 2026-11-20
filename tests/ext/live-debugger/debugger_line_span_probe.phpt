@@ -81,7 +81,7 @@ echo preg_replace('/\S+:(\d+)-(\d+)/', 'FILE:$1-$2', (new Wrapped)->method()), "
 
 \DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'));
 $by_id = [];
 foreach ($spans as $span) {
     $by_id[$span["span_id"]] = $span;
@@ -95,7 +95,7 @@ foreach ($spans as $span) {
         return isset($m[2]) ? "{$names[$m[1]]}-{$names[$m[2]]}" : $names[$m[1]];
     }, $span["resource"]);
     $parent = isset($by_id[$span["parent_id"]]) ? $by_id[$span["parent_id"]]["name"] . " " . $by_id[$span["parent_id"]]["resource"] : "?";
-    $lines[] = sprintf("%s (parent: %s, probe %s%s)", $resource, $parent, $span["meta"]["debugger.probeid"], empty($span["error"]) ? "" : ", error: " . $span["meta"]["error.message"]);
+    $lines[] = sprintf("%s (parent: %s, probe %s%s)", $resource, $parent, $span["attributes"]["debugger.probeid"], empty($span["error"]) ? "" : ", error: " . $span["attributes"]["error.message"]);
 }
 sort($lines);
 echo implode("\n", $lines), "\n";

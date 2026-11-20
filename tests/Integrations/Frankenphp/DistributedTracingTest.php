@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Frankenphp;
 
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
@@ -38,12 +39,12 @@ class DistributedTracingTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $trace = $traces[0][0];
-        $this->assertSame($traceId, $trace["trace_id"]);
-        $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
-        $this->assertSame("Test", $trace["meta"]["http.useragent"]);
-        $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);
-        $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
+        $trace = $traces[0]['spans'][0];
+        $this->assertSame($traceId, SpanChecker::traceIdLow($traces[0]));
+        $this->assertSame("42", $trace["attributes"]["_dd.p.user_id"]);
+        $this->assertSame("Test", $trace["attributes"]["http.useragent"]);
+        $this->assertSame("somevalue", $trace["attributes"]["http.request.headers.x-header"]);
+        $this->assertArrayNotHasKey('http.client_ip', $trace["attributes"]);
     }
 
     public function testDistributedTracingPostWithAllowedParams()
@@ -64,16 +65,16 @@ class DistributedTracingTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $trace = $traces[0][0];
-        $this->assertSame($traceId, $trace["trace_id"]);
-        $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
-        $this->assertSame("Test", $trace["meta"]["http.useragent"]);
-        $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);
-        $this->assertSame("<redacted>", $trace["meta"]["http.request.post.pass_word"]);
-        $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.foo.password"]);
-        $this->assertSame("value1", $trace["meta"]["http.request.post.bar.key1"]);
-        $this->assertSame("value2", $trace["meta"]["http.request.post.bar.key2.baz"]);
-        $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.bar.key2.password"]);
-        $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
+        $trace = $traces[0]['spans'][0];
+        $this->assertSame($traceId, SpanChecker::traceIdLow($traces[0]));
+        $this->assertSame("42", $trace["attributes"]["_dd.p.user_id"]);
+        $this->assertSame("Test", $trace["attributes"]["http.useragent"]);
+        $this->assertSame("somevalue", $trace["attributes"]["http.request.headers.x-header"]);
+        $this->assertSame("<redacted>", $trace["attributes"]["http.request.post.pass_word"]);
+        $this->assertSame("should_not_redact", $trace["attributes"]["http.request.post.foo.password"]);
+        $this->assertSame("value1", $trace["attributes"]["http.request.post.bar.key1"]);
+        $this->assertSame("value2", $trace["attributes"]["http.request.post.bar.key2.baz"]);
+        $this->assertSame("should_not_redact", $trace["attributes"]["http.request.post.bar.key2.password"]);
+        $this->assertArrayNotHasKey('http.client_ip', $trace["attributes"]);
     }
 }

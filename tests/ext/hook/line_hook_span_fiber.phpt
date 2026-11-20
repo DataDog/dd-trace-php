@@ -40,7 +40,7 @@ gc_collect_cycles();
 verify($sb->getDuration() > 0 && $ends === 2 && DDTrace\active_span() === $root, 'abandoned fiber closed independently');
 DDTrace\remove_hook($id);
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === 3, 'fiber spans serialized once');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === 3, 'fiber spans serialized once');
 
 echo "OK\n";
 ?>

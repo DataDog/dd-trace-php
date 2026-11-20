@@ -13,17 +13,16 @@ function greet($name)
     $span->meta['resource.name'] = 'new.resource';
     $span->meta['span.type'] = 'new.type';
     $span->meta['service.name'] = 'new.service';
-    $span->meta['analytics.event'] = 'true';
     return "Hello $name!";
 }
 
-\DDTrace\trace_function('greet', function (\DDTrace\SpanData $span) {
+// The prehook sets the properties first, so the later $meta writes override them
+\DDTrace\trace_function('greet', ['prehook' => function (\DDTrace\SpanData $span) {
     $span->name = 'old.name';
     $span->resource = 'old.resource';
     $span->type = 'old.type';
     $span->service = 'old.service';
-    $span->metrics['_dd1.sr.eausr'] = 0;
-});
+}]);
 
 greet('World');
 
@@ -33,9 +32,7 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(1) {
   [0]=>
-  array(11) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -52,16 +49,13 @@ array(1) {
     string(11) "new.service"
     ["type"]=>
     string(8) "new.type"
-    ["meta"]=>
-    array(2) {
-      ["_dd.base_service"]=>
-      string(27) "test_special_attributes.php"
+    ["attributes"]=>
+    array(3) {
       ["_dd.svc_src"]=>
       string(1) "m"
-    }
-    ["metrics"]=>
-    array(1) {
-      ["_dd1.sr.eausr"]=>
+      ["_dd.base_service"]=>
+      string(27) "test_special_attributes.php"
+      ["_dd.top_level"]=>
       float(1)
     }
   }

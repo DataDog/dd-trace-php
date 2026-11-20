@@ -7,8 +7,9 @@ unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
 # Helper to parse version strings for comparison
 function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
 
-# Remove extensions whose mere presence pollutes test output or output
-# ordering:
+# Remove extensions whose mere presence changes PHP language test behavior:
+#  - memcache initializes $_SERVER during RINIT, breaking tests that need it
+#    uninitialized (e.g. ext/phar/tests/webphar_cgi_no_path_info.phpt)
 #  - rdkafka emits CONFWARN lines, breaking Zend/tests/instantiate_all_classes.phpt
 #  - parallel (ZTS-only) defers 'PHP Startup' diagnostics until after the
 #    script's first output, breaking ~56 deprecation/warning-ordering tests
@@ -16,6 +17,7 @@ function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4
 # variant (debug for the tracer job, nts/zts for the profiler job) instead
 # of hardcoding the debug path.
 scan_dir="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')"
+sudo rm -f "${scan_dir}/memcache.ini"
 sudo rm -f "${scan_dir}/memcached.ini"
 sudo rm -f "${scan_dir}/rdkafka.ini"
 sudo rm -f "${scan_dir}/parallel.ini"
@@ -29,9 +31,33 @@ fi
 
 cd /usr/local/src/php
 mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
+
+# Let the kernel assign UDP ports, as in https://github.com/php/php-src/commit/07f6c61c8eae
+socket_test=ext/sockets/tests/socket_import_stream-4.phpt
+if [[ ${PHP_MAJOR_MINOR} == 7.* && -f $socket_test ]]; then
+  sed -Ei 's#udp://0\.0\.0\.0:[0-9]+#udp://0.0.0.0:0#g' "$socket_test"
+fi
+
+if [[ ${PHP_MAJOR_MINOR} == 8.* ]]; then
+  curl_patch="${CI_PROJECT_DIR}/.gitlab/patches/php-8-curl-server-startup.patch"
+  if ! patch -p1 --reverse --force --dry-run --fuzz=0 < "$curl_patch" > /dev/null; then
+    patch -p1 --forward --fuzz=0 < "$curl_patch"
+  fi
+fi
+
 # replace all hardcoded object ids in tests by %d as ddtrace creates its own objects
 php <<'PHP'
 <?php
+// zend_mem_block_size() returns 0 for custom allocators, including the profiler.
+// Keep this bin-inspection test running, but without allocation profiling hooks.
+$realloc_boundary_test = 'Zend/tests/zend_alloc_realloc_shrink_boundary.phpt';
+if (is_file($realloc_boundary_test)) {
+    $contents = file_get_contents($realloc_boundary_test);
+    if (!preg_match('/^--INI--\r?$/m', $contents)) {
+        file_put_contents($realloc_boundary_test, str_replace('--FILE--', "--INI--\ndatadog.profiling.allocation_enabled=0\n--FILE--", $contents));
+    }
+}
+
 // This hard-timeout test depends on timing; retry it on newer PHP runners.
 // PHP <= 8.2 excludes it through the version-specific xfail lists.
 $hard_timeout_test = 'Zend/tests/bug74093.phpt';
@@ -71,6 +97,28 @@ MTIME_CHECK;
     file_put_contents($phar_gzip_test, str_replace($mtime_check . "\n", '', $contents));
 }
 
+// phpinfo module diagnostics can query a live agent and change between calls.
+// This zlib regression needs stable input, not repeated extension diagnostics.
+$zlib_phpinfo_test = 'ext/zlib/tests/bug60761.phpt';
+if (is_file($zlib_phpinfo_test)) {
+    $contents = file_get_contents($zlib_phpinfo_test);
+    file_put_contents($zlib_phpinfo_test, str_replace('phpinfo();', 'phpinfo(INFO_ALL & ~INFO_MODULES);', $contents));
+}
+
+// The old fixture finds an unused PID with ps, then sends SIGKILL: another
+// parallel test may have acquired that PID in between. Linux's pid_max limit
+// is at most 2^22; INT_MAX fits pid_t but cannot name a live Linux process.
+$posix_kill_test = 'ext/posix/tests/posix_kill_basic.phpt';
+if (is_file($posix_kill_test)) {
+    $contents = file_get_contents($posix_kill_test);
+    $contents = preg_replace(
+        '/\$pid = 999;\s*do \{.*?\} while \(stripos\(\$result, \(string\)\$pid\) != FALSE\);/s',
+        '$pid = 2147483647;',
+        $contents
+    );
+    file_put_contents($posix_kill_test, $contents);
+}
+
 foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))) as $f) {
     $c = file_get_contents($f);
     $n = preg_replace(["/\)#[0-9]+ \(/", "/[0-9]+ is not a valid/"], [")#%d (", "%d is not a valid"], $c);
@@ -80,10 +128,35 @@ foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))
 }
 PHP
 
-# -j flag is only available in PHP 7.4+
+# -j flag is only available in PHP 7.4+.
 extra_args=""
+parallelize=()
+test_paths=()
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) ]]; then
   extra_args="-j$(nproc)"
+elif [[ ${PHP_MAJOR_MINOR} =~ ^7\.[123]$ && $(nproc) -gt 1 ]]; then
+  parallelize=("${CI_PROJECT_DIR}/tooling/parallelize-run-tests.sh" "-j$(nproc)")
+  # Old suites share files and ports across directories; keep them in one ordered batch.
+  for suite in tests/{basic,security} sapi/cli/tests \
+      ext/standard/tests/{http,network,streams,url,file,dir,mail} \
+      ext/{session,curl,openssl,sockets,opcache,soap,phar,spl}/tests; do
+    while IFS= read -r -d '' dir; do
+      printf 'legacy-shared\n' > "$dir/CONFLICTS"
+    done < <(find "$suite" -type f -name '*.phpt' -printf '%h\0' | sort -zu)
+  done
+  # Both bug61964 variants create and remove the same test-folder.
+  printf 'fileinfo\n' > ext/fileinfo/tests/CONFLICTS
+  # Match run-tests.php's default discovery: core tests and loaded extensions.
+  mapfile -t test_paths < <(php -r '
+    $extensions = array_map("strtolower", get_loaded_extensions());
+    $extensions = str_replace("zend opcache", "opcache", $extensions);
+    foreach (["tests", "Zend", "sapi"] as $dir) {
+        if (is_dir($dir)) echo $dir, "\n";
+    }
+    foreach (glob("ext/*", GLOB_ONLYDIR) as $dir) {
+        if (in_array(strtolower(basename($dir)), $extensions, true)) echo $dir, "\n";
+    }
+  ')
 fi
 
 # PHP < 8.2 already hides progress when -g filters the displayed results.
@@ -96,9 +169,9 @@ if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.1) 
   sed -i "/flaky_functions = /a 'socket_create','stream_context_create'," run-tests.php
 fi
 
-php run-tests.php -q \
+"${parallelize[@]}" php run-tests.php -q \
   -p /usr/local/bin/php \
   --show-diff \
   -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK \
   -d datadog.trace.sources_path=/home/circleci/datadog/src \
-  $extra_args
+  $extra_args "${test_paths[@]}"

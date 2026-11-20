@@ -138,6 +138,19 @@ static bool dd_parse_sidecar_connection_mode(zai_str value, zval *decoded_value,
     return true;
 }
 
+static bool dd_parse_trace_agent_protocol_version(zai_str value, zval *decoded_value, bool persistent) {
+    UNUSED(persistent);
+    if (zai_str_eq_ci_cstr(value, "1.0") || zai_str_eq_ci_cstr(value, "1")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_AGENT_PROTOCOL_VERSION_V1);
+    } else if (zai_str_eq_ci_cstr(value, "0.4")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_AGENT_PROTOCOL_VERSION_V04);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
 // Custom parser to ensure security-testing headers are always captured.
 static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persistent) {
     if (!zai_config_decode_value(value, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent)) {
@@ -173,3 +186,4 @@ INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_SAMPLE_RATE, "datadog.trace.sample_rate")
 INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_LOGS_ENABLED, "datadog.logs_injection")
 INI_CHANGE_DYNAMIC_CONFIG(DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "datadog.code_origin_for_spans_enabled")
 INI_CHANGE_DYNAMIC_CONFIG(DD_EXCEPTION_REPLAY_ENABLED, "datadog.exception_replay_enabled")
+INI_CHANGE_DYNAMIC_CONFIG(DD_DATA_STREAMS_ENABLED, "datadog.data_streams_enabled")

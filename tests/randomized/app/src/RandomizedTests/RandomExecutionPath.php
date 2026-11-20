@@ -37,12 +37,12 @@ class RandomExecutionPath
         if (getenv('DD_TRACE_ENABLED') !== 'false' && extension_loaded('ddtrace')) {
             // Tracing manual functions
             $callback = function (\DDTrace\SpanData $span) {
-                $span->service = \ddtrace_config_app_name();
+                $span->service = \dd_trace_env_config('DD_SERVICE');
             };
-            \dd_trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced', $callback);
-            \dd_trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced1', $callback);
-            \dd_trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced2', $callback);
-            \dd_trace_method('RandomizedTests\GeneratorSnippets', 'generator', $callback);
+            \DDTrace\trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced', $callback);
+            \DDTrace\trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced1', $callback);
+            \DDTrace\trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced2', $callback);
+            \DDTrace\trace_method('RandomizedTests\GeneratorSnippets', 'generator', $callback);
         }
     }
 

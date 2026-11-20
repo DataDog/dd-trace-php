@@ -16,6 +16,7 @@ DD_TRACE_RETRY_INTERVAL=1
 datadog.trace.agent_url="file://{PWD}/simple-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 DDTrace\start_span();
 $root = DDTrace\root_span();
@@ -35,23 +36,9 @@ $maxAttempts = getenv('SKIP_ASAN') ? 600 : 300;
 for ($i = 0; $i < $maxAttempts; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/simple-telemetry.out')) {
-        $batches = [];
-        foreach (file(__DIR__ . '/simple-telemetry.out') as $l) {
-            // The sidecar may still be appending the last record; retry it next poll.
-            if (substr($l, -1) !== "\n") {
-                continue;
-            }
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                if (!is_array($json)) {
-                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
-                }
-                if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
-                    continue;
-                }
-                array_push($batches, ...($json["request_type"] == "message-batch" ? $json["payload"] : [$json]));
-            }
-        }
+        $batches = array_filter(read_telemetry_file(__DIR__ . '/simple-telemetry.out'), function ($json) {
+            return !in_array($json["application"]["service_name"], ["background_sender-php-service", "datadog-ipc-helper"], true);
+        });
         $found = array_filter($batches, function ($json) {
             return ($json["request_type"] == "app-started" && $json["application"]["service_name"] == "simple-telemetry-app")
                     || $json["request_type"] == "app-closing";

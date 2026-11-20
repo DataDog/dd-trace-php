@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Nette;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -14,17 +15,9 @@ class NetteIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public static function init(): int
     {
-        $service = \ddtrace_config_app_name(self::NAME);
+        $service = \dd_trace_env_config('DD_SERVICE') ?: self::NAME;
 
         $setRootSpanFn = static function () use ($service) {
             $rootSpan = \DDTrace\root_span();
@@ -32,11 +25,10 @@ class NetteIntegration extends Integration
                 return;
             }
 
-            $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+            $rootSpan->spanKind = SpanKind::SERVER;
 
-            self::addTraceAnalyticsIfEnabled($rootSpan);
             $rootSpan->service = $service;
-            $rootSpan->meta[Tag::COMPONENT] = self::NAME;
+            $rootSpan->component = self::NAME;
         };
 
         \DDTrace\hook_method('Nette\Configurator', '__construct', $setRootSpanFn);
@@ -49,7 +41,7 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.configurator.createRobotLoader';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
             }
         );
 
@@ -60,10 +52,10 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.application.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
 
                 $rootSpan = \DDTrace\root_span();
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
+                $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = (string)http_response_code();
             }
         );
 
@@ -74,7 +66,7 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.presenter.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
 
                 if (count($args) < 1 || !\is_a($args[0], '\Nette\Application\Request')) {
                     return;
@@ -85,9 +77,9 @@ class NetteIntegration extends Integration
                 $action = $request->getParameter('action');
 
                 $rootSpan = \DDTrace\root_span();
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                $rootSpan->meta['nette.route.presenter'] = $presenter;
-                $rootSpan->meta['nette.route.action'] = $action;
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->attributes['nette.route.presenter'] = $presenter;
+                $rootSpan->attributes['nette.route.action'] = $action;
             }
         );
 
@@ -99,10 +91,10 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.latte.createTemplate';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
 
                 if (count($args) >= 1) {
-                    $span->meta['nette.latte.templateName'] = $args[0];
+                    $span->attributes['nette.latte.templateName'] = $args[0];
                 }
             }
         );
@@ -114,10 +106,10 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.latte.render';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
 
                 if (count($args) >= 1) {
-                    $span->meta['nette.latte.templateName'] = $args[0];
+                    $span->attributes['nette.latte.templateName'] = $args[0];
                 }
             }
         );
@@ -129,10 +121,10 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.latte.render';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
 
                 if (count($args) >= 1) {
-                    $span->meta['nette.latte.templateName'] = $args[0];
+                    $span->attributes['nette.latte.templateName'] = $args[0];
                 }
             }
         );
