@@ -22,6 +22,13 @@ class KafkaIntegration extends Integration
     // produce waits.
     const DSM_CLUSTER_ID_WAIT_MS = 100;
 
+    // How long a client's cluster id is reused before it is read from librdkafka again.
+    const DSM_CLUSTER_ID_CACHE_NS = 1000000000;
+
+    // Per client: [cluster id tags, expiry in ns, whether a produce has waited for the id]. A
+    // WeakMap where PHP has one, else null and the entry is in ObjectKVStore.
+    private static $clusterIds;
+
     // Set while the integration installs its own callback on a Conf, so that the hooks on the
     // setters do not wrap it a second time.
     private static $installingDataStreamsCallback = false;
@@ -37,6 +44,8 @@ class KafkaIntegration extends Integration
         if (strtok(phpversion('rdkafka'), '.') < 6) {
             return Integration::NOT_LOADED;
         }
+
+        self::$clusterIds = \class_exists('WeakMap', false) ? new \WeakMap() : null;
 
         self::installProducerTopicHooks();
         self::installConsumerHooks();
@@ -97,18 +106,11 @@ class KafkaIntegration extends Integration
         $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
             + self::headersSize(array_merge($args[4] ?? [], $headers));
         $producer = ObjectKVStore::get($producerTopic, 'kafka');
-        // Waiting on every produce would hold up all of them for as long as the brokers do not
-        // answer, so a producer waits once.
-        $waitMs = 0;
-        if ($producer && !ObjectKVStore::get($producer, 'dsm_cluster_id_waited', false)) {
-            ObjectKVStore::put($producer, 'dsm_cluster_id_waited', true);
-            $waitMs = self::DSM_CLUSTER_ID_WAIT_MS;
-        }
         return \DDTrace\Internal\dsm_set_checkpoint(array_merge([
             'direction:out',
             'topic:' . $producerTopic->getName(),
             'type:kafka',
-        ], self::clusterIdTags($producer, $waitMs)), null, $payloadSize);
+        ], self::clusterIdTags($producer, true)), null, $payloadSize);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
@@ -343,18 +345,42 @@ class KafkaIntegration extends Integration
      * The tag naming the cluster `$kafka` is connected to. librdkafka has its id from the client's
      * last metadata response, and delivery reports, commits and consumed messages only come after
      * one. A producer too new to have had one gets the id another client with the same bootstrap
-     * servers read, in this process or another one of the sidecar's, or waits up to `$waitMs` for
-     * its own. Anything but a client has none: kafka_cluster_id() would throw, losing the
-     * checkpoint or backlog with it.
+     * servers read, in this process or another one of the sidecar's, or, on its first `$produce`,
+     * waits for its own: waiting on every produce would hold up all of them for as long as the
+     * brokers do not answer. Anything but a client has none: kafka_cluster_id() would throw,
+     * losing the checkpoint or backlog with it.
+     *
+     * An id is reused for DSM_CLUSTER_ID_CACHE_NS; until a client has one, it is read every time.
      */
-    private static function clusterIdTags($kafka, int $waitMs = 0): array
+    private static function clusterIdTags($kafka, bool $produce = false): array
     {
         if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
             return [];
         }
+        $clusterIds = self::$clusterIds;
+        $entry = $clusterIds ? ($clusterIds[$kafka] ?? null) : ObjectKVStore::get($kafka, 'dsm_cluster_id');
+        $now = \PHP_VERSION_ID >= 70300 ? \hrtime(true) : \microtime(true) * 1e9;
+        // A producer's first produce reads the id, to wait for it if need be.
+        if ($entry !== null && $now < $entry[1] && ($entry[2] || !$produce)) {
+            return $entry[0];
+        }
+
+        $waited = $entry !== null && $entry[2];
         $conf = ObjectKVStore::get($kafka, 'conf');
-        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null, $waitMs);
-        return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
+        $clusterId = \DDTrace\Internal\kafka_cluster_id(
+            $kafka,
+            $conf['metadata.broker.list'] ?? null,
+            $produce && !$waited ? self::DSM_CLUSTER_ID_WAIT_MS : 0
+        );
+        $entry = $clusterId === null
+            ? [[], 0, $waited || $produce]
+            : [['kafka_cluster_id:' . $clusterId], $now + self::DSM_CLUSTER_ID_CACHE_NS, $waited || $produce];
+        if ($clusterIds) {
+            $clusterIds[$kafka] = $entry;
+        } else {
+            ObjectKVStore::put($kafka, 'dsm_cluster_id', $entry);
+        }
+        return $entry[0];
     }
 
     private static function addMetadataToSpan($span, $conf)

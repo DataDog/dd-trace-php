@@ -105,6 +105,25 @@ class KafkaTest extends IntegrationTestCase
     }
 
     /**
+     * The integration reads a client's cluster id from librdkafka once a second, per client, and
+     * every time while the client has none.
+     */
+    public function testClusterIdCachedPerClient()
+    {
+        $output = $this->executeCli(
+            __DIR__ . '/scripts/cluster-id-cache.php',
+            self::DSM_ENV,
+            [],
+            'test-cluster-id',
+            true
+        );
+        $this->assertRegularExpression('/^connected: 1 reads for 5 produces, 5 tagged$/m', $output);
+        $this->assertRegularExpression('/^other bootstrap servers: 1 reads for 5 produces, 5 tagged$/m', $output);
+        $this->assertRegularExpression('/^unreachable: 5 reads for 5 produces, 0 tagged$/m', $output);
+        $this->assertRegularExpression('/^connected after expiry: 1 reads for 1 produces, 1 tagged$/m', $output);
+    }
+
+    /**
      * A producer that has not had its brokers' answer yet gets the cluster id another process read
      * from a client with the same bootstrap servers, through the sidecar.
      */
