@@ -424,6 +424,7 @@ foreach ($build_platforms as $platform) {
         }
         $image = sprintf($platform['image_template'], $major_minor);
         $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
+        $arch_dir = $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64';
 ?>
 "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: tracing
@@ -431,8 +432,6 @@ foreach ($build_platforms as $platform) {
   tags: [ "arch:$ARCH" ]
   needs:
     - job: "prepare code"
-      artifacts: true
-    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
   variables:
     IMAGE: "<?= $image ?>"
@@ -448,35 +447,87 @@ foreach ($build_platforms as $platform) {
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
-<?php if ($platform['host_os'] === 'linux-musl'): ?>
-    # Load the function in this shell too, not just the build-tracing subprocess.
-    - source "$BASH_ENV"
-<?php endif; ?>
-    # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
-    # Every SSI common rebuild must match the canonical DSO, including DWARF.
-    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?><?= $suffix ?>.so"
-    - export CARGO_BUILD_JOBS=12
-    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
-    - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
-    - make -s build-ssi-ddtrace
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
-    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/libdatadog_php.so"
-    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
-    - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
-    - make -s build-ssi-ddtrace
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
-    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/libdatadog_php.so"
+    - rm -f "standalone_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so" "standalone_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
   artifacts:
-    when: always
     paths:
       - "extensions_*"
       - "standalone_*"
-      # Retain the candidate common DSO if its identity check failed.
-      - "tmp/release-variants/**/ssi/libdatadog_php.so"
       - "ddtrace_*-fat.ldflags"
       - "ddtrace_*-fat.sym"
+
+<?php foreach (["nts" => "", "zts" => "-zts"] as $flavour => $zts_suffix): ?>
+"compile tracing extension LTO: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    CARGO_BUILD_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+<?php if ($platform['host_os'] === 'linux-musl'): ?>
+    - source "$BASH_ENV"
+    - switch_php "${PHP_VERSION}<?= $zts_suffix ?>"
+<?php else: ?>
+    - switch-php "${PHP_VERSION}<?= $zts_suffix ?>"
+<?php endif; ?>
+    # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
+    - make -s xlang-lto
+    - mkdir -p "extensions_<?= $arch_dir ?>"
+    - cp "tmp/release-variants/<?= $arch_dir ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?><?= $zts_suffix ?>.so"
+  artifacts:
+    paths:
+      - "extensions_*"
+
+<?php endforeach; ?>
+"compile tracing extension SSI: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    CARGO_BUILD_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+<?php if ($platform['host_os'] === 'linux-musl'): ?>
+    - source "$BASH_ENV"
+<?php endif; ?>
+    # Every SSI common rebuild must match the canonical DSO, including DWARF.
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir ?><?= $suffix ?>.so"
+    - mkdir -p "standalone_<?= $arch_dir ?>"
+<?php foreach (["nts" => "", "zts" => "-zts"] as $flavour => $zts_suffix): ?>
+    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}<?= $zts_suffix ?>"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $arch_dir ?>/php-${PHP_VERSION}/<?= $flavour ?>/ssi/ddtrace.so" "standalone_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?><?= $zts_suffix ?>.so"
+    - rm "tmp/release-variants/<?= $arch_dir ?>/php-${PHP_VERSION}/<?= $flavour ?>/ssi/libdatadog_php.so"
+<?php endforeach; ?>
+  artifacts:
+    when: always
+    paths:
+      - "standalone_*"
+      # Retain the candidate common DSO if its identity check failed.
+      - "tmp/release-variants/**/ssi/libdatadog_php.so"
+
 
 <?php
     }
@@ -639,6 +690,10 @@ foreach ($build_platforms as $platform) {
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing extension: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: "compile tracing extension LTO: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
+      artifacts: true
+    - job: "compile tracing extension LTO: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
       artifacts: true
 <?php
 foreach ($profiler_minor_major_targets as $major_minor) {
@@ -945,6 +1000,8 @@ foreach ($windows_minor_major_targets as $major_minor) {
 ?>
     # PHP 7.0 still uses the split SSI extension (tracer and AppSec only).
     - job: "compile tracing extension: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: "compile tracing extension SSI: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
