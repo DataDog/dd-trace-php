@@ -634,7 +634,7 @@
     ],
     "DD_PROFILING_EXCEPTION_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "boolean",
         "default": "true",
         "aliases": [
