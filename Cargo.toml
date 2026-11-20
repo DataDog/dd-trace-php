@@ -442,8 +442,8 @@ libdd-common = { path = "libdatadog/libdd-common" }
 libdd-host-identity = { path = "libdatadog/libdd-host-identity", features = ["cgroup_testing"] }
 libdd-networking = { path = "libdatadog/libdd-networking" }
 libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false, features = ["std"] }
-libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector"] }
-libdd-crashtracker-ffi = { path = "libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
+libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector", "otel-thread-ctx"] }
+libdd-crashtracker-ffi = { path = "libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector", "otel-thread-ctx"] }
 libdd-data-pipeline = { path = "libdatadog/libdd-data-pipeline" }
 libdd-ipc = { path = "libdatadog/libdd-ipc" }
 libdd-library-config = { path = "libdatadog/libdd-library-config", default-features = false, features = ["otel-thread-ctx", "process-context-reader"] }
