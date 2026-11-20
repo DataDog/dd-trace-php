@@ -90,10 +90,10 @@ expect a one-run mismatch on renames. If the benchmark becomes unstable while
 you iterate, see
 [How to mark a benchmark as known flaky](#how-to-mark-a-benchmark-as-known-flaky).
 
-Changes that only affect CI plumbing (this directory, `.gitlab/benchmarks.yml`)
-don't need a benchmark run: the benchmark jobs only auto-run when
-tracer-relevant paths change, and can be triggered manually from the pipeline
-otherwise.
+Changes to the benchmark CI (this directory, `.gitlab/benchmarks.yml`) run
+`benchmarks-tracer` like tracer changes do. AppSec and profiler stay manual
+unless their sources change: play the benchmark job to exercise a CI change
+there; its `benchmarks-pr-comment-*` job follows automatically.
 
 ## How to mark a benchmark as known flaky
 
