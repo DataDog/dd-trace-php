@@ -446,6 +446,9 @@ ddog_MaybeError ddog_sidecar_handle_fork_php(void);
  */
 ddog_MaybeError ddog_sidecar_ensure_appsec_started(struct ddog_SidecarTransport **transport);
 
+bool ddog_php_ffe_supports_ordered_handoff(struct ddog_SidecarTransport **transport,
+                                           uint32_t budget_us);
+
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,

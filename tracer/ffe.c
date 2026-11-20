@@ -497,7 +497,6 @@ typedef struct {
 
 typedef struct {
     size_t len, cap, bytes;
-    bool hook_only_seen;
     dd_ffe_deferred_row *rows;
 } dd_ffe_deferred_batch;
 
@@ -511,6 +510,19 @@ static bool dd_ffe_same_slice(ddog_CharSlice a, ddog_CharSlice b) {
 
 static bool dd_ffe_same_context(ddog_FfeTelemetryContext a, ddog_FfeTelemetryContext b) {
     return dd_ffe_same_slice(a.service, b.service) && dd_ffe_same_slice(a.env, b.env) && dd_ffe_same_slice(a.version, b.version);
+}
+
+static size_t dd_ffe_pending_prefix(ddog_FfeTelemetryContext context, ddog_FfeExposure event) {
+    dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
+    // A route-token change finalizes the batch; rows here belong to the current delivery scope.
+    for (size_t i = batch ? batch->len : 0; i > 0; --i) {
+        dd_ffe_deferred_row *row = &batch->rows[i - 1];
+        if (dd_ffe_same_slice(row->event.subject_id, event.subject_id) &&
+            dd_ffe_same_slice(row->event.flag_key, event.flag_key) && dd_ffe_same_context(row->context, context)) {
+            return i;
+        }
+    }
+    return 0;
 }
 
 static size_t dd_ffe_deferred_bytes(ddog_FfeTelemetryContext context, ddog_FfeExposure event) {
@@ -553,18 +565,26 @@ void ddtrace_ffe_discard_deferred(void) {
     DDTRACE_G(ffe_deferred) = NULL;
 }
 
-static void dd_ffe_flush_deferred_until(bool final, uint64_t deadline, size_t max_chunks) {
+static bool dd_ffe_flush_deferred_until(bool final, uint64_t deadline, size_t max_chunks, size_t max_rows) {
     dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
-    if (!batch) return;
+    if (!batch) return true;
+    size_t limit = MIN(batch->len, max_rows), consumed = 0;
+    bool confirmed = true;
     if (DATADOG_G(sidecar) && DATADOG_G(request_initialized)) {
-        ddog_FfeExposure *events = safe_emalloc(batch->len, sizeof(*events), 0);
-        for (size_t i = 0; i < batch->len; i++) events[i] = batch->rows[i].event;
-        size_t consumed = 0, context_end = 0;
-        while (consumed < batch->len && max_chunks > 0) {
+        if (!final) {
+            uint64_t now = zend_hrtime() / 1000;
+            if (now >= deadline || !ddog_php_ffe_supports_ordered_handoff(&DATADOG_G(sidecar), (uint32_t)(deadline - now))) {
+                return false;
+            }
+        }
+        ddog_FfeExposure *events = safe_emalloc(limit, sizeof(*events), 0);
+        for (size_t i = 0; i < limit; i++) events[i] = batch->rows[i].event;
+        size_t context_end = 0;
+        while (consumed < limit && max_chunks > 0) {
             uint64_t now = zend_hrtime() / 1000;
             if (now >= deadline) break;
             ddog_FfeTelemetryContext context = batch->rows[consumed].context;
-            while (context_end < batch->len && dd_ffe_same_context(context, batch->rows[context_end].context)) {
+            while (context_end < limit && dd_ffe_same_context(context, batch->rows[context_end].context)) {
                 ++context_end;
             }
             ddog_Slice_FfeExposure slice = {.ptr = events + consumed, .len = context_end - consumed};
@@ -589,6 +609,7 @@ static void dd_ffe_flush_deferred_until(bool final, uint64_t deadline, size_t ma
             } else {
                 break;
             }
+            confirmed = confirmed && chunk.status == ddog_FFE_DEFERRED_CONFIRMED;
             consumed += chunk.rows;
             --max_chunks;
         }
@@ -599,14 +620,15 @@ static void dd_ffe_flush_deferred_until(bool final, uint64_t deadline, size_t ma
         dd_ffe_outcome(DD_FFE_UNSENT, batch->len);
         ddtrace_ffe_discard_deferred();
     }
+    return confirmed && consumed == limit;
 }
 
 void ddtrace_ffe_flush_deferred(bool final) {
-    dd_ffe_flush_deferred_until(final, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US, SIZE_MAX);
+    dd_ffe_flush_deferred_until(final, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US, SIZE_MAX, SIZE_MAX);
 }
 
 size_t ddtrace_ffe_test_flush_deferred_prefix(void) {
-    dd_ffe_flush_deferred_until(false, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US, 1);
+    dd_ffe_flush_deferred_until(false, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US, 1, SIZE_MAX);
     dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
     return batch ? batch->len : 0;
 }
@@ -716,18 +738,15 @@ int ddtrace_ffe_record_exposure(
     };
     bool deliver = get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED();
     uint32_t budget = dd_ffe_admission_budget();
-    dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
-    if (batch && !deliver) {
-        batch->hook_only_seen = true;
-    } else if (batch && batch->hook_only_seen && budget) {
+    if (budget && deliver && DDTRACE_G(ffe_deferred)) {
         uint64_t deadline = zend_hrtime() / 1000 + budget;
-        batch->hook_only_seen = false;
-        dd_ffe_flush_deferred_until(false, deadline, SIZE_MAX);
+        size_t prefix = dd_ffe_pending_prefix(context, event);
+        bool ordered = !prefix || dd_ffe_flush_deferred_until(false, deadline, SIZE_MAX, prefix);
         uint64_t now = zend_hrtime() / 1000;
-        budget = now < deadline ? (uint32_t)(deadline - now) : 0;
+        budget = ordered && now < deadline ? (uint32_t)(deadline - now) : 0;
     }
     ddog_FfeAdmission status = ddog_FFE_ADMISSION_UNAVAILABLE;
-    if (budget && DATADOG_G(sidecar) && !(deliver && DDTRACE_G(ffe_deferred))) {
+    if (budget && DATADOG_G(sidecar)) {
         ddog_MaybeError error = ddog_sidecar_ffe_admit_v1(&DATADOG_G(sidecar), &context, &event, deliver,
                                                            budget, &status);
         if (error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {

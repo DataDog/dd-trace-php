@@ -231,6 +231,15 @@ fn sidecar_connect(cfg: config::Config) -> anyhow::Result<Box<SidecarTransport>>
 }
 
 #[no_mangle]
+pub extern "C" fn ddog_php_ffe_supports_ordered_handoff(
+    transport: &mut Box<SidecarTransport>,
+    budget_us: u32,
+) -> bool {
+    let deadline = std::time::Instant::now() + Duration::from_micros(u64::from(budget_us.min(50_000)));
+    transport.inner.supports_ordered_ffe_handoff_until(deadline)
+}
+
+#[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_php(
     connection: &mut *mut SidecarTransport,
     error_path: *const c_char,
