@@ -256,9 +256,7 @@ workflow:
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     # Analyzer settings. Every bp-runner step inherits the CI process environment,
     # so the settings live here instead of the config.
-    UNCONFIDENCE_THRESHOLD: "2.0"
-    DISABLE_NHST: "1"
-    CI_TYPE: "theoretical"
+    SIGNIFICANT_IMPACT_THRESHOLD: "5.0"
     MD_REPORT_ONLY_CHANGES: "1"
     FLAKY_BENCHMARKS_REGEX: ""
 
@@ -332,9 +330,7 @@ benchmarks-appsec:
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     FLAKY_BENCHMARKS_REGEX: ""
     # Analyzer settings the PR comment's comparison output depends on.
-    UNCONFIDENCE_THRESHOLD: "2.0"
-    DISABLE_NHST: "1"
-    CI_TYPE: "theoretical"
+    SIGNIFICANT_IMPACT_THRESHOLD: "5.0"
     MD_REPORT_ONLY_CHANGES: "1"
 
 benchmarks-pr-comment:
