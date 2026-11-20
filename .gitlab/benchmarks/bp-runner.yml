@@ -32,15 +32,6 @@ experiments:
 
           if [ "$BP_SCENARIO" = "tracer" ] || [ "$BP_SCENARIO" = "appsec" ]; then
             echo "extension=ddtrace.so" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-            if [ "$BP_SCENARIO" = "appsec" ]; then
-              echo "extension=ddappsec.so" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-              echo "datadog.appsec.cli_start_on_rinit=true" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-              echo "datadog.appsec.rules=/tmp/recommended.json" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-              echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-              echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-              echo "datadog.appsec.log_file=/tmp/logs/appsec.log" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-              echo "datadog.appsec.helper_log_file=/tmp/logs/helper.log" >> /etc/php/8.2/cgi/conf.d/ddtrace.ini
-            fi
             taskset -c 26-29 service mysql start
             taskset -c 30-33 redis-server --daemonize yes
           fi
