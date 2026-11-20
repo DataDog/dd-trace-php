@@ -11,9 +11,13 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_REMOTE_CONFIG_ENABLED=0
 DD_TRACE_AGENT_URL=http://127.0.0.1:9
+_DD_DEBUG_SIDECAR_IPC_MODE=instance_per_process
+_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS=45
 --FILE--
 <?php
 require __DIR__ . '/../Common/FeatureFlags/flag_evaluation_openfeature.inc';
+require __DIR__ . '/../ext/ffe/stubs/exposure_sidecar.inc';
+ffeAwaitExposureSidecar();
 \DDTrace\Testing\ffe_load_config(json_encode(array(
     'createdAt' => '2024-01-01T00:00:00Z',
     'environment' => array('name' => 'test'),
@@ -42,6 +46,7 @@ $api->addHooks(new \DDTrace\OpenFeature\ExposureHook(function ($evaluation) {
     echo json_encode(array(
         'subject' => $evaluation->getTargetingKey(),
         'exposure' => $evaluation->isExposure(),
+        'status' => $evaluation->getDecisionStatus(),
         'send' => $evaluation->shouldSend(),
         'hit' => $evaluation->isCacheHit(),
         'serial' => $evaluation->getSplitSerialId(),
@@ -59,8 +64,8 @@ echo $client->getStringValue('flag', 'off', $context('rejected')), "\n";
 echo json_encode(array('native' => $native, 'recorded' => $recorded)), "\n";
 ?>
 --EXPECT--
-{"subject":"user","exposure":true,"send":true,"hit":false,"serial":4,"features":{"holdout.key":"h1"}}
-{"subject":"user","exposure":true,"send":false,"hit":true,"serial":4,"features":{"holdout.key":"h1"}}
-{"subject":"rejected","exposure":false,"send":false,"hit":false,"serial":null,"features":[]}
+{"subject":"user","exposure":true,"status":"admitted","send":true,"hit":false,"serial":4,"features":{"holdout.key":"h1"}}
+{"subject":"user","exposure":true,"status":"repeat","send":false,"hit":true,"serial":4,"features":{"holdout.key":"h1"}}
+{"subject":"rejected","exposure":false,"status":"not_exposure","send":false,"hit":false,"serial":null,"features":[]}
 off
-{"native":[null,null,null],"recorded":[["user",true],["user",false]]}
+{"native":[null,null,null],"recorded":[["user","admitted"],["user","repeat"]]}

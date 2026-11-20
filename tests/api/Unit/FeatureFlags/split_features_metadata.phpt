@@ -3,8 +3,12 @@ FFE native client writes split features and the exposure decision into flag meta
 --ENV--
 DD_METRICS_OTEL_ENABLED=false
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DDTRACE_PHPT_EXACT_PEER=1
 --FILE--
 <?php
+ini_set('datadog.trace.agent_test_session_token', uniqid('split-metadata-', true));
+require __DIR__ . '/../../../ext/ffe/stubs/exposure_sidecar.inc';
+ffeAwaitExposureSidecar();
 require __DIR__ . '/../../../Common/FeatureFlags/ffe_api_bootstrap.inc';
 \DDTrace\Testing\ffe_load_config(json_encode(array(
     'createdAt' => '2024-01-01T00:00:00Z',

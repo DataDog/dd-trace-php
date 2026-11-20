@@ -669,14 +669,11 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         DDTRACE_G(active_stack) = NULL;
     }
 
-    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
-        LOG(DEBUG, "Feature Flags: request shutdown started (pending_exposures=%zu); handing off pending work without waiting for network delivery", DDTRACE_G(ffe_exposure_buffer_len));
-    }
-    ddtrace_ffe_flush_exposures();
+    ddtrace_ffe_flush_deferred(true);
+    DDTRACE_G(ffe_test_admission_budget_us) = 0;
+    DDTRACE_G(ffe_test_exact_peer) = false;
+    DDTRACE_G(ffe_exposure_handed_off) = false;
     ddtrace_ffe_flush_evaluation_metrics();
-    if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
-        LOG(DEBUG, "Feature Flags: request shutdown complete (pending_exposures=%zu); sidecar exposures are not drained by PHP shutdown, in-flight delivery may finish or be cancelled; see ffe_exposures_flusher for available delivery diagnostics", DDTRACE_G(ffe_exposure_buffer_len));
-    }
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
@@ -774,9 +771,12 @@ void ddtrace_internal_handle_postfork(void) {
 }
 
 void ddtrace_internal_handle_fork() {
-    // The parent owns its already-recorded losses; the child starts fresh.
+    // Telemetry drains each process's observations at request shutdown.
     memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
-    ddog_ffe_exposure_cache_reset();
+    memset(DDTRACE_G(ffe_outcomes), 0, sizeof(DDTRACE_G(ffe_outcomes)));
+    ddtrace_ffe_discard_deferred();
+    DDTRACE_G(ffe_test_exact_peer) = false;
+    DDTRACE_G(ffe_exposure_handed_off) = false;
 #ifdef __linux__
     ddtrace_otel_detach();
     ddtrace_otel_tid_fork_handler();

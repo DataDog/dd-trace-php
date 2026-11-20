@@ -1388,7 +1388,10 @@ PHP_FUNCTION(DDTrace_Internal_handle_fork) {
 PHP_FUNCTION(DDTrace_Testing_flush_ffe_exposures) {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    RETURN_BOOL(ddtrace_ffe_flush_exposures());
+    ddtrace_ffe_flush_deferred(false);
+    bool handed_off = DDTRACE_G(ffe_exposure_handed_off);
+    DDTRACE_G(ffe_exposure_handed_off) = false;
+    RETURN_BOOL(handed_off);
 }
 
 PHP_FUNCTION(DDTrace_dogstatsd_count) {
@@ -2068,8 +2071,8 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
     }
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
-    if (exposure >= 0) {
-        ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("exposureCacheHit"), exposure == 0);
+    if (exposure == ddog_FFE_ADMISSION_ADMITTED || exposure == ddog_FFE_ADMISSION_REPEAT) {
+        ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("exposureCacheHit"), exposure == ddog_FFE_ADMISSION_REPEAT);
     }
     // PHP 7 drops array defaults of internal class properties, so set it here.
     if (result.features) {
@@ -2164,6 +2167,12 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice slice = ddog_sidecar_dump(&DATADOG_G(sidecar));
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
+        } else if (FUNCTION_NAME_MATCHES("test_ffe_flush_deferred_prefix")) {
+            RETURN_LONG((zend_long)ddtrace_ffe_test_flush_deferred_prefix());
+        } else if (FUNCTION_NAME_MATCHES("test_ffe_has_deferred_exposures")) {
+            RETURN_BOOL(DDTRACE_G(ffe_deferred) != NULL);
+        } else if (FUNCTION_NAME_MATCHES("test_ffe_admission_ready")) {
+            RETURN_BOOL(ddtrace_ffe_test_admission_ready());
         } else if (FUNCTION_NAME_MATCHES("stats_sidecar")) {
             if (!DATADOG_G(sidecar)) {
                 RETURN_FALSE;
@@ -3047,7 +3056,7 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_exposure) {
     if (exposure < 0) {
         RETURN_NULL();
     }
-    RETURN_BOOL(exposure == 1);
+    RETURN_STRING(ddtrace_ffe_admission_name(exposure));
 }
 
 PHP_FUNCTION(DDTrace_Internal_dsm_set_checkpoint) {

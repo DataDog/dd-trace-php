@@ -313,17 +313,6 @@ ddog_CharSlice ddog_ffe_features_destination(const struct ddog_FfeFeatures *feat
 
 void ddog_ffe_features_drop(struct ddog_FfeFeatures *features);
 
-/**
- * Gives the calling process an empty exposure cache. Call it in a forked child.
- */
-void ddog_ffe_exposure_cache_reset(void);
-
-/**
- * Records the exposure in the process exposure cache. Returns false when the
- * subject was already exposed to the same allocation, variant and serial id.
- */
-bool ddog_ffe_exposure_cache_record(const struct ddog_FfeExposureKey *key);
-
 struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
                                         ddog_CharSlice targeting_key,
@@ -458,6 +447,25 @@ ddog_MaybeError ddog_sidecar_handle_fork_php(void);
  * configuration captured from the PHP extension.
  */
 ddog_MaybeError ddog_sidecar_ensure_appsec_started(struct ddog_SidecarTransport **transport);
+
+ddog_MaybeError ddog_php_ffe_admit_test_peer(struct ddog_SidecarTransport **transport,
+                                             const ddog_FfeTelemetryContext *context,
+                                             const ddog_FfeExposure *exposure,
+                                             bool deliver,
+                                             uint32_t *out);
+
+/**
+ * # Safety
+ * The caller keeps `rows` and their borrowed fields valid for all `len` exposures.
+ */
+ddog_MaybeError ddog_php_ffe_submit_deferred_test_peer(struct ddog_SidecarTransport **transport,
+                                                       const ddog_FfeTelemetryContext *context,
+                                                       const ddog_FfeExposure *rows,
+                                                       uintptr_t len,
+                                                       ddog_FfeDeferredHandoff *out);
+
+bool ddog_php_ffe_supports_ordered_handoff(struct ddog_SidecarTransport **transport,
+                                           uint32_t budget_us);
 
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,

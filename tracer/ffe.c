@@ -13,7 +13,9 @@
 #include <ext/sidecar.h>
 #include <ext/zend_hrtime.h>
 #include <ext/standard/php_string.h>
+#include <main/SAPI.h>
 #include <php.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifndef _WIN32
@@ -25,7 +27,11 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #define DD_FFE_METRIC_BUFFER_LIMIT 1000
-#define DD_FFE_EXPOSURE_BUFFER_LIMIT 1000
+#define DD_FFE_ADMISSION_BUDGET_US 10000
+#define DD_FFE_DEFERRED_BUDGET_US 50000
+#define DD_FFE_DEFERRED_LIMIT 1000
+#define DD_FFE_DEFERRED_BYTES (8 * 1024 * 1024)
+#define DD_FFE_RETAINED_FIELDS 9
 #define DD_FFE_CONTEXT_FIELD_LIMIT 256
 
 bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
@@ -366,17 +372,7 @@ typedef struct {
     zend_string *allocation_key;
 } dd_ffe_metric;
 
-typedef struct {
-    uint64_t timestamp_ms;
-    zend_string *flag_key;
-    zend_string *subject_id;
-    zend_string *subject_attributes_json;
-    zend_string *allocation_key;
-    zend_string *variant;
-    int32_t serial_id;
-    bool has_serial_id;
-    zend_string *features_json;
-} dd_ffe_exposure;
+
 
 static void dd_ffe_release_metric(dd_ffe_metric *metric) {
     zend_string_release(metric->flag_key);
@@ -492,29 +488,246 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
     return flushed;
 }
 
-static void dd_ffe_release_exposure(dd_ffe_exposure *exposure) {
-    zend_string_release(exposure->flag_key);
-    zend_string_release(exposure->subject_id);
-    zend_string_release(exposure->subject_attributes_json);
-    zend_string_release(exposure->allocation_key);
-    zend_string_release(exposure->variant);
-    if (exposure->features_json) {
-        zend_string_release(exposure->features_json);
+static void dd_ffe_outcome(dd_ffe_outcome_type outcome, size_t rows) {
+    if (!rows) return;
+    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) DDTRACE_G(ffe_outcomes)[outcome] += rows;
+    if (outcome >= DD_FFE_INVALID) {
+        static _Atomic(int64_t) warned_pid;
+        int64_t pid = (int64_t)getpid(), prior = atomic_load(&warned_pid);
+        if (prior != pid && atomic_compare_exchange_strong(&warned_pid, &prior, pid)) {
+            LOG(WARN, "Feature Flags: dropped exposure rows; see exposures.rows telemetry for details");
+        }
     }
 }
 
-static void dd_ffe_clear_exposures(void) {
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
-    for (size_t i = 0; i < DDTRACE_G(ffe_exposure_buffer_len); i++) {
-        dd_ffe_release_exposure(&buffer[i]);
+typedef struct {
+    ddog_FfeExposure event;
+    ddog_FfeTelemetryContext context;
+    size_t bytes;
+    zend_string *fields[DD_FFE_RETAINED_FIELDS];
+} dd_ffe_deferred_row;
+
+typedef struct {
+    size_t len, cap, bytes;
+    dd_ffe_deferred_row *rows;
+} dd_ffe_deferred_batch;
+
+static zend_string *dd_ffe_retain(zend_string *s) {
+    return s ? zend_string_copy(s) : ZSTR_EMPTY_ALLOC();
+}
+
+static bool dd_ffe_same_slice(ddog_CharSlice a, ddog_CharSlice b) {
+    return a.len == b.len && (!a.len || a.ptr == b.ptr || !memcmp(a.ptr, b.ptr, a.len));
+}
+
+static bool dd_ffe_same_context(ddog_FfeTelemetryContext a, ddog_FfeTelemetryContext b) {
+    return dd_ffe_same_slice(a.service, b.service) && dd_ffe_same_slice(a.env, b.env) && dd_ffe_same_slice(a.version, b.version);
+}
+
+static size_t dd_ffe_pending_prefix(ddog_FfeTelemetryContext context, ddog_FfeExposure event) {
+    dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
+    // A route-token change finalizes the batch; rows here belong to the current delivery scope.
+    for (size_t i = batch ? batch->len : 0; i > 0; --i) {
+        dd_ffe_deferred_row *row = &batch->rows[i - 1];
+        if (dd_ffe_same_slice(row->event.subject_id, event.subject_id) &&
+            dd_ffe_same_slice(row->event.flag_key, event.flag_key) && dd_ffe_same_context(row->context, context)) {
+            return i;
+        }
     }
-    if (buffer) {
-        efree(buffer);
+    return 0;
+}
+
+static size_t dd_ffe_deferred_bytes(ddog_FfeTelemetryContext context, ddog_FfeExposure event) {
+    size_t size = sizeof(dd_ffe_deferred_row);
+    size_t fields[] = {context.service.len, context.env.len, context.version.len, event.flag_key.len,
+                       event.subject_id.len, event.subject_attributes_json.len, event.allocation_key.len,
+                       event.variant.len, event.features_json.len};
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        if (fields[i] > DD_FFE_DEFERRED_BYTES - size) return SIZE_MAX;
+        size += fields[i];
     }
-    DDTRACE_G(ffe_exposure_buffer) = NULL;
-    DDTRACE_G(ffe_exposure_buffer_len) = 0;
-    DDTRACE_G(ffe_exposure_buffer_cap) = 0;
-    DDTRACE_G(ffe_exposures_dropped) = 0;
+    return size;
+}
+
+static bool dd_ffe_valid_row(ddog_FfeTelemetryContext context, ddog_FfeExposure event) {
+    ddog_CharSlice fields[] = {context.service, context.env, context.version, event.flag_key,
+                               event.subject_id, event.allocation_key, event.variant, event.subject_attributes_json};
+    if (!event.allocation_key.len) return false;
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        if (!datadog_bytes_are_valid_utf8((const uint8_t *)fields[i].ptr, fields[i].len)) return false;
+    }
+    return true;
+}
+
+static void dd_ffe_release_prefix(dd_ffe_deferred_batch *batch, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        for (size_t j = 0; j < DD_FFE_RETAINED_FIELDS; j++) zend_string_release(batch->rows[i].fields[j]);
+        batch->bytes -= batch->rows[i].bytes;
+    }
+    batch->len -= n;
+    if (batch->len) memmove(batch->rows, batch->rows + n, batch->len * sizeof(*batch->rows));
+}
+
+void ddtrace_ffe_discard_deferred(void) {
+    dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
+    if (!batch) return;
+    dd_ffe_release_prefix(batch, batch->len);
+    efree(batch->rows);
+    efree(batch);
+    DDTRACE_G(ffe_deferred) = NULL;
+}
+
+static uint32_t dd_ffe_remaining_budget(uint64_t deadline) {
+    if (DDTRACE_G(ffe_test_exact_peer)) return DD_FFE_DEFERRED_BUDGET_US;
+    uint64_t now = zend_hrtime() / 1000;
+    return now < deadline ? (uint32_t)(deadline - now) : 0;
+}
+
+static bool dd_ffe_flush_deferred_until(bool final, uint64_t deadline, size_t max_chunks, size_t max_rows) {
+    dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
+    if (!batch) return true;
+    size_t limit = MIN(batch->len, max_rows), consumed = 0;
+    bool confirmed = true;
+    if (DATADOG_G(sidecar) && DATADOG_G(request_initialized)) {
+        if (!final && !DDTRACE_G(ffe_test_exact_peer)) {
+            uint32_t remaining = dd_ffe_remaining_budget(deadline);
+            if (!remaining || !ddog_php_ffe_supports_ordered_handoff(&DATADOG_G(sidecar), remaining)) {
+                return false;
+            }
+        }
+        ddog_FfeExposure *events = safe_emalloc(limit, sizeof(*events), 0);
+        for (size_t i = 0; i < limit; i++) events[i] = batch->rows[i].event;
+        size_t context_end = 0;
+        while (consumed < limit && max_chunks > 0) {
+            uint32_t remaining = dd_ffe_remaining_budget(deadline);
+            if (!remaining) break;
+            ddog_FfeTelemetryContext context = batch->rows[consumed].context;
+            while (context_end < limit && dd_ffe_same_context(context, batch->rows[context_end].context)) {
+                ++context_end;
+            }
+            ddog_Slice_FfeExposure slice = {.ptr = events + consumed, .len = context_end - consumed};
+            ddog_FfeDeferredHandoff chunk = {0};
+            ddog_MaybeError error = DDTRACE_G(ffe_test_exact_peer)
+                ? ddog_php_ffe_submit_deferred_test_peer(&DATADOG_G(sidecar), &context, slice.ptr, slice.len, &chunk)
+                : ddog_sidecar_ffe_submit_deferred_v1(&DATADOG_G(sidecar), &context, slice, remaining, &chunk);
+            if (error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+                ddog_MaybeError_drop(error);
+                break;
+            }
+            LOG(DEBUG, "Feature Flags: deferred handoff status=%u rows=%u pending=%zu", chunk.status, chunk.rows, slice.len);
+            if (chunk.status == ddog_FFE_DEFERRED_REFUSED || !chunk.rows || chunk.rows > slice.len) break;
+            if (chunk.status == ddog_FFE_DEFERRED_CONFIRMED) {
+                DDTRACE_G(ffe_exposure_handed_off) = true;
+                dd_ffe_outcome(DD_FFE_CONFIRMED, chunk.rows);
+            } else if (chunk.status == ddog_FFE_DEFERRED_LEGACY_SUBMITTED) {
+                dd_ffe_outcome(DD_FFE_LEGACY, chunk.rows);
+            } else if (chunk.status == ddog_FFE_DEFERRED_UNKNOWN) {
+                dd_ffe_outcome(DD_FFE_UNCERTAIN, chunk.rows);
+            } else if (chunk.status == ddog_FFE_DEFERRED_INVALID) {
+                dd_ffe_outcome(DD_FFE_OVERSIZE, chunk.rows);
+            } else {
+                break;
+            }
+            confirmed = confirmed && chunk.status == ddog_FFE_DEFERRED_CONFIRMED;
+            consumed += chunk.rows;
+            --max_chunks;
+        }
+        efree(events);
+        dd_ffe_release_prefix(batch, consumed);
+    }
+    if (final || !batch->len) {
+        dd_ffe_outcome(DD_FFE_UNSENT, batch->len);
+        ddtrace_ffe_discard_deferred();
+    }
+    return confirmed && consumed == limit;
+}
+
+void ddtrace_ffe_flush_deferred(bool final) {
+    dd_ffe_flush_deferred_until(final, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US, SIZE_MAX, SIZE_MAX);
+}
+
+size_t ddtrace_ffe_test_flush_deferred_prefix(void) {
+    dd_ffe_flush_deferred_until(false, zend_hrtime() / 1000 + DD_FFE_DEFERRED_BUDGET_US, 1, SIZE_MAX);
+    dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
+    return batch ? batch->len : 0;
+}
+
+static void dd_ffe_defer(ddog_FfeTelemetryContext context, ddog_FfeExposure event, zend_string *flag,
+                         zend_string *subject, zend_string *attributes, zend_string *allocation,
+                         zend_string *variant, zend_string *features) {
+    dd_ffe_deferred_batch *batch = DDTRACE_G(ffe_deferred);
+    size_t bytes = dd_ffe_deferred_bytes(context, event);
+    if (bytes > DD_FFE_DEFERRED_BYTES) {
+        dd_ffe_outcome(DD_FFE_OVERSIZE, 1);
+        return;
+    }
+    if (!dd_ffe_valid_row(context, event)) {
+        dd_ffe_outcome(DD_FFE_INVALID, 1);
+        return;
+    }
+    if (!batch) {
+        DDTRACE_G(ffe_deferred) = batch = ecalloc(1, sizeof(*batch));
+    }
+    if (batch->len == DD_FFE_DEFERRED_LIMIT || bytes > DD_FFE_DEFERRED_BYTES - batch->bytes) {
+        dd_ffe_outcome(DD_FFE_OVERFLOW, 1);
+        return;
+    }
+    if (batch->len == batch->cap) {
+        batch->cap = MIN(batch->cap ? 2 * batch->cap : 8, DD_FFE_DEFERRED_LIMIT);
+        batch->rows = safe_erealloc(batch->rows, batch->cap, sizeof(*batch->rows), 0);
+    }
+    // The event slices borrow these strings until the sidecar handoff.
+    batch->rows[batch->len++] = (dd_ffe_deferred_row){
+        .event = event, .context = context, .bytes = bytes,
+        .fields = {dd_ffe_retain(flag), dd_ffe_retain(subject), dd_ffe_retain(attributes),
+                   dd_ffe_retain(allocation), dd_ffe_retain(variant), dd_ffe_retain(features),
+                   dd_ffe_retain(get_DD_SERVICE()), dd_ffe_retain(get_DD_ENV()), dd_ffe_retain(get_DD_VERSION())},
+    };
+    batch->bytes += bytes;
+    dd_ffe_outcome(DD_FFE_DEFERRED, 1);
+}
+
+static uint32_t dd_ffe_admission_budget(void) {
+    zend_long budget = get_global_DD_FEATURE_FLAGS_EXPOSURES_ADMISSION_TIMEOUT_US();
+    if (budget < 0 || budget > 50000) {
+        static _Atomic(int64_t) warned_pid;
+        int64_t pid = (int64_t)getpid(), prior = atomic_load(&warned_pid);
+        if (prior != pid && atomic_compare_exchange_strong(&warned_pid, &prior, pid)) {
+            LOG(WARN, "DD_FEATURE_FLAGS_EXPOSURES_ADMISSION_TIMEOUT_US accepts 0-50000; using 10000");
+        }
+        budget = DD_FFE_ADMISSION_BUDGET_US;
+    }
+    return budget && DDTRACE_G(ffe_test_admission_budget_us) ? DDTRACE_G(ffe_test_admission_budget_us) : (uint32_t)budget;
+}
+
+bool ddtrace_ffe_test_admission_ready(void) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) return false;
+
+    const char *exact = getenv("DDTRACE_PHPT_EXACT_PEER");
+    bool use_peer = exact && strcmp(exact, "1") == 0 && getenv("TEST_PHP_EXECUTABLE") &&
+                    strcmp(sapi_module.name, "cli") == 0;
+    DDTRACE_G(ffe_test_admission_budget_us) = 50000;
+    ddog_FfeTelemetryContext context = {.service = DDOG_CHARSLICE_C("ddtrace-phpt-readiness")};
+    ddog_FfeExposure probe = {.flag_key = DDOG_CHARSLICE_C("probe"), .allocation_key = DDOG_CHARSLICE_C("probe"),
+                              .variant = DDOG_CHARSLICE_C("ready")};
+    ddog_FfeAdmission status = ddog_FFE_ADMISSION_UNAVAILABLE;
+    ddog_MaybeError err = use_peer
+        ? ddog_php_ffe_admit_test_peer(&DATADOG_G(sidecar), &context, &probe, false, &status)
+        : ddog_sidecar_ffe_admit_v1(&DATADOG_G(sidecar), &context, &probe, false,
+                                    DDTRACE_G(ffe_test_admission_budget_us), &status);
+    bool ready = datadog_ffi_try("FFE readiness probe failed", err) &&
+                 (status == ddog_FFE_ADMISSION_ADMITTED || status == ddog_FFE_ADMISSION_REPEAT);
+    DDTRACE_G(ffe_test_exact_peer) = ready && use_peer;
+    return ready;
+}
+
+const char *ddtrace_ffe_admission_name(int status) {
+    switch (status) {
+        case ddog_FFE_ADMISSION_ADMITTED: return "admitted";
+        case ddog_FFE_ADMISSION_REPEAT: return "repeat";
+        case ddog_FFE_ADMISSION_UNKNOWN: return "unknown";
+        default: return "unavailable";
+    }
 }
 
 int ddtrace_ffe_record_exposure(
@@ -532,128 +745,51 @@ int ddtrace_ffe_record_exposure(
         return -1;
     }
 
-    ddog_FfeExposureKey key = {
-        .scope = dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()),
-        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
-        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
-        .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
-        .flag_key = dd_zend_string_to_CharSlice(flag_key),
-        .subject_id = dd_zend_string_to_CharSlice(targeting_key),
-        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
-        .variant = dd_zend_string_to_CharSlice(variant),
-        .serial_id = serial_id,
-        .has_serial_id = has_serial_id,
-    };
-    if (!ddog_ffe_exposure_cache_record(&key)) {
-        LOG(DEBUG, "Feature Flags: exposure not queued; subject already exposed to this allocation, variant and serial id");
-        return 0;
-    }
-
-    if (!get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED()) {
-        LOG(DEBUG, "Feature Flags: exposure not queued; DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false");
-        return 1;
-    }
-
-    if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
-        // Reported once per flush rather than per dropped exposure.
-        DDTRACE_G(ffe_exposures_dropped)++;
-        return 1;
-    }
-
-    if (DDTRACE_G(ffe_exposure_buffer_len) == DDTRACE_G(ffe_exposure_buffer_cap)) {
-        size_t new_cap = DDTRACE_G(ffe_exposure_buffer_cap) == 0 ? 8 : DDTRACE_G(ffe_exposure_buffer_cap) * 2;
-        if (new_cap > DD_FFE_EXPOSURE_BUFFER_LIMIT) {
-            new_cap = DD_FFE_EXPOSURE_BUFFER_LIMIT;
-        }
-        DDTRACE_G(ffe_exposure_buffer) = safe_erealloc(
-            DDTRACE_G(ffe_exposure_buffer),
-            new_cap,
-            sizeof(dd_ffe_exposure),
-            0
-        );
-        DDTRACE_G(ffe_exposure_buffer_cap) = new_cap;
-    }
-
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
-    dd_ffe_exposure *exposure = &buffer[DDTRACE_G(ffe_exposure_buffer_len)++];
-    exposure->timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000;
-    exposure->flag_key = zend_string_copy(flag_key);
-    exposure->subject_id = targeting_key ? zend_string_copy(targeting_key) : ZSTR_EMPTY_ALLOC();
-    exposure->subject_attributes_json = zend_string_copy(subject_attributes_json);
-    exposure->allocation_key = zend_string_copy(allocation_key);
-    exposure->variant = zend_string_copy(variant);
-    exposure->serial_id = serial_id;
-    exposure->has_serial_id = has_serial_id;
-    exposure->features_json = features_json ? zend_string_copy(features_json) : NULL;
-    LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu); delivery awaits sidecar handoff", DDTRACE_G(ffe_exposure_buffer_len));
-    return 1;
-}
-
-bool ddtrace_ffe_flush_exposures(void) {
-    size_t exposure_count = DDTRACE_G(ffe_exposure_buffer_len);
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
-
-    if (exposure_count == 0 || !buffer) {
-        if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
-            LOG(DEBUG, "Feature Flags: exposure flush complete; empty queue (0 exposures)");
-        }
-        return false;
-    }
-
-    LOG(DEBUG, "Feature Flags: exposure flush started (%zu exposure(s)); attempting sidecar handoff", exposure_count);
-
-    if (DDTRACE_G(ffe_exposures_dropped)) {
-        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); buffer limit reached (%d)",
-            DDTRACE_G(ffe_exposures_dropped), DD_FFE_EXPOSURE_BUFFER_LIMIT);
-    }
-
-    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
-        LOG(DEBUG, "Feature Flags: dropping %zu exposure(s); sidecar or request is not initialized", exposure_count);
-        dd_ffe_clear_exposures();
-        return false;
-    }
-
-    ddog_FfeExposure *ffi_exposures = safe_emalloc(exposure_count, sizeof(ddog_FfeExposure), 0);
-    for (size_t i = 0; i < exposure_count; i++) {
-        ffi_exposures[i] = (ddog_FfeExposure) {
-            .timestamp_ms = buffer[i].timestamp_ms,
-            .flag_key = dd_zend_string_to_CharSlice(buffer[i].flag_key),
-            .subject_id = dd_zend_string_to_CharSlice(buffer[i].subject_id),
-            .subject_attributes_json = dd_zend_string_to_CharSlice(buffer[i].subject_attributes_json),
-            .allocation_key = dd_zend_string_to_CharSlice(buffer[i].allocation_key),
-            .variant = dd_zend_string_to_CharSlice(buffer[i].variant),
-            .serial_id = buffer[i].serial_id,
-            .has_serial_id = buffer[i].has_serial_id,
-            .features_json = dd_zend_string_to_CharSlice(buffer[i].features_json),
-        };
-    }
-
+    if (!DATADOG_G(request_initialized)) return ddog_FFE_ADMISSION_UNAVAILABLE;
     ddog_FfeTelemetryContext context = {
         .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
         .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
         .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
     };
-    ddog_Slice_FfeExposure exposure_slice = {
-        .ptr = ffi_exposures,
-        .len = exposure_count,
+    ddog_FfeExposure event = {
+        .timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000,
+        .flag_key = dd_zend_string_to_CharSlice(flag_key),
+        .subject_id = dd_zend_string_to_CharSlice(targeting_key),
+        .subject_attributes_json = dd_zend_string_to_CharSlice(subject_attributes_json),
+        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
+        .variant = dd_zend_string_to_CharSlice(variant),
+        .serial_id = serial_id,
+        .has_serial_id = has_serial_id,
+        .features_json = dd_zend_string_to_CharSlice(features_json),
     };
-
-    bool flushed = datadog_ffi_try(
-        "Failed sending FFE exposure batch to sidecar",
-        ddog_sidecar_send_ffe_exposure_batch(
-            &DATADOG_G(sidecar),
-            &context,
-            exposure_slice));
-
-    // A successful IPC handoff is not confirmation of delivery to intake.
-    // datadog_ffi_try already logs the failure reason.
-    if (flushed) {
-        LOG(DEBUG, "Feature Flags: handed off %zu exposure(s) to sidecar; the sidecar logs delivery as ffe_exposures_flusher", exposure_count);
-    } else {
-        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); sidecar handoff failed and is not retried", exposure_count);
+    bool deliver = get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED();
+    uint32_t budget = dd_ffe_admission_budget();
+    if (budget && deliver && DDTRACE_G(ffe_deferred)) {
+        uint64_t deadline = zend_hrtime() / 1000 + budget;
+        size_t prefix = dd_ffe_pending_prefix(context, event);
+        bool ordered = !prefix || dd_ffe_flush_deferred_until(false, deadline, SIZE_MAX, prefix);
+        budget = ordered ? dd_ffe_remaining_budget(deadline) : 0;
     }
-
-    efree(ffi_exposures);
-    dd_ffe_clear_exposures();
-    return flushed;
+    ddog_FfeAdmission status = ddog_FFE_ADMISSION_UNAVAILABLE;
+    if (budget && DATADOG_G(sidecar)) {
+        ddog_MaybeError error = DDTRACE_G(ffe_test_exact_peer)
+            ? ddog_php_ffe_admit_test_peer(&DATADOG_G(sidecar), &context, &event, deliver, &status)
+            : ddog_sidecar_ffe_admit_v1(&DATADOG_G(sidecar), &context, &event, deliver, budget, &status);
+        if (error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+            ddog_MaybeError_drop(error);
+            if (deliver) dd_ffe_outcome(DD_FFE_INVALID, 1);
+            return ddog_FFE_ADMISSION_UNAVAILABLE;
+        }
+    }
+    if (deliver && (status == ddog_FFE_ADMISSION_QUEUE_FULL || status == ddog_FFE_ADMISSION_UNAVAILABLE)) {
+        dd_ffe_defer(context, event, flag_key, targeting_key, subject_attributes_json, allocation_key, variant, features_json);
+        status = ddog_FFE_ADMISSION_UNAVAILABLE;
+    } else if (deliver && status == ddog_FFE_ADMISSION_ADMITTED) {
+        DDTRACE_G(ffe_exposure_handed_off) = true;
+        dd_ffe_outcome(DD_FFE_CONFIRMED, 1);
+    } else if (status == ddog_FFE_ADMISSION_UNKNOWN) {
+        dd_ffe_outcome(DD_FFE_UNCERTAIN, 1);
+    }
+    LOG(DEBUG, "Feature Flags: exposure admission %s", ddtrace_ffe_admission_name((int) status));
+    return (int) status;
 }

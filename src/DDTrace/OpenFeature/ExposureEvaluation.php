@@ -8,11 +8,17 @@ use OpenFeature\implementation\flags\Attributes;
 use OpenFeature\implementation\flags\EvaluationContext as ImmutableEvaluationContext;
 use OpenFeature\interfaces\flags\EvaluationContext;
 
-/** A completed flag evaluation and its Datadog exposure decision, as given to an ExposureHook callback. */
+/** A completed flag evaluation and its exposure decision, as given to an ExposureHook callback. */
 final class ExposureEvaluation
 {
+    public const DECISION_ADMITTED = 'admitted';
+    public const DECISION_REPEAT = 'repeat';
+    public const DECISION_UNAVAILABLE = 'unavailable';
+    public const DECISION_UNKNOWN = 'unknown';
+    public const DECISION_NOT_EXPOSURE = 'not_exposure';
+
     /**
-     * @param ?bool $cacheHit Null unless the evaluation is an exposure that the cache checked.
+     * @param self::DECISION_* $decisionStatus Evaluation-time admission decision.
      * @param array<string, string|float|bool> $features
      * @internal Built by the Datadog provider and ExposureHook.
      */
@@ -20,7 +26,7 @@ final class ExposureEvaluation
         private string $flagKey,
         private EvaluationContext $evaluationContext,
         private bool $exposure = false,
-        private ?bool $cacheHit = null,
+        private string $decisionStatus = self::DECISION_NOT_EXPOSURE,
         private ?string $variant = null,
         private ?string $allocationKey = null,
         private ?int $splitSerialId = null,
@@ -85,15 +91,21 @@ final class ExposureEvaluation
         return $this->exposure;
     }
 
-    /** True when this subject was already exposed to the same allocation, variant and split. */
-    public function isCacheHit(): bool
+    /** @return self::DECISION_* The sidecar verdict, or DECISION_NOT_EXPOSURE for an ineligible evaluation. */
+    public function getDecisionStatus(): string
     {
-        return $this->cacheHit === true;
+        return $this->decisionStatus;
     }
 
-    /** True for a new or changed exposure: what the provider sends to Datadog when Datadog logging is on. */
+    /** True when the assignment matches the latest admission in the current decision domain. */
+    public function isCacheHit(): bool
+    {
+        return $this->decisionStatus === self::DECISION_REPEAT;
+    }
+
+    /** True when the sidecar admitted this observation during evaluation. */
     public function shouldSend(): bool
     {
-        return $this->cacheHit === false;
+        return $this->decisionStatus === self::DECISION_ADMITTED;
     }
 }

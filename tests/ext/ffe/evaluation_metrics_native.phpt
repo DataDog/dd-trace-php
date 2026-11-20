@@ -4,6 +4,9 @@ FFE evaluation metrics use native recorder
 DD_METRICS_OTEL_ENABLED=true
 --FILE--
 <?php
+require_once __DIR__ . '/stubs/exposure_sidecar.inc';
+ini_set('datadog.trace.agent_test_session_token', uniqid('ffe-', true));
+ffeAwaitExposureSidecar();
 function show($label, $value) {
     echo $label . '=' . json_encode($value, JSON_UNESCAPED_SLASHES) . "\n";
 }

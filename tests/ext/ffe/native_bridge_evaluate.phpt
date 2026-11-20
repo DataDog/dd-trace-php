@@ -1,7 +1,12 @@
 --TEST--
 FFE native bridge evaluates through libdatadog
+--ENV--
+DD_SERVICE=php-ffe-native-bridge-test
 --FILE--
 <?php
+require_once __DIR__ . '/stubs/exposure_sidecar.inc';
+ini_set('datadog.trace.agent_test_session_token', uniqid('ffe-', true));
+ffeAwaitExposureSidecar();
 function show($label, $value) {
     echo $label . '=' . json_encode($value, JSON_UNESCAPED_SLASHES) . "\n";
 }

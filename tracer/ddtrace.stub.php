@@ -1053,7 +1053,7 @@ namespace DDTrace\Testing {
     function ffe_load_config(string $json): bool {}
 
     /**
-     * Flushes native FFE exposure batches for integration tests.
+     * Reports and clears the current request's exposure handoff indicator.
      *
      * @internal Used by extension tests only.
      */
@@ -1140,14 +1140,8 @@ namespace DDTrace\Internal {
 
     function ffe_provider_state(): array {}
 
-    /**
-     * Record an exposure in the process exposure cache and, when it is new or
-     * changed, queue it for Datadog with its EXPOSURE features.
-     *
-     * @internal
-     * @return bool|null False for a repeated exposure, null when nothing was recorded.
-     */
-    function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId = null, array $features = []): ?bool {}
+    /** @internal Returns the sidecar admission status for an eligible exposure. */
+    function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId = null, array $features = []): ?string {}
 
     /** @internal Submit one final evaluation without waiting or reconnecting. */
     function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData, int $evaluationTimestampMs, bool $targetingKeyInvalid = false, array $features = []): bool {}

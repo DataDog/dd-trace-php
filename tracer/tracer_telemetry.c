@@ -162,6 +162,28 @@ void ddtrace_telemetry_finalize(void) {
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDTRACE_G(baggage_malformed_count), DDOG_CHARSLICE_C("header_style:baggage"));
 
     ddtrace_telemetry_flush_ffe_rejections(buffer);
+    static const ddog_CharSlice exposure_reasons[DD_FFE_OUTCOME_COUNT] = {
+        [DD_FFE_DEFERRED] = DDOG_CHARSLICE_C_BARE("outcome:deferred"),
+        [DD_FFE_CONFIRMED] = DDOG_CHARSLICE_C_BARE("outcome:confirmed"),
+        [DD_FFE_LEGACY] = DDOG_CHARSLICE_C_BARE("outcome:legacy_submitted"),
+        [DD_FFE_UNCERTAIN] = DDOG_CHARSLICE_C_BARE("outcome:unknown"),
+        [DD_FFE_INVALID] = DDOG_CHARSLICE_C_BARE("outcome:invalid_input"),
+        [DD_FFE_OVERSIZE] = DDOG_CHARSLICE_C_BARE("outcome:oversize"),
+        [DD_FFE_OVERFLOW] = DDOG_CHARSLICE_C_BARE("outcome:deferred_overflow"),
+        [DD_FFE_UNSENT] = DDOG_CHARSLICE_C_BARE("outcome:not_handed_off"),
+    };
+    bool registered = false;
+    for (size_t i = 0; i < DD_FFE_OUTCOME_COUNT; ++i) {
+        uint64_t count = DDTRACE_G(ffe_outcomes)[i];
+        if (!count) continue;
+        ddog_CharSlice metric = DDOG_CHARSLICE_C("exposures.rows");
+        if (!registered) {
+            ddog_sidecar_telemetry_register_metric(&DATADOG_G(sidecar), metric, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+            registered = true;
+        }
+        DDTRACE_G(ffe_outcomes)[i] = 0;
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric, (double)count, exposure_reasons[i]);
+    }
 
     // Flush any accumulated BGS (background sender) metrics if enough time has passed.
     ddtrace_telemetry_flush_bgs_metrics_if_due(DATADOG_GLOBALS_PTR());
@@ -169,6 +191,7 @@ void ddtrace_telemetry_finalize(void) {
 
 void ddtrace_telemetry_rinit(void) {
     memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
+    memset(DDTRACE_G(ffe_outcomes), 0, sizeof(DDTRACE_G(ffe_outcomes)));
     zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
     DDTRACE_G(baggage_extract_count) = 0;
     DDTRACE_G(baggage_inject_count) = 0;

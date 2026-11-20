@@ -231,6 +231,44 @@ fn sidecar_connect(cfg: config::Config) -> anyhow::Result<Box<SidecarTransport>>
 }
 
 #[no_mangle]
+pub extern "C" fn ddog_php_ffe_admit_test_peer(
+    transport: &mut Box<SidecarTransport>,
+    context: &datadog_sidecar_ffi::FfeTelemetryContext<'_>,
+    exposure: &datadog_sidecar_ffi::FfeExposure<'_>,
+    deliver: bool,
+    out: &mut u32,
+) -> MaybeError {
+    *out = datadog_sidecar_ffi::FFE_ADMISSION_UNAVAILABLE;
+    if let Some((context, event)) = try_c!(exposure.admission_input(context, deliver)) {
+        *out = transport.inner.admit_ffe_exposure_for_test(context, event, deliver) as u32;
+    }
+    MaybeError::None
+}
+
+/// # Safety
+/// The caller keeps `rows` and their borrowed fields valid for all `len` exposures.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_ffe_submit_deferred_test_peer(
+    transport: &mut Box<SidecarTransport>,
+    context: &datadog_sidecar_ffi::FfeTelemetryContext<'_>,
+    rows: *const datadog_sidecar_ffi::FfeExposure<'_>,
+    len: usize,
+    out: &mut datadog_sidecar_ffi::FfeDeferredHandoff,
+) -> MaybeError {
+    let rows = unsafe { ffi::Slice::from_raw_parts(rows, len) };
+    datadog_sidecar_ffi::submit_deferred_for_test(transport, context, rows, out)
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_php_ffe_supports_ordered_handoff(
+    transport: &mut Box<SidecarTransport>,
+    budget_us: u32,
+) -> bool {
+    let deadline = std::time::Instant::now() + Duration::from_micros(u64::from(budget_us.min(50_000)));
+    transport.inner.supports_ordered_ffe_handoff_until(deadline)
+}
+
+#[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_php(
     connection: &mut *mut SidecarTransport,
     error_path: *const c_char,

@@ -17,6 +17,10 @@ typedef enum {
 void ddtrace_ffe_startup(void);
 void ddtrace_ffe_shutdown(void);
 void ddtrace_ffe_handle_fork(void);
+void ddtrace_ffe_flush_deferred(bool final);
+void ddtrace_ffe_discard_deferred(void);
+bool ddtrace_ffe_test_admission_ready(void);
+size_t ddtrace_ffe_test_flush_deferred_prefix(void);
 bool ddtrace_ffe_enabled(void);
 bool ddtrace_ffe_remote_config_enabled(void);
 bool ddtrace_ffe_agentless_enabled(void);
@@ -34,8 +38,10 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
     zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data,
     int64_t evaluation_timestamp_ms, bool targeting_key_invalid, zend_string *features_json);
 
-// Returns 1 for a new or changed exposure, 0 for a repeat and -1 when nothing is recorded.
+const char *ddtrace_ffe_admission_name(int status);
+
+// Returns the sidecar admission status or -1 for an ineligible observation.
 int ddtrace_ffe_record_exposure(zend_string *flag_key, zend_string *targeting_key, zend_string *subject_attributes_json, zend_string *allocation_key, zend_string *variant, int32_t serial_id, bool has_serial_id, zend_string *features_json);
-bool ddtrace_ffe_flush_exposures(void);
+
 
 #endif // DDTRACE_FFE_H

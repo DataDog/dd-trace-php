@@ -69,7 +69,9 @@ $path = put_ffe_config_file($config);
 
 show('loaded', wait_for_ffe_config(true));
 show('has_config_after_add', \DDTrace\ffe_has_config());
-show('success', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array()));
+require __DIR__ . '/stubs/exposure_sidecar.inc';
+ffeAwaitExposureSidecar();
+show('success', \DDTrace\ffe_evaluate('string.flag', 0, uniqid('user-', true), array()));
 
 $version = \DDTrace\ffe_config_version();
 del_rc_file($path);

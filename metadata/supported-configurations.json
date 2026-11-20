@@ -475,6 +475,13 @@
         "default": "true"
       }
     ],
+    "DD_FEATURE_FLAGS_EXPOSURES_ADMISSION_TIMEOUT_US": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "10000"
+      }
+    ],
     "DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED": [
       {
         "implementation": "A",

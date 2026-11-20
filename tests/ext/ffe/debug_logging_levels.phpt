@@ -1,5 +1,7 @@
 --TEST--
 FFE per-evaluation details and exposure handoffs are visible under DD_TRACE_DEBUG
+--ENV--
+DD_SERVICE=php-ffe-debug-admission-levels
 --INI--
 datadog.trace.debug=1
 datadog.trace.log_level="debug,ddtrace=trace"
@@ -8,6 +10,9 @@ datadog.trace.generate_root_span=0
 datadog.experimental_flagging_provider_enabled=1
 --FILE--
 <?php
+require_once __DIR__ . '/stubs/exposure_sidecar.inc';
+ini_set('datadog.trace.agent_test_session_token', uniqid('ffe-', true));
+ffeAwaitExposureSidecar();
 require __DIR__ . '/logging.inc';
 
 DDTrace\Testing\ffe_load_config(json_encode(array(
@@ -23,9 +28,8 @@ DDTrace\Testing\ffe_load_config(json_encode(array(
         )),
     )),
 )));
-// Distinct subjects, since the exposure cache queues a repeat only once.
-for ($i = 0; $i < 1001; ++$i) {
-    DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, "user-$i", array());
+for ($i = 0; $i < 2; ++$i) {
+    DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, null, array());
 }
 DDTrace\ffe_evaluate('missing', DDTrace\FFE_BOOL, null, array());
 DDTrace\Testing\flush_ffe_exposures();
@@ -35,9 +39,9 @@ DDTrace\Testing\flush_ffe_exposures();
 $file = __DIR__ . '/debug_logging_levels.log';
 $logs = read_log_snapshot($file);
 var_dump(strpos($logs, 'Feature Flags: configuration applied successfully') !== false);
-var_dump(strpos($logs, 'Feature Flags: dropped 1 exposure(s); buffer limit reached (1000)') !== false);
-var_dump(substr_count($logs, 'Feature Flags: native evaluation ') === 1002);
-var_dump(strpos($logs, 'Feature Flags: handed off 1000 exposure(s) to sidecar') !== false);
+var_dump(strpos($logs, 'Feature Flags: exposure admission repeat') !== false);
+var_dump(substr_count($logs, 'Feature Flags: native evaluation ') === 3);
+var_dump(strpos($logs, 'Feature Flags: exposure admission admitted') !== false);
 
 // Without the debug override, the configured level keeps the same details.
 ini_set('datadog.trace.debug', '0');
@@ -45,8 +49,8 @@ DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, null, array());
 DDTrace\ffe_evaluate('missing', DDTrace\FFE_BOOL, null, array());
 DDTrace\Testing\flush_ffe_exposures();
 $logs = read_log_snapshot($file);
-var_dump(substr_count($logs, 'Feature Flags: native evaluation ') === 1004);
-var_dump(strpos($logs, 'Feature Flags: handed off 1 exposure(s) to sidecar') !== false);
+var_dump(substr_count($logs, 'Feature Flags: native evaluation ') === 5);
+var_dump(substr_count($logs, 'Feature Flags: exposure admission repeat') === 2);
 ?>
 --EXPECT--
 bool(true)

@@ -340,6 +340,46 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      struct ddog_Slice_FfeExposure exposures);
 
 /**
+ * Records an assignment in the delivery or hook-only cache selected by `deliver`.
+ * The first eligible call negotiates support within the same IPC budget (maximum 50 ms).
+ * An absent transport, zero budget or more than 65,536 text bytes yields UNAVAILABLE before IPC.
+ * Delivery includes the subject attributes and feature JSON in the byte count.
+ *
+ * ADMITTED records the assignment and queues it when delivery is enabled. REPEAT matches the
+ * resident assignment. QUEUE_FULL permits batched fallback. UNAVAILABLE indicates a definitive
+ * refusal. UNKNOWN means the sidecar may have applied the observation: keep it terminal.
+ * A late reply must drain before a new call can proceed. Conversion errors set a MaybeError
+ * and leave the output at UNAVAILABLE.
+ *
+ * # Safety
+ * A populated transport slot must point to a live, exclusively borrowed transport. Supply writable
+ * storage for `out` and valid borrowed input slices for the duration of the call. Text identity
+ * fields must contain UTF-8.
+ */
+ddog_MaybeError ddog_sidecar_ffe_admit_v1(struct ddog_SidecarTransport **transport,
+                                          const struct ddog_FfeTelemetryContext *context,
+                                          const struct ddog_FfeExposure *exposure,
+                                          bool deliver,
+                                          uint32_t budget_us,
+                                          ddog_FfeAdmission *out);
+
+/**
+ * Attempts one wire-sized prefix within the supplied IPC budget (maximum 50 ms).
+ * CONFIRMED includes repeats. LEGACY_SUBMITTED confirms a socket write. UNKNOWN applies to
+ * the reported prefix; resume only at its suffix. INVALID identifies one rejected row.
+ * REFUSED leaves the entire input eligible for a later handoff.
+ *
+ * # Safety
+ * Supply valid borrowed slices, writable output storage and a live, exclusively borrowed
+ * transport in each populated transport slot.
+ */
+ddog_MaybeError ddog_sidecar_ffe_submit_deferred_v1(struct ddog_SidecarTransport **transport,
+                                                    const struct ddog_FfeTelemetryContext *context,
+                                                    struct ddog_Slice_FfeExposure exposures,
+                                                    uint32_t budget_us,
+                                                    struct ddog_FfeDeferredHandoff *out);
+
+/**
  * Send structured Feature Flags evaluation events to the sidecar. The sidecar owns
  * route selection, JSON serialization, and EVP delivery. This function is
  * caller-driven; callers must aggregate and bound event cardinality before passing
