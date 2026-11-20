@@ -1337,6 +1337,8 @@ void zai_uhook_minit(int module_number) {
     dd_hook_data_handlers = *zend_get_std_object_handlers();
     dd_hook_data_handlers.offset = offsetof(dd_hook_data, std);
     dd_hook_data_handlers.free_obj = dd_hook_data_free;
+    // Bound to one call; std cloning also drops the private fields that dd_hook_data_from_obj() reads
+    dd_hook_data_handlers.clone_obj = NULL;
 #if PHP_VERSION_ID >= 80000
     ddtrace_hook_data_returned_prop_info = zend_hash_str_find_ptr(&ddtrace_hook_data_ce->properties_info, ZEND_STRL("returned"));
 #endif
