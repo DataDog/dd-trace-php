@@ -38,6 +38,7 @@ A more elaborate summary of the breaking changes can be found in our upgrading g
 
 ## Tracer
 ### Added
+- OpenFeature exposure hooks share admission decisions across workers connected to the same sidecar. `ExposureEvaluation::getDecisionStatus()` reports the decision for each evaluation.
 - Send traces using the V1 efficient trace payload protocol to agents that support it (7.79+), falling back to v0.4 otherwise. `DD_TRACE_AGENT_PROTOCOL_VERSION=0.4` always sends v0.4 #4453
 - Fetch feature flag configuration from the Datadog CDN without an agent, enabled with `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless`. Exposures and evaluation counts then go straight to the intake, using `DD_API_KEY` and `DD_SITE` #4312, #4489
 - Enable and disable Data Streams Monitoring at runtime via Remote Config #4472

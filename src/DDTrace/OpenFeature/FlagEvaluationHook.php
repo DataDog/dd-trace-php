@@ -120,7 +120,7 @@ final class FlagEvaluationHook implements Hook
     {
         try {
             $exposure = $this->details !== null ? $this->exposure : null;
-            $status = $exposure !== null && $exposure['isExposure'] ? 'unavailable' : 'not_exposure';
+            $status = $exposure !== null && $exposure['isExposure'] ? ExposureEvaluation::DECISION_UNAVAILABLE : ExposureEvaluation::DECISION_NOT_EXPOSURE;
             if ($exposure !== null && $exposure['isExposure'] && $this->exposureRecorder !== null) {
                 try {
                     $recorded = ($this->exposureRecorder)(
@@ -132,15 +132,19 @@ final class FlagEvaluationHook implements Hook
                         $exposure['serialId'],
                         $exposure['exposureFeatures']
                     );
-                    if (in_array($recorded, ['admitted', 'repeat', 'unknown', 'unavailable'], true)) {
+                    if (in_array($recorded, [
+                        ExposureEvaluation::DECISION_ADMITTED, ExposureEvaluation::DECISION_REPEAT,
+                        ExposureEvaluation::DECISION_UNKNOWN, ExposureEvaluation::DECISION_UNAVAILABLE,
+                    ], true)) {
                         $status = $recorded;
                     }
                 } catch (\Throwable $ignored) {
                 }
             }
-            if (($status === 'admitted' || $status === 'repeat') && method_exists($this->details, 'setMetadata')) {
+            if (($status === ExposureEvaluation::DECISION_ADMITTED || $status === ExposureEvaluation::DECISION_REPEAT)
+                && method_exists($this->details, 'setMetadata')) {
                 $this->details->setMetadata(
-                    [SplitFeatures::EXPOSURE_CACHE_HIT_KEY => $status === 'repeat'] + ($this->details->getMetadata() ?? [])
+                    [SplitFeatures::EXPOSURE_CACHE_HIT_KEY => $status === ExposureEvaluation::DECISION_REPEAT] + ($this->details->getMetadata() ?? [])
                 );
             }
             self::$exposureEvaluations ??= new \WeakMap();

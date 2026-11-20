@@ -11,7 +11,14 @@ use OpenFeature\interfaces\flags\EvaluationContext;
 /** A completed flag evaluation and its exposure decision, as given to an ExposureHook callback. */
 final class ExposureEvaluation
 {
+    public const DECISION_ADMITTED = 'admitted';
+    public const DECISION_REPEAT = 'repeat';
+    public const DECISION_UNAVAILABLE = 'unavailable';
+    public const DECISION_UNKNOWN = 'unknown';
+    public const DECISION_NOT_EXPOSURE = 'not_exposure';
+
     /**
+     * @param self::DECISION_* $decisionStatus Evaluation-time admission decision.
      * @param array<string, string|float|bool> $features
      * @internal Built by the Datadog provider and ExposureHook.
      */
@@ -19,7 +26,7 @@ final class ExposureEvaluation
         private string $flagKey,
         private EvaluationContext $evaluationContext,
         private bool $exposure = false,
-        private string $decisionStatus = 'not_exposure',
+        private string $decisionStatus = self::DECISION_NOT_EXPOSURE,
         private ?string $variant = null,
         private ?string $allocationKey = null,
         private ?int $splitSerialId = null,
@@ -84,18 +91,21 @@ final class ExposureEvaluation
         return $this->exposure;
     }
 
+    /** @return self::DECISION_* The sidecar verdict, or DECISION_NOT_EXPOSURE for an ineligible evaluation. */
     public function getDecisionStatus(): string
     {
         return $this->decisionStatus;
     }
 
+    /** True when the assignment matches the latest admission in the current decision domain. */
     public function isCacheHit(): bool
     {
-        return $this->decisionStatus === 'repeat';
+        return $this->decisionStatus === self::DECISION_REPEAT;
     }
 
+    /** True when the sidecar admitted this observation during evaluation. */
     public function shouldSend(): bool
     {
-        return $this->decisionStatus === 'admitted';
+        return $this->decisionStatus === self::DECISION_ADMITTED;
     }
 }

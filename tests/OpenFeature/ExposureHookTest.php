@@ -62,6 +62,10 @@ final class ExposureHookTest extends TestCase
         self::assertSame('on', $this->evaluate('flag'));
 
         [$first, $repeat] = $this->evaluations;
+        self::assertSame('admitted', ExposureEvaluation::DECISION_ADMITTED);
+        self::assertSame('repeat', ExposureEvaluation::DECISION_REPEAT);
+        self::assertSame(ExposureEvaluation::DECISION_ADMITTED, $first->getDecisionStatus());
+        self::assertSame(ExposureEvaluation::DECISION_REPEAT, $repeat->getDecisionStatus());
         self::assertTrue($first->isExposure());
         self::assertFalse($first->isCacheHit());
         self::assertTrue($first->shouldSend());
@@ -104,6 +108,7 @@ final class ExposureHookTest extends TestCase
         self::assertFalse($this->evaluations[0]->isExposure());
         self::assertFalse($this->evaluations[0]->shouldSend());
         self::assertNull($this->evaluations[0]->getVariant());
+        self::assertSame(ExposureEvaluation::DECISION_NOT_EXPOSURE, $this->evaluations[0]->getDecisionStatus());
     }
 
     public function testErrorDetailsAreNotExposuresEvenWithDoLog(): void

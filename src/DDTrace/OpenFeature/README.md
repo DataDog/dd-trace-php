@@ -2,8 +2,7 @@
 
 The Datadog OpenFeature provider sends exposures to Datadog. To also record
 exposures in your own data store, register `DDTrace\OpenFeature\ExposureHook`.
-It receives every completed evaluation with the exposure decision of the PHP
-process.
+It receives each completed evaluation with its evaluation-time sidecar admission decision.
 
 ```php
 use DDTrace\OpenFeature\ExposureEvaluation;
@@ -28,11 +27,8 @@ OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
 // Write the buffer to the data store after the response is sent.
 ```
 
-- The callback runs during the evaluation. Do not do I/O in it: copy what you
-  need and write it later, for example after the response is sent.
-- `shouldSend()` is true for a successful evaluation of an allocation that logs
-  exposures, for a subject not yet exposed to the same allocation, variant and
-  split serial id in this PHP process.
+- The callback runs on the evaluating thread. Buffer your data and perform I/O after the response.
+- `shouldSend()` is true for an `admitted` observation. Use `isExposure()` to collect every eligible observation.
 - `isExposure()` is true for every successful evaluation of an allocation that
   logs exposures, including repeats. `isCacheHit()` tells repeats apart.
 - An evaluation that fails, including one that a later `after` hook fails, is
@@ -47,15 +43,24 @@ OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
 - An exception from the callback does not affect the evaluation. The first one
   is logged as a warning, later ones at debug level.
 
-The exposure cache holds 65,536 entries per PHP process. A child created with
-`pcntl_fork()` starts with an empty cache. The cache does not see other
-processes: with several workers, such as PHP-FPM, `isCacheHit()` is true for a
-subject that this process exposed to the same allocation before, even if
-another worker exposed it to a different allocation since.
+Workers connected to the same live sidecar share decisions for a given SDK identity, EVP
+route, service, environment, application version, flag and subject. This includes forked
+children that connect to the parent's sidecar. The sidecar compares allocation, variant and
+split serial ID with the latest resident assignment. For two workers observing A, B, A, A
+in that order, the statuses are `admitted`, `admitted`, `admitted`, `repeat`.
+Eviction and sidecar restart allow a fresh admission. Each delivery or hook-only domain
+has a capacity of 65,536 keys.
 
-Exposures to Datadog do not depend on this cache. The provider hands every
-exposure, repeats included, to the Datadog sidecar, which deduplicates across
-all PHP processes before it sends exposures to Datadog.
+| `getDecisionStatus()` | Meaning |
+|---|---|
+| `admitted` | The sidecar recorded this assignment. With delivery enabled it also queued the exposure for Datadog. |
+| `repeat` | The current assignment matches the remembered one. `isCacheHit()` returns true. |
+| `unavailable` | The evaluation completed without a synchronous admission decision. Eligible delivery rows can still reach Datadog through the deferred batch. |
+| `unknown` | The sidecar may already have applied the observation. The tracer leaves this attempt terminal. |
+| `not_exposure` | The evaluation failed or selected an allocation with exposure logging disabled. |
+
+The corresponding `ExposureEvaluation::DECISION_*` constants are stable callback values.
+Admission confirms local sidecar state; HTTP delivery and intake processing happen later.
 
 ## Features
 
@@ -86,7 +91,14 @@ entries into `EvaluationDetails::getFlagMetadata()`.
 DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 ```
 
-The tracer then sends no exposures to Datadog. `ExposureHook` callbacks still
-receive every evaluation, and `shouldSend()` gives the same result as before.
-The default is `true`. This setting stops exposures only; evaluation counts
-have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`.
+This selects the hook-only decision domain. Eligible callbacks share hook-only assignments
+across workers. Re-enabling delivery selects the delivery domain and preserves the first eligible
+Datadog exposure for each new or changed assignment in that domain. The default is `true`. Configure evaluation counts with
+`DD_FLAGGING_EVALUATION_COUNTS_ENABLED`.
+
+`DD_FEATURE_FLAGS_EXPOSURES_ADMISSION_TIMEOUT_US` controls the local IPC wait (default 10,000
+microseconds; range 0–50,000). Zero selects batch-only delivery: an eligible hook reports
+`unavailable`, and a callback using `shouldSend()` skips that observation. Larger valid rows
+(over 65,536 text bytes) can use the deferred delivery lane with their original attributes and
+features. Each request retains up to 1,000 rows within an 8 MiB budget. Exposure outcome
+telemetry records deferred, confirmed, uncertain and dropped observations.
