@@ -770,8 +770,9 @@ void ddtrace_internal_handle_postfork(void) {
 }
 
 void ddtrace_internal_handle_fork() {
-    // The parent owns its already-recorded losses; the child starts fresh.
+    // Telemetry drains each process's observations at request shutdown.
     memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
+    memset(DDTRACE_G(ffe_outcomes), 0, sizeof(DDTRACE_G(ffe_outcomes)));
     ddtrace_ffe_discard_deferred();
     DDTRACE_G(ffe_exposure_handed_off) = false;
 #ifdef __linux__

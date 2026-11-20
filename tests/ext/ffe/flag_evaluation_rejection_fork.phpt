@@ -1,5 +1,5 @@
 --TEST--
-FFE fork children report only their own rejected observations
+FFE evaluation rejections and exposure outcomes belong to the process that recorded them
 --SKIPIF--
 <?php
 if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
@@ -12,6 +12,8 @@ foreach (glob(__DIR__ . '/tmp/ffe-rejection-fork/telemetry-*.json') as $file) {
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_FEATURE_FLAGS_EXPOSURES_ADMISSION_TIMEOUT_US=0
+DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=true
 DD_TRACE_CLI_ENABLED=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_REMOTE_CONFIG_ENABLED=0
@@ -34,6 +36,10 @@ function rejectEvaluation() {
     if (\DDTrace\Internal\record_ffe_flag_evaluation(
         '', 'blue', null, null, array(), null, false, false, 1700000000123
     )) throw new RuntimeException('invalid observation was accepted');
+    foreach (array('', 'allocation') as $allocation) {
+        $status = \DDTrace\Internal\record_ffe_exposure('flag', 'subject', array(), $allocation, 'blue');
+        if ($status !== 'unavailable') throw new RuntimeException('unexpected batch-only status: ' . $status);
+    }
 }
 
 $parentService = 'ffe-rejection-parent-' . getmypid();
@@ -65,6 +71,7 @@ $deadline = microtime(true) + 30;
 do {
     usleep(10000);
     $counts = array('parent' => 0, 'child' => 0);
+    $outcomes = array('parent' => array('deferred' => 0, 'invalid_input' => 0), 'child' => array('deferred' => 0, 'invalid_input' => 0));
     $closed = array();
     // Directory capture publishes complete requests atomically and avoids
     // inheriting the single-file recorder's locked mutex across a fork.
@@ -77,6 +84,14 @@ do {
             if ($event['request_type'] === 'app-closing') $closed[$service] = true;
             if ($event['request_type'] !== 'generate-metrics') continue;
             foreach ($event['payload']['series'] as $series) {
+                if ($series['metric'] === 'exposures.rows') {
+                    $tags = $series['tags'];
+                    $name = count($tags) === 1 ? substr($tags[0], strlen('outcome:')) : '';
+                    if ($series['namespace'] !== 'tracers' || !isset($outcomes[$services[$service]][$name]) || $tags[0] !== 'outcome:' . $name) {
+                        throw new RuntimeException('unexpected exposure outcome dimensions');
+                    }
+                    foreach ($series['points'] as $point) $outcomes[$services[$service]][$name] += $point[1];
+                }
                 if ($series['metric'] !== 'flagevaluation.rows.dropped') continue;
                 if ($series['namespace'] !== 'tracers' || $series['tags'] !== array('reason:serialization_error')) {
                     throw new RuntimeException('unexpected drop metric dimensions');
@@ -88,10 +103,12 @@ do {
 } while (count($closed) !== 2 && microtime(true) < $deadline);
 echo 'completed='; var_dump(count($closed) === 2);
 echo 'drop_counts=', json_encode($counts), "\n";
+echo 'exposure_outcomes=', json_encode($outcomes), "\n";
 ?>
 --EXPECT--
 completed=bool(true)
 drop_counts={"parent":2,"child":1}
+exposure_outcomes={"parent":{"deferred":2,"invalid_input":2},"child":{"deferred":1,"invalid_input":1}}
 --CLEAN--
 <?php
 foreach (glob(__DIR__ . '/tmp/ffe-rejection-fork/telemetry-*') as $file) {
