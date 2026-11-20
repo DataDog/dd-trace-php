@@ -1634,12 +1634,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 
 [[package]]
-name = "elf"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
-
-[[package]]
 name = "embedded-io"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2945,9 +2939,10 @@ dependencies = [
  "libdd-gotter",
  "libdd-libunwind-sys",
  "libdd-networking",
- "libdd-otel-thread-ctx",
  "libdd-process-utils",
  "libdd-telemetry",
+ "libdd-trace-model",
+ "libdd-trace-utils",
  "nix 0.29.0",
  "num-derive",
  "num-traits",
@@ -3329,16 +3324,6 @@ dependencies = [
  "tower-service",
  "webpki-root-certs",
  "webpki-roots",
-]
-
-[[package]]
-name = "libdd-otel-thread-ctx"
-version = "2.0.0"
-dependencies = [
- "anyhow",
- "elf",
- "libdd-otel-thread-ctx",
- "object 0.36.7",
 ]
 
 [[package]]
