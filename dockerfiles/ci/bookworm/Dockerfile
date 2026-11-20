@@ -105,6 +105,14 @@ RUN set -eux; \
     add-apt-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-21 main"; \
     add-apt-repository "deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-21 main"; \
     \
+# Use signed nginx.org stable packages with a minimum supported version.
+    curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key; \
+    gpg --show-keys --with-colons /tmp/nginx_signing.key | grep -q 'fpr:::::::::573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62:'; \
+    gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg /tmp/nginx_signing.key; \
+    rm /tmp/nginx_signing.key; \
+    echo 'deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] https://nginx.org/packages/debian bookworm nginx' > /etc/apt/sources.list.d/nginx.list; \
+    printf 'Package: nginx\nPin: origin nginx.org\nPin-Priority: 900\n' > /etc/apt/preferences.d/99nginx; \
+    \
 # prevent Debian's PHP packages from being installed
 # https://github.com/docker-library/php/pull/542
     { \
@@ -122,6 +130,8 @@ RUN set -eux; \
         $DEVLIBS \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
+    dpkg --compare-versions "$(dpkg-query -W -f='${Version}' nginx)" ge 1.30.7; \
+    rm -f /etc/nginx/conf.d/default.conf; \
     \
 # Fail if the installed ca-certificates predates 20250419~deb12u2, the bookworm-security
 # release that drops the eMudhra "emSign ECC Root CA - G3" / "AAA Certificate Services" roots \
@@ -140,7 +150,7 @@ RUN set -eux; \
     chown circleci:circleci /opt; \
     \
 # Allow nginx to be run as non-root for tests
-    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
+    chown -R circleci:circleci /var/log/nginx/ /var/cache/nginx/; \
     \
 # Make clang the default compiler
     update-alternatives --install /usr/bin/cc cc /usr/bin/clang-21 100; \

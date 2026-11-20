@@ -386,8 +386,8 @@ def main() -> None:
 # Transfer ownership of the PHP extension/ini dirs to localuser so that make
 # install (which runs plain cp/tee, no sudo) can write there as uid {uid}.
 chown localuser "$(php-config --extension-dir)" "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')" || true
-# Allow nginx to create temp dirs under /var/lib/nginx/ when running as localuser.
-chown localuser /var/lib/nginx/ 2>/dev/null || true
+# Allow nginx to create temp dirs for Debian and nginx.org package layouts.
+chown localuser /var/lib/nginx/ /var/cache/nginx/ 2>/dev/null || true
 """
 
     with open(entrypoint_path, "w") as f:
