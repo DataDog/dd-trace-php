@@ -334,6 +334,8 @@ foreach ($build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     CARGO_BUILD_JOBS: 12
+    CACHE_COMPRESSION_FORMAT: tarzstd
+    CACHE_COMPRESSION_LEVEL: fastest
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
@@ -362,6 +364,16 @@ foreach ($build_platforms as $platform) {
     - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine<?= $flavour === 'zts' ? '-zts' : '' ?>.so"
 <?php endif; ?>
+  cache:
+    key:
+      prefix: "xlang-cargo-v1-<?= $platform['triplet'] ?>-<?= $major_minor ?>-<?= $flavour ?>"
+      files:
+        - Cargo.lock
+        - rust-toolchain.toml
+    paths:
+      - .cache/cargo/registry/index/
+      - .cache/cargo/registry/cache/
+      - tmp/xlang-cargo-target/
   artifacts:
     paths:
       - "extensions_*"
@@ -572,6 +584,8 @@ foreach ($build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     CARGO_BUILD_JOBS: 12
+    CACHE_COMPRESSION_FORMAT: tarzstd
+    CACHE_COMPRESSION_LEVEL: fastest
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 5Gi
     KUBERNETES_MEMORY_LIMIT: 10Gi
@@ -591,6 +605,16 @@ foreach ($build_platforms as $platform) {
 <?php endif; ?>
     # The shared DSO is packaged from the single sidecar job, not each PHP job.
     - rm "ssi_<?= $arch_dir ?>/libdatadog_php.so"
+  cache:
+    key:
+      prefix: "ssi-cargo-v1-<?= $platform['triplet'] ?>-<?= $major_minor ?>"
+      files:
+        - Cargo.lock
+        - rust-toolchain.toml
+    paths:
+      - .cache/cargo/registry/index/
+      - .cache/cargo/registry/cache/
+      - tmp/ssi-rust-target/
   artifacts:
     when: always
     paths:
