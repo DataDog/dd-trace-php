@@ -303,32 +303,16 @@ benchmarks-appsec:
 # Posts the comparison and uploads results. allow_failure preserves the old || :
 # semantics, and a separate job avoids the parallel-teardown race with the S3
 # upload.
-benchmarks-pr-comment:
+# One reporting job per scenario: appsec and profiler benchmarks are manual,
+# tracer is not, and a need on an unplayed manual job makes GitLab skip the
+# dependent.
+.benchmarks-report:
   stage: benchmarks-report
-  # Optional needs: appsec and profiler are manual on most pipelines, and a
-  # non-optional need on a manual job that did not run makes GitLab skip this
-  # job. Optional needs collect their artifacts when they ran and proceed
-  # without them otherwise.
-  needs:
-    - benchmarks-tracer
-    - job: benchmarks-appsec
-      optional: true
-    - job: benchmarks-profiler
-      optional: true
   allow_failure: true
   when: on_success
   tags: ["arch:amd64"]
   image: $MICROBENCHMARKS_CI_IMAGE
   timeout: 30m
-  rules: *benchmarks-tracer-rules
-  variables:
-    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
-    FLAKY_BENCHMARKS_REGEX: ""
-    # Analyzer settings the PR comment's comparison output depends on.
-    UNCONFIDENCE_THRESHOLD: "2.0"
-    DISABLE_NHST: "1"
-    CI_TYPE: "theoretical"
-    MD_REPORT_ONLY_CHANGES: "1"
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
@@ -340,13 +324,42 @@ benchmarks-pr-comment:
         echo "ERROR: Reports directory exists but is empty - benchmarks job had issues"
         exit 1
       fi
-    - bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.pr-comment.yml" --debug
+    - bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/$BP_RUNNER_PR_COMMENT_CONFIG" --debug
   artifacts:
     name: "reports"
     when: always
     paths:
       - reports/
     expire_in: 3 months
+  variables:
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
+    # Analyzer settings the PR comment's comparison output depends on.
+    UNCONFIDENCE_THRESHOLD: "2.0"
+    DISABLE_NHST: "1"
+    CI_TYPE: "theoretical"
+    MD_REPORT_ONLY_CHANGES: "1"
+
+benchmarks-pr-comment:
+  extends: .benchmarks-report
+  rules: *benchmarks-tracer-rules
+  needs: [benchmarks-tracer]
+  variables:
+    BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment.yml"
+
+benchmarks-pr-comment-appsec:
+  extends: .benchmarks-report
+  rules: *benchmarks-appsec-rules
+  needs: [benchmarks-appsec]
+  variables:
+    BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment-appsec.yml"
+
+benchmarks-pr-comment-profiler:
+  extends: .benchmarks-report
+  rules: *benchmarks-profiler-rules
+  needs: [benchmarks-profiler]
+  variables:
+    BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment-profiler.yml"
 
 # Kafka and RabbitMQ produce/consume throughput with Data Streams Monitoring
 # off and on, against real brokers and agent; fails if DSM adds more than 3%

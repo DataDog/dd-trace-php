@@ -3,6 +3,7 @@ experiments:
     steps:
       - name: Post PR comment
         run: post_pr_comment
+        header: Benchmarks [ tracer ]
 
 global_teardown:
   - name: Upload to BP API

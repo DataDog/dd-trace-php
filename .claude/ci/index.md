@@ -410,7 +410,8 @@ Dedicated performance hardware — not easily reproducible locally.
 
 → **[benchmarks.md](benchmarks.md)**
 Covers: `benchmarks-tracer`, `benchmarks-appsec`, `benchmarks-profiler`,
-`benchmarks-pr-comment`, `macrobenchmarks [7.4]`, `macrobenchmarks [8.1]`,
+`benchmarks-pr-comment`, `benchmarks-pr-comment-appsec`,
+`benchmarks-pr-comment-profiler`, `macrobenchmarks [7.4]`, `macrobenchmarks [8.1]`,
 `build-benchmark-ci-images`
 
 ---
