@@ -78,6 +78,8 @@ class KafkaIntegration extends Integration
             $headers[self::DSM_CONTEXT_HEADER] = $context;
             $inject = true;
         }
+        // After the checkpoint, which may have waited for the cluster id
+        self::addClientMetadataToSpan($span, ObjectKVStore::get($producerTopic, 'kafka'));
         if ($inject) {
             $hook->args = self::injectHeadersIntoArgs($hook->args, $headers);
             $hook->overrideArguments($hook->args);
@@ -206,6 +208,13 @@ class KafkaIntegration extends Integration
 
         $conf = ObjectKVStore::get($consumer, 'conf');
         self::addMetadataToSpan($span, $conf);
+        self::addClientMetadataToSpan($span, self::consumerClient($consumer));
+    }
+
+    // The client a KafkaConsumer or a low-level Consumer's Queue consumes from
+    private static function consumerClient($consumer)
+    {
+        return $consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : $consumer;
     }
 
     public static function setDataStreamsConsumeCheckpoint(\RdKafka\Message $message, $consumer)
@@ -221,8 +230,7 @@ class KafkaIntegration extends Integration
         }
         $edgeTags[] = 'topic:' . $message->topic_name;
         $edgeTags[] = 'type:kafka';
-        $kafka = $consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : $consumer;
-        $edgeTags = array_merge($edgeTags, self::clusterIdTags($kafka));
+        $edgeTags = array_merge($edgeTags, self::clusterIdTags(self::consumerClient($consumer)));
 
         \DDTrace\Internal\dsm_set_checkpoint(
             $edgeTags,
@@ -349,12 +357,41 @@ class KafkaIntegration extends Integration
      */
     private static function clusterIdTags($kafka, int $waitMs = 0): array
     {
+        $clusterId = self::clusterId($kafka, $waitMs);
+        return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
+    }
+
+    /** The id of the cluster `$kafka` is connected to, as clusterIdTags() reads it, or null. */
+    private static function clusterId($kafka, int $waitMs = 0)
+    {
         if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
-            return [];
+            return null;
         }
         $conf = ObjectKVStore::get($kafka, 'conf');
-        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null, $waitMs);
-        return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
+        return \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null, $waitMs);
+    }
+
+    /**
+     * Tag `$span` with what the client `$kafka` knows beyond its Conf: the brokers added with
+     * addBrokers(), and the id of the cluster it is connected to. A span never waits for the id:
+     * it has it if the client has had a metadata response, or another client with the same
+     * bootstrap servers has shared it, and goes without it otherwise.
+     */
+    private static function addClientMetadataToSpan($span, $kafka)
+    {
+        if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
+            return;
+        }
+        $addedBrokers = ObjectKVStore::get($kafka, 'added_brokers');
+        if ($addedBrokers !== null) {
+            $conf = ObjectKVStore::get($kafka, 'conf');
+            $brokers = (string) ($conf['metadata.broker.list'] ?? '');
+            $span->attributes[Tag::KAFKA_HOST_LIST] = $brokers === '' ? $addedBrokers : "$brokers,$addedBrokers";
+        }
+        $clusterId = self::clusterId($kafka);
+        if ($clusterId !== null) {
+            $span->attributes[Tag::KAFKA_CLUSTER_ID] = $clusterId;
+        }
     }
 
     private static function addMetadataToSpan($span, $conf)
@@ -380,8 +417,8 @@ class KafkaIntegration extends Integration
     {
         $configurationHooks = [
             'RdKafka\KafkaConsumer' => ['__construct'],
-            'RdKafka\Producer' => ['__construct', 'newTopic'],
-            'RdKafka\Consumer' => ['__construct', 'newQueue']
+            'RdKafka\Producer' => ['__construct', 'newTopic', 'addBrokers'],
+            'RdKafka\Consumer' => ['__construct', 'newQueue', 'addBrokers']
         ];
 
         foreach ($configurationHooks as $class => $methods) {
@@ -423,6 +460,11 @@ class KafkaIntegration extends Integration
                     ObjectKVStore::put($hook->returned, 'conf', $conf);
                     // The client, for its cluster id
                     ObjectKVStore::put($hook->returned, 'kafka', $hook->instance);
+                } elseif ($method === 'addBrokers' && $hook->returned > 0 && is_string($hook->args[0] ?? null)) {
+                    // Brokers added to the client after its Conf was dumped, as it was given them
+                    $added = ObjectKVStore::get($hook->instance, 'added_brokers');
+                    $brokers = $added === null ? $hook->args[0] : $added . ',' . $hook->args[0];
+                    ObjectKVStore::put($hook->instance, 'added_brokers', $brokers);
                 }
             }
         );
