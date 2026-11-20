@@ -12,8 +12,8 @@ This directory holds everything the microbenchmark jobs need:
   built in-repo via the
   [`build-ci-images.template.yml`](https://github.com/DataDog/benchmarking-platform-tools/blob/main/images/templates/gitlab/build-ci-images.template.yml)
   include (see [How to rebuild the CI Docker image](#how-to-rebuild-the-ci-docker-image)).
-- **`steps/`**: `update-dd-agent-config.sh`, the config script of the
-  `datadog_agent` step (bp-runner has no `update_dd_agent_config` step type).
+- **`steps/`**: PHP checkout, BOLT preparation and execution scripts, plus
+  the Datadog agent configuration script.
 - **`bp-runner.yml`**: [bp-runner](https://github.com/DataDog/benchmarking-platform-tools/tree/main/bp-runner)
   experiment definition: captures hardware/software info, starts a local
   Datadog agent, does the one-time setup (ini appends, mysql and redis start,
@@ -42,8 +42,10 @@ Execution flow on each PR:
 1. Each benchmark job sets `SCENARIO` (`tracer`, `appsec` or `profiler`) and
    runs `bp-runner .gitlab/benchmarks/bp-runner.yml`: hardware/software info
    capture, Datadog agent, one-time setup, then the candidate and baseline
-   runs (the baseline is the PR's merge-target branch, at the merge base,
-   resolved by bp-runner's auto lookup).
+   runs. The PHP step resolves the PR's merge-target branch with
+   `github-find-merge-into-branch` (or uses `BASELINE_BRANCH` when set), then
+   takes its merge base with the exact candidate commit.
+   Both revisions are compiled and aligned before either is measured.
 2. Each run's `benchmark/` suite results are saved as
    `reports/$BASELINE_OR_CANDIDATE-<name>.<ext>` artifacts; only the AppSec job
    also uploads the logs, tarred as `candidate.tar.gz`/`baseline.tar.gz`.
@@ -55,6 +57,54 @@ Execution flow on each PR:
 4. `check-big-regressions` gates the pipeline on regressions above the
    threshold of 10% in `bp-runner.fail-on-regression.yml`, and
    `benchmarks-pr-comment*` comments the comparison on the PR.
+
+## Binary layout processing
+
+All three scenarios measure the combined `ddtrace.so`. For comparisons,
+`llvm-bolt-align` rewrites both the baseline and candidate after linking,
+placing their common functions at matching offsets. It does not replace
+the linker and requires no profile. Both builds retain relocations with
+`-Wl,--emit-relocs` and disable GCC's hot/cold block partitioning with
+`-fno-reorder-blocks-and-partition`.
+
+Set the CI variable `BOLT_MODE` to choose the processing step:
+
+| Value | Processing after linking |
+| --- | --- |
+| Empty (default) | `align` when a baseline exists; `plain` for a candidate-only run. |
+| `align` | Pairwise rewrite with `llvm-bolt-align`; requires a baseline. |
+| `plain` | Independently rewrite each module with `llvm-bolt`, without a profile. |
+| `off` | Run the normally linked modules without BOLT processing. |
+
+Explicit alignment fails when no baseline can be found. A failed baseline
+lookup also fails the job. The candidate-only default applies when the
+lookup succeeds and returns no target branch, as on master runs.
+Both source revisions must contain the combined-extension harness from
+[#4520](https://github.com/DataDog/dd-trace-php/pull/4520); older harnesses
+are rejected because they rebuild separate modules.
+
+The PHP image copies a static LLVM 23.1.6 build with
+[`llvm-bolt-align`](https://github.com/llvm/llvm-project/pull/210634)
+from a digest-pinned tool image. `llvm-bolt` and `llvm-bolt-align` use the
+same executable, selecting their operation by the invocation name.
+The LLVM 16 packages in the PHP image serve the existing compiler/LTO
+toolchain; BOLT runs after linking.
+
+`DD_TRACE_ASSUME_COMPILED=1` prevents the benchmark harness from rebuilding
+the rewritten module. The installed and build-directory modules are
+checked against the selected BOLT output after each run. Unsatisfied
+alignment constraints or unexpected module replacement fail the job.
+`reports/bolt-mode.txt` records the processing mode, and `reports/bolt/`
+retains the tool's diagnostic logs. Temporary BOLT outputs are removed when
+the step exits. Checkouts remain at `/app/candidate` and `/app/baseline` for
+the shared analyzer to read their Git metadata; they are not uploaded.
+
+The checkout/build/rewrite/run workflow tests can be run on Linux without
+compiling PHP or LLVM:
+
+```bash
+uv run .gitlab/benchmarks/tests/test_bolt_workflow.py
+```
 
 ## How to add a new microbenchmark
 
@@ -163,13 +213,12 @@ Benchmarking Platform wrapper:
   make benchmarks                     # tracer PHPBench scenarios
   make benchmarks_opcache             # the same scenarios under OPCache
   make benchmarks_tea                 # the C++ Google Benchmark suite
-  # AppSec adds: make install_appsec, then
-  # BENCHMARK_EXTRA="--group=frameworks" make call_benchmarks
+  # For the combined-extension AppSec run, use benchmark/runall.sh below.
   ```
-- profiler: `SCENARIO=profiler ./benchmark/runall.sh` from the repo root
-  (sirun drives `profiling/benches/timeline.json` and
-  `profiling/benches/exceptions.json` after a natively compiled profiler;
-  see `benchmark/run_with_native_profiler.sh`).
+- combined-extension suites: from `benchmark/`, run
+  `SCENARIO=profiler ./runall.sh` (or `tracer` / `appsec`) with
+  `ARTIFACTS_DIR` set to an absolute output directory. The profiler's sirun
+  workloads load `tmp/build_combined/modules/ddtrace.so`.
 
 To reproduce a full CI run including the baseline comparison, run the job's
 steps from the repository root with the environment the CI job provides

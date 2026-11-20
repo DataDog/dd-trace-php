@@ -1,7 +1,14 @@
+# Static LLVM 23.1.6 build with llvm-bolt-align (llvm-project#210634).
+FROM registry.ddbuild.io/ci/benchmarking-platform:php_llvm-bolt-align@sha256:405fea2c6a6f26870df3ef8cffdc24dce21f5c1a975624e96d99da5b814e6171 AS bolt-align
+
 FROM registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
 
 ARG CI_JOB_TOKEN
 ARG RUST_VERSION=1.91.1
+
+COPY --from=bolt-align /usr/local/bin/llvm-bolt /usr/local/bin/llvm-bolt
+RUN ln -s llvm-bolt /usr/local/bin/llvm-bolt-align \
+    && llvm-bolt-align --version
 
 # Install MySQL & create a test database (User: test, Password: test, Database: test)
 RUN --mount=type=ssh bp-install mysql && apt-get install --no-install-recommends -y mysql-client
