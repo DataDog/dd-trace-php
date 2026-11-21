@@ -184,6 +184,10 @@ See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
   extension`, and `compile tracing sidecar`. The PHP 7.0 `compile tracing extension`
   LTO and SSI jobs have no explicit `cache:` block, but they do build Rust.
 
+- The musl compile jobs (combined, SSI combined, sidecar and the PHP 7.0 jobs)
+  `apk add mimalloc2-insecure` and `LD_PRELOAD` it: Alpine's rustc links scudo and
+  clang/lld use musl's malloc, which spend much of a parallel build in the kernel.
+
 - Windows compile jobs use Docker on the Windows runner (not DinD): the script starts a
   long-lived container with `docker run -d`, then drives it via `docker exec`. The
   `GIT_STRATEGY: none` variable means the runner does not clone the repo -- instead the
