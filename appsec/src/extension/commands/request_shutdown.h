@@ -7,7 +7,7 @@
 
 #include "../attributes.h"
 #include "../commands_ctx.h"
-#include "../network.h"
+#include "../dddefs.h"
 #include <Zend/zend_llist.h>
 
 struct req_shutdown_info {
@@ -25,5 +25,4 @@ struct req_shutdown_info {
     uint64_t api_sec_samp_key;
 };
 
-dd_result dd_request_shutdown(
-    dd_conn *nonnull conn, struct req_shutdown_info *nonnull req_info);
+dd_result dd_request_shutdown(struct req_shutdown_info *nonnull req_info);

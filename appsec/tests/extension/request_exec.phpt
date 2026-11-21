@@ -29,7 +29,7 @@ rshutdown();
 
 $commands = $helper->get_commands();
 
-var_dump($commands[2]);
+var_dump($commands[1]);
 
 ?>
 --EXPECTF--

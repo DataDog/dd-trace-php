@@ -67,8 +67,8 @@ switch_stack($stack);
 close_span(100.0);
 
 $c = $helper->get_commands();
+print_r($c[0]);
 print_r($c[1]);
-print_r($c[2]);
 --EXPECTF--
 Result of notify_start:
 Array

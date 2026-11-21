@@ -1,6 +1,6 @@
 use std::backtrace::Backtrace;
 
-use futures::Future;
+use std::future::Future;
 use tokio::task_local;
 
 task_local! {
@@ -252,24 +252,6 @@ where
     F: Future,
 {
     CLIENT_ID.scope(client_id, fut).await;
-}
-
-pub fn fmt_bin(vec: &[u8]) -> impl std::fmt::Debug + '_ {
-    struct BinFormatter<'a>(&'a [u8]);
-    impl<'a> std::fmt::Debug for BinFormatter<'a> {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            for &c in self.0 {
-                if c.is_ascii_graphic() {
-                    write!(f, "{}", c as char)?;
-                } else {
-                    write!(f, "\\x{:02x}", c)?;
-                }
-            }
-            Ok(())
-        }
-    }
-
-    BinFormatter(vec)
 }
 
 #[cfg(test)]

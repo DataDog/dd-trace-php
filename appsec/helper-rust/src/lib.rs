@@ -15,7 +15,7 @@ mod telemetry;
 use config::Config;
 use datadog_sidecar::service::telemetry::InProcessTelemetryClientFactory;
 
-pub use client::{on_disconnect, on_message, MessageResponse};
+pub use client::{on_application, on_disconnect, on_request, on_session_config};
 
 /// Discard the parent's helper state.
 ///

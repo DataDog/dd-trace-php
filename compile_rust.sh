@@ -117,4 +117,10 @@ if test -n "$RUST_TOOLCHAIN"; then
   set -- "+$RUST_TOOLCHAIN" "$@"
 fi
 
+# The AppSec protocol shared by components-rs and the AppSec helper, which
+# libdatadog's sidecar includes (see .cargo/config.toml). Builds of copied
+# sources do not see the repository's .cargo directory.
+DATADOG_SIDECAR_APPSEC_PROTOCOL="${DATADOG_SIDECAR_APPSEC_PROTOCOL:-$(pwd)/components-rs/appsec_protocol.rs}"
+export DATADOG_SIDECAR_APPSEC_PROTOCOL
+
 SIDECAR_VERSION=$(cat VERSION) RUSTFLAGS="$RUSTFLAGS" "${DDTRACE_CARGO:-cargo}" "$@"

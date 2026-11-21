@@ -12,7 +12,8 @@ libddwaf-source-static = ["ddappsec-helper/source-static"]
 
 [dependencies]
 anyhow = "1.0"
-datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
+# The protocol types come from components-rs/appsec_protocol.rs.
+datadog-sidecar = { path = "../libdatadog/datadog-sidecar", features = ["appsec-protocol"] }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 
 [target.'cfg(unix)'.dependencies]

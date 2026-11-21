@@ -151,6 +151,49 @@ void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *read
  */
 bool ddog_agent_has_span_events(void);
 
+/**
+ * Sets the AppSec settings sent with the connection config, or none (`config` NULL): the
+ * connection then has no AppSec client. Call before `ddog_sidecar_set_connection_config`.
+ */
+void ddog_sidecar_set_appsec_session_config(struct ddog_SidecarTransport **transport,
+                                            const struct ddog_AppSecSessionConfigFfi *config);
+
+const struct ddog_AppSecVerdictView *ddog_appsec_verdict_view(const struct ddog_AppSecVerdictResult *result);
+
+void ddog_appsec_verdict_drop(struct ddog_AppSecVerdictResult*);
+
+/**
+ * Starts an AppSec request with `addresses`, a MessagePack map. `*transport` may be NULL, as may
+ * be the sidecar connection. The client binds to the connection's current application first,
+ * unless `keep_bound_application` is set and some application is bound already.
+ */
+struct ddog_AppSecVerdictResult *ddog_appsec_request_init(struct ddog_SidecarTransport **transport,
+                                                          ddog_CharSlice addresses,
+                                                          bool keep_bound_application);
+
+/**
+ * Runs the WAF on `addresses`, a MessagePack map, during the AppSec request: as the RASP check
+ * `rasp_rule` (with `rule_variant`) unless empty.
+ */
+struct ddog_AppSecVerdictResult *ddog_appsec_request_exec(struct ddog_SidecarTransport **transport,
+                                                          ddog_CharSlice addresses,
+                                                          ddog_CharSlice rasp_rule,
+                                                          ddog_CharSlice rule_variant);
+
+/**
+ * Finishes the AppSec request with `addresses`, a MessagePack map.
+ */
+struct ddog_AppSecVerdictResult *ddog_appsec_request_shutdown(struct ddog_SidecarTransport **transport,
+                                                              ddog_CharSlice addresses,
+                                                              uint64_t api_sec_samp_key,
+                                                              bool input_truncated);
+
+/**
+ * Testing: requests go to the mock helper at `fd` instead of the sidecar, as JSON (a negative
+ * fd stops this). The fd stays owned by the caller.
+ */
+void ddog_appsec_testing_set_mock_fd(int32_t fd);
+
 void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),
                          ddog_OwnedZendString (*init_func)(ddog_CharSlice));
@@ -336,6 +379,24 @@ struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_E
                                                              const struct ddog_FfeCdnConfig *cdn_config,
                                                              bool di_enabled);
 
+/**
+ * The AppSec settings remote config currently applies. ASM_FEATURES files are kept across
+ * requests: unlike the dynamic config, they don't change INI values that need restoring.
+ */
+struct ddog_AsmFeatures ddog_remote_config_asm_features(const struct ddog_RemoteConfigState *remote_config);
+
+/**
+ * Keeps following the ASM_FEATURES of the target the tracer currently follows, until called
+ * again. Without DD_SERVICE/DD_ENV, the tracer starts each request on a default target, while
+ * AppSec keeps to the application the previous request ended with.
+ */
+void ddog_remote_config_keep_asm_features_target(struct ddog_RemoteConfigState *remote_config);
+
+/**
+ * The ASM_FEATURES of the kept target as they are now, or of the current target if none is kept.
+ */
+struct ddog_AsmFeatures ddog_remote_config_kept_asm_features(struct ddog_RemoteConfigState *remote_config);
+
 uint64_t ddog_remote_config_current_generation(const struct ddog_RemoteConfigState *remote_config);
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
@@ -452,12 +513,6 @@ ddog_MaybeError ddog_sidecar_connect_master_php(void);
  * and references to their state must not be used afterward.
  */
 ddog_MaybeError ddog_sidecar_handle_fork_php(void);
-
-/**
- * Ensures the connected sidecar's AppSec backend is started using the
- * configuration captured from the PHP extension.
- */
-ddog_MaybeError ddog_sidecar_ensure_appsec_started(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,

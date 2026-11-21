@@ -21,7 +21,7 @@ ini_set('memory_limit', (string)memory_get_usage(true));
 rshutdown();
 ini_set('memory_limit', '64M');
 $commands = $helper->get_commands();
-var_dump($commands[2][1][0]['server.response.body']);
+var_dump($commands[1][1][0]['server.response.body']);
 ?>
 --EXPECT--
 <r>text</r>array(1) {

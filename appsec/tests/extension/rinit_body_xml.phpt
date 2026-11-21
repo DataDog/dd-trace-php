@@ -21,8 +21,8 @@ var_dump(rinit());
 
 $c = $helper->get_commands();
 
-var_dump($c[1][1][0]['server.request.body']);
-var_dump($c[1][1][0]['server.request.body.raw']);
+var_dump($c[0][1][0]['server.request.body']);
+var_dump($c[0][1][0]['server.request.body.raw']);
 
 ?>
 --EXPECT--

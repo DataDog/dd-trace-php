@@ -51,11 +51,9 @@ $returned = true;
 bool(true)
 bool(true)
 string(1) "v"
-array(3) {
+array(2) {
   [0]=>
-  string(11) "client_init"
-  [1]=>
   string(12) "request_init"
-  [2]=>
+  [1]=>
   string(16) "request_shutdown"
 }

@@ -7,7 +7,7 @@
 #include <ext/standard/url.h>
 #include <php.h>
 
-#include "../commands_helpers.h"
+#include "../appsec_requests.h"
 #include "../configuration.h"
 #include "../ddappsec.h" // NOLINT(unused-includes)
 #include "../entity_body.h"
@@ -17,9 +17,9 @@
 #include "../string_helpers.h"
 #include "request_init.h"
 #include <ext/compatibility.h> // NOLINT(unused-includes)
-#include <mpack.h>
 
-static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
+static dd_result _request_pack(
+    mpack_writer_t *nonnull w, struct req_info_init *nonnull ctx);
 static void _init_autoglobals(void);
 static void _pack_headers(
     mpack_writer_t *nonnull w, const zend_array *nonnull server);
@@ -33,25 +33,26 @@ static dd_result _pack_request_body(mpack_writer_t *nonnull w,
     struct req_info_init *nonnull ctx, const zend_array *nonnull server,
     dd_mpack_limits *nonnull limits);
 
-static const dd_command_spec _spec = {
-    .name = "request_init",
-    .name_len = sizeof("request_init") - 1,
-    .num_args = 1, // a single map
-    .outgoing_cb = _request_pack,
-    .incoming_cb = dd_command_proc_resp_verd_span_data,
-    .config_features_cb = dd_command_process_config_features,
-};
-
 dd_result dd_request_init(
-    dd_conn *nonnull conn, struct req_info_init *nonnull ctx)
+    struct req_info_init *nonnull ctx, bool keep_bound_application)
 {
-    return dd_command_exec_req_info(conn, &_spec, &ctx->req_info);
+    dd_appsec_addresses addresses;
+    dd_appsec_addresses_init(&addresses);
+    dd_result res = _request_pack(&addresses.writer, ctx);
+    if (res != dd_success) {
+        // With an error flagged, the writer may be destroyed with open maps;
+        // it frees the buffer.
+        mpack_writer_flag_error(&addresses.writer, mpack_error_data);
+        UNUSED(mpack_writer_destroy(&addresses.writer));
+        return res;
+    }
+    return dd_appsec_send_request_init(
+        &addresses, keep_bound_application, &ctx->req_info);
 }
 
-static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
+static dd_result _request_pack(
+    mpack_writer_t *nonnull w, struct req_info_init *nonnull ctx)
 {
-    struct req_info_init *nonnull ctx = _ctx;
-
     bool send_raw_body = get_global_DD_APPSEC_TESTING() &&
                          get_global_DD_APPSEC_TESTING_RAW_BODY();
 #define REQUEST_INIT_MAP_NUM_ENTRIES 10
@@ -265,7 +266,7 @@ static void _pack_files_field_names(
         } else {
             char buf[MAX_LENGTH_OF_LONG + 1];
             snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
-            mpack_write(w, buf);
+            dd_mpack_write_nullable_cstr(w, buf);
         }
     }
     ZEND_HASH_FOREACH_END();

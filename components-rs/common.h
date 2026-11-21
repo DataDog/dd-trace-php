@@ -314,6 +314,22 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
+typedef enum ddog_AppSecVerdictKind {
+  /**
+   * No AppSec client handled the request: skip AppSec for the rest of the request.
+   */
+  DDOG_APP_SEC_VERDICT_KIND_UNAVAILABLE,
+  /**
+   * The client failed the request; `error` says why.
+   */
+  DDOG_APP_SEC_VERDICT_KIND_ERROR,
+  DDOG_APP_SEC_VERDICT_KIND_OK,
+  /**
+   * The sidecar could not be reached; `error` says why.
+   */
+  DDOG_APP_SEC_VERDICT_KIND_TRANSPORT_ERROR,
+} ddog_AppSecVerdictKind;
+
 typedef enum ddog_AppsecBodyStatus {
   /**
    * Nothing usable was parsed; the MessagePack buffer is empty.
@@ -333,6 +349,26 @@ typedef enum ddog_AppsecBodyStatus {
    */
   DDOG_APPSEC_BODY_STATUS_INTERNAL_ERROR,
 } ddog_AppsecBodyStatus;
+
+/**
+ * Whether remote config enables AppSec. `Unset` when no ASM_FEATURES file says either way.
+ */
+typedef enum ddog_AsmActivation {
+  DDOG_ASM_ACTIVATION_UNSET,
+  DDOG_ASM_ACTIVATION_ENABLED,
+  DDOG_ASM_ACTIVATION_DISABLED,
+} ddog_AsmActivation;
+
+/**
+ * The user collection mode remote config requests for automatic user events.
+ */
+typedef enum ddog_AsmAutoUserInstrumMode {
+  DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNDEFINED,
+  DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNKNOWN,
+  DDOG_ASM_AUTO_USER_INSTRUM_MODE_DISABLED,
+  DDOG_ASM_AUTO_USER_INSTRUM_MODE_IDENTIFICATION,
+  DDOG_ASM_AUTO_USER_INSTRUM_MODE_ANONYMIZATION,
+} ddog_AsmAutoUserInstrumMode;
 
 typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
@@ -523,6 +559,11 @@ typedef enum ddog_SpanProbeTarget {
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
+/**
+ * An owned verdict and the arrays its view points into.
+ */
+typedef struct ddog_AppSecVerdictResult ddog_AppSecVerdictResult;
+
 typedef struct ddog_Config ddog_Config;
 
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
@@ -582,6 +623,57 @@ typedef struct ddog_SignalFlush ddog_SignalFlush;
  * Cached stats reader and metadata borrowed by C during `ddog_span_concentrator_with`.
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
+
+/**
+ * The AppSec settings of the connection, see `AppSecSessionConfig`.
+ */
+typedef struct ddog_AppSecSessionConfigFfi {
+  ddog_CharSlice rules_file;
+  uint64_t waf_timeout_us;
+  uint32_t trace_rate_limit;
+  ddog_CharSlice obfuscator_key_regex;
+  ddog_CharSlice obfuscator_value_regex;
+  bool schema_extraction_enabled;
+  double schema_extraction_sampling_period;
+  ddog_CharSlice helper_log_file;
+  ddog_CharSlice helper_log_level;
+} ddog_AppSecSessionConfigFfi;
+
+typedef struct ddog_AppSecStrPair {
+  ddog_CharSlice key;
+  ddog_CharSlice value;
+} ddog_AppSecStrPair;
+
+typedef struct ddog_AppSecActionView {
+  ddog_CharSlice action;
+  const struct ddog_AppSecStrPair *parameters;
+  uintptr_t parameters_len;
+} ddog_AppSecActionView;
+
+typedef struct ddog_AppSecMetric {
+  ddog_CharSlice key;
+  double value;
+} ddog_AppSecMetric;
+
+/**
+ * A verdict, borrowed from its `ddog_AppSecVerdictResult`.
+ */
+typedef struct ddog_AppSecVerdictView {
+  enum ddog_AppSecVerdictKind kind;
+  ddog_CharSlice error;
+  const struct ddog_AppSecActionView *actions;
+  uintptr_t actions_len;
+  /**
+   * JSON fragments of the triggered events.
+   */
+  const ddog_CharSlice *triggers;
+  uintptr_t triggers_len;
+  bool force_keep;
+  const struct ddog_AppSecStrPair *meta;
+  uintptr_t meta_len;
+  const struct ddog_AppSecMetric *metrics;
+  uintptr_t metrics_len;
+} ddog_AppSecVerdictView;
 
 typedef struct _zend_string *ddog_OwnedZendString;
 
@@ -664,6 +756,14 @@ typedef struct ddog_RemoteConfigFlags {
   bool appsec_config;
   bool ffe_enabled;
 } ddog_RemoteConfigFlags;
+
+/**
+ * The AppSec settings of the applicable ASM_FEATURES files, merged.
+ */
+typedef struct ddog_AsmFeatures {
+  enum ddog_AsmActivation activation;
+  enum ddog_AsmAutoUserInstrumMode auto_user_instrum;
+} ddog_AsmFeatures;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -1658,22 +1758,6 @@ typedef struct ddog_SenderParameters {
 typedef struct ddog_TracerMetadataV1 {
   ddog_CharSlice runtime_id;
 } ddog_TracerMetadataV1;
-
-/**
- * Raw AppSec response returned by the AppSec message functions.
- *
- * When `ptr` is non-null, the response must be freed by calling
- * `ddog_sidecar_appsec_response_drop`.
- */
-typedef struct ddog_AppsecCResponse {
-  uint8_t *ptr;
-  uintptr_t len;
-  uintptr_t capacity;
-  /**
-   * If true, the extension session should be disconnected after this response.
-   */
-  bool disconnect;
-} ddog_AppsecCResponse;
 
 /**
  * One borrowed scalar from the context used for evaluation. Only the first 256

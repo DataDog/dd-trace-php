@@ -38,13 +38,13 @@ $c = $helper->get_commands();
 function p($n) {
     global $c;
     echo "$n:\n";
-    var_dump($c[1][1][0][$n]);
+    var_dump($c[0][1][0][$n]);
 }
 p('server.request.body');
 p('server.request.body.filenames');
 p('server.request.body.files_field_names');
 
-var_dump(array_key_exists('server.request.body.raw', $c[1][1][0]));
+var_dump(array_key_exists('server.request.body.raw', $c[0][1][0]));
 
 ?>
 --EXPECT--

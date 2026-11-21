@@ -40,12 +40,9 @@ class Helper {
         return $helper;
     }
 
+    // The sidecar sets up the helper client of a connection: there is no
+    // client_init exchange anymore. Kept for the existing tests.
     static function createInitedRun($responses, $opts = array()) {
-        $empty_obj = new ArrayObject();
-        $responses = array_merge([
-            response_list(
-                response_client_init(['ok', phpversion('ddtrace'), [],$empty_obj,$empty_obj,null])
-        )], $responses);
         return self::createRun($responses, $opts);
     }
 
@@ -53,6 +50,8 @@ class Helper {
         // Register the extension-side socket with the mock transport before
         // mock_helper starts, so rinit() finds the fd already set.
         \datadog\appsec\testing\set_mock_helper_fd($this->ext_sock);
+        // The extension uses a dup: once it closes it, the mock sees EOF.
+        fclose($this->ext_sock);
 
         $esc_resp = "";
         foreach ($responses as $response) {
@@ -79,14 +78,13 @@ class Helper {
 
         $this->wait_for_daemon_ready();
 
-        // The extension only sends its client_shutdown goodbye at GSHUTDOWN,
-        // which runs after object destructors -- and destructors are skipped
-        // entirely when a request aborts via a fatal error (e.g. a blocking or
-        // redirecting verdict).  A shutdown function runs early in request
-        // shutdown in all cases (including after a fatal error), while the mock
-        // is still alive, so we use it to deliver the goodbye and let the mock
-        // ack it and exit cleanly.  Does not capture $this, so it doesn't keep
-        // the Helper alive.
+        // The mock exits once the extension closes its stream to it, which
+        // would only happen at process exit, after the destructors that wait
+        // for the mock -- and destructors are skipped entirely when a request
+        // aborts via a fatal error (e.g. a blocking or redirecting verdict).
+        // A shutdown function runs early in request shutdown in all cases
+        // (including after a fatal error), so we use it to close the stream.
+        // Does not capture $this, so it doesn't keep the Helper alive.
         register_shutdown_function(function () {
             if (function_exists('datadog\\appsec\\testing\\close_helper_connection')) {
                 @\datadog\appsec\testing\close_helper_connection();

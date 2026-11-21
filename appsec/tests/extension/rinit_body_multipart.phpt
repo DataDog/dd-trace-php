@@ -38,7 +38,7 @@ $c = $helper->get_commands();
 function p($n) {
     global $c;
     echo "$n:\n";
-    var_dump($c[1][1][0][$n]);
+    var_dump($c[0][1][0][$n]);
 }
 p('server.request.body');
 p('server.request.body.filenames');

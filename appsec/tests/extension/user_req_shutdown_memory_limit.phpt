@@ -24,7 +24,7 @@ register_shutdown_function(function () use (&$helper, &$completed, &$outsideLine
         strpos($error['message'], 'Allowed memory size') !== false);
     $commands = $helper->get_commands();
     var_dump(array_column($commands, 0));
-    var_dump($commands[2][1][0]['server.response.body']);
+    var_dump($commands[1][1][0]['server.response.body']);
 });
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
@@ -49,14 +49,12 @@ echo "Limit was not restored\n";
 ?>
 --EXPECT--
 string(8) "received"
-int(1)
+float(1)
 bool(true)
-array(3) {
+array(2) {
   [0]=>
-  string(11) "client_init"
-  [1]=>
   string(12) "request_init"
-  [2]=>
+  [1]=>
   string(16) "request_shutdown"
 }
 array(1) {

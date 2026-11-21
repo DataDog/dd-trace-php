@@ -85,19 +85,12 @@ class TelemetryTests {
                 ]
         ])
 
-        // first request to start helper - triggers WAF init with legacy span metrics
-        // Generally won't be covered by appsec because it doesn't receive RC data in time
-        // for the response to config_sync
+        // Generally not covered by appsec, as it doesn't receive RC data in time
         Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
         assert trace.traceId != null
-
-        // Check legacy span metrics from WAF init are present
-        def initSpan = trace[0]
-        assert initSpan.metrics.'_dd.appsec.event_rules.loaded' > 0
-        assert initSpan.metrics.'_dd.appsec.event_rules.error_count' == 0.0d
-        assert initSpan.meta.'_dd.appsec.event_rules.errors' == '{}'
+        def firstSpan = trace[0]
 
         RemoteConfigRequest rcReq = requestSup.get()
         assert rcReq != null, 'No RC request received'
@@ -107,9 +100,15 @@ class TelemetryTests {
             assert resp.statusCode() == 200
         }
 
-        // Check legacy span meta is present (metrics only on init)
         def span = trace[0]
         assert span.meta.'_dd.appsec.event_rules.version' =~ /\d+\.\d+\.\d+/
+
+        // The first covered request carries the legacy span metrics of the WAF init
+        def initSpan = [firstSpan, span].find { it.metrics.containsKey('_dd.appsec.event_rules.loaded') }
+        assert initSpan != null
+        assert initSpan.metrics.'_dd.appsec.event_rules.loaded' > 0
+        assert initSpan.metrics.'_dd.appsec.event_rules.error_count' == 0.0d
+        assert initSpan.meta.'_dd.appsec.event_rules.errors' == '{}'
 
         // now do an attack
         HttpRequest req = CONTAINER.buildReq('/hello.php')
@@ -753,8 +752,8 @@ class TelemetryTests {
         assert errorLog != null : "Expected to find a log with log_type:helper::client_error. " +
                 "All logs: ${messages}"
         assert errorLog.level == 'ERROR' : "Expected ERROR level, got ${errorLog.level}"
-        assert errorLog.message?.contains('unknown command') || errorLog.message?.contains('invalid_command') :
-                "Expected error message about unknown/invalid command, got: ${errorLog.message}"
+        assert errorLog.message?.contains('without request_init') :
+                "Expected error message about the protocol violation, got: ${errorLog.message}"
 
         // back trace
         assert errorLog.stack_trace != null : "Expected stack_trace to be present"
@@ -1040,16 +1039,12 @@ class TelemetryTests {
     }
 
     /**
-     * Verifies that WafString(...) contents in helper error messages are redacted before
-     * being submitted to telemetry, while the local helper file log retains the original
-     * unredacted contents.
-     *
-     * The scenario triggers `unexpected command {:?}` in the helper request loop by
-    * sending a request_exec when the helper is waiting for request_init.
+     * Verifies that a request_exec sent while the helper waits for request_init is
+     * reported to telemetry as an error that carries none of the request's data.
      */
     @Test
     @Order(12)
-    void 'telemetry log redacts WafString contents'() {
+    void 'telemetry log of an out-of-order request carries no request data'() {
         Assumptions.assumeTrue(TestParams.usesHelperRust())
 
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
@@ -1071,40 +1066,31 @@ class TelemetryTests {
         }
         assert trace.traceId != null
 
-        // trigger the error path with a known sentinel value embedded as a WafString
+        // trigger the error path with a known sentinel value in the request data
         CONTAINER.traceFromRequest('/send_request_exec_before_init.php', ofString()) {
             HttpResponse<String> resp -> assert resp.statusCode() == 200
         }
 
+        def isOutOfOrderLog = { entry ->
+            entry.tags?.contains('log_type:helper::logged_error') &&
+                    entry.message?.contains('request_exec without request_init')
+        }
         def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
-            def relevantLogs = logs.collectMany {
-                it.logs.findAll {
-                    it.tags?.contains('log_type:helper::logged_error') &&
-                            it.message?.contains('error in request loop')
-                }
-            }
-            !relevantLogs.empty
+            logs.any { it.logs.any(isOutOfOrderLog) }
         }.collectMany { it.logs }
 
-        def errorLog = messages.find {
-            it.tags?.contains('log_type:helper::logged_error') &&
-                    it.message?.contains('error in request loop')
-        }
-        assert errorLog != null : "Expected to find an 'error in request loop' telemetry log. " +
+        def errorLog = messages.find(isOutOfOrderLog)
+        assert errorLog != null : "Expected to find a 'request_exec without request_init' telemetry log. " +
                 "All logs: ${messages.collect { [tags: it.tags, message: it.message] }}"
 
-        // The telemetry log must NOT leak the original WafString payload
         assert !errorLog.message.contains('APPSEC_REDACT_TEST_SENTINEL_XYZ') :
-                "Telemetry log leaked unredacted WafString contents: ${errorLog.message}"
+                "Telemetry log leaked request data: ${errorLog.message}"
 
-        // And the WafString(...) span must have been replaced with the redacted marker
-        assert errorLog.message.contains('WafString("<REDACTED>")') :
-                "Telemetry log is missing redacted WafString marker; got: ${errorLog.message}"
-
-        // The local helper file log must still contain the original unredacted contents
+        // The helper logs requests by their addresses' keys and types only
         def helperLog = CONTAINER.execInContainer('bash', '-c', 'cat /tmp/logs/helper.log').stdout
-        assert helperLog.contains('APPSEC_REDACT_TEST_SENTINEL_XYZ') :
-                "Expected helper.log to contain the original (unredacted) WafString contents"
+        assert helperLog.contains('request_exec without request_init')
+        assert !helperLog.contains('APPSEC_REDACT_TEST_SENTINEL_XYZ') :
+                "Expected helper.log not to contain the request data"
     }
 
     /**

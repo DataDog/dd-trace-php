@@ -1,12 +1,6 @@
 include(FetchContent)
 
 if(DD_APPSEC_TESTING)
-    # Used by the mock helper
-    file(GLOB_RECURSE MPACK_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../tracer/vendor/mpack/*.c)
-    add_library(mpack_malloc OBJECT ${MPACK_C_SOURCES})
-    target_include_directories(mpack_malloc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../tracer/vendor/mpack/)
-    target_compile_definitions(mpack_malloc PUBLIC MPACK_STDIO=0 MPACK_WRITE_TRACKING=1 MPACK_BUFFER_SIZE=131064)
-
     set(SPDLOG_COMMIT 79524ddd08a4ec981b7fea76afd08ee05f83755d)
     if(DEFINED ENV{GITLAB_CI})
         set(SPDLOG_URL

@@ -5,15 +5,14 @@ use std::{
     hash::Hash,
     path::PathBuf,
     sync::{Arc, Mutex, Weak},
+    time::{Duration, Instant},
 };
 
+use settings::{RemoteConfigSettings, TelemetrySettings, WafSettings};
+
 use crate::{
-    client::{
-        log::{debug, error, info, warning},
-        protocol,
-    },
+    client::log::{debug, error, info, warning},
     rc,
-    service::config_manager::AsmFeatureConfigManager,
     telemetry::{
         self, SpanMetricsGenerator, SpanMetricsSubmitter, TelemetryLog, TelemetryLogSubmitter,
         TelemetryLogsCollector, TelemetryLogsGenerator, TelemetryMetricSubmitter,
@@ -21,12 +20,12 @@ use crate::{
     },
 };
 
-mod config_manager;
 #[cfg(target_os = "linux")]
 mod fd_diagnostics;
 mod limiter;
 mod metrics;
 mod sampler;
+pub mod settings;
 mod updateable_waf;
 mod waf_diag;
 mod waf_ruleset;
@@ -47,6 +46,7 @@ impl ServiceManager {
             inner: Mutex::new(ServiceManagerInner {
                 services: HashMap::new(),
                 last_service: None,
+                failures: HashMap::new(),
             }),
         }
     }
@@ -75,7 +75,39 @@ impl ServiceManager {
             }
         }
 
-        let service = Arc::new(Service::new(config.clone(), tel_collector)?);
+        // A service that failed to build (e.g. a broken rules file) is retried with backoff,
+        // instead of on every request of every worker.
+        let now = Instant::now();
+        if let Some(failure) = inner.failures.get(config) {
+            if now < failure.retry_at {
+                anyhow::bail!(
+                    "service failed to build {} time(s), next retry in {:?}: {}",
+                    failure.attempts,
+                    failure.retry_at - now,
+                    failure.error
+                );
+            }
+        }
+
+        let service = match Service::new(config.clone(), tel_collector) {
+            Ok(service) => Arc::new(service),
+            Err(err) => {
+                let attempts = inner.failures.get(config).map_or(0, |f| f.attempts) + 1;
+                let backoff = SERVICE_RETRY_BASE
+                    .saturating_mul(1 << attempts.min(16))
+                    .min(SERVICE_RETRY_MAX);
+                inner.failures.insert(
+                    config.clone(),
+                    ServiceFailure {
+                        attempts,
+                        retry_at: now + backoff,
+                        error: format!("{err:#}"),
+                    },
+                );
+                return Err(err);
+            }
+        };
+        inner.failures.remove(config);
         inner
             .services
             .insert(config.clone(), Arc::downgrade(&service));
@@ -86,30 +118,34 @@ impl ServiceManager {
     }
 
     pub fn notify_of_rc_updates(&self, shmem_path: &std::path::Path) {
-        let inner = self.inner.lock().unwrap();
+        // Services differing only in WAF or telemetry settings share an RC
+        // path, and each polls with its own reader.
+        let services: Vec<Arc<Service>> = {
+            let inner = self.inner.lock().unwrap();
+            inner
+                .services
+                .iter()
+                .filter(|(config, _)| config.rem_cfg_settings.shmem_path() == Some(shmem_path))
+                .filter_map(|(_, weak)| weak.upgrade())
+                .collect()
+        };
 
-        for (config, weak) in &inner.services {
-            if config.rem_cfg_settings.shmem_path() != Some(shmem_path) {
-                continue;
-            }
-
-            if let Some(service) = weak.upgrade() {
-                drop(inner);
-                if let Err(e) = service.poll_and_apply_rc() {
-                    let fd_diagnostics = self.describe_fd_exhaustion(&e);
-                    error!(
-                        "Failed to apply RC update for {:?} (service with config {:?}): {:#}{}",
-                        shmem_path, service.fixed_config, e, fd_diagnostics
-                    );
-                }
-                return;
-            }
+        if services.is_empty() {
+            debug!(
+                "No active service found for RC update path {:?}",
+                shmem_path
+            );
         }
 
-        debug!(
-            "No active service found for RC update path {:?}",
-            shmem_path
-        );
+        for service in services {
+            if let Err(e) = service.poll_and_apply_rc() {
+                let fd_diagnostics = self.describe_fd_exhaustion(&e);
+                error!(
+                    "Failed to apply RC update for {:?} (service with config {:?}): {:#}{}",
+                    shmem_path, service.fixed_config, e, fd_diagnostics
+                );
+            }
+        }
     }
 
     #[cfg(test)]
@@ -142,6 +178,11 @@ pub struct Service {
 
     // Track concurrent worker count (clients handling requests)
     worker_count: metrics::WorkerCountState,
+
+    // Counts the RC updates applied. Bound clients submit the telemetry they
+    // generate without waiting for a request: the extension sends none while
+    // AppSec is inactive.
+    rc_updates: tokio::sync::watch::Sender<u64>,
 }
 
 /// Legacy span metrics/meta from WAF initialization diagnostics.
@@ -176,10 +217,6 @@ impl SpanMetricsGenerator for InitDiagnosticsLegacy {
 }
 
 impl Service {
-    pub fn fixed_config(&self) -> &ServiceFixedConfig {
-        &self.fixed_config
-    }
-
     pub fn configured_waf_timeout(&self) -> Option<std::time::Duration> {
         self.fixed_config
             .waf_settings
@@ -234,7 +271,15 @@ impl Service {
             }
         };
 
-        self.apply_config(&mut state, cfg_dir)
+        let result = self.apply_config(&mut state, cfg_dir);
+        drop(state);
+        self.rc_updates.send_modify(|count| *count += 1);
+        result
+    }
+
+    /// Changes whenever an RC update was applied, successfully or not.
+    pub fn subscribe_rc_updates(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.rc_updates.subscribe()
     }
 
     fn take_pending_telemetry_metrics(&self) -> impl TelemetryMetricsGenerator {
@@ -338,8 +383,6 @@ impl Service {
             None
         };
 
-        let asm_always_enabled = fixed_config.always_enabled;
-
         let service = Service {
             fixed_config,
             waf: uwafi,
@@ -348,16 +391,13 @@ impl Service {
             rc_update_lock: Mutex::new(RcUpdateState {
                 poller,
                 last_configs: HashMap::new(),
-                asm_feature_config_manager: AsmFeatureConfigManager::new(),
                 pending_telemetry_metrics: TelemetryMetricsCollector::default(),
                 pending_init_diagnostics_legacy: Some(init_diagnostics_legacy),
             }),
-            config_snapshot: ArcSwap::from_pointee(ConfigSnapshot::new(
-                asm_always_enabled,
-                rules_version,
-            )),
+            config_snapshot: ArcSwap::from_pointee(ConfigSnapshot::new(rules_version)),
             logs_collector,
             worker_count: Default::default(),
+            rc_updates: tokio::sync::watch::Sender::new(0),
         };
         service.poll_and_apply_rc()?;
         Ok(service)
@@ -401,29 +441,25 @@ impl Service {
         for old_path in state
             .last_configs
             .keys()
-            .filter(|k| !new_configs.contains_key(*k))
+            .filter(|k| !new_configs.contains_key(*k) && is_waf_product(k))
         {
-            if old_path.as_str().contains("/ASM_FEATURES/") {
-                state.asm_feature_config_manager.remove(old_path);
-            } else {
-                let res = self.waf.remove_config(old_path.as_str());
-                match res {
-                    Ok(true) => {
-                        debug!("Removed WAF config: {:?}", old_path);
-                        waf_changed = true;
-                    }
-                    Ok(false) => {
-                        warning!("No WAF config found to remove: {:?}", old_path);
-                    }
-                    Err(e) => {
-                        self.log_general_rc_error(&e.context(format!(
-                            concat!(
-                                "Failed to remove WAF config {:?}; ",
-                                "this should happen only when reading the default config"
-                            ),
-                            old_path
-                        )));
-                    }
+            let res = self.waf.remove_config(old_path.as_str());
+            match res {
+                Ok(true) => {
+                    debug!("Removed WAF config: {:?}", old_path);
+                    waf_changed = true;
+                }
+                Ok(false) => {
+                    warning!("No WAF config found to remove: {:?}", old_path);
+                }
+                Err(e) => {
+                    self.log_general_rc_error(&e.context(format!(
+                        concat!(
+                            "Failed to remove WAF config {:?}; ",
+                            "this should happen only when reading the default config"
+                        ),
+                        old_path
+                    )));
                 }
             }
         }
@@ -509,20 +545,6 @@ impl Service {
                 .submit_metric(WAF_UPDATES, 1.0, tags);
         }
 
-        let asm_features = state.asm_feature_config_manager.build_final();
-
-        new_snapshot = new_snapshot.with_asm_features(
-            self.fixed_config.always_enabled,
-            asm_features.asm,
-            asm_features.auto_user_instrum,
-        );
-        if self.fixed_config.always_enabled && !new_snapshot.asm_enabled {
-            info!(
-                "ASM_FEATURES requested that ASM be disabled, but it's \
-                forced into the enabled state by configuration",
-            );
-        }
-
         info!("Updating config snapshot with {:?}", new_snapshot);
         self.config_snapshot.store(Arc::new(new_snapshot));
 
@@ -556,19 +578,6 @@ impl Service {
             product.name()
         );
         match product.name() {
-            "ASM_FEATURES" => {
-                let shmem = cfg.read()?;
-                let data = unsafe { shmem.as_slice() };
-                let replaced = state
-                    .asm_feature_config_manager
-                    .add(rc_path.as_str().to_string(), data)?;
-                debug!(
-                    "{} ASM_FEATURES config: {:?}",
-                    if replaced { "Replaced" } else { "Added" },
-                    rc_path
-                );
-                Ok(())
-            }
             "ASM_DD" | "ASM" | "ASM_DATA" => {
                 let shmem = cfg.read()?;
                 let data = unsafe { shmem.as_slice() };
@@ -671,120 +680,36 @@ impl TelemetryMetricsGenerator for Service {
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct ServiceFixedConfig {
-    always_enabled: bool,
-    waf_settings: protocol::WafSettings,
-    rem_cfg_settings: protocol::RemoteConfigSettings,
-    telemetry_settings: protocol::TelemetrySettings,
+    waf_settings: WafSettings,
+    rem_cfg_settings: RemoteConfigSettings,
+    telemetry_settings: TelemetrySettings,
 }
 
 impl ServiceFixedConfig {
     pub fn new(
-        always_enabled: bool,
-        waf_settings: protocol::WafSettings,
-        rem_cfg_settings: protocol::RemoteConfigSettings,
-        telemetry_settings: protocol::TelemetrySettings,
+        waf_settings: WafSettings,
+        rem_cfg_settings: RemoteConfigSettings,
+        telemetry_settings: TelemetrySettings,
     ) -> Self {
         ServiceFixedConfig {
-            always_enabled,
             waf_settings,
             rem_cfg_settings,
             telemetry_settings,
-        }
-    }
-
-    pub fn config_sync_settings(
-        &self,
-    ) -> (
-        &protocol::RemoteConfigSettings,
-        &protocol::TelemetrySettings,
-    ) {
-        (&self.rem_cfg_settings, &self.telemetry_settings)
-    }
-
-    pub fn new_from_config_sync(&self, args: protocol::ConfigSyncArgs) -> Option<Self> {
-        let new_rem_cfg_path = PathBuf::from(args.rem_cfg_path);
-        let new_rem_cfg_enabled = !new_rem_cfg_path.as_os_str().is_empty();
-        let maybe_new_rem_cfg_path = if new_rem_cfg_enabled {
-            Some(new_rem_cfg_path.as_path())
-        } else {
-            None
-        };
-
-        // config_sync sends paths even if RC is disabled. We reject those
-        // if we got enabled=false in client_init.
-        let rem_cfg_path_changed = self.rem_cfg_settings.can_be_enabled()
-            && maybe_new_rem_cfg_path != self.rem_cfg_settings.shmem_path();
-
-        if rem_cfg_path_changed || args.telemetry_settings != self.telemetry_settings {
-            let mut new_cfg = self.clone();
-            if rem_cfg_path_changed {
-                new_cfg.rem_cfg_settings =
-                    protocol::RemoteConfigSettings::new(true, new_rem_cfg_path);
-            }
-            new_cfg.telemetry_settings = args.telemetry_settings;
-            Some(new_cfg)
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum AutoUserInstrumMode {
-    #[default]
-    Undefined,
-    Unknown,
-    Disabled,
-    Identification,
-    Anonymization,
-}
-
-impl AutoUserInstrumMode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            AutoUserInstrumMode::Undefined => "undefined",
-            AutoUserInstrumMode::Unknown => "unknown",
-            AutoUserInstrumMode::Disabled => "disabled",
-            AutoUserInstrumMode::Identification => "identification",
-            AutoUserInstrumMode::Anonymization => "anonymization",
         }
     }
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct ConfigSnapshot {
-    pub asm_enabled: bool,
-    pub auto_user_instrum: AutoUserInstrumMode,
     pub rules_version: Option<String>,
 }
 impl ConfigSnapshot {
-    pub fn new(asm_always_enabled: bool, rules_version: Option<String>) -> Self {
-        Self {
-            asm_enabled: asm_always_enabled,
-            auto_user_instrum: AutoUserInstrumMode::Undefined,
-            rules_version,
-        }
-    }
-
-    pub fn with_asm_features(
-        &self,
-        asm_always_enabled: bool,
-        asm_enabled: bool,
-        auto_user_instrum: AutoUserInstrumMode,
-    ) -> Self {
-        Self {
-            asm_enabled: asm_always_enabled || asm_enabled,
-            auto_user_instrum,
-            rules_version: self.rules_version.clone(),
-        }
+    pub fn new(rules_version: Option<String>) -> Self {
+        Self { rules_version }
     }
 
     pub fn with_new_rules_version(&self, rules_version: Option<String>) -> Self {
-        Self {
-            asm_enabled: self.asm_enabled,
-            auto_user_instrum: self.auto_user_instrum,
-            rules_version,
-        }
+        Self { rules_version }
     }
 }
 
@@ -793,6 +718,16 @@ impl ConfigSnapshot {
 struct ServiceManagerInner {
     services: HashMap<ServiceFixedConfig, Weak<Service>>,
     last_service: Option<Arc<Service>>,
+    failures: HashMap<ServiceFixedConfig, ServiceFailure>,
+}
+
+const SERVICE_RETRY_BASE: Duration = Duration::from_millis(500);
+const SERVICE_RETRY_MAX: Duration = Duration::from_secs(60);
+
+struct ServiceFailure {
+    attempts: u32,
+    retry_at: Instant,
+    error: String,
 }
 
 impl ServiceManagerInner {
@@ -807,9 +742,15 @@ struct RcUpdateState {
     // the version of the config is encoded inside the shm path
     // If it hasn't we can skip reapplying the same config
     last_configs: HashMap<rc::RcPath, PathBuf>,
-    asm_feature_config_manager: AsmFeatureConfigManager,
     pending_telemetry_metrics: TelemetryMetricsCollector,
     pending_init_diagnostics_legacy: Option<InitDiagnosticsLegacy>,
+}
+
+// The directory also lists the tracer's products (ASM_FEATURES, APM_TRACING,
+// ...); only WAF configs were ever added, so only those can be removed.
+fn is_waf_product(rc_path: &rc::RcPath) -> bool {
+    rc::ParsedConfigKey::from_rc_path(rc_path)
+        .is_some_and(|key| matches!(key.product.as_str(), "asm_dd" | "asm" | "asm_data"))
 }
 
 // --- Tests ---
@@ -836,22 +777,25 @@ mod tests {
         }
     }
 
+    fn waf_settings(rules_file: &str) -> WafSettings {
+        WafSettings {
+            rules_file: Some(rules_file.to_string()),
+            waf_timeout_us: Some(10000),
+            trace_rate_limit: 100,
+            obfuscator_key_regex: None,
+            obfuscator_value_regex: None,
+            schema_extraction: settings::SchemaExtraction {
+                enabled: false,
+                sampling_period: 1.0,
+            },
+        }
+    }
+
     fn make_config(id: u32) -> ServiceFixedConfig {
         ServiceFixedConfig::new(
-            true,
-            protocol::WafSettings {
-                rules_file: Some(TEST_RULES_FILE.to_string()),
-                waf_timeout_us: Some(10000),
-                trace_rate_limit: 100,
-                obfuscator_key_regex: None,
-                obfuscator_value_regex: None,
-                schema_extraction: protocol::SchemaExtraction {
-                    enabled: false,
-                    sampling_period: 1.0,
-                },
-            },
-            protocol::RemoteConfigSettings::new(false, PathBuf::from(format!("/tmp/test_{}", id))),
-            protocol::TelemetrySettings {
+            waf_settings(TEST_RULES_FILE),
+            RemoteConfigSettings::new(None),
+            TelemetrySettings {
                 service_name: format!("test_{}", id),
                 env_name: "test".to_string(),
             },
@@ -954,44 +898,73 @@ mod tests {
     }
 
     #[test]
-    fn config_sync_does_not_enable_rc_when_client_init_disabled_it() {
-        // Simulates DD_REMOTE_CONFIG_ENABLED=0 in client_init: the path is
-        // non-empty but enabled=false. A later config_sync carrying the same
-        // (non-empty) path must NOT produce a new ServiceFixedConfig, because
-        // doing so would flip RC to enabled and trigger a WAF reload per
-        // PHP-FPM worker.
-        let telemetry = protocol::TelemetrySettings {
-            service_name: "svc".to_string(),
-            env_name: "env".to_string(),
-        };
-        let cfg = ServiceFixedConfig::new(
-            true,
-            protocol::WafSettings {
-                rules_file: Some(TEST_RULES_FILE.to_string()),
-                waf_timeout_us: Some(10000),
-                trace_rate_limit: 100,
-                obfuscator_key_regex: None,
-                obfuscator_value_regex: None,
-                schema_extraction: protocol::SchemaExtraction {
-                    enabled: false,
-                    sampling_period: 1.0,
-                },
-            },
-            // RC disabled by client_init, but the PHP side still has a path.
-            protocol::RemoteConfigSettings::new(false, PathBuf::from("/ddrc-test")),
-            telemetry.clone(),
+    fn notify_of_rc_updates_updates_every_service_on_the_path() -> anyhow::Result<()> {
+        use crate::rc::tests::{shm_create_and_write, shm_create_and_write_config_dir, shm_unlink};
+        use base64::Engine;
+
+        let dir = "/helper_rust_notify_all_dir";
+        let file = "/helper_rust_notify_all_asm";
+        shm_unlink(dir);
+
+        // Same RC path, different telemetry settings: two services.
+        let manager = ServiceManager::new();
+        let services = [1, 2]
+            .iter()
+            .map(|&id| {
+                let mut config = make_config(id);
+                config.rem_cfg_settings = RemoteConfigSettings::new(Some(PathBuf::from(dir)));
+                manager.get_service(&config, &mut NoopTelemetrySubmitter)
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        assert_eq!(manager.service_count(), 2);
+
+        let mut asm =
+            br#"{"exclusions":[{"id":"excl","rules_target":[{"rule_id":"blk-001-001"}]}]}"#
+                .to_vec();
+        // macOS reports shm sizes rounded up to 16 KiB; pad with whitespace so
+        // that the JSON parser does not see the zero filler.
+        asm.resize(16384, b' ');
+        shm_create_and_write(file, &asm)?;
+        let rc_path = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode("datadog/2/ASM/excl/config".as_bytes());
+        let _writer =
+            shm_create_and_write_config_dir(dir, "runtime-1", &[format!("{file}:0:{rc_path}")])?;
+
+        manager.notify_of_rc_updates(std::path::Path::new(dir));
+
+        for service in &services {
+            assert_eq!(service.waf.config_paths_count(Some("/ASM/")), 1);
+        }
+
+        shm_unlink(file);
+        shm_unlink(dir);
+        Ok(())
+    }
+
+    #[test]
+    fn failed_service_is_not_rebuilt_before_its_backoff_expires() {
+        let manager = ServiceManager::new();
+        let config = ServiceFixedConfig::new(
+            waf_settings("/nonexistent/rules.json"),
+            RemoteConfigSettings::new(None),
+            TelemetrySettings::default(),
         );
 
-        let result = cfg.new_from_config_sync(protocol::ConfigSyncArgs {
-            rem_cfg_path: "/ddrc-test".to_string(),
-            telemetry_settings: telemetry,
-        });
+        let first = manager
+            .get_service(&config, &mut NoopTelemetrySubmitter)
+            .err()
+            .expect("a missing rules file fails the service");
+        let second = manager
+            .get_service(&config, &mut NoopTelemetrySubmitter)
+            .err()
+            .expect("still failing");
 
-        assert!(
-            result.is_none(),
-            "config_sync with the same path must not create a new config when \
-             client_init disabled RC, but got: {:?}",
-            result
-        );
+        assert!(!format!("{first:#}").contains("next retry"));
+        assert!(format!("{second:#}").contains("next retry"), "{second:#}");
+
+        // Other configs are unaffected.
+        assert!(manager
+            .get_service(&make_config(1), &mut NoopTelemetrySubmitter)
+            .is_ok());
     }
 }

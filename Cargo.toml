@@ -140,6 +140,8 @@ tracing = { version = "0.1", default-features = false, features = ["std", "attri
 tracing-core = { workspace = true, optional = true }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "env-filter", "smallvec"] }
 serde_json = "1.0.113"
+# Reads the AppSec request data, MessagePack, for the extension tests' mock helper.
+rmpv = { workspace = true }
 regex = { version = "1.10.5", optional = true }
 regex-automata = { workspace = true, optional = true }
 http = "1.4"

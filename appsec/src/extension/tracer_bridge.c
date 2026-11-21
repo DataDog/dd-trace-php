@@ -25,12 +25,23 @@
 #include "php_objects.h"
 #include "string_helpers.h"
 #include <ext/compatibility.h>
-#ifdef TESTING
-#    include "test_mock_transport.h"
-#endif
 
 static zend_string *_component_propname;
 static THREAD_LOCAL_ON_ZTS bool _asm_event_emitted;
+// Set by datadog\appsec\testing\set_remote_asm_features(); tests have no
+// agent to deliver ASM_FEATURES. Each call sets the features of a remote
+// config target, which becomes the current one.
+struct asm_features_override {
+    char target[64];
+    ddog_AsmFeatures features;
+};
+static THREAD_LOCAL_ON_ZTS bool _asm_features_overridden;
+static THREAD_LOCAL_ON_ZTS struct asm_features_override
+    _asm_features_overrides[4];
+static THREAD_LOCAL_ON_ZTS size_t _asm_features_override_count;
+static THREAD_LOCAL_ON_ZTS size_t _asm_features_override_current;
+static THREAD_LOCAL_ON_ZTS bool _asm_features_override_has_kept;
+static THREAD_LOCAL_ON_ZTS size_t _asm_features_override_kept;
 
 static void _register_testing_objects(void);
 
@@ -40,9 +51,6 @@ void dd_trace_startup(void)
 
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
-#ifdef TESTING
-        dd_testing_setup_mock_transport();
-#endif
     }
 }
 
@@ -164,38 +172,6 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
     return ddtrace_formatted_runtime_id(persistent);
 }
 
-ddog_AppsecCResponse dd_trace_send_appsec_message(
-    const uint8_t *nonnull request, size_t request_len, bool client_init)
-{
-#ifdef TESTING
-    if (dd_testing_send_active) {
-        ddog_CharSlice data = {
-            .ptr = (const char *)request,
-            .len = request_len,
-        };
-        return dd_testing_mock_send_appsec_message(data);
-    }
-#endif
-
-    if (DATADOG_G(sidecar) == NULL) {
-        mlog_once(dd_log_warning,
-            "Could not communicate with the helper. Sidecar is not connected");
-        return (ddog_AppsecCResponse){0};
-    }
-
-    ddog_CharSlice request_slice = {
-        .ptr = (const char *)request,
-        .len = request_len,
-    };
-
-    if (client_init) {
-        return ddog_sidecar_send_appsec_message(
-            &DATADOG_G(sidecar), request_slice, true);
-    }
-    return datadog_sidecar_send_appsec_message_without_reconnect(
-        &DATADOG_G(sidecar), request_slice, false);
-}
-
 ddog_AppsecBodyMessagePack dd_trace_parse_json_body(const char *nonnull data,
     size_t len, int max_depth, ddog_AppsecBodyAllocator allocator)
 {
@@ -213,20 +189,6 @@ ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(const char *nonnull data,
 void dd_trace_drop_body_msgpack(ddog_AppsecBodyMessagePack body)
 {
     ddog_appsec_body_msgpack_drop(body);
-}
-
-void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)
-{
-    if (response.ptr == NULL) {
-        return;
-    }
-#ifdef TESTING
-    if (dd_testing_send_active) {
-        free(response.ptr);
-        return;
-    }
-#endif
-    ddog_sidecar_appsec_response_drop(response);
 }
 
 bool dd_trace_user_req_add_listeners(
@@ -261,6 +223,44 @@ struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void)
         ZSTR_PRINTF(tel_rc_info.env_name));
 
     return tel_rc_info;
+}
+
+ddog_AsmFeatures dd_trace_get_asm_features(void)
+{
+    if (UNEXPECTED(_asm_features_overridden)) {
+        return _asm_features_overrides[_asm_features_override_current].features;
+    }
+    if (!DATADOG_G(remote_config_state)) {
+        return (ddog_AsmFeatures){0};
+    }
+    return ddog_remote_config_asm_features(DATADOG_G(remote_config_state));
+}
+
+void dd_trace_keep_asm_features_target(void)
+{
+    if (UNEXPECTED(_asm_features_overridden)) {
+        _asm_features_override_kept = _asm_features_override_current;
+        _asm_features_override_has_kept = true;
+        return;
+    }
+    if (DATADOG_G(remote_config_state)) {
+        ddog_remote_config_keep_asm_features_target(
+            DATADOG_G(remote_config_state));
+    }
+}
+
+ddog_AsmFeatures dd_trace_get_kept_asm_features(void)
+{
+    if (UNEXPECTED(_asm_features_overridden)) {
+        size_t target = _asm_features_override_has_kept
+                            ? _asm_features_override_kept
+                            : _asm_features_override_current;
+        return _asm_features_overrides[target].features;
+    }
+    if (!DATADOG_G(remote_config_state)) {
+        return (ddog_AsmFeatures){0};
+    }
+    return ddog_remote_config_kept_asm_features(DATADOG_G(remote_config_state));
 }
 
 void dd_trace_span_add_propagated_tags(
@@ -349,6 +349,76 @@ static PHP_FUNCTION(datadog_appsec_testing_get_formatted_runtime_id) // NOLINT
     RETURN_EMPTY_STRING();
 }
 
+// Arguments: ?bool $asm_enabled (null: no ASM_FEATURES file sets it),
+// string $auto_user_instrum (the RC mode, matched like the RC parser does),
+// string $target (the remote config target the features are those of).
+static PHP_FUNCTION(datadog_appsec_testing_set_remote_asm_features) // NOLINT
+{
+    zend_bool enabled = 0;
+    zend_bool enabled_is_null = 1;
+    zend_string *mode = NULL;
+    zend_string *target = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "b!|SS", &enabled,
+            &enabled_is_null, &mode, &target) == FAILURE) {
+        RETURN_FALSE;
+    }
+    const char *target_name = target ? ZSTR_VAL(target) : "";
+    size_t target_len = target ? ZSTR_LEN(target) : 0;
+    if (target_len >= sizeof(_asm_features_overrides[0].target)) {
+        php_error_docref(NULL, E_WARNING, "target is too long");
+        RETURN_FALSE;
+    }
+    size_t index = 0;
+    while (index < _asm_features_override_count &&
+           strcmp(_asm_features_overrides[index].target, target_name) != 0) {
+        index++;
+    }
+    if (index ==
+        sizeof(_asm_features_overrides) / sizeof(_asm_features_overrides[0])) {
+        php_error_docref(NULL, E_WARNING, "too many targets");
+        RETURN_FALSE;
+    }
+
+    ddog_AsmFeatures features = {
+        .activation = enabled_is_null ? DDOG_ASM_ACTIVATION_UNSET
+                      : enabled       ? DDOG_ASM_ACTIVATION_ENABLED
+                                      : DDOG_ASM_ACTIVATION_DISABLED,
+        .auto_user_instrum = DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNDEFINED,
+    };
+    if (mode) {
+        static const struct {
+            const char *name;
+            size_t len;
+            ddog_AsmAutoUserInstrumMode mode;
+        } modes[] = {
+            {ZEND_STRL("undefined"), DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNDEFINED},
+            {ZEND_STRL("disabled"), DDOG_ASM_AUTO_USER_INSTRUM_MODE_DISABLED},
+            {ZEND_STRL("identification"),
+                DDOG_ASM_AUTO_USER_INSTRUM_MODE_IDENTIFICATION},
+            {ZEND_STRL("anonymization"),
+                DDOG_ASM_AUTO_USER_INSTRUM_MODE_ANONYMIZATION},
+        };
+        features.auto_user_instrum = DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNKNOWN;
+        for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); i++) {
+            if (dd_string_equals_lc(ZSTR_VAL(mode), ZSTR_LEN(mode),
+                    modes[i].name, modes[i].len)) {
+                features.auto_user_instrum = modes[i].mode;
+                break;
+            }
+        }
+    }
+
+    if (index == _asm_features_override_count) {
+        memcpy(
+            _asm_features_overrides[index].target, target_name, target_len + 1);
+        _asm_features_override_count++;
+    }
+    _asm_features_overrides[index].features = features;
+    _asm_features_override_current = index;
+    _asm_features_overridden = true;
+    RETURN_TRUE;
+}
+
 // clang-format off
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(void_ret_bool_arginfo, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -360,6 +430,12 @@ ZEND_END_ARG_INFO()
 ZEND_END_ARG_INFO()
 
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_set_remote_asm_features, 0, 1, _IS_BOOL, 0)
+ZEND_ARG_TYPE_INFO(0, asm_enabled, _IS_BOOL, 1)
+ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, auto_user_instrum, IS_STRING, 0, "\"undefined\"")
+ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, target, IS_STRING, 0, "\"\"")
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_root_span_add_attribute, 0, 0, _IS_BOOL, 2)
 ZEND_ARG_TYPE_INFO(0, tag, IS_STRING, 0)
 ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
@@ -370,6 +446,7 @@ static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_attribute", PHP_FN(datadog_appsec_testing_root_span_add_attribute), arginfo_root_span_add_attribute, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_attributes", PHP_FN(datadog_appsec_testing_root_span_get_attributes), void_ret_nullable_array, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "set_remote_asm_features", PHP_FN(datadog_appsec_testing_set_remote_asm_features), arginfo_set_remote_asm_features, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

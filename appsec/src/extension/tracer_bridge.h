@@ -52,19 +52,11 @@ void dd_trace_span_add_propagated_tags(
 
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
 
-// The sidecar connection of the thread identifies the helper client; a
-// client_init starts a new one.
-ddog_AppsecCResponse dd_trace_send_appsec_message(
-    const uint8_t *nonnull request, size_t request_len, bool client_init);
-void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response);
-
 // Request body parsers; the returned MessagePack buffer must be released.
-ddog_AppsecBodyMessagePack dd_trace_parse_json_body(
-    const char *nonnull data, size_t len, int max_depth,
-    ddog_AppsecBodyAllocator allocator);
-ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(
-    const char *nonnull data, size_t len, int max_depth,
-    ddog_AppsecBodyAllocator allocator);
+ddog_AppsecBodyMessagePack dd_trace_parse_json_body(const char *nonnull data,
+    size_t len, int max_depth, ddog_AppsecBodyAllocator allocator);
+ddog_AppsecBodyMessagePack dd_trace_parse_xml_body(const char *nonnull data,
+    size_t len, int max_depth, ddog_AppsecBodyAllocator allocator);
 void dd_trace_drop_body_msgpack(ddog_AppsecBodyMessagePack body);
 
 bool dd_trace_user_req_add_listeners(
@@ -77,3 +69,12 @@ zend_string *nonnull dd_trace_build_req_url(const zend_array *nonnull server);
 
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void);
 
+// The merged ASM_FEATURES remote configs for the current remote config target.
+ddog_AsmFeatures dd_trace_get_asm_features(void);
+
+// Keeps to the current remote config target: dd_trace_get_kept_asm_features()
+// returns its ASM_FEATURES, as they are when called, whichever target the
+// tracer follows meanwhile.
+void dd_trace_keep_asm_features_target(void);
+// The ASM_FEATURES of the current target if none was kept.
+ddog_AsmFeatures dd_trace_get_kept_asm_features(void);

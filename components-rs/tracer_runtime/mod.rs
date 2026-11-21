@@ -4,6 +4,8 @@
 
 #[cfg(feature = "tracer-runtime")]
 pub mod agent_info;
+#[cfg(all(feature = "tracer-runtime", unix))]
+pub mod appsec;
 #[cfg(feature = "tracer-runtime")]
 pub mod bytes;
 #[cfg(feature = "tracer-runtime")]

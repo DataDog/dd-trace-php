@@ -1,36 +1,38 @@
 --TEST--
-RINIT fails because helper is down
+RINIT fails because the sidecar cannot be reached
 --INI--
 datadog.appsec.enabled=1
+datadog.appsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rshutdown,backoff_status,is_connected_to_helper};
+use function datadog\appsec\testing\{rinit,rshutdown,close_helper_connection};
 
 include __DIR__ . '/inc/mock_helper.php';
+include __DIR__ . '/inc/logging.php';
 
-$helper = Helper::createInitedRun([]); // respond to client_init, but not request_init
+$helper = Helper::createRun([
+    response_list(response_request_init([[['ok', []]]])),
+], ['no_wait_shutdown' => true]);
+// Requests go to the sidecar then: tests either have no connection to it, or
+// it has no AppSec client for the connection (testing mode sends no AppSec
+// session config).
+var_dump(close_helper_connection());
 
 echo "rinit:\n";
 var_dump(rinit());
 echo "rshutdown:\n";
 var_dump(rshutdown());
-echo "is connected:\n";
-var_dump(is_connected_to_helper());
-var_dump(backoff_status());
-
+match_log('/Could not send request_init to the sidecar/', '/No AppSec helper client handled request_init/');
+echo "is enabled:\n";
+var_dump(\datadog\appsec\is_enabled());
 ?>
 --EXPECTF--
+bool(true)
 rinit:
-
-Warning: datadog\appsec\testing\rinit(): [ddappsec] Error %s for command request_init: dd_helper_fatal in %s on line %d
 bool(true)
 rshutdown:
 bool(true)
-is connected:
-bool(false)
-array(2) {
-  ["failed_count"]=>
-  int(1)
-  ["next_retry"]=>
-  float(%f)
-}
+found message in log matching %s
+is enabled:
+bool(true)

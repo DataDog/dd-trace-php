@@ -11,21 +11,18 @@ path = "src/lib.rs"
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "io-util", "sync", "time", "macros"] }
 
 serde = { workspace = true, default-features = true, features = ["derive"] }
-serde_tuple = { version = "1.0" }
 rmp-serde = { workspace = true }  # MessagePack support for serde
 serde_json = { workspace = true, default-features = true }
 anyhow = { workspace = true, default-features = true, features = ["backtrace"] }
 thiserror = { workspace = true, default-features = true }
-futures = { workspace = true, default-features = true }
 log = { workspace = true, features = ["kv", "kv_std"] }  # Logging facade with key-value support
-tokio-util = { workspace = true, features = ["codec", "rt"] }
-tokio-stream = "0.1"
+tokio-util = { workspace = true, features = ["rt"] }
 libc = { workspace = true }
 arc-swap = { workspace = true }
 crossbeam-epoch = "0.9"  # Epoch-based memory reclamation
 libddwaf = { path = "../third_party/libddwaf-rust/crates/libddwaf" }
 libddwaf-sys = { path = "../third_party/libddwaf-rust/crates/libddwaf-sys", default-features = false, features = ["ring"] }
-datadog-sidecar = { path = "../../libdatadog/datadog-sidecar", default-features = false, features = ["tracing"] }
+datadog-sidecar = { path = "../../libdatadog/datadog-sidecar", default-features = false, features = ["tracing", "appsec-protocol"] }
 libdd-common = { path = "../../libdatadog/libdd-common" }
 libdd-ipc = { path = "../../libdatadog/libdd-ipc" }
 libdd-process-utils = { path = "../../libdatadog/libdd-process-utils" }

@@ -1,0 +1,6 @@
+# The AppSec protocol shared by the extension (components-rs) and the AppSec
+# helper; libdatadog's datadog-sidecar includes it with its appsec-protocol
+# feature. compile_rust.sh sets the same, as an absolute path, for builds of
+# copied sources.
+[env]
+DATADOG_SIDECAR_APPSEC_PROTOCOL = { value = "components-rs/appsec_protocol.rs", relative = true }

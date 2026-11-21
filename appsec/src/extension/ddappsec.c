@@ -16,12 +16,12 @@
 #include <pthread.h>
 #include <stdatomic.h>
 
+#include "appsec_requests.h"
 #include "backtrace.h"
 #include "body_parser.h"
-#include "commands/client_init.h"
 #include "commands/request_exec.h"
+#include "commands/request_shutdown.h"
 #include "commands_ctx.h"
-#include "commands_helpers.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "ddappsec_api.h"
@@ -32,8 +32,6 @@
 #include "helper_process.h"
 #include "ip_extraction.h"
 #include "logging.h"
-#include "msgpack_helpers.h"
-#include "network.h"
 #include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
@@ -63,9 +61,6 @@ void dd_appsec_ginit(ddappsec_globals *globals)
     globals->to_be_configured = true;
 #if ZTS
     atomic_fetch_add(&_thread_count, 1);
-    // GSHUTDOWN may run on another thread, which then needs this thread's
-    // storage to reach its sidecar transport.
-    globals->ts_ls_cache = tsrm_get_ls_cache();
 #endif
 }
 
@@ -73,7 +68,6 @@ void dd_appsec_gshutdown(ddappsec_globals *globals)
 {
     dd_entity_body_gshutdown(globals);
     dd_telemetry_gshutdown(globals);
-    dd_helper_gshutdown(globals);
 
     mlog_g(dd_log_debug, "Finished GSHUTDOWN actions (thread %" PRIxPTR ")",
         (uintptr_t)pthread_self());
@@ -102,7 +96,7 @@ void dd_appsec_minit(int module_number)
     _register_testing_objects();
 #endif
 
-    dd_helper_startup();
+    dd_helper_process_startup();
     dd_trace_startup();
     dd_req_lifecycle_startup();
     dd_user_tracking_startup();
@@ -113,19 +107,15 @@ void dd_appsec_minit(int module_number)
     dd_body_parser_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
-    dd_msgpack_helpers_startup();
+    dd_appsec_requests_startup();
     dd_telemetry_startup();
 }
 
 void dd_appsec_mshutdown(void)
 {
-    // Say goodbye to the helper while the sidecar connection still exists.
-    dd_helper_mshutdown();
-
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
-    dd_helper_shutdown();
 
     // The configuration is about to be destroyed; logging from GSHUTDOWN must
     // not read it anymore.
@@ -199,8 +189,6 @@ void dd_appsec_minfo(void)
         DDAPPSEC_G(active)             ? "Enabled"
         : DDAPPSEC_G(to_be_configured) ? "Not configured"
                                        : "Disabled");
-    php_info_print_table_row(
-        2, "Connected to helper?", dd_helper_mgr_cur_conn() ? "Yes" : "No");
     php_info_print_table_end();
 }
 
@@ -230,6 +218,29 @@ static void _check_enabled(void)
         DDAPPSEC_G(enabled) = APPSEC_ENABLED_VIA_REMCFG;
         // leave DDAPPSEC_G(active) as is
     };
+}
+
+void dd_appsec_apply_remote_activation(ddog_AsmActivation activation)
+{
+    if (DDAPPSEC_G(enabled) != APPSEC_ENABLED_VIA_REMCFG) {
+        if (DDAPPSEC_G(enabled) == APPSEC_FULLY_ENABLED &&
+            activation == DDOG_ASM_ACTIVATION_DISABLED) {
+            mlog(dd_log_debug, "Remote config is trying to disable extension "
+                               "but it is enabled by config");
+        }
+        return;
+    }
+
+    bool new_status = activation == DDOG_ASM_ACTIVATION_ENABLED;
+    // Without any ASM_FEATURES file setting it, AppSec is not configured yet.
+    DDAPPSEC_G(to_be_configured) = activation == DDOG_ASM_ACTIVATION_UNSET;
+    if (DDAPPSEC_G(active) != new_status) {
+        mlog(dd_log_info,
+            "Remote config has changed extension status from %s to %s",
+            DDAPPSEC_G(active) ? "enabled" : "disabled",
+            new_status ? "enabled" : "disabled");
+        DDAPPSEC_G(active) = new_status;
+    }
 }
 
 PHP_FUNCTION(datadog_appsec_is_enabled)
@@ -272,24 +283,6 @@ static PHP_FUNCTION(datadog_appsec_testing_rshutdown)
     DDAPPSEC_G(during_request_shutdown) = false;
     RETURN_TRUE;
 }
-static PHP_FUNCTION(datadog_appsec_testing_helper_mgr_acquire_conn)
-{
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_FALSE;
-    }
-
-    struct req_info ctx = {
-        .root_span = dd_trace_get_active_root_span(),
-    };
-    dd_conn *conn =
-        dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &ctx);
-    if (conn) {
-        RETURN_TRUE;
-    } else {
-        RETURN_FALSE;
-    }
-}
-
 static PHP_FUNCTION(datadog_appsec_testing_stop_for_debugger)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -312,19 +305,9 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
         RETURN_FALSE;
     }
 
-    struct req_info ctx = {
-        .root_span = dd_trace_get_active_root_span(),
-    };
-    dd_conn *conn =
-        dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &ctx);
-    if (conn == NULL) {
-        mlog_g(dd_log_debug, "No connection; skipping request_exec");
-        RETURN_FALSE;
-    }
-
     struct block_params block_params = {0};
     struct req_exec_opts opts = {0};
-    if (dd_request_exec(conn, data, &opts, &block_params) != dd_success) {
+    if (dd_request_exec(data, &opts, &block_params) != dd_success) {
         RETVAL_FALSE;
     } else {
         RETVAL_TRUE;
@@ -332,65 +315,30 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     dd_request_abort_destroy_block_params(&block_params);
 }
 
-static dd_result _pack_invalid_command(
-    mpack_writer_t *nonnull w, ATTR_UNUSED void *nullable ctx)
-{
-    UNUSED(ctx);
-    mpack_start_map(w, 1);
-    dd_mpack_write_lstr(w, "foo");
-    dd_mpack_write_lstr(w, "bar");
-    mpack_finish_map(w);
-    return dd_success;
-}
-
-static dd_result _process_invalid_response(
-    mpack_node_t root, ATTR_UNUSED void *nullable ctx)
-{
-    UNUSED(root);
-    UNUSED(ctx);
-    return dd_success;
-}
-
+// Ends the helper's request behind the extension's back: the extension's own
+// request_shutdown then violates the protocol, which the helper reports as an
+// error (with telemetry). Used by integration tests.
 static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
 {
     if (zend_parse_parameters_none() == FAILURE) {
         RETURN_FALSE;
     }
 
-    dd_conn *conn = dd_helper_mgr_cur_conn();
-    if (conn == NULL) {
-        struct req_info ctx = {
-            .root_span = dd_trace_get_active_root_span(),
-        };
-        conn =
-            dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &ctx);
-        if (conn == NULL) {
-            mlog_g(dd_log_debug,
-                "Failed to acquire connection for invalid message test");
-            RETURN_FALSE;
-        }
-    }
-
-    static const dd_command_spec invalid_spec = {
-        .name = "invalid_command",
-        .name_len = sizeof("invalid_command") - 1,
-        .num_args = 1,
-        .outgoing_cb = _pack_invalid_command,
-        .incoming_cb = _process_invalid_response,
-        .config_features_cb = dd_command_process_config_features_unexpected,
-    };
-
-    dd_result res = dd_command_exec(conn, &invalid_spec, NULL);
-    if (res == dd_success) {
-        RETURN_TRUE;
-    } else {
-        char *error = NULL;
-        size_t error_len = spprintf(&error, 0,
-            "Failed to send invalid command: %s", dd_result_to_string(res));
-        dd_helper_close_conn(res == dd_helper_say_goobye, error, error_len);
-        efree(error);
+    if (!dd_appsec_request_started()) {
+        mlog_g(dd_log_debug, "No AppSec request to end early");
         RETURN_FALSE;
     }
+
+    dd_appsec_addresses addresses;
+    dd_appsec_addresses_init(&addresses);
+    mpack_start_map(&addresses.writer, 0);
+    mpack_finish_map(&addresses.writer);
+    struct req_info ctx = {0};
+    dd_result res = dd_appsec_send_request_shutdown(&addresses, 0, false, &ctx);
+    dd_request_abort_destroy_block_params(&ctx.block_params);
+    // The extension still believes the request runs.
+    dd_appsec_requests_mark_started();
+    RETURN_BOOL(res != dd_error);
 }
 
 PHP_FUNCTION(datadog_appsec_push_addresses)
@@ -425,18 +373,12 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
-    dd_conn *conn = dd_helper_mgr_cur_conn();
-    if (conn == NULL) {
-        mlog_g(dd_log_debug, "No connection; skipping push_addresses");
-        RETURN_FALSE;
-    }
-
     struct req_exec_opts opts = {
         .rasp_rule = rasp_rule, .rule_variant = rule_variant};
     struct block_params block_params = {0};
     struct timespec start = dd_monotime_start();
     dd_result res =
-        dd_request_exec(conn, Z_ARRVAL_P(addresses), &opts, &block_params);
+        dd_request_exec(Z_ARRVAL_P(addresses), &opts, &block_params);
 
     if (is_rasp) {
         dd_duration_rasp_ext_account(&start);
@@ -467,7 +409,6 @@ static const zend_function_entry testing_request_control_functions[] = {
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "req_lifecycle_rinit", PHP_FN(datadog_appsec_testing_req_lifecycle_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
     PHP_FE_END

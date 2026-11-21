@@ -12,15 +12,17 @@
 #include <php.h>
 #include <stdbool.h>
 
+#include <components-rs/common.h>
 #include <ext/datadog.h>
 
 #include "ddappsec_globals.h"
-#include "network.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog)
 #define DDAPPSEC_G(v) (DATADOG_G(appsec).v)
 
 void dd_appsec_rinit_once(void);
+// Applies the ASM_FEATURES activation when AppSec is managed by remote config.
+void dd_appsec_apply_remote_activation(ddog_AsmActivation activation);
 int dd_appsec_rshutdown(bool ignore_verdict);
 
 #endif // DDAPPSEC_H

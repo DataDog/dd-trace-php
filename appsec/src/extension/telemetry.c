@@ -16,7 +16,6 @@ static zend_string *_dd_missing_user_id_zstr;
 
 static zend_string *_dd_helper_conn_error_zstr;
 static zend_string *_dd_helper_conn_success_zstr;
-static zend_string *_dd_helper_conn_close_zstr;
 
 static zend_string *_waf_duration_ext_tel_zstr;
 static zend_string *_rasp_duration_ext_tel_zstr;
@@ -29,8 +28,8 @@ static THREAD_LOCAL_ON_ZTS bool _schema_extracted;
 
 static zend_string *nullable _duration_ext_tags_from_cache(void);
 static zend_string *nonnull _framework_tag(zend_object *nullable root_span);
-static void _release_zstr(zend_string * nullable * nonnull slot);
-static void _cache_replace(zend_string * nullable * nonnull slot,
+static void _release_zstr(zend_string *nullable *nonnull slot);
+static void _cache_replace(zend_string *nullable *nonnull slot,
     const char *nonnull val, size_t val_len);
 
 void dd_telemetry_startup(void)
@@ -44,8 +43,6 @@ void dd_telemetry_startup(void)
         zend_string_init_interned(LSTRARG("helper.connection_error"), 1);
     _dd_helper_conn_success_zstr =
         zend_string_init_interned(LSTRARG("helper.connection_success"), 1);
-    _dd_helper_conn_close_zstr =
-        zend_string_init_interned(LSTRARG("helper.connection_close"), 1);
     _waf_duration_ext_tel_zstr =
         zend_string_init_interned(LSTRARG("waf.duration_ext"), 1);
     _rasp_duration_ext_tel_zstr =
@@ -240,11 +237,6 @@ void dd_telemetry_helper_conn_success(void)
     _add_helper_conn_metric(_dd_helper_conn_success_zstr);
 }
 
-void dd_telemetry_helper_conn_close(void)
-{
-    _add_helper_conn_metric(_dd_helper_conn_close_zstr);
-}
-
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void dd_telemetry_submit_duration_ext(double waf_ext_us, double rasp_ext_us)
 {
@@ -291,7 +283,7 @@ static zend_string *nullable _duration_ext_tags_from_cache(void)
     return tags_zstr;
 }
 
-static void _release_zstr(zend_string * nullable * nonnull slot)
+static void _release_zstr(zend_string *nullable *nonnull slot)
 {
     if (*slot) {
         zend_string_release(*slot);
@@ -299,7 +291,7 @@ static void _release_zstr(zend_string * nullable * nonnull slot)
     }
 }
 
-static void _cache_replace(zend_string * nullable * nonnull slot,
+static void _cache_replace(zend_string *nullable *nonnull slot,
     const char *nonnull val, size_t val_len)
 {
     _release_zstr(slot);

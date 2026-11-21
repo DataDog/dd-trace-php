@@ -7,6 +7,7 @@
 
 #include "attributes.h"
 #include "zai_string/string.h"
+#include <components-rs/common.h>
 #include <zend.h>
 
 typedef enum _user_collection_mode {
@@ -30,8 +31,9 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
 bool dd_parse_user_collection_mode(
     zai_str value, zval *nonnull decoded_value, bool persistent);
 
-void dd_parse_user_collection_mode_rc(
-    const char *nonnull value, size_t value_len);
+// The ASM_FEATURES auto_user_instrum mode, which overrides the configured one
+// unless undefined.
+void dd_set_user_collection_mode_rc(ddog_AsmAutoUserInstrumMode mode);
 
 zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_info);
 

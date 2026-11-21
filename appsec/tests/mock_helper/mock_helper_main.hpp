@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
 #include <optional>
@@ -14,7 +14,7 @@
 #include <rapidjson/writer.h>
 #include <spdlog/spdlog.h>
 
-#include <mpack.h>
+#include <cstdint>
 
 namespace asio = boost::asio;
 namespace posix = asio::posix;
@@ -23,7 +23,7 @@ namespace asio = boost::asio;
 extern boost::asio::io_context iocontext;
 
 class EchoPipe { // lifetime: till the end of the program
-  public:
+public:
     EchoPipe();
 
     void write(asio::const_buffer buff, asio::yield_context yield);
@@ -59,7 +59,7 @@ private:
 };
 
 class MsgpackToJson {
-  public:
+public:
     using writer_t = rapidjson::Writer<rapidjson::StringBuffer>;
 
     MsgpackToJson(const char *buffer, size_t size);
@@ -68,31 +68,36 @@ class MsgpackToJson {
         typename = std::enable_if_t<sizeof(T) == 1 || std::is_void_v<T>, void>>
     MsgpackToJson(const T *buffer, size_t size)
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        : MsgpackToJson{reinterpret_cast<const char *>(buffer), size} {}
+        : MsgpackToJson{reinterpret_cast<const char *>(buffer), size}
+    {}
 
     MsgpackToJson(const MsgpackToJson &) = delete;
     MsgpackToJson(MsgpackToJson &&) = delete;
     MsgpackToJson &operator=(const MsgpackToJson &) = delete;
     MsgpackToJson &operator=(MsgpackToJson &&) = delete;
 
-    ~MsgpackToJson() { mpack_tree_destroy(&tree_); }
+    ~MsgpackToJson() = default;
 
     void convert();
 
-    writer_t& writer() {
-        return writer_;
-    }
+    writer_t &writer() { return writer_; }
 
-    asio::const_buffer asio_buffer() {
+    asio::const_buffer asio_buffer()
+    {
         const char *str = buffer_.GetString();
         const size_t len = buffer_.GetLength();
         return {str, len};
     }
 
-  private:
-    void write(mpack_node_t &node);
+private:
+    void write(unsigned depth);
+    void write_map(std::uint32_t len, unsigned depth);
+    void write_array(std::uint32_t len, unsigned depth);
+    std::uint64_t read_be(std::size_t n);
+    const char *take(std::size_t n);
 
-    mpack_tree_t tree_{};
+    const char *pos_;
+    const char *end_;
     rapidjson::StringBuffer buffer_;
     writer_t writer_{buffer_};
 };

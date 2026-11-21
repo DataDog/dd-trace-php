@@ -37,7 +37,7 @@ dd-trace-php Sidecar (`sidecar`)
 Core modules:
 - **src/lib.rs** - Library entry point, initialization, and shutdown on the sidecar runtime
 - **src/server.rs** - AppSec message acceptance and client task management
-- **src/client.rs** - Client connection handler, request processing, WAF execution orchestration
+- **src/client.rs** - Client task: application binding, typed request processing (`datadog_sidecar::appsec::protocol`, defined in `components-rs/appsec_protocol.rs`; request data is MessagePack, decoded with rmp-serde into `WafMap`), WAF execution orchestration
 - **src/service.rs** - Service management, maintains WAF instances per service configuration
 - **src/config.rs** - Configuration management (from environment variables)
 - **src/rc.rs** - Remote configuration reader using shared memory polling
@@ -45,14 +45,13 @@ Core modules:
 - **src/telemetry.rs** - Telemetry traits and definitions for metrics and logs
 
 Client sub-modules:
-- **src/client/protocol.rs** - Msgpack protocol codec for PHP extension communication
+- **src/client/sidecar_msg.rs** - The sidecar's callbacks: one client task per connection with AppSec session config
 - **src/client/log.rs** - Logging utilities
 - **src/client/metrics.rs** - Request-level metrics collection
 - **src/client/attributes.rs** - Request attributes processing
 
 Service sub-modules:
 - **src/service/updateable_waf.rs** - Thread-safe WAF wrapper with atomic updates
-- **src/service/config_manager.rs** - ASM feature configuration from remote config
 - **src/service/limiter.rs** - Rate limiting for trace submission
 - **src/service/sampler.rs** - Trace sampling
 - **src/service/metrics.rs** - Service-level metrics

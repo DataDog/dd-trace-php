@@ -52,15 +52,13 @@ $returned = true;
 bool(true)
 bool(true)
 bool(false)
-array(5) {
+array(4) {
   [0]=>
-  string(11) "client_init"
+  string(12) "request_init"
   [1]=>
-  string(12) "request_init"
-  [2]=>
   string(16) "request_shutdown"
-  [3]=>
+  [2]=>
   string(12) "request_init"
-  [4]=>
+  [3]=>
   string(16) "request_shutdown"
 }

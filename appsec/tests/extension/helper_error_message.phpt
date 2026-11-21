@@ -1,27 +1,29 @@
 --TEST--
 Test when helper responds with error
 --INI--
-datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.enabled=1
 datadog.appsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
 --FILE--
 <?php
-use function datadog\appsec\testing\rinit;
+use function datadog\appsec\testing\{rinit,rshutdown};
 
 include __DIR__ . '/inc/mock_helper.php';
-require __DIR__ . '/inc/logging.php';
+include __DIR__ . '/inc/logging.php';
 
-$helper = Helper::createInitedRun([
+$helper = Helper::createRun([
     response_list(response("error", []))
 ], ['no_wait_shutdown' => true]);
 
 var_dump(rinit());
+var_dump(rshutdown());
 
-match_log("/Helper responded with an error and removed this client\. Check helper logs/");
-match_log("/request_init\/config_sync failed with dd_helper_fatal/");
-
+match_log("/The AppSec helper failed request_init: the helper responded with an error/");
+// The request was not started: no request_shutdown.
+echo implode(", ", array_column($helper->get_commands(), 0)), "\n";
 ?>
 --EXPECTF--
 bool(true)
-found message in log matching /Helper responded with an error and removed this client\. Check helper logs/
-found message in log matching /request_init\/config_sync failed with dd_helper_fatal/
-
+bool(true)
+found message in log matching /The AppSec helper failed request_init: the helper responded with an error/
+request_init

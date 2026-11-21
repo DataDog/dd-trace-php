@@ -2280,6 +2280,27 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else {
                 array_init(return_value);
             }
+        } else if (FUNCTION_NAME_MATCHES("asm_features")) {
+            // Test/debug helper: the AppSec settings of the currently applied ASM_FEATURES configs.
+            static const char *const activations[] = {
+                [DDOG_ASM_ACTIVATION_UNSET] = "unset",
+                [DDOG_ASM_ACTIVATION_ENABLED] = "enabled",
+                [DDOG_ASM_ACTIVATION_DISABLED] = "disabled",
+            };
+            static const char *const modes[] = {
+                [DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNDEFINED] = "undefined",
+                [DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNKNOWN] = "unknown",
+                [DDOG_ASM_AUTO_USER_INSTRUM_MODE_DISABLED] = "disabled",
+                [DDOG_ASM_AUTO_USER_INSTRUM_MODE_IDENTIFICATION] = "identification",
+                [DDOG_ASM_AUTO_USER_INSTRUM_MODE_ANONYMIZATION] = "anonymization",
+            };
+            ddog_AsmFeatures features = {0};
+            if (DATADOG_G(remote_config_state)) {
+                features = ddog_remote_config_asm_features(DATADOG_G(remote_config_state));
+            }
+            array_init(return_value);
+            add_assoc_string(return_value, "activation", (char *)activations[features.activation]);
+            add_assoc_string(return_value, "auto_user_instrum", (char *)modes[features.auto_user_instrum]);
         } else if (FUNCTION_NAME_MATCHES("process_remote_config")) {
             // Test/debug helper for exercising Remote Config at precise lifecycle points.
             datadog_check_for_new_config_now();

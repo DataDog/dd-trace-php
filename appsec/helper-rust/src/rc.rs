@@ -448,7 +448,7 @@ impl Drop for Shmem {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use libdd_ipc::one_way_shared_memory::OneWayShmWriter;
     use std::ffi::CString;
@@ -475,13 +475,13 @@ mod tests {
         CString::new(name.as_bytes()).unwrap()
     }
 
-    fn shm_unlink(name: &str) {
+    pub(crate) fn shm_unlink(name: &str) {
         unsafe {
             let _ = libc::shm_unlink(native_name(name).as_ptr());
         }
     }
 
-    fn shm_create_and_write(name: &str, content: &[u8]) -> anyhow::Result<()> {
+    pub(crate) fn shm_create_and_write(name: &str, content: &[u8]) -> anyhow::Result<()> {
         let c_name = native_name(name);
         unsafe {
             // Best-effort cleanup in case it already exists
@@ -538,7 +538,7 @@ mod tests {
         Ok(writer)
     }
 
-    fn shm_create_and_write_config_dir(
+    pub(crate) fn shm_create_and_write_config_dir(
         name: &str,
         runtime_id: &str,
         lines: &[String],

@@ -8,16 +8,14 @@
 #include <SAPI.h>
 #include <php.h>
 
-#include "../network.h"
+#include "../dddefs.h"
 #include "../request_abort.h"
 
 struct req_exec_opts {
     zend_string *nullable rasp_rule;
     zend_string *nullable rule_variant;
-    zend_string *nullable subctx_id;
-    bool subctx_last_call;
 };
 
-dd_result dd_request_exec(dd_conn *nonnull conn, zend_array *nonnull data,
+dd_result dd_request_exec(zend_array *nonnull data,
     const struct req_exec_opts *nonnull opts,
     struct block_params *nonnull block_params);

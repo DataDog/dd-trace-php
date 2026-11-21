@@ -8,7 +8,6 @@
 #include "commands/request_exec.h"
 #include "ddappsec.h"
 #include "dddefs.h"
-#include "helper_process.h"
 #include "logging.h"
 #include "php_objects.h"
 #include "request_abort.h"
@@ -219,12 +218,6 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
         return;
     }
 
-    dd_conn *conn = dd_helper_mgr_cur_conn();
-    if (conn == NULL) {
-        mlog(dd_log_debug, "No connection; unable to check user");
-        return;
-    }
-
     size_t data_size = 0;
     data_size += user_login != NULL && ZSTR_LEN(user_login) > 0 ? 1 : 0;
     data_size += user_id != NULL && ZSTR_LEN(user_id) > 0 ? 1 : 0;
@@ -261,15 +254,8 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
 
     struct block_params block_params = {0};
     dd_result res = dd_request_exec(
-        conn, Z_ARRVAL(data_zv), &(struct req_exec_opts){0}, &block_params);
-    if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
-        mlog_g(dd_log_info, "request_exec failed with dd_helper_say_goobye or "
-                            "dd_helper_fatal; closing connection to helper");
-        bool goodbye = res == dd_helper_say_goobye;
-        dd_helper_close_conn(
-            goodbye, LSTRARG("request_exec failed with dd_helper_say_goodbye "
-                             "or dd_helper_fatal"));
-    } else if (res == dd_error) {
+        Z_ARRVAL(data_zv), &(struct req_exec_opts){0}, &block_params);
+    if (res == dd_error) {
         mlog_g(dd_log_info, "request_exec failed with dd_error");
     }
 
@@ -319,25 +305,31 @@ bool dd_parse_user_collection_mode(
     return true;
 }
 
-void dd_parse_user_collection_mode_rc(
-    const char *nonnull value, size_t value_len)
+void dd_set_user_collection_mode_rc(ddog_AsmAutoUserInstrumMode mode)
 {
-    if (dd_string_equals_lc(value, value_len, ZEND_STRL("undefined"))) {
+    switch (mode) {
+    case DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNDEFINED:
         _user_mode_rc = user_mode_undefined;
-    } else if (dd_string_equals_lc(
-                   value, value_len, ZEND_STRL("identification"))) {
+        break;
+    case DDOG_ASM_AUTO_USER_INSTRUM_MODE_IDENTIFICATION:
         _user_mode_rc = user_mode_ident;
-    } else if (dd_string_equals_lc(
-                   value, value_len, ZEND_STRL("anonymization"))) {
+        break;
+    case DDOG_ASM_AUTO_USER_INSTRUM_MODE_ANONYMIZATION:
         _user_mode_rc = user_mode_anon;
-    } else { // If the value is disabled or an unknown value, we disable user ID
-             // collection
-        if (!get_global_DD_APPSEC_TESTING()) {
-            mlog_g(dd_log_warning,
-                "Unknown or disabled remote config user collection mode: %.*s",
-                (int)value_len, value);
+        break;
+    case DDOG_ASM_AUTO_USER_INSTRUM_MODE_UNKNOWN:
+        // An unknown mode disables user ID collection, like "disabled". This
+        // runs on every request, so only warn when the mode changes.
+        if (_user_mode_rc != user_mode_disabled) {
+            mlog_g(dd_log_warning, "Unknown remote config user collection "
+                                   "mode; disabling user ID collection");
         }
         _user_mode_rc = user_mode_disabled;
+        break;
+    case DDOG_ASM_AUTO_USER_INSTRUM_MODE_DISABLED:
+    default:
+        _user_mode_rc = user_mode_disabled;
+        break;
     }
 }
 

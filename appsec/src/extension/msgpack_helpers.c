@@ -10,7 +10,6 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "php_helpers.h"
-#include "php_objects.h"
 #include <ext/compatibility.h>
 
 #if !MPACK_HAS_CONFIG
@@ -25,7 +24,6 @@ static void _mpack_write_zval(
     mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth);
 
 #ifdef TESTING
-static const size_t MAX_DEPTH_READING = 32;
 static const size_t MAX_BODY_DEPTH_READING = 128;
 static bool parse_messagepack(const char *nonnull data, size_t length,
     bool php_array_semantics, size_t max_depth, zval *nonnull output);
@@ -386,139 +384,6 @@ void dd_mpack_write_zval_lim(
     _mpack_write_zval_lim(w, zv, limits);
 }
 
-static void _buffer_writer_flush(
-    mpack_writer_t *w, const char *data, size_t count);
-
-static void _buffer_writer_teardown(mpack_writer_t *w);
-
-void dd_mpack_writer_init_buffer(mpack_writer_t *nonnull writer,
-    dd_mpack_buffer *nonnull buffer, size_t prefix_size)
-{
-    *buffer = (dd_mpack_buffer){.prefix_size = prefix_size};
-
-    const size_t capacity = MPACK_BUFFER_SIZE;
-    if (prefix_size > SIZE_MAX - capacity) {
-        mpack_writer_init_error(writer, mpack_error_too_big);
-        return;
-    }
-
-    buffer->data = MPACK_MALLOC(prefix_size + capacity);
-    if (buffer->data == NULL) {
-        mpack_writer_init_error(writer, mpack_error_memory);
-        return;
-    }
-    memset(buffer->data, 0, prefix_size);
-
-    mpack_writer_init(writer, buffer->data + prefix_size, capacity);
-    writer->context = buffer;
-    mpack_writer_set_flush(writer, _buffer_writer_flush);
-    mpack_writer_set_teardown(writer, _buffer_writer_teardown);
-}
-
-void dd_mpack_buffer_destroy(dd_mpack_buffer *nonnull buffer)
-{
-    if (buffer->data != NULL) {
-        MPACK_FREE(buffer->data);
-    }
-    *buffer = (dd_mpack_buffer){0};
-}
-
-static void _buffer_writer_flush(
-    mpack_writer_t *w, const char *data, size_t count)
-{
-    // There are three ways flush can be called:
-    //   - flushing the buffer during writing (used is zero, count is all data,
-    //   data is buffer)
-    //   - flushing extra data during writing (used is all flushed data, count
-    //   is extra data, data is not buffer)
-    //   - flushing during teardown (used and count are both all flushed data,
-    //   data is buffer)
-    //
-    // A zero-length buffer flush can only happen during writing, before MPack
-    // follows it with a flush of the extra data; teardown skips empty buffers.
-
-    if (w->buffer == NULL) {
-        mlog(dd_log_error, "w->buffer is NULL (flush called after teardown)");
-        return;
-    }
-
-    bool buffer_was_flushed = data == w->buffer;
-    if (buffer_was_flushed) {
-        if (mpack_writer_buffer_used(w) == count) {
-            // teardown; the buffer is transferred by _buffer_writer_teardown
-            return;
-        }
-        w->position = w->buffer + count;
-        count = 0;
-    }
-
-    size_t used = mpack_writer_buffer_used(w);
-    if (count > SIZE_MAX - used) {
-        mpack_writer_flag_error(w, mpack_error_too_big);
-        return;
-    }
-    dd_mpack_buffer *buffer = w->context;
-    size_t max_capacity = SIZE_MAX - buffer->prefix_size;
-    size_t required = used + count;
-    if (required > max_capacity) {
-        mpack_writer_flag_error(w, mpack_error_too_big);
-        return;
-    }
-
-    size_t capacity = mpack_writer_buffer_size(w);
-    size_t new_capacity = capacity;
-    if (buffer_was_flushed) {
-        // The current contents fit, but MPack flushed because it needs room
-        // for another write of unknown size.
-        if (capacity == max_capacity) {
-            mpack_writer_flag_error(w, mpack_error_too_big);
-            return;
-        }
-        new_capacity =
-            capacity > max_capacity / 2 ? max_capacity : capacity * 2;
-    }
-    while (new_capacity < required) {
-        if (new_capacity > max_capacity / 2) {
-            new_capacity = required;
-            break;
-        }
-        new_capacity *= 2;
-    }
-
-    char *new_data = mpack_realloc(buffer->data, buffer->prefix_size + used,
-        buffer->prefix_size + new_capacity);
-    if (new_data == NULL) {
-        mpack_writer_flag_error(w, mpack_error_memory);
-        return;
-    }
-
-    buffer->data = new_data;
-    w->buffer = new_data + buffer->prefix_size;
-    w->position = w->buffer + used;
-    w->end = w->buffer + new_capacity;
-
-    if (count > 0) {
-        memcpy(w->position, data, count); // NOLINT
-        w->position += count;
-    }
-}
-
-static void _buffer_writer_teardown(mpack_writer_t *w)
-{
-    dd_mpack_buffer *buffer = w->context;
-
-    if (mpack_writer_error(w) != mpack_ok) {
-        MPACK_FREE(buffer->data);
-        buffer->data = NULL;
-        buffer->final_msg_size = 0;
-    } else {
-        buffer->final_msg_size =
-            buffer->prefix_size + mpack_writer_buffer_used(w);
-    }
-    w->buffer = NULL;
-    w->context = NULL;
-}
-
 #ifdef TESTING
 // NOLINTNEXTLINE(misc-no-recursion)
 static bool parse_element(mpack_reader_t *nonnull reader, size_t depth,
@@ -647,45 +512,7 @@ static bool parse_messagepack(const char *nonnull data, size_t length,
     return true;
 }
 
-static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
-{
-    zend_string *encoded = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &encoded) != SUCCESS) {
-        RETURN_FALSE;
-    }
-
-    parse_messagepack(ZSTR_VAL(encoded), ZSTR_LEN(encoded), false,
-        MAX_DEPTH_READING, return_value);
-}
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
-    void_ret_array_arginfo, 0, 1, IS_ARRAY, 0)
-ZEND_ARG_TYPE_INFO(0, encoded, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
-// clang-format off
-static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "decode_msgpack", PHP_FN(datadog_appsec_testing_decode_msgpack), void_ret_array_arginfo, 0, NULL, NULL)
-    PHP_FE_END
-};
-// clang-format on
-
-static void _register_testing_objects(void)
-{
-    if (!get_global_DD_APPSEC_TESTING()) {
-        return;
-    }
-
-    dd_phpobj_reg_funcs(testing_functions);
-}
 #endif
-
-void dd_msgpack_helpers_startup(void)
-{
-#ifdef TESTING
-    _register_testing_objects();
-#endif
-}
 
 void dd_msgpack_helpers_rinit(void) { data_truncated_ = false; }
 

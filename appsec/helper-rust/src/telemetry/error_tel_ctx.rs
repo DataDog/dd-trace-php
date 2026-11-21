@@ -28,14 +28,6 @@ pub fn update_error_telemetry_context(client: InProcessTelemetryClient) -> bool 
         .is_ok()
 }
 
-/// Clear the error telemetry context for the current task.
-/// Returns true if the clear was successful, false if not in a scoped context.
-pub fn clear_error_telemetry_context() -> bool {
-    ERROR_TELEMETRY_HANDLE
-        .try_with(|handle| handle.clear())
-        .is_ok()
-}
-
 /// Returns a log submitter that has already snapshotted the current task's telemetry
 /// context. Because the context is captured eagerly, the returned value is `Send` and
 /// can be used from any thread, not just the originating task's thread.
@@ -75,12 +67,6 @@ impl ErrorTelemetryHandle {
     pub fn set(&self, ctx: ErrorTelemetryContext) {
         if let Ok(mut guard) = self.0.write() {
             *guard = Some(ctx);
-        }
-    }
-
-    pub fn clear(&self) {
-        if let Ok(mut guard) = self.0.write() {
-            *guard = None;
         }
     }
 

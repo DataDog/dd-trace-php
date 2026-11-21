@@ -81,7 +81,7 @@ $helper->finished_with_commands();
 --EXPECTF--
 rinit
 bool(true)
-number of commands: 2
+number of commands: 1
 string(17) "ddtrace_basic.php"
 string(12) "appsec_tests"
 string(3) "cli"

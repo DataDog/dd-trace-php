@@ -90,6 +90,14 @@ impl CollectedWafAttributes {
                     .value();
                 self.metrics.insert(key.to_owned(), val);
             }
+            WafObjectType::Bool => {
+                let val = value
+                    .as_type::<libddwaf::object::WafBool>()
+                    .unwrap()
+                    .value();
+                self.metrics
+                    .insert(key.to_owned(), if val { 1.0 } else { 0.0 });
+            }
             WafObjectType::String => {
                 let val = value.as_type::<libddwaf::object::WafString>().unwrap();
                 let s = val
@@ -138,6 +146,19 @@ mod tests {
     use flate2::read::GzDecoder;
     use libddwaf::waf_map;
     use std::io::Read;
+
+    #[test]
+    fn test_add_bool_attribute() {
+        let mut attrs = CollectedWafAttributes::new(260, 25000);
+        let map = waf_map! {("test.true", true), ("test.false", false)};
+        for attr in map.into_iter() {
+            attrs.add_attribute(&attr);
+        }
+
+        assert_eq!(attrs.metrics.get("test.true"), Some(&1.0));
+        assert_eq!(attrs.metrics.get("test.false"), Some(&0.0));
+        assert_eq!(attrs.meta.len(), 0);
+    }
 
     #[test]
     fn test_add_numeric_signed_attribute() {

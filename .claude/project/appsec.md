@@ -13,10 +13,18 @@ actions, and reports matches through `asm_event`.
 
 - `appsec/src/extension/` — the C part of the extension: `ddappsec.c`
   (lifecycle, see `ddappsec_api.h`),
-  `commands/{client_init,request_init,request_exec,request_shutdown}.c`,
-  `helper_process.c`, `configuration_table.h` (AppSec's part of the shared
+  `commands/{request_init,request_exec,request_shutdown}.c` (request data),
+  `value_writer.c` (zvals into the request builder), `appsec_requests.c`
+  (sending requests, applying verdicts), `helper_process.c` (the AppSec
+  session config), `configuration_table.h` (AppSec's part of the shared
   config table; read it through `configuration.h`), `tracer_bridge.c` (calls
   into the tracer), `body_parser.c`.
+- `components-rs/appsec_protocol.rs` — the typed extension ↔ helper
+  protocol, included by libdatadog's sidecar (`appsec-protocol` feature,
+  path in `DATADOG_SIDECAR_APPSEC_PROTOCOL`, set by `.cargo/config.toml`
+  and `compile_rust.sh`).
+- `components-rs/tracer_runtime/appsec.rs` — the request builder, verdict
+  view and the JSON shim for the test mock helper.
 - `components-rs/appsec_body/` — Rust JSON/XML request body parsers.
 - `appsec/helper-rust/` — Rust helper:
   `src/{lib,server,client,service,config,rc,telemetry}.rs`, `build.rs`,
@@ -31,24 +39,38 @@ actions, and reports matches through `asm_event`.
 
 `ext/datadog.c` drives AppSec's lifecycle: its MINIT and RINIT run after the
 tracer's (it needs the tracer's PHP functions and the root span), its
-RSHUTDOWN, MSHUTDOWN and GSHUTDOWN before (it still writes to the root span and
-says goodbye over the sidecar connection). Its globals are part of the datadog
+RSHUTDOWN, MSHUTDOWN and GSHUTDOWN before (it still writes to the root span). Its globals are part of the datadog
 module globals (`DDAPPSEC_G`), and its settings join the shared ZAI table
 after the profiler's. During sidecar setup `ext/sidecar.c` calls
 `dd_appsec_maybe_enable_helper`, which calls `ddog_sidecar_enable_appsec`.
 
-Per request the extension sends headers, body, and query data over the
-sidecar transport. The embedded helper runs the WAF and returns block or
-redirect decisions and matched rules. Matches emit `asm_event`, which
-[tracer/](tracer.md) attaches to the root span on serialization.
+The sidecar owns the helper client of each connection: the AppSec session
+config (sent with the connection config) creates it, the application
+registered for remote config binds it to a service, and closing the
+connection drops it. Activation (`ASM_FEATURES`) is decided by the extension
+from the tracer's remote config reader, so an inactive AppSec makes no
+requests. Per request the extension sends request_init, request_exec and
+request_shutdown with headers, body, and query data; the helper runs the WAF
+and returns a verdict with block or redirect actions and matched rules. The
+requests are typed (`components-rs/appsec_protocol.rs`), but the request data
+in them is MessagePack, written by the extension with mpack
+(`msgpack_helpers.c`) and decoded by the helper straight into WAF objects.
+Matches emit `asm_event`, which [tracer/](tracer.md) attaches to the root
+span on serialization.
 
 ## Gotchas
 
-- AppSec shares the tracer's vendored mpack, configured in
-  `tracer/vendor/mpack/mpack-config.h`: it allocates with emalloc, so only
-  call allocating mpack functions on PHP threads.
+- The request builder and verdicts are Rust-owned: release them even when
+  PHP bails out (see the `zend_try` blocks in `commands/` and
+  `appsec_requests.c`).
 - When AppSec blocks a request in RINIT, PHP skips RSHUTDOWN: it runs the
   other products' RSHUTDOWN itself (`datadog_rshutdown_products`).
+- Without `DD_SERVICE`/`DD_ENV`, the tracer starts each request on a default
+  remote config target. AppSec keeps to the target the previous request
+  ended on (`ddog_remote_config_keep_asm_features_target`), reading its
+  `ASM_FEATURES` live, and the helper stays bound to its application.
+- Inactive requests send nothing to the helper, so bound helper clients
+  submit the telemetry of RC updates as soon as they apply.
 - Required submodules are `libddwaf-rust` and `libdatadog` — see
   [building-locally.md](../ci/building-locally.md#submodule-initialisation).
 - `appsec/helper-rust/CLAUDE.md` has the deep guide for the Rust helper.

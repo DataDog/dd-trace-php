@@ -44,7 +44,7 @@ using SizeType = std::uint32_t;
 
 #include "mock_dd_agent.hpp"
 #include "mock_helper_main.hpp"
-#include <mpack.h>
+#include <cstring>
 
 namespace po = boost::program_options;
 namespace asio = boost::asio;
@@ -56,89 +56,177 @@ using boost::system::error_code;
 asio::io_context iocontext;
 bool continuous_mode;
 // When set, exit as soon as the scripted responses are exhausted instead of
-// waiting for the client_shutdown goodbye. Used by tests where the extension
-// abandons the connection (e.g. a failed client_init) and so never sends one.
+// waiting for the extension to close its side.
 bool no_wait_shutdown;
 
 MsgpackToJson::MsgpackToJson(const char *buffer, size_t size)
-{
-    mpack_tree_init_data(&tree_, buffer, size);
-}
+    : pos_{buffer}, end_{buffer + size}
+{}
+
 void MsgpackToJson::convert()
 {
-    mpack_tree_parse(&tree_);
-    const mpack_error_t err = mpack_tree_error(&tree_);
-    if (err != mpack_ok) {
-        throw std::runtime_error{std::string{"Error parsing msgpack: "} +
-                                 mpack_error_to_string(err)};
+    write(0);
+    if (pos_ != end_) {
+        throw std::runtime_error{"Trailing data after msgpack object"};
     }
+}
 
-    mpack_node_t root = mpack_tree_root(&tree_);
-    write(root);
+const char *MsgpackToJson::take(std::size_t n)
+{
+    if (static_cast<std::size_t>(end_ - pos_) < n) {
+        throw std::runtime_error{"Truncated msgpack object"};
+    }
+    const char *p = pos_;
+    pos_ += n; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return p;
+}
+
+std::uint64_t MsgpackToJson::read_be(std::size_t n)
+{
+    const char *p = take(n);
+    std::uint64_t v = 0;
+    for (std::size_t i = 0; i < n; i++) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        v = (v << 8U) | static_cast<std::uint8_t>(p[i]);
+    }
+    return v;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-void MsgpackToJson::write(mpack_node_t &node)
+void MsgpackToJson::write_map(std::uint32_t len, unsigned depth)
 {
-    const mpack_type_t type = mpack_node_type(node);
-    switch (type) {
-    case mpack_type_nil:
-        writer_.Null();
-        break;
-    case mpack_type_bool:
-        writer_.Bool(mpack_node_bool(node));
-        break;
-    case mpack_type_int:
-        writer_.Int64(mpack_node_i64(node));
-        break;
-    case mpack_type_uint:
-        writer_.Uint64(mpack_node_u64(node));
-        break;
-    case mpack_type_float:
-        writer_.Double(static_cast<double>(mpack_node_float_strict(node)));
-        break;
-    case mpack_type_double:
-        writer_.Double(mpack_node_double_strict(node));
-        break;
-    case mpack_type_str:
-        writer_.String(mpack_node_str(node), mpack_node_strlen(node));
-        break;
-    case mpack_type_array: {
-        writer_.StartArray();
-        auto len = mpack_node_array_length(node);
-        for (decltype(len) i = 0; i < len; i++) {
-            mpack_node_t child = mpack_node_array_at(node, i);
-            write(child);
+    writer_.StartObject();
+    for (std::uint32_t i = 0; i < len; i++) {
+        auto tag = static_cast<std::uint8_t>(*take(1));
+        std::size_t key_len = 0;
+        if ((tag & 0xe0U) == 0xa0U) { // NOLINT(readability-magic-numbers)
+            key_len = tag & 0x1fU;    // NOLINT(readability-magic-numbers)
+        } else if (tag == 0xd9) {     // NOLINT(readability-magic-numbers)
+            key_len = read_be(1);
+        } else if (tag == 0xda) { // NOLINT(readability-magic-numbers)
+            key_len = read_be(2);
+        } else if (tag == 0xdb) { // NOLINT(readability-magic-numbers)
+            key_len = read_be(4);
+        } else {
+            throw std::runtime_error{
+                "saw nonstring map key in msgpack message"};
         }
-        writer_.EndArray();
-        break;
+        const char *key = take(key_len);
+        writer_.Key(key, static_cast<rapidjson::SizeType>(key_len));
+        write(depth + 1);
     }
-    case mpack_type_map: {
-        writer_.StartObject();
-        auto len = mpack_node_map_count(node);
-        for (decltype(len) i = 0; i < len; i++) {
-            mpack_node_t const key = mpack_node_map_key_at(node, i);
-            mpack_node_t value = mpack_node_map_value_at(node, i);
+    writer_.EndObject();
+}
 
-            mpack_type_t const key_type = mpack_node_type(key);
-            if (key_type != mpack_type_str) {
-                throw std::runtime_error{
-                    "saw nonstring map key in msgpack message"};
-            }
-            writer_.Key(mpack_node_str(key), mpack_node_strlen(key));
-            write(value);
+// NOLINTNEXTLINE(misc-no-recursion)
+void MsgpackToJson::write_array(std::uint32_t len, unsigned depth)
+{
+    writer_.StartArray();
+    for (std::uint32_t i = 0; i < len; i++) { write(depth + 1); }
+    writer_.EndArray();
+}
+
+// NOLINTNEXTLINE(misc-no-recursion,readability-function-cognitive-complexity)
+void MsgpackToJson::write(unsigned depth)
+{
+    static constexpr unsigned max_depth = 64;
+    if (depth > max_depth) {
+        throw std::runtime_error{"msgpack object nested too deeply"};
+    }
+    auto tag = static_cast<std::uint8_t>(*take(1));
+    // NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+    if (tag <= 0x7f) {
+        writer_.Uint64(tag);
+    } else if (tag >= 0xe0) {
+        writer_.Int64(static_cast<std::int8_t>(tag));
+    } else if ((tag & 0xf0U) == 0x80U) {
+        write_map(tag & 0x0fU, depth);
+    } else if ((tag & 0xf0U) == 0x90U) {
+        write_array(tag & 0x0fU, depth);
+    } else if ((tag & 0xe0U) == 0xa0U) {
+        std::size_t len = tag & 0x1fU;
+        writer_.String(take(len), static_cast<rapidjson::SizeType>(len));
+    } else {
+        switch (tag) {
+        case 0xc0:
+            writer_.Null();
+            break;
+        case 0xc2:
+            writer_.Bool(false);
+            break;
+        case 0xc3:
+            writer_.Bool(true);
+            break;
+        case 0xc4:
+        case 0xc5:
+        case 0xc6:
+        case 0xd9:
+        case 0xda:
+        case 0xdb: {
+            std::size_t n = (tag == 0xc4 || tag == 0xd9)   ? 1
+                            : (tag == 0xc5 || tag == 0xda) ? 2
+                                                           : 4;
+            std::size_t len = read_be(n);
+            writer_.String(take(len), static_cast<rapidjson::SizeType>(len));
+            break;
         }
-        writer_.EndObject();
-        break;
+        case 0xca: {
+            auto bits = static_cast<std::uint32_t>(read_be(4));
+            float f;
+            std::memcpy(&f, &bits, sizeof(f));
+            writer_.Double(f);
+            break;
+        }
+        case 0xcb: {
+            std::uint64_t bits = read_be(8);
+            double d;
+            std::memcpy(&d, &bits, sizeof(d));
+            writer_.Double(d);
+            break;
+        }
+        case 0xcc:
+            writer_.Uint64(read_be(1));
+            break;
+        case 0xcd:
+            writer_.Uint64(read_be(2));
+            break;
+        case 0xce:
+            writer_.Uint64(read_be(4));
+            break;
+        case 0xcf:
+            writer_.Uint64(read_be(8));
+            break;
+        case 0xd0:
+            writer_.Int64(static_cast<std::int8_t>(read_be(1)));
+            break;
+        case 0xd1:
+            writer_.Int64(static_cast<std::int16_t>(read_be(2)));
+            break;
+        case 0xd2:
+            writer_.Int64(static_cast<std::int32_t>(read_be(4)));
+            break;
+        case 0xd3:
+            writer_.Int64(static_cast<std::int64_t>(read_be(8)));
+            break;
+        case 0xdc:
+            write_array(static_cast<std::uint32_t>(read_be(2)), depth);
+            break;
+        case 0xdd:
+            write_array(static_cast<std::uint32_t>(read_be(4)), depth);
+            break;
+        case 0xde:
+            write_map(static_cast<std::uint32_t>(read_be(2)), depth);
+            break;
+        case 0xdf:
+            write_map(static_cast<std::uint32_t>(read_be(4)), depth);
+            break;
+        default:
+            throw std::runtime_error{
+                "saw unsupported msgpack object with tag " +
+                std::to_string(tag)};
+        }
     }
-    case mpack_type_bin:
-        writer_.String(mpack_node_bin_data(node), mpack_node_bin_size(node));
-        break;
-    case mpack_type_missing:
-        throw std::runtime_error{
-            std::string{"saw unsupported msgpack object: "} +
-            mpack_type_to_string(type)};
-    }
+    // NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 }
 
 EchoPipe::EchoPipe() : stream_{try_fds()}
@@ -203,193 +291,47 @@ std::optional<posix::stream_descriptor> EchoPipe::try_single_fd(int fd)
     return {{iocontext, new_fd}};
 }
 
-struct OwningBuffer {
-    const char *buf_;
-    std::size_t len_;
-    OwningBuffer() : buf_{nullptr}, len_{0UL} {}
-    OwningBuffer(const char *buf, std::size_t len) : buf_{buf}, len_{len} {}
-    OwningBuffer(const OwningBuffer &) = delete;
-    const OwningBuffer &operator=(const OwningBuffer &) = delete;
-    OwningBuffer(OwningBuffer &&oth) noexcept : OwningBuffer{}
-    {
-        *this = std::move(oth);
-    }
-    OwningBuffer &operator=(OwningBuffer &&oth) noexcept
-    {
-        std::free(const_cast<char *>(buf_)); // NOLINT
-        buf_ = oth.buf_;
-        len_ = oth.len_;
-        oth.buf_ = nullptr;
-        oth.len_ = 0UL;
-        return *this;
-    }
-    ~OwningBuffer() noexcept { std::free(const_cast<char *>(buf_)); } // NOLINT
-};
-
-class MpackWriter {
+// A scripted response: either the list of responses, or an object with that
+// list as "msg" and a "delay" in seconds before sending it.
+class ScriptedResponse {
 public:
-    MpackWriter() noexcept
+    explicit ScriptedResponse(rapidjson::Document &doc)
     {
-        mpack_writer_init_growable(&writer_, &data_, &size_);
-    }
-
-    MpackWriter(MpackWriter &&) = delete;
-    MpackWriter &operator=(MpackWriter &&) = delete;
-    MpackWriter(const MpackWriter &) = delete;
-    MpackWriter &operator=(const MpackWriter &) = delete;
-    ~MpackWriter()
-    {
-        mpack_writer_destroy(&writer_);
-        std::free(data_); // NOLINT
-    }
-
-    // NOLINTNEXTLINE(misc-no-recursion)
-    MpackWriter &operator<<(const rapidjson::Value &val)
-    {
-        if (val.IsInt() || val.IsInt64()) {
-            mpack_write_int(&writer_, val.GetInt());
-        } else if (val.IsDouble()) {
-            mpack_write_double(&writer_, val.GetDouble());
-        } else if (val.IsFloat()) {
-            mpack_write_double(&writer_, val.GetFloat());
-        } else if (val.IsString()) {
-            mpack_write_str(&writer_, val.GetString(), val.GetStringLength());
-        } else if (val.IsNull()) {
-            mpack_write_nil(&writer_);
-        } else if (val.IsBool()) {
-            if (val.GetBool()) {
-                mpack_write_true(&writer_);
-            } else {
-                mpack_write_false(&writer_);
-            }
-        } else if (val.IsArray()) {
-            auto arr = val.GetArray();
-            mpack_start_array(&writer_, arr.Size());
-            for (const auto &val : arr) { *this << val; }
-            mpack_finish_array(&writer_);
-        } else if (val.IsObject()) {
-            auto obj = val.GetObject();
-            mpack_start_map(&writer_, obj.MemberCount());
-            for (auto it = val.MemberBegin(); it != val.MemberEnd(); it++) {
-                const auto &name = it->name;
-                mpack_write_str(
-                    &writer_, name.GetString(), name.GetStringLength());
-                *this << it->value;
-            }
-            mpack_finish_map(&writer_);
-        } else {
-            throw std::runtime_error{"Unexpected json type"};
-        }
-        return *this;
-    }
-
-    OwningBuffer move_data()
-    {
-        mpack_writer_destroy(&writer_);
-        OwningBuffer ret{data_, size_};
-        data_ = nullptr;
-        size_ = 0UL;
-        return ret;
-    }
-
-private:
-    char *data_{};
-    std::size_t size_{};
-    mpack_writer_t writer_{};
-};
-
-class JsonToMsgpack {
-public:
-    explicit JsonToMsgpack(rapidjson::Document &doc) : doc_{doc} {}
-
-    void convert()
-    {
-        if (!doc_.IsObject() && !doc_.IsArray()) {
-            throw std::runtime_error{
-                "JSON document is not an object or array, got " +
-                std::to_string(doc_.GetType())};
-        }
-
-        MpackWriter writer{};
-        if (doc_.IsObject()) {
-            if (doc_.HasMember("delay")) {
-                auto &delay = doc_["delay"];
+        const rapidjson::Value *msg = &doc;
+        if (doc.IsObject()) {
+            if (doc.HasMember("delay")) {
+                auto &delay = doc["delay"];
                 if (!delay.IsInt()) {
                     throw std::runtime_error{"Delay is not an integer"};
                 }
                 delay_ = static_cast<decltype(delay_)>(delay.GetInt());
             }
-            if (!doc_.HasMember("msg")) {
+            if (!doc.HasMember("msg")) {
                 throw std::runtime_error("JSON document has no 'msg' member");
             }
-            auto &msg = doc_["msg"];
-            if (!msg.IsArray()) {
+            msg = &doc["msg"];
+            if (!msg->IsArray()) {
                 throw std::runtime_error("Value of 'msg' member is no array");
             }
-            writer << msg;
-        } else { // array; no transformation
-            writer << doc_;
+        } else if (!doc.IsArray()) {
+            throw std::runtime_error{
+                "JSON document is not an object or array, got " +
+                std::to_string(doc.GetType())};
         }
-
-        out_buf_ = writer.move_data();
+        rapidjson::Writer<rapidjson::StringBuffer> writer{json_};
+        msg->Accept(writer);
     }
 
     [[nodiscard]] std::uint16_t delay() const noexcept { return delay_; }
-    OwningBuffer move_buffer() { return std::move(out_buf_); }
+    [[nodiscard]] asio::const_buffer buffer() const
+    {
+        return {json_.GetString(), json_.GetLength()};
+    }
 
 private:
     std::uint16_t delay_ = 0;
-    OwningBuffer out_buf_;
-    rapidjson::Document &doc_; // NOLINT
+    rapidjson::StringBuffer json_;
 };
-
-// Returns true if the (already deframed) message is a client_shutdown command,
-// i.e. an array whose first element is the string "client_shutdown".
-static bool message_is_client_shutdown(const std::vector<std::byte> &data)
-{
-    mpack_tree_t tree;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    mpack_tree_init_data(
-        &tree, reinterpret_cast<const char *>(data.data()), data.size());
-    mpack_tree_parse(&tree);
-    bool result = false;
-    if (mpack_tree_error(&tree) == mpack_ok) {
-        mpack_node_t const root = mpack_tree_root(&tree);
-        if (mpack_node_type(root) == mpack_type_array &&
-            mpack_node_array_length(root) >= 1) {
-            mpack_node_t const name = mpack_node_array_at(root, 0);
-            if (mpack_node_type(name) == mpack_type_str) {
-                static constexpr char kName[] = "client_shutdown";
-                const std::size_t len = mpack_node_strlen(name);
-                result = len == sizeof(kName) - 1 &&
-                         std::memcmp(mpack_node_str(name), kName, len) == 0;
-            }
-        }
-    }
-    mpack_tree_destroy(&tree);
-    return result;
-}
-
-// Encodes the ack the real helper sends for client_shutdown:
-// [["client_shutdown", null]] (see CommandResponse::ClientShutdown).
-static OwningBuffer encode_client_shutdown_ack()
-{
-    char *out = nullptr;
-    std::size_t out_size = 0;
-    mpack_writer_t writer;
-    mpack_writer_init_growable(&writer, &out, &out_size);
-    mpack_start_array(&writer, 1);
-    mpack_start_array(&writer, 2);
-    mpack_write_cstr(&writer, "client_shutdown");
-    mpack_write_nil(&writer);
-    mpack_finish_array(&writer);
-    mpack_finish_array(&writer);
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
-        std::free(out); // NOLINT
-        throw std::runtime_error{"Failed to encode client_shutdown ack"};
-    }
-    return OwningBuffer{out, out_size};
-}
 
 class Client {
 private:
@@ -430,13 +372,12 @@ public:
                 exited = run_loop_body(yield, /*scripted=*/true);
             }
         } else if (!no_wait_shutdown) {
-            // All scripted responses were consumed.  The extension still sends
-            // a client_shutdown goodbye when it tears the connection down (the
-            // test harness triggers this before reaping us); keep serving so we
-            // can ack it and exit cleanly instead of the extension hitting a
-            // premature EOF.  run_loop_body() handles client_shutdown specially.
+            // All scripted responses were consumed: wait until the extension
+            // closes its side (at its exit), so that it does not see a
+            // premature EOF.
             while (!exited) {
-                SPDLOG_INFO("Waiting for client_shutdown (message #{})", ++count);
+                SPDLOG_INFO(
+                    "Waiting for the extension to exit (message #{})", ++count);
                 exited = run_loop_body(yield, /*scripted=*/false);
             }
         }
@@ -446,7 +387,7 @@ public:
 private:
     // When scripted is true a queued response (*next_response_) is sent for the
     // message read; when false (after the scripted responses are exhausted) we
-    // only expect a client_shutdown goodbye (or EOF) and exit afterwards.
+    // only expect EOF and exit afterwards.
     bool run_loop_body(const asio::yield_context &yield, bool scripted)
     {
         SPDLOG_INFO("Waiting for client message...");
@@ -492,72 +433,39 @@ private:
 
         SPDLOG_INFO("Handling gotten message of size {}", data.size());
 
-        // The client_shutdown goodbye is not part of the scripted exchange and
-        // does not consume a response: ack it (mirroring the real helper) and
-        // signal the loop to exit.  It is not echoed to the command pipe.
-        //
-        // Only in non-continuous mode: a continuous mock doubles as the
-        // long-lived mock trace agent for the test, which may keep using it
-        // (e.g. flushing traces) after the appsec connection is torn down. There
-        // we let client_shutdown fall through and be answered like any other
-        // message, and rely on EOF to stop the loop, so the agent stays up.
-        if (!continuous_mode && message_is_client_shutdown(data)) {
-            SPDLOG_INFO("Received client_shutdown; acking and exiting");
-            send_client_shutdown_ack(yield);
-            return true;
-        }
-
         if (!scripted) {
             SPDLOG_INFO("Unexpected non-shutdown message after all scripted "
                         "responses were consumed; exiting");
             return true;
         }
 
-        MsgpackToJson msgpack2json{data.data(), data.size()};
-        msgpack2json.convert();
-
-        echo_pipe_.write(msgpack2json.asio_buffer(), yield);
+        // Requests are JSON already.
+        echo_pipe_.write(asio::buffer(data), yield);
         handle_client_data(*next_response_, yield);
         return false;
     }
 
-    void send_client_shutdown_ack(const asio::yield_context &yield)
-    {
-        OwningBuffer const buf = encode_client_shutdown_ack();
-        Header h{};
-        memcpy(&h.marker, "dds", 4);
-        h.size = static_cast<std::uint32_t>(buf.len_);
-        std::array const buffers = {
-            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-            asio::const_buffer(reinterpret_cast<char *>(&h), sizeof(h)),
-            asio::const_buffer(buf.buf_, buf.len_),
-        };
-        async_write(sock_, buffers, yield);
-    }
-
     void handle_client_data(rapidjson::Document &doc, asio::yield_context yield)
     {
-        JsonToMsgpack json_to_msgpack{doc};
-        json_to_msgpack.convert();
-        if (json_to_msgpack.delay() != 0U) {
+        ScriptedResponse const response{doc};
+        if (response.delay() != 0U) {
             SPDLOG_INFO("Will wait {} seconds before sending response",
-                json_to_msgpack.delay());
+                response.delay());
             asio::steady_timer timer{iocontext};
-            timer.expires_after(std::chrono::seconds{json_to_msgpack.delay()});
+            timer.expires_after(std::chrono::seconds{response.delay()});
             timer.async_wait(yield);
         }
-        OwningBuffer const buf = json_to_msgpack.move_buffer();
 
         Header h{};
         memcpy(&h.marker, "dds", 4);
-        h.size = buf.len_;
+        h.size = static_cast<std::uint32_t>(response.buffer().size());
         SPDLOG_INFO("Writing response; size {} (header) + {} (body)", sizeof(h),
-            buf.len_);
+            response.buffer().size());
 
         std::array const buffers = {
             // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             asio::const_buffer(reinterpret_cast<char *>(&h), sizeof(h)),
-            asio::const_buffer(buf.buf_, buf.len_),
+            response.buffer(),
         };
         async_write(sock_, buffers, yield);
 
@@ -673,7 +581,7 @@ int main(int argc, char *argv[])
         ("no-wait-shutdown",
                        po::bool_switch(&no_wait_shutdown)->default_value(false),
                        "Exit after the last scripted response instead of "
-                       "waiting for the client_shutdown goodbye")
+                       "waiting for the extension to close its side")
         ("lock",       po::value<std::string>(), "Location of the lock file");
     // clang-format on
 
@@ -718,24 +626,30 @@ int main(int argc, char *argv[])
             // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
             for (int fd : {3, 4}) {
                 struct ::stat statbuf = {};
-                if (fstat(fd, &statbuf) == -1) { continue; }
-                if ((statbuf.st_mode & S_IFSOCK) == 0) { continue; }
+                if (fstat(fd, &statbuf) == -1) {
+                    continue;
+                }
+                if ((statbuf.st_mode & S_IFSOCK) == 0) {
+                    continue;
+                }
                 // A connected socketpair endpoint has a peer; a listening
                 // socket does not.
                 sockaddr_un peer{};
                 socklen_t plen = sizeof(peer);
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-                if (::getpeername(fd, reinterpret_cast<sockaddr *>(&peer),
-                        &plen) == -1) {
+                if (::getpeername(
+                        fd, reinterpret_cast<sockaddr *>(&peer), &plen) == -1) {
                     continue;
                 }
                 const int new_fd = ::dup(fd); // NOLINT(android-cloexec-dup)
-                if (new_fd == -1) { continue; }
+                if (new_fd == -1) {
+                    continue;
+                }
                 SPDLOG_INFO("Using dup of fd {} as communication socket", fd);
                 local::stream_protocol::socket client_socket{iocontext};
                 client_socket.assign(local::stream_protocol(), new_fd);
-                auto client = std::make_unique<Client>(std::move(client_socket),
-                    echo_pipe, std::move(responses));
+                auto client = std::make_unique<Client>(
+                    std::move(client_socket), echo_pipe, std::move(responses));
                 spawn(
                     iocontext,
                     [client = std::move(client)](auto yield) {
@@ -743,12 +657,13 @@ int main(int argc, char *argv[])
                         post(iocontext, [] { iocontext.stop(); });
                     },
                     [](const std::exception_ptr &e) {
-                        if (e) { std::rethrow_exception(e); }
+                        if (e) {
+                            std::rethrow_exception(e);
+                        }
                     });
                 return;
             }
-            throw std::runtime_error{
-                "No connected socket found on fd 3 or 4"};
+            throw std::runtime_error{"No connected socket found on fd 3 or 4"};
         },
         [](const std::exception_ptr &e) {
             if (e) {

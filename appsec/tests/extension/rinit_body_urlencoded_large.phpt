@@ -19,7 +19,7 @@ var_dump(rinit());
 
 $c = $helper->get_commands();
 
-$body = $c[1][1][0]['server.request.body'];
+$body = $c[0][1][0]['server.request.body'];
 echo "Size in message: ", strlen($body['a']['a']['b'][0]), "\n";
 
 ?>

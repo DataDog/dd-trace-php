@@ -49,12 +49,12 @@ class ConnectivityTests {
 
     /**
      * Verifies that helper clients exit promptly (within 5 seconds) when the
-     * sidecar sends disconnect notifications, rather than waiting for the
-     * cancellation token (~60 s timeout).
+     * sidecar connection drops, rather than waiting for the cancellation token
+     * (~60 s timeout).
      *
      * SIGHUP to the Apache parent is an *ungraceful* restart: workers are killed
-     * before PHP GSHUTDOWN runs, so the sidecar detects the socket drop and sends
-     * disconnect notifications. Clients must exit via ForcefulDisconnect promptly.
+     * before PHP GSHUTDOWN runs, so the sidecar detects the socket drop and
+     * drops the connection's helper client.
      *
      * Regression test: the Client struct held its own mpsc::Sender, keeping the
      * channel alive after the sidecar connection dropped its copy, so the
@@ -68,7 +68,7 @@ class ConnectivityTests {
         CONTAINER.traceFromRequest('/hello.php') { }
 
         // SIGHUP = ungraceful restart: workers are killed without PHP teardown.
-        // The sidecar detects socket closure and sends per-client disconnect notifications.
+        // The sidecar detects socket closure and drops each connection's client.
         def hupResult = CONTAINER.execInContainer(
                 'sh', '-c', 'kill -HUP $(pgrep -f /usr/sbin/apache2 | head -1)')
         assert hupResult.exitCode == 0: "apache2 HUP failed: ${hupResult.stderr}"
@@ -79,7 +79,7 @@ class ConnectivityTests {
         long deadline = System.currentTimeMillis() + 5_000
         while (System.currentTimeMillis() < deadline) {
             helperLog = CONTAINER.execInContainer('cat', '/tmp/logs/helper.log').stdout
-            if (helperLog.count('ended due to client connectivity issue') >= 2) {
+            if (helperLog.count('ended: its connection closed') >= 2) {
                 break
             }
             Thread.sleep(200)
@@ -90,10 +90,10 @@ class ConnectivityTests {
                         .findAll { it =~ /Disconnect|ended|Cancellation|Created client/ }
                         .join('\n'))
 
-        int disconnectedExits = helperLog.count('ended due to client connectivity issue')
+        int disconnectedExits = helperLog.count('ended: its connection closed')
         assert disconnectedExits >= 2:
-                "Expected >=2 clients to exit via connectivity issue within 5 s, got $disconnectedExits.\n" +
-                "This likely means the channel was not closed by the disconnect notification."
+                "Expected >=2 clients to exit with their connection within 5 s, got $disconnectedExits.\n" +
+                "This likely means the channel was not closed when the connection dropped."
 
         assert !helperLog.contains('Cancellation during client recv'):
                 "Clients exited via cancellation token rather than disconnect notification — " +
@@ -101,18 +101,17 @@ class ConnectivityTests {
     }
 
     /**
-     * Verifies that a helper client exits cleanly ("ended normally") when the
-     * Apache worker sends a client_shutdown goodbye via PHP GSHUTDOWN.
+     * Verifies that a helper client exits when the Apache worker closes its
+     * sidecar connection in PHP GSHUTDOWN.
      *
      * MaxConnectionsPerChild 1 causes the worker to call clean_child_exit after
      * a single TCP connection, which destroys the APR child pool, triggers
-     * PHP MSHUTDOWN + GSHUTDOWN, and sends client_shutdown through the sidecar.
-     * helper-rust receives it and exits via CleanShutdown.
-     *
+     * PHP MSHUTDOWN + GSHUTDOWN, and closes the connection to the sidecar,
+     * which drops the connection's helper client.
      */
     @Test
     @Order(2)
-    void 'helper client exits cleanly when PHP GSHUTDOWN sends client_shutdown'() {
+    void 'helper client exits when PHP GSHUTDOWN closes the sidecar connection'() {
         // Back up the event MPM config so we can restore it after the test.
         def backupResult = CONTAINER.execInContainer('sh', '-c',
                 'cp /etc/apache2/mods-enabled/mpm_event.conf /etc/apache2/mods-enabled/mpm_event.conf.backup')
@@ -120,7 +119,7 @@ class ConnectivityTests {
 
         try {
             int cleanBefore = CONTAINER.execInContainer('cat', '/tmp/logs/helper.log')
-                    .stdout.count('ended normally')
+                    .stdout.count('ended: its connection closed')
 
             def cfgResult = CONTAINER.execInContainer('sh', '-c',
                     'OLD=$(pgrep -P $(pgrep -f /usr/sbin/apache2 | head -1))' +
@@ -138,15 +137,15 @@ class ConnectivityTests {
             long deadline = System.currentTimeMillis() + 15_000
             while (System.currentTimeMillis() < deadline) {
                 helperLog = CONTAINER.execInContainer('cat', '/tmp/logs/helper.log').stdout
-                if (helperLog.count('ended normally') > cleanBefore) {
+                if (helperLog.count('ended: its connection closed') > cleanBefore) {
                     break
                 }
                 Thread.sleep(300)
             }
 
-            assert helperLog.count('ended normally') > cleanBefore:
-                    "Expected client to exit cleanly (client_shutdown/GSHUTDOWN) within 10 s.\n" +
-                    "MaxConnectionsPerChild 1 should trigger PHP GSHUTDOWN which sends client_shutdown."
+            assert helperLog.count('ended: its connection closed') > cleanBefore:
+                    "Expected client to exit with its connection within 15 s.\n" +
+                    "MaxConnectionsPerChild 1 should trigger PHP GSHUTDOWN, which closes the connection."
 
             assert !helperLog.contains('Cancellation during client recv'):
                     "Client exited via cancellation token rather than GSHUTDOWN."
@@ -218,14 +217,14 @@ class ConnectivityTests {
     }
 
     /**
-     * Verifies that WAF blocking still works after the extension sends an invalid
-     * command that forces the helper to disconnect the client.
+     * Verifies that WAF blocking still works after the extension violates the
+     * helper protocol.
      *
      * send_invalid_msg.php calls \datadog\appsec\testing\send_invalid_msg() which
-     * sends an unrecognised command to helper-rust. The helper responds with a
-     * FatalError (disconnect: true) and the client task exits. On the next request's
-     * RINIT the extension must reconnect and reload the WAF so that a blocking
-     * request still gets blocked (403).
+     * ends the helper's request behind the extension's back, so that the
+     * extension's own request_shutdown arrives without request_init. The next
+     * request's request_init must start over so that a blocking request still
+     * gets blocked (403).
      *
      * Requires DD_APPSEC_TESTING_INVALID_COMMAND=1 (set on the container).
      */
@@ -245,21 +244,17 @@ class ConnectivityTests {
             assert cfgResult.exitCode == 0: "apache2 config failed: ${cfgResult.stderr}"
 
 
-            // Warmup: establish the sidecar connection on this request so that
-            // send_invalid_msg runs on a request that REUSES the existing connection.
-            // dd_helper_close_conn only triggers the reconnection backoff when the
-            // connection was opened on the same request (connected_this_req == true).
-            // By warming up first, connected_this_req is false for send_invalid_msg.
+            // Warmup: the helper client of the worker's connection binds and builds
+            // its WAF.
             CONTAINER.traceFromRequest('/hello.php', null, true)
 
-            // Send the invalid command to force a helper client disconnect (no backoff
-            // because the connection was already established by the warmup request).
+            // Violate the protocol: the request ends twice on the helper.
             CONTAINER.traceFromRequest('/send_invalid_msg.php') { HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200: "send_invalid_msg.php must return 200"
             }
 
-            // The helper client exited. The next request's RINIT must reconnect and
-            // reload WAF rules so that a blocking request is still blocked (403).
+            // The next request starts over, so that a blocking request is still
+            // blocked (403).
             HttpRequest blockingReq = CONTAINER.buildReq('/phpinfo.php')
                     .header('X-Forwarded-For', '80.80.80.80').GET().build()
             def trace = CONTAINER.traceFromRequest(blockingReq, ofString(), { HttpResponse<String> resp ->

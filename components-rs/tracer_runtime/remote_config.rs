@@ -25,13 +25,14 @@ use libdd_remote_config::config::dynamic::{
 };
 use libdd_remote_config::fetch::ConfigInvariants;
 use libdd_remote_config::{
-    default_registry, RemoteConfigCapabilities, RemoteConfigParsed, RemoteConfigProduct, Target,
+    default_registry, ParseError, ParserRegistry, RemoteConfigCapabilities, RemoteConfigContent,
+    RemoteConfigParsed, RemoteConfigProduct, Target,
 };
 use regex_automata::dfa::regex::Regex;
-use serde::Serialize;
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::c_char;
 use std::mem;
 use std::ptr::NonNull;
@@ -102,6 +103,132 @@ pub struct RemoteConfigState {
     cdn: Option<CdnRegistration>,
     live_debugger: LiveDebuggerState,
     dynamic_config: DynamicConfig,
+    // By RC path: files apply in path order, the last one setting a value wins.
+    asm_features: BTreeMap<String, AsmFeaturesFile>,
+    invariants: RemoteConfigInvariants,
+    kept_asm_features: Option<KeptAsmFeatures>,
+}
+
+/// Follows the ASM_FEATURES of one target, whichever target the tracer follows meanwhile.
+struct KeptAsmFeatures {
+    manager: RemoteConfigManager,
+    files: BTreeMap<String, AsmFeaturesFile>,
+}
+
+/// Whether remote config enables AppSec. `Unset` when no ASM_FEATURES file says either way.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AsmActivation {
+    #[default]
+    Unset,
+    Enabled,
+    Disabled,
+}
+
+/// The user collection mode remote config requests for automatic user events.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AsmAutoUserInstrumMode {
+    #[default]
+    Undefined,
+    Unknown,
+    Disabled,
+    Identification,
+    Anonymization,
+}
+
+/// The AppSec settings of the applicable ASM_FEATURES files, merged.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AsmFeatures {
+    pub activation: AsmActivation,
+    pub auto_user_instrum: AsmAutoUserInstrumMode,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct AsmFeaturesFile {
+    #[serde(default)]
+    asm: Option<AsmFeaturesAsm>,
+    #[serde(default)]
+    auto_user_instrum: Option<AsmFeaturesAutoUserInstrum>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+struct AsmFeaturesAsm {
+    #[serde(default, deserialize_with = "deserialize_bool_or_string")]
+    enabled: bool,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+struct AsmFeaturesAutoUserInstrum {
+    #[serde(default, deserialize_with = "deserialize_auto_user_instrum_mode")]
+    mode: AsmAutoUserInstrumMode,
+}
+
+impl RemoteConfigContent for AsmFeaturesFile {
+    const PRODUCT: RemoteConfigProduct = RemoteConfigProduct::AsmFeatures;
+
+    fn parse(data: &[u8]) -> Result<Self, ParseError> {
+        Ok(serde_json::from_slice(data)?)
+    }
+}
+
+fn merge_asm_features<'a>(files: impl Iterator<Item = &'a AsmFeaturesFile>) -> AsmFeatures {
+    files.fold(AsmFeatures::default(), |mut merged, file| {
+        if let Some(asm) = &file.asm {
+            merged.activation = if asm.enabled {
+                AsmActivation::Enabled
+            } else {
+                AsmActivation::Disabled
+            };
+        }
+        if let Some(auto_user_instrum) = &file.auto_user_instrum {
+            if auto_user_instrum.mode != AsmAutoUserInstrumMode::Undefined {
+                merged.auto_user_instrum = auto_user_instrum.mode;
+            }
+        }
+        merged
+    })
+}
+
+// The backend has sent `enabled` both as a boolean and as a "true"/"false" string.
+fn deserialize_bool_or_string<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<bool, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum BoolOrString {
+        Bool(bool),
+        String(String),
+    }
+
+    match Option::<BoolOrString>::deserialize(deserializer)? {
+        None => Ok(false),
+        Some(BoolOrString::Bool(b)) => Ok(b),
+        Some(BoolOrString::String(s)) if s.eq_ignore_ascii_case("true") => Ok(true),
+        Some(BoolOrString::String(s)) if s.eq_ignore_ascii_case("false") => Ok(false),
+        Some(BoolOrString::String(s)) => Err(de::Error::custom(format!(
+            "expected 'true' or 'false', got '{s}'"
+        ))),
+    }
+}
+
+fn deserialize_auto_user_instrum_mode<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<AsmAutoUserInstrumMode, D::Error> {
+    Ok(
+        match Option::<String>::deserialize(deserializer)?.as_deref() {
+            None => AsmAutoUserInstrumMode::Undefined,
+            Some(s) if s.eq_ignore_ascii_case("identification") => {
+                AsmAutoUserInstrumMode::Identification
+            }
+            Some(s) if s.eq_ignore_ascii_case("anonymization") => {
+                AsmAutoUserInstrumMode::Anonymization
+            }
+            Some(s) if s.eq_ignore_ascii_case("disabled") => AsmAutoUserInstrumMode::Disabled,
+            Some(_) => AsmAutoUserInstrumMode::Unknown,
+        },
+    )
 }
 
 #[repr(C)]
@@ -223,7 +350,9 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
             .with::<LiveDebuggingData>()
             .expect("LiveDebugger is distinct from default products")
             .with::<UniversalFlagConfig>()
-            .expect("FFE is distinct from default products"),
+            .expect("FFE is distinct from default products")
+            .with::<AsmFeaturesFile>()
+            .expect("ASM_FEATURES is distinct from default products"),
     );
     let agent_invariants = ConfigInvariants {
         language: "php".to_string(),
@@ -254,13 +383,16 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
         None => agent_invariants.into(),
     };
     Box::new(RemoteConfigState {
-        manager: RemoteConfigManager::new_with_registry(invariants, registry),
+        manager: RemoteConfigManager::new_with_registry(invariants.clone(), registry),
         cdn,
         live_debugger: LiveDebuggerState {
             di_enabled,
             ..Default::default()
         },
         dynamic_config: Default::default(),
+        asm_features: Default::default(),
+        invariants,
+        kept_asm_features: None,
     })
 }
 
@@ -437,6 +569,74 @@ fn insert_new_configs(
     *old_configs = new_configs;
 }
 
+/// The AppSec settings remote config currently applies. ASM_FEATURES files are kept across
+/// requests: unlike the dynamic config, they don't change INI values that need restoring.
+#[no_mangle]
+pub extern "C" fn ddog_remote_config_asm_features(
+    remote_config: &RemoteConfigState,
+) -> AsmFeatures {
+    merge_asm_features(remote_config.asm_features.values())
+}
+
+/// Keeps following the ASM_FEATURES of the target the tracer currently follows, until called
+/// again. Without DD_SERVICE/DD_ENV, the tracer starts each request on a default target, while
+/// AppSec keeps to the application the previous request ended with.
+#[no_mangle]
+pub extern "C" fn ddog_remote_config_keep_asm_features_target(
+    remote_config: &mut RemoteConfigState,
+) {
+    let Some(target) = remote_config.manager.get_target().cloned() else {
+        remote_config.kept_asm_features = None;
+        return;
+    };
+    let invariants = &remote_config.invariants;
+    let kept = remote_config.kept_asm_features.get_or_insert_with(|| {
+        #[allow(clippy::expect_used)]
+        let registry = ParserRegistry::new()
+            .with::<AsmFeaturesFile>()
+            .expect("the registry is empty");
+        KeptAsmFeatures {
+            manager: RemoteConfigManager::new_with_registry(invariants.clone(), Arc::new(registry)),
+            files: BTreeMap::new(),
+        }
+    });
+    if kept
+        .manager
+        .get_target()
+        .is_none_or(|kept| **kept != *target)
+    {
+        kept.manager.track_target(&target);
+    }
+}
+
+/// The ASM_FEATURES of the kept target as they are now, or of the current target if none is kept.
+#[no_mangle]
+pub extern "C" fn ddog_remote_config_kept_asm_features(
+    remote_config: &mut RemoteConfigState,
+) -> AsmFeatures {
+    let Some(kept) = remote_config.kept_asm_features.as_mut() else {
+        return merge_asm_features(remote_config.asm_features.values());
+    };
+    loop {
+        match kept.manager.fetch_update() {
+            RemoteConfigUpdate::None => break,
+            RemoteConfigUpdate::Add { value, .. } => {
+                if let Some(features) = value
+                    .data
+                    .as_ref()
+                    .and_then(|data| data.downcast::<AsmFeaturesFile>())
+                {
+                    kept.files.insert(value.path.to_string(), features.clone());
+                }
+            }
+            RemoteConfigUpdate::Remove(path) => {
+                kept.files.remove(&path.to_string());
+            }
+        }
+    }
+    merge_asm_features(kept.files.values())
+}
+
 #[no_mangle]
 pub extern "C" fn ddog_remote_config_current_generation(remote_config: &RemoteConfigState) -> u64 {
     remote_config.manager.current_remote_config_generation()
@@ -543,6 +743,14 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                                 );
                             }
                         }
+                        RemoteConfigProduct::AsmFeatures => {
+                            if let Some(features) = data.downcast::<AsmFeaturesFile>() {
+                                debug!("Applying ASM_FEATURES {}: {features:?}", value.path);
+                                remote_config
+                                    .asm_features
+                                    .insert(value.path.to_string(), features.clone());
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -580,6 +788,10 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 // The agentless directory lacks its flags file until the first poll of a
                 // restarted sidecar or a new target. A valid empty configuration is an Add.
                 RemoteConfigProduct::FfeFlags if remote_config.cdn.is_some() => {}
+                RemoteConfigProduct::AsmFeatures => {
+                    debug!("Removing ASM_FEATURES {path}");
+                    remote_config.asm_features.remove(&path.to_string());
+                }
                 RemoteConfigProduct::FfeFlags => {
                     crate::ffe::clear_config();
                     debug!(
@@ -711,6 +923,10 @@ pub extern "C" fn ddog_remote_config_get_loaded_configs(
 
     for config_id in remote_config.dynamic_config.active_configs.keys() {
         entries.push((config_id.clone(), r#"{"type":"apm_tracing"}"#.to_string()));
+    }
+
+    for path in remote_config.asm_features.keys() {
+        entries.push((path.clone(), r#"{"type":"asm_features"}"#.to_string()));
     }
 
     entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
@@ -1024,4 +1240,100 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
     );
 
     ddog_sidecar_send_debugger_diagnostics(transport, payload)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(json: &str) -> AsmFeaturesFile {
+        AsmFeaturesFile::parse(json.as_bytes()).unwrap()
+    }
+
+    fn merge(files: &[&str]) -> AsmFeatures {
+        let parsed: Vec<_> = files.iter().map(|json| parse(json)).collect();
+        merge_asm_features(parsed.iter())
+    }
+
+    #[test]
+    fn asm_enabled_accepts_booleans_and_strings() {
+        assert_eq!(
+            merge(&[r#"{"asm":{"enabled":true}}"#]).activation,
+            AsmActivation::Enabled
+        );
+        assert_eq!(
+            merge(&[r#"{"asm":{"enabled":"TRUE"}}"#]).activation,
+            AsmActivation::Enabled
+        );
+        assert_eq!(
+            merge(&[r#"{"asm":{"enabled":"false"}}"#]).activation,
+            AsmActivation::Disabled
+        );
+        assert!(AsmFeaturesFile::parse(br#"{"asm":{"enabled":"yes"}}"#).is_err());
+    }
+
+    #[test]
+    fn asm_object_without_enabled_disables() {
+        assert_eq!(
+            merge(&[r#"{"asm":{}}"#]).activation,
+            AsmActivation::Disabled
+        );
+        assert_eq!(
+            merge(&[r#"{"asm":{"enabled":null}}"#]).activation,
+            AsmActivation::Disabled
+        );
+    }
+
+    #[test]
+    fn no_asm_object_leaves_activation_unset() {
+        assert_eq!(merge(&[]), AsmFeatures::default());
+        assert_eq!(
+            merge(&[
+                r#"{"asm":null}"#,
+                r#"{"auto_user_instrum":{"mode":"identification"}}"#
+            ])
+            .activation,
+            AsmActivation::Unset
+        );
+    }
+
+    #[test]
+    fn auto_user_instrum_modes_parse_case_insensitively() {
+        let mode = |json: &str| merge(&[json]).auto_user_instrum;
+        assert_eq!(
+            mode(r#"{"auto_user_instrum":{"mode":"Identification"}}"#),
+            AsmAutoUserInstrumMode::Identification
+        );
+        assert_eq!(
+            mode(r#"{"auto_user_instrum":{"mode":"ANONYMIZATION"}}"#),
+            AsmAutoUserInstrumMode::Anonymization
+        );
+        assert_eq!(
+            mode(r#"{"auto_user_instrum":{"mode":"disabled"}}"#),
+            AsmAutoUserInstrumMode::Disabled
+        );
+        assert_eq!(
+            mode(r#"{"auto_user_instrum":{"mode":"something"}}"#),
+            AsmAutoUserInstrumMode::Unknown
+        );
+        assert_eq!(
+            mode(r#"{"auto_user_instrum":{}}"#),
+            AsmAutoUserInstrumMode::Undefined
+        );
+    }
+
+    #[test]
+    fn later_files_override_earlier_ones() {
+        let merged = merge(&[
+            r#"{"asm":{"enabled":true},"auto_user_instrum":{"mode":"anonymization"}}"#,
+            r#"{"asm":{"enabled":false}}"#,
+            r#"{"auto_user_instrum":{"mode":"identification"}}"#,
+            r#"{"auto_user_instrum":{}}"#,
+        ]);
+        assert_eq!(merged.activation, AsmActivation::Disabled);
+        assert_eq!(
+            merged.auto_user_instrum,
+            AsmAutoUserInstrumMode::Identification
+        );
+    }
 }

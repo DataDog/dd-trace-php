@@ -52,10 +52,7 @@ void dd_telemetry_note_schema_extracted(void);
 void dd_telemetry_add_api_security_request(
     zend_object *nullable root_span, dd_api_sec_outcome outcome);
 
-// Exchanged failed up to and including client_init
+// The helper became unreachable: a request_init got no helper client
 void dd_telemetry_helper_conn_error(void);
-// client_init succeeded / started a new helper client
+// The helper became reachable: a request_init was handled by a helper client
 void dd_telemetry_helper_conn_success(void);
-// helper client abandoned (with or without goodbye) (except php worker
-// shutdown)
-void dd_telemetry_helper_conn_close(void);

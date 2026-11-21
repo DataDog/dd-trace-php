@@ -1,6 +1,5 @@
 #include "request_lifecycle.h"
-#include "commands/client_init.h"
-#include "commands/config_sync.h"
+#include "appsec_requests.h"
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
 #include "configuration.h"
@@ -8,7 +7,6 @@
 #include "dddefs.h"
 #include "duration_acc.h"
 #include "entity_body.h"
-#include "helper_process.h"
 #include "logging.h"
 #include "php_helpers.h"
 #include "php_objects.h"
@@ -17,6 +15,7 @@
 #include "tags.h"
 #include "telemetry.h"
 #include "tracer_bridge.h"
+#include "user_tracking.h"
 #include <ext/compatibility.h>
 #include <tracer/endpoint_guessing.h>
 #include <tracer/span.h>
@@ -58,14 +57,15 @@ static THREAD_LOCAL_ON_ZTS zend_array *nullable _superglob_equiv;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
 static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
+// Without DD_SERVICE/DD_ENV, ddtrace's RINIT (which runs before ours) targets
+// remote config at a default service until the root span gets its final one.
+// The ASM_FEATURES of the target the previous request ended on are then used,
+// and the helper keeps the application it is bound to until the request ends.
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 static THREAD_LOCAL_ON_ZTS bool _request_blocked;
 // Set by request init and cleared by request shutdown. If AppSec's RINIT finds
 // it set, the previous request's shutdown was skipped.
 static THREAD_LOCAL_ON_ZTS bool _shutdown_pending;
-enum { MAX_LENGTH_OF_REM_CFG_PATH = 31 };
-static THREAD_LOCAL_ON_ZTS char
-    _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
 bool dd_req_is_user_req(void) { return _enabled_user_req; }
@@ -103,6 +103,15 @@ void dd_req_lifecycle_startup(void)
     _register_testing_objects();
 }
 
+static void _apply_asm_features(bool kept_application)
+{
+    ddog_AsmFeatures features = kept_application
+                                    ? dd_trace_get_kept_asm_features()
+                                    : dd_trace_get_asm_features();
+    dd_appsec_apply_remote_activation(features.activation);
+    dd_set_user_collection_mode_rc(features.auto_user_instrum);
+}
+
 // force is true when the testing function rinit() calls this instead of
 // AppSec's RINIT. It runs even in testing mode and, as it does not start a new
 // PHP request, never takes a pending shutdown for a skipped one.
@@ -118,12 +127,14 @@ void dd_req_lifecycle_rinit(bool force)
         mlog(dd_log_info, "AppSec's shutdown did not run for the previous "
                           "request; discarding its state");
         _reset_globals(false);
-        // resets the connection bookkeeping; drops a connection mid-request
-        dd_helper_abandon_request();
+        // The next typed request_init abandons the helper's unfinished request.
+        dd_appsec_request_forget();
     }
     _shutdown_pending = true;
 
     if (_enabled_user_req) {
+        // Re-evaluated when each user request starts.
+        _apply_asm_features(false);
         mlog(dd_log_debug, "Skipping automatic request init on CLI because "
                            "DD_APPSEC_CLI_START_ON_RINIT=false");
         return;
@@ -142,6 +153,7 @@ void dd_req_lifecycle_rinit(bool force)
 
     _empty_service_or_env = zend_string_equals_literal(get_DD_ENV(), "") ||
                             zend_string_equals_literal(get_DD_SERVICE(), "");
+    _apply_asm_features(_empty_service_or_env);
 
     _set_cur_span(dd_trace_get_active_root_span());
     if (!_cur_req_span) {
@@ -174,41 +186,6 @@ static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv)
     return _do_request_begin(rbe_zv);
 }
 
-static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
-{
-    if (ignore_empty && _empty_service_or_env &&
-        _last_rem_cfg_path[0] != '\0') {
-        return false;
-    }
-
-    struct telemetry_rc_info tel_rc_info = dd_trace_get_telemetry_rc_info();
-    const char *cur_path = tel_rc_info.rc_path;
-    if (!cur_path) {
-        cur_path = "";
-    }
-    if (strcmp(cur_path, _last_rem_cfg_path) == 0) {
-        return false;
-    }
-
-    if (strlen(cur_path) > MAX_LENGTH_OF_REM_CFG_PATH) {
-        mlog(dd_log_warning, "Remote config path too long: %s", cur_path);
-        return false;
-    }
-
-    mlog(dd_log_info,
-        "Remote config path changed from %s to %s; "
-        "current service_name=%.*s, env_name=%.*s",
-        _last_rem_cfg_path[0] ? _last_rem_cfg_path : "(none)",
-        cur_path[0] ? cur_path : "(none)",
-        ZSTR_PRINTF(tel_rc_info.service_name),
-        ZSTR_PRINTF(tel_rc_info.env_name));
-
-    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.strcpy)
-    strcpy(_last_rem_cfg_path, cur_path);
-
-    return true;
-}
-
 static zend_array *nullable _do_request_begin(
     zval *nullable rbe_zv /* needs free */)
 {
@@ -225,6 +202,15 @@ static zend_array *nullable _do_request_begin(
         zval_ptr_dtor(rbe_zv);
     }
 
+    if (!DDAPPSEC_G(active)) {
+        mlog_g(dd_log_debug,
+            "AppSec is not active; skipping rest of request initialization");
+        if (rbe) {
+            zend_string_release(rbe);
+        }
+        return NULL;
+    }
+
     struct req_info_init req_info = {
         .req_info.root_span = dd_req_lifecycle_get_cur_span(),
         .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
@@ -232,82 +218,20 @@ static zend_array *nullable _do_request_begin(
         .entity = rbe,
     };
 
-    // The helper only accepts request_exec, request_shutdown or
-    // client_shutdown while it is inside a request; never start a new one on
-    // top of it.
-    dd_conn *cur_conn = dd_helper_mgr_cur_conn();
-    if (cur_conn && cur_conn->request_started) {
-        dd_helper_abandon_request();
-    }
-
-    // we want to retry once only if we're connected from a previous request
-    int retries_left = dd_helper_mgr_cur_conn() ? 1 : 0;
-
-    // connect/client_init
-retry:;
-    dd_conn *conn =
-        dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &req_info);
-    if (conn == NULL) {
-        mlog_g(dd_log_debug,
-            "No connection; skipping rest of request initialization");
-        if (rbe) {
-            zend_string_release(rbe);
-        }
-        return NULL;
-    }
-
-    int res = dd_success;
-    if (_rem_cfg_path_changed(true) ||
-        (!DDAPPSEC_G(active) &&
-            DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG)) {
-        res = dd_config_sync(
-            conn, &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
-                      .telemetry_settings = dd_trace_get_telemetry_rc_info()});
-        if (res == dd_success && DDAPPSEC_G(active)) {
-            struct timespec start = dd_monotime_start();
-            res = dd_request_init(conn, &req_info);
-            dd_duration_waf_ext_account(&start);
-        }
-    } else if (DDAPPSEC_G(active)) {
-        // request_init
-        struct timespec start = dd_monotime_start();
-        res = dd_request_init(conn, &req_info);
-        dd_duration_waf_ext_account(&start);
-    }
-
-    // we might have been disabled by request_init
+    struct timespec start = dd_monotime_start();
+    int res = dd_request_init(&req_info, _empty_service_or_env);
+    dd_duration_waf_ext_account(&start);
 
     zend_array *spec = NULL;
     if (res == dd_oom) {
         goto cleanup;
     }
-    if (res == dd_helper_say_goobye) {
-        mlog_g(dd_log_info, "request_init/config_sync failed with "
-                            "dd_helper_say_goobye; closing "
-                            "connection to helper");
-        dd_helper_close_conn(true,
-            LSTRARG(
-                "request_init/config_sync failed with dd_helper_say_goobye"));
-    } else if (res == dd_helper_fatal) {
-        mlog_g(dd_log_info,
-            "request_init/config_sync failed with dd_helper_fatal; closing "
-            "connection to helper");
-        dd_helper_close_conn(false,
-            LSTRARG("request_init/config_sync failed with dd_helper_fatal"));
-    } else if (res == dd_should_block || res == dd_should_redirect) {
+    if (res == dd_should_block || res == dd_should_redirect) {
         spec = dd_req_lifecycle_abort(
             REQUEST_STAGE_REQUEST_BEGIN, res, &req_info.req_info.block_params);
     } else if (res != dd_success && res != dd_should_record) {
         mlog_g(
             dd_log_info, "request init failed: %s", dd_result_to_string(res));
-    }
-
-    if (retries_left > 0 &&
-        (res == dd_helper_say_goobye || res == dd_helper_fatal)) {
-        mlog_g(dd_log_info,
-            "Trying to to connect to the helper %d more time(s)", retries_left);
-        retries_left--;
-        goto retry;
     }
 
 cleanup:
@@ -338,19 +262,17 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
     zend_try { _do_req_lifecycle_rshutdown(ignore_verdict, force); }
     zend_catch
     {
-        dd_helper_close_conn(false, NULL, 0);
+        // The helper's request may still run: the next request_init restarts.
+        dd_appsec_request_forget();
         if (PG(last_error_message)) {
 #if PHP_VERSION_ID < 80000
             const char *last_err = PG(last_error_message);
 #else
             const char *last_err = ZSTR_VAL(PG(last_error_message));
 #endif
-            mlog_g(dd_log_error,
-                "Bailout in request shutdown; disconnecting from helper: %s",
-                last_err);
+            mlog_g(dd_log_error, "Bailout in request shutdown: %s", last_err);
         } else {
-            mlog_g(dd_log_error,
-                "Bailout in request shutdown; disconnecting from helper");
+            mlog_g(dd_log_error, "Bailout in request shutdown");
         }
         (void)_restore_shutdown_memory_limit(orig_mem_limit);
         _reset_globals(true);
@@ -390,44 +312,17 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
         // _rest_globals already called
     }
 
-    // if we don't have service/env, our only chance to update the remote config
-    // path is rshutdown because ddtrace's rinit is called before ours and it
-    // resets the path
-    if (_empty_service_or_env && _rem_cfg_path_changed(false)) {
-        mlog_g(dd_log_debug, "No DD_SERVICE/DD_ENV; trying to sync remote "
-                             "config path on rshutdown");
-        dd_conn *conn = dd_helper_mgr_cur_conn();
-        if (conn == NULL) {
-            mlog_g(dd_log_debug,
-                "No connection to the helper for rshutdown config sync");
-        } else {
-            dd_result res = dd_config_sync(conn,
-                &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
-                    .telemetry_settings = dd_trace_get_telemetry_rc_info()});
-            if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
-                mlog_g(dd_log_info,
-                    "request_init/config_sync failed with dd_helper_say_goobye "
-                    "or dd_helper_fatal; closing connection to helper");
-                bool goodbye = res == dd_helper_say_goobye;
-                dd_helper_close_conn(goodbye,
-                    LSTRARG("request_init/config_sync failed with "
-                            "dd_helper_say_goobye or dd_helper_fatal"));
-            } else if (res) {
-                mlog_g(dd_log_info,
-                    "Failed to sync remote config path on rshutdown: %s",
-                    dd_result_to_string(res));
-            }
-        }
+    if (_empty_service_or_env) {
+        dd_trace_keep_asm_features_target();
     }
 }
 
 static void _do_request_finish_php(bool ignore_verdict)
 {
     int verdict = dd_success;
-    dd_conn *conn = dd_helper_mgr_cur_conn();
     struct req_shutdown_info ctx = {0};
 
-    if (conn && conn->request_started) {
+    if (dd_appsec_request_started()) {
         const int status_code = SG(sapi_headers).http_response_code;
         dd_api_sec_outcome api_sec_outcome;
         ctx = (struct req_shutdown_info){
@@ -442,16 +337,9 @@ static void _do_request_finish_php(bool ignore_verdict)
         };
 
         struct timespec shutdown_start = dd_monotime_start();
-        int res = dd_request_shutdown(conn, &ctx);
+        int res = dd_request_shutdown(&ctx);
         dd_duration_waf_ext_account(&shutdown_start);
-        if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
-            mlog_g(dd_log_info,
-                "request_shutdown failed with dd_helper_say_goobye or "
-                "dd_helper_fatal; closing connection to helper");
-            bool goodbye = res == dd_helper_say_goobye;
-            dd_helper_close_conn(
-                goodbye, LSTRARG("request_shutdown failed with dd_helper_..."));
-        } else if (res == dd_should_block || res == dd_should_redirect) {
+        if (res == dd_should_block || res == dd_should_redirect) {
             verdict = ignore_verdict ? dd_success : res;
         } else if (res) {
             mlog_g(dd_log_info, "request shutdown failed: %s",
@@ -460,8 +348,6 @@ static void _do_request_finish_php(bool ignore_verdict)
 
         dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
     }
-
-    dd_helper_rshutdown();
 
     if (DDAPPSEC_G(active) && _cur_req_span) {
         dd_tags_add_tags(_cur_req_span, NULL);
@@ -489,7 +375,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     }
     zend_catch
     {
-        dd_helper_close_conn(false, NULL, 0);
+        dd_appsec_request_forget();
         (void)_restore_shutdown_memory_limit(orig_mem_limit);
         _reset_globals(true);
         zend_bailout();
@@ -512,10 +398,9 @@ static zend_array *_request_finish_user_req(bool ignore_verdict,
     zend_array *nullable resp_headers, zend_string *nullable entity)
 {
     int verdict = dd_success;
-    dd_conn *conn = dd_helper_mgr_cur_conn();
     struct req_shutdown_info ctx = {0};
 
-    if (conn && conn->request_started) {
+    if (dd_appsec_request_started()) {
         dd_api_sec_outcome api_sec_outcome;
         ctx = (struct req_shutdown_info){
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
@@ -529,16 +414,9 @@ static zend_array *_request_finish_user_req(bool ignore_verdict,
         };
 
         struct timespec shutdown_start = dd_monotime_start();
-        int res = dd_request_shutdown(conn, &ctx);
+        int res = dd_request_shutdown(&ctx);
         dd_duration_waf_ext_account(&shutdown_start);
-        if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
-            mlog_g(dd_log_info,
-                "request_shutdown failed with dd_helper_say_goobye or "
-                "dd_helper_fatal; closing connection to helper");
-            bool goodbye = res == dd_helper_say_goobye;
-            dd_helper_close_conn(
-                goodbye, LSTRARG("request_shutdown failed with dd_helper_..."));
-        } else if (res == dd_should_block || res == dd_should_redirect) {
+        if (res == dd_should_block || res == dd_should_redirect) {
             verdict = ignore_verdict ? dd_success : res;
         } else if (res) {
             mlog_g(dd_log_info, "request shutdown failed: %s",
@@ -547,8 +425,6 @@ static zend_array *_request_finish_user_req(bool ignore_verdict,
 
         dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
     }
-
-    dd_helper_rshutdown();
 
     if (DDAPPSEC_G(active) && _cur_req_span) {
         dd_tags_add_tags(_cur_req_span, superglob_equiv);
@@ -663,8 +539,7 @@ static void _set_cur_span(zend_object *nullable span)
 
 bool dd_req_lifecycle_is_active(void)
 {
-    dd_conn *conn = dd_helper_mgr_cur_conn();
-    return conn && conn->request_started && DDAPPSEC_G(active);
+    return dd_appsec_request_started() && DDAPPSEC_G(active);
 }
 
 zend_object *nullable dd_req_lifecycle_get_cur_span(void)
@@ -717,6 +592,7 @@ static zend_array *nullable _start_user_req(
 
     mlog(dd_log_debug, "Starting user request for span %p", (void *)span);
 
+    _apply_asm_features(false);
     _set_cur_span(span);
     GC_TRY_ADDREF(super_global_equiv);
     _superglob_equiv = super_global_equiv;

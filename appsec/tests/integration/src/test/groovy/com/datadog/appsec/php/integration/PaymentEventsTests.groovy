@@ -131,6 +131,8 @@ class PaymentEventsTests {
         assert span.meta.'appsec.events.payments.success.id' == 'pi_test_success_123'
         assert span.metrics.'appsec.events.payments.success.amount' == 2000
         assert span.meta.'appsec.events.payments.success.currency' == 'usd'
+        // Booleans become metrics
+        assert span.metrics.'appsec.events.payments.success.livemode' == 0
         assert span.meta.'appsec.events.payments.success.payment_method' == 'pm_test_123'
     }
 
@@ -148,6 +150,8 @@ class PaymentEventsTests {
         assert span.meta.'appsec.events.payments.failure.id' == 'pi_test_failure_456'
         assert span.metrics.'appsec.events.payments.failure.amount' == 1500
         assert span.meta.'appsec.events.payments.failure.currency' == 'eur'
+        // Booleans become metrics
+        assert span.metrics.'appsec.events.payments.failure.livemode' == 0
         assert span.meta.'appsec.events.payments.failure.last_payment_error.code' == 'card_declined'
         assert span.meta.'appsec.events.payments.failure.last_payment_error.decline_code' == 'insufficient_funds'
     }
@@ -166,6 +170,8 @@ class PaymentEventsTests {
         assert span.meta.'appsec.events.payments.cancellation.id' == 'pi_test_cancel_789'
         assert span.metrics.'appsec.events.payments.cancellation.amount' == 3000
         assert span.meta.'appsec.events.payments.cancellation.currency' == 'gbp'
+        // Booleans become metrics
+        assert span.metrics.'appsec.events.payments.cancellation.livemode' == 0
         assert span.meta.'appsec.events.payments.cancellation.cancellation_reason' == 'requested_by_customer'
     }
 

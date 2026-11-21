@@ -1,6 +1,7 @@
 --TEST--
 Test root_span_add_attribute
 --INI--
+datadog.appsec.enabled=1
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --ENV--
@@ -65,6 +66,7 @@ Array
     [component] => web
     [ddappsec] => true
     [env] => staging
+    [http.endpoint] => /my/{param:str}
     [http.method] => GET
     [http.status_code] => 200
     [http.url] => http://localhost:8888/my/ur%69/

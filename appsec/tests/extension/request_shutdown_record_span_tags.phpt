@@ -1,5 +1,5 @@
 --TEST--
-Record response from request_init and ancillary tags in root span
+Record response from request_init, and meta and metrics from request_shutdown, in root span
 --INI--
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
@@ -29,17 +29,15 @@ print_r($attributes);
 
 include __DIR__ . '/inc/mock_helper.php';
 
+// The helper reports its WAF initialization in the first request_shutdown.
 $helper = Helper::createRun([
-    response_list(
-        response_client_init(['ok', phpversion('ddtrace'), [],
-        ["meta_1" => "value_1", "meta_2" => "value_2"],
-        ["metric_1" => 2.0, "metric_2" => 10.0], null])
-    ),
     response_list(
         response_request_init([[['record', []]], ['{"found":"attack"}','{"another":"attack"}']])
     ),
     response_list(
-        response_request_shutdown([[['record', []]], ['{"yet another":"attack"}']])
+        response_request_shutdown([[['record', []]], ['{"yet another":"attack"}'], false, [],
+            ["meta_1" => "value_1", "meta_2" => "value_2"],
+            ["metric_1" => 2.0, "metric_2" => 10.0]])
     ),
 ], ['continuous' => true]);
 

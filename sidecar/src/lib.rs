@@ -7,13 +7,13 @@
 // whole crate is compiled away there.
 #![cfg(unix)]
 
-use datadog_sidecar::appsec::{
-    AppSecBackend, AppSecConnection, AppSecFuture, AppSecMessageResponse,
-};
-use datadog_sidecar::config::AppSecConfig;
+use datadog_sidecar::appsec::protocol::{AppSecRequest, AppSecSessionConfig, AppSecVerdict};
+use datadog_sidecar::appsec::{AppSecBackend, AppSecCallbacks, AppSecConnection, AppSecFuture};
 use datadog_sidecar::config::Config;
 use datadog_sidecar::service::blocking::SidecarTransport;
 use spawn_worker::{entrypoint, TrampolineData};
+use std::ffi::OsString;
+use std::os::unix::ffi::OsStringExt;
 
 pub fn start_or_connect_to_sidecar(config: Config) -> anyhow::Result<SidecarTransport> {
     datadog_sidecar::start_or_connect_to_sidecar_with_entrypoint(
@@ -51,36 +51,28 @@ pub extern "C" fn ddtrace_sidecar_entry_point(trampoline_data: &TrampolineData) 
 }
 
 fn create_backend(
-    config: &AppSecConfig,
+    config: &AppSecSessionConfig,
     telemetry: datadog_sidecar::service::telemetry::InProcessTelemetryClientFactory,
 ) -> anyhow::Result<AppSecBackend> {
-    let helper_config = ddappsec_helper::config::Config::new(
-        Some(config.log_file_path.clone().into()),
-        &config.log_level,
-    );
+    let log_file = (!config.helper_log_file.is_empty())
+        .then(|| OsString::from_vec(config.helper_log_file.clone()).into());
+    let helper_config = ddappsec_helper::config::Config::new(log_file, &config.helper_log_level);
     let helper =
         ddappsec_helper::start(tokio::runtime::Handle::current(), helper_config, telemetry)?;
     Ok(AppSecBackend::new(
-        send_message,
-        disconnect,
+        AppSecCallbacks {
+            on_session_config: ddappsec_helper::on_session_config,
+            on_application: ddappsec_helper::on_application,
+            on_request,
+            on_disconnect: ddappsec_helper::on_disconnect,
+        },
         Box::pin(async move { helper.shutdown().await }),
     ))
 }
 
-fn send_message(
+fn on_request(
     connection: &mut AppSecConnection,
-    data: Vec<u8>,
-    client_init: bool,
-) -> AppSecFuture<'_, AppSecMessageResponse> {
-    Box::pin(async move {
-        let response = ddappsec_helper::on_message(connection, data, client_init).await;
-        AppSecMessageResponse {
-            data: response.data,
-            disconnect: response.disconnect,
-        }
-    })
-}
-
-fn disconnect(connection: &mut AppSecConnection) {
-    ddappsec_helper::on_disconnect(connection);
+    request: AppSecRequest,
+) -> AppSecFuture<'_, AppSecVerdict> {
+    Box::pin(ddappsec_helper::on_request(connection, request))
 }

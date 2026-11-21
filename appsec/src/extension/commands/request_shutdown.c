@@ -5,7 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "request_shutdown.h"
-#include "../commands_helpers.h"
+#include "../appsec_requests.h"
 #include "../configuration.h"
 #include "../ddappsec.h"
 #include "../entity_body.h"
@@ -16,7 +16,8 @@
 #include <SAPI.h>
 #include <ext/compatibility.h>
 
-static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
+static void _request_pack(
+    mpack_writer_t *nonnull w, struct req_shutdown_info *nonnull req_info);
 static void _pack_headers_no_cookies_llist(
     mpack_writer_t *nonnull w, zend_llist *nonnull hl);
 static const char *nullable _header_content_type_llist(
@@ -26,25 +27,19 @@ static void _pack_headers_no_cookies_map(
 static const char *nullable _header_content_type_zend_array(
     const zend_array *nonnull hl, size_t *nonnull len);
 
-static const dd_command_spec _spec = {
-    .name = "request_shutdown",
-    .name_len = sizeof("request_shutdown") - 1,
-    .num_args = 3, // a map, api sec sampling key, input_truncated
-    .outgoing_cb = _request_pack,
-    .incoming_cb = dd_command_proc_resp_verd_span_data,
-    .config_features_cb = dd_command_process_config_features_unexpected,
-};
-
-dd_result dd_request_shutdown(
-    dd_conn *nonnull conn, struct req_shutdown_info *nonnull req_info)
+dd_result dd_request_shutdown(struct req_shutdown_info *nonnull req_info)
 {
-    return dd_command_exec_req_info(conn, &_spec, &req_info->req_info);
+    dd_appsec_addresses addresses;
+    dd_appsec_addresses_init(&addresses);
+    _request_pack(&addresses.writer, req_info);
+    return dd_appsec_send_request_shutdown(&addresses,
+        req_info->api_sec_samp_key, dd_msgpack_helpers_is_data_truncated(),
+        &req_info->req_info);
 }
 
-static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
+static void _request_pack(
+    mpack_writer_t *nonnull w, struct req_shutdown_info *nonnull req_info)
 {
-    struct req_shutdown_info *nonnull req_info = ctx;
-
     ddog_AppsecBodyMessagePack resp_body = {
         .status = DDOG_APPSEC_BODY_STATUS_EMPTY};
     if (req_info->entity) {
@@ -101,14 +96,6 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
     }
 
     mpack_finish_map(w);
-
-    // 2.
-    mpack_write(w, req_info->api_sec_samp_key);
-
-    // 3.
-    mpack_write_bool(w, dd_msgpack_helpers_is_data_truncated());
-
-    return dd_success;
 }
 
 static void _dtor_headers_map(zval *zv)

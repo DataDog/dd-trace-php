@@ -23,8 +23,8 @@ rinit();
 rshutdown();
 
 $commands = $helper->get_commands();
-var_dump($commands[1][1][0]['server.request.cookies']['d']);
-var_dump($commands[1][1][0]['server.request.cookies']['truncated']);
+var_dump($commands[0][1][0]['server.request.cookies']['d']);
+var_dump($commands[0][1][0]['server.request.cookies']['truncated']);
 ?>
 --EXPECTF--
 array(1) {

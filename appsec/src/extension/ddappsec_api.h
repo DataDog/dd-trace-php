@@ -27,3 +27,10 @@ void dd_appsec_rshutdown_hook(void);
 void dd_appsec_minfo(void);
 
 bool dd_appsec_maybe_enable_helper(bool *appsec_activation, bool *appsec_conf);
+
+struct ddog_SidecarTransport;
+// The AppSec settings of a sidecar connection, set before its connection
+// config: the sidecar starts the connection's helper client with them.
+void dd_appsec_set_session_config(struct ddog_SidecarTransport **transport);
+// In a fork child: its connection has no AppSec request on the helper.
+void dd_appsec_fork_child(void);

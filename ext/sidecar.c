@@ -317,11 +317,7 @@ static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
 #endif
     ddog_sidecar_reconnect_readers(DATADOG_G(telemetry_cache), DATADOG_G(remote_config_state),
                                    DATADOG_G(agent_info_reader), agent_config_reader);
-
-    if (!datadog_ffi_try("Failed starting AppSec in sidecar",
-            ddog_sidecar_ensure_appsec_started(transport))) {
-        LOG(WARN, "AppSec sidecar backend is unavailable");
-    }
+    UNUSED(transport);
 }
 
 #ifdef TRACER
@@ -402,6 +398,10 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
     const struct ddog_RemoteConfigNotification *remote_config_notification = datadog_remote_config_notification_get();
 #else
     const struct ddog_RemoteConfigNotification *remote_config_notification = NULL;
+#endif
+#ifdef APPSEC
+    // Sent with the connection config: the sidecar sets up the connection's AppSec client.
+    dd_appsec_set_session_config(transport);
 #endif
     ddog_sidecar_set_connection_config(transport, datadog_sidecar_instance_id, datadog_endpoint, dogstatsd_endpoint, otlp_metrics_endpoint,
                                     DDOG_CHARSLICE_C("php"),
@@ -848,6 +848,9 @@ void datadog_sidecar_handle_fork(void) {
 #endif
     datadog_ffi_try("Failed clearing inherited sidecar state",
                     ddog_sidecar_handle_fork_php());
+#ifdef APPSEC
+    dd_appsec_fork_child();
+#endif
 
     // The inherited connections belong to the parent: nothing must be sent on them anymore.
 #ifdef ZTS

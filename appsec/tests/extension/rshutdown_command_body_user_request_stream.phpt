@@ -61,7 +61,7 @@ echo "Position of stream: ", ftell($stream), "\n";
 close_span(100.0);
 
 $c = $helper->get_commands();
-print_r($c[2]);
+print_r($c[1]);
 ?>
 --EXPECTF--
 Result of notify_start:

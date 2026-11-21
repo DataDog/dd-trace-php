@@ -1,5 +1,5 @@
 --TEST--
-When extension is enabled by ENV, it is sent to helper
+When extension is enabled by ENV, requests are sent to the helper
 --INI--
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 --ENV--
@@ -18,12 +18,12 @@ var_dump(rinit());
 var_dump(rshutdown());
 
 $commands = $helper->get_commands();
-var_dump($commands[0][0]); //Command name - client_init
-var_dump($commands[0][1][3]); //enabled_configuration
+var_dump($commands[0][0]);
+var_dump(\datadog\appsec\is_enabled());
 
 ?>
 --EXPECTF--
 bool(true)
 bool(true)
-string(%d) "client_init"
+string(12) "request_init"
 bool(true)

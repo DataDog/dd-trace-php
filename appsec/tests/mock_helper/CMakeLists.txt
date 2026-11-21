@@ -21,7 +21,6 @@ target_link_libraries(mock_helper PRIVATE
     boost_thread
     boost_context
     boost_stacktrace
-    mpack_malloc
     spdlog
     rapidjson_appsec)
 

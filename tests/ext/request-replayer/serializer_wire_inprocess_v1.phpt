@@ -4,7 +4,7 @@ In-process sender ignores a v1-capable agent and still serializes the v0.4 wire 
 Locks the in-process sender -> v0.4 wire mapping even when the agent advertises /v1.0/traces. The
 in-process (DD_TRACE_SIDECAR_TRACE_SENDER=0) sender ALWAYS downgrades the native V1 builder
 to v0.4 and posts each trace to /v0.4/traces; a native V1 payload is a single msgpack MAP that the
-background sender's array-of-1 framing (comms_php.c mpack_expect_array_match) cannot parse, so the
+background sender's array-of-1 framing (comms_php.c dd_array_of_one_header_len) cannot parse, so the
 in-process path never uses /v1.0/traces regardless of agent capability.
 --SKIPIF--
 <?php

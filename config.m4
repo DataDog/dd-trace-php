@@ -326,15 +326,12 @@ if test "$PHP_DDTRACE" != "no"; then
   "
 
   DATADOG_APPSEC_SOURCES="\
+    appsec/src/extension/appsec_requests.c \
     appsec/src/extension/backtrace.c \
     appsec/src/extension/body_parser.c \
-    appsec/src/extension/commands/client_init.c \
-    appsec/src/extension/commands/client_shutdown.c \
-    appsec/src/extension/commands/config_sync.c \
     appsec/src/extension/commands/request_exec.c \
     appsec/src/extension/commands/request_init.c \
     appsec/src/extension/commands/request_shutdown.c \
-    appsec/src/extension/commands_helpers.c \
     appsec/src/extension/configuration.c \
     appsec/src/extension/ddappsec.c \
     appsec/src/extension/dddefs.c \
@@ -344,7 +341,6 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/ip_extraction.c \
     appsec/src/extension/logging.c \
     appsec/src/extension/msgpack_helpers.c \
-    appsec/src/extension/network.c \
     appsec/src/extension/php_helpers.c \
     appsec/src/extension/php_objects.c \
     appsec/src/extension/request_abort.c \
@@ -352,7 +348,6 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/string_helpers.c \
     appsec/src/extension/tags.c \
     appsec/src/extension/telemetry.c \
-    appsec/src/extension/test_mock_transport.c \
     appsec/src/extension/tracer_bridge.c \
     appsec/src/extension/user_tracking.c \
     tracer/vendor/mpack/mpack.c \

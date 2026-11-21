@@ -47,7 +47,7 @@ var_dump($res);
 close_span(100.0);
 
 $c = $helper->get_commands();
-print_r($c[1][1][0]['server.request.body']);
+print_r($c[0][1][0]['server.request.body']);
 --EXPECT--
 Result of notify_start:
 NULL

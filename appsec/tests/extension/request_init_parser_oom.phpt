@@ -24,9 +24,10 @@ register_shutdown_function(function () use (&$helper, &$returned, &$parseLine) {
     var_dump(datadog\appsec\convert_json('[1]'));
     var_dump(datadog\appsec\push_addresses(['server.io.fs.file' => '/etc/passwd'], 'lfi'));
     datadog\appsec\testing\rshutdown();
-    var_dump(array_column($helper->get_commands(), 0));
+    var_dump(array_column($helper->get_commands() ?? [], 0));
 });
-$helper = Helper::createInitedRun([]);
+// The request fails before anything is sent: the response stays unused.
+$helper = Helper::createRun([response_list(response_request_init([[['ok', []]]]))]);
 $span = start_span();
 body_parser_fail_after(0);
 $parseLine = __LINE__ + 1;
@@ -40,7 +41,6 @@ array(1) {
   int(1)
 }
 bool(false)
-array(1) {
-  [0]=>
-  string(11) "client_init"
+timeout
+array(0) {
 }
