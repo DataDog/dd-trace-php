@@ -1362,9 +1362,9 @@ endforeach;
     INSTALLER_ARTIFACT_SERVER: installer-artifacts
     INSTALLER_DOCKER_NETWORK: installer-tests
     INSTALLER_REPOSITORY_URL: http://installer-artifacts
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 2Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
     RUST_BACKTRACE: 1
   before_script:
 <?php dockerhub_login() ?>
@@ -1412,7 +1412,7 @@ endforeach;
         sleep 1
       done
   script:
-    - make -C dockerfiles/verify_packages test_installer
+    - make -C dockerfiles/verify_packages -j 8 --output-sync=target test_installer
   after_script:
     - docker rm --force "$INSTALLER_ARTIFACT_SERVER" || true
     - docker network rm "$INSTALLER_DOCKER_NETWORK" || true

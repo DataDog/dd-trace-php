@@ -20,7 +20,7 @@ Docker-in-Docker runners because they spin up containers internally.
 | CI Job | Image | What it does |
 |--------|-------|--------------|
 | `framework test: [{suite}]` | `docker:29.4.0-noble` | Spins up a framework-specific Docker Compose stack and runs the framework's own test suite with ddtrace installed |
-| `installer tests` | `docker:29.4.0-noble` | Runs `make -C dockerfiles/verify_packages test_installer`; verifies `datadog-setup.php` installer works on both amd64 and arm64 packages |
+| `installer tests` | `docker:29.4.0-noble` | Runs `make -C dockerfiles/verify_packages -j 8 --output-sync=target test_installer`; verifies `datadog-setup.php` installer works on both amd64 and arm64 packages |
 | `randomized tests: [amd64, {no-asan,asan}, {1..5}]` | `docker:29.4.0-noble` | Generates random PHP scenarios and runs them with ddtrace for 1m30s each; checks for crashes and unexpected behavior |
 
 Runner: `docker-in-docker:amd64`
@@ -210,7 +210,7 @@ docker-compose \
 ### installer tests
 
 The installer tests (`make -C dockerfiles/verify_packages test_installer`) run
-~39 test scripts. Each spins up a Docker container, runs
+~44 test scripts, 8 at a time in CI. Each spins up a Docker container, runs
 `php ./build/packages/datadog-setup.php --php-bin php`, and verifies the
 installed extension version matches `cat VERSION`.
 
