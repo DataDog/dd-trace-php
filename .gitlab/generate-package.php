@@ -469,6 +469,7 @@ foreach ($build_platforms as $platform) {
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
     CARGO_BUILD_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
@@ -504,6 +505,7 @@ foreach ($build_platforms as $platform) {
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
     CARGO_BUILD_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
