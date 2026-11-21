@@ -186,6 +186,7 @@ variables:
   RELIABILITY_ENV_BRANCH: "master"
   SYSTEM_TESTS_LIBRARY: php
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
+  DDTRACE_XLANG_TIME_TRACE_DIR: "/tmp/lld-time-trace"
 
   # One pipeline injection package size ratchet.
   # LIB_INJECTION_IMAGE_MAX_SIZE_BYTES was set to 210M in April as a tightening

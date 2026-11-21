@@ -232,6 +232,10 @@ case "${DD_RUST_BUILD_STD:-1}" in
     *) fail 'DD_RUST_BUILD_STD must be 0 or 1' ;;
 esac
 
+if [[ -n ${DDTRACE_XLANG_TIME_TRACE_DIR:-} ]]; then
+    rm -rf "$DDTRACE_XLANG_TIME_TRACE_DIR"
+    mkdir -p "$DDTRACE_XLANG_TIME_TRACE_DIR"
+fi
 cd "$root"
 case "$artifact_mode" in
     ssi-common)
@@ -258,6 +262,9 @@ case "$artifact_mode" in
         .gitlab/build-profiler.sh "$artifacts" active "$artifact_mode" ddtrace.so
         ;;
 esac
+if [[ -n ${DDTRACE_XLANG_TIME_TRACE_DIR:-} ]]; then
+    php -n -d memory_limit=-1 "$root/tooling/bin/summarize-lld-time-trace.php" "$DDTRACE_XLANG_TIME_TRACE_DIR" || true
+fi
 if [[ "$artifact_mode" == ssi-common ]]; then
     echo "PHP $php_version $build_variant $lto_mode $artifact_mode: $artifacts"
     exit 0
