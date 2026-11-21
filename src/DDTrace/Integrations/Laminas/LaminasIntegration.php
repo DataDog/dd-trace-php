@@ -32,6 +32,26 @@ class LaminasIntegration extends Integration
 {
     const NAME = 'laminas';
 
+    /**
+     * What each Literal, Wildcard, Segment and Regex match() that succeeded
+     * matched: [route, path, offset, length]. Each list is attached to the
+     * RouteMatch the match() returned, and RouteMatch::merge() appends the
+     * merged match's list, as Part and Chain combine matches only that way.
+     * The RouteMatch the router returns thus lists the routes Laminas
+     * matched it with, in path order; matches from attempts that failed are
+     * discarded with their RouteMatch. Null outside the MVC routing pass the
+     * recording hooks are installed for.
+     *
+     * @var \SplObjectStorage|null RouteMatch => list of records
+     */
+    private static $routeMatchRecords = null;
+
+    /** @var int[] ids of the recording hooks, installed for the current MVC routing pass */
+    private static $routeMatchHookIds = [];
+
+    /** @var array<string, bool> keyed by the Segment route's regex, which its parts determine */
+    private static $segmentPresenceFollowsCaptures = [];
+
     // \Laminas\Mvc\Application is not necessarily loaded (e.g., Laminas Log), hence the raw strings
     static $ERROR_TYPES = [
         'error-controller-cannot-dispatch',
@@ -283,6 +303,79 @@ class LaminasIntegration extends Integration
                     $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
                     if ($httpRoute !== null && $httpRoute !== '') {
                         $rootSpan->attributes[Tag::HTTP_ROUTE] = $httpRoute;
+                        if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                            && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
+                            // The routes Laminas matched, with what each matched (see
+                            // $routeMatchRecords). The normalized route is built from them
+                            // as elements, so static text is never read as route syntax.
+                            // Without them (routing outside RouteListener::onRoute, or a
+                            // route that consumed path without being recorded), or when
+                            // the replay fails, which optionals took part is unknown: the
+                            // route falls back to its mandatory parts, built from the
+                            // route definitions (see fallbackElementsFromNamedRouteStack()).
+                            $_records = LaminasIntegration::takeRouteMatchRecords($routeMatch);
+                            $_signature = null;
+                            if ($_records !== null) {
+                                try {
+                                    $_signature = LaminasIntegration::replaySignature($_records);
+                                } catch (\Throwable $_ex) {
+                                    unset($_ex);
+                                }
+                            }
+                            if ($_signature !== null) {
+                                // The signature determines the normalized route (see
+                                // replaySignature()); the route name and http.route only
+                                // make the key readable. Each part is length-prefixed so
+                                // that no two (name, http.route, signature) triples share
+                                // a key.
+                                $cacheKey = "laminas\0" . \strlen((string) $routeName) . ':' . $routeName
+                                    . \strlen($httpRoute) . ':' . $httpRoute . $_signature;
+                                $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                                if ($normalizedRoute === false) {
+                                    try {
+                                        $_elements = LaminasIntegration::replayRouteMatch($_records);
+                                    } catch (\Throwable $_ex) {
+                                        unset($_ex);
+                                        $_elements = null;
+                                    }
+                                    $normalizedRoute = $_elements === null
+                                        ? null
+                                        : \DDTrace\Util\RouteNormalizer::normalizeElements($_elements);
+                                    unset($_elements);
+                                    if ($normalizedRoute !== null) {
+                                        \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                                    }
+                                }
+                            } else {
+                                $normalizedRoute = null;
+                            }
+                            // A later match outside RouteListener::onRoute (e.g. of
+                            // another URL by application code) records nothing: keep
+                            // the normalized route of the request's own routing.
+                            $_keepRequestRoute = $normalizedRoute === null && $_records === null
+                                && isset($rootSpan->attributes[Tag::APPSEC_NORMALIZED_ROUTE]);
+                            if ($normalizedRoute === null && !$_keepRequestRoute) {
+                                // Not cached: a route name and http.route do not
+                                // identify the route definitions it is built from.
+                                try {
+                                    $_elements = LaminasIntegration::fallbackElementsFromNamedRouteStack(
+                                        $this,
+                                        (string) $routeName
+                                    );
+                                } catch (\Throwable $_ex) {
+                                    unset($_ex);
+                                    $_elements = null;
+                                }
+                                $normalizedRoute = $_elements === null
+                                    ? null
+                                    : \DDTrace\Util\RouteNormalizer::normalizeElements($_elements);
+                                unset($_elements);
+                            }
+                            if ($normalizedRoute !== null) {
+                                $rootSpan->attributes[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                            }
+                            unset($_records, $_signature, $_keepRequestRoute);
+                        }
                     }
                 }
 
@@ -314,8 +407,20 @@ class LaminasIntegration extends Integration
             hook_method(
                 'Laminas\Mvc\RouteListener',
                 'onRoute',
-                null,
+                static function () {
+                    // The recording hooks are only needed to normalize the route,
+                    // so they exist only while routing with API Security enabled.
+                    self::detachRouteMatchHooks();
+                    if (
+                        \function_exists('\datadog\appsec\is_enabled')
+                        && \datadog\appsec\is_enabled()
+                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")
+                    ) {
+                        self::attachRouteMatchHooks();
+                    }
+                },
                 static function ($This, $scope, $args) {
+                    self::detachRouteMatchHooks();
                     if (!isset($args[0]) || !($args[0] instanceof MvcEvent)) {
                         return;
                     }
@@ -1156,7 +1261,537 @@ class LaminasIntegration extends Integration
         }
     }
 
+    /**
+     * The path matches recorded on the RouteMatch the router returned, which
+     * are then dropped with every other recorded match of this routing pass.
+     * Null when nothing was recorded (no routing pass is being recorded) or
+     * when the records do not account for the whole matched length: some
+     * route matched path without being recorded (a route type laminas-router
+     * does not ship, or a match() that builds its own RouteMatch), so what it
+     * bound is unknown.
+     *
+     * @return array|null
+     */
+    public static function takeRouteMatchRecords($routeMatch)
+    {
+        $records = self::routeMatchRecords($routeMatch);
+        self::$routeMatchRecords = null;
+        if ($records === null) {
+            return null;
+        }
+
+        $length = 0;
+        foreach ($records as $record) {
+            $length += $record[3];
+        }
+
+        return $length === $routeMatch->getLength() ? $records : null;
+    }
+
+    /**
+     * Replays the recorded path matches to recover which captures took part,
+     * which RouteMatch hides by merging route defaults. Each route's pattern
+     * runs on the path and at the offset its match() got.
+     *
+     * Returns the route as RouteNormalizer::normalizeElements() elements:
+     * Literal text as static, Segments with their optionals resolved to the
+     * shape that matched, Regex specs aligned with the text the Regex matched,
+     * and Wildcard as a catch-all tail. Null if any of them cannot be.
+     *
+     * @return array|null
+     */
+    public static function replayRouteMatch(array $records)
+    {
+        $elements = [];
+        foreach ($records as list($route, $path, $offset, $length)) {
+            if ($route instanceof \Laminas\Router\Http\Segment) {
+                $match = self::inferLaminasSegmentMatch($route, $path, $offset);
+                if ($match === null || $match['length'] !== $length) {
+                    return null;
+                }
+                $routeElements = $match['elements'];
+            } elseif ($route instanceof \Laminas\Router\Http\Regex) {
+                $routeElements = self::laminasRegexElements($route, $path, $offset, $length);
+            } elseif ($route instanceof \Laminas\Router\Http\Literal) {
+                $routeElements = [[
+                    'static',
+                    (string) self::laminasReadProperty($route, \Laminas\Router\Http\Literal::class, 'route'),
+                ]];
+            } else {
+                $routeElements = self::laminasWildcardElements($path, $offset, $length);
+            }
+            if ($routeElements === null) {
+                return null;
+            }
+            array_push($elements, ...$routeElements);
+        }
+
+        return $elements;
+    }
+
+    /**
+     * The routing cache key counterpart of replayRouteMatch(): one
+     * length-prefixed entry per recorded match, which together determine the
+     * normalized route. A Literal contributes its text; a Segment its regex
+     * and parameter names, which its parts determine, and the indices of its
+     * capture groups that took part; a Regex and a Wildcard their resolved
+     * elements. A Segment with an optional whose presence leaves no capture
+     * (e.g. [/draft]) contributes its resolved elements too, which needs the
+     * full replay.
+     *
+     * Returns null where the replay cannot be done.
+     */
+    public static function replaySignature(array $records)
+    {
+        $signature = '';
+        foreach ($records as list($route, $path, $offset, $length)) {
+            if ($route instanceof \Laminas\Router\Http\Segment) {
+                $routeData = self::laminasSegmentRouteData($route);
+                if (self::laminasSegmentPresenceFollowsCaptures($routeData)) {
+                    $participation = self::laminasSegmentParticipation($route, $path, $offset);
+                    if ($participation === null || $participation['length'] !== $length) {
+                        return null;
+                    }
+                    $entry = 'p' . $participation['groups'];
+                } else {
+                    $match = self::inferLaminasSegmentMatch($route, $path, $offset);
+                    if ($match === null || $match['length'] !== $length) {
+                        return null;
+                    }
+                    $entry = 't' . self::laminasElementsSignature($match['elements']);
+                }
+                $entry = 's' . self::laminasLengthPrefixed($routeData[0])
+                    . self::laminasLengthPrefixed(...array_values($routeData[1])) . $entry;
+            } elseif ($route instanceof \Laminas\Router\Http\Regex) {
+                $elements = self::laminasRegexElements($route, $path, $offset, $length);
+                if ($elements === null) {
+                    return null;
+                }
+                $entry = 'r' . self::laminasElementsSignature($elements);
+            } elseif ($route instanceof \Laminas\Router\Http\Literal) {
+                $entry = 'l' . self::laminasReadProperty($route, \Laminas\Router\Http\Literal::class, 'route');
+            } else {
+                $elements = self::laminasWildcardElements($path, $offset, $length);
+                if ($elements === null) {
+                    return null;
+                }
+                $entry = 'w' . self::laminasElementsSignature($elements);
+            }
+            $signature .= self::laminasLengthPrefixed($entry);
+        }
+
+        return $signature;
+    }
+
+    /** Elements as a string that tells any two element lists apart. */
+    private static function laminasElementsSignature(array $elements): string
+    {
+        $signature = '';
+        foreach ($elements as $element) {
+            $signature .= $element[0][0] . (isset($element[1]) ? self::laminasLengthPrefixed($element[1]) : '');
+        }
+
+        return $signature;
+    }
+
+    private static function laminasLengthPrefixed(string ...$strings): string
+    {
+        $buf = '';
+        foreach ($strings as $string) {
+            $buf .= \strlen($string) . ':' . $string;
+        }
+
+        return $buf;
+    }
+
+    /**
+     * A Regex match as elements. A Regex route is a whole-route regex, so per
+     * RFC-1125 the text it matched outside capture groups is static text and
+     * each capture group that took part is a parameter (unnamed ones get
+     * param<N>); a capture that did not take part, or matched an empty value,
+     * is absent. The spec, the template Regex::assemble() fills, plays no part:
+     * it need not line up with what the regex matches.
+     *
+     * Null when the regex can match text outside its captures that is not
+     * plain literal text: the route cannot be expressed. Also null when the
+     * regex does not match as Laminas matched it.
+     *
+     * @return array|null
+     */
+    private static function laminasRegexElements(
+        \Laminas\Router\Http\Regex $route,
+        string $urlPath,
+        $offset,
+        int $length
+    ) {
+        $regex = (string) self::laminasReadProperty($route, \Laminas\Router\Http\Regex::class, 'regex');
+        if (!\DDTrace\Util\RouteNormalizer::regexHasOnlyCapturedDynamics($regex)) {
+            return null;
+        }
+        $matches = self::laminasMatchAt($regex, $urlPath, $offset);
+        if ($matches === null || strlen($matches[0][0]) !== $length) {
+            return null;
+        }
+
+        $start = $offset ?? 0;
+        return \DDTrace\Util\RouteNormalizer::regexMatchElements(
+            $regex,
+            $urlPath,
+            $start,
+            $start + $length,
+            $matches
+        );
+    }
+
+    /**
+     * A Wildcard match as elements. Wildcard::match() takes the rest of the
+     * path, which is empty, starts with the delimiter, or is a single piece
+     * with no delimiter at all, continuing the URL segment before it.
+     *
+     * @return array|null
+     */
+    private static function laminasWildcardElements(string $urlPath, $offset, int $length)
+    {
+        $matched = (string) substr($urlPath, $offset ?? 0, $length);
+        if ($matched === '') {
+            return [];
+        }
+        if ($matched[0] === '/') {
+            return [['static', '/'], ['tail']];
+        }
+
+        return strpos($matched, '/') === false ? [['tail']] : null;
+    }
+
+    /**
+     * Installs the hooks that record, on the RouteMatch each returns, the path
+     * matches of Literal, Wildcard, Segment and Regex routes, and carry them
+     * through RouteMatch::merge(). See $routeMatchRecords.
+     */
+    private static function attachRouteMatchHooks(): void
+    {
+        self::$routeMatchRecords = new \SplObjectStorage();
+        $record = static function (HookData $hook) {
+            $routeMatch = $hook->returned;
+            $request = $hook->args[0] ?? null;
+            if (
+                self::$routeMatchRecords !== null
+                && $routeMatch instanceof \Laminas\Router\Http\RouteMatch
+                && \is_object($request)
+                && \method_exists($request, 'getUri')
+            ) {
+                self::$routeMatchRecords[$routeMatch] = [[
+                    $hook->instance,
+                    (string) $request->getUri()->getPath(),
+                    $hook->args[1] ?? null,
+                    $routeMatch->getLength(),
+                ]];
+            }
+        };
+        foreach (['Literal', 'Wildcard', 'Segment', 'Regex'] as $routeType) {
+            self::$routeMatchHookIds[] = install_hook("Laminas\\Router\\Http\\$routeType::match", null, $record);
+        }
+
+        self::$routeMatchHookIds[] = install_hook(
+            'Laminas\Router\Http\RouteMatch::merge',
+            null,
+            static function (HookData $hook) {
+                $merged = self::routeMatchRecords($hook->args[0] ?? null);
+                if ($merged !== null) {
+                    self::$routeMatchRecords[$hook->instance] = \array_merge(
+                        self::routeMatchRecords($hook->instance) ?? [],
+                        $merged
+                    );
+                }
+            }
+        );
+    }
+
+    private static function detachRouteMatchHooks(): void
+    {
+        foreach (self::$routeMatchHookIds as $id) {
+            remove_hook($id);
+        }
+        self::$routeMatchHookIds = [];
+        self::$routeMatchRecords = null;
+    }
+
+    /** @return array|null the path matches recorded on $routeMatch */
+    private static function routeMatchRecords($routeMatch)
+    {
+        if (self::$routeMatchRecords === null || !\is_object($routeMatch)) {
+            return null;
+        }
+
+        return self::$routeMatchRecords[$routeMatch] ?? null;
+    }
+
+    /** Reads a protected property of a laminas-router object, declared by $class. */
+    private static function laminasReadProperty($object, string $class, string $property)
+    {
+        static $readers = [];
+        if (!isset($readers[$class])) {
+            $readers[$class] = \Closure::bind(
+                static function ($object, $property) {
+                    return $object->$property;
+                },
+                null,
+                $class
+            );
+        }
+
+        return $readers[$class]($object, $property);
+    }
+
+    /**
+     * Whether a Segment's resolved template follows from which of its captures
+     * took part: true when every optional directly contains a parameter, so
+     * its presence is that parameter's participation. [/draft] or the inner
+     * optional of [/:a[/static[/:b]]] can be present with no capture.
+     */
+    private static function laminasSegmentPresenceFollowsCaptures(array $routeData): bool
+    {
+        $key = $routeData[0];
+        if (!isset(self::$segmentPresenceFollowsCaptures[$key])) {
+            self::$segmentPresenceFollowsCaptures[$key] = empty($routeData[3])
+                && self::laminasOptionalsHaveDirectParameters($routeData[2], false);
+        }
+
+        return self::$segmentPresenceFollowsCaptures[$key];
+    }
+
+    private static function laminasOptionalsHaveDirectParameters(array $parts, bool $isOptional): bool
+    {
+        $hasParameter = false;
+        foreach ($parts as $part) {
+            if ($part[0] === 'parameter') {
+                $hasParameter = true;
+            } elseif ($part[0] === 'optional') {
+                if (!self::laminasOptionalsHaveDirectParameters($part[1], true)) {
+                    return false;
+                }
+            } elseif ($part[0] !== 'literal') {
+                return false;
+            }
+        }
+
+        return !$isOptional || $hasParameter;
+    }
+
+    /**
+     * Runs a Segment's pattern as Segment::match() does and returns the
+     * matched length and the capture groups that took part. A group that
+     * took part with an empty value is marked with '='. Segment::match()
+     * drops empty captures, so the full replay resolves such a request as if
+     * the parameter were absent, but text the enclosing optional matched
+     * still has to be accounted for: [:a] then resolves to the optional left
+     * out, while [/:a] has a '/' that no shape explains and the tag is
+     * omitted. Either way the result can differ from that of the group not
+     * taking part, so the marker keeps these requests on a key of their own.
+     */
+    private static function laminasSegmentParticipation(
+        \Laminas\Router\Http\Segment $route,
+        string $urlPath,
+        $pathOffset
+    ) {
+        $routeData = self::laminasSegmentRouteData($route);
+        $matches = self::laminasMatchAt($routeData[0], $urlPath, $pathOffset);
+        if ($matches === null) {
+            return null;
+        }
+
+        $groups = [];
+        foreach ($routeData[1] as $group => $name) {
+            if (isset($matches[$group]) && $matches[$group][1] >= 0) {
+                $groups[] = $matches[$group][0] === '' ? $group . '=' : $group;
+            }
+        }
+
+        return ['groups' => implode(',', $groups), 'length' => strlen($matches[0][0])];
+    }
+
+    /** @return array{0: string, 1: array, 2: array, 3: array} regex, paramMap, parts, translationKeys */
+    private static function laminasSegmentRouteData(\Laminas\Router\Http\Segment $route): array
+    {
+        static $read = null;
+        if ($read === null) {
+            $read = \Closure::bind(
+                static function ($segment) {
+                    return [
+                        $segment->regex,
+                        $segment->paramMap,
+                        $segment->parts,
+                        $segment->translationKeys,
+                    ];
+                },
+                null,
+                \Laminas\Router\Http\Segment::class
+            );
+        }
+
+        return $read($route);
+    }
+
+    /**
+     * Matches a route pattern the way Segment::match() and Regex::match() do:
+     * the whole path when $pathOffset is null, from $pathOffset otherwise.
+     *
+     * @return array|null preg_match() matches with PREG_OFFSET_CAPTURE
+     */
+    private static function laminasMatchAt(string $regex, string $urlPath, $pathOffset)
+    {
+        $matches = [];
+        if ($pathOffset === null) {
+            $result = @preg_match('(^' . $regex . '$)', $urlPath, $matches, PREG_OFFSET_CAPTURE);
+        } else {
+            $result = @preg_match('(\G' . $regex . ')', $urlPath, $matches, PREG_OFFSET_CAPTURE, $pathOffset);
+        }
+
+        return $result === 1 ? $matches : null;
+    }
+
+    /**
+     * Reproduce Segment::match() before Laminas merges route defaults.
+     *
+     * $pathOffset is the offset Laminas passed to Segment::match(): null
+     * anchors the whole path, an integer matches from that offset on.
+     *
+     * The elements are those of RouteNormalizer::normalizeElements(): the
+     * literal text and the parameters of the shape that matched.
+     *
+     * @return array{elements: array, params: array, length: int}|null
+     */
+    public static function inferLaminasSegmentMatch(
+        \Laminas\Router\Http\Segment $route,
+        string $urlPath,
+        $pathOffset = null
+    ) {
+        $routeData = self::laminasSegmentRouteData($route);
+        if (!empty($routeData[3])) {
+            return null;
+        }
+
+        $matches = self::laminasMatchAt($routeData[0], $urlPath, $pathOffset);
+        if ($matches === null) {
+            return null;
+        }
+        $start = $pathOffset ?? 0;
+        $end = $start + strlen($matches[0][0]);
+
+        $captures = [];
+        $params = [];
+        foreach ($routeData[1] as $group => $name) {
+            if (!isset($matches[$group][0]) || $matches[$group][0] === '') {
+                continue;
+            }
+            $captures[$name][] = [
+                'raw' => $matches[$group][0],
+                'offset' => $matches[$group][1],
+            ];
+            $params[$name] = rawurldecode($matches[$group][0]);
+        }
+
+        $states = [[
+            'offset' => $start,
+            'elements' => [],
+            'capture_indexes' => [],
+        ]];
+        $states = self::matchLaminasSegmentParts($routeData[2], $urlPath, $captures, $states);
+        foreach ($states as $state) {
+            if ($state['offset'] !== $end) {
+                continue;
+            }
+            foreach ($captures as $name => $values) {
+                if (($state['capture_indexes'][$name] ?? 0) !== count($values)) {
+                    continue 2;
+                }
+            }
+            return [
+                'elements' => $state['elements'],
+                'params' => $params,
+                'length' => $end - $start,
+            ];
+        }
+
+        return null;
+    }
+
+    private static function matchLaminasSegmentParts(
+        array $parts,
+        string $urlPath,
+        array $captures,
+        array $states
+    ): array {
+        foreach ($parts as $part) {
+            $nextStates = [];
+            foreach ($states as $state) {
+                if ($part[0] === 'literal') {
+                    $literal = $part[1];
+                    if (substr($urlPath, $state['offset'], strlen($literal)) !== $literal) {
+                        continue;
+                    }
+                    $state['offset'] += strlen($literal);
+                    $state['elements'][] = ['static', $literal];
+                    $nextStates[] = $state;
+                } elseif ($part[0] === 'parameter') {
+                    $name = $part[1];
+                    $captureIndex = $state['capture_indexes'][$name] ?? 0;
+                    if (!isset($captures[$name][$captureIndex])) {
+                        continue;
+                    }
+                    $capture = $captures[$name][$captureIndex];
+                    if ($capture['offset'] !== $state['offset']) {
+                        continue;
+                    }
+                    $state['offset'] += strlen($capture['raw']);
+                    $state['elements'][] = ['param', $name];
+                    $state['capture_indexes'][$name] = $captureIndex + 1;
+                    $nextStates[] = $state;
+                } elseif ($part[0] === 'optional') {
+                    $optionalStates = self::matchLaminasSegmentParts(
+                        $part[1],
+                        $urlPath,
+                        $captures,
+                        [$state]
+                    );
+                    foreach ($optionalStates as $optionalState) {
+                        $nextStates[] = $optionalState;
+                    }
+                    $nextStates[] = $state;
+                } else {
+                    // Translated literals require the router's match options. Fall back
+                    // rather than attempting a potentially inaccurate reconstruction.
+                    return [];
+                }
+            }
+            $states = $nextStates;
+            if (empty($states)) {
+                break;
+            }
+        }
+
+        return $states;
+    }
+
+    /**
+     * The template lookups are cached on the route stack itself, so that they
+     * live as long as it does: spl_object_hash() is reused once a stack is
+     * destroyed, and another stack would then get its templates.
+     */
     public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
+    {
+        $cache = ObjectKVStore::get($stack, 'laminas.route_templates', []);
+        if (\array_key_exists($matchedName, $cache)) {
+            return $cache[$matchedName];
+        }
+        $template = self::computeHttpRouteTemplateFromNamedRouteStack($stack, $matchedName);
+        $cache[$matchedName] = $template;
+        ObjectKVStore::put($stack, 'laminas.route_templates', $cache);
+
+        return $template;
+    }
+
+    private static function computeHttpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
     {
         $segments = \explode('/', $matchedName, 2);
         $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
@@ -1190,6 +1825,115 @@ class LaminasIntegration extends Integration
         }
 
         return self::httpRouteTemplateFromMatchedRoute($route, null);
+    }
+
+    /**
+     * The fallback for when the matched routes cannot be replayed: the named
+     * route as RouteNormalizer::normalizeElements() elements with only its
+     * mandatory parts. Literal text and Segment literals are static text,
+     * Segment parameters outside optionals are parameters, optionals are left
+     * out, a Regex contributes its literal text and mandatory captures (see
+     * RouteNormalizer::regexFallbackElements()), and a Wildcard, an unnamed
+     * catch-all whose presence is unknown, adds nothing. Null for a Regex that
+     * cannot be expressed that way, for a translated literal, and for a route
+     * type laminas-router does not ship: the route cannot be expressed.
+     *
+     * @return array|null
+     */
+    public static function fallbackElementsFromNamedRouteStack($stack, string $matchedName)
+    {
+        $segments = \explode('/', $matchedName, 2);
+        $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
+        if ($route === null) {
+            return null;
+        }
+
+        $hasChild = isset($segments[1]);
+        if ($route instanceof \Laminas\Router\Http\Part) {
+            self::laminasMaterializePartChildRoutes($route);
+            $base = self::fallbackElementsFromRoute(
+                self::laminasReadProperty($route, \Laminas\Router\Http\Part::class, 'route')
+            );
+            if ($base === null || !$hasChild) {
+                return $base;
+            }
+            $child = self::fallbackElementsFromNamedRouteStack($route, $segments[1]);
+            return $child === null ? null : array_merge($base, $child);
+        }
+
+        if ($route instanceof \Laminas\Router\Http\TreeRouteStack && $hasChild) {
+            return self::fallbackElementsFromNamedRouteStack($route, $segments[1]);
+        }
+
+        return $hasChild ? null : self::fallbackElementsFromRoute($route);
+    }
+
+    /** @return array|null */
+    private static function fallbackElementsFromRoute($route)
+    {
+        if ($route instanceof \Laminas\Router\Http\Literal) {
+            return [[
+                'static',
+                (string) self::laminasReadProperty($route, \Laminas\Router\Http\Literal::class, 'route'),
+            ]];
+        }
+
+        if ($route instanceof \Laminas\Router\Http\Segment) {
+            $parts = self::laminasReadProperty($route, \Laminas\Router\Http\Segment::class, 'parts');
+            if (!\is_array($parts)) {
+                return null;
+            }
+            $elements = [];
+            foreach ($parts as $part) {
+                if (!\is_array($part) || !isset($part[0])) {
+                    return null;
+                }
+                switch ($part[0]) {
+                    case 'literal':
+                        $elements[] = ['static', (string) $part[1]];
+                        break;
+                    case 'parameter':
+                        $elements[] = ['param', (string) $part[1]];
+                        break;
+                    case 'optional':
+                        break;
+                    default:
+                        return null;
+                }
+            }
+            return $elements;
+        }
+
+        if ($route instanceof \Laminas\Router\Http\Regex) {
+            // A whole-route regex: literal text and mandatory captures only.
+            return \DDTrace\Util\RouteNormalizer::regexFallbackElements(
+                (string) self::laminasReadProperty($route, \Laminas\Router\Http\Regex::class, 'regex')
+            );
+        }
+
+        if ($route instanceof \Laminas\Router\Http\Chain) {
+            $elements = [];
+            foreach (self::laminasGetChainRoutes($route) as $chainedRoute) {
+                $chained = self::fallbackElementsFromRoute($chainedRoute);
+                if ($chained === null) {
+                    return null;
+                }
+                $elements = array_merge($elements, $chained);
+            }
+            return $elements;
+        }
+
+        if (
+            $route instanceof \Laminas\Router\Http\Wildcard
+            || $route instanceof \Laminas\Router\Http\Method
+            || $route instanceof \Laminas\Router\Http\Scheme
+            || $route instanceof \Laminas\Router\Http\Hostname
+            || $route instanceof \Laminas\Router\Http\Placeholder
+        ) {
+            return [];
+        }
+
+        return null;
     }
 
     public static function partRouteBaseTemplate(\Laminas\Router\Http\Part $part): ?string
