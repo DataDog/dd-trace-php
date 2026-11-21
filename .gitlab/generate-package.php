@@ -1890,11 +1890,18 @@ endforeach;
     - ln -sf /system-tests/venv venv
     - source venv/bin/activate
     - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
-    - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
-    # The mirror builder keeps another copy of the weblog layers and of the library bundle in its build context.
+    - |
+      if [ -n "$BUILD_SH_ARGS" ]; then
+        weblog=$(echo " $BUILD_SH_ARGS " | sed -n 's/.* -w \([^ ]*\) .*/\1/p')
+        for image in $(python3 utils/scripts/resolve-base-images-contexts.py --build-contexts "utils/build/docker/php/${weblog:-apache-mod-8.0}.Dockerfile" | sed 's|^[^=]*=docker-image://||'); do
+          { docker pull -q "registry.ddbuild.io/system-tests/mirror/$image" && docker tag "registry.ddbuild.io/system-tests/mirror/$image" "$image"; } || exit 75
+        done
+        USE_IMAGE_MIRROR=0 ./build.sh $BUILD_SH_ARGS
+      fi
+    # The build cache keeps another copy of the weblog layers and of the library bundle in its build context.
     # The scenarios only run the loaded images: free that space for their services, RabbitMQ blocks publishers
     # below 50 MB of free disk.
-    - docker buildx rm --force system-tests-mirror 2>/dev/null || true
+    - docker builder prune -af 2>/dev/null || true
     - docker system df || true
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
