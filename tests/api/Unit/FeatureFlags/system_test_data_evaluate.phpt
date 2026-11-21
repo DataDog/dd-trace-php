@@ -34,18 +34,6 @@ final class FfeFixtureLogger implements \DDTrace\Log\LoggerInterface
     }
 }
 
-$configPath = $fixtureRoot . '/ufc-config.json';
-if (!is_file($configPath)) {
-    throw new \RuntimeException('missing fixture config: ' . $configPath);
-}
-
-$configJson = file_get_contents($configPath);
-if ($configJson === false) {
-    throw new \RuntimeException('failed to read fixture config: ' . $configPath);
-}
-
-show('config_loaded', \DDTrace\Testing\ffe_load_config($configJson));
-
 $caseFiles = glob($fixtureRoot . '/evaluation-cases/*.json');
 if ($caseFiles === false) {
     throw new \RuntimeException('failed to glob evaluation case fixtures');
@@ -56,9 +44,8 @@ if (count($caseFiles) === 0) {
     throw new \RuntimeException('no evaluation-case fixture files found under ' . $fixtureRoot);
 }
 
-$client = new \DDTrace\FeatureFlags\Client(new FfeFixtureLogger());
-
-$caseCount = 0;
+$applicableCases = array();
+$excludedCount = 0;
 $failures = array();
 foreach ($caseFiles as $caseFile) {
     $cases = decode_json_file($caseFile);
@@ -68,11 +55,38 @@ foreach ($caseFiles as $caseFile) {
     }
 
     foreach ($cases as $index => $case) {
+        if (!fixture_case_applies($case, 'php')) {
+            $excludedCount++;
+            continue;
+        }
+        $applicableCases[] = array(basename($caseFile), $index, $case);
+    }
+}
+
+$caseCount = 0;
+if (count($applicableCases) === 0) {
+    show('config_loaded', false);
+} else {
+    $configPath = $fixtureRoot . '/ufc-config.json';
+    if (!is_file($configPath)) {
+        throw new \RuntimeException('missing fixture config: ' . $configPath);
+    }
+    $configJson = file_get_contents($configPath);
+    if ($configJson === false) {
+        throw new \RuntimeException('failed to read fixture config: ' . $configPath);
+    }
+    if (!\DDTrace\Testing\ffe_load_config($configJson)) {
+        throw new \RuntimeException('failed to load fixture config: ' . $configPath);
+    }
+    show('config_loaded', true);
+    $client = new \DDTrace\FeatureFlags\Client(new FfeFixtureLogger());
+    foreach ($applicableCases as $entry) {
+        list($fileName, $index, $case) = $entry;
         $caseCount++;
         try {
-            run_fixture_case($client, basename($caseFile), $index, $case, $failures);
+            run_fixture_case($client, $fileName, $index, $case, $failures);
         } catch (\Throwable $exception) {
-            $failures[] = basename($caseFile) . '#' . $index . ': ' . $exception->getMessage();
+            $failures[] = $fileName . '#' . $index . ': ' . $exception->getMessage();
         }
     }
 }
@@ -83,7 +97,26 @@ foreach ($failures as $failure) {
 
 show('fixture_files', count($caseFiles));
 show('cases', $caseCount);
+show('excluded', $excludedCount);
 show('failures', count($failures));
+
+function fixture_case_applies(array $case, $platform)
+{
+    foreach ($case['_skip'] ?? array() as $entry) {
+        if ($entry['platform'] === $platform) {
+            return false;
+        }
+    }
+    if (array_key_exists('_include', $case)) {
+        foreach ($case['_include'] as $entry) {
+            if ($entry['platform'] === $platform) {
+                return true;
+            }
+        }
+        return false;
+    }
+    return true;
+}
 
 function run_fixture_case($client, $fileName, $index, array $case, array &$failures)
 {
@@ -127,6 +160,20 @@ function run_fixture_case($client, $fileName, $index, array $case, array &$failu
             . ': value got=' . encode_value($details->getValue())
             . ' want=' . encode_value($case['result']['value']);
     }
+
+    $exposureData = $details->getExposureData();
+    foreach (array('serialId', 'doLog') as $key) {
+        if (!array_key_exists($key, $case['result'])) {
+            continue;
+        }
+        $actual = array_key_exists($key, $exposureData) ? $exposureData[$key] : null;
+        if ($actual !== $case['result'][$key]) {
+            $failures[] = $fileName . '#' . $index . ': ' . $key
+                . ' got=' . encode_value($actual)
+                . ' want=' . encode_value($case['result'][$key]);
+        }
+    }
+
 }
 
 function evaluate_fixture_case($client, $variationType, $flag, $defaultValue, array $context)
@@ -229,7 +276,8 @@ function show($label, $value)
 }
 ?>
 --EXPECTF--
-config_loaded=true
+config_loaded=%s
 fixture_files=%d
 cases=%d
+excluded=%d
 failures=0
