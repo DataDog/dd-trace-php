@@ -206,7 +206,7 @@ if [[ "$os" == Darwin && "$lto_mode" != off ]]; then
 else
     rust_linker="$CC"
 fi
-export RUSTFLAGS="-C debuginfo=line-tables-only$rust_lto_flags$rust_arch_flags$rust_system_flags -C linker=$rust_linker"
+export RUSTFLAGS="-C debuginfo=line-tables-only$rust_lto_flags$rust_arch_flags$rust_system_flags -C linker=$rust_linker${DDTRACE_XLANG_EXTRA_RUSTFLAGS:+ $DDTRACE_XLANG_EXTRA_RUSTFLAGS}"
 export CARGO_PROFILE_TRACER_RELEASE_LTO="$lto_mode" DDTRACE_RUST_PROFILE=tracer-release
 
 # Rebuild the host's std/panic_abort and the parser's private std/panic_unwind
