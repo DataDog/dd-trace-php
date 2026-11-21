@@ -1983,7 +1983,7 @@ $system_tests_weblogs = [
 
 // Pack the tracer-release scenarios longest-first into the least-loaded shard, from measured durations
 // (refresh them with .gitlab/refresh-system-tests-durations.py). Every weblog takes ~the same time per scenario.
-$system_tests_shard_count = 4;
+$system_tests_shard_count = 8;
 $system_tests_durations = json_decode(file_get_contents(__DIR__ . "/system-tests-durations.json"), true)["scenarios"];
 arsort($system_tests_durations);
 $system_tests_shards = array_fill(0, $system_tests_shard_count, []);
@@ -2005,8 +2005,8 @@ foreach ($system_tests_durations as $scenario => $seconds) {
 "System Tests: [<?= $weblog ?>, tracer-release]":
   extends: [ .system_tests, .system_tests_tracer_release_shards ]
   parallel: <?= $system_tests_shard_count, "\n" ?>
-  # ~2x the expected worst shard (~52 min), so a hung DinD job is retried sooner.
-  timeout: 1h 45m
+  # ~2x the expected worst shard (~27 min), so a hung DinD job is retried sooner.
+  timeout: 55m
   variables:
     BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
     # Expand the DinD loopback volume to avoid running out of disk space.
