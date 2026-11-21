@@ -89,6 +89,21 @@ function system_tests_run_scenarios(string $scenarios): void
 <?php
 }
 
+function system_tests_needs(string $weblog): void
+{
+?>
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+    - job: "prepare code"
+      artifacts: true
+    - job: "System Tests weblog: [<?= $weblog ?>]"
+      artifacts: true
+<?php
+}
+
 // Files a PR branch changed since its merge-base with master, listed by generate-templates.
 // No list (master, releases, tags, schedules, web/api runs, or a git failure) means every job runs.
 $branch_changed_files = array_filter(explode("\n", (string)@file_get_contents(__DIR__ . "/changed-files.txt")));
@@ -1799,6 +1814,7 @@ endforeach;
     # dockerhub-login.sh installs /tmp/vault only when vault is not on PATH; the ci-runner image ships it.
     - $(command -v vault || echo /tmp/vault) kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || echo "Could not fetch the Datadog API key from Vault" >&2
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
+    - mv weblog-images/*-weblog.tar.zst system-tests/binaries/ 2>/dev/null || echo "No prebuilt weblog image; build.sh will build it"
     - cd system-tests
     - ln -sf /system-tests/venv venv
     - source venv/bin/activate
@@ -1820,11 +1836,13 @@ endforeach;
 
 "System Tests: [default]":
   extends: .system_tests
+<?php system_tests_needs('apache-mod-8.0') ?>
   script:
     - ./run.sh
 
 "System Tests":
   extends: .system_tests
+<?php system_tests_needs('apache-mod-8.0') ?>
   parallel:
     matrix:
       - TESTSUITE:
@@ -1843,6 +1861,7 @@ endforeach;
 
 "System Tests: [php-fpm-8.5, default]":
   extends: .system_tests
+<?php system_tests_needs('php-fpm-8.5') ?>
   variables:
     BUILD_SH_ARGS: "-i weblog -w php-fpm-8.5 php"
   script:
@@ -1850,6 +1869,7 @@ endforeach;
 
 "System Tests: [php-fpm-8.5]":
   extends: .system_tests
+<?php system_tests_needs('php-fpm-8.5') ?>
   variables:
     BUILD_SH_ARGS: "-i weblog -w php-fpm-8.5 php"
   parallel:
@@ -1868,6 +1888,7 @@ endforeach;
 
 "System Tests: [apache-mod-8.0-zts, debugger]":
   extends: .system_tests
+<?php system_tests_needs('apache-mod-8.0-zts') ?>
   variables:
     BUILD_SH_ARGS: "-i weblog -w apache-mod-8.0-zts php"
   script:
@@ -1887,6 +1908,25 @@ $system_tests_weblogs = [
     "php-fpm-8.0", "php-fpm-8.1", "php-fpm-8.2", "php-fpm-8.5",
 ];
 
+?>
+<?php foreach ($system_tests_weblogs as $weblog): ?>
+"System Tests weblog: [<?= $weblog ?>]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php --save-to-binaries"
+  script:
+    - mkdir -p ../weblog-images && mv binaries/php-*-weblog.tar.zst ../weblog-images/
+  after_script: []
+  artifacts:
+    paths:
+      - weblog-images/
+    expire_in: 1 week
+  retry:
+    max: 2
+    when: [ script_failure ]
+
+<?php endforeach; ?>
+<?php
 // Pack the tracer-release scenarios longest-first into the least-loaded shard, from measured durations
 // (refresh them with .gitlab/refresh-system-tests-durations.py). Every weblog takes ~the same time per scenario.
 $system_tests_shard_count = 8;
@@ -1910,6 +1950,7 @@ foreach ($system_tests_durations as $scenario => $seconds) {
 <?php foreach ($system_tests_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, tracer-release]":
   extends: [ .system_tests, .system_tests_tracer_release_shards ]
+<?php system_tests_needs($weblog) ?>
   parallel: <?= $system_tests_shard_count, "\n" ?>
   # ~2x the expected worst shard (~52 min), so a hung DinD job is retried sooner.
   timeout: 1h 45m
@@ -1947,6 +1988,7 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
 <?php foreach ($thread_context_sharing_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, THREAD_CONTEXT_SHARING]":
   extends: .system_tests
+<?php system_tests_needs($weblog) ?>
   tags: [ "docker-in-docker:amd64-cws" ]
   variables:
     BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
