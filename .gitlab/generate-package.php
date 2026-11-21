@@ -323,6 +323,11 @@ finished:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+      - .gitlab/dockerhub-login.sh
+      - .gitlab/silent-upload-junit-to-datadog.sh
+      - .gitlab/upload-junit-to-datadog.sh
+      - .gitlab/download-file.sh
+      - .gitlab/transient-curl-error.sh
     reports:
       dotenv: system-tests.env
 
@@ -1844,6 +1849,7 @@ endforeach;
   image: $SYSTEM_TESTS_CI_IMAGE
   tags: [ "docker-in-docker:amd64" ]
   variables:
+    GIT_STRATEGY: none
     GIT_SUBMODULE_STRATEGY: none
     TEST_LIBRARY: php
     KUBERNETES_CPU_REQUEST: 8
