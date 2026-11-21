@@ -156,6 +156,18 @@ $windows_build_platforms = [
 
 ?>
 
+<?php
+function alpine_mimalloc(array $platform): void
+{
+    if ($platform['host_os'] !== 'linux-musl') {
+        return;
+    }
+?>
+    - apk add -q --no-cache mimalloc2-insecure || exit 75
+    - export LD_PRELOAD=/usr/lib/libmimalloc-insecure.so.2
+<?php
+}
+?>
 stages:
   - prepare
   - combined
@@ -339,6 +351,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
+<?php alpine_mimalloc($platform) ?>
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
 <?php if ($flavour === 'nts'): ?>
     # CentOS 7 release artifacts use Clang/Rust ThinLTO for NTS and ZTS.
@@ -446,6 +459,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
+<?php alpine_mimalloc($platform) ?>
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
@@ -538,6 +552,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 5Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
+<?php alpine_mimalloc($platform) ?>
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
   artifacts:
@@ -577,6 +592,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 5Gi
     KUBERNETES_MEMORY_LIMIT: 10Gi
   script:
+<?php alpine_mimalloc($platform) ?>
     - echo "" >> "$BASH_ENV"
     - mkdir -p "ssi_<?= $arch_dir ?>"
     - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir . $suffix ?>.so"
