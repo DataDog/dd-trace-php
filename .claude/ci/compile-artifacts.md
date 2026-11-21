@@ -71,7 +71,9 @@ stage. `make generate` produces three files via `classpreloader`:
 |--------|-------|--------------|
 | `prepare code` | `composer:2.10.3` | `.gitlab/append-build-id.sh` (bumps VERSION first) + `composer update` + `make generate`; produces VERSION + generated bridge files |
 | `cache cargo deps: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` (alpine uses `php-compile-extension-alpine-8.1`) | `cargo fetch` to warm the Cargo cache for the given target triplet |
-| `compile tracing extension: [7.0, {arch}, {triplet}]` | `dd-trace-ci:php-7.0_{platform}` | Tracer-only path: `build-tracing.sh` produces legacy C archives, then `make xlang-lto` and `make build-ssi-ddtrace` replace NTS/ZTS self-contained and SSI DSOs. SSI rebuilds common without a PHP-ABI archive and checks it against the sidecar job’s canonical DSO. Debug remains non-LTO (GNU only). Outputs `extensions_{arch}/`, `standalone_{arch}/`, and legacy link metadata. |
+| `compile tracing extension: [7.0, {arch}, {triplet}]` | `dd-trace-ci:php-7.0_{platform}` | Tracer-only static path: `build-tracing.sh` produces legacy C archives (and the GNU-only non-LTO debug DSO) plus legacy link metadata. Needs only `prepare code`. |
+| `compile tracing extension LTO: [7.0, {arch}, {triplet}, {nts,zts}]` | `dd-trace-ci:php-7.0_{platform}` | `make xlang-lto` for one flavour; outputs the self-contained NTS or ZTS DSO in `extensions_{arch}/`. Needs only `prepare code`. |
+| `compile tracing extension SSI: [7.0, {arch}, {triplet}]` | `dd-trace-ci:php-7.0_{platform}` | `make build-ssi-ddtrace` for NTS then ZTS; rebuilds common without a PHP-ABI archive and checks it against the sidecar job’s canonical DSO. Outputs `standalone_{arch}/`. |
 | `compile tracing sidecar: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | `build-sidecar.sh` uses `build-xlang-lto ssi-common` to build `libdatadog_php_{arch}[-alpine].so` (common runtime plus embedded AppSec helper), once per platform. Also retains a Rust archive solely for the legacy debug link; it is not shipped. |
 | `link tracing extension: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Fans in PHP 7.0 and PHP 7.1+ combined artifacts. Skips already-built `.so` files, links the remaining legacy debug archive with matched LLD, and deletes intermediate `.a` files from `extensions_*`. |
 | `aggregate tracing extension: [{arch}]` | `dd-trace-ci:php-7.4_bookworm-11` | No-op `ls` that collects the completed link-job artifacts for ordinary extension packaging. |
@@ -144,7 +146,7 @@ version for test jobs, not for release packaging.
 ```
 prepare code + cache cargo deps
   +-- compile combined extension (PHP 7.1+) ------------------.
-  +-- compile tracing extension (PHP 7.0) -------------------+-- link tracing extension
+  +-- compile tracing extension [LTO] (PHP 7.0) -------------+-- link tracing extension
   +-- compile tracing sidecar (common DSO + legacy archive) -'       |
   |       |                                                        v
   |       |                                        aggregate tracing extension
@@ -155,7 +157,8 @@ prepare code + cache cargo deps
   |                                                               |
   +-- compile loader ---------------------------------------------+-- package loader
                                                                      (+ common DSO
-                                                                      and PHP 7.0 SSI)
+                                                                      and compile tracing
+                                                                      extension SSI, PHP 7.0)
 ```
 
 The separate ASAN and Windows
@@ -179,7 +182,7 @@ See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
 - The Cargo cache uses the default `pull-push` policy in `cache cargo deps` and
   `policy: pull` (read-only) in `compile combined extension`, `compile SSI combined
   extension`, and `compile tracing sidecar`. The PHP 7.0 `compile tracing extension`
-  has no explicit `cache:` block, but its release ThinLTO steps do build Rust.
+  LTO and SSI jobs have no explicit `cache:` block, but they do build Rust.
 
 - Windows compile jobs use Docker on the Windows runner (not DinD): the script starts a
   long-lived container with `docker run -d`, then drives it via `docker exec`. The
