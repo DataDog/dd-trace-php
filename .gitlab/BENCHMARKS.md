@@ -12,6 +12,8 @@ All benchmark jobs are defined in `benchmarks.yml`.
     - Run on a dedicated bare-metal runner, then convert, upload and comment on the PR.
     - Steps live in the `dd-trace-php` branch of
       [benchmarking-platform](https://github.com/DataDog/benchmarking-platform).
+    - `benchmarks-tracer` runs one `TRACER_PART` (phpbench, phpbench-opcache, tea) per matrix job;
+      `benchmark/ci-patch-bp-steps.sh` patches the platform steps at runtime for that.
     - `check-big-regressions` gates `benchmarks-tracer` on regressions above the threshold
       defined on `bp-runner.fail-on-regression.yml`.
 - `macrobenchmarks`: k6 load test against a sample Laravel app, extends `.macrobenchmarks`.
