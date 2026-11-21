@@ -19,7 +19,7 @@ services:
         - ../../:/app
 
   7.0-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.0
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.0${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -32,7 +32,7 @@ services:
         - ../../:/app
 
   7.1-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.1
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.1${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -45,7 +45,7 @@ services:
         - ../../:/app
 
   7.2-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.2
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.2${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -58,7 +58,7 @@ services:
         - ../../:/app
 
   7.3-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.3
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.3${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -71,7 +71,7 @@ services:
         - ../../:/app
 
   7.4-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.4
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.4${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -84,7 +84,7 @@ services:
         - ../../:/app
 
   8.0-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.0
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.0${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -97,7 +97,7 @@ services:
       - ../../:/app
 
   8.1-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.1
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.1${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -110,7 +110,7 @@ services:
       - ../../:/app
 
   8.2-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.2
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.2${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -123,7 +123,7 @@ services:
       - ../../:/app
 
   8.3-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.3
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.3${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -136,7 +136,7 @@ services:
       - ../../:/app
 
   8.4-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.4
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.4${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -149,7 +149,7 @@ services:
       - ../../:/app
 
   8.5-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.5
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.5${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
@@ -162,15 +162,15 @@ services:
       - ../../:/app
 
   8.6-alpine:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.6
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.6${ALPINE_NEXT_SUFFIX}
     build:
       context: .
       x-bake: *bake
       args:
         <<: *build-base
-        phpVersion: 8.6.0RC7
-        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC7.tar.gz
-        phpSha256Hash: "68b753e1d45e1417c6874008500de66102963cf0791e8c541211e9386318722e"
+        phpVersion: 8.6.0
+        phpTarGzUrl: https://www.php.net/distributions/php-8.6.0.tar.gz
+        phpSha256Hash: "62337dccde3d9fcc39797d4529f42637613036eaf3875353c206874e5813a3c1"
         phpApi: 20261112
     volumes:
       - ../../:/app

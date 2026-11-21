@@ -36,7 +36,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "prof-correctness":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-16
   retry: 1
   needs:
     - job: "prof-correctness-analyzer"
@@ -332,19 +332,19 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: amd64
         IMAGE_PREFIX: php-compile-extension-alpine-
-        IMAGE_SUFFIX: [""]
+        IMAGE_SUFFIX: ["-2"]
       - PHP_MAJOR_MINOR: *arm64_latest_targets
         ARCH: arm64
         IMAGE_PREFIX: php-compile-extension-alpine-
-        IMAGE_SUFFIX: [""]
+        IMAGE_SUFFIX: ["-2"]
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: amd64
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7-3
+        IMAGE_SUFFIX: _centos-7-5
       - PHP_MAJOR_MINOR: *arm64_latest_targets
         ARCH: arm64
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7-3
+        IMAGE_SUFFIX: _centos-7-5
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
     - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"; fi
@@ -402,7 +402,7 @@ foreach ($profiler_minor_major_targets as $version) {
   after_script:
     - if [ -d "${CARGO_TARGET_DIR}" ]; then find "${CARGO_TARGET_DIR}" -type f -name 'libdatadog_php.*' -delete; fi
     - |
-      if [ "${IMAGE_SUFFIX}" != "_centos-7-3" ]; then
+      if [ "${IMAGE_SUFFIX}" != "_centos-7-5" ]; then
         .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
       else
         echo "Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)"
@@ -417,7 +417,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Clippy":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-16
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -463,7 +463,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Cargo test":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-16
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -495,7 +495,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "PHP language tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-16
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"

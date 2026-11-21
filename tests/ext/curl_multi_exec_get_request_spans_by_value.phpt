@@ -4,8 +4,6 @@ DDTrace\curl_multi_exec_get_request_spans() returns by reference and can be used
 PHP 8.6 stores call results used by value in TMP variables, and by-reference internal
 functions must unwrap the reference there. Otherwise e.g. count() gets a reference and
 throws a TypeError. The same holds for a value set by overrideReturnValue().
---SKIPIF--
-<?php if (PHP_VERSION_ID >= 80600 && PHP_DEBUG) die('skip: PHP 8.6 debug builds assert that a by-reference internal call returns a reference, even into a TMP'); ?>
 --FILE--
 <?php
 
