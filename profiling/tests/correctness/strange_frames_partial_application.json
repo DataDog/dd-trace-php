@@ -1,0 +1,36 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_strange_frames_partial_application",
+  "stacks": [
+    {
+      "profile-type": "wall-time",
+      "stack-content": [
+        {
+          "regular_expression": "<\\?php;main;\\{closure:pfa:main\\(\\):[0-9]+\\};Datadog\\\\Test\\\\target;standard\\|usleep$",
+          "percent": 50,
+          "error_margin": 15
+        },
+        {
+          "regular_expression": "<\\?php;main;Datadog\\\\Test\\\\Helper::\\{closure:pfa:main\\(\\):[0-9]+\\};Datadog\\\\Test\\\\Helper::format;standard\\|usleep$",
+          "percent": 50,
+          "error_margin": 15
+        }
+      ]
+    },
+    {
+      "profile-type": "sample",
+      "stack-content": [
+        {
+          "regular_expression": "<\\?php;main;\\{closure:pfa:main\\(\\):[0-9]+\\};Datadog\\\\Test\\\\target;standard\\|usleep$",
+          "percent": 50,
+          "error_margin": 15
+        },
+        {
+          "regular_expression": "<\\?php;main;Datadog\\\\Test\\\\Helper::\\{closure:pfa:main\\(\\):[0-9]+\\};Datadog\\\\Test\\\\Helper::format;standard\\|usleep$",
+          "percent": 50,
+          "error_margin": 15
+        }
+      ]
+    }
+  ]
+}

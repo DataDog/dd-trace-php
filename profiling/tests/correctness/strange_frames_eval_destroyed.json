@@ -1,0 +1,26 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_strange_frames_eval_destroyed",
+  "stacks": [
+    {
+      "profile-type": "wall-time",
+      "stack-content": [
+        {
+          "regular_expression": "<\\?php;main;\\{closure(:.*eval\\(\\)'d code:[0-9]+)?\\};standard\\|usleep$",
+          "percent": 100,
+          "error_margin": 15
+        }
+      ]
+    },
+    {
+      "profile-type": "sample",
+      "stack-content": [
+        {
+          "regular_expression": "<\\?php;main;\\{closure(:.*eval\\(\\)'d code:[0-9]+)?\\};standard\\|usleep$",
+          "percent": 100,
+          "error_margin": 15
+        }
+      ]
+    }
+  ]
+}

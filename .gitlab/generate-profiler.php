@@ -109,6 +109,7 @@ foreach ($profiler_minor_major_targets as $version) {
         allocation_upscaling_mixed_sizes
         time
         strange_frames
+        strange_frames_eval_destroyed
         timeline
         exceptions
         io
@@ -117,6 +118,12 @@ foreach ($profiler_minor_major_targets as $version) {
         allocation_time_combined
         generators
       )
+      if php -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);'; then
+        test_cases+=(strange_frames_property_hooks)
+      fi
+      if php -r 'exit(PHP_VERSION_ID >= 80600 ? 0 : 1);'; then
+        test_cases+=(strange_frames_partial_application)
+      fi
       for test_case in allocation_sampling_distance "${test_cases[@]}"; do
         output="${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof"
         mkdir -p "$(dirname "${output}")"
@@ -235,6 +242,13 @@ foreach ($profiler_minor_major_targets as $version) {
       check_correctness allocations allocations_1byte_no_zend_alloc
       check_correctness time
       check_correctness strange_frames
+      check_correctness strange_frames_eval_destroyed
+      if php -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);'; then
+        check_correctness strange_frames_property_hooks
+      fi
+      if php -r 'exit(PHP_VERSION_ID >= 80600 ? 0 : 1);'; then
+        check_correctness strange_frames_partial_application
+      fi
       check_correctness timeline
       check_correctness allocation_time_combined
       check_correctness generators
