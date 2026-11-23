@@ -12,7 +12,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_METRICS_OTEL_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --INI--
-datadog.trace.log_file={PWD}/exposure_hook_cross_process.log
+datadog.trace.log_file=exposure_hook_cross_process.trace.log
 datadog.trace.log_level="debug,ddtrace=trace"
 --FILE--
 <?php
@@ -46,7 +46,7 @@ if (!pcntl_wifexited($status) || pcntl_wexitstatus($status) !== 0) throw new Run
 evaluateAllocation('A');
 evaluateAllocation('A');
 require __DIR__ . '/../ext/ffe/logging.inc';
-$log = read_log_snapshot(__DIR__ . '/exposure_hook_cross_process.log');
+$log = read_log_snapshot('exposure_hook_cross_process.trace.log');
 echo 'handoff_attempts=', substr_count($log, 'attempting sidecar handoff'), "\n";
 ?>
 --EXPECT--
@@ -56,4 +56,4 @@ echo 'handoff_attempts=', substr_count($log, 'attempting sidecar handoff'), "\n"
 ["parent",true,"flag","user","A","blue",1,{"holdout.key":"h1"}]
 handoff_attempts=0
 --CLEAN--
-<?php @unlink(__DIR__ . '/exposure_hook_cross_process.log'); ?>
+<?php @unlink('exposure_hook_cross_process.trace.log'); ?>
