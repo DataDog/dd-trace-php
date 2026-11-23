@@ -1,7 +1,7 @@
 <?php
-// Drain startup configuration before submitting a best-effort observation.
-// This is a routing test, not a shutdown or load-shedding test.
-dd_trace_synchronous_flush();
+// Observe routing without a global synchronous flush: its 10s IPC read
+// timeout can expire while the instrumented sidecar serves its first HTTP
+// request. Dedicated flush tests exercise that barrier separately.
 $failed = getenv('PHP_FFE_TRANSPORT_FAILURE') === 'true';
 if (!$failed && !\DDTrace\Testing\ffe_load_config(file_get_contents(__DIR__ . '/agentless_evp_config.json'))) {
     throw new RuntimeException('configuration rejected');
@@ -20,5 +20,9 @@ foreach (explode(',', getenv('PHP_FFE_TRANSPORT_TOKENS')) as $token) {
     )) throw new RuntimeException('evaluation count submission rejected');
     if (!$failed && !\DDTrace\Testing\flush_ffe_exposures()) throw new RuntimeException('exposure handoff failed');
 }
-dd_trace_synchronous_flush();
+echo "submitted\n";
+// Keep the application/sidecar alive until the HTTP fixture received every
+// expected stream. A successful handoff alone does not prove delivery.
+stream_set_timeout(STDIN, getenv('USE_ZEND_ALLOC') === '0' ? 120 : 45);
+if (fgets(STDIN) !== "delivered\n") throw new RuntimeException('fixture did not confirm delivery');
 echo "delivered\n";

@@ -448,9 +448,9 @@
     ],
     "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
-        "default": null,
+        "default": "",
         "sensitive": true
       }
     ],
@@ -469,6 +469,13 @@
       }
     ],
     "DD_FEATURE_FLAGS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
@@ -598,7 +605,10 @@
       {
         "implementation": "B",
         "type": "boolean",
-        "default": "true"
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED"
+        ]
       }
     ],
     "DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE": [
@@ -624,9 +634,12 @@
     ],
     "DD_PROFILING_EXCEPTION_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "boolean",
-        "default": "true"
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED"
+        ]
       }
     ],
     "DD_PROFILING_EXCEPTION_MESSAGE_ENABLED": [
@@ -640,7 +653,10 @@
       {
         "implementation": "A",
         "type": "int",
-        "default": "100"
+        "default": "100",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE"
+        ]
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": [
@@ -654,6 +670,13 @@
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
@@ -1732,9 +1755,9 @@
     ],
     "DD_TRACE_STATS_COMPUTATION_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
-        "default": "false"
+        "default": "true"
       }
     ],
     "DD_TRACE_STRIPE_ENABLED": [

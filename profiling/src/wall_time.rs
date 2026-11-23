@@ -118,7 +118,18 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
      * interrupt_count serves dual purposes:
      *  1. Track how many interrupts there were.
      *  2. Ensure we don't collect on someone else's interrupt.
+     *
+     * Through the zend_execute_internal hook, this runs on every internal
+     * call, even with profiling disabled. Check with a plain load before
+     * swapping: on x86 the swap is a locked xchg, a full barrier, which
+     * made each internal call several nanoseconds slower. Only our own
+     * interrupts make the count non-zero, and one raised right after the
+     * load is collected at the next check, at the latest by the VM
+     * interrupt itself.
      */
+    if atomic_count.load(Ordering::Relaxed) == 0 {
+        return;
+    }
     let interrupt_count = atomic_count.swap(0, Ordering::Relaxed);
     if interrupt_count == 0 {
         return;

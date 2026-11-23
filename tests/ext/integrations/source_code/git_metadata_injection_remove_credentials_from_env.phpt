@@ -62,12 +62,14 @@ array(2) {
           ["type"]=>
           string(3) "cli"
           ["attributes"]=>
-          array(6) {
+          array(7) {
             ["runtime-id"]=>
             string(%d) "%s"
             ["process_id"]=>
             int(%d)
             ["_dd.agent_psr"]=>
+            float(1)
+            ["_dd.top_level"]=>
             float(1)
             ["php.compilation.total_time_ms"]=>
             float(%f)

@@ -23,8 +23,9 @@ DDTrace\Testing\ffe_load_config(json_encode(array(
         )),
     )),
 )));
+// Distinct subjects, since the exposure cache queues a repeat only once.
 for ($i = 0; $i < 1001; ++$i) {
-    DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, null, array());
+    DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, "user-$i", array());
 }
 DDTrace\ffe_evaluate('missing', DDTrace\FFE_BOOL, null, array());
 DDTrace\Testing\flush_ffe_exposures();

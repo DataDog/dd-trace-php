@@ -32,6 +32,7 @@ DD_TRACE_RATE_LIMIT=1000000
 datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 DDTrace\start_span();
 
@@ -45,30 +46,19 @@ dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
-    if (file_exists(__DIR__ . '/config-telemetry.out')) {
-        foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                if (!is_array($json)) {
-                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
-                }
-                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    if ($json["request_type"] == "app-client-configuration-change") {
-                        $cfg = $json["payload"]["configuration"];
-                        print_r(array_values(array_filter($cfg, function ($c) {
-                            return $c["origin"] == "env_var" && $c["name"] != "DD_TRACE_SOURCES_PATH" && $c["name"] != "DD_TRACE_SIDECAR_TRACE_SENDER" && $c["name"] != "DD_TRACE_AGENT_TIMEOUT" && $c["name"] != "DD_TRACE_RETRY_INTERVAL";
-                        })));
-                        var_dump(count(array_filter($cfg, function ($c) {
-                            return $c["origin"] == "default";
-                        })) > 100); // all the configs, no point in asserting them all here
-                        var_dump(count(array_filter($cfg, function ($c) {
-                            return $c["origin"] != "default" && $c["origin"] != "env_var";
-                        }))); // all other configs
-                        break 3;
-                    }
-                }
-            }
+    foreach (read_telemetry_file(__DIR__ . '/config-telemetry.out') as $json) {
+        if ($json["request_type"] == "app-client-configuration-change") {
+            $cfg = $json["payload"]["configuration"];
+            print_r(array_values(array_filter($cfg, function ($c) {
+                return $c["origin"] == "env_var" && $c["name"] != "DD_TRACE_SOURCES_PATH" && $c["name"] != "DD_TRACE_SIDECAR_TRACE_SENDER" && $c["name"] != "DD_TRACE_AGENT_TIMEOUT" && $c["name"] != "DD_TRACE_RETRY_INTERVAL";
+            })));
+            var_dump(count(array_filter($cfg, function ($c) {
+                return $c["origin"] == "default";
+            })) > 100); // all the configs, no point in asserting them all here
+            var_dump(count(array_filter($cfg, function ($c) {
+                return $c["origin"] != "default" && $c["origin"] != "env_var";
+            }))); // all other configs
+            break 2;
         }
     }
 }

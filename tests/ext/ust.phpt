@@ -54,6 +54,8 @@ array(2) {
       int(%d)
       ["_dd.agent_psr"]=>
       float(1)
+      ["_dd.top_level"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
@@ -89,6 +91,8 @@ array(2) {
       ["_dd.svc_src"]=>
       string(1) "m"
       ["_dd.agent_psr"]=>
+      float(1)
+      ["_dd.top_level"]=>
       float(1)
     }
   }

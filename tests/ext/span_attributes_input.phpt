@@ -83,7 +83,9 @@ version: NULL
 component: NULL
 span_kind: NULL
 error: 1
-array(26) {
+array(27) {
+  ["_dd.top_level"]=>
+  float(1)
   ["_dd1.sr.eausr"]=>
   int(1)
   ["_sampling_priority_v1"]=>
@@ -164,5 +166,7 @@ version: 'special-version'
 component: 'special-component'
 span_kind: 3
 error: 0
-array(0) {
+array(1) {
+  ["_dd.top_level"]=>
+  float(1)
 }

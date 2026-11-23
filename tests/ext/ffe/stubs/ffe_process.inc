@@ -21,11 +21,49 @@ function ffeTestProcess($script, &$pipes, $environment = null)
     return $process;
 }
 
+// Returns the request line, headers and body, or null if the client closes or never completes it:
+// a sidecar under valgrind can be slow to send, and hyper rejects a reply that arrives first.
+function ffeTestReadRequest($connection)
+{
+    stream_set_timeout($connection, 1);
+    $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 20 : 5);
+    $lines = array();
+    do {
+        while (($line = fgets($connection)) !== false && trim($line) !== '') $lines[] = trim($line);
+    } while ($line === false && !feof($connection) && microtime(true) < $deadline);
+    if ($line === false || !$lines) return null;
+    $headers = array();
+    foreach (array_slice($lines, 1) as $header) {
+        $pair = explode(':', $header, 2);
+        if (count($pair) === 2) $headers[strtolower($pair[0])] = trim($pair[1]);
+    }
+    $length = isset($headers['content-length']) ? (int) $headers['content-length'] : 0;
+    $body = '';
+    while (strlen($body) < $length && !feof($connection) && microtime(true) < $deadline) {
+        $body .= (string) fread($connection, $length - strlen($body));
+    }
+    return strlen($body) < $length ? null : array($lines[0], $headers, $body);
+}
+
 function ffeTestProcessRead($stream)
 {
     // Clear PHP's EOF state before checking whether the child appended output.
     if (fseek($stream, ftell($stream)) !== 0) throw new RuntimeException('cannot read child output');
     return stream_get_contents($stream);
+}
+
+function ffeTestProcessTerminate($process)
+{
+    if (!proc_get_status($process)['running']) return;
+    proc_terminate($process);
+    $deadline = microtime(true) + 3;
+    do {
+        if (!proc_get_status($process)['running']) return;
+        usleep(10000);
+    } while (microtime(true) < $deadline);
+    // A traced child can itself be stuck in shutdown. Do not let proc_close
+    // turn the fixture's bounded failure into the outer PHPT timeout.
+    proc_terminate($process, 9);
 }
 
 function ffeTestStreamContains($stream, $needle)
@@ -42,6 +80,26 @@ function ffeTestStreamContains($stream, $needle)
         $tail = $overlap > 0 ? substr($chunk, -$overlap) : '';
     }
     return false;
+}
+
+function ffeTestIsolatedSidecarEnvironment($environment)
+{
+    if (PHP_OS !== 'WINNT') return $environment;
+
+    // Windows has only one .old executable slot for a lingering sidecar.
+    // The parent and preceding children can occupy both slots, so repeated
+    // subprocess cases must not reuse the same extraction directory.
+    $temp = tempnam(sys_get_temp_dir(), 'ffe-sidecar-');
+    if ($temp === false || !unlink($temp) || !mkdir($temp)) throw new RuntimeException('cannot create child temp directory');
+    register_shutdown_function(function () use ($temp) {
+        foreach (glob($temp . '\\*') ?: array() as $file) @unlink($file);
+        @rmdir($temp);
+    });
+    foreach (array_keys($environment) as $key) {
+        if (in_array(strtoupper($key), array('TMP', 'TEMP'), true)) unset($environment[$key]);
+    }
+    $environment['TMP'] = $environment['TEMP'] = $temp;
+    return $environment;
 }
 
 // Match only the dedicated sidecar listener owned by this test child.
@@ -61,5 +119,18 @@ function ffeTestSidecarPid($childPid) {
             }
         }
     }
+    return null;
+}
+
+function ffeTestWaitForSidecarPid($childPid, $previousPid, $timeout)
+{
+    // The ready marker proves configuration delivery, not that a concurrent
+    // /proc directory snapshot can already resolve the listener's owner.
+    $deadline = microtime(true) + $timeout;
+    do {
+        $pid = ffeTestSidecarPid($childPid);
+        if ($pid !== null && $pid !== $previousPid) return $pid;
+        usleep(20000);
+    } while (microtime(true) < $deadline);
     return null;
 }

@@ -603,7 +603,6 @@ function install($options)
             "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
             (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
         );
-        set_mode_recursive($installDir . '/lib');
         set_mode_recursive($installDir . '/etc');
     }
     $appSecRulesPath = $installDir . '/etc/recommended.json';

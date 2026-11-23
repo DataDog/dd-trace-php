@@ -62,9 +62,10 @@ differences (see [components.md](components.md)). Common C is gradually
 extracted into PHP-agnostic `components/`.
 
 **Trace sender.** Traces are encoded with msgpack and uploaded asynchronously
-so PHP request threads never block. The default sender is version-gated: the
-sidecar (below) on PHP 8.3+/Windows, the in-process `tracer/coms.c` sender on
-PHP 7.0–8.2 (`DD_SIDECAR_TRACE_SENDER_DEFAULT`); either is overridable. See
+so PHP request threads never block. The sidecar (below) is the default sender
+on every PHP version (`DD_SIDECAR_TRACE_SENDER_DEFAULT`); the in-process
+`tracer/coms.c` sender is opt-in with `DD_TRACE_SIDECAR_TRACE_SENDER=0`
+(not available on Windows). See
 [tracer.md](tracer.md) and [../../architecture.md](../../architecture.md) for
 the background-sender design.
 
@@ -89,11 +90,12 @@ Toolchain is pinned — see `Cargo.toml` (`rust-version`) and
 
 ## Configuration & INI
 
-- Runtime config: `DD_*` env vars and `datadog.*` INI keys, in two x-macro
-  tables — `ext/configuration.h` (shared/infra) and `tracer/configuration.h`
-  (tracer-specific, the majority of keys).
+- Runtime config: `DD_*` env vars and `datadog.*` INI keys, in x-macro
+  tables (`ext/`, `tracer/`, `profiling/`, `appsec/`); see the doc below.
 - System INI is installed as `.../conf.d/98-ddtrace.ini`.
 - Inspect: `php --ri ddtrace`, or `php -i | grep -E 'datadog\.|ddtrace\.'`.
+- Adding or changing a config:
+  [../../docs/add_new_configurations.md](../../docs/add_new_configurations.md).
 
 ## Coding conventions
 
