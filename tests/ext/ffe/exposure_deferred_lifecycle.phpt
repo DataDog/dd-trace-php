@@ -19,8 +19,7 @@ require __DIR__ . '/stubs/ffe_process.inc';
 $listener = stream_socket_server('tcp://127.0.0.1:0');
 $env = ffeTestIsolatedSidecarEnvironment(array_merge(getenv(), array(
     'DD_TRACE_AGENT_URL' => 'http://' . stream_socket_get_name($listener, false),
-    '_DD_DEBUG_SIDECAR_IPC_MODE' => 'instance_per_process',
-    '_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS' => '45',
+    'DD_TRACE_AGENT_TEST_SESSION_TOKEN' => uniqid('admission-', true),
 )));
 $child = ffeTestProcess(__DIR__ . '/stubs/exposure_deferred_lifecycle_app.php', $pipes, $env);
 $seen = array();
