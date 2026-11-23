@@ -286,6 +286,9 @@ mod frameless {
             let atomic_count =
                 unsafe { &(*module_globals::get_profiler_globals()).interrupt_count };
 
+            if atomic_count.load(Ordering::Relaxed) == 0 {
+                return;
+            }
             let interrupt_count = atomic_count.swap(0, Ordering::Relaxed);
             if interrupt_count == 0 {
                 return;
