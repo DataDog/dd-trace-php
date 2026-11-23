@@ -70,12 +70,6 @@ function map_type($raw, $parser) {
 }
 
 function normalize_default($v, $type, $name) {
-    // PHP INI represents an unset optional URL as an empty string, which
-    // selects the managed endpoint: report that semantic default rather than
-    // an empty custom endpoint.
-    if ($name === 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL' && $v === '') {
-        return null;
-    }
     if (strtoupper($v) === 'NULL') {
         // OTEL env vars are string-typed and use "" (not null) as their "unset" default.
         if (strpos($name, 'OTEL_') === 0) {
@@ -96,25 +90,9 @@ function normalize_default($v, $type, $name) {
 }
 
 function normalize_aliases($aliases, $canonical) {
-    // Local aliases only need to be a subset of the configuration registry.
-    // Keep runtime-compatible legacy aliases unpublished until the registry's
-    // existing implementation versions include them.
-    $unpublishedAliases = [
-        'DD_PROFILING_ALLOCATION_ENABLED' => [
-            'DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED',
-        ],
-        'DD_PROFILING_EXCEPTION_ENABLED' => [
-            'DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED',
-        ],
-        'DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE' => [
-            'DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE',
-        ],
-    ];
-    $excluded = array_flip($unpublishedAliases[$canonical] ?? []);
-
     $out = [];
     foreach ($aliases as $a) {
-        if ($a !== '' && $a !== $canonical && !isset($excluded[$a])) {
+        if ($a !== '' && $a !== $canonical) {
             $out[$a] = true;
         }
     }
@@ -145,12 +123,6 @@ function normalize_supported_entries($entries, $canonical) {
 }
 
 function add_supported_entry(&$supported, $name, $entry) {
-    // This experimental runtime setting predates its registry metadata. Do not
-    // publish it until an implementation version exists in the registry.
-    if ($name === 'DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED') {
-        return;
-    }
-
     // Keep the first-seen source as canonical for duplicate names.
     if (!isset($supported[$name])) {
         $supported[$name] = [$entry];
@@ -384,8 +356,6 @@ extract_c_supported_configurations() {
 
 #undef PHP_VERSION_ID
 #define PHP_VERSION_ID $PHP_VERSION_ID
-#undef DD_SIDECAR_TRACE_SENDER_DEFAULT
-#define DD_SIDECAR_TRACE_SENDER_DEFAULT true
 // Do not expand CALIASES() directly, otherwise parameter counting in macros is broken.
 #define ALTCALIASES(...) ,##__VA_ARGS__
 #define ALT
