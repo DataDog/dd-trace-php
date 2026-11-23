@@ -280,6 +280,97 @@ ddog_MaybeError ddog_telemetry_handle_add_log(const ddog_TelemetryWorkerHandle *
                                               enum ddog_LogLevel level,
                                               ddog_CharSlice stack_trace);
 
+/**
+ * * value: `None` is reported as a `null` value; `Some("")` as an empty string
+ * * config_id: an empty slice means no config id
+ * * seq_id: optional sequence id of the configuration entry
+ *
+ * # Safety
+ *
+ * * `handle` must be a valid, non-null pointer to a live `TelemetryWorkerHandle`, not dropped
+ *   during the call.
+ * * Every `CharSlice` must point to `len` readable bytes (the pointer may be null only when `len`
+ *   is 0) and must not be mutated during the call. Strings that are not valid UTF-8 return an
+ *   error.
+ * * `value`, when `Some`, follows the same `CharSlice` rules.
+ */
+ddog_MaybeError ddog_telemetry_handle_add_config(const ddog_TelemetryWorkerHandle *handle,
+                                                 ddog_CharSlice name,
+                                                 struct ddog_Option_CharSlice value,
+                                                 enum ddog_ConfigurationOrigin origin,
+                                                 ddog_CharSlice config_id,
+                                                 struct ddog_Option_U64 seq_id);
+
+/**
+ * * version: an empty slice means no version
+ *
+ * # Safety
+ *
+ * * `handle` must be a valid, non-null pointer to a live `TelemetryWorkerHandle`, not dropped
+ *   during the call.
+ * * Every `CharSlice` must point to `len` readable bytes (the pointer may be null only when `len`
+ *   is 0) and must not be mutated during the call. Strings that are not valid UTF-8 return an
+ *   error.
+ */
+ddog_MaybeError ddog_telemetry_handle_add_product_change(const ddog_TelemetryWorkerHandle *handle,
+                                                         ddog_CharSlice product,
+                                                         bool enabled,
+                                                         ddog_CharSlice version);
+
+/**
+ * * path: an empty slice means no path
+ * * request_body_type, response_body_type, response_code: an empty slice means not set
+ *
+ * # Safety
+ *
+ * * `handle` must be a valid, non-null pointer to a live `TelemetryWorkerHandle`, not dropped
+ *   during the call.
+ * * Every `CharSlice` must point to `len` readable bytes (the pointer may be null only when `len`
+ *   is 0) and must not be mutated during the call. Strings that are not valid UTF-8 return an
+ *   error.
+ * * `request_body_type`, `response_body_type` and `response_code` must each point to `len` valid,
+ *   initialized elements (null only when `len` is 0), and each `CharSlice` element follows the
+ *   rules above. None of them may be mutated during the call.
+ */
+ddog_MaybeError ddog_telemetry_handle_add_endpoint(const ddog_TelemetryWorkerHandle *handle,
+                                                   struct ddog_Option_Method method,
+                                                   ddog_CharSlice path,
+                                                   ddog_CharSlice operation_name,
+                                                   ddog_CharSlice resource_name,
+                                                   struct ddog_Slice_CharSlice request_body_type,
+                                                   struct ddog_Slice_CharSlice response_body_type,
+                                                   struct ddog_Slice_U32 response_code);
+
+/**
+ * Flushes aggregated metrics into the pending payload queue
+ *
+ * # Safety
+ *
+ * * `handle` must be a valid, non-null pointer to a live `TelemetryWorkerHandle`, not dropped
+ *   during the call.
+ */
+ddog_MaybeError ddog_telemetry_handle_flush_metrics(const ddog_TelemetryWorkerHandle *handle);
+
+/**
+ * Sends all pending telemetry data
+ *
+ * # Safety
+ *
+ * * `handle` must be a valid, non-null pointer to a live `TelemetryWorkerHandle`, not dropped
+ *   during the call.
+ */
+ddog_MaybeError ddog_telemetry_handle_flush_data(const ddog_TelemetryWorkerHandle *handle);
+
+/**
+ * Sends an app-extended-heartbeat message
+ *
+ * # Safety
+ *
+ * * `handle` must be a valid, non-null pointer to a live `TelemetryWorkerHandle`, not dropped
+ *   during the call.
+ */
+ddog_MaybeError ddog_telemetry_handle_send_extended_heartbeat(const ddog_TelemetryWorkerHandle *handle);
+
 ddog_MaybeError ddog_telemetry_handle_start(const ddog_TelemetryWorkerHandle *handle);
 
 ddog_TelemetryWorkerHandle *ddog_telemetry_handle_clone(const ddog_TelemetryWorkerHandle *handle);

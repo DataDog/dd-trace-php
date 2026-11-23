@@ -1,5 +1,5 @@
 --TEST--
-FFE OpenFeature records one exposure after the hooks succeed and shares the decision with ExposureHook
+FFE OpenFeature records each eligible exposure after the evaluation hooks succeed
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80000) die('skip: OpenFeature requires PHP 8+');
@@ -28,13 +28,9 @@ require __DIR__ . '/../Common/FeatureFlags/flag_evaluation_openfeature.inc';
         )),
     )),
 )));
-$native = array();
-\DDTrace\install_hook('DDTrace\\ffe_evaluate', null, function ($hook) use (&$native) {
-    $native[] = $hook->returned->exposureCacheHit;
-});
 $recorded = array();
 \DDTrace\install_hook('DDTrace\\Internal\\record_ffe_exposure', null, function ($hook) use (&$recorded) {
-    $recorded[] = array($hook->args[1], $hook->returned);
+    $recorded[] = $hook->args[1];
 });
 $api = \OpenFeature\OpenFeatureAPI::getInstance();
 $api->setProvider(new \DDTrace\OpenFeature\DataDogProvider());
@@ -42,8 +38,6 @@ $api->addHooks(new \DDTrace\OpenFeature\ExposureHook(function ($evaluation) {
     echo json_encode(array(
         'subject' => $evaluation->getTargetingKey(),
         'exposure' => $evaluation->isExposure(),
-        'send' => $evaluation->shouldSend(),
-        'hit' => $evaluation->isCacheHit(),
         'serial' => $evaluation->getSplitSerialId(),
         'features' => $evaluation->getFeatures(),
     )), "\n";
@@ -56,11 +50,11 @@ $hook = new FfeOutcomeHook();
 $hook->onAfter = function () { throw new RuntimeException('after failed'); };
 $client->addHooks($hook);
 echo $client->getStringValue('flag', 'off', $context('rejected')), "\n";
-echo json_encode(array('native' => $native, 'recorded' => $recorded)), "\n";
+echo json_encode($recorded), "\n";
 ?>
 --EXPECT--
-{"subject":"user","exposure":true,"send":true,"hit":false,"serial":4,"features":{"holdout.key":"h1"}}
-{"subject":"user","exposure":true,"send":false,"hit":true,"serial":4,"features":{"holdout.key":"h1"}}
-{"subject":"rejected","exposure":false,"send":false,"hit":false,"serial":null,"features":[]}
+{"subject":"user","exposure":true,"serial":4,"features":{"holdout.key":"h1"}}
+{"subject":"user","exposure":true,"serial":4,"features":{"holdout.key":"h1"}}
+{"subject":"rejected","exposure":false,"serial":null,"features":[]}
 off
-{"native":[null,null,null],"recorded":[["user",true],["user",false]]}
+["user","user"]

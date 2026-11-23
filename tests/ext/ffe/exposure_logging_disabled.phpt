@@ -1,5 +1,5 @@
 --TEST--
-DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false stops Datadog exposures but keeps the exposure cache
+Disabling Datadog exposure logging leaves the PHP exposure buffer empty
 --ENV--
 DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 --INI--
@@ -22,25 +22,21 @@ DDTrace\Testing\ffe_load_config(json_encode(array(
         )),
     )),
 )));
-var_dump(DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'user', array())->exposureCacheHit);
-var_dump(DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'user', array())->exposureCacheHit);
-var_dump(DDTrace\Internal\record_ffe_exposure('flag', 'other', array(), 'allocation', 'on'));
+DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'user', array());
+DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'user', array());
+DDTrace\Internal\record_ffe_exposure('flag', 'other', array(), 'allocation', 'on');
 var_dump(DDTrace\Testing\flush_ffe_exposures());
 $logs = read_log_snapshot(__DIR__ . '/exposure_logging_disabled.log');
 var_dump(substr_count($logs, 'exposure not queued; DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false'));
 var_dump(strpos($logs, 'Feature Flags: exposure queued') === false);
 
 ini_set('datadog.feature_flags_exposures_datadog_logging_enabled', '1');
-var_dump(DDTrace\Internal\record_ffe_exposure('flag', 'third', array(), 'allocation', 'on'));
+DDTrace\Internal\record_ffe_exposure('flag', 'third', array(), 'allocation', 'on');
 var_dump(strpos(read_log_snapshot(__DIR__ . '/exposure_logging_disabled.log'), 'Feature Flags: exposure queued') !== false);
 ?>
 --EXPECT--
 bool(false)
-bool(true)
-bool(true)
-bool(false)
-int(2)
-bool(true)
+int(3)
 bool(true)
 bool(true)
 --CLEAN--

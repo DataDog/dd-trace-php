@@ -1913,7 +1913,6 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     struct ddog_FfeResult result;
     zend_bool record_metric = true;
     zend_bool record_exposure = true;
-    int exposure = -1;
     zend_string *value_json;
     zend_string *variant;
     zend_string *allocation_key;
@@ -2031,7 +2030,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     if (record_exposure && result.do_log && allocation_key && variant) {
         zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
         zend_string *features_json = ddtrace_ffe_exposure_features_json(result.features);
-        exposure = ddtrace_ffe_record_exposure(
+        ddtrace_ffe_record_exposure(
             flag_key,
             targeting_key,
             subject_attributes_json,
@@ -2068,9 +2067,6 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
     }
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
-    if (exposure >= 0) {
-        ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("exposureCacheHit"), exposure == 0);
-    }
     // PHP 7 drops array defaults of internal class properties, so set it here.
     if (result.features) {
         ddtrace_ffe_update_features_property(return_value, result.features);
@@ -3038,16 +3034,12 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_exposure) {
 
     zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attributes);
     zend_string *features_json = ddtrace_ffe_features_json(features);
-    int exposure = ddtrace_ffe_record_exposure(flag_key, targeting_key, subject_attributes_json,
+    ddtrace_ffe_record_exposure(flag_key, targeting_key, subject_attributes_json,
         allocation_key, variant, (int32_t) serial_id, !serial_id_is_null, features_json);
     zend_string_release(subject_attributes_json);
     if (features_json) {
         zend_string_release(features_json);
     }
-    if (exposure < 0) {
-        RETURN_NULL();
-    }
-    RETURN_BOOL(exposure == 1);
 }
 
 PHP_FUNCTION(DDTrace_Internal_dsm_set_checkpoint) {
