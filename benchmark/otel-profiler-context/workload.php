@@ -10,10 +10,6 @@ if (!extension_loaded('datadog-profiling')) {
     fwrite(STDERR, "datadog-profiling is not loaded\n");
     exit(1);
 }
-if (!function_exists('Datadog\\Profiling\\trigger_time_sample')) {
-    fwrite(STDERR, "Datadog\\Profiling\\trigger_time_sample is unavailable\n");
-    exit(1);
-}
 
 $mode = $argv[1] ?? 'overrides';
 $epochs = positiveInt($argv[2] ?? getenv('EPOCHS') ?: '20', 'epochs');
@@ -50,7 +46,8 @@ function positiveInt(string $value, string $name): int
 function collectSamples(int $iterations): void
 {
     for ($i = 0; $i < $iterations; ++$i) {
-        Datadog\Profiling\trigger_time_sample();
+        $sample = str_repeat('a', 64);
+        unset($sample);
     }
 }
 

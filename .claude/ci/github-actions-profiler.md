@@ -21,9 +21,9 @@ UBSAN matrix: PHP 8.5 × {nts, zts} × {arm64, amd64}.
 
 ## What It Tests
 
-Each job builds through the root Makefile's out-of-tree phpize/configure/Make targets with
-`DDTRACE_PROFILING_FEATURES=trigger_time_sample`, then runs PHP scripts that exercise
-profiling (allocations, wall/cpu time, exceptions, IO, timeline, strange frames). PHP
+Each job builds through the root Makefile's out-of-tree phpize/configure/Make targets,
+then runs PHP scripts that exercise profiling (allocations, wall/cpu time, exceptions,
+IO, timeline, strange frames). PHP
 8.5 correctness cells use combined `ddtrace.so`; older cells retain the standalone
 profiler. The scripts output pprof files (zstd-compressed protobuf). The
 `Datadog/prof-correctness/analyze` GitHub Action then checks each pprof against a JSON
@@ -187,14 +187,6 @@ expected stack's percentage falls within `percent +/- error_margin`.
 
 To manually verify: use `go tool pprof -top -sample_index=<profile-type>` and check that
 the cumulative percentages of the listed functions match the JSON expectations.
-
-## `trigger_time_sample` Feature
-
-This cargo feature (not for production) exposes a PHP function
-`Datadog\Profiling\trigger_time_sample()` that forces an immediate time sample capture.
-Used by `strange_frames.php` to get a deterministic single-sample profile for testing
-frame name formatting. The implementation is in `profiling/src/capi.rs` and
-`profiling/src/php_ffi.c`.
 
 ## Debug Build
 

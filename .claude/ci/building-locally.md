@@ -212,10 +212,9 @@ php -n -d extension=tmp/build_combined/modules/ddtrace.so --ri ddtrace
 ```
 
 `compile_combined` sets `EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer
---enable-ddtrace-profiling"` and `DDTRACE_PROFILING_FEATURES=trigger_time_sample`,
-and builds in `tmp/build_combined/` (`BUILD_SUFFIX=combined`) so it doesn't
-collide with a plain tracer-only `tmp/build_extension/` build in the same
-checkout.
+--enable-ddtrace-profiling --enable-ddtrace-appsec"` and builds in
+`tmp/build_combined/` (`BUILD_SUFFIX=combined`) so it doesn't collide with a
+plain tracer-only `tmp/build_extension/` build in the same checkout.
 
 ### Standalone profiler (only for testing the standalone artifact itself)
 

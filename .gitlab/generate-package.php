@@ -1034,7 +1034,6 @@ endforeach;
       for extension in "${DDTRACE_TEST_TRACER_EXTENSION}" "${DDTRACE_TEST_PROFILER_EXTENSION}"; do
         php -n -d "extension=${extension}" -r '
           if (ini_get("datadog.profiling.enabled") === false
-              || function_exists("Datadog\\Profiling\\trigger_time_sample")
               || function_exists("Datadog\\Profiling\\run_on_native_thread")) {
               exit(1);
           }

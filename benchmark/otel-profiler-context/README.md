@@ -1,14 +1,12 @@
 # OTel profiler-context benchmark
 
-This Linux benchmark measures the real PHP profiler time-sampling path while it
+This Linux benchmark measures the real PHP profiler sampling path while it
 reads OTel Process and Thread Context. It loads an optimized NTS combined
-`ddtrace.so`, built through Make with the existing `trigger_time_sample`
-benchmark feature.
+`ddtrace.so` with allocation sampling distance set to 1.
 
-The workload calls `Datadog\Profiling\trigger_time_sample()` from PHP. On the
-PHP 8.3 benchmark runtime, returning from that internal function processes the
-pending profiler VM interrupt, so every iteration walks the PHP stack, decodes
-Thread Context, resolves effective profile tags, and submits a sample.
+The workload allocates a small string in a tight loop from PHP. With allocation
+sampling distance set to 1, every iteration walks the PHP stack, decodes Thread
+Context, resolves effective profile tags, and submits a sample.
 
 ## Build and run
 

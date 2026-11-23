@@ -55,6 +55,5 @@ unit tests, clippy, and benchmarks, but not extension validation.
   `tmp/build_combined/modules/ddtrace.so`, never a Cargo target-directory cdylib.
 - Allocation hooks differ between PHP 8.4+ and earlier PHP versions.
 - `io_profiling` is Linux/macOS only.
-- `trigger_time_sample` is a test/benchmark build feature.
 - For build/test detail see
   [../ci/building-locally.md](../ci/building-locally.md).

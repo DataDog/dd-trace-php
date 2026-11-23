@@ -19,8 +19,9 @@ final class Dispatcher
         string $http_method,
         string $path,
     ): Found|NotFound|MethodNotAllowed {
-        if (\function_exists('Datadog\\Profiling\\trigger_time_sample')) {
-            \Datadog\Profiling\trigger_time_sample();
+        try {
+            throw new \RuntimeException();
+        } catch (\RuntimeException) {
         }
         $route = $this->config->get_route($path);
         if ($route === null) {

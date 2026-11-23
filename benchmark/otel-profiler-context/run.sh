@@ -51,8 +51,7 @@ build_extensions() {
         -v "$VOLUME:/work" \
         "$IMAGE" \
         sh -c '
-            DDTRACE_PROFILING_FEATURES=trigger_time_sample \
-                make -C /work -j"$(nproc)" all \
+            make -C /work -j"$(nproc)" all \
                 EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-profiling" \
                 "CFLAGS=-O2 -g0 -DNDEBUG -Wall -Wextra"
         '
@@ -78,7 +77,8 @@ benchmark_env=(
     -e DD_PROFILING_ENABLED=1
     -e DD_PROFILING_WALLTIME_ENABLED=0
     -e DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=0
-    -e DD_PROFILING_ALLOCATION_ENABLED=0
+    -e DD_PROFILING_ALLOCATION_ENABLED=1
+    -e DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
     -e DD_PROFILING_EXCEPTION_ENABLED=0
     -e DD_PROFILING_TIMELINE_ENABLED=0
     -e DD_PROFILING_OUTPUT_PPROF=/tmp/ddprof-benchmark

@@ -3,6 +3,5 @@
 // as possible
 
 for ($i = 0; $i < 100_000; $i++) {
-    gc_mem_caches();
-    Datadog\Profiling\trigger_time_sample();
+    gc_collect_cycles();
 }

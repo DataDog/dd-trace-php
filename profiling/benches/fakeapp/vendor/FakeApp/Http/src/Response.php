@@ -12,8 +12,9 @@ final class Response
         public readonly Headers $headers,
         public readonly string $body,
     ) {
-        if (\function_exists('Datadog\\Profiling\\trigger_time_sample')) {
-            \Datadog\Profiling\trigger_time_sample();
+        try {
+            throw new \RuntimeException();
+        } catch (\RuntimeException) {
         }
     }
 
