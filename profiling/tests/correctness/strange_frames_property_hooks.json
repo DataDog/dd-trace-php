@@ -1,0 +1,36 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_strange_frames_property_hooks",
+  "stacks": [
+    {
+      "profile-type": "wall-time",
+      "stack-content": [
+        {
+          "regular_expression": "<\\?php;main;Datadog\\\\Test\\\\Temperature::\\$celsius::set;standard\\|usleep$",
+          "percent": 50,
+          "error_margin": 15
+        },
+        {
+          "regular_expression": "<\\?php;main;Datadog\\\\Test\\\\Temperature::\\$celsius::get;standard\\|usleep$",
+          "percent": 50,
+          "error_margin": 15
+        }
+      ]
+    },
+    {
+      "profile-type": "sample",
+      "stack-content": [
+        {
+          "regular_expression": "<\\?php;main;Datadog\\\\Test\\\\Temperature::\\$celsius::set;standard\\|usleep$",
+          "percent": 50,
+          "error_margin": 15
+        },
+        {
+          "regular_expression": "<\\?php;main;Datadog\\\\Test\\\\Temperature::\\$celsius::get;standard\\|usleep$",
+          "percent": 50,
+          "error_margin": 15
+        }
+      ]
+    }
+  ]
+}
