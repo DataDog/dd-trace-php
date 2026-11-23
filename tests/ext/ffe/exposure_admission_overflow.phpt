@@ -25,20 +25,21 @@ $env = ffeTestIsolatedSidecarEnvironment(array_merge(getenv(), array(
 $child = ffeTestProcess(__DIR__ . '/stubs/exposure_admission_overflow_app.php', $pipes, $env);
 $held = $seen = $required = $allowed = array();
 $out = $err = '';
-$released = $flushed = false;
+$released = $flushed = $drained = false;
 $reply = function ($socket) {
     fwrite($socket, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
     fclose($socket);
 };
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 120 : 45);
-    while (microtime(true) < $deadline && (!$flushed || array_diff_key($required, $seen))) {
+    while (microtime(true) < $deadline && !$drained) {
         $out .= ffeTestProcessRead($pipes[1]);
         $err .= ffeTestProcessRead($pipes[2]);
         if (!$released && strpos($out, "\n") !== false) {
             $manifest = json_decode(trim($out), true);
             if (!is_array($manifest) || count($manifest[0]) !== 1400) throw new RuntimeException($out . $err);
             $required = array_fill_keys($manifest[0], true);
+            if (count($required) !== 1400) throw new RuntimeException('duplicate required subject in producer manifest');
             $allowed = $required + array_fill_keys($manifest[1], true);
             $out = '';
             $released = true;
@@ -54,6 +55,9 @@ try {
                 fflush($pipes[0]);
             } elseif ($phase === 'flushed') {
                 $flushed = true;
+            } elseif ($flushed && $phase === 'drained') {
+                $drained = true;
+                break;
             } else {
                 throw new RuntimeException("unexpected handoff phase $phase: " . $out . $err);
             }
@@ -76,12 +80,17 @@ try {
         }
         $reply($socket);
     }
-    if (!$flushed || array_diff_key($required, $seen) || array_diff_key($seen, $allowed)) {
-        throw new RuntimeException('incomplete or unexpected exposure delivery: ' . count($seen) . ' received; ' . $err);
+    if (!$drained) {
+        $waiting = !$released ? 'producer manifest' : (!$flushed ? 'deferred handoff' : 'sidecar drain');
+        throw new RuntimeException("timed out awaiting $waiting; " . count($seen) . ' subjects received; ' . $err);
+    }
+    $confirmed = count(array_intersect_key($seen, $required));
+    if ($confirmed !== 1400 || array_diff_key($seen, $allowed)) {
+        throw new RuntimeException("after sidecar drain: $confirmed/1400 required subjects received; " . $err);
     }
     fwrite($pipes[0], "delivered\n");
     fflush($pipes[0]);
-    echo "overloaded\nunique confirmed exposures: ", count($required), "\n";
+    echo "overloaded\nunique confirmed exposures: ", $confirmed, "\n";
 } finally {
     foreach ($held as $socket) fclose($socket);
     foreach ($pipes as $pipe) fclose($pipe);

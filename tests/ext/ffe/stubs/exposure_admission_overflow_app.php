@@ -40,4 +40,13 @@ while ($remaining > 0) {
 }
 echo "flushed\n";
 fflush(STDOUT);
+// The sidecar holds a row credit through the final HTTP response.
+do {
+    $stats = json_decode(dd_trace_internal_fn('stats_sidecar'), true);
+    if (!isset($stats['ffe_exposures']['outstanding_rows'])) throw new RuntimeException('missing sidecar drain counters');
+    if ($stats['ffe_exposures']['outstanding_rows'] === 0) break;
+    usleep(10000);
+} while (true);
+echo "drained\n";
+fflush(STDOUT);
 if (trim(fgets(STDIN)) !== 'delivered') exit(1);
