@@ -468,11 +468,9 @@ foreach ($build_platforms as $platform) {
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
-    - rm -f "standalone_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so" "standalone_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
   artifacts:
     paths:
       - "extensions_*"
-      - "standalone_*"
       - "ddtrace_*-fat.ldflags"
       - "ddtrace_*-fat.sym"
 
@@ -1030,8 +1028,6 @@ foreach ($windows_minor_major_targets as $major_minor) {
         if ($platform["arch"] == $arch):
 ?>
     # PHP 7.0 still uses the split SSI extension (tracer and AppSec only).
-    - job: "compile tracing extension: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
     - job: "compile tracing extension SSI: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
