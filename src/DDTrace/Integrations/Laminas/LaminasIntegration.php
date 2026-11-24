@@ -360,7 +360,8 @@ class LaminasIntegration extends Integration
                                 try {
                                     $_elements = LaminasIntegration::fallbackElementsFromNamedRouteStack(
                                         $this,
-                                        (string) $routeName
+                                        (string) $routeName,
+                                        LaminasIntegration::laminasMatchOptions($this, $args[2] ?? [])
                                     );
                                 } catch (\Throwable $_ex) {
                                     unset($_ex);
@@ -1303,9 +1304,10 @@ class LaminasIntegration extends Integration
     public static function replayRouteMatch(array $records)
     {
         $elements = [];
-        foreach ($records as list($route, $path, $offset, $length)) {
+        foreach ($records as $record) {
+            list($route, $path, $offset, $length) = $record;
             if ($route instanceof \Laminas\Router\Http\Segment) {
-                $match = self::inferLaminasSegmentMatch($route, $path, $offset);
+                $match = self::inferLaminasSegmentMatch($route, $path, $offset, $record[4] ?? []);
                 if ($match === null || $match['length'] !== $length) {
                     return null;
                 }
@@ -1344,17 +1346,24 @@ class LaminasIntegration extends Integration
     public static function replaySignature(array $records)
     {
         $signature = '';
-        foreach ($records as list($route, $path, $offset, $length)) {
+        foreach ($records as $record) {
+            list($route, $path, $offset, $length) = $record;
             if ($route instanceof \Laminas\Router\Http\Segment) {
-                $routeData = self::laminasSegmentRouteData($route);
+                // With its translated literals translated: the regex then
+                // tells the translations apart too.
+                $options = $record[4] ?? [];
+                $routeData = self::laminasTranslatedSegmentRouteData($route, $options);
+                if ($routeData === null) {
+                    return null;
+                }
                 if (self::laminasSegmentPresenceFollowsCaptures($routeData)) {
-                    $participation = self::laminasSegmentParticipation($route, $path, $offset);
+                    $participation = self::laminasSegmentParticipation($route, $path, $offset, $options);
                     if ($participation === null || $participation['length'] !== $length) {
                         return null;
                     }
                     $entry = 'p' . $participation['groups'];
                 } else {
-                    $match = self::inferLaminasSegmentMatch($route, $path, $offset);
+                    $match = self::inferLaminasSegmentMatch($route, $path, $offset, $options);
                     if ($match === null || $match['length'] !== $length) {
                         return null;
                     }
@@ -1480,11 +1489,14 @@ class LaminasIntegration extends Integration
                 && \is_object($request)
                 && \method_exists($request, 'getUri')
             ) {
+                $options = $hook->args[2] ?? [];
                 self::$routeMatchRecords[$routeMatch] = [[
                     $hook->instance,
                     (string) $request->getUri()->getPath(),
                     $hook->args[1] ?? null,
                     $routeMatch->getLength(),
+                    // The translator a Segment translates its {key} literals with.
+                    \is_array($options) ? $options : [],
                 ]];
             }
         };
@@ -1592,9 +1604,13 @@ class LaminasIntegration extends Integration
     private static function laminasSegmentParticipation(
         \Laminas\Router\Http\Segment $route,
         string $urlPath,
-        $pathOffset
+        $pathOffset,
+        array $options = []
     ) {
-        $routeData = self::laminasSegmentRouteData($route);
+        $routeData = self::laminasTranslatedSegmentRouteData($route, $options);
+        if ($routeData === null) {
+            return null;
+        }
         $matches = self::laminasMatchAt($routeData[0], $urlPath, $pathOffset);
         if ($matches === null) {
             return null;
@@ -1633,6 +1649,87 @@ class LaminasIntegration extends Integration
     }
 
     /**
+     * laminasSegmentRouteData() with the translated literals ({key} parts)
+     * translated as Segment::match() translates them with $options: in the
+     * regex, as Segment::match() does, and in the parts, as literals. A
+     * translated literal is static text, the text of the current locale
+     * (RFC-1125). Null when the Segment has translated literals and $options
+     * has no translator: Segment::match() throws then.
+     *
+     * @return array|null
+     */
+    private static function laminasTranslatedSegmentRouteData(\Laminas\Router\Http\Segment $route, array $options)
+    {
+        $routeData = self::laminasSegmentRouteData($route);
+        if (empty($routeData[3])) {
+            return $routeData;
+        }
+
+        $translations = [];
+        foreach ($routeData[3] as $key) {
+            $translation = self::laminasTranslate((string) $key, $options);
+            if ($translation === null) {
+                return null;
+            }
+            $translations[$key] = $translation;
+            $routeData[0] = str_replace('#' . $key . '#', $translation, $routeData[0]);
+        }
+        $routeData[2] = self::laminasTranslateParts($routeData[2], $translations);
+        $routeData[3] = [];
+
+        return $routeData;
+    }
+
+    private static function laminasTranslateParts(array $parts, array $translations): array
+    {
+        foreach ($parts as $i => $part) {
+            if ($part[0] === 'translated-literal') {
+                $parts[$i] = ['literal', $translations[$part[1]]];
+            } elseif ($part[0] === 'optional') {
+                $parts[$i][1] = self::laminasTranslateParts($part[1], $translations);
+            }
+        }
+
+        return $parts;
+    }
+
+    /**
+     * A translated literal's text, as Segment::match() and Segment::assemble()
+     * translate it with the match options. Null without a translator.
+     *
+     * @return string|null
+     */
+    private static function laminasTranslate(string $key, array $options)
+    {
+        $translator = $options['translator'] ?? null;
+        if (!\is_object($translator) || !\method_exists($translator, 'translate')) {
+            return null;
+        }
+
+        return (string) $translator->translate($key, $options['text_domain'] ?? 'default', $options['locale'] ?? null);
+    }
+
+    /**
+     * The options $stack::match() passes on to its routes, given the options
+     * it got: a TranslatorAwareTreeRouteStack adds its translator and text
+     * domain.
+     */
+    public static function laminasMatchOptions($stack, $options): array
+    {
+        $options = \is_array($options) ? $options : [];
+        if ($stack instanceof \Laminas\Router\Http\TranslatorAwareTreeRouteStack) {
+            if ($stack->hasTranslator() && $stack->isTranslatorEnabled() && !isset($options['translator'])) {
+                $options['translator'] = $stack->getTranslator();
+            }
+            if (!isset($options['text_domain'])) {
+                $options['text_domain'] = $stack->getTranslatorTextDomain();
+            }
+        }
+
+        return $options;
+    }
+
+    /**
      * Matches a route pattern the way Segment::match() and Regex::match() do:
      * the whole path when $pathOffset is null, from $pathOffset otherwise.
      *
@@ -1664,10 +1761,11 @@ class LaminasIntegration extends Integration
     public static function inferLaminasSegmentMatch(
         \Laminas\Router\Http\Segment $route,
         string $urlPath,
-        $pathOffset = null
+        $pathOffset = null,
+        array $options = []
     ) {
-        $routeData = self::laminasSegmentRouteData($route);
-        if (!empty($routeData[3])) {
+        $routeData = self::laminasTranslatedSegmentRouteData($route, $options);
+        if ($routeData === null) {
             return null;
         }
 
@@ -1759,8 +1857,8 @@ class LaminasIntegration extends Integration
                     }
                     $nextStates[] = $state;
                 } else {
-                    // Translated literals require the router's match options. Fall back
-                    // rather than attempting a potentially inaccurate reconstruction.
+                    // Translated literals are literals by now (see
+                    // laminasTranslatedSegmentRouteData()).
                     return [];
                 }
             }
@@ -1834,13 +1932,15 @@ class LaminasIntegration extends Integration
      * Segment parameters outside optionals are parameters, optionals are left
      * out, a Regex contributes its literal text and mandatory captures (see
      * RouteNormalizer::regexFallbackElements()), and a Wildcard, an unnamed
-     * catch-all whose presence is unknown, adds nothing. Null for a Regex that
-     * cannot be expressed that way, for a translated literal, and for a route
-     * type laminas-router does not ship: the route cannot be expressed.
+     * catch-all whose presence is unknown, adds nothing. A translated literal
+     * is static text, translated with the match options as Segment::match()
+     * does. Null for a Regex that cannot be expressed that way, for a
+     * translated literal without a translator, and for a route type
+     * laminas-router does not ship: the route cannot be expressed.
      *
      * @return array|null
      */
-    public static function fallbackElementsFromNamedRouteStack($stack, string $matchedName)
+    public static function fallbackElementsFromNamedRouteStack($stack, string $matchedName, array $options = [])
     {
         $segments = \explode('/', $matchedName, 2);
         $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
@@ -1852,24 +1952,25 @@ class LaminasIntegration extends Integration
         if ($route instanceof \Laminas\Router\Http\Part) {
             self::laminasMaterializePartChildRoutes($route);
             $base = self::fallbackElementsFromRoute(
-                self::laminasReadProperty($route, \Laminas\Router\Http\Part::class, 'route')
+                self::laminasReadProperty($route, \Laminas\Router\Http\Part::class, 'route'),
+                $options
             );
             if ($base === null || !$hasChild) {
                 return $base;
             }
-            $child = self::fallbackElementsFromNamedRouteStack($route, $segments[1]);
+            $child = self::fallbackElementsFromNamedRouteStack($route, $segments[1], $options);
             return $child === null ? null : array_merge($base, $child);
         }
 
         if ($route instanceof \Laminas\Router\Http\TreeRouteStack && $hasChild) {
-            return self::fallbackElementsFromNamedRouteStack($route, $segments[1]);
+            return self::fallbackElementsFromNamedRouteStack($route, $segments[1], $options);
         }
 
-        return $hasChild ? null : self::fallbackElementsFromRoute($route);
+        return $hasChild ? null : self::fallbackElementsFromRoute($route, $options);
     }
 
     /** @return array|null */
-    private static function fallbackElementsFromRoute($route)
+    private static function fallbackElementsFromRoute($route, array $options)
     {
         if ($route instanceof \Laminas\Router\Http\Literal) {
             return [[
@@ -1895,6 +1996,13 @@ class LaminasIntegration extends Integration
                     case 'parameter':
                         $elements[] = ['param', (string) $part[1]];
                         break;
+                    case 'translated-literal':
+                        $translation = self::laminasTranslate((string) $part[1], $options);
+                        if ($translation === null) {
+                            return null;
+                        }
+                        $elements[] = ['static', $translation];
+                        break;
                     case 'optional':
                         break;
                     default:
@@ -1914,7 +2022,7 @@ class LaminasIntegration extends Integration
         if ($route instanceof \Laminas\Router\Http\Chain) {
             $elements = [];
             foreach (self::laminasGetChainRoutes($route) as $chainedRoute) {
-                $chained = self::fallbackElementsFromRoute($chainedRoute);
+                $chained = self::fallbackElementsFromRoute($chainedRoute, $options);
                 if ($chained === null) {
                     return null;
                 }

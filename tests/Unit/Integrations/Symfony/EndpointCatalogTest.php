@@ -78,88 +78,122 @@ class EndpointCatalogTest extends BaseTestCase
         $this->assertFalse($plan['ambiguous']);
     }
 
-    public function testCacheKeyChangesWhenGeneratorFileIsRebuilt()
+    public function testCacheKeyFollowsTheLoadedRouteData()
     {
+        $old = [['slug'], [], [], [['variable', '/', '[^/]++', 'slug', true], ['text', '/old-blog']], [], []];
+        $new = [['slug'], [], [], [['variable', '/', '[^/]++', 'slug', true], ['text', '/new-blog']], [], []];
+
+        $this->assertSame(EndpointCatalog::cacheKeyForRouteData($old), EndpointCatalog::cacheKeyForRouteData($old));
+        $this->assertNotSame(EndpointCatalog::cacheKeyForRouteData($old), EndpointCatalog::cacheKeyForRouteData($new));
+    }
+
+    public function testRouteRebuiltInPlaceGetsANewKeyAndEntry()
+    {
+        // Whatever the generator file's modification time, a route that
+        // changes gets a new key, so the cache never serves its old entry.
         $cacheDir = $this->makeCacheDir();
         $genFile = $cacheDir . DIRECTORY_SEPARATOR . 'url_generating_routes.php';
-        file_put_contents($genFile, '<?php return [];');
+        try {
+            $container = $this->containerWithCacheDir($cacheDir);
+            $this->writeGenerator($genFile, '/old-blog', 1700000000);
+            $before = EndpointCatalog::matchedRouteData('blog', null, $container);
+            $this->assertSame('/old-blog/{slug}', EndpointCatalog::routeCacheEntryFromRouteData($before, false));
 
-        touch($genFile, 1700000000);
-        clearstatcache();
-        $before = EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en');
-        $this->assertSame(
-            $before,
-            EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en')
-        );
-
-        touch($genFile, 1700000001);
-        clearstatcache();
-        $after = EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en');
-
-        $this->assertNotNull($before);
-        $this->assertNotSame($before, $after);
-        $this->removeCacheDir($cacheDir);
+            // An older modification time, as rsync -a, cp -p or tar keep it.
+            $this->writeGenerator($genFile, '/new-blog', 1600000000);
+            if (function_exists('opcache_invalidate')) {
+                opcache_invalidate($genFile, true);
+            }
+            $after = EndpointCatalog::matchedRouteData('blog', null, $container);
+            $this->assertSame('/new-blog/{slug}', EndpointCatalog::routeCacheEntryFromRouteData($after, false));
+            $this->assertNotSame(
+                EndpointCatalog::cacheKeyForRouteData($before),
+                EndpointCatalog::cacheKeyForRouteData($after)
+            );
+        } finally {
+            $this->removeCacheDir($cacheDir);
+        }
     }
 
-    public function testCacheKeyUsesLegacyGeneratorFile()
+    public function testCacheKeyOfAGeneratorRenamedIntoPlaceMatchesWhatIsLoaded()
     {
-        $cacheDir = $this->makeCacheDir();
-        $genFile = $cacheDir . DIRECTORY_SEPARATOR . 'UrlGenerator.php';
-        file_put_contents($genFile, '<?php return [];');
+        // cache:clear warms the new cache up in a sibling directory and renames
+        // it into place, and rsync -a, cp -p or tar keep the file's own
+        // modification time, so the new generator can be older than opcache's
+        // revalidation window and opcache may keep serving the previous one.
+        // The entry cached under the key must always be the route that was
+        // loaded, which is the route Symfony routes with (http.route must not
+        // change, RFC-1103).
+        if (!self::opcacheServesScripts()) {
+            $this->markTestSkipped('opcache does not serve scripts here (run with opcache.enable_cli=1)');
+        }
 
-        touch($genFile, 1700000000);
-        clearstatcache();
-        $before = EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', null);
-        touch($genFile, 1700000001);
-        clearstatcache();
-        $after = EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', null);
-
-        $this->assertNotNull($before);
-        $this->assertNotSame($before, $after);
-        $this->removeCacheDir($cacheDir);
-    }
-
-    public function testCacheKeyIsNullWhileGeneratorFileMayBeServedStale()
-    {
-        // A generator rewritten within the current second, or within opcache's
-        // revalidation window, may still be served in its previous version by
-        // require. Caching it under the new modification time would pin that
-        // version for the life of the process.
-        //
-        // The window is measured from the request start time, which is the
-        // clock opcache compares against, so the modification times below are
-        // anchored to it rather than to time(). Anchoring to time() would make
-        // the second assertion depend on how long the suite has been running.
         $requestStart = isset($_SERVER['REQUEST_TIME']) && is_numeric($_SERVER['REQUEST_TIME'])
             ? (int) $_SERVER['REQUEST_TIME']
             : time();
-
+        $validateTimestamps = ini_set('opcache.validate_timestamps', '1');
+        $revalidateFreq = ini_set('opcache.revalidate_freq', '2');
         $cacheDir = $this->makeCacheDir();
         $genFile = $cacheDir . DIRECTORY_SEPARATOR . 'url_generating_routes.php';
-        file_put_contents($genFile, '<?php return [];');
+        try {
+            $container = $this->containerWithCacheDir($cacheDir);
+            $this->writeGenerator($genFile, '/old-blog', $requestStart - 120);
+            $this->assertSame('/old-blog/{slug}', EndpointCatalog::routeCacheEntry('blog', null, $container, false));
+            if (!opcache_is_script_cached($genFile)) {
+                $this->markTestSkipped('opcache did not cache the generator file');
+            }
 
-        touch($genFile, $requestStart);
-        clearstatcache();
-        $this->assertNull(EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en'));
+            $this->writeGenerator($genFile . '.new', '/new-blog', $requestStart - 60);
+            rename($genFile . '.new', $genFile);
+            clearstatcache();
 
-        touch($genFile, $requestStart - 60);
-        clearstatcache();
-        $this->assertNotNull(EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en'));
-
-        // A generator whose modification time is after the request started can
-        // never be cached, however long the request runs.
-        touch($genFile, $requestStart + 5);
-        clearstatcache();
-        $this->assertNull(EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en'));
-
-        $this->removeCacheDir($cacheDir);
+            $loaded = EndpointCatalog::matchedRouteData('blog', null, $container);
+            $oldKey = EndpointCatalog::cacheKeyForRouteData(
+                [['slug'], [], [], [['variable', '/', '[^/]++', 'slug', true], ['text', '/old-blog']], [], []]
+            );
+            $entry = EndpointCatalog::routeCacheEntryFromRouteData($loaded, false);
+            if ($entry === '/old-blog/{slug}') {
+                // opcache still serves the previous file: so does Symfony.
+                $this->assertSame($oldKey, EndpointCatalog::cacheKeyForRouteData($loaded));
+            } else {
+                $this->assertSame('/new-blog/{slug}', $entry);
+                $this->assertNotSame($oldKey, EndpointCatalog::cacheKeyForRouteData($loaded));
+            }
+        } finally {
+            ini_set('opcache.validate_timestamps', $validateTimestamps);
+            ini_set('opcache.revalidate_freq', $revalidateFreq);
+            $this->removeCacheDir($cacheDir);
+        }
     }
 
-    public function testCacheKeyIsNullWithoutGeneratorFile()
+    public function testRouteDataUsesTheLocaleSuffixAndTheLegacyGeneratorFile()
     {
         $cacheDir = $this->makeCacheDir();
-        $this->assertNull(EndpointCatalog::normalizationCacheKeyForCacheDir($cacheDir, 'blog', 'en'));
-        $this->removeCacheDir($cacheDir);
+        try {
+            $routes = [
+                'blog.en' => [['slug'], [], [], [['variable', '/', '[^/]++', 'slug', true], ['text', '/en/blog']], [], []],
+            ];
+            file_put_contents(
+                $cacheDir . DIRECTORY_SEPARATOR . 'UrlGenerator.php',
+                '<?php return ' . var_export($routes, true) . ';'
+            );
+            $container = $this->containerWithCacheDir($cacheDir);
+
+            $this->assertSame($routes['blog.en'], EndpointCatalog::matchedRouteData('blog', 'en', $container));
+            $this->assertNull(EndpointCatalog::matchedRouteData('blog', null, $container));
+        } finally {
+            $this->removeCacheDir($cacheDir);
+        }
+    }
+
+    public function testRouteDataIsNullWithoutGeneratorFile()
+    {
+        $cacheDir = $this->makeCacheDir();
+        try {
+            $this->assertNull(EndpointCatalog::matchedRouteData('blog', 'en', $this->containerWithCacheDir($cacheDir)));
+        } finally {
+            $this->removeCacheDir($cacheDir);
+        }
     }
 
     public function testInvalidGeneratorDataHasNoPlan()
@@ -297,6 +331,43 @@ class EndpointCatalogTest extends BaseTestCase
         $regex = '{^/posts(?:/(?P<page>[^/]++))?/?$}sD';
         $this->assertNull(EndpointCatalog::matchedParamsFromReplay($regex, 'page', '/posts/'));
         $this->assertNull(EndpointCatalog::matchedParamsFromReplay($regex, 'page', '/posts/2/'));
+    }
+
+    /**
+     * @return bool whether opcache compiles and serves the scripts this process
+     *              requires, rather than only being loaded
+     */
+    private static function opcacheServesScripts()
+    {
+        if (!function_exists('opcache_get_status')) {
+            return false;
+        }
+        $status = @opcache_get_status(false);
+
+        return is_array($status) && !empty($status['opcache_enabled']);
+    }
+
+    private function containerWithCacheDir($cacheDir)
+    {
+        $container = \Mockery::mock('Symfony\Component\DependencyInjection\ContainerInterface');
+        $container->shouldReceive('hasParameter')->with('kernel.cache_dir')->andReturn(true);
+        $container->shouldReceive('getParameter')->with('kernel.cache_dir')->andReturn($cacheDir);
+
+        return $container;
+    }
+
+    /**
+     * Writes a generator file in CompiledUrlGeneratorDumper's layout, with a
+     * single route "blog": $prefix/{slug}.
+     */
+    private function writeGenerator($file, $prefix, $mtime)
+    {
+        $routes = [
+            'blog' => [['slug'], [], [], [['variable', '/', '[^/]++', 'slug', true], ['text', $prefix]], [], []],
+        ];
+        file_put_contents($file, '<?php return ' . var_export($routes, true) . ';');
+        touch($file, $mtime);
+        clearstatcache();
     }
 
     private function makeCacheDir()

@@ -123,6 +123,13 @@ The route is the route path of the matched route. The request's base URL
 (the directory of the front controller) is not part of it. Symfony matches
 the decoded path, so a `%` in a route is static text (`%25`).
 
+The generator cache is loaded on every request, and the process-lifetime
+routing cache is keyed by a hash of the loaded data of the matched route. A
+route rebuilt by `cache:clear` or a deploy gets a new key whatever the file's
+modification time, and when opcache still serves the previous generator file,
+the entry used is the one for that file, which is the one Symfony routes with,
+so `http.route` is not changed.
+
 ## Laminas
 
 Set by the `RouteInterface::match` hook for the top-level `TreeRouteStack`
@@ -133,10 +140,13 @@ A `Regex` route is a whole-route regex: the text it matched outside capture
 groups is static text, each capture that took part is a parameter (unnamed
 ones get `param<N>`; an unnamed capture around a named one, as in
 `(\.(?<format>json))?`, only groups it), and its spec plays no part. A `Wildcard` is an unnamed
-catch-all, absent when it matched nothing.
+catch-all, absent when it matched nothing. A `Segment` translated literal
+(`{key}`, with a `TranslatorAwareTreeRouteStack`) is static text: its
+translation with the router's translator, text domain and locale, as
+`Segment::match()` translates it.
 
 It falls back to the mandatory parts of the named route (Literal text,
-Segment literals and the Segment parameters outside optionals, a Regex's
+Segment literals and translated literals and the Segment parameters outside optionals, a Regex's
 literal text and mandatory captures; a Wildcard adds nothing) when:
 
 - routing happens outside `RouteListener::onRoute` (e.g. non-MVC
@@ -146,8 +156,6 @@ literal text and mandatory captures; a Wildcard adds nothing) when:
 - some route consumed path without being recorded: a route type other than
   `Literal`, `Segment`, `Regex` or `Wildcard`, or a `match()` that builds its
   own `RouteMatch`;
-- a `Segment` has translated literals (`{key}` parts), which need the
-  router's translator;
 - a `Segment` optional with a leading separator matched an empty capture
   (e.g. `[/:a]` on `/e/`): the empty parameter is absent, and the separator
   it matched is not explained by any shape of the route;
@@ -159,7 +167,8 @@ can match text outside its captures that is not plain literal text (a
 character class, `.`, an escape such as `\d`, a repeated part, a lookaround),
 and when the fallback is needed but the named route has a `Regex` route with
 an alternation outside an optional part, a `Segment` with translated
-literals, or a route type laminas-router does not ship.
+literals and no translator in the match options, or a route type
+laminas-router does not ship.
 
 Deliberate simplifications:
 

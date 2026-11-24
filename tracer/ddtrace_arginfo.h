@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: cdf41b1ea570f2ba3b14560096c8b7882eb9ee4d */
+ * Stub hash: a89631d30c749df57685ad045262918a2aa05e32 */
 
 #include "zend_constants.h"
 
@@ -414,6 +414,8 @@ ZEND_FUNCTION(DDTrace_hook_method);
 ZEND_FUNCTION(DDTrace_add_global_tag);
 ZEND_FUNCTION(DDTrace_add_distributed_tag);
 ZEND_FUNCTION(DDTrace_set_user);
+ZEND_FUNCTION(DDTrace_routing_cache_get);
+ZEND_FUNCTION(DDTrace_routing_cache_set);
 ZEND_FUNCTION(DDTrace_close_spans_until);
 ZEND_FUNCTION(DDTrace_active_span);
 ZEND_FUNCTION(DDTrace_root_span);
@@ -499,8 +501,6 @@ ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(dd_untrace);
 ZEND_FUNCTION(dd_trace_synchronous_flush);
-ZEND_FUNCTION(DDTrace_routing_cache_get);
-ZEND_FUNCTION(DDTrace_routing_cache_set);
 ZEND_METHOD(DDTrace_SpanEvent, __construct);
 ZEND_METHOD(DDTrace_ExceptionSpanEvent, __construct);
 ZEND_METHOD(DDTrace_SpanLink, fromHeaders);
@@ -517,6 +517,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "add_global_tag"), zif_DDTrace_add_global_tag, arginfo_DDTrace_add_global_tag, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "add_distributed_tag"), zif_DDTrace_add_distributed_tag, arginfo_DDTrace_add_distributed_tag, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "set_user"), zif_DDTrace_set_user, arginfo_DDTrace_set_user, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "routing_cache_get"), zif_DDTrace_routing_cache_get, arginfo_DDTrace_routing_cache_get, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "routing_cache_set"), zif_DDTrace_routing_cache_set, arginfo_DDTrace_routing_cache_set, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "close_spans_until"), zif_DDTrace_close_spans_until, arginfo_DDTrace_close_spans_until, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "active_span"), zif_DDTrace_active_span, arginfo_DDTrace_active_span, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "root_span"), zif_DDTrace_root_span, arginfo_DDTrace_root_span, 0, NULL, NULL)
@@ -582,8 +584,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "kafka_cluster_id"), zif_DDTrace_Internal_kafka_cluster_id, arginfo_DDTrace_Internal_kafka_cluster_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_success"), zif_datadog_appsec_v2_track_user_login_success, arginfo_datadog_appsec_v2_track_user_login_success, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_failure"), zif_datadog_appsec_v2_track_user_login_failure, arginfo_datadog_appsec_v2_track_user_login_failure, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "routing_cache_get"), zif_DDTrace_routing_cache_get, arginfo_DDTrace_routing_cache_get, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "routing_cache_set"), zif_DDTrace_routing_cache_set, arginfo_DDTrace_routing_cache_set, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)
 	ZEND_FE(dd_trace_dd_get_memory_limit, arginfo_dd_trace_dd_get_memory_limit)

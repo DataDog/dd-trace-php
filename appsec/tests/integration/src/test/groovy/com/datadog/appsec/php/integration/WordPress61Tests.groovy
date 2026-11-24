@@ -231,4 +231,36 @@ class WordPress61Tests extends AbstractWordPressAppsecTests {
             fpm.restart()
         }
     }
+
+    @Test
+    @Order(14)
+    void 'normalized route is absent when no rewrite rule matched'() {
+        // With /%postname%/ WordPress verifies page matches, so a path that is
+        // no page matches no rule and leaves WP::$matched_rule empty. The
+        // fixture's request filter then drops the 404, so is_404() is false.
+        String structure = wpCli('option get permalink_structure').trim()
+        try {
+            wpCli("rewrite structure '/%postname%/'")
+
+            Trace trace = CONTAINER.traceFromRequest('/normalized-unmatched/a/b/') {
+                HttpResponse<InputStream> response ->
+                    assert response.statusCode() == 200
+                    assert response.body().text == 'unmatched'
+            }
+
+            Span span = trace.first()
+            // RFC-1125: no route means no tag, never a made-up one.
+            assert span.meta.'_dd.appsec.normalized_route' == null
+        } finally {
+            wpCli("rewrite structure '${structure}'")
+        }
+    }
+
+    private static String wpCli(String args) {
+        def res = CONTAINER.execInContainer('bash', '-c',
+                """export DD_TRACE_CLI_ENABLED=false DD_APPSEC_ENABLED=0
+                   wp ${args} --path=/var/www/public --allow-root""")
+        assert res.exitCode == 0 : "wp ${args} failed: ${res.stderr}"
+        res.stdout
+    }
 }

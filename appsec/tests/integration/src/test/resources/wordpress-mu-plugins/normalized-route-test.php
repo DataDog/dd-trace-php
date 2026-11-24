@@ -51,6 +51,20 @@ add_filter('query_vars', static function (array $queryVars): array {
     return $queryVars;
 });
 
+// A virtual-page plugin: it serves 'normalized-unmatched/...' although no
+// rewrite rule matched it, by dropping the 404 WordPress queued. WP::main then
+// runs with did_permalink set and an empty matched_rule.
+add_filter('request', static function (array $queryVars): array {
+    global $wp;
+    if (isset($queryVars['error']) && (string) $queryVars['error'] === '404'
+        && isset($wp) && strpos((string) $wp->request, 'normalized-unmatched/') === 0) {
+        unset($queryVars['error']);
+        $queryVars['normalized_route_test'] = '1';
+        $queryVars['normalized_value'] = 'unmatched';
+    }
+    return $queryVars;
+});
+
 add_filter('pre_handle_404', static function ($preempt, $query) {
     if ($query->get('normalized_route_test')) {
         return true;

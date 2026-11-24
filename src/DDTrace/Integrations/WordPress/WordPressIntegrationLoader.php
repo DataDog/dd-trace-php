@@ -735,7 +735,10 @@ class WordPressIntegrationLoader
                     $rootSpan->attributes[Tag::HTTP_ROUTE] = $matchedRule;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
                         && dd_trace_env_config("DD_API_SECURITY_ENABLED")
-                        && \property_exists($This, 'request') && is_string($This->request)) {
+                        && \property_exists($This, 'request') && is_string($This->request)
+                        // No rule matched: matched_rule keeps its default ('' since
+                        // WordPress 6.1, null before). No route, so no tag (RFC-1125).
+                        && is_string($matchedRule) && $matchedRule !== '') {
                         // The route is not cached, because unlike a Laravel or
                         // Symfony template a rule plus the captures that took
                         // part does not determine it: '^([^/]+)(?:/x)?/([^/]+)$'

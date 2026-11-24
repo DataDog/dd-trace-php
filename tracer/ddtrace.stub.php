@@ -612,6 +612,26 @@ namespace DDTrace {
     function set_user(string $userId, array $metadata = [], bool|null $propagate = null): void {}
 
     /**
+     * Get a value from the process-lifetime routing cache, used by the
+     * integrations to cache normalized routes.
+     *
+     * @internal
+     * @param string $key The cache key
+     * @return string|false The cached value, or 'false' when the key is not cached
+     */
+    function routing_cache_get(string $key): string|false {}
+
+    /**
+     * Store a value in the process-lifetime routing cache. Once the cache is
+     * full, inserting a new key evicts the oldest one.
+     *
+     * @internal
+     * @param string $key The cache key
+     * @param string $value The value to cache
+     */
+    function routing_cache_set(string $key, string $value): void {}
+
+    /**
      * Close child spans of a parent span if a non-internal span is given,
      * else if 'null' is given, close active, non-internal spans
      *

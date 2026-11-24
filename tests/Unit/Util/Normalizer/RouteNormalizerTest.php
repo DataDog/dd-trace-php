@@ -692,4 +692,12 @@ class RouteNormalizerTest extends BaseTestCase
         // A class holding ')' after a POSIX class keeps it a literal.
         $this->assertSame('/docs/{param1}', RouteNormalizer::normalizeFromWordPress('^docs/([[:alpha:])]+)$', 'docs/a)b'));
     }
+
+    public function testEmptyWordPressRuleHasNoNormalizedRoute()
+    {
+        // WP::$matched_rule stays '' when no rule matched: there is no route,
+        // so there is no tag, never a made-up one (RFC-1125).
+        $this->assertNull(RouteNormalizer::normalizeFromWordPress('', 'some/unknown'));
+        $this->assertNull(RouteNormalizer::normalizeFromWordPressRule(''));
+    }
 }

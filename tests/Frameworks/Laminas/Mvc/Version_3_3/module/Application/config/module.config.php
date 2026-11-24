@@ -16,11 +16,15 @@ use Laminas\Router\Http\Placeholder;
 use Laminas\Router\Http\Regex;
 use Laminas\Router\Http\Scheme;
 use Laminas\Router\Http\Segment;
+use Laminas\Router\Http\TranslatorAwareTreeRouteStack;
 use Laminas\Router\Http\Wildcard;
 use Laminas\ServiceManager\Factory\InvokableFactory;
 
 return [
     'router' => [
+        // Translates the {key} literals of Segment routes (see
+        // Module::onBootstrap()).
+        'router_class' => TranslatorAwareTreeRouteStack::class,
         // Routes that reference a prototype by name share its instance.
         'prototypes' => [
             'shared_format' => [
@@ -735,6 +739,18 @@ return [
                 'type' => SwappableRoute::class,
                 'options' => [
                     'route' => '/normalized-swap:me',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            // A Segment with a translated literal: {users} is "benutzer" in
+            // the router's locale.
+            'normalized_translated' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-translated/{users}/:id[/:tab]',
                     'defaults' => [
                         'controller' => DynamicPathController::class,
                         'action' => 'index',

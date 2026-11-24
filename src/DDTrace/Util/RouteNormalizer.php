@@ -231,7 +231,8 @@ class RouteNormalizer
      */
     public static function normalizeFromWordPress(string $matchedRule, string $urlPath)
     {
-        if (!self::wordPressRulePlan($matchedRule)['safe']) {
+        // An empty rule is no route: WordPress matched no rule (RFC-1125).
+        if ($matchedRule === '' || !self::wordPressRulePlan($matchedRule)['safe']) {
             return null;
         }
 
@@ -288,7 +289,7 @@ class RouteNormalizer
      */
     public static function normalizeFromWordPressRule(string $matchedRule)
     {
-        if (!self::wordPressRulePlan($matchedRule)['safe']) {
+        if ($matchedRule === '' || !self::wordPressRulePlan($matchedRule)['safe']) {
             return null;
         }
         $elements = self::regexFallbackElements($matchedRule);

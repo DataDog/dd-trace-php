@@ -34,46 +34,64 @@ class EndpointCatalog
     }
 
 
-    public static function normalizationCacheKey($routeName, $locale, ContainerInterface $container)
+    /**
+     * The compiled generator data of a matched route, as the generator cache
+     * file that Symfony itself loads holds it: looked up by name, then with
+     * the locale suffix of Symfony's i18n routes. Null when the container has
+     * no cache dir, the generator file is missing, or it has neither name.
+     *
+     * The file is required on every request, as Symfony's own generator does,
+     * so the data is what Symfony routes with even while opcache still serves
+     * a previous version of a rebuilt file.
+     *
+     * @return array|null
+     */
+    public static function matchedRouteData($routeName, $locale, ContainerInterface $container)
     {
         $cacheDir = self::getCacheDir($container);
         if ($cacheDir === null) {
             return null;
         }
 
-        return self::normalizationCacheKeyForCacheDir($cacheDir, $routeName, $locale);
+        $gen = self::loadGeneratorArray($cacheDir);
+        if ($gen === false) {
+            return null;
+        }
+
+        $routeData = isset($gen[$routeName]) ? $gen[$routeName] : null;
+        if (!self::isGeneratorRouteData($routeData) && $locale !== null) {
+            $routeData = isset($gen[$routeName . '.' . $locale]) ? $gen[$routeName . '.' . $locale] : null;
+        }
+
+        return self::isGeneratorRouteData($routeData) ? $routeData : null;
     }
 
     /**
-     * The routing cache outlives the request, so the key includes the compiled
-     * generator file's modification time. Otherwise a route table rebuilt in
-     * place, without a worker restart, would keep being served from the cache.
+     * The routing cache key of a route's cache entry. The routing cache
+     * outlives the request, so the key is derived from the generator data the
+     * entry is built from: a route table rebuilt in place, without a worker
+     * restart, gets new keys as soon as the data loaded changes, and an entry
+     * can never hold another version of the route than the one loaded
+     * (http.route must not change, RFC-1103).
      *
-     * Returns null when the generator file is missing, and while it is too
-     * recent to be cached: within the second of its modification time, a
-     * further rebuild would keep the same key, and within opcache's
-     * revalidation window, require may still return the previous version.
+     * Null when the data cannot be serialized (a default holding such an
+     * object): the entry is then built on every request.
      *
-     * The window is measured from the request start time, because that is the
-     * clock opcache itself compares against (ZCG(request_time)) when deciding
-     * whether to revalidate. Measuring with time() instead would let a request
-     * that reaches routing a second or more after it started build a key from
-     * the new mtime while require still returns the previous array, caching a
-     * stale entry for the life of the process.
+     * @return string|null
      */
-    public static function normalizationCacheKeyForCacheDir(string $cacheDir, $routeName, $locale)
+    public static function cacheKeyForRouteData(array $routeData)
     {
-        $genFile = self::findGeneratorFile($cacheDir);
-        if ($genFile === null) {
+        try {
+            return "symfony:v3\0" . md5(serialize($routeData));
+        } catch (\Throwable $e) {
             return null;
         }
+    }
 
-        $mtime = @filemtime($genFile);
-        if ($mtime === false || self::requestStartTime() - $mtime <= self::opcacheRevalidateWindow()) {
-            return null;
-        }
-
-        return "symfony:v2\0" . $genFile . "\0" . $mtime . "\0" . $routeName . "\0" . (string) $locale;
+    /** Whether $routeData has the shape of a compiled generator route. */
+    private static function isGeneratorRouteData($routeData): bool
+    {
+        return is_array($routeData) && isset($routeData[3]) && is_array($routeData[3]);
     }
 
     /**
@@ -89,23 +107,19 @@ class EndpointCatalog
      */
     public static function routeCacheEntry($routeName, $locale, ContainerInterface $container, bool $withNormalization)
     {
-        $cacheDir = self::getCacheDir($container);
-        if ($cacheDir === null) {
-            return null;
-        }
+        $routeData = self::matchedRouteData($routeName, $locale, $container);
 
-        $gen = self::loadGeneratorArray($cacheDir);
-        if ($gen === false) {
-            return null;
-        }
+        return $routeData === null ? null : self::routeCacheEntryFromRouteData($routeData, $withNormalization);
+    }
 
-        $routeData = isset($gen[$routeName]) ? $gen[$routeName] : null;
+    /**
+     * routeCacheEntry() for route data matchedRouteData() returned.
+     *
+     * @return string|null
+     */
+    public static function routeCacheEntryFromRouteData(array $routeData, bool $withNormalization)
+    {
         $plan = self::normalizationPlanFromGeneratorData($routeData);
-        if ($plan === null && $locale !== null) {
-            $routeData = isset($gen[$routeName . '.' . $locale]) ? $gen[$routeName . '.' . $locale] : null;
-            $plan = self::normalizationPlanFromGeneratorData($routeData);
-        }
-
         if ($plan === null) {
             return null;
         }
@@ -363,35 +377,6 @@ class EndpointCatalog
         }
 
         return self::matcherRegexFromRouteRegex($compiled->getRegex());
-    }
-
-    /**
-     * The time the current request started, which is the clock opcache uses to
-     * decide whether to revalidate a file. Falls back to time() where the SAPI
-     * does not populate REQUEST_TIME (then the window check is no weaker than
-     * it was before).
-     */
-    private static function requestStartTime(): int
-    {
-        if (isset($_SERVER['REQUEST_TIME']) && is_numeric($_SERVER['REQUEST_TIME'])) {
-            return (int) $_SERVER['REQUEST_TIME'];
-        }
-
-        return time();
-    }
-
-    /**
-     * Symfony's routing cache files are recompiled in place, so opcache may
-     * serve the previous version of one for up to revalidate_freq seconds.
-     */
-    private static function opcacheRevalidateWindow(): int
-    {
-        if (!extension_loaded('Zend OPcache')
-            || !filter_var(ini_get('opcache.validate_timestamps'), FILTER_VALIDATE_BOOLEAN)) {
-            return 0;
-        }
-
-        return max(0, (int) ini_get('opcache.revalidate_freq'));
     }
 
     /**

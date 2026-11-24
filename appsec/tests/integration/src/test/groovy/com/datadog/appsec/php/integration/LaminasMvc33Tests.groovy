@@ -914,4 +914,34 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
         assert trace.first().meta.'http.route' == '/normalized-rx-unplaced/en/about'
         assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-rx-unplaced/{lang}/about'
     }
+
+    @Test
+    @Order(48)
+    void 'translated literal is kept as static text'() {
+        // {users} is translated by the router's translator, so it is static
+        // text: the text of the current locale (RFC-1125). The optional tab
+        // did not take part.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-translated/benutzer/42').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_translated'
+        assert trace.first().meta.'http.route' == '/normalized-translated/{users}/:id[/:tab]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-translated/benutzer/{id}'
+    }
+
+    @Test
+    @Order(49)
+    void 'translated literal with an optional that took part'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-translated/benutzer/42/profile').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_translated'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-translated/benutzer/{id}/{tab}'
+    }
 }

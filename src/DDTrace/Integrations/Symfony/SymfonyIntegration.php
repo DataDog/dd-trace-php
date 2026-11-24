@@ -441,11 +441,17 @@ class SymfonyIntegration extends Integration
                     && dd_trace_env_config("DD_API_SECURITY_ENABLED");
 
                 // The entry holds http.route, and the normalization once API
-                // Security needs it (see EndpointCatalog::routeCacheEntry()).
-                $cacheKey = EndpointCatalog::normalizationCacheKey($route_name, $locale, $container);
+                // Security needs it (see EndpointCatalog::routeCacheEntry()). It
+                // is keyed by the route data loaded on this request, so it is
+                // always built from the route Symfony routed with.
+                $routeData = EndpointCatalog::matchedRouteData($route_name, $locale, $container);
+                if ($routeData === null) {
+                    return;
+                }
+                $cacheKey = EndpointCatalog::cacheKeyForRouteData($routeData);
                 $entry = $cacheKey === null ? false : \DDTrace\routing_cache_get($cacheKey);
                 if ($entry === false || ($apiSecurity && strpos($entry, "\0") === false)) {
-                    $entry = EndpointCatalog::routeCacheEntry($route_name, $locale, $container, $apiSecurity);
+                    $entry = EndpointCatalog::routeCacheEntryFromRouteData($routeData, $apiSecurity);
                     if ($entry === null) {
                         return;
                     }
