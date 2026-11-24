@@ -8,7 +8,7 @@
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
-| `benchmarks-tracer` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev` | Runs PHP tracer microbenchmarks via the `benchmarking-platform` framework, one `TRACER_PART` (phpbench, phpbench-opcache, tea) per matrix job; skips automatically if no tracer-relevant files changed |
+| `benchmarks-tracer` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev` | Runs PHP tracer microbenchmarks via the `benchmarking-platform` framework, one `TRACER_PART` (phpbench, phpbench-opcache, tea) per matrix job, which the platform steps handle natively (DataDog/benchmarking-platform#346); skips automatically if no tracer-relevant files changed |
 | `benchmarks-appsec` | same | Runs appsec microbenchmarks; produces `candidate.tar.gz` and `baseline.tar.gz` artifacts |
 | `benchmarks-profiler` | same | Runs profiler microbenchmarks |
 | `macrobenchmarks: [{PHP_VERSION}]` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld` | Runs a Laravel Realworld application under k6 load at three traffic levels; PHP 7.4 and 8.1 |

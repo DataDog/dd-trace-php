@@ -220,7 +220,6 @@ workflow:
         echo "Tracer-related file changes detected - proceeding with benchmarks"
       fi
     - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
-    - if [ -n "${TRACER_PART:-}" ]; then "$CI_PROJECT_DIR/benchmark/ci-patch-bp-steps.sh" /platform; fi
     - ./steps/capture-hardware-software-info.sh
     # Keep submodules at the selected candidate and baseline revisions.
     - >-
