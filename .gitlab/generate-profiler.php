@@ -36,7 +36,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "prof-correctness":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   retry: 1
   needs:
     - job: "prof-correctness-analyzer"
@@ -62,7 +62,7 @@ foreach ($profiler_minor_major_targets as $version) {
     CACHE_COMPRESSION_LEVEL: fastest
   cache:
     key:
-      prefix: "prof-correctness-v5-bookworm14-${PHP_MAJOR_MINOR}-${FLAVOUR}"
+      prefix: "prof-correctness-v5-bookworm15-${PHP_MAJOR_MINOR}-${FLAVOUR}"
       files:
         - Cargo.lock
         - rust-toolchain.toml
@@ -343,11 +343,11 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: amd64
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7-3
+        IMAGE_SUFFIX: _centos-7-4
       - PHP_MAJOR_MINOR: *arm64_latest_targets
         ARCH: arm64
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7-3
+        IMAGE_SUFFIX: _centos-7-4
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
     - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"; fi
@@ -430,7 +430,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Clippy":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -476,7 +476,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Cargo test":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-15
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -508,7 +508,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "PHP language tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -602,9 +602,9 @@ foreach ($profiler_minor_major_targets as $version) {
     matrix:
       - ARCH: *arch_targets
         IMAGE:
-          - php-8.5_bookworm-14
+          - php-8.5_bookworm-15
           - php-compile-extension-alpine-8.5
-          - php-8.5_centos-7-3
+          - php-8.5_centos-7-4
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
     - if command -v switch-php >/dev/null 2>&1; then switch-php nts 2>/dev/null || switch-php 8.5; fi
