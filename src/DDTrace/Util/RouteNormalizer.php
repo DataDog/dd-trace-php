@@ -403,6 +403,11 @@ class RouteNormalizer
                     } elseif (substr($rule, $i + 1, 2) === '?:') {
                         $capturing = false;
                         $i += 2;
+                    } elseif (substr($rule, $i + 1, 2) === '?|') {
+                        // A branch reset reuses capture numbers, which
+                        // regexWrapperGroups() does not follow: the groups
+                        // after it would be misnumbered, even inside a capture.
+                        return false;
                     } elseif ($captureDepth > 0) {
                         // The outer capture covers everything consumed by this group.
                         $capturing = false;

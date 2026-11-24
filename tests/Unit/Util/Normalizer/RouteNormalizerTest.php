@@ -656,6 +656,17 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics('^docs/([](])[^/]+[])]$'));
     }
 
+    public function testWordPressRuleWithABranchResetIsRejected()
+    {
+        // (?|(a)|(b)|(c)) numbers its three captures 2, so counting them
+        // apart would misnumber every later group: here the last capture
+        // would be taken for the wrapper of ext and its value kept as text.
+        $rule = '^(?<kind>(?|(a)|(b)|(c)))(\\.(?<ext>[^/]+))?/([^/]+)$';
+        $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics($rule));
+        $this->assertNull(RouteNormalizer::normalizeFromWordPress($rule, 'a.txt/customer-123'));
+        $this->assertNull(RouteNormalizer::normalizeFromWordPressRule($rule));
+    }
+
     public function testWordPressRuleNotMatchingTheSubjectFallsBackToMandatoryParts()
     {
         // RFC-1125: never omit the tag because optional parts cannot be resolved.
