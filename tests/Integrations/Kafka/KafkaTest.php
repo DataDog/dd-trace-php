@@ -120,6 +120,21 @@ class KafkaTest extends IntegrationTestCase
     }
 
     /**
+     * Without DSM, a producer shares the cluster id once a flush has delivered its messages, so
+     * that a producer created per request has it from its first produce on. The bootstrap
+     * servers, spelled with their protocol, are shared by no other test.
+     */
+    public function testClusterIdSharedAfterFlush()
+    {
+        $brokers = 'PLAINTEXT://kafka-integration:9092';
+        $env = ['DD_DATA_STREAMS_ENABLED' => 'false', 'DD_TRACE_CLI_ENABLED' => 'true'];
+        $flushed = $this->executeCli(__DIR__ . '/scripts/cluster-id-shared.php', $env, [], ['flush', $brokers], true);
+        $this->assertRegularExpression('/^flush: 0$/m', $flushed);
+        $read = $this->executeCli(__DIR__ . '/scripts/cluster-id-shared.php', $env, [], ['read', $brokers], true);
+        $this->assertRegularExpression("/^read: '[A-Za-z0-9_-]+'$/m", $read);
+    }
+
+    /**
      * A producer whose brokers never answer waits for the cluster id on its first produce only:
      * waiting on every produce would hold up all of them for as long as the brokers stay down.
      */

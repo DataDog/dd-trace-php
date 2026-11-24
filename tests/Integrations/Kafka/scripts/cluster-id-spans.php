@@ -39,6 +39,8 @@ $conf = new Conf();
 $conf->set('group.id', 'cluster-id-spans-lowlevel');
 $lowLevel = new Consumer($conf);
 $lowLevel->addBrokers($brokers);
+// librdkafka counts a broker it already knows as added again
+$lowLevel->addBrokers($brokers);
 $lowLevelTopic = $lowLevel->newTopic($topicName);
 $queue = $lowLevel->newQueue();
 $lowLevelTopic->consumeQueueStart(0, RD_KAFKA_OFFSET_BEGINNING, $queue);
