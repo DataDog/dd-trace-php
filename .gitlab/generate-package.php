@@ -1371,6 +1371,8 @@ endforeach;
     INSTALLER_ARTIFACT_SERVER: installer-artifacts
     INSTALLER_DOCKER_NETWORK: installer-tests
     INSTALLER_REPOSITORY_URL: http://installer-artifacts
+    # Expand the DinD loopback volume to avoid running out of disk space.
+    DOCKER_LOOPBACK_SIZE: 50G
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi

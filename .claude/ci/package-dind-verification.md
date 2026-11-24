@@ -391,6 +391,11 @@ kill %1  # stop HTTP server
   even on an amd64 runner, because `datadog-setup.php` is tested for its
   ability to select the correct package.
 
+- **`installer tests` sets `DOCKER_LOOPBACK_SIZE: 50G`.** Images and test
+  containers live on the DinD loopback, which defaults to 20G. With `-j 8`,
+  overlapping full-bundle extractions fill 20G (a 50G run wrote ~31G); serial
+  runs used ~11.5G.
+
 - **`installer tests` VERSION mismatch.** The installer compares the installed
   extension version against `VERSION`. CI runs `append-build-id.sh` which bumps
   it (e.g. `1.17.0` -> `1.18.0+<sha>`). Without this step, tests fail with
