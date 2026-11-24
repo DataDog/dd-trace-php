@@ -110,7 +110,8 @@ variables:
   # Microbenchmarks CI image, consumed by the benchmark jobs below. Repin to the
   # tag pushed by a `build-benchmark-ci-images` run after changing anything in
   # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
-  MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-152770667
+  # Built here: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2297284692
+  MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-156274584
   # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
   BASE_CI_IMAGE_SUFFIX: dd-trace-php-${CI_PIPELINE_ID}
   BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container
