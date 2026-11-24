@@ -197,23 +197,16 @@ foreach (array_keys($namesInTraces) as $n) {
 // A trace's stats can be split across payloads, and /replay-stats drops what it
 // returns: read every payload until each span in the traces has its stats.
 $ops = [];
-$i = 0;
-do {
-    if ($i++ == $rr->maxIteration) {
-        break;
-    }
-    usleep($rr->flushInterval);
-    foreach ($rr->replayAllStats() ?? [] as $request) {
-        $payload = json_decode($request['body'], true);
-        foreach ($payload['Stats'] ?? [] as $bucket) {
-            foreach ($bucket['Stats'] ?? [] as $group) {
-                if ($group['Service'] === 'filter-test-service') {
-                    $ops[] = $group['Name'];
-                }
+$rr->waitForStats(function ($request) use (&$ops, $namesInTraces) {
+    foreach (json_decode($request['body'], true)['Stats'] ?? [] as $bucket) {
+        foreach ($bucket['Stats'] ?? [] as $group) {
+            if ($group['Service'] === 'filter-test-service') {
+                $ops[] = $group['Name'];
             }
         }
     }
-} while (array_diff(array_keys($namesInTraces), $ops));
+    return !array_diff(array_keys($namesInTraces), $ops);
+});
 
 // Print which operation names appear in stats (sorted for determinism).
 // Only op.pass and its child should survive all filters.
