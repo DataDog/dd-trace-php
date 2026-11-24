@@ -20,8 +20,8 @@ extern inline void zai_sandbox_error_state_backup(zai_error_state *es);
  */
 void zai_sandbox_error_state_restore(zai_error_state *es) {
 #if PHP_VERSION_ID >= 80200
-    if (zai_sandbox_has_oom() && PG(last_error_message)) {
-        // Keep the OOM error for error_get_last(), the request is over
+    if (PG(last_error_message) && (PG(last_error_type) & E_FATAL_ERRORS) && zai_sandbox_has_oom()) {
+        // Keep the OOM error for error_get_last(), the request is over; a later non-fatal error must not replace it
         if (es->message) {
             zend_string_release(es->message);
         }

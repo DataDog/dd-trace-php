@@ -104,7 +104,12 @@ extern ZEND_EXT_TLS long zai_sandbox_active;
 /* PHP 8.2.35, 8.3.36, 8.4.27, 8.5.12 and 8.6 raise OOMs at the next safe point, possibly inside a sandbox, and the OOM
  * state then lasts until request shutdown (zend_call_function() fails): the sandbox must let it through. */
 #if PHP_VERSION_ID >= 80600
+#ifdef ZEND_HAS_OOM
 #define zai_sandbox_oom_state() EG(delayed_oom).state
+#else
+/* 8.6 pre-releases before RC4 have no delayed OOM */
+#define zai_sandbox_oom_state() 0
+#endif
 #elif PHP_VERSION_ID >= 80200
 #include "../alloc.h"
 /* These patch releases added _femalloc() along with EG(delayed_oom), appended to the executor globals: check at runtime,

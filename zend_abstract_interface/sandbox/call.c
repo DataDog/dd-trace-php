@@ -155,9 +155,7 @@ bool zai_sandbox_call(zai_sandbox *sandbox, zend_fcall_info *fci, zend_fcall_inf
         ZVAL_UNDEF(fci->retval);
         return false;
     }
-#endif
 
-#if PHP_VERSION_ID >= 80200
     zai_sandbox_observer observer = {
         .boundary = EG(current_execute_data),
         .head = zai_set_observed_frame(NULL),

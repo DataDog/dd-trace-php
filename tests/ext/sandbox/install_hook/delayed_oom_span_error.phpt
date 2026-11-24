@@ -7,6 +7,7 @@ A delayed OOM raised by a hook closure is tracked on the hooked span
 DD_TRACE_MEMORY_LIMIT=1G
 --INI--
 memory_limit=32M
+fatal_error_backtraces=0
 --FILE--
 <?php
 include __DIR__ . '/../dd_dumper.inc';

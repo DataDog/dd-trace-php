@@ -6,6 +6,7 @@ A delayed OOM raised in a begin hook terminates the request
 --INI--
 memory_limit=32M
 memory_hard_limit_percent=1000
+fatal_error_backtraces=0
 --FILE--
 <?php
 register_shutdown_function(function () {

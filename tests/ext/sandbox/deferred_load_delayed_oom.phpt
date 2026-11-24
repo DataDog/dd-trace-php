@@ -8,6 +8,7 @@ _DD_LOAD_TEST_INTEGRATIONS=1
 --INI--
 memory_limit=32M
 memory_hard_limit_percent=1000
+fatal_error_backtraces=0
 --FILE--
 <?php
 
@@ -40,7 +41,6 @@ namespace
     $a = str_repeat('x', 20 << 20);
     Test::public_static_method($a . $a); // the concat exceeds memory_limit, the next safe point is the deferred integration load
     echo "not reached\n";
-    var_dump(array_map(fn ($i) => $i, [1]));
 }
 ?>
 --EXPECTF--
