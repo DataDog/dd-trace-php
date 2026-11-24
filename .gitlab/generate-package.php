@@ -163,7 +163,8 @@ function alpine_mimalloc(array $platform): void
         return;
     }
 ?>
-    - apk add -q --no-cache mimalloc2-insecure || exit 75
+    # Installed by dockerfiles/ci/alpine_compile_extension/base.Dockerfile.
+    - test -f /usr/lib/libmimalloc-insecure.so.2 || { echo "mimalloc is missing from $CI_JOB_IMAGE, rebuild the Alpine CI images" >&2; exit 1; }
     - export LD_PRELOAD=/usr/lib/libmimalloc-insecure.so.2
 <?php
 }

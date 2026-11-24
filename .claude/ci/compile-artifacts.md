@@ -184,8 +184,9 @@ See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
   LTO and SSI jobs have no explicit `cache:` block, but they do build Rust.
 
 - The musl compile jobs (combined, SSI combined, sidecar and the PHP 7.0 jobs)
-  `apk add mimalloc2-insecure` and `LD_PRELOAD` it: Alpine's rustc links scudo and
-  clang/lld use musl's malloc, which spend much of a parallel build in the kernel.
+  `LD_PRELOAD` the `mimalloc2-insecure` the Alpine image installs and fail if it
+  is missing: Alpine's rustc links scudo and clang/lld use musl's malloc, which
+  spend much of a parallel build in the kernel.
 
 - Windows compile jobs use Docker on the Windows runner (not DinD): the script starts a
   long-lived container with `docker run -d`, then drives it via `docker exec`. The
