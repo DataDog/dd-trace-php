@@ -1375,6 +1375,8 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
     RUST_BACKTRACE: 1
+    # Experiment: size the DinD loopback above the 20G default to measure the -j 8 peak.
+    DOCKER_LOOPBACK_SIZE: 50G
   before_script:
 <?php dockerhub_login() ?>
     - apt-get update
@@ -1421,8 +1423,15 @@ endforeach;
         sleep 1
       done
   script:
+    # Experiment: sample the daemon's /var/lib/docker filesystem every 5 s.
+    - docker run --detach --name dfmon --volume /var/lib/docker:/d:ro alpine:3.13 sh -c 'while :; do echo "DFMON $(date +%T) $(df -k /d | tail -1)"; sleep 5; done'
+    - df -h "$CI_PROJECT_DIR" /tmp / || true
     - make -C dockerfiles/verify_packages -j 8 --output-sync=target test_installer
   after_script:
+    - docker logs dfmon 2>&1 | grep DFMON || true
+    - "docker logs dfmon 2>&1 | grep DFMON | sort -k5 -n | tail -1 | sed 's/^/DFMON-PEAK /' || true"
+    - docker system df || true
+    - docker rm --force dfmon || true
     - docker rm --force "$INSTALLER_ARTIFACT_SERVER" || true
     - docker network rm "$INSTALLER_DOCKER_NETWORK" || true
 
