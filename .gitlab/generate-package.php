@@ -1021,6 +1021,7 @@ endforeach;
 <?php unset_dd_runner_env_vars(); ?>
   script:
     - switch-php "${FLAVOUR}"
+    - ulimit -c unlimited
     # Reuse combined NTS/ZTS artifacts from the release build. Only build the
     # standalone comparison product here, without extra profiler features.
     - make compile_profiler PROFILER_BUILD_SUFFIX=product_standalone PROFILER_FEATURES=
@@ -1046,11 +1047,14 @@ endforeach;
         php "$(php-config --prefix)/lib/php/build/run-tests.php" -q --show-diff \
           profiling/tests/phpt/standalone_conflict_ddtrace_first.phpt \
           profiling/tests/phpt/standalone_conflict_profiler_first.phpt
+  after_script:
+    - .gitlab/collect-crashes.sh
   artifacts:
     when: always
     reports:
       junit: artifacts/product-loading/*.xml
     paths:
+      - artifacts/core-dumps/
       - artifacts/product-loading/
       - profiling/tests/phpt/standalone_conflict_*.out
       - profiling/tests/phpt/standalone_conflict_*.diff
@@ -1074,8 +1078,15 @@ endforeach;
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
+    - ulimit -c unlimited
     # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
     - php run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+  after_script:
+    - .gitlab/collect-crashes.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/core-dumps/
 
 <?php foreach ($build_platforms as $platform): ?>
 <?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
@@ -1109,9 +1120,13 @@ endforeach;
     - sudo php packages/datadog-setup.php --php-bin php --enable-profiling --enable-appsec --file packages/dd-library-php-*-$(uname -m)-linux-gnu-<?= $php_versions_to_abi['8.5'] ?>-zts.tar.gz
     - "php --ri ddtrace | grep 'Profiling Enabled'"
   script:
+    - ulimit -c unlimited
     - bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
+  after_script:
+    - .gitlab/collect-crashes.sh --fallback-exe "$(command -v frankenphp 2>/dev/null || true)"
   artifacts:
     paths:
+      - artifacts/core-dumps/
       - artifacts/frankenphp/
     when: always
 
