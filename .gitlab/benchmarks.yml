@@ -339,6 +339,14 @@ check-big-regressions:
       exit 1
     else
       echo "Reports directory found with content - running regression check"
+      for part in bench bench_opcache tea_bench; do
+        for side in baseline candidate; do
+          if [ ! -f "reports/${side}_tracer_${part}.converted.json" ]; then
+            echo "ERROR: reports/${side}_tracer_${part}.converted.json is missing - a benchmarks-tracer shard had issues"
+            exit 1
+          fi
+        done
+      done
       export ARTIFACTS_DIR="$(pwd)/reports/"
       if [[ -n "$CI_JOB_TOKEN" ]]; then
         git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"

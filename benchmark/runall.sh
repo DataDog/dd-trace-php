@@ -14,6 +14,9 @@ export DDTRACE_PROFILING_FEATURES=trigger_time_sample
 # The benchmark platform runs a real agent: keep remote configuration it could
 # deliver from changing the behaviour being measured.
 export DD_REMOTE_CONFIG_ENABLED=false
+# benchmarks-tracer runs one part per matrix job; unset runs every part.
+part="${TRACER_PART:-}"
+case "$part" in ''|phpbench|phpbench-opcache|tea) ;; *) echo "unknown TRACER_PART=$part" >&2; exit 1 ;; esac
 cd ..
 COMBINED_SO=tmp/build_combined/modules/ddtrace.so
 if [ -z "${DD_TRACE_ASSUME_COMPILED:-}" ]; then
@@ -43,8 +46,6 @@ elif [ "$SCENARIO" = "tracer" ]; then
   export DD_PROFILING_ENABLED=0 DD_APPSEC_ENABLED=0
   make composer_tests_update
   make_combined benchmarks_run_dependencies
-
-  part="${TRACER_PART:-}"
 
   ## Non-OPCache Benchmarks
   if [ -z "$part" ] || [ "$part" = phpbench ]; then
