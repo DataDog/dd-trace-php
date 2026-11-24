@@ -15,7 +15,9 @@
  * signs it) plus a manual publish matrix job that mirrors the tags to the public
  * registries. Windows is emitted the same way but single-arch (no manifest) with its
  * own build runner/script; its images are signed by a separate Linux job
- * (ddsign has no Windows binary), see .image_sign.
+ * (ddsign has no Windows binary), see .image_sign. Last come the manual retag
+ * jobs that start a new generation by copying the current images, see
+ * .image_retag.
  */
 
 $root = dirname(__DIR__);
@@ -108,12 +110,49 @@ foreach ($dirs as $os => $dir) {
 }
 
 // Windows is single-arch (no multi-arch manifest) and uses a different build
-// runner/script, so it is emitted separately from the Linux loop below. It has
-// no .env, so tags resolve with an empty env map.
-$winServices = parse_compose(compose_file("$root/dockerfiles/ci/windows"), []);
+// runner/script, so it is emitted separately from the Linux loop below.
+$winServices = parse_compose(compose_file("$root/dockerfiles/ci/windows"), parse_env("$root/dockerfiles/ci/windows/.env"));
 if (!$winServices) {
     fwrite(STDERR, "ERROR: no services parsed for Windows\n");
     exit(1);
+}
+
+// One retag job per OS listed here. The value is the default RETAG_EXCLUDE: the
+// service the next generation rebuilds instead of copying.
+$retagExclude = [
+    "Bookworm" => "php-8.6",
+    "CentOS"   => "php-8.6",
+    "Alpine"   => "8.6-alpine",
+    "Windows"  => "php-8.6",
+];
+$retagDirs = array_column($osList, "dir", "name") + ["Windows" => "dockerfiles/ci/windows"];
+$retags = [];
+foreach ($retagExclude as $os => $exclude) {
+    $dir = "$root/{$retagDirs[$os]}";
+    $next = parse_env("$dir/.env");
+    // The current generation's env: each *_NEXT_* key takes its *_CURRENT_* value.
+    $current = $next;
+    foreach (array_keys($next) as $key) {
+        $currentKey = str_replace("_NEXT_", "_CURRENT_", $key);
+        if ($currentKey !== $key) {
+            if (!isset($next[$currentKey])) {
+                fwrite(STDERR, "ERROR: $key has no $currentKey in $dir/.env\n");
+                exit(1);
+            }
+            $current[$key] = $next[$currentKey];
+        }
+    }
+    $from = parse_compose(compose_file($dir), $current);
+    // Tags without a generation (e.g. base images) are the same in both: not copied.
+    foreach (parse_compose(compose_file($dir), $next) as $svc => $tag) {
+        if ($from[$svc] !== $tag) {
+            $retags[$os][] = "$svc {$from[$svc]} $tag";
+        }
+    }
+    // NEXT == CURRENT (a temporary in-place rebuild): nothing to copy, so no job.
+    if (empty($retags[$os])) {
+        fwrite(STDERR, "NOTE: no $os retag job: its next-generation tags are the current ones\n");
+    }
 }
 
 ?>
@@ -202,6 +241,72 @@ variables:
   script:
     - DIGEST=$(docker buildx imagetools inspect "${CI_REGISTRY_IMAGE}:${TAG}" --format '{{.Manifest.Digest}}')
     - ddsign sign "${CI_REGISTRY_IMAGE}:${TAG}@${DIGEST}"
+
+# Starts an OS's next image generation without rebuilding it: copies each
+# current tag to its next-generation tag by digest (the manifest is pushed
+# unchanged, so it is the same image) and signs it. RETAG_EXCLUDE services are
+# skipped: run their build job afterwards. A next tag that already exists must
+# be a copy from an earlier run (same digest, re-signed) or the output of a
+# RETAG_EXCLUDE build (its digest is printed); any other one aborts the job
+# before it pushes anything, so it never overwrites an image. Re-running it is
+# safe, and verifies every copy.
+.image_retag:
+  stage: ci-build
+  rules:
+    - when: manual
+      allow_failure: true
+  needs: []
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: ["arch:amd64"]
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  # $RETAG_TAGS ("<service> <current tag> <next tag>" lines) and the default
+  # $RETAG_EXCLUDE (space-separated services) are set by the generated jobs.
+  script:
+    - |
+      set -euo pipefail
+      # Prints a tag's digest, or nothing if the tag does not exist; fails on any other error.
+      digest_of() {
+        local out
+        if out=$(docker buildx imagetools inspect "${CI_REGISTRY_IMAGE}:$1" --format '{{.Manifest.Digest}}' 2>&1); then
+          echo "${out}"
+        elif [[ "${out}" != *": not found"* ]]; then
+          echo "ERROR: cannot check ${CI_REGISTRY_IMAGE}:$1: ${out}" >&2; return 1
+        fi
+      }
+      declare -A src dst
+      # Pre-flight, before any push: every next tag is free or already right, and every copy keeps its digest.
+      while read -r svc from to <&3; do
+        dst[$svc]=$(digest_of "${to}")
+        if [[ " ${RETAG_EXCLUDE} " == *" ${svc} "* ]]; then continue; fi
+        src[$svc]=$(digest_of "${from}")
+        if [[ -z "${src[$svc]}" ]]; then echo "ERROR: ${CI_REGISTRY_IMAGE}:${from} does not exist"; exit 1; fi
+        if [[ -n "${dst[$svc]}" ]]; then
+          if [[ "${dst[$svc]}" != "${src[$svc]}" ]]; then
+            echo "ERROR: ${CI_REGISTRY_IMAGE}:${to} already exists as ${dst[$svc]}, not a copy of ${from}@${src[$svc]}"; exit 1
+          fi
+          continue
+        fi
+        # --dry-run prints the manifest the copy would push. --prefer-index=false keeps a
+        # single-arch manifest as is instead of wrapping it in a new index.
+        dry=$(docker buildx imagetools create --dry-run --prefer-index=false -t "${CI_REGISTRY_IMAGE}:${to}" "${CI_REGISTRY_IMAGE}@${src[$svc]}" | head -c -1 | sha256sum)
+        if [[ "sha256:${dry%% *}" != "${src[$svc]}" ]]; then
+          echo "ERROR: copying ${CI_REGISTRY_IMAGE}:${from} would change its digest ${src[$svc]}"; exit 1
+        fi
+      done 3<<< "${RETAG_TAGS}"
+      while read -r svc from to <&3; do
+        if [[ " ${RETAG_EXCLUDE} " == *" ${svc} "* ]]; then
+          echo "Skipping ${svc} (RETAG_EXCLUDE): ${CI_REGISTRY_IMAGE}:${to}@${dst[$svc]:-<not built yet>}"; continue
+        fi
+        if [[ -z "${dst[$svc]}" ]]; then
+          docker buildx imagetools create --prefer-index=false -t "${CI_REGISTRY_IMAGE}:${to}" "${CI_REGISTRY_IMAGE}@${src[$svc]}"
+          new=$(digest_of "${to}")
+          if [[ "${new}" != "${src[$svc]}" ]]; then echo "ERROR: ${CI_REGISTRY_IMAGE}:${to} is ${new}, not ${src[$svc]}"; exit 1; fi
+        fi
+        ddsign sign "${CI_REGISTRY_IMAGE}:${to}@${src[$svc]}"
+        echo "${CI_REGISTRY_IMAGE}:${from}@${src[$svc]} -> ${CI_REGISTRY_IMAGE}:${to}${dst[$svc]:+ (already copied)}"
+      done 3<<< "${RETAG_TAGS}"
 
 .windows_image_build:
   stage: ci-build
@@ -375,5 +480,16 @@ Windows sign:
       - TAG:
 <?php foreach ($services as $tag): ?>
           - "<?= $tag ?>"
+<?php endforeach; ?>
+<?php endforeach; ?>
+<?php foreach ($retags as $os => $lines): ?>
+
+<?= $os ?> retag:
+  extends: .image_retag
+  variables:
+    RETAG_EXCLUDE: "<?= $retagExclude[$os] ?>"
+    RETAG_TAGS: |-
+<?php foreach ($lines as $line): ?>
+      <?= $line, "\n" ?>
 <?php endforeach; ?>
 <?php endforeach; ?>

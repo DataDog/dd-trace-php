@@ -41,6 +41,8 @@ fi
 # CGO_ENABLED=1 is not redundant: the CI images bake CGO_ENABLED=0 into the Go env, which drops every cgo file...
 # -tags nowatcher: the file watcher pulls in a cgo module whose C headers are not vendored in the
 # release tarball, and we do not need worker file watching in tests.
-CGO_ENABLED=1 CC="${CC:-cc}" CGO_CFLAGS="$(php-config --includes) $ASAN" CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs) $ASAN $ASAN_LD" go build -tags nowatcher
+# nobrotli: since v1.13.4 (the first to build on PHP 8.6) the Brotli module needs libbrotli >= 1.1,
+# newer than the images' Debian 1.0.9; the tests never compress responses.
+CGO_ENABLED=1 CC="${CC:-cc}" CGO_CFLAGS="$(php-config --includes) $ASAN" CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs) $ASAN $ASAN_LD" go build -tags nowatcher,nobrotli
 
 mv frankenphp $(readlink /usr/local/bin/frankenphp)
