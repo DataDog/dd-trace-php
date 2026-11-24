@@ -188,6 +188,11 @@ See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
   is missing: Alpine's rustc links scudo and clang/lld use musl's malloc, which
   spend much of a parallel build in the kernel.
 
+- PR branch pipelines set `CARGO_PROFILE_TRACER_RELEASE_CODEGEN_UNITS=16`, which
+  roughly halves the Rust build. Master, `ddtrace-*`, `release-*` branches and
+  tags keep the profile's single codegen unit, so PR binaries are ~16-19% larger
+  than the shipped ones (relevant when a size check differs between the two).
+
 - Windows compile jobs use Docker on the Windows runner (not DinD): the script starts a
   long-lived container with `docker run -d`, then drives it via `docker exec`. The
   `GIT_STRATEGY: none` variable means the runner does not clone the repo -- instead the

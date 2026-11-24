@@ -93,6 +93,10 @@ function system_tests_run_scenarios(string $scenarios): void
 // No list (master, releases, tags, schedules, web/api runs, or a git failure) means every job runs.
 $branch_changed_files = array_filter(explode("\n", (string)@file_get_contents(__DIR__ . "/changed-files.txt")));
 
+// Shipping builds keep tracer-release's single codegen unit (#2696).
+$pr_branch_build = (string)getenv('CI_COMMIT_TAG') === ''
+    && !preg_match('(^(master|ddtrace-.*|release-.*)$)', (string)getenv('CI_COMMIT_BRANCH'));
+
 // A PR branch runs these job families only when it changes one of their paths; master and the rest run them always.
 // Generic build inputs (sources, config.m4, shared build scripts) stay out: the always-on compile and test jobs cover them.
 $generator_paths = [".gitlab/generate-package.php", ".gitlab/generate-common.php"];
@@ -199,7 +203,9 @@ variables:
   RELIABILITY_ENV_BRANCH: "master"
   SYSTEM_TESTS_LIBRARY: php
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
+<?php if ($pr_branch_build): ?>
   CARGO_PROFILE_TRACER_RELEASE_CODEGEN_UNITS: "16"
+<?php endif; ?>
 
   # One pipeline injection package size ratchet.
   # LIB_INJECTION_IMAGE_MAX_SIZE_BYTES was set to 210M in April as a tightening
