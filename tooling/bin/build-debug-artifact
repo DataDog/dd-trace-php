@@ -118,12 +118,12 @@ esac
 # ─── Docker image selection ───────────────────────────────────────────────────
 BOOKWORM_VERSION=14
 if [[ "$libc" == "musl" ]]; then
-    DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
+    DOCKER_IMAGE="registry.datadoghq.com/dd-trace-ci:php-compile-extension-alpine-${php_version}"
 else
     # centos-7 targets GLIBC 2.17 — compatible with all weblog base images.
     # bookworm (GLIBC 2.36) produces .so files that fail to load on Bullseye
     # weblogs with "GLIBC_2.32 not found".
-    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_centos-7-3"
+    DOCKER_IMAGE="registry.datadoghq.com/dd-trace-ci:php-${php_version}_centos-7-3"
 fi
 
 if [[ "$arch" == "aarch64" ]]; then
@@ -196,7 +196,7 @@ if [[ "$_should_generate" == "1" ]]; then
     docker run --rm \
         -v "${REPO_ROOT}:/home/circleci/app" \
         -w "/home/circleci/app" \
-        "datadog/dd-trace-ci:php-8.3_bookworm-${BOOKWORM_VERSION}" \
+        "registry.datadoghq.com/dd-trace-ci:php-8.3_bookworm-${BOOKWORM_VERSION}" \
         bash -c "make generate"
 else
     echo "src/bridge/_generated*.php is up to date, skipping generation."
@@ -283,7 +283,7 @@ if [[ "$_should_generate" == "1" ]]; then
     _launch "generate" docker run --rm \
         -v "${REPO_ROOT}:/home/circleci/app" \
         -w "/home/circleci/app" \
-        "datadog/dd-trace-ci:php-8.3_bookworm-${BOOKWORM_VERSION}" \
+        "registry.datadoghq.com/dd-trace-ci:php-8.3_bookworm-${BOOKWORM_VERSION}" \
         bash -c "make generate"
 fi
 
