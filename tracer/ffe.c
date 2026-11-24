@@ -218,12 +218,22 @@ void ddtrace_ffe_startup(void) {
     if (!dd_ffe.enabled || dd_ffe.source != DDTRACE_FFE_SOURCE_AGENTLESS) {
         return;
     }
+    // Usage gets the service that APM shows, or no service. That is DD_SERVICE (or
+    // OTEL_SERVICE_NAME), with DD_SERVICE_MAPPING applied as the serializer does. Without it,
+    // an integration can set the root span service later (Laravel from APP_NAME), so the
+    // requests send no service.
+    zend_string *service = get_global_DD_SERVICE();
+    zval *mapped = ZSTR_LEN(service) ? zend_hash_find(get_global_DD_SERVICE_MAPPING(), service) : NULL;
+    if (mapped) {
+        service = Z_STR_P(mapped);
+    }
     ddog_FfeCdnConfigError error;
     dd_ffe.cdn_config = ddog_ffe_cdn_config_new(
         dd_zend_string_to_CharSlice(get_global_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL()),
         dd_zend_string_to_CharSlice(get_global_DD_SITE()),
         dd_zend_string_to_CharSlice(get_global_DD_ENV()),
         dd_zend_string_to_CharSlice(get_global_DD_API_KEY()),
+        dd_zend_string_to_CharSlice(service),
         (uint32_t)poll_interval, (uint32_t)request_timeout, &error);
     if (!dd_ffe.cdn_config) {
         switch (error) {

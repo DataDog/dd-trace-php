@@ -20,7 +20,6 @@ foreach ($modes as $mode) {
     $environment['PHP_FFE_TRANSPORT_TOKENS'] = implode(',', $tokens);
     $environment['DD_TRACE_SIDECAR_CONNECTION_MODE'] = 'subprocess';
     $environment['_DD_DEBUG_SIDECAR_IPC_MODE'] = 'instance_per_process';
-    $environment['_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS'] = '1';
     $pathPrefix = $mode === 'trace-agentless-prefix' ? '/agent-prefix' : '';
     $environment['DD_TRACE_AGENT_URL'] = $unix ? 'unix://' . $socket : 'http://' . stream_socket_get_name($server, false) . $pathPrefix;
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL'] = strpos($mode, 'managed-') === 0 ? ''

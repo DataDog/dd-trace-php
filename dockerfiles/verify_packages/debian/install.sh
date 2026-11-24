@@ -43,7 +43,9 @@ if [ "${INSTALL_MODE}" = "native" ]; then
     retry_or_tempfail apt_get install -y ${PHP_PACKAGE}
 elif [ "${INSTALL_MODE}" = "sury" ]; then
     retry_or_tempfail curl -sSfL -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-    sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
+    printf 'deb %s %s main\n' \
+        "${SURY_MIRROR:-https://packages.sury.org/php/}" "$(lsb_release -sc)" \
+        > /etc/apt/sources.list.d/php.list
     retry_or_tempfail apt_get update
     retry_or_tempfail apt_get install -y \
         php${PHP_VERSION}-cli \
