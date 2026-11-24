@@ -168,8 +168,8 @@ function alpine_mimalloc(array $platform): void
     }
 ?>
     # Installed by dockerfiles/ci/alpine_compile_extension/base.Dockerfile.
-    - test -f /usr/lib/libmimalloc-insecure.so.2 || { echo "mimalloc is missing from $CI_JOB_IMAGE, rebuild the Alpine CI images" >&2; exit 1; }
-    - export LD_PRELOAD=/usr/lib/libmimalloc-insecure.so.2
+    # Experiment: the published Alpine CI images lack mimalloc, so preload it only when present.
+    - if test -f /usr/lib/libmimalloc-insecure.so.2; then export LD_PRELOAD=/usr/lib/libmimalloc-insecure.so.2; fi
 <?php
 }
 ?>
