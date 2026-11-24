@@ -162,6 +162,7 @@ stages:
   - tracing
   - packaging
   - benchmarks
+  - benchmarks-report
   - gate
   - notify
   - verify
