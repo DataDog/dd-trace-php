@@ -1567,6 +1567,8 @@ endforeach;
         sed -i -e 's|http://deb.debian.org/debian-security|http://snapshot.debian.org/archive/debian-security/20260901T000000Z|g' \
                -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
         echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+        # Keep the last Bullseye PHP builds; the live Sury pool returns 404.
+        export SURY_MIRROR="https://depot-read-api-bzl.us1.ddbuild.io/debian.octopuce.fr/snapshots/sury-php/20261111010406/"
       fi
     # Bound apt: a stalled deb.debian.org fetch otherwise hangs until the 1 h job timeout; 75 is retried.
     - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 update || exit 75

@@ -1101,20 +1101,38 @@ zend_result datadog_post_deactivate(void) {
 }
 
 static PHP_MINFO_FUNCTION(datadog) {
-    UNUSED(zend_module);
-
-    datadog_phpinfo();
-
-    DISPLAY_INI_ENTRIES();
+    // One section per component, each followed by its own INI entries
+    unsigned tracer_groups = DATADOG_PHPINFO_INI_TRACER;
+    bool appsec_loaded = false, profiler_loaded = false;
 #ifdef APPSEC
+    appsec_loaded = datadog_appsec_initialized;
+#else
+    tracer_groups |= DATADOG_PHPINFO_INI_APPSEC; // no dedicated section, don't hide the entries
+#endif
+#ifdef PROFILING
+    profiler_loaded = datadog_profiling_initialized;
+#else
+    tracer_groups |= DATADOG_PHPINFO_INI_PROFILER;
+#endif
+
+    datadog_phpinfo(appsec_loaded, profiler_loaded);
+
+    datadog_phpinfo_tracer();
+    datadog_phpinfo_ini_entries(zend_module, tracer_groups);
+
+#ifdef APPSEC
+    datadog_phpinfo_section("Datadog Application Security");
     if (datadog_appsec_initialized) {
         dd_appsec_minfo();
     }
+    datadog_phpinfo_ini_entries(zend_module, DATADOG_PHPINFO_INI_APPSEC);
 #endif
 #ifdef PROFILING
+    datadog_phpinfo_section("Datadog Profiler");
     if (datadog_profiling_initialized) {
         ddog_php_prof_minfo(zend_module);
     }
+    datadog_phpinfo_ini_entries(zend_module, DATADOG_PHPINFO_INI_PROFILER);
 #endif
 }
 
