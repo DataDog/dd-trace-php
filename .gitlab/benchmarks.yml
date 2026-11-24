@@ -419,10 +419,12 @@ check-big-regressions:
       exit 1
     else
       echo "Reports directory found with content - running regression check"
-      for part in bench bench_opcache tea_bench; do
-        for side in baseline candidate; do
-          if [ ! -f "reports/${side}_tracer_${part}.converted.json" ]; then
-            echo "ERROR: reports/${side}_tracer_${part}.converted.json is missing - a benchmarks-tracer shard had issues"
+      sides=candidate
+      if [ -s reports/baseline_branch.txt ]; then sides="baseline candidate"; fi
+      for result in tracer-bench-results tracer-bench-results-opcache tracer-tea-bench-results; do
+        for side in $sides; do
+          if [ ! -f "reports/${side}-${result}.converted.json" ]; then
+            echo "ERROR: reports/${side}-${result}.converted.json is missing - a benchmarks-tracer shard had issues"
             exit 1
           fi
         done

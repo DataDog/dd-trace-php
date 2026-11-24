@@ -84,19 +84,30 @@ experiments:
           cd "$CODE_SRC/benchmark/"
           rm -rf /tmp/logs/
           mkdir -p /tmp/logs
+          # A baseline from before TRACER_PART existed would run every part.
+          if [ -n "${TRACER_PART:-}" ] && ! grep -q TRACER_PART runall.sh; then
+            cp "$CI_PROJECT_DIR/benchmark/runall.sh" runall.sh
+          fi
           taskset -c 34-47 ./runall.sh
 
           if [ "$SCENARIO" = "profiler" ]; then
             mv "$ARTIFACTS_DIR/sirun_timeline.ndjson" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-sirun_timeline.ndjson"
             mv "$ARTIFACTS_DIR/sirun_exceptions.ndjson" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-sirun_exceptions.ndjson"
           elif [ "$SCENARIO" = "tracer" ]; then
-            # Give the OPCache subjects an "-opcache" suffix so they don't
-            # collide with the non-OPCache subjects (third column is the subject).
-            awk -F ',' -v OFS=',' 'NR == 1 { print } NR > 1 { $3 = $3 "-opcache"; print }' \
-              "$ARTIFACTS_DIR/tracer-bench-results-opcache.csv" > "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp" && \
+            if [ -z "${TRACER_PART:-}" ] || [ "$TRACER_PART" = phpbench-opcache ]; then
+              # Give the OPCache subjects an "-opcache" suffix so they don't
+              # collide with the non-OPCache subjects (third column is the subject).
+              awk -F ',' -v OFS=',' 'NR == 1 { print } NR > 1 { $3 = $3 "-opcache"; print }' \
+                "$ARTIFACTS_DIR/tracer-bench-results-opcache.csv" > "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp"
               mv "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results-opcache.csv"
-            mv "$ARTIFACTS_DIR/tracer-bench-results.csv" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results.csv"
-            mv "$ARTIFACTS_DIR/tracer-tea-bench-results.json" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-tea-bench-results.json"
+              rm "$ARTIFACTS_DIR/tracer-bench-results-opcache.csv"
+            fi
+            if [ -z "${TRACER_PART:-}" ] || [ "$TRACER_PART" = phpbench ]; then
+              mv "$ARTIFACTS_DIR/tracer-bench-results.csv" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results.csv"
+            fi
+            if [ -z "${TRACER_PART:-}" ] || [ "$TRACER_PART" = tea ]; then
+              mv "$ARTIFACTS_DIR/tracer-tea-bench-results.json" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-tea-bench-results.json"
+            fi
           elif [ "$SCENARIO" = "appsec" ]; then
             # Give the AppSec subjects an "-appsec" suffix so they don't collide
             # with the tracer subjects (third column is the subject).
