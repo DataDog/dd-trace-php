@@ -12,11 +12,17 @@ function expose($step, $allocation) {
             'variations' => array('on' => array('key' => 'on', 'value' => 'on')),
             'allocations' => array(array(
                 'key' => $allocation, 'rules' => array(), 'doLog' => true,
-                'splits' => array(array('variationKey' => 'on', 'serialId' => 1, 'shards' => array())),
+                'splits' => array(array('variationKey' => 'on', 'serialId' => 1, 'shards' => array(),
+                    'features' => array(array('key' => 'holdout.key', 'value' => 'h1', 'destinations' => array('HOOK'))))),
             )),
         )),
     )));
-    DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'user', array());
+    global $openFeatureClient;
+    if ($openFeatureClient) {
+        $openFeatureClient->getStringValue('flag', 'off', new OpenFeature\implementation\flags\EvaluationContext('user'));
+    } else {
+        DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'user', array());
+    }
     $handedOff = DDTrace\Testing\flush_ffe_exposures();
     echo $step, ': handed_off=', json_encode($handedOff), "\n";
 }

@@ -6,6 +6,7 @@ if (PHP_VERSION_ID < 80000) die('skip: OpenFeature requires PHP 8+');
 if (!is_file(__DIR__ . '/vendor/autoload.php')) die('skip: OpenFeature test dependencies required');
 ?>
 --ENV--
+DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 DD_METRICS_OTEL_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
@@ -51,6 +52,7 @@ $hook->onAfter = function () { throw new RuntimeException('after failed'); };
 $client->addHooks($hook);
 echo $client->getStringValue('flag', 'off', $context('rejected')), "\n";
 echo json_encode($recorded), "\n";
+var_dump(\DDTrace\Testing\flush_ffe_exposures());
 ?>
 --EXPECT--
 {"subject":"user","exposure":true,"serial":4,"features":{"holdout.key":"h1"}}
@@ -58,3 +60,4 @@ echo json_encode($recorded), "\n";
 {"subject":"rejected","exposure":false,"serial":null,"features":[]}
 off
 ["user","user"]
+bool(false)
