@@ -11,7 +11,7 @@ datadog.trace.generate_root_span=0
 <?php
 $file = __DIR__ . '/sidecar_agentless_invalid_site.log';
 clearstatcache(true, $file);
-$logs = (string) @file_get_contents($file);
+$logs = (string) @file_get_contents($file, false, null, 0, (int) @filesize($file));
 var_dump(strpos($logs, 'Invalid DD_SITE bad/site, falling back to datadoghq.com') !== false);
 ?>
 --EXPECT--
