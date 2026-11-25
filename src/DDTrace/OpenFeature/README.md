@@ -79,8 +79,12 @@ entries into `EvaluationDetails::getFlagMetadata()`.
 DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 ```
 
-With the default `true`, workers buffer eligible observations for the sidecar,
-which deduplicates across connected workers before sending to Datadog. The hook
-receives every completed evaluation with either setting; `isExposure()` selects
-eligible observations, including repeats. Evaluation counts use their own
-setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`.
+With the default `true`, workers buffer assignment changes for the sidecar,
+which deduplicates across connected workers before sending to Datadog. Each
+pending batch keeps up to 1,000 rows and coalesces repeats per flag and subject.
+Delivery is best effort: a full buffer drops additional changes, and the transport
+drops batches above its encoded-size limit (4 MiB by default).
+
+The hook receives every completed evaluation with either setting; `isExposure()`
+selects eligible observations, including repeats. Evaluation counts use their
+own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`.
