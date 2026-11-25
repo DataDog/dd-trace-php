@@ -134,7 +134,7 @@ parallelize=()
 test_paths=()
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) ]]; then
   extra_args="-j$(nproc)"
-elif [[ ${PHP_MAJOR_MINOR} =~ ^7\.[123]$ && $(nproc) -gt 1 ]]; then
+elif [[ ${PHP_MAJOR_MINOR} =~ ^7\.[0-3]$ && $(nproc) -gt 1 ]]; then
   parallelize=("${CI_PROJECT_DIR}/tooling/parallelize-run-tests.sh" "-j$(nproc)")
   # Old suites share files and ports across directories; keep them in one ordered batch.
   for suite in tests/{basic,security} sapi/cli/tests \
