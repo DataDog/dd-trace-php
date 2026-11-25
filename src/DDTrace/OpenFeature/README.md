@@ -1,8 +1,9 @@
 # Exposures in your own data store (OpenFeature)
 
-To record exposures in your own data store, set
-`DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false` and register
+To also record exposures in your own data store, register
 `DDTrace\OpenFeature\ExposureHook` on your OpenFeature client or API.
+For delivery exclusively to your own store, set
+`DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false`.
 
 ```php
 use DDTrace\OpenFeature\ExposureEvaluation;
@@ -79,6 +80,7 @@ DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 ```
 
 With the default `true`, workers buffer eligible observations for the sidecar,
-which deduplicates across connected workers before sending to Datadog. With `false`,
-customers can collect every eligible observation through the hook. Evaluation counts
-use their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`.
+which deduplicates across connected workers before sending to Datadog. The hook
+receives every completed evaluation with either setting; `isExposure()` selects
+eligible observations, including repeats. Evaluation counts use their own
+setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`.
