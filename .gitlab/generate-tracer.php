@@ -127,14 +127,29 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     foreach ($n in $names) { try { docker rm -f $n | Out-Null } catch {} }
     try { docker network rm net | Out-Null } catch {}
 
+    # A missing service otherwise leaves the tests waiting on it until the job timeout.
+    function Invoke-DockerPull([string]$image) {
+        $ErrorActionPreference = 'Continue'
+        $out = docker pull $image 2>&1 | Out-String
+        $code = $LASTEXITCODE
+        Write-Host $out
+        if ($code -eq 0) { return }
+        if ($out -match 'manifest unknown|no matching manifest|not found|unauthorized|denied') { Write-Host "ERROR: cannot pull $image (exit $code)"; exit 1 }
+        Write-Host "docker pull $image failed (exit $code); exiting 75 so GitLab retries"; exit 75
+    }
+
     # Start the container network and services
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+    if ($LASTEXITCODE -ne 0) { Write-Host "docker failed (exit $LASTEXITCODE); exiting 75 so GitLab retries"; exit 75 }
     # Force a pull so a runner with a stale cached digest doesn't skip the rebuilt image.
-    docker pull registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
+    Invoke-DockerPull registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
-    docker pull registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
+    if ($LASTEXITCODE -ne 0) { Write-Host "docker failed (exit $LASTEXITCODE); exiting 75 so GitLab retries"; exit 75 }
+    Invoke-DockerPull registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
     docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-6.0_windows
+    if ($LASTEXITCODE -ne 0) { Write-Host "docker failed (exit $LASTEXITCODE); exiting 75 so GitLab retries"; exit 75 }
     docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    if ($LASTEXITCODE -ne 0) { Write-Host "docker failed (exit $LASTEXITCODE); exiting 75 so GitLab retries"; exit 75 }
 
     # Enable NTFS long path support so cargo's libgit2-based git checkouts of
     # deeply nested dependencies (e.g. rust-tuf's interop-tests fixtures,

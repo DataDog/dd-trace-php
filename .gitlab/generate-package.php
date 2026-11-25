@@ -819,6 +819,7 @@ foreach ($windows_build_platforms as $platform) {
 
     # Start the container
     docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    if ($LASTEXITCODE -ne 0) { Write-Host "docker run failed (exit $LASTEXITCODE); exiting 75 so GitLab retries"; exit 75 }
 
     # Build nts (fail fast on any step); capture combined output for failure classification.
     # ErrorActionPreference=Continue so the build's native stderr (e.g. cargo warnings) is not
