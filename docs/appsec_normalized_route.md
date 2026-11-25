@@ -123,12 +123,18 @@ The route is the route path of the matched route. The request's base URL
 (the directory of the front controller) is not part of it. Symfony matches
 the decoded path, so a `%` in a route is static text (`%25`).
 
-The generator cache is loaded on every request, and the process-lifetime
-routing cache is keyed by a hash of the loaded data of the matched route. A
-route rebuilt by `cache:clear` or a deploy gets a new key whatever the file's
-modification time, and when opcache still serves the previous generator file,
-the entry used is the one for that file, which is the one Symfony routes with,
-so `http.route` is not changed.
+Where opcache is enabled, the generator cache is loaded on every request, and
+the process-lifetime routing cache is keyed by a hash of the loaded data of the
+matched route. A route rebuilt by `cache:clear` or a deploy gets a new key
+whatever the file's modification time, and when opcache still serves the
+previous generator file, the entry used is the one for that file, which is the
+one Symfony routes with, so `http.route` is not changed.
+
+Where opcache is not enabled for the SAPI (e.g. a long-running CLI server with
+`opcache.enable_cli` off), every load reads the file, so the cache is keyed by
+the generator file's path and modification time, and a cache hit does not load
+it. Nothing is cached while the modification time is the current second, since
+a rewrite within that second would keep it.
 
 ## Laminas
 

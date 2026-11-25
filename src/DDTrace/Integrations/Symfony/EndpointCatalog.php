@@ -82,12 +82,77 @@ class EndpointCatalog
     public static function cacheKeyForRouteData(array $routeData)
     {
         try {
-            return "symfony:v3\0" . md5(serialize($routeData));
+            $data = serialize($routeData);
         } catch (\Throwable $e) {
             return null;
         }
+
+        // xxh128 hashes a large route's data about 15 times faster than md5;
+        // it is part of ext/hash from PHP 8.1 on.
+        return "symfony:v3\0" . (PHP_VERSION_ID >= 80100 ? hash('xxh128', $data) : md5($data));
     }
 
+    /**
+     * Whether opcache may serve this process a script other than the file on
+     * disk holds now: it is loaded and enabled for this SAPI. It then decides
+     * on its own schedule (revalidate_freq, or never with validate_timestamps
+     * off) when to read a changed file again, so only the data a require
+     * returns tells which route table Symfony routes with, and the cache key
+     * must be derived from it (cacheKeyForRouteData()).
+     *
+     * When it may not, every require reads the generator file, and its path
+     * and modification time identify what it returns
+     * (generatorFileCacheKey()), so a cache hit needs no require. That is the
+     * case of long-running CLI servers, where opcache.enable_cli is off by
+     * default, and there a require reads and compiles the whole route table:
+     * about 0.3 ms for 100 routes and 3 ms for 1000.
+     *
+     * Errs towards true: an opcache that failed to start is still treated as
+     * one that may serve an older script.
+     */
+    public static function opcacheMayServeScripts(): bool
+    {
+        if (!extension_loaded('Zend OPcache')
+            || !filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOLEAN)) {
+            return false;
+        }
+
+        return (PHP_SAPI !== 'cli' && PHP_SAPI !== 'phpdbg')
+            || filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * The routing cache key of a route's cache entry when opcache cannot serve
+     * an older version of the generator file (see opcacheMayServeScripts()):
+     * the file's path and modification time, the route name and the locale.
+     *
+     * Null without generator file, and while the modification time is the
+     * current second or later: a further rewrite within that second would
+     * keep the same modification time. From the next second on, any rewrite
+     * changes it, so an entry built after that is always built from the file
+     * the key names.
+     *
+     * @return string|null
+     */
+    public static function generatorFileCacheKey($routeName, $locale, ContainerInterface $container)
+    {
+        $cacheDir = self::getCacheDir($container);
+        if ($cacheDir === null) {
+            return null;
+        }
+
+        $genFile = self::findGeneratorFile($cacheDir);
+        if ($genFile === null) {
+            return null;
+        }
+
+        $mtime = @filemtime($genFile);
+        if ($mtime === false || $mtime >= time()) {
+            return null;
+        }
+
+        return "symfony:file\0" . $genFile . "\0" . $mtime . "\0" . $routeName . "\0" . (string) $locale;
+    }
     /** Whether $routeData has the shape of a compiled generator route. */
     private static function isGeneratorRouteData($routeData): bool
     {

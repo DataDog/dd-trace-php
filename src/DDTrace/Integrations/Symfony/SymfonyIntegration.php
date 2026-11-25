@@ -441,16 +441,34 @@ class SymfonyIntegration extends Integration
                     && dd_trace_env_config("DD_API_SECURITY_ENABLED");
 
                 // The entry holds http.route, and the normalization once API
-                // Security needs it (see EndpointCatalog::routeCacheEntry()). It
-                // is keyed by the route data loaded on this request, so it is
-                // always built from the route Symfony routed with.
-                $routeData = EndpointCatalog::matchedRouteData($route_name, $locale, $container);
-                if ($routeData === null) {
-                    return;
+                // Security needs it (see EndpointCatalog::routeCacheEntry()).
+                // Where opcache may serve an older generator than the file
+                // holds, it is keyed by the route data loaded on this request,
+                // so it is always built from the route Symfony routed with.
+                // Otherwise the file's modification time identifies that data,
+                // and a hit skips the require (see
+                // EndpointCatalog::opcacheMayServeScripts()).
+                $routeData = null;
+                if (EndpointCatalog::opcacheMayServeScripts()) {
+                    $routeData = EndpointCatalog::matchedRouteData($route_name, $locale, $container);
+                    if ($routeData === null) {
+                        return;
+                    }
+                    $cacheKey = EndpointCatalog::cacheKeyForRouteData($routeData);
+                } else {
+                    $cacheKey = EndpointCatalog::generatorFileCacheKey($route_name, $locale, $container);
                 }
-                $cacheKey = EndpointCatalog::cacheKeyForRouteData($routeData);
                 $entry = $cacheKey === null ? false : \DDTrace\routing_cache_get($cacheKey);
                 if ($entry === false || ($apiSecurity && strpos($entry, "\0") === false)) {
+                    if ($routeData === null) {
+                        $routeData = EndpointCatalog::matchedRouteData($route_name, $locale, $container);
+                        if ($routeData === null) {
+                            return;
+                        }
+                        // A generator replaced between the key and this require
+                        // is cached under the old file's key. Ignored: that entry
+                        // is only reached if a file with the old mtime comes back.
+                    }
                     $entry = EndpointCatalog::routeCacheEntryFromRouteData($routeData, $apiSecurity);
                     if ($entry === null) {
                         return;

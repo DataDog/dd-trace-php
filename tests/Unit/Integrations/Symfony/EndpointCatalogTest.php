@@ -87,6 +87,76 @@ class EndpointCatalogTest extends BaseTestCase
         $this->assertNotSame(EndpointCatalog::cacheKeyForRouteData($old), EndpointCatalog::cacheKeyForRouteData($new));
     }
 
+    public function testCacheKeyHashesTheSerializedRouteData()
+    {
+        $data = [['slug'], [], [], [['variable', '/', '[^/]++', 'slug', true], ['text', '/blog']], [], []];
+        $serialized = serialize($data);
+        $hash = PHP_VERSION_ID >= 80100 ? hash('xxh128', $serialized) : md5($serialized);
+
+        $this->assertSame("symfony:v3\0" . $hash, EndpointCatalog::cacheKeyForRouteData($data));
+    }
+
+    public function testGeneratorFileKeyChangesWithTheModificationTime()
+    {
+        // Without opcache every require reads the file, so a generator renamed
+        // into place with an older modification time (cache:clear's warmup
+        // directory, rsync -a, cp -p, tar) is what the next require returns:
+        // its key must differ from the previous file's.
+        $cacheDir = $this->makeCacheDir();
+        $genFile = $cacheDir . DIRECTORY_SEPARATOR . 'url_generating_routes.php';
+        try {
+            $container = $this->containerWithCacheDir($cacheDir);
+            $this->writeGenerator($genFile, '/old-blog', time() - 120);
+            $oldKey = EndpointCatalog::generatorFileCacheKey('blog', 'en', $container);
+            $this->assertNotNull($oldKey);
+            $this->assertSame($oldKey, EndpointCatalog::generatorFileCacheKey('blog', 'en', $container));
+            $this->assertNotSame($oldKey, EndpointCatalog::generatorFileCacheKey('blog', null, $container));
+            $this->assertNotSame($oldKey, EndpointCatalog::generatorFileCacheKey('other', 'en', $container));
+
+            $this->writeGenerator($genFile . '.new', '/new-blog', time() - 3600);
+            rename($genFile . '.new', $genFile);
+            clearstatcache();
+            $newKey = EndpointCatalog::generatorFileCacheKey('blog', 'en', $container);
+            $this->assertNotNull($newKey);
+            $this->assertNotSame($oldKey, $newKey);
+        } finally {
+            $this->removeCacheDir($cacheDir);
+        }
+    }
+
+    public function testGeneratorFileKeyIsNullUntilTheModificationSecondHasPassed()
+    {
+        // A rewrite within the second of the modification time would keep it.
+        $cacheDir = $this->makeCacheDir();
+        $genFile = $cacheDir . DIRECTORY_SEPARATOR . 'url_generating_routes.php';
+        try {
+            $container = $this->containerWithCacheDir($cacheDir);
+            $this->assertNull(EndpointCatalog::generatorFileCacheKey('blog', null, $container));
+
+            $this->writeGenerator($genFile, '/blog', time() + 1);
+            $this->assertNull(EndpointCatalog::generatorFileCacheKey('blog', null, $container));
+
+            $this->writeGenerator($genFile, '/blog', time() - 1);
+            $this->assertNotNull(EndpointCatalog::generatorFileCacheKey('blog', null, $container));
+        } finally {
+            $this->removeCacheDir($cacheDir);
+        }
+    }
+
+    public function testOpcacheMayServeScriptsWhenItServesThem()
+    {
+        if (!extension_loaded('Zend OPcache')) {
+            $this->assertFalse(EndpointCatalog::opcacheMayServeScripts());
+        } elseif (self::opcacheServesScripts()) {
+            $this->assertTrue(EndpointCatalog::opcacheMayServeScripts());
+        } elseif (PHP_SAPI === 'cli' && !filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOLEAN)) {
+            // Long-running CLI servers: opcache.enable_cli is off by default.
+            $this->assertFalse(EndpointCatalog::opcacheMayServeScripts());
+        } else {
+            $this->markTestSkipped('opcache is loaded but does not serve scripts here');
+        }
+    }
+
     public function testRouteRebuiltInPlaceGetsANewKeyAndEntry()
     {
         // Whatever the generator file's modification time, a route that
