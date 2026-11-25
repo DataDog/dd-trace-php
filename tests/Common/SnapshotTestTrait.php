@@ -123,6 +123,8 @@ trait SnapshotTestTrait
      * @param string $token The token associated with the snapshotting session
      * @param array $fieldsToIgnore An array of fields to ignore when comparing the received traces with the expected
      * @param int $numExpectedTraces The number of traces to wait for. Defaults to 1
+     * @param array $regexPlaceholders Placeholder name => regex (without commas). The test agent replaces the matches in
+     * the received traces with {name}, so the snapshot must contain {name} instead
      * @return void
      */
     private function stopAndCompareSnapshotSession(
@@ -132,7 +134,8 @@ trait SnapshotTestTrait
         bool $snapshotMetrics = false,
         array $fieldsToIgnoreMetrics = ['openai.request.duration'],
         $logsFile = null,
-        $fieldsToIgnoreLogs = ['timestamp', 'dd.trace_id', 'dd.span_id']
+        $fieldsToIgnoreLogs = ['timestamp', 'dd.trace_id', 'dd.span_id'],
+        array $regexPlaceholders = []
     ) {
         if ($snapshotMetrics) {
             $this->stopAndCompareMetricsSnapshotSession($token, $fieldsToIgnoreMetrics);
@@ -155,6 +158,13 @@ trait SnapshotTestTrait
         }
         $url = self::$testAgentUrl . '/test/session/snapshot?ignores=' . implode(',', $fieldsToIgnore) .
             '&test_session_token=' . $token;
+        if ($regexPlaceholders) {
+            $placeholders = [];
+            foreach ($regexPlaceholders as $name => $regex) {
+                $placeholders[] = "$name:$regex";
+            }
+            $url .= '&regex_placeholders=' . rawurlencode(implode(',', $placeholders));
+        }
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -309,7 +319,8 @@ trait SnapshotTestTrait
         $fn,
         $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid', 'start', 'duration'],
         $numExpectedTraces = 1,
-        $tracer = null
+        $tracer = null,
+        $regexPlaceholders = []
     ) {
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
         self::putEnv('DD_TRACE_AGENT_RETRIES=3');
@@ -329,7 +340,8 @@ trait SnapshotTestTrait
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
 
-        $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, $numExpectedTraces);
+        // Metrics and logs aren't snapshotted here, so their ignore lists are unused
+        $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, $numExpectedTraces, false, [], null, [], $regexPlaceholders);
     }
 
     public function isolateTracerSnapshot(
