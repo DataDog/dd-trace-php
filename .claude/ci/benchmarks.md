@@ -10,7 +10,7 @@
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
-| `benchmarks-tracer` | `$MICROBENCHMARKS_CI_IMAGE` (see `.gitlab/benchmarks.yml`; built in-repo from `.gitlab/benchmarks/container/`) | Runs PHP tracer microbenchmarks via the Benchmarking Platform framework, one `TRACER_PART` (phpbench, phpbench-opcache, tea) per matrix job; skips automatically if no tracer-relevant files changed |
+| `benchmarks-tracer` | `$MICROBENCHMARKS_CI_IMAGE` (see `.gitlab/benchmarks.yml`; built in-repo from `.gitlab/benchmarks/container/`) | Runs PHP tracer microbenchmarks via the Benchmarking Platform framework, one `TRACER_PART` (phpbench, phpbench-opcache, tea) and, for the phpbench parts, one `PHPBENCH_SHARD` (1, 2) per matrix job; skips automatically if no tracer-relevant files changed |
 | `benchmarks-appsec` | same | Runs appsec microbenchmarks; produces `candidate.tar.gz` and `baseline.tar.gz` artifacts |
 | `benchmarks-profiler` | same | Runs profiler microbenchmarks |
 | `benchmarks-pr-comment` | `$MICROBENCHMARKS_CI_IMAGE` (see `.gitlab/benchmarks.yml`; built in-repo from `.gitlab/benchmarks/container/`) | Runs `.gitlab/benchmarks/bp-runner.pr-comment.yml`: posts the tracer comparison as a PR comment and uploads the results to the Benchmarking Platform API; needs `benchmarks-tracer`; allow_failure |

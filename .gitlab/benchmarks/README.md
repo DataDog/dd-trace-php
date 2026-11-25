@@ -44,9 +44,12 @@ Execution flow on each PR:
    capture, Datadog agent, one-time setup, then the candidate and baseline
    runs (the baseline is the PR's merge-target branch, at the merge base,
    resolved by bp-runner's auto lookup). `benchmarks-tracer` is a matrix of
-   three jobs, one per `TRACER_PART` (`phpbench`, `phpbench-opcache`, `tea`),
-   and `runall.sh` runs only that part. A baseline whose `runall.sh` predates
-   `TRACER_PART` runs the candidate's copy instead.
+   five jobs: `TRACER_PART` `phpbench` and `phpbench-opcache`, each split into
+   `PHPBENCH_SHARD` `1` (WordPress and Laravel) and `2` (every other subject),
+   and `tea`. `runall.sh` runs only that part and shard, and suffixes the
+   shard's result files with `-1` or `-2`. A baseline whose `runall.sh`
+   predates `TRACER_PART` or `PHPBENCH_SHARD` runs the candidate's copy
+   instead.
 2. Each run's `benchmark/` suite results are saved as
    `reports/$BASELINE_OR_CANDIDATE-<name>.<ext>` artifacts; only the AppSec job
    also uploads the logs, tarred as `candidate.tar.gz`/`baseline.tar.gz`.
@@ -55,7 +58,7 @@ Execution flow on each PR:
    `benchmarks-pr-comment*` jobs run their `bp-runner.pr-comment*.yml` to
    push the converted results to the Benchmarking Platform API so they land on
    the project's trend series.
-4. `check-big-regressions` and `benchmarks-pr-comment` merge the three
+4. `check-big-regressions` and `benchmarks-pr-comment` merge the five
    tracer jobs' `reports/`. The gate fails if any part's candidate (or, when
    there is a baseline branch, baseline) `.converted.json` is missing, or on
    regressions above the threshold of 10% in

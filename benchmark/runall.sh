@@ -17,6 +17,16 @@ export DD_REMOTE_CONFIG_ENABLED=false
 # benchmarks-tracer runs one part per matrix job; unset runs every part.
 part="${TRACER_PART:-}"
 case "$part" in ''|phpbench|phpbench-opcache|tea) ;; *) echo "unknown TRACER_PART=$part" >&2; exit 1 ;; esac
+# The phpbench parts run as two shards; unset runs every subject.
+shard="${PHPBENCH_SHARD:-}"
+filter=()
+case "$shard" in
+  '') ;;
+  1) filter=(FILTER='(WordPress|Laravel)Bench::') ;;
+  2) filter=(FILTER='^(?!.*(WordPress|Laravel)Bench::)') ;;
+  *) echo "unknown PHPBENCH_SHARD=$shard" >&2; exit 1 ;;
+esac
+suffix="${shard:+-$shard}"
 cd ..
 COMBINED_SO=tmp/build_combined/modules/ddtrace.so
 if [ -z "${DD_TRACE_ASSUME_COMPILED:-}" ]; then
@@ -49,16 +59,16 @@ elif [ "$SCENARIO" = "tracer" ]; then
 
   ## Non-OPCache Benchmarks
   if [ -z "$part" ] || [ "$part" = phpbench ]; then
-    make_combined call_benchmarks
-    cp tests/Benchmarks/reports/tracer-bench-results.csv "$ARTIFACTS_DIR/tracer-bench-results.csv"
+    make_combined call_benchmarks ${filter[@]+"${filter[@]}"}
+    cp tests/Benchmarks/reports/tracer-bench-results.csv "$ARTIFACTS_DIR/tracer-bench-results$suffix.csv"
   fi
 
   ## OPCache Benchmarks
   if [ -z "$part" ] || [ "$part" = phpbench-opcache ]; then
     # Start from a cleared Symfony cache, like the non-OPCache run.
     make_combined benchmarks_run_dependencies
-    make_combined call_benchmarks_opcache
-    cp tests/Benchmarks/reports/tracer-bench-results-opcache.csv "$ARTIFACTS_DIR/tracer-bench-results-opcache.csv"
+    make_combined call_benchmarks_opcache ${filter[@]+"${filter[@]}"}
+    cp tests/Benchmarks/reports/tracer-bench-results-opcache.csv "$ARTIFACTS_DIR/tracer-bench-results-opcache$suffix.csv"
   fi
 
   ## Request Startup/Shutdown Benchmarks
