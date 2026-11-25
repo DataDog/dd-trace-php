@@ -23,6 +23,19 @@ impl ProfilerGlobals {
             return false;
         }
 
+        Self::refill_sampling_interval(globals);
+        true
+    }
+
+    /// Refills `allocation_next_sample` from the per-thread exponential RNG.
+    ///
+    /// # Safety
+    /// `globals` must point to initialized module globals for the current
+    /// thread, and no other access to its allocation profiling state may be
+    /// active.
+    #[cold]
+    #[inline(never)]
+    pub unsafe fn refill_sampling_interval(globals: *mut ProfilerGlobals) {
         // SAFETY: GINIT initializes this state before sampling runs on the
         // owning PHP thread. This borrow ends before stack collection begins,
         // so reentrant allocation hooks cannot overlap it.
@@ -30,7 +43,6 @@ impl ProfilerGlobals {
         (*globals)
             .allocation_next_sample
             .set(stats.next_sampling_interval());
-        true
     }
 }
 

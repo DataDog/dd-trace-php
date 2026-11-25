@@ -324,16 +324,16 @@ unsafe extern "C" fn alloc_prof_malloc_custom(
     alloc_prof_malloc_impl::<true>(len)
 }
 
-#[inline(always)]
-unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void {
-    #[cfg(feature = "debug_stats")]
-    ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
-    #[cfg(feature = "debug_stats")]
-    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
+#[cold]
+#[inline(never)]
+unsafe fn alloc_prof_malloc_slow<const CUSTOM: bool>(
+    globals: *mut ProfilerGlobals,
+    len: size_t,
+    reported_len: size_t,
+) -> *mut c_void {
+    ProfilerGlobals::refill_sampling_interval(globals);
 
-    let globals = module_globals::get_profiler_globals();
     let state = (*globals).zend_mm_state.get();
-
     let ptr = if CUSTOM {
         let alloc = state.prev_custom_mm_alloc.unwrap();
         #[cfg(php_debug)]
@@ -352,14 +352,50 @@ unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void
         ptr
     };
 
-    let Some(len) = allocation_size_class(len) else {
-        return ptr;
-    };
-    if ProfilerGlobals::should_collect(globals, len) {
-        collect_allocation(unsafe { &(*globals).interrupt_count }, ptr, len);
+    collect_allocation(unsafe { &(*globals).interrupt_count }, ptr, reported_len);
+    ptr
+}
+
+#[inline(always)]
+unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void {
+    #[cfg(feature = "debug_stats")]
+    ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
+    #[cfg(feature = "debug_stats")]
+    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
+
+    let globals = module_globals::get_profiler_globals();
+    if let Some(reported_len) = allocation_size_class(len) {
+        let remaining = (*globals).allocation_next_sample.get() - reported_len as i64;
+        (*globals).allocation_next_sample.set(remaining);
+        if remaining <= 0 {
+            return alloc_prof_malloc_slow::<CUSTOM>(globals, len, reported_len);
+        }
     }
 
-    ptr
+    let state = (*globals).zend_mm_state.get();
+    if CUSTOM {
+        let alloc = state.prev_custom_mm_alloc.unwrap();
+        #[cfg(php_debug)]
+        {
+            alloc(len, ptr::null(), 0, ptr::null(), 0)
+        }
+        #[cfg(not(php_debug))]
+        {
+            alloc(len)
+        }
+    } else {
+        // SAFETY: this callback is only invoked after rinit stores the heap and
+        // before rshutdown clears it.
+        let heap = state.heap.unwrap_unchecked().as_ptr();
+        #[cfg(php_debug)]
+        {
+            zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0)
+        }
+        #[cfg(not(php_debug))]
+        {
+            zend::_zend_mm_alloc(heap, len)
+        }
+    }
 }
 
 /// This function exists because when calling `zend_mm_set_custom_handlers()`,
@@ -492,6 +528,41 @@ unsafe extern "C" fn alloc_prof_realloc_custom<const UNTRACK: bool>(
     alloc_prof_realloc_impl::<UNTRACK, true>(prev_ptr, len)
 }
 
+#[cold]
+#[inline(never)]
+unsafe fn alloc_prof_realloc_slow<const CUSTOM: bool>(
+    globals: *mut ProfilerGlobals,
+    prev_ptr: *mut c_void,
+    len: size_t,
+    reported_len: size_t,
+) -> *mut c_void {
+    ProfilerGlobals::refill_sampling_interval(globals);
+
+    let state = (*globals).zend_mm_state.get();
+    let ptr = if CUSTOM {
+        let realloc = state.prev_custom_mm_realloc.unwrap();
+        #[cfg(php_debug)]
+        let ptr = realloc(prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
+        #[cfg(not(php_debug))]
+        let ptr = realloc(prev_ptr, len);
+        ptr
+    } else {
+        // SAFETY: this callback is only invoked after rinit stores the heap and
+        // before rshutdown clears it.
+        let heap = state.heap.unwrap_unchecked().as_ptr();
+        #[cfg(php_debug)]
+        let ptr = zend::_zend_mm_realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
+        #[cfg(not(php_debug))]
+        let ptr = zend::_zend_mm_realloc(heap, prev_ptr, len);
+        ptr
+    };
+
+    if !ptr.is_null() {
+        collect_allocation(unsafe { &(*globals).interrupt_count }, ptr, reported_len);
+    }
+    ptr
+}
+
 #[inline(always)]
 unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
     prev_ptr: *mut c_void,
@@ -503,8 +574,43 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
     let globals = module_globals::get_profiler_globals();
-    let state = (*globals).zend_mm_state.get();
 
+    if !UNTRACK {
+        if let Some(reported_len) = allocation_size_class(len) {
+            let remaining = (*globals).allocation_next_sample.get() - reported_len as i64;
+            (*globals).allocation_next_sample.set(remaining);
+            if remaining <= 0 {
+                return alloc_prof_realloc_slow::<CUSTOM>(globals, prev_ptr, len, reported_len);
+            }
+        }
+
+        let state = (*globals).zend_mm_state.get();
+        return if CUSTOM {
+            let realloc = state.prev_custom_mm_realloc.unwrap();
+            #[cfg(php_debug)]
+            {
+                realloc(prev_ptr, len, ptr::null(), 0, ptr::null(), 0)
+            }
+            #[cfg(not(php_debug))]
+            {
+                realloc(prev_ptr, len)
+            }
+        } else {
+            // SAFETY: this callback is only invoked after rinit stores the heap and
+            // before rshutdown clears it.
+            let heap = state.heap.unwrap_unchecked().as_ptr();
+            #[cfg(php_debug)]
+            {
+                zend::_zend_mm_realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0)
+            }
+            #[cfg(not(php_debug))]
+            {
+                zend::_zend_mm_realloc(heap, prev_ptr, len)
+            }
+        };
+    }
+
+    let state = (*globals).zend_mm_state.get();
     let ptr = if CUSTOM {
         let realloc = state.prev_custom_mm_realloc.unwrap();
         #[cfg(php_debug)]
@@ -525,9 +631,9 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
 
     // ZendMM allocation failures raise a fatal error and bail out instead of
     // returning NULL. If realloc returns, prev_ptr has been consumed: untrack it
-    // before any userland-only early return, then let the new allocation be
-    // re-sampled at the reported size.
-    if UNTRACK && !prev_ptr.is_null() {
+    // before any early return, then let the new allocation be re-sampled at the
+    // reported size.
+    if !prev_ptr.is_null() {
         untrack_allocation(prev_ptr);
     }
 
