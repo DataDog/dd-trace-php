@@ -24,8 +24,13 @@ $windows_minor_major_targets = array_values(array_filter($all_minor_major_target
 $profiler_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.1", ">="); }));
 
 // Newest GA PHP release. Jobs that need a released PHP (lint, Configuration Consistency,
-// sidecar uid verify) run on it. Bump to "8.6" at PHP 8.6 GA.
+// sidecar uid verify) run on it. Bump to "8.6" at PHP 8.6 GA, and move SURY_MIRROR
+// (dockerfiles/verify_packages/apt_common.sh) to a snapshot with the GA build.
 $latest_ga_minor_major = "8.5";
+
+// Third-party PHP builds (Docker Hub, Sury) lag our pre-GA RCs and break on the module API,
+// so verify alpine/debian only install GA versions.
+$verify_ga_minor_major_targets = array_values(array_filter($all_minor_major_targets, function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, "<="); }));
 
 // In GitLab CI we use k8s and have to bind to `127.0.0.1`
 $service_bind_address = "0.0.0.0";
