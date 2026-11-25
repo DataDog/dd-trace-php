@@ -25,6 +25,10 @@ use crate::profiling::allocation::allocation_le83::ZendMMState;
 /// native threads, which we consider a bug in ext/grpc.
 #[repr(C)]
 pub struct ProfilerGlobals {
+    /// Bytes remaining until the next allocation sample. Kept adjacent to
+    /// `zend_mm_state.heap` so the allocation hot path touches one cache line.
+    pub allocation_next_sample: Cell<i64>,
+
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
@@ -151,6 +155,7 @@ pub unsafe extern "C" fn ginit(globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::profiling::timeline::timeline_ginit(globals);
 
+    ptr::addr_of_mut!((*globals).allocation_next_sample).write(Cell::new(0));
     ptr::addr_of_mut!((*globals).zend_mm_state).write(Cell::new(ZendMMState::new()));
     ptr::addr_of_mut!((*globals).interrupt_count).write(AtomicU32::new(0));
     #[cfg(target_os = "linux")]

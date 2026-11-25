@@ -2,7 +2,7 @@ use crate::profiling::allocation::{allocation_size_class, collect_allocation, un
 use crate::profiling::bindings as zend;
 use crate::profiling::module_globals::{self, ProfilerGlobals};
 use crate::profiling::PROFILER_NAME;
-use core::ptr;
+use core::ptr::{self, NonNull};
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, trace, warn};
 use std::sync::atomic::Ordering::Relaxed;
@@ -17,13 +17,15 @@ use libc::c_uint;
 #[cfg(feature = "debug_stats")]
 use crate::profiling::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct ZendMMState {
     /// The heap installed in ZendMM at the time we install our custom
     /// handlers, this is also the heap our custom handlers are installed in.
     /// We need this in case there is no custom handlers installed prior to us,
     /// in order to forward our allocation calls to this heap.
-    heap: Option<*mut zend::zend_mm_heap>,
+    /// Kept first so it shares a cache line with `ProfilerGlobals::allocation_next_sample`.
+    heap: Option<NonNull<zend::zend_mm_heap>>,
     /// Selects the free/realloc handlers installed for this request.
     heap_live_enabled: bool,
     /// The engine's previous custom allocation function, if there is one.
@@ -94,7 +96,7 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
         // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
         let heap = unsafe { zend::zend_mm_get_heap() };
 
-        zend_mm_state.heap = Some(heap);
+        zend_mm_state.heap = NonNull::new(heap);
         zend_mm_state.heap_live_enabled = heap_live_enabled;
 
         if unsafe { !zend::is_zend_mm() } {
@@ -175,7 +177,7 @@ pub(super) unsafe fn deactivate() {
         let mut custom_mm_gc: Option<zend::VmMmCustomGcFn> = None;
         let mut custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn> = None;
 
-        let Some(heap) = zend_mm_state.heap else {
+        let Some(heap) = zend_mm_state.heap.map(NonNull::as_ptr) else {
             // No handlers were installed, or a previous cleanup restored them.
             return zend_mm_state;
         };
@@ -350,7 +352,7 @@ unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void
     } else {
         // SAFETY: this callback is only invoked after rinit stores the heap and
         // before rshutdown clears it.
-        let heap = state.heap.unwrap_unchecked();
+        let heap = state.heap.unwrap_unchecked().as_ptr();
         #[cfg(php_debug)]
         let ptr = zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0);
         #[cfg(not(php_debug))]
@@ -450,7 +452,7 @@ unsafe fn alloc_prof_free_impl<const TRACK: bool, const CUSTOM: bool>(ptr: *mut 
     } else {
         // SAFETY: this callback is only invoked after rinit stores the heap and
         // before rshutdown clears it.
-        let heap = state.heap.unwrap_unchecked();
+        let heap = state.heap.unwrap_unchecked().as_ptr();
         #[cfg(php_debug)]
         zend::_zend_mm_free(heap, ptr, core::ptr::null(), 0, core::ptr::null(), 0);
         #[cfg(not(php_debug))]
@@ -541,7 +543,7 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
     } else {
         // SAFETY: this callback is only invoked after rinit stores the heap and
         // before rshutdown clears it.
-        let heap = state.heap.unwrap_unchecked();
+        let heap = state.heap.unwrap_unchecked().as_ptr();
         #[cfg(php_debug)]
         let ptr = zend::_zend_mm_realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
         #[cfg(not(php_debug))]
@@ -598,7 +600,7 @@ unsafe fn alloc_prof_orig_gc() -> size_t {
     // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
     // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
     // safe here as we have full control over ZendMM with no neighboring extensions.
-    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked().as_ptr();
     let custom_heap = prepare_zend_heap(heap);
     let size = zend::zend_mm_gc(heap);
     restore_zend_heap(heap, custom_heap);
@@ -619,7 +621,7 @@ unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
     // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
     // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
     // safe here as we have full control over ZendMM with no neighboring extensions.
-    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked().as_ptr();
     let custom_heap = prepare_zend_heap(heap);
     zend::zend_mm_shutdown(heap, full, silent);
     restore_zend_heap(heap, custom_heap);

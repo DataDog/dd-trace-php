@@ -17,11 +17,20 @@ impl ProfilerGlobals {
     /// active.
     #[inline(always)]
     pub unsafe fn should_collect(globals: *mut ProfilerGlobals, len: size_t) -> bool {
+        let remaining = (*globals).allocation_next_sample.get() - len as i64;
+        (*globals).allocation_next_sample.set(remaining);
+        if remaining > 0 {
+            return false;
+        }
+
         // SAFETY: GINIT initializes this state before sampling runs on the
         // owning PHP thread. This borrow ends before stack collection begins,
         // so reentrant allocation hooks cannot overlap it.
         let stats = unsafe { (*(*globals).allocation_profiling_stats.get()).assume_init_mut() };
-        stats.should_collect_allocation(len)
+        (*globals)
+            .allocation_next_sample
+            .set(stats.next_sampling_interval());
+        true
     }
 }
 
@@ -35,9 +44,11 @@ pub unsafe fn ginit(globals: *mut ProfilerGlobals) {
     // SAFETY: ALLOCATION_PROFILING_INTERVAL is always greater than zero.
     let sampling_distance = unsafe { NonZeroU64::new_unchecked(interval) };
     // SAFETY: GINIT supplies the storage to initialize before allocator hooks run.
+    let mut stats = AllocationProfilingStats::new(sampling_distance);
+    let next_sample = stats.next_sampling_interval();
     unsafe {
-        (*(*globals).allocation_profiling_stats.get())
-            .write(AllocationProfilingStats::new(sampling_distance));
+        (*globals).allocation_next_sample.set(next_sample);
+        (*(*globals).allocation_profiling_stats.get()).write(stats);
     }
 }
 
@@ -51,6 +62,9 @@ pub unsafe fn minit(sampling_distance: NonZeroU64) {
     let globals = unsafe { module_globals::get_profiler_globals() };
     let stats = unsafe { (*(*globals).allocation_profiling_stats.get()).assume_init_mut() };
     *stats = AllocationProfilingStats::new(sampling_distance);
+    (*globals)
+        .allocation_next_sample
+        .set(stats.next_sampling_interval());
 }
 
 /// Drops the allocation sampling state.

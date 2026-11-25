@@ -136,8 +136,6 @@ pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
 pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub struct AllocationProfilingStats {
-    /// Number of bytes remaining until the next sample collection.
-    next_sample: i64,
     mean: f64,
     // GSHUTDOWN may destroy these globals on another thread. Own the RNG
     // instead of holding a ThreadRng handle into the creator's native TLS.
@@ -146,26 +144,26 @@ pub struct AllocationProfilingStats {
 
 impl AllocationProfilingStats {
     fn new(sampling_distance: NonZeroU64) -> AllocationProfilingStats {
-        let mut stats = AllocationProfilingStats {
-            next_sample: 0,
+        AllocationProfilingStats {
             mean: sampling_distance.get() as f64,
             rng: StdRng::from_os_rng(),
-        };
-        stats.next_sampling_interval();
-        stats
+        }
     }
 
-    fn next_sampling_interval(&mut self) {
-        self.next_sample = sample_exponential_interval(&mut self.rng, self.mean) as i64;
+    #[cold]
+    #[inline(never)]
+    pub(super) fn next_sampling_interval(&mut self) -> i64 {
+        sample_exponential_interval(&mut self.rng, self.mean) as i64
     }
 
-    fn should_collect_allocation(&mut self, len: size_t) -> bool {
-        self.next_sample -= len as i64;
-        if self.next_sample > 0 {
+    #[cfg(test)]
+    fn should_collect_allocation(&mut self, next_sample: &mut i64, len: size_t) -> bool {
+        *next_sample -= len as i64;
+        if *next_sample > 0 {
             return false;
         }
 
-        self.next_sampling_interval();
+        *next_sample = self.next_sampling_interval();
         true
     }
 }
@@ -342,9 +340,9 @@ mod tests {
         ] {
             let mut stats = AllocationProfilingStats::new(NonZeroU64::new(mean as u64).unwrap());
             stats.rng = StdRng::seed_from_u64(42);
-            stats.next_sampling_interval();
+            let mut next_sample = stats.next_sampling_interval();
             let sampled = (0..trials)
-                .filter(|_| stats.should_collect_allocation(size))
+                .filter(|_| stats.should_collect_allocation(&mut next_sample, size))
                 .count();
             let probability = 1.0 - (-(size as f64) / mean).exp();
             let expected = trials as f64 * probability;
