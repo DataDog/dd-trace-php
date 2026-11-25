@@ -43,7 +43,10 @@ Execution flow on each PR:
    runs `bp-runner .gitlab/benchmarks/bp-runner.yml`: hardware/software info
    capture, Datadog agent, one-time setup, then the candidate and baseline
    runs (the baseline is the PR's merge-target branch, at the merge base,
-   resolved by bp-runner's auto lookup).
+   resolved by bp-runner's auto lookup). `benchmarks-tracer` is a matrix of
+   three jobs, one per `TRACER_PART` (`phpbench`, `phpbench-opcache`, `tea`),
+   and `runall.sh` runs only that part. A baseline whose `runall.sh` predates
+   `TRACER_PART` runs the candidate's copy instead.
 2. Each run's `benchmark/` suite results are saved as
    `reports/$BASELINE_OR_CANDIDATE-<name>.<ext>` artifacts; only the AppSec job
    also uploads the logs, tarred as `candidate.tar.gz`/`baseline.tar.gz`.
@@ -52,8 +55,11 @@ Execution flow on each PR:
    `benchmarks-pr-comment*` jobs run their `bp-runner.pr-comment*.yml` to
    push the converted results to the Benchmarking Platform API so they land on
    the project's trend series.
-4. `check-big-regressions` gates the pipeline on regressions above the
-   threshold of 10% in `bp-runner.fail-on-regression.yml`, and
+4. `check-big-regressions` and `benchmarks-pr-comment` merge the three
+   tracer jobs' `reports/`. The gate fails if any part's candidate (or, when
+   there is a baseline branch, baseline) `.converted.json` is missing, or on
+   regressions above the threshold of 10% in
+   `bp-runner.fail-on-regression.yml`, and
    `benchmarks-pr-comment*` comments the comparison on the PR.
 
 ## How to add a new microbenchmark
