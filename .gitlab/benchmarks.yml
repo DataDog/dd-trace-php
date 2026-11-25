@@ -256,6 +256,8 @@ workflow:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     DD_SIDECAR_DISABLE_DIRECT_EXEC: 1
+    # Experiment only: run the baseline although the branch has no PR.
+    BASELINE_BRANCH: master
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     # Analyzer settings. Every bp-runner step inherits the CI process environment,
     # so the settings live here instead of the config.
