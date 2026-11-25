@@ -3,7 +3,7 @@ FROM centos:7
 RUN set -eux; \
 # Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore
 # https://serverfault.com/a/1161847
-    sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo; \
+    sed -i 's|http://mirror.centos.org|https://depot-read-api-bzl.us1.ddbuild.io/vault.centos.org|g' /etc/yum.repos.d/*.repo; \
     sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo; \
     sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo; \
     echo 'ip_resolve = IPv4' >>/etc/yum.conf; \
@@ -34,7 +34,7 @@ RUN set -eux; \
         vim \
         xz; \
 # package centos-release-scl installs new yum repos, we must fix them too
-    sed -i s/mirror.centos.org/buildlogs.centos.org/g /etc/yum.repos.d/CentOS-SCLo-*.repo; \
+    sed -i 's|http://mirror.centos.org|https://depot-read-api-bzl.us1.ddbuild.io/buildlogs.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*.repo; \
     sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/CentOS-SCLo-*.repo; \
     sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/CentOS-SCLo-*.repo; \
     yum update nss nss-util nss-sysinit nss-tools; \
