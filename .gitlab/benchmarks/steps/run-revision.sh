@@ -18,8 +18,10 @@ fi
 cd "$CODE_SRC/benchmark/"
 rm -rf /tmp/logs/
 mkdir -p /tmp/logs
-# A baseline from before TRACER_PART existed would run every part.
-if [ -n "${TRACER_PART:-}" ] && ! grep -q TRACER_PART runall.sh; then
+# A baseline from before TRACER_PART or PHPBENCH_SHARD existed would run
+# every part or subject.
+if { [ -n "${TRACER_PART:-}" ] && ! grep -q TRACER_PART runall.sh; } ||
+  { [ -n "${PHPBENCH_SHARD:-}" ] && ! grep -q PHPBENCH_SHARD runall.sh; }; then
   cp "$CI_PROJECT_DIR/benchmark/runall.sh" runall.sh
 fi
 taskset -c 34-47 ./runall.sh
@@ -34,15 +36,17 @@ if [ "$SCENARIO" = profiler ]; then
   mv "$ARTIFACTS_DIR/sirun_timeline.ndjson" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-sirun_timeline.ndjson"
   mv "$ARTIFACTS_DIR/sirun_exceptions.ndjson" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-sirun_exceptions.ndjson"
 elif [ "$SCENARIO" = tracer ]; then
+  # The phpbench parts run as shards; suffix their result files -1/-2.
+  suffix="${PHPBENCH_SHARD:+-$PHPBENCH_SHARD}"
   if [ -z "${TRACER_PART:-}" ] || [ "$TRACER_PART" = phpbench-opcache ]; then
     # The third CSV column is the subject; distinguish OPcache subjects.
     awk -F ',' -v OFS=',' 'NR == 1 { print } NR > 1 { $3 = $3 "-opcache"; print }' \
-      "$ARTIFACTS_DIR/tracer-bench-results-opcache.csv" > "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp"
-    mv "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results-opcache.csv"
-    rm "$ARTIFACTS_DIR/tracer-bench-results-opcache.csv"
+      "$ARTIFACTS_DIR/tracer-bench-results-opcache$suffix.csv" > "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp"
+    mv "$ARTIFACTS_DIR/tracer-bench-results-opcache.tmp" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results-opcache$suffix.csv"
+    rm "$ARTIFACTS_DIR/tracer-bench-results-opcache$suffix.csv"
   fi
   if [ -z "${TRACER_PART:-}" ] || [ "$TRACER_PART" = phpbench ]; then
-    mv "$ARTIFACTS_DIR/tracer-bench-results.csv" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results.csv"
+    mv "$ARTIFACTS_DIR/tracer-bench-results$suffix.csv" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-bench-results$suffix.csv"
   fi
   if [ -z "${TRACER_PART:-}" ] || [ "$TRACER_PART" = tea ]; then
     mv "$ARTIFACTS_DIR/tracer-tea-bench-results.json" "$ARTIFACTS_DIR/$BASELINE_OR_CANDIDATE-tracer-tea-bench-results.json"
