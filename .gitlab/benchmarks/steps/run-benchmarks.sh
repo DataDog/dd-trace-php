@@ -39,7 +39,8 @@ if [ -z "${BASELINE_BRANCH:-}" ]; then
   BASELINE_BRANCH=$(github-find-merge-into-branch \
     --for-repo="$CI_PROJECT_NAME" --for-pr="$CI_COMMIT_REF_NAME")
 fi
-printf '%s\n' "$BASELINE_BRANCH" > "$ARTIFACTS_DIR/baseline_branch.txt"
+# No trailing newline: check-big-regressions tests whether the file is empty.
+printf '%s' "$BASELINE_BRANCH" > "$ARTIFACTS_DIR/baseline_branch.txt"
 if [ -n "$BASELINE_BRANCH" ]; then
   BASELINE_SHA=$(git -C "$CANDIDATE_SRC" merge-base \
     "origin/$BASELINE_BRANCH" "$CI_COMMIT_SHA")
