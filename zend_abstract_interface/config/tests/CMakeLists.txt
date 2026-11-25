@@ -1,6 +1,6 @@
 # --- Second consumer as an isolated shared library ---
-# Compiles all zai_config sources into the .so so it gets its own independent globals.
-# PHP/Tea symbols are NOT linked (not PIC); they resolve from the main binary at load time.
+# Compiles zai_config and its ZAI deps (env, json, string) into the .so so it gets its own globals.
+# PHP symbols are NOT linked; they resolve from libphp at load time.
 add_library(second_consumer_ext MODULE
     ext_second_consumer.cc
     ${PROJECT_SOURCE_DIR}/config/config.c
@@ -8,6 +8,9 @@ add_library(second_consumer_ext MODULE
     ${PROJECT_SOURCE_DIR}/config/config_ini.c
     ${PROJECT_SOURCE_DIR}/config/config_stable_file.c
     ${PROJECT_SOURCE_DIR}/config/config_runtime.c
+    ${PROJECT_SOURCE_DIR}/env/env.c
+    ${PROJECT_SOURCE_DIR}/json/json.c
+    ${PROJECT_SOURCE_DIR}/zai_string/string.c
 )
 
 set_target_properties(second_consumer_ext PROPERTIES
@@ -39,7 +42,7 @@ target_compile_definitions(second_consumer_ext PRIVATE
     $<TARGET_PROPERTY:Tea::Php,INTERFACE_COMPILE_DEFINITIONS>
 )
 
-# Allow PHP/Tea/Zai symbols to remain undefined at link time; resolved at load time.
+# Allow PHP symbols to remain undefined at link time; resolved from libphp at load time.
 # macOS ld uses -undefined dynamic_lookup; GNU ld uses --unresolved-symbols=ignore-all.
 target_link_options(second_consumer_ext PRIVATE
     $<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>
