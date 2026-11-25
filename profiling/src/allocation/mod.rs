@@ -10,7 +10,51 @@ use crate::profiling::profiler::Profiler;
 use crate::profiling::{sample_exponential_interval, RequestLocals};
 use core::cell::Cell;
 use core::ptr;
+#[cfg(php_debug)]
+use libc::{c_char, c_uint};
 use libc::size_t;
+
+#[cfg(not(php_debug))]
+pub(super) type ZendMmAllocFn =
+    unsafe extern "C" fn(heap: *mut zend::zend_mm_heap, size: size_t) -> *mut c_void;
+#[cfg(php_debug)]
+pub(super) type ZendMmAllocFn = unsafe extern "C" fn(
+    heap: *mut zend::zend_mm_heap,
+    size: size_t,
+    file: *const c_char,
+    line: c_uint,
+    orig_file: *const c_char,
+    orig_line: c_uint,
+) -> *mut c_void;
+
+#[cfg(not(php_debug))]
+pub(super) type ZendMmFreeFn = unsafe extern "C" fn(heap: *mut zend::zend_mm_heap, p: *mut c_void);
+#[cfg(php_debug)]
+pub(super) type ZendMmFreeFn = unsafe extern "C" fn(
+    heap: *mut zend::zend_mm_heap,
+    p: *mut c_void,
+    file: *const c_char,
+    line: c_uint,
+    orig_file: *const c_char,
+    orig_line: c_uint,
+);
+
+#[cfg(not(php_debug))]
+pub(super) type ZendMmReallocFn = unsafe extern "C" fn(
+    heap: *mut zend::zend_mm_heap,
+    p: *mut c_void,
+    size: size_t,
+) -> *mut c_void;
+#[cfg(php_debug)]
+pub(super) type ZendMmReallocFn = unsafe extern "C" fn(
+    heap: *mut zend::zend_mm_heap,
+    p: *mut c_void,
+    size: size_t,
+    file: *const c_char,
+    line: c_uint,
+    orig_file: *const c_char,
+    orig_line: c_uint,
+) -> *mut c_void;
 use log::{debug, trace};
 use rand::{rngs::StdRng, SeedableRng};
 use std::ffi::c_void;

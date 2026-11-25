@@ -1,4 +1,7 @@
-use crate::profiling::allocation::{allocation_size_class, collect_allocation, untrack_allocation};
+use crate::profiling::allocation::{
+    allocation_size_class, collect_allocation, untrack_allocation, ZendMmAllocFn, ZendMmFreeFn,
+    ZendMmReallocFn,
+};
 use crate::profiling::bindings as zend;
 use crate::profiling::module_globals::{self, ProfilerGlobals};
 use crate::profiling::PROFILER_NAME;
@@ -23,6 +26,11 @@ pub struct ZendMMState {
     /// in order to forward our allocation calls to this heap.
     /// Kept first so it shares a cache line with `ProfilerGlobals::allocation_next_sample`.
     heap: Option<NonNull<zend::zend_mm_heap>>,
+    /// Cached resolved ZendMM entry points in the same cache line as `heap`
+    /// to avoid per-call PLT / dyld-stub jumps back into PHP.
+    orig_mm_alloc: Option<ZendMmAllocFn>,
+    orig_mm_free: Option<ZendMmFreeFn>,
+    orig_mm_realloc: Option<ZendMmReallocFn>,
     /// Selects the free/realloc handlers installed for this request.
     heap_live_enabled: bool,
     /// The engine's previous custom allocation function, if there is one.
@@ -60,6 +68,9 @@ impl ZendMMState {
     pub const fn new() -> ZendMMState {
         ZendMMState {
             heap: None,
+            orig_mm_alloc: None,
+            orig_mm_free: None,
+            orig_mm_realloc: None,
             heap_live_enabled: false,
             prev_custom_mm_alloc: None,
             prev_custom_mm_realloc: None,
@@ -94,6 +105,9 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
         let heap = unsafe { zend::zend_mm_get_heap() };
 
         zend_mm_state.heap = NonNull::new(heap);
+        zend_mm_state.orig_mm_alloc = Some(zend::_zend_mm_alloc);
+        zend_mm_state.orig_mm_free = Some(zend::_zend_mm_free);
+        zend_mm_state.orig_mm_realloc = Some(zend::_zend_mm_realloc);
         zend_mm_state.heap_live_enabled = heap_live_enabled;
 
         if unsafe { !zend::is_zend_mm() } {
@@ -384,16 +398,17 @@ unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void
             alloc(len)
         }
     } else {
-        // SAFETY: this callback is only invoked after rinit stores the heap and
-        // before rshutdown clears it.
+        // SAFETY: this callback is only invoked after rinit stores the heap
+        // and resolved ZendMM entry points, and before rshutdown clears them.
         let heap = state.heap.unwrap_unchecked().as_ptr();
+        let alloc = state.orig_mm_alloc.unwrap_unchecked();
         #[cfg(php_debug)]
         {
-            zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0)
+            alloc(heap, len, ptr::null(), 0, ptr::null(), 0)
         }
         #[cfg(not(php_debug))]
         {
-            zend::_zend_mm_alloc(heap, len)
+            alloc(heap, len)
         }
     }
 }
@@ -463,13 +478,14 @@ unsafe fn alloc_prof_free_impl<const TRACK: bool, const CUSTOM: bool>(ptr: *mut 
         #[cfg(not(php_debug))]
         free(ptr);
     } else {
-        // SAFETY: this callback is only invoked after rinit stores the heap and
-        // before rshutdown clears it.
+        // SAFETY: this callback is only invoked after rinit stores the heap
+        // and resolved ZendMM entry points, and before rshutdown clears them.
         let heap = state.heap.unwrap_unchecked().as_ptr();
+        let free = state.orig_mm_free.unwrap_unchecked();
         #[cfg(php_debug)]
-        zend::_zend_mm_free(heap, ptr, core::ptr::null(), 0, core::ptr::null(), 0);
+        free(heap, ptr, core::ptr::null(), 0, core::ptr::null(), 0);
         #[cfg(not(php_debug))]
-        zend::_zend_mm_free(heap, ptr);
+        free(heap, ptr);
     }
 }
 
@@ -596,16 +612,17 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
                 realloc(prev_ptr, len)
             }
         } else {
-            // SAFETY: this callback is only invoked after rinit stores the heap and
-            // before rshutdown clears it.
+            // SAFETY: this callback is only invoked after rinit stores the heap
+            // and resolved ZendMM entry points, and before rshutdown clears them.
             let heap = state.heap.unwrap_unchecked().as_ptr();
+            let realloc = state.orig_mm_realloc.unwrap_unchecked();
             #[cfg(php_debug)]
             {
-                zend::_zend_mm_realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0)
+                realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0)
             }
             #[cfg(not(php_debug))]
             {
-                zend::_zend_mm_realloc(heap, prev_ptr, len)
+                realloc(heap, prev_ptr, len)
             }
         };
     }
