@@ -13,13 +13,13 @@ DD_METRICS_OTEL_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_CLI_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=0
-DD_TRACE_AGENT_TIMEOUT=5000
 DD_SERVICE=php-ffe-pending-repeats
 --FILE--
 <?php
 require __DIR__ . '/stubs/exposure_capture.inc';
 // The producer gets its own sidecar extraction directory on Windows.
 putenv('DD_TRACE_CLI_ENABLED=1');
+putenv('DD_TRACE_AGENT_TIMEOUT=' . (getenv('USE_ZEND_ALLOC') === '0' ? '60000' : '5000'));
 putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true');
 putenv('DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess');
 putenv('_DD_DEBUG_SIDECAR_IPC_MODE=instance_per_process');
