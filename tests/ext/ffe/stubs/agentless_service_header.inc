@@ -29,8 +29,11 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService, $mapping =
         $environment['_DD_DEBUG_SIDECAR_IPC_MODE'] = 'instance_per_process';
         $environment['_DD_DEBUG_SIDECAR_IDLE_LINGER_TIME_SECS'] = '1';
     }
+    // Sidecars of other tests can still poll a port that this server reuses. The path tells
+    // the requests of this child apart.
+    $path = '/configuration/' . bin2hex(random_bytes(8));
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL'] =
-        'http://' . stream_socket_get_name($server, false) . '/configuration';
+        'http://' . stream_socket_get_name($server, false) . $path;
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS'] = '1';
     $environment['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS'] = $instrumented ? '10' : '1';
     $environment['DD_API_KEY'] = 'local-fixture-must-not-receive-this';
@@ -40,7 +43,9 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService, $mapping =
     $values = array();
     $running = true;
     $exitCode = null;
-    $deadline = microtime(true) + ($instrumented ? 60 : 15);
+    // Under valgrind, starting the child and its sidecar slows down with the load of the other
+    // test workers. run-tests' 300s valgrind timeout restarts with the line of each case.
+    $deadline = microtime(true) + ($instrumented ? 240 : 15);
     $configuration = array(
         'createdAt' => '2026-05-22T00:00:00Z', 'format' => 'SERVER',
         'environment' => array('name' => 'test'), 'flags' => new stdClass(),
@@ -73,7 +78,9 @@ function ffeTestAgentlessServiceHeader($name, $service, $otelService, $mapping =
                     $pair = explode(':', $line, 2);
                     if (count($pair) === 2) $headers[strtolower($pair[0])] = trim($pair[1]);
                 }
-                if ($route !== 'GET /configuration HTTP/1.1') throw new RuntimeException('unexpected CDN request: ' . $route);
+                $parts = explode(' ', $route, 3);
+                if (!isset($parts[1]) || $parts[1] !== $path) continue;
+                if ($route !== "GET $path HTTP/1.1") throw new RuntimeException('unexpected CDN request: ' . $route);
                 $values[] = isset($headers['dd-service']) ? $headers['dd-service'] : '(none)';
                 fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
                     . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);

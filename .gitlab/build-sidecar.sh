@@ -13,10 +13,9 @@ set -u
 
 suffix="${1:-}"
 
-# Workaround "error: failed to run custom build command for `aws-lc-sys v0.20.0`"
+# The Alpine image ships bindgen-cli (alpine_compile_extension base.Dockerfile).
 if [ "${suffix}" = "-alpine" ]; then
-  cargo install --force --locked bindgen-cli
-  export PATH="/root/.cargo/bin:$PATH"
+  command -v bindgen
 fi
 
 # Both release images have matched Clang/LLD and rust-src. The common DSO is

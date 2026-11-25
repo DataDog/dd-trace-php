@@ -226,7 +226,10 @@ workflow:
       if [ "${CHECK_TRACER_FILE_CHANGES:-false}" = "true" ] && [ "${CI_PARENT_PIPELINE_SOURCE}" != "pipeline" ]; then
         echo "Checking if tracer-related files changed..."
         git fetch origin master:master 2>/dev/null || true
-        CHANGED_FILES=$(git diff --name-only HEAD master 2>/dev/null || echo "")
+        if ! CHANGED_FILES=$(git diff --name-only HEAD master); then
+          echo "Could not diff against master - running benchmarks"
+          CHANGED_FILES=benchmark/
+        fi
         if ! echo "$CHANGED_FILES" | grep -q -E "^(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/|\.gitlab/benchmarks\.yml|\.gitlab/benchmarks/)"; then
           echo "No tracer-related file changes detected - skipping benchmark execution"
           echo "Reports directory created but empty (no benchmarks needed)" > "${ARTIFACTS_DIR}/skip-reason.txt"
@@ -269,6 +272,9 @@ benchmarks-profiler:
 benchmarks-tracer:
   extends: .microbenchmarks
   rules: *benchmarks-tracer-rules
+  parallel:
+    matrix:
+      - TRACER_PART: [ phpbench, phpbench-opcache, tea ]
   artifacts:
     name: "reports"
     when: always
@@ -408,7 +414,7 @@ check-big-regressions:
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:b682acae509fa391ac559705b66df07cac876e4c46641d2457077972a1c0bbb8
   script: |
-    if [ -f "reports/skip-reason.txt" ]; then
+    if [ -f "reports/skip-reason.txt" ] && ! ls reports/candidate*.converted.json >/dev/null 2>&1; then
       echo "Benchmarks were skipped (no relevant file changes) - regression check not needed"
       exit 0
     elif [ -z "$(ls -A reports/ 2>/dev/null)" ]; then
@@ -416,6 +422,16 @@ check-big-regressions:
       exit 1
     else
       echo "Reports directory found with content - running regression check"
+      sides=candidate
+      if [ -s reports/baseline_branch.txt ]; then sides="baseline candidate"; fi
+      for result in tracer-bench-results tracer-bench-results-opcache tracer-tea-bench-results; do
+        for side in $sides; do
+          if [ ! -f "reports/${side}-${result}.converted.json" ]; then
+            echo "ERROR: reports/${side}-${result}.converted.json is missing - a benchmarks-tracer shard had issues"
+            exit 1
+          fi
+        done
+      done
       export ARTIFACTS_DIR="$(pwd)/reports/"
       bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.fail-on-regression.yml" --debug
     fi
