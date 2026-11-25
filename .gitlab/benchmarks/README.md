@@ -113,13 +113,6 @@ retains the tool's diagnostic logs. Temporary BOLT outputs are removed when
 the step exits. Checkouts remain at `/app/candidate` and `/app/baseline` for
 the shared analyzer to read their Git metadata; they are not uploaded.
 
-The checkout/build/rewrite/run workflow tests can be run on Linux without
-compiling PHP or LLVM:
-
-```bash
-uv run .gitlab/benchmarks/tests/test_bolt_workflow.py
-```
-
 ## How to add a new microbenchmark
 
 Where a benchmark lives depends on the scenario it belongs to:
