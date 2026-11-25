@@ -411,7 +411,7 @@ check-big-regressions:
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:b682acae509fa391ac559705b66df07cac876e4c46641d2457077972a1c0bbb8
   script: |
-    if [ -f "reports/skip-reason.txt" ]; then
+    if [ -f "reports/skip-reason.txt" ] && ! ls reports/candidate*.converted.json >/dev/null 2>&1; then
       echo "Benchmarks were skipped (no relevant file changes) - regression check not needed"
       exit 0
     elif [ -z "$(ls -A reports/ 2>/dev/null)" ]; then

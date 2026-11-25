@@ -184,9 +184,10 @@ See `.gitlab/generate-package.php` for the exact per-platform `needs:` lists.
   LTO and SSI jobs have no explicit `cache:` block, but they do build Rust.
 
 - The musl compile jobs (combined, SSI combined, sidecar and the PHP 7.0 jobs)
-  `LD_PRELOAD` the `mimalloc2-insecure` the Alpine image installs and fail if it
-  is missing: Alpine's rustc links scudo and clang/lld use musl's malloc, which
-  spend much of a parallel build in the kernel.
+  `LD_PRELOAD` the `mimalloc2-insecure` the Alpine image installs: Alpine's
+  rustc links scudo and clang/lld use musl's malloc, which spend much of a
+  parallel build in the kernel. Runners pull with `if-not-present`, so a node
+  can keep an older cached image after a rebuild; the jobs then `apk add` it.
 
 - PR branch pipelines set `CARGO_PROFILE_TRACER_RELEASE_CODEGEN_UNITS=16`, which
   roughly halves the Rust build. Master, `ddtrace-*`, `release-*` branches and

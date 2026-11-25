@@ -167,8 +167,8 @@ function alpine_mimalloc(array $platform): void
         return;
     }
 ?>
-    # Installed by dockerfiles/ci/alpine_compile_extension/base.Dockerfile.
-    - test -f /usr/lib/libmimalloc-insecure.so.2 || { echo "mimalloc is missing from $CI_JOB_IMAGE, rebuild the Alpine CI images" >&2; exit 1; }
+    # Installed by dockerfiles/ci/alpine_compile_extension/base.Dockerfile; nodes with a stale cached image fall back to apk.
+    - test -f /usr/lib/libmimalloc-insecure.so.2 || apk add -q --no-cache mimalloc2-insecure || exit 75
     - export LD_PRELOAD=/usr/lib/libmimalloc-insecure.so.2
 <?php
 }
@@ -1902,7 +1902,8 @@ endforeach;
     - |
       if [ -n "$BUILD_SH_ARGS" ]; then
         weblog=$(echo " $BUILD_SH_ARGS " | sed -n 's/.* -w \([^ ]*\) .*/\1/p')
-        for image in $(python3 utils/scripts/resolve-base-images-contexts.py --build-contexts "utils/build/docker/php/${weblog:-apache-mod-8.0}.Dockerfile" | sed 's|^[^=]*=docker-image://||'); do
+        contexts=$(python3 utils/scripts/resolve-base-images-contexts.py --build-contexts "utils/build/docker/php/${weblog:-apache-mod-8.0}.Dockerfile") || exit 1
+        for image in $(printf '%s\n' "$contexts" | sed 's|^[^=]*=docker-image://||'); do
           { docker pull -q "registry.ddbuild.io/system-tests/mirror/$image" && docker tag "registry.ddbuild.io/system-tests/mirror/$image" "$image"; } || exit 75
         done
         USE_IMAGE_MIRROR=0 ./build.sh $BUILD_SH_ARGS
