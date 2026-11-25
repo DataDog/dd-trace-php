@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/ffe_process.inc';
+require_once __DIR__ . '/../logging.inc';
 $base = getenv();
 foreach (array('DD_FEATURE_FLAGS_ENABLED', 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE', 'DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED') as $key) unset($base[$key]);
 $base['DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL'] = '';
@@ -33,7 +34,7 @@ try {
     } while (microtime(true) < $deadline);
     if (strpos($stdout, "fixture_child_ready\n") === false) throw new RuntimeException($caseName . ' child startup timed out: ' . $stdout . $stderr);
     foreach ($case[2] as $message) {
-        if (strpos(file_get_contents($log), $message) !== false) throw new RuntimeException('diagnostic emitted before feature use');
+        if (strpos(read_log_snapshot($log), $message) !== false) throw new RuntimeException('diagnostic emitted before feature use');
     }
     fwrite($pipes[0], "evaluate\n");
     fclose($pipes[0]);
@@ -50,7 +51,7 @@ try {
     $result = json_decode(str_replace("fixture_child_ready\n", '', $stdout), true);
     if (!is_array($result) || $result['state']['reason'] !== $case[1] || $result['value'] !== 'fallback') throw new RuntimeException($caseName . ' wrong result: ' . $stdout);
     if ($case[1] !== 'disabled' && $result['error'] !== $result['state']['errorMessage']) throw new RuntimeException('caller lost the failure reason');
-    $diagnostics = file_get_contents($log);
+    $diagnostics = read_log_snapshot($log);
     foreach ($case[2] as $message) {
         if (substr_count($diagnostics, $message) !== 1) throw new RuntimeException($caseName . ' diagnostic missing or repeated: ' . $diagnostics);
     }
