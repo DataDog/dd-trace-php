@@ -138,6 +138,9 @@ STEP;
         'build-tracing.sh',
         'build-tracing-asan.sh',
         'build-profiler.sh',
+        'xlang-lto', // `make -s xlang-lto` and tooling/bin/build-xlang-lto (ThinLTO and SSI combined builds)
+        'build-ssi-combined-alpine.sh',
+        'build-ssi-ddtrace',
     ];
 
     // Split into top-level YAML blocks (each starts at column 0).

@@ -1,0 +1,12 @@
+experiments:
+  - name: Post PR comment
+    steps:
+      - name: Post PR comment
+        run: post_pr_comment
+        header: Benchmarks [ tracer ]
+
+global_teardown:
+  - name: Upload to BP API
+    run: upload_to_bp_api
+    retries_on_failure: 3
+    project: dd-trace-php

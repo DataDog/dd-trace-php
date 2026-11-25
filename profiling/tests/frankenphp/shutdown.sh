@@ -25,7 +25,6 @@ fail() {
 
 # The regression requires dlclose to unload the profiler before php-main exits.
 unset ZEND_DONT_UNLOAD_MODULES
-ulimit -c 0
 
 for mode in classic worker; do
     for run in 1 2 3; do

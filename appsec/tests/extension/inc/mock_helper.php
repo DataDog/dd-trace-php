@@ -220,26 +220,35 @@ class Helper {
             $cmd = $res['command'];
             $pid = $res['pid'];
             echo "Error: daemon $pid has already stoped, exitcode: $ret, cmd: $cmd\n";
-         echo "Daemon's stdout: ", file_get_contents('/tmp/daemon.stdout.txt'), "\n";
-            echo "Daemon's stderr: ", file_get_contents('/tmp/daemon.stderr.txt'), "\n";
+            echo "Daemon's stdout: ", file_get_contents(STDOUT_PATH), "\n";
+            echo "Daemon's stderr: ", file_get_contents(STDERR_PATH), "\n";
             die;
         }
 
     }
 
     function wait_for_daemon_ready() {
-        $handle = fopen($this->lock_path, "w+");
-        $attempts = 10;
-        while (flock($handle, LOCK_EX | LOCK_NB)) {
+        $handle = fopen($this->lock_path, "c+");
+        $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10);
+        while (true) {
+            $wouldBlock = 0;
+            if (!flock($handle, LOCK_EX | LOCK_NB, $wouldBlock)) {
+                if ($wouldBlock) {
+                    break; // The helper holds its readiness lock.
+                }
+                fclose($handle);
+                throw new RuntimeException('Cannot inspect mock helper readiness lock');
+            }
             flock($handle, LOCK_UN);
-            if ($attempts-- == 0) {
+            $this->ensure_running();
+            if (microtime(true) >= $deadline) {
                 echo "Timeout waiting for the daemon to start\n";
                 echo "Daemon's stdout: ", file_get_contents(STDOUT_PATH), "\n";
                 echo "Daemon's stderr: ", file_get_contents(STDERR_PATH), "\n";
-                    fclose($handle);
+                fclose($handle);
                 die;
             }
-            usleep(100000);
+            usleep(10000);
         }
         fclose($handle);
     }

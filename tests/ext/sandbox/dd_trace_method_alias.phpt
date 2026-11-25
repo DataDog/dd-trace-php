@@ -35,4 +35,5 @@ Foo::bar(hello)
 spans(\DDTrace\SpanData) (1) {
   Foo.bar (alias, Foo.bar, cli)
     _dd.svc_src => m
+    _dd.top_level => 1
 }

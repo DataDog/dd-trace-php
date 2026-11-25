@@ -534,6 +534,8 @@ typedef struct ddog_DslString ddog_DslString;
  */
 typedef struct ddog_FfeCdnConfig ddog_FfeCdnConfig;
 
+typedef struct ddog_FfeFeatures ddog_FfeFeatures;
+
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
@@ -597,6 +599,18 @@ typedef struct ddog_DsmIdentity {
   ddog_CharSlice base_hash;
 } ddog_DsmIdentity;
 
+typedef struct ddog_FfeFeature {
+  ddog_CharSlice key;
+  /**
+   * One of the ATTR_TYPE_* values: 0 string, 1 number, 2 boolean.
+   */
+  int32_t value_type;
+  ddog_CharSlice string_value;
+  double number_value;
+  bool bool_value;
+  uintptr_t destinations_count;
+} ddog_FfeFeature;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
@@ -608,6 +622,10 @@ typedef struct ddog_FfeResult {
   bool do_log;
   bool observe_full_evaluation_data;
   bool valid;
+  /**
+   * NULL when the selected split has no features. Release with ddog_ffe_features_drop.
+   */
+  struct ddog_FfeFeatures *features;
 } ddog_FfeResult;
 
 typedef struct ddog_FfeAttribute {
@@ -1308,6 +1326,48 @@ typedef struct ddog_Option_Bool {
   };
 } ddog_Option_Bool;
 
+typedef enum ddog_Option_Method_Tag {
+  DDOG_OPTION_METHOD_SOME_METHOD,
+  DDOG_OPTION_METHOD_NONE_METHOD,
+} ddog_Option_Method_Tag;
+
+typedef struct ddog_Option_Method {
+  ddog_Option_Method_Tag tag;
+  union {
+    struct {
+      enum ddog_Method some;
+    };
+  };
+} ddog_Option_Method;
+
+typedef struct ddog_Slice_CharSlice {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const ddog_CharSlice *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_CharSlice;
+
+typedef struct ddog_Slice_U32 {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const uint32_t *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_U32;
+
 typedef struct ddog_ContextKey {
   uint32_t _0;
   enum ddog_MetricType _1;
@@ -1681,6 +1741,16 @@ typedef struct ddog_FfeSnapshotState {
   bool snapshot_error;
   bool targeting_key_invalid;
 } ddog_FfeSnapshotState;
+
+/**
+ * The schema version this receiver reads.
+ */
+#define ddog_crasht_SpansToClose_VERSION 1
+
+/**
+ * The longest block line a receiver accepts.
+ */
+#define ddog_crasht_SpansToClose_MAX_LEN (64 * 1024)
 
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,
@@ -2245,20 +2315,6 @@ typedef struct ddog_CStr {
   uintptr_t length;
 } ddog_CStr;
 
-typedef struct ddog_Slice_CharSlice {
-  /**
-   * Should be non-null and suitably aligned for the underlying type. It is
-   * allowed but not recommended for the pointer to be null when the len is
-   * zero.
-   */
-  const ddog_CharSlice *ptr;
-  /**
-   * The number of elements (not bytes) that `.ptr` points to. Must be less
-   * than or equal to [isize::MAX].
-   */
-  uintptr_t len;
-} ddog_Slice_CharSlice;
-
 typedef struct ddog_ProcessInfo {
   struct ddog_Slice_CharSlice args;
   struct ddog_Slice_CharSlice envp;
@@ -2461,6 +2517,12 @@ void ddog_endpoint_drop(struct ddog_Endpoint*);
  * Only pass null or a pointer to a valid, mutable `ddog_Error`.
  */
 void ddog_Error_drop(struct ddog_Error *error);
+
+/**
+ * Drops and frees a boxed error, such as the one returned by
+ * `ddog_endpoint_from_api_key_and_site`. Null is accepted.
+ */
+void ddog_Error_free(struct ddog_Error *error);
 
 /**
  * Returns a CharSlice of the error's message that is valid until the error

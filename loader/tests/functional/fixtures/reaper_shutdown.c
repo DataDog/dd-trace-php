@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -14,6 +15,7 @@
 static pid_t php_pid;
 static pthread_t php_thread;
 static char *exit_path;
+static int error_fd = STDERR_FILENO;
 static atomic_int exiting;
 static atomic_int background_dlclose;
 
@@ -54,6 +56,10 @@ __attribute__((constructor)) static void register_exit_check(void) {
     if (!expected_pid || getpid() != (pid_t)strtol(expected_pid, NULL, 10)) return;
     php_pid = getpid();
     php_thread = pthread_self();
+    // PHP may close its standard streams before this native exit handler runs.
+    int saved_error_fd = fcntl(STDERR_FILENO, F_DUPFD_CLOEXEC, 3);
+    if (saved_error_fd < 0) fail("Cannot preserve shutdown diagnostics\n");
+    error_fd = saved_error_fd;
     // PHP can tear down its environment before libc starts running exit handlers.
     const char *path = getenv("DD_REAPER_TEST_EXIT_PATH");
     if (!path || !(exit_path = strdup(path))) fail("Cannot save exit marker path\n");
@@ -70,19 +76,33 @@ static void check_reapers_at_exit(void) {
     mark_exit("entered\n");
     struct timespec start, current;
     if (clock_gettime(CLOCK_MONOTONIC, &start)) fail("Cannot read clock\n");
-    while (thread_count() > 1) {
+    // /proc task enumeration and waitid are separate observations. Require both
+    // invariants within the same deadline, and retry interrupted child queries.
+    int threads, child_result, child_error;
+    siginfo_t child;
+    for (;;) {
+        threads = thread_count();
+        memset(&child, 0, sizeof(child));
+        child_result = waitid(P_ALL, 0, &child, WEXITED | WNOHANG | WNOWAIT);
+        child_error = child_result == -1 ? errno : 0;
+        if (threads == 1 && child_result == -1 && child_error == ECHILD) break;
+        if (child_result == -1 && child_error != ECHILD && child_error != EINTR) {
+            fail("Cannot inspect telemetry children\n");
+        }
         if (clock_gettime(CLOCK_MONOTONIC, &current)) fail("Cannot read clock\n");
-        if (current.tv_sec - start.tv_sec >= 5) fail("Telemetry reapers did not finish\n");
+        if (current.tv_sec - start.tv_sec > 5 ||
+            (current.tv_sec - start.tv_sec == 5 && current.tv_nsec >= start.tv_nsec)) {
+            char diagnostic[192];
+            snprintf(diagnostic, sizeof(diagnostic),
+                     "Telemetry shutdown did not finish: threads=%d, child=%ld, waitid=%d, errno=%d\n",
+                     threads, (long)child.si_pid, child_result, child_error);
+            fail(diagnostic);
+        }
         struct timespec delay = {0, 1000000};
         nanosleep(&delay, NULL);
     }
     if (atomic_load(&background_dlclose)) {
         fail("Telemetry reaper called dlclose while an atexit handler was running\n");
-    }
-    // Thread exit alone is insufficient: every telemetry child must be reaped.
-    siginfo_t child;
-    if (waitid(P_ALL, 0, &child, WEXITED | WNOHANG | WNOWAIT) != -1 || errno != ECHILD) {
-        fail("Telemetry children remain after their reapers exited\n");
     }
     mark_exit("passed\n");
     free(exit_path);
@@ -109,7 +129,7 @@ static void mark_exit(const char *state) {
 }
 
 static void fail(const char *message) {
-    ssize_t written = write(STDERR_FILENO, message, strlen(message));
+    ssize_t written = write(error_fd, message, strlen(message));
     (void)written;
     _exit(86);
 }

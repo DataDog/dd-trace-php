@@ -41,7 +41,7 @@ also happens there.
 ¶8 Fixes must be verified by running tests. These may either be existing tests
 or new tests that fail before the fix and pass afterwards.
 
-¶9 To enforece ¶6-8, when the user explicitly asks for an problem to be
+¶9 To enforce ¶6-8, when the user explicitly asks for an problem to be
 investigated, you MUST use the following template:
 
 ```
@@ -62,3 +62,18 @@ My conclusion is:
 
 > (fill in your conclusion here)
 ```
+
+¶10 CI scripts (GitLab jobs incl. `.gitlab/generate-*.php`, GitHub Actions,
+the scripts they call, and test harnesses that download tools):
+
+- Use `curl -fsSL --retry 5 --retry-delay 2`. Add `--retry-connrefused`
+  except on CentOS 7 (curl 7.29, e.g. `dockerfiles/verify_packages/`).
+- In GitLab jobs with the repo checked out, download files with
+  `.gitlab/download-file.sh URL DEST`: it retries transient errors, then
+  exits 75.
+- Exit 75 makes GitLab retry the job (`retry.exit_codes` in
+  `generate-common.php`; jobs in `.gitlab-ci.yml` need their own). Use it for
+  infrastructure failures only, and only where the exit code reaches GitLab
+  (not inside containers or test harnesses).
+- Skipping `-f`/`--retry` needs a comment: scripts that check `%{http_code}`
+  themselves, polling loops, deliberately best-effort downloads.

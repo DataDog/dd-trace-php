@@ -17,7 +17,7 @@ services:
     command: [ "/scripts/local-run.sh" ]
 
   agent:
-    image: datadog/agent:latest
+    image: registry.datadoghq.com/agent:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro

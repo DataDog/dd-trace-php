@@ -73,24 +73,32 @@ include __DIR__ . '/../dd_dumper.inc';
 spans(\DDTrace\SpanData) (8) {
   intval (trace_closure.php, 0, cli)
     result => 0
+    _dd.top_level => 1
   test\trace_closure.php:7\{%s} (trace_closure.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:7
     result => 1
+    _dd.top_level => 1
   test\foo.{closure} (trace_closure.php, 2, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:12
     result => 2
+    _dd.top_level => 1
   test\bar.foo.{closure} (trace_closure.php, 3, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:19
     result => 3
+    _dd.top_level => 1
   intval (trace_closure.php, 0, cli)
     result => 1
+    _dd.top_level => 1
   test\trace_closure.php:7\{%s} (trace_closure.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:7
     result => 2
+    _dd.top_level => 1
   test\foo.{closure} (trace_closure.php, 2, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:12
     result => 3
+    _dd.top_level => 1
   test\bar.foo.{closure} (trace_closure.php, 3, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:19
     result => 4
+    _dd.top_level => 1
 }

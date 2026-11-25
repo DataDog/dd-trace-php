@@ -69,7 +69,7 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -224,7 +224,8 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - unset DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
     - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php llvm
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
-    - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
+    - .gitlab/download-file.sh "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" /tmp/php-build/php-src.tar.gz
+    - tar xzf /tmp/php-build/php-src.tar.gz -C /tmp/php-build
     - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
     - ./buildconf --force
     - |
@@ -320,7 +321,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   timeout: 60m
   interruptible: true
   rules:

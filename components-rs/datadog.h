@@ -277,11 +277,13 @@ uint64_t ddog_ffe_config_version(void);
  * A non-empty `base_url` is fetched as given and never receives the API key.
  * Otherwise the managed endpoint of `site` is used, filtered to `env`.
  * The intervals must already be within the ranges accepted by the sidecar.
+ * Requests send `service` in `DD-Service`. An empty `service` sends no header.
  */
 struct ddog_FfeCdnConfig *ddog_ffe_cdn_config_new(ddog_CharSlice base_url,
                                                   ddog_CharSlice site,
                                                   ddog_CharSlice env,
                                                   ddog_CharSlice api_key,
+                                                  ddog_CharSlice service,
                                                   uint32_t poll_interval_secs,
                                                   uint32_t request_timeout_secs,
                                                   enum ddog_FfeCdnConfigError *error);
@@ -293,6 +295,23 @@ void ddog_ffe_cdn_config_drop(struct ddog_FfeCdnConfig*);
  * Missing credentials or an invalid destination leave local EVP discovery available.
  */
 struct ddog_Endpoint *ddog_ffe_evp_endpoint_new(ddog_CharSlice site, ddog_CharSlice api_key);
+
+uintptr_t ddog_ffe_features_count(const struct ddog_FfeFeatures *features);
+
+/**
+ * An out-of-range index returns a feature with an empty key and no destinations.
+ */
+struct ddog_FfeFeature ddog_ffe_features_get(const struct ddog_FfeFeatures *features,
+                                             uintptr_t index);
+
+/**
+ * An out-of-range index returns an empty destination.
+ */
+ddog_CharSlice ddog_ffe_features_destination(const struct ddog_FfeFeatures *features,
+                                             uintptr_t index,
+                                             uintptr_t destination);
+
+void ddog_ffe_features_drop(struct ddog_FfeFeatures *features);
 
 struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         int32_t expected_type,
@@ -433,7 +452,6 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
                                          const char *error_path,
                                          ddog_CharSlice log_level,
                                          bool enable_telemetry,
-                                         void (*on_reconnect)(struct ddog_SidecarTransport*),
                                          const struct ddog_Endpoint *crashtracker_endpoint,
                                          uint64_t backpressure_bytes,
                                          uint64_t backpressure_queue);
@@ -460,6 +478,23 @@ void ddog_sidecar_reconnect_readers(const struct ddog_ShmCacheMap *telemetry,
  * The fd of the transport's current connection; it changes on reconnect.
  */
 int32_t ddog_sidecar_transport_raw_fd(struct ddog_SidecarTransport *const *transport);
+
+#if defined(__linux__)
+/**
+ * Mark a notified process death and recover only while the reconnect callback is enabled.
+ */
+void ddog_sidecar_check_liveness(struct ddog_SidecarTransport **transport, bool process_died);
+#endif
+
+#if defined(__linux__)
+/**
+ * Arm a quiet death notification before transferring its writer to the sidecar.
+ * The caller owns the returned reader; neither the transport nor its replay state retains
+ * a writer. Closing the reader also releases the sidecar's process watch.
+ */
+ddog_MaybeError ddog_sidecar_watch_process(struct ddog_SidecarTransport **transport,
+                                           int32_t *reader_fd);
+#endif
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 

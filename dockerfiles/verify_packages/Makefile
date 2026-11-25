@@ -57,7 +57,7 @@ verify_debian:
 # Asserts the request is served and traced, that the agent-response shared memory is owned by
 # and named for the worker user, and that the sidecar threads dropped while FPM's own main
 # thread did not. Linux only: per-thread credentials are a Linux facility.
-#   Example: make verify_fpm_thread_sidecar_uid DOCKER_IMAGE=datadog/dd-trace-ci:php-8.3_bookworm-14 INSTALL_MODE=sury PHP_VERSION=8.3
+#   Example: make verify_fpm_thread_sidecar_uid DOCKER_IMAGE=datadog/dd-trace-ci:php-8.3_bookworm-15 INSTALL_MODE=sury PHP_VERSION=8.3
 verify_fpm_thread_sidecar_uid:
 	docker-compose run --rm \
 		-e INSTALL_MODE="$(INSTALL_MODE)" \
@@ -110,6 +110,7 @@ test_install_custom_installation_root.sh \
 test_install_non_root_user.sh \
 test_install_subdir_from_file.sh \
 test_install_subdir_from_version.sh \
+test_install_appsec_no_permission_warning.sh \
 test_install_umask_permissions.sh \
 test_install_uninstall_install_tracer_appsec.sh \
 test_install_uninstall_install_tracer_profiling.sh \

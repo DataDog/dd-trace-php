@@ -2,7 +2,7 @@ use crate::bytes::MaybeOwnedZendString;
 use datadog_ffe::cdn::{CdnConfig, CdnEndpoint, EndpointError};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
-    EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
+    EvaluationError, ExpectedFlagType, Feature, FeatureValue, Str, UniversalFlagConfig,
 };
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
@@ -198,12 +198,14 @@ pub enum FfeCdnConfigError {
 /// A non-empty `base_url` is fetched as given and never receives the API key.
 /// Otherwise the managed endpoint of `site` is used, filtered to `env`.
 /// The intervals must already be within the ranges accepted by the sidecar.
+/// Requests send `service` in `DD-Service`. An empty `service` sends no header.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_cdn_config_new(
     base_url: CharSlice,
     site: CharSlice,
     env: CharSlice,
     api_key: CharSlice,
+    service: CharSlice,
     poll_interval_secs: u32,
     request_timeout_secs: u32,
     error: &mut FfeCdnConfigError,
@@ -231,6 +233,7 @@ pub extern "C" fn ddog_ffe_cdn_config_new(
         request_timeout: Duration::from_secs(request_timeout_secs.into()),
         language: "php".to_string(),
         version: include_str!("../../VERSION").trim().into(),
+        service: Some(service.to_utf8_lossy().into_owned()).filter(|s| !s.is_empty()),
     })))
 }
 
@@ -320,6 +323,77 @@ pub struct FfeResult {
     // Consent belongs to the configuration snapshot used for this evaluation.
     pub observe_full_evaluation_data: bool,
     pub valid: bool,
+    /// NULL when the selected split has no features. Release with ddog_ffe_features_drop.
+    pub features: Option<Box<FfeFeatures>>,
+}
+
+pub struct FfeFeatures(Arc<[Feature]>);
+
+#[repr(C)]
+pub struct FfeFeature<'a> {
+    pub key: CharSlice<'a>,
+    /// One of the ATTR_TYPE_* values: 0 string, 1 number, 2 boolean.
+    pub value_type: i32,
+    pub string_value: CharSlice<'a>,
+    pub number_value: f64,
+    pub bool_value: bool,
+    pub destinations_count: usize,
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_count(features: &FfeFeatures) -> usize {
+    features.0.len()
+}
+
+/// An out-of-range index returns a feature with an empty key and no destinations.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_get(features: &FfeFeatures, index: usize) -> FfeFeature<'_> {
+    let mut view = FfeFeature {
+        key: CharSlice::empty(),
+        value_type: ATTR_TYPE_STRING,
+        string_value: CharSlice::empty(),
+        number_value: 0.0,
+        bool_value: false,
+        destinations_count: 0,
+    };
+    let Some(feature) = features.0.get(index) else {
+        return view;
+    };
+    view.key = CharSlice::from(feature.key.as_str());
+    view.destinations_count = feature.destinations.len();
+    match &feature.value {
+        FeatureValue::String(value) => view.string_value = CharSlice::from(value.as_str()),
+        FeatureValue::Number(value) => {
+            view.value_type = ATTR_TYPE_NUMBER;
+            view.number_value = *value;
+        }
+        FeatureValue::Boolean(value) => {
+            view.value_type = ATTR_TYPE_BOOL;
+            view.bool_value = *value;
+        }
+    }
+    view
+}
+
+/// An out-of-range index returns an empty destination.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_destination(
+    features: &FfeFeatures,
+    index: usize,
+    destination: usize,
+) -> CharSlice<'_> {
+    features
+        .0
+        .get(index)
+        .and_then(|feature| feature.destinations.get(destination))
+        .map_or(CharSlice::from(""), |destination| {
+            CharSlice::from(destination.as_str())
+        })
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_drop(features: Option<Box<FfeFeatures>>) {
+    drop(features);
 }
 
 #[repr(C)]
@@ -476,6 +550,9 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 do_log: assignment.do_log,
                 observe_full_evaluation_data: false,
                 valid: true,
+                features: assignment
+                    .features
+                    .map(|features| Box::new(FfeFeatures(features))),
             }
         }
         Err(error) => {
@@ -509,6 +586,7 @@ fn error_result(error_code: i32, reason: i32) -> FfeResult {
         do_log: false,
         observe_full_evaluation_data: false,
         valid: true,
+        features: None,
     }
 }
 
@@ -524,6 +602,7 @@ fn invalid_result() -> FfeResult {
         do_log: false,
         observe_full_evaluation_data: false,
         valid: false,
+        features: None,
     }
 }
 
@@ -780,6 +859,118 @@ mod tests {
             assert_eq!(result.reason, REASON_STATIC, "{value}");
             assert!(result.do_log, "{value}");
         }
+        clear_config();
+    }
+
+    const FEATURES_CONFIG: &str = r#"{
+        "createdAt": "2026-05-22T00:00:00.000Z",
+        "environment": {"name": "Test"},
+        "flags": {
+            "with.features": {
+                "key": "with.features",
+                "enabled": true,
+                "variationType": "STRING",
+                "variations": {"on": {"key": "on", "value": "on"}},
+                "allocations": [{
+                    "key": "alloc",
+                    "rules": [],
+                    "splits": [{
+                        "variationKey": "on",
+                        "shards": [],
+                        "features": [
+                            {"key": "holdout.key", "value": "abc", "destinations": ["HOOK", "EXPOSURE"]},
+                            {"key": "holdout.fraction", "value": 0.5, "destinations": ["EVALUATION"]},
+                            {"key": "holdout.enabled", "value": false, "destinations": ["HOOK"]}
+                        ]
+                    }],
+                    "doLog": true
+                }]
+            },
+            "without.features": {
+                "key": "without.features",
+                "enabled": true,
+                "variationType": "STRING",
+                "variations": {"on": {"key": "on", "value": "on"}},
+                "allocations": [{
+                    "key": "alloc",
+                    "rules": [],
+                    "splits": [{"variationKey": "on", "shards": []}],
+                    "doLog": true
+                }]
+            }
+        }
+    }"#;
+
+    fn evaluate_string_flag(flag_key: &str, expected_type: i32) -> FfeResult {
+        let flag_key = CString::new(flag_key).unwrap();
+        ddog_ffe_evaluate(
+            char_slice(&flag_key),
+            expected_type,
+            CharSlice::from("user"),
+            std::ptr::null(),
+            0,
+        )
+    }
+
+    fn destinations(features: &FfeFeatures, index: usize) -> Vec<String> {
+        let count = ddog_ffe_features_get(features, index).destinations_count;
+        (0..count)
+            .map(|destination| {
+                let slice = ddog_ffe_features_destination(features, index, destination);
+                String::from_utf8(slice.as_bytes().to_vec()).unwrap()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn evaluation_exposes_the_selected_split_features() {
+        setup_zend_string_functions();
+        clear_config();
+        let config = CString::new(FEATURES_CONFIG).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&config)));
+
+        let result = evaluate_string_flag("with.features", TYPE_STRING);
+        let features = result.features.as_deref().expect("split has features");
+        assert_eq!(ddog_ffe_features_count(features), 3);
+
+        let string = ddog_ffe_features_get(features, 0);
+        assert_eq!(string.key.as_bytes(), b"holdout.key");
+        assert_eq!(string.value_type, ATTR_TYPE_STRING);
+        assert_eq!(string.string_value.as_bytes(), b"abc");
+        assert_eq!(destinations(features, 0), ["HOOK", "EXPOSURE"]);
+
+        let number = ddog_ffe_features_get(features, 1);
+        assert_eq!(number.key.as_bytes(), b"holdout.fraction");
+        assert_eq!(number.value_type, ATTR_TYPE_NUMBER);
+        assert_eq!(number.number_value, 0.5);
+        assert_eq!(destinations(features, 1), ["EVALUATION"]);
+
+        let boolean = ddog_ffe_features_get(features, 2);
+        assert_eq!(boolean.value_type, ATTR_TYPE_BOOL);
+        assert!(!boolean.bool_value);
+
+        let missing = ddog_ffe_features_get(features, 3);
+        assert_eq!(missing.key.as_bytes(), b"");
+        assert_eq!(missing.destinations_count, 0);
+        assert_eq!(
+            ddog_ffe_features_destination(features, 0, 2).as_bytes(),
+            b""
+        );
+        assert_eq!(
+            ddog_ffe_features_destination(features, 3, 0).as_bytes(),
+            b""
+        );
+        ddog_ffe_features_drop(result.features);
+
+        assert!(evaluate_string_flag("without.features", TYPE_STRING)
+            .features
+            .is_none());
+        assert!(evaluate_string_flag("with.features", TYPE_BOOLEAN)
+            .features
+            .is_none());
+        assert!(evaluate_string_flag("with.features", TYPE_OBJECT)
+            .features
+            .is_none());
         clear_config();
     }
 

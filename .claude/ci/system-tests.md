@@ -5,7 +5,11 @@
 **Source:** `.gitlab/generate-package.php` -- the `.system_tests` template and
 individual job definitions immediately below it. The template defines the base
 image, `before_script` (Docker + Python setup, clone of `system-tests` repo,
-artifact placement, `./build.sh`), and artifact collection. Each concrete job
+artifact placement, `./build.sh`), and artifact collection. The jobs set
+`GIT_STRATEGY: none`: the `.gitlab` helpers they run come with the `prepare code`
+artifacts. Weblogs build on the default docker driver (`USE_IMAGE_MIRROR=0`)
+after their locked base images are pulled from the system-tests mirror and tagged
+with their Docker Hub names; scenarios still use the mirror. Each concrete job
 extends this template and runs `./run.sh` with the appropriate scenario.
 
 | CI Job | Weblog | Scenario argument | What it does |

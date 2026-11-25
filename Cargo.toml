@@ -102,6 +102,7 @@ trigger_time_sample = ["profiling"]
 
 [dependencies]
 libdd-common = { workspace = true }
+libdd-host-identity = { workspace = true }
 libdd-networking = { workspace = true }
 libdd-common-ffi = { workspace = true, optional = true }
 libdd-telemetry = { workspace = true, optional = true }
@@ -299,7 +300,7 @@ libc = { version = "0.2", default-features = true }
 libc_alloc = { version = "1.0", default-features = false }
 libdd-libunwind-sys = { version = "1.0.3", default-features = false }
 log = { version = "0.4.21", default-features = false }
-lru = { version = "0.16.3", default-features = false }
+lru = { version = "0.18.2", default-features = false }
 manual_future = { version = "0.1.1", default-features = false }
 maplit = { version = "1.0", default-features = false }
 md5 = { version = "0.7.0", default-features = false }
@@ -429,7 +430,7 @@ zwohash = { version = "0.1.2", default-features = false }
 const-str = { version = "0.5.6" }
 cpu-time = { version = "1.0" }
 dashmap = { version = "6.2.1" }
-datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe", features = ["cdn"] }
+datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe", features = ["cdn", "exposure-events"] }
 datadog-sidecar = { path = "libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "libdatadog/datadog-sidecar-ffi" }
 ddtrace-sidecar = { path = "sidecar" }
@@ -437,7 +438,8 @@ dynasmrt = { version = "5.0.0" }
 itertools = { version = "0.11.0" }
 lazy_static = { version = "1.4" }
 libdd-alloc = { path = "libdatadog/libdd-alloc" }
-libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-common = { path = "libdatadog/libdd-common" }
+libdd-host-identity = { path = "libdatadog/libdd-host-identity", features = ["cgroup_testing"] }
 libdd-networking = { path = "libdatadog/libdd-networking" }
 libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false, features = ["std"] }
 libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector"] }

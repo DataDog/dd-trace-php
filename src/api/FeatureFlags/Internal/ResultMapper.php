@@ -93,7 +93,7 @@ final class ResultMapper
             $this->read($rawResult, array('variant'), null),
             null,
             null,
-            $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata')),
+            $this->flagMetadata($rawResult),
             $this->exposureData($rawResult),
             $this->providerState($rawResult)
         );
@@ -288,6 +288,24 @@ final class ResultMapper
         }
 
         return $exposureData;
+    }
+
+    private function flagMetadata($rawResult)
+    {
+        $metadata = $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata'));
+        foreach (SplitFeatures::toMetadata($this->read($rawResult, array('features'), null)) as $key => $value) {
+            $metadata[$key] = $value;
+        }
+
+        if ((bool) $this->read($rawResult, array('do_log', 'doLog'), false)) {
+            $metadata[SplitFeatures::DO_LOG_KEY] = true;
+            $serialId = $this->read($rawResult, array('serial_id', 'serialId'), null);
+            if ($serialId !== null) {
+                $metadata[SplitFeatures::SERIAL_ID_KEY] = (int) $serialId;
+            }
+        }
+
+        return $metadata;
     }
 
     private function providerState($rawResult)

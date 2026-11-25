@@ -120,7 +120,7 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["attributes"]=>
-    array(13) {
+    array(14) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
@@ -140,6 +140,8 @@ array(3) {
       ["bar"]=>
       float(0)
       ["_dd.agent_psr"]=>
+      float(1)
+      ["_dd.top_level"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
@@ -168,13 +170,15 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["attributes"]=>
-    array(3) {
+    array(4) {
       ["rand.range"]=>
       string(8) "42 - 999"
       ["rand.value"]=>
       string(%d) "%d"
       ["_dd.base_service"]=>
       string(10) "FooService"
+      ["_dd.top_level"]=>
+      float(1)
     }
   }
   [2]=>
@@ -194,12 +198,14 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["attributes"]=>
-    array(6) {
+    array(7) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
       int(%d)
       ["_dd.agent_psr"]=>
+      float(1)
+      ["_dd.top_level"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)

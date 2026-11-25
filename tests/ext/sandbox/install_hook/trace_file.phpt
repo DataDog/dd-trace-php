@@ -25,5 +25,7 @@ test
 test
 spans(\DDTrace\SpanData) (2) {
   %stestinclude.inc (trace_file.php, %sinstall_hook%ctestinclude.inc, cli)
+    _dd.top_level => 1
   %stestinclude.inc (trace_file.php, %sinstall_hook%ctestinclude.inc, cli)
+    _dd.top_level => 1
 }

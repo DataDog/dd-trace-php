@@ -314,8 +314,8 @@ pub extern "C" fn ddog_php_prof_minit(_type: c_int, module_number: c_int) -> Zen
 
     // Initialize the lazy locks holding the env vars for new origin detection,
     // Azure App Services, and so on.
-    _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
-    _ = std::sync::LazyLock::force(&libdd_common::azure_app_services::AAS_METADATA);
+    _ = std::sync::LazyLock::force(&libdd_host_identity::entity_id::DD_EXTERNAL_ENV);
+    _ = std::sync::LazyLock::force(&libdd_host_identity::azure_app_services::AAS_METADATA);
 
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };

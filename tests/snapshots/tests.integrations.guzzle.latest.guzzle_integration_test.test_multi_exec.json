@@ -13,6 +13,7 @@
       "runtime-id": "3610d980-7fc7-450c-9dce-ddef084f749f"
     },
     "metrics": {
+      "_dd.top_level": 1,
       "_dd.agent_psr": 1,
       "_sampling_priority_v1": 1
     }
@@ -32,6 +33,9 @@
          "http.url": "https://google.wrong/",
          "network.destination.name": "google.wrong",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -50,6 +54,9 @@
          "http.url": "http://{httpbin}/redirect-to?url=http://{httpbin}/status/200",
          "network.destination.name": "httpbin-integration",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -68,6 +75,9 @@
          "http.url": "http://{httpbin}/status/200",
          "network.destination.name": "httpbin-integration",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -86,6 +96,9 @@
          "http.url": "http://{httpbin}/status/201",
          "network.destination.name": "httpbin-integration",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -104,6 +117,9 @@
          "http.url": "http://{httpbin}/status/202",
          "network.destination.name": "httpbin-integration",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -121,6 +137,9 @@
          "http.url": "https://google.still.wrong/",
          "network.destination.name": "google.still.wrong",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -139,6 +158,9 @@
          "http.url": "https://www.google.com/",
          "network.destination.name": "www.google.com",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -157,6 +179,9 @@
          "http.url": "https://www.google.com/",
          "network.destination.name": "www.google.com",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -175,6 +200,9 @@
          "http.url": "https://www.google.com/",
          "network.destination.name": "www.google.com",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -188,6 +216,9 @@
        "meta": {
          "_dd.base_service": "cli",
          "component": "curl"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
         {
@@ -213,6 +244,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 0,
             "curl.connect_time": 0,
@@ -267,6 +299,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 0,
             "curl.connect_time": 1028000,
@@ -320,6 +353,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 0,
             "curl.connect_time": 1059000,
@@ -373,6 +407,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 0,
             "curl.connect_time": 707000,
@@ -426,6 +461,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 0,
             "curl.connect_time": 788000,
@@ -481,6 +517,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 0,
             "curl.connect_time": 0,
@@ -534,6 +571,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 5047012,
             "curl.connect_time": 5034226000,
@@ -587,6 +625,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 5041652,
             "curl.connect_time": 5029748000,
@@ -640,6 +679,7 @@
             "span.kind": "client"
           },
           "metrics": {
+            "_dd.top_level": 1,
             "_dd.measured": 1,
             "curl.appconnect_time_us": 5042192,
             "curl.connect_time": 5027246000,

@@ -1,0 +1,51 @@
+--TEST--
+Background sender leaves top-level computation to the agent without a sidecar
+--SKIPIF--
+<?php if (PHP_OS === "WINNT") die("skip: legacy sender is unavailable on Windows"); ?>
+--ENV--
+DD_TRACE_SIDECAR_TRACE_SENDER=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_REMOTE_CONFIG_ENABLED=0
+DD_DYNAMIC_INSTRUMENTATION_ENABLED=0
+DD_FEATURE_FLAGS_ENABLED=0
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
+--FILE--
+<?php
+
+$root = \DDTrace\start_trace_span();
+$root->name = "root";
+$root->service = "my-service";
+
+$child_same = \DDTrace\start_span();
+$child_same->name = "child_same_service";
+$child_same->service = "my-service";
+
+$grandchild_diff = \DDTrace\start_span();
+$grandchild_diff->name = "grandchild_diff_service";
+$grandchild_diff->service = "other-service";
+\DDTrace\close_span();
+
+\DDTrace\close_span();
+
+$child_diff = \DDTrace\start_span();
+$child_diff->name = "child_diff_service";
+$child_diff->service = "other-service";
+\DDTrace\close_span();
+
+\DDTrace\close_span();
+
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+
+foreach ($spans as $span) {
+    $has_top_level = isset($span["attributes"]["_dd.top_level"]);
+    echo $span["name"] . ": _dd.top_level=" . ($has_top_level ? "1" : "not set") . "\n";
+}
+
+?>
+--EXPECT--
+root: _dd.top_level=not set
+child_diff_service: _dd.top_level=not set
+child_same_service: _dd.top_level=not set
+grandchild_diff_service: _dd.top_level=not set

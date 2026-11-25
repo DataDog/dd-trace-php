@@ -66,6 +66,7 @@ profiling-runtime = ["dep:libdd-profiling"]
 
 [dependencies]
 libdd-common = { workspace = true }
+libdd-host-identity = { workspace = true }
 libdd-networking = { workspace = true }
 libdd-common-ffi = { workspace = true, optional = true }
 libdd-telemetry = { workspace = true, optional = true }

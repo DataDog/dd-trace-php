@@ -7,9 +7,7 @@ if ($instrumented && in_array($scenario, array('recovery', 'shutdown'), true)) {
     putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=2000');
 }
 if ($instrumented && $scenario === 'isolation') {
-    // The traced fixture serves the first CDN fetch slowly under the parallel
-    // instrumented workers, so the evaluator's blocking initialization needs
-    // a wider budget to observe the delivered configuration.
+    // Socket ownership is the assertion here, not the first-use deadline.
     putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=60000');
 }
 if ($scenario === 'swoole' && getenv('PHP_FFE_SWOOLE_COLD') === 'expired') {
@@ -47,15 +45,15 @@ try {
             break;
         }
         if ($scenario === 'restart' && !$restarted && strpos($stdout, "fixture_restart_ready\n") !== false) {
-            $sidecarPid = ffeTestSidecarPid($status['pid']);
+            $sidecarPid = ffeTestWaitForSidecarPid($status['pid'], null, $instrumented ? 30 : 3);
             if ($sidecarPid === null) throw new RuntimeException('cannot locate the dedicated sidecar');
             if (!posix_kill($sidecarPid, SIGKILL)) throw new RuntimeException('cannot stop dedicated sidecar');
             $restarted = true;
             fwrite($pipes[0], "sidecar_killed\n");
         }
         if ($scenario === 'restart' && !$terminated && strpos($stdout, "sidecar_restarted_and_refreshed\n") !== false) {
-            $replacement = ffeTestSidecarPid($status['pid']);
-            if ($replacement === null || $replacement === $sidecarPid) throw new RuntimeException('replacement sidecar missing');
+            $replacement = ffeTestWaitForSidecarPid($status['pid'], $sidecarPid, $instrumented ? 30 : 3);
+            if ($replacement === null) throw new RuntimeException('replacement sidecar missing');
             if (!posix_kill($replacement, SIGTERM)) throw new RuntimeException('cannot signal replacement sidecar');
             $deadline = microtime(true) + ($instrumented ? 45 : 3);
             while (ffeTestSidecarPid($status['pid']) === $replacement && microtime(true) < $deadline) usleep(20000);
@@ -66,8 +64,17 @@ try {
         }
         $connection = @stream_socket_accept($server, 0.1);
         if (!$connection) continue;
+        // A sidecar under valgrind can take over a second to send its request, and hyper
+        // rejects a reply that arrives first: only answer complete request heads.
         stream_set_timeout($connection, 1);
-        while (($line = fgets($connection)) !== false && trim($line) !== '') {}
+        $headDeadline = microtime(true) + ($instrumented ? 20 : 5);
+        do {
+            while (($line = fgets($connection)) !== false && trim($line) !== '') {}
+        } while ($line === false && !feof($connection) && microtime(true) < $headDeadline);
+        if ($line === false) {
+            fclose($connection);
+            continue;
+        }
         $requests++;
         if ($scenario === 'swoole' && getenv('PHP_FFE_SWOOLE_COLD') === 'expired' && $requests === 1) {
             // Withhold configuration until the parent has timed out and its worker evaluates.
@@ -166,7 +173,7 @@ try {
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
-    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 210 : 20)));
+    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 210 : 30)));
     $stdout .= ffeTestProcessRead($pipes[1]);
     $stderr .= ffeTestProcessRead($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out (exit=' . $exitCode . ', signal=' . $status['termsig'] . '): ' . $stdout . ' ' . $stderr);
@@ -181,10 +188,10 @@ try {
     if ($scenario === 'shutdown') echo "shutdown_cancelled_inflight_request\n";
     if ($scenario === 'isolation') echo "cdn_request_outside_php\n";
 } finally {
-    if ($running) proc_terminate($process);
     if (is_resource($pipes[0])) fclose($pipes[0]);
     fclose($pipes[1]);
     fclose($pipes[2]);
+    if ($running) ffeTestProcessTerminate($process);
     proc_close($process);
     foreach ($heldConnections as $connection) fclose($connection);
     fclose($server);

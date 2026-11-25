@@ -80,6 +80,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
                         "process_id": %d,
                         "foo": "bar",
                         "http.status_code": "200",
+                        "_dd.top_level": 1,
                         "php.compilation.total_time_ms": %f,
                         "php.memory.peak_usage_bytes": %d,
                         "php.memory.peak_real_usage_bytes": %d
@@ -102,7 +103,8 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
                         "http.url": "example.com\/test",
                         "stage": "aws-prod",
                         "_dd.inferred_span": 1,
-                        "http.status_code": "200"
+                        "http.status_code": "200",
+                        "_dd.top_level": 1
                     }
                 },
                 {

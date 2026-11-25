@@ -83,6 +83,14 @@ function makeSpan(string $name, string $resource, array $meta, ?string $env = nu
     foreach ($meta as $k => $v) {
         $s->meta[$k] = $v;
     }
+    // Children inherit the root's filter decision, even with conflicting tags.
+    $child = \DDTrace\start_span();
+    $child->name = $name . '.child';
+    $child->service = 'filter-test-service';
+    $child->meta['http.method'] = 'DELETE';
+    $child->meta['filter_reject'] = 'yes';
+    $child->metrics['_dd.measured'] = 1;
+    \DDTrace\close_span();
     \DDTrace\close_span();
 }
 
@@ -186,36 +194,26 @@ foreach (array_keys($namesInTraces) as $n) {
     echo "in traces: $n\n";
 }
 
-// Wait for a stats payload that contains our service.
-// Trace and stats requests can arrive independently.
-$statsRequest = $rr->waitForStats(function ($request) {
-    $payload = json_decode($request['body'], true);
-    foreach ($payload['Stats'] ?? [] as $bucket) {
+// A trace's stats can be split across payloads, and /replay-stats drops what it
+// returns: read every payload until each span in the traces has its stats.
+$ops = [];
+$rr->waitForStats(function ($request) use (&$ops, $namesInTraces) {
+    foreach (json_decode($request['body'], true)['Stats'] ?? [] as $bucket) {
         foreach ($bucket['Stats'] ?? [] as $group) {
             if ($group['Service'] === 'filter-test-service') {
-                return true;
+                $ops[] = $group['Name'];
             }
         }
     }
-    return false;
+    return !array_diff(array_keys($namesInTraces), $ops);
 });
 
 // Print which operation names appear in stats (sorted for determinism).
-// Only op.pass should survive all filters.
-$payload = json_decode($statsRequest['body'], true);
-$ops = [];
-foreach ($payload['Stats'] as $bucket) {
-    foreach ($bucket['Stats'] as $group) {
-        if ($group['Service'] === 'filter-test-service') {
-            $ops[] = $group['Name'];
-        }
-    }
-}
+// Only op.pass and its child should survive all filters.
 sort($ops);
 
 if (empty($ops)) {
     echo "ERROR: no filter-test-service stats groups found\n";
-    var_dump($payload);
 } else {
     foreach ($ops as $op) {
         echo "in stats: $op\n";
@@ -224,4 +222,6 @@ if (empty($ops)) {
 ?>
 --EXPECT--
 in traces: op.pass
+in traces: op.pass.child
 in stats: op.pass
+in stats: op.pass.child

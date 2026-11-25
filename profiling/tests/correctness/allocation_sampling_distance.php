@@ -12,6 +12,9 @@ function main()
 {
     // At sampling distance 1, each call must contribute one allocation.
     for ($i = 0; $i < 100; $i++) {
+        // This checks sampling/bin accounting, not overload behavior. Let the
+        // profiler consume its bounded queue between the selected allocations.
+        usleep(1000);
         allocation_sampling_distance_probe();
     }
 }
