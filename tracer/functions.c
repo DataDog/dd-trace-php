@@ -1862,11 +1862,10 @@ static zend_string *ddtrace_ffe_exposure_features_json(struct ddog_FfeFeatures *
 }
 
 // One entry per feature: key, typed value and destinations, in UFC order.
-static void ddtrace_ffe_update_features_property(zval *object, struct ddog_FfeFeatures *features) {
-    zval list;
-    size_t count = ddog_ffe_features_count(features);
+static void ddtrace_ffe_features_value(zval *list, struct ddog_FfeFeatures *features) {
+    size_t count = features ? ddog_ffe_features_count(features) : 0;
 
-    array_init_size(&list, count);
+    array_init_size(list, count);
     for (size_t i = 0; i < count; i++) {
         struct ddog_FfeFeature feature = ddog_ffe_features_get(features, i);
         zval entry, value, destinations;
@@ -1890,10 +1889,76 @@ static void ddtrace_ffe_update_features_property(zval *object, struct ddog_FfeFe
         add_assoc_str(&entry, "key", dd_CharSlice_to_zend_string(feature.key));
         add_assoc_zval(&entry, "value", &value);
         add_assoc_zval(&entry, "destinations", &destinations);
-        add_next_index_zval(&list, &entry);
+        add_next_index_zval(list, &entry);
     }
+}
+
+static void ddtrace_ffe_update_features_property(zval *object, struct ddog_FfeFeatures *features) {
+    zval list;
+    ddtrace_ffe_features_value(&list, features);
     ddtrace_ffe_update_property(object, ZEND_STRL("features"), &list);
     zval_ptr_dtor(&list);
+}
+
+static void ddtrace_ffe_add_exposure_candidate(zval *candidates, zend_string *flag_key, struct ddog_FfeResult *result) {
+    zval candidate;
+    array_init(&candidate);
+    add_assoc_str(&candidate, "flagKey", zend_string_copy(flag_key));
+    add_assoc_str(&candidate, "variant", zend_string_copy(result->variant));
+    add_assoc_str(&candidate, "allocationKey", zend_string_copy(result->allocation_key));
+    add_assoc_long(&candidate, "serialId", result->serial_id);
+    add_assoc_bool(&candidate, "hasSerialId", result->has_serial_id);
+    zval features;
+    ddtrace_ffe_features_value(&features, result->features);
+    add_assoc_zval(&candidate, "features", &features);
+    add_next_index_zval(candidates, &candidate);
+}
+
+typedef struct {
+    zval observations;
+    zval exposures;
+    zend_string *targeting_key;
+    zval *attributes;
+    bool defer_exposures;
+    bool record_exposures;
+} ddtrace_ffe_dependency_context;
+
+static void ddtrace_ffe_record_dependency(void *opaque, ddog_CharSlice key, struct ddog_FfeResult result, bool eligible) {
+    ddtrace_ffe_dependency_context *context = opaque;
+    zend_string *flag_key = zend_string_init(key.ptr, key.len, 0);
+    ddtrace_ffe_record_evaluation_metric_result(flag_key, result.variant, result.allocation_key, result.reason, result.error_code);
+    if (context->record_exposures && eligible && result.do_log && result.variant && result.allocation_key) {
+        if (context->defer_exposures) {
+            ddtrace_ffe_add_exposure_candidate(&context->exposures, flag_key, &result);
+        } else {
+            zend_string *attributes = ddtrace_ffe_attributes_json(context->attributes);
+            zend_string *features = ddtrace_ffe_exposure_features_json(result.features);
+            ddtrace_ffe_record_exposure(flag_key, context->targeting_key, attributes, result.allocation_key,
+                result.variant, result.serial_id, result.has_serial_id, features);
+            if (features) zend_string_release(features);
+            zend_string_release(attributes);
+        }
+    }
+    zval observation;
+    array_init(&observation);
+    add_assoc_str(&observation, "flagKey", flag_key);
+    ddtrace_ffe_add_nullable_str(&observation, "variant", result.variant);
+    ddtrace_ffe_add_nullable_str(&observation, "allocationKey", result.allocation_key);
+    const char *error = ddtrace_ffe_error_name(result.error_code);
+    if (error) {
+        add_assoc_string(&observation, "errorCode", (char *)error);
+    } else {
+        add_assoc_null(&observation, "errorCode");
+    }
+    add_assoc_bool(&observation, "observeFullEvaluationData", result.observe_full_evaluation_data);
+    zval features;
+    ddtrace_ffe_features_value(&features, result.features);
+    add_assoc_zval(&observation, "features", &features);
+    add_next_index_zval(&context->observations, &observation);
+    ddog_ffe_features_drop(result.features);
+    if (result.value_json) zend_string_release(result.value_json);
+    if (result.variant) zend_string_release(result.variant);
+    if (result.allocation_key) zend_string_release(result.allocation_key);
 }
 
 PHP_FUNCTION(DDTrace_ffe_evaluate) {
@@ -1913,12 +1978,13 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     struct ddog_FfeResult result;
     zend_bool record_metric = true;
     zend_bool record_exposure = true;
+    zend_bool defer_exposures = false;
     int exposure = -1;
     zend_string *value_json;
     zend_string *variant;
     zend_string *allocation_key;
 
-    ZEND_PARSE_PARAMETERS_START(4, 6)
+    ZEND_PARSE_PARAMETERS_START(4, 7)
         Z_PARAM_STR(flag_key)
         Z_PARAM_LONG(type_id_zl)
         Z_PARAM_STR_OR_NULL(targeting_key)
@@ -1926,6 +1992,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(record_metric)
         Z_PARAM_BOOL(record_exposure)
+        Z_PARAM_BOOL(defer_exposures)
     ZEND_PARSE_PARAMETERS_END();
 
     if (!ddtrace_ffe_enabled()) {
@@ -1987,12 +2054,16 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     ddtrace_ffe_before_evaluate();
-    result = ddog_ffe_evaluate(
-        dd_zend_string_to_CharSlice(flag_key),
-        type_id,
-        dd_zend_string_to_CharSlice(targeting_key),
-        c_attrs,
-        attrs_count
+    ddtrace_ffe_dependency_context dependencies = {
+        .targeting_key = targeting_key, .attributes = attrs_zv,
+        .defer_exposures = defer_exposures, .record_exposures = record_exposure
+    };
+    array_init(&dependencies.observations);
+    array_init(&dependencies.exposures);
+    result = ddog_ffe_evaluate_with_dependencies(
+        dd_zend_string_to_CharSlice(flag_key), type_id,
+        dd_zend_string_to_CharSlice(targeting_key), c_attrs, attrs_count,
+        ddtrace_ffe_record_dependency, &dependencies
     );
     if (c_attrs) {
         efree(c_attrs);
@@ -2007,6 +2078,8 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     if (!result.valid) {
+        zval_ptr_dtor(&dependencies.observations);
+        zval_ptr_dtor(&dependencies.exposures);
         LOG(DEBUG, "Feature Flags: evaluation rejected; flag key is not valid UTF-8 or the value type is unknown (valueType=%s)", ddtrace_ffe_type_name(type_id));
         if (record_metric) {
             ddtrace_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
@@ -2031,16 +2104,20 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     if (record_exposure && result.do_log && allocation_key && variant) {
         zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
         zend_string *features_json = ddtrace_ffe_exposure_features_json(result.features);
-        exposure = ddtrace_ffe_record_exposure(
-            flag_key,
-            targeting_key,
-            subject_attributes_json,
-            allocation_key,
-            variant,
-            result.serial_id,
-            result.has_serial_id,
-            features_json
-        );
+        if (defer_exposures) {
+            ddtrace_ffe_add_exposure_candidate(&dependencies.exposures, flag_key, &result);
+        } else {
+            exposure = ddtrace_ffe_record_exposure(
+                flag_key,
+                targeting_key,
+                subject_attributes_json,
+                allocation_key,
+                variant,
+                result.serial_id,
+                result.has_serial_id,
+                features_json
+            );
+        }
         zend_string_release(subject_attributes_json);
         if (features_json) {
             zend_string_release(features_json);
@@ -2067,6 +2144,10 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     if (result.has_serial_id) {
         ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
     }
+    ddtrace_ffe_update_property(return_value, ZEND_STRL("dependencyEvaluations"), &dependencies.observations);
+    ddtrace_ffe_update_property(return_value, ZEND_STRL("exposureCandidates"), &dependencies.exposures);
+    zval_ptr_dtor(&dependencies.observations);
+    zval_ptr_dtor(&dependencies.exposures);
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
     if (exposure >= 0) {
         ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("exposureCacheHit"), exposure == 0);

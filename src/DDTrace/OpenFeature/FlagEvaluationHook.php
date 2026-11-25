@@ -22,6 +22,7 @@ final class FlagEvaluationHook implements Hook
     private ?self $previous = null;
     private ?array $observation = null;
     private ?array $exposure = null;
+    private ?array $exposures = null;
     private ?ResolutionDetails $details = null;
     private int $startedAtMs;
     private static ?\WeakMap $exposureEvaluations = null;
@@ -61,6 +62,11 @@ final class FlagEvaluationHook implements Hook
         $this->observation = $observation;
     }
 
+    public function captureExposures(array $exposures): void
+    {
+        $this->exposures = $exposures;
+    }
+
     public function captureExposure(array $exposure): void
     {
         $this->exposure = $exposure;
@@ -90,6 +96,7 @@ final class FlagEvaluationHook implements Hook
 
     public function error(HookContext $context, \Throwable $error, HookHints $hints): void
     {
+        $this->exposures = null;
         $this->observation = $this->observation ?? $this->protectedObservation($context);
         // Before/after failures replace the SDK result with the caller default.
         // Keep evaluated consent/time, but not the successful variant/allocation.
@@ -105,6 +112,9 @@ final class FlagEvaluationHook implements Hook
     public function finally(HookContext $context, HookHints $hints): void
     {
         try {
+            if ($this->details !== null && $this->exposures !== null && $this->exposureRecorder !== null) {
+                NativeEvaluator::submitExposures($this->exposures, $this->exposureRecorder);
+            }
             $this->decideExposure($context);
             if ($this->observation !== null) {
                 NativeEvaluator::submitFlagEvaluation($this->observation);
@@ -113,6 +123,7 @@ final class FlagEvaluationHook implements Hook
             $this->claim();
             $this->observation = null;
             $this->exposure = null;
+            $this->exposures = null;
             $this->details = null;
         }
     }
