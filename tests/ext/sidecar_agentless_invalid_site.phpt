@@ -11,8 +11,19 @@ datadog.trace.generate_root_span=0
 <?php
 $file = __DIR__ . '/sidecar_agentless_invalid_site.log';
 clearstatcache(true, $file);
-$logs = (string) @file_get_contents($file);
-var_dump(strpos($logs, 'Invalid DD_SITE bad/site, falling back to datadoghq.com') !== false);
+// The sidecar copies its logs for every session into each connected log file (at trace level in
+// CI), so this file can grow faster than we read it. Our line is logged before the sidecar
+// connects, so only scan what was there when the script started.
+$found = false;
+if ($fp = @fopen($file, 'r')) {
+    $remaining = filesize($file);
+    while (!$found && $remaining > 0 && ($line = fgets($fp)) !== false) {
+        $remaining -= strlen($line);
+        $found = strpos($line, 'Invalid DD_SITE bad/site, falling back to datadoghq.com') !== false;
+    }
+    fclose($fp);
+}
+var_dump($found);
 ?>
 --EXPECT--
 bool(true)
