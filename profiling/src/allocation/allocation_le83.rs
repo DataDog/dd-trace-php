@@ -248,6 +248,7 @@ pub fn alloc_prof_startup() {
 /// The `_zend_mm_heap`-struct itself is private, but we are lucky, as the
 /// `use_custom_heap` flag is the first element and thus the first 4 bytes.
 /// Take care and call `restore_zend_heap()` afterward!
+#[inline(always)]
 unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
     let custom_heap: c_int = ptr::read(heap as *const c_int);
     ptr::write(heap as *mut c_int, zend::ZEND_MM_CUSTOM_HEAP_NONE as c_int);
@@ -259,6 +260,7 @@ fn prepare_zend_heap_none(_heap: *mut zend::_zend_mm_heap) -> c_int {
 }
 
 /// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
+#[inline(always)]
 unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
     ptr::write(heap as *mut c_int, custom_heap);
 }
@@ -326,13 +328,12 @@ unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void
         // SAFETY: this callback is only invoked after rinit stores the heap and
         // before rshutdown clears it.
         let heap = state.heap.unwrap_unchecked().as_ptr();
-        let (prepare, restore) = state.prepare_restore_zend_heap;
-        let custom_heap = prepare(heap);
+        let custom_heap = prepare_zend_heap(heap);
         #[cfg(php_debug)]
         let ptr = zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0);
         #[cfg(not(php_debug))]
         let ptr = zend::_zend_mm_alloc(heap, len);
-        restore(heap, custom_heap);
+        restore_zend_heap(heap, custom_heap);
         ptr
     };
 
@@ -439,13 +440,12 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
         // SAFETY: this callback is only invoked after rinit stores the heap and
         // before rshutdown clears it.
         let heap = state.heap.unwrap_unchecked().as_ptr();
-        let (prepare, restore) = state.prepare_restore_zend_heap;
-        let custom_heap = prepare(heap);
+        let custom_heap = prepare_zend_heap(heap);
         #[cfg(php_debug)]
         let ptr = zend::_zend_mm_realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
         #[cfg(not(php_debug))]
         let ptr = zend::_zend_mm_realloc(heap, prev_ptr, len);
-        restore(heap, custom_heap);
+        restore_zend_heap(heap, custom_heap);
         ptr
     };
 
