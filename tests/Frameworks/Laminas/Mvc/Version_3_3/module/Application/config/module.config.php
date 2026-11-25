@@ -757,6 +757,30 @@ return [
                     ],
                 ],
             ],
+            // Repeated static optionals: without merging equal states the
+            // replay keeps one state per subset taken (2^18).
+            'normalized_repeated' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-repeated' . str_repeat('[/a]', 18),
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            // Enough repeated optionals for the merged states to exceed
+            // LaminasIntegration::REPLAY_STATE_LIMIT: the fallback is used.
+            'normalized_repeated_many' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-repeated-many' . str_repeat('[/a]', 300),
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
             // A Regex whose spec does not place one of its captures.
             'normalized_rx_unplaced' => [
                 'type' => Regex::class,

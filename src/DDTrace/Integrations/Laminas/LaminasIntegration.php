@@ -33,6 +33,13 @@ class LaminasIntegration extends Integration
     const NAME = 'laminas';
 
     /**
+     * The most distinct states a Segment replay keeps at once (see
+     * laminasDistinctReplayStates()). Real routes stay far below it; a route
+     * above it falls back to its mandatory parts (RFC-1125).
+     */
+    const REPLAY_STATE_LIMIT = 256;
+
+    /**
      * What each Literal, Wildcard, Segment and Regex match() that succeeded
      * matched: [route, path, offset, length]. Each list is attached to the
      * RouteMatch the match() returned, and RouteMatch::merge() appends the
@@ -1794,7 +1801,13 @@ class LaminasIntegration extends Integration
             'elements' => [],
             'capture_indexes' => [],
         ]];
-        $states = self::matchLaminasSegmentParts($routeData[2], $urlPath, $captures, $states);
+        try {
+            $states = self::matchLaminasSegmentParts($routeData[2], $urlPath, $captures, $states);
+        } catch (\OverflowException $e) {
+            // Over REPLAY_STATE_LIMIT: which optionals took part is not
+            // resolved, and the route falls back to its mandatory parts.
+            return null;
+        }
         foreach ($states as $state) {
             if ($state['offset'] !== $end) {
                 continue;
@@ -1862,13 +1875,44 @@ class LaminasIntegration extends Integration
                     return [];
                 }
             }
-            $states = $nextStates;
+            $states = self::laminasDistinctReplayStates($nextStates);
             if (empty($states)) {
                 break;
             }
         }
 
         return $states;
+    }
+
+    /**
+     * The first state for each offset and capture indexes, in order.
+     *
+     * What a state can still match depends only on those two, and
+     * inferLaminasSegmentMatch() takes the first state that ends the match,
+     * which always descends from the first of the states that share them:
+     * dropping the others leaves the result unchanged. Without this, repeated
+     * optionals (/p[/a][/a]...) keep one state per subset of them taken, 2^n
+     * states. Merged, the states are bounded by the offsets times the capture
+     * indexes; REPLAY_STATE_LIMIT stops a route that still has too many.
+     *
+     * @throws \OverflowException above REPLAY_STATE_LIMIT states
+     */
+    private static function laminasDistinctReplayStates(array $states): array
+    {
+        $distinct = [];
+        foreach ($states as $state) {
+            $indexes = $state['capture_indexes'];
+            ksort($indexes);
+            $key = $state['offset'] . "\0" . serialize($indexes);
+            if (!isset($distinct[$key])) {
+                $distinct[$key] = $state;
+            }
+        }
+        if (count($distinct) > self::REPLAY_STATE_LIMIT) {
+            throw new \OverflowException('Laminas Segment replay state limit exceeded');
+        }
+
+        return array_values($distinct);
     }
 
     /**

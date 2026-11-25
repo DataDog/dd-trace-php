@@ -166,6 +166,8 @@ literal text and mandatory captures; a Wildcard adds nothing) when:
   (e.g. `[/:a]` on `/e/`): the empty parameter is absent, and the separator
   it matched is not explained by any shape of the route;
 - a `Wildcard` matched more than one piece without starting with `/`;
+- replaying a `Segment` keeps more than 256 distinct states (offset and
+  captures used so far), which takes hundreds of optionals in one route;
 - replaying a route throws.
 
 The tag is not set, as the route cannot be expressed, when a `Regex` route

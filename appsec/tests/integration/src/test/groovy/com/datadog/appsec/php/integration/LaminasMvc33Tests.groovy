@@ -944,4 +944,34 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
         assert trace.first().meta.'laminas.route.name' == 'normalized_translated'
         assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-translated/benutzer/{id}/{tab}'
     }
+
+    @Test
+    @Order(50)
+    void 'repeated static optionals are replayed without enumerating every subset'() {
+        // 18 [/a] blocks: the replay merges states that reach the same offset,
+        // instead of keeping 2^18 of them and exhausting the memory limit.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-repeated' + '/a' * 18).GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_repeated'
+        assert trace.first().meta.'http.route' == '/normalized-repeated' + '[/a]' * 18
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-repeated' + '/a' * 18
+    }
+
+    @Test
+    @Order(51)
+    void 'a replay over the state limit falls back to the mandatory parts'() {
+        // RFC-1125: never omit the tag because optional parts cannot be resolved.
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-repeated-many' + '/a' * 300).GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_repeated_many'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-repeated-many'
+    }
 }
