@@ -14,7 +14,7 @@ $php_versions_to_abi = [
     "8.3" => "20230831",
     "8.4" => "20240924",
     "8.5" => "20250925",
-    "8.6" => "20260924",
+    "8.6" => "20261112",
 ];
 
 $all_minor_major_targets = array_keys($php_versions_to_abi);
@@ -138,6 +138,8 @@ STEP;
         'build-tracing.sh',
         'build-tracing-asan.sh',
         'build-profiler.sh',
+        'xlang-lto', // `make -s xlang-lto` and tooling/bin/build-xlang-lto (ThinLTO and SSI combined builds)
+        'build-ssi-combined-alpine.sh',
     ];
 
     // Split into top-level YAML blocks (each starts at column 0).
@@ -221,10 +223,10 @@ foreach ($arch_targets as $arch_target) {
 ?>
 
 .services:
-  test-agent:
-    name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.22.1
+  test-agent: &test_agent_service
+    name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.67.0
     alias: test-agent
-    variables:
+    variables: &test_agent_variables
       LOG_LEVEL: DEBUG
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
@@ -244,8 +246,15 @@ foreach ($arch_targets as $arch_target) {
       KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
       KUBERNETES_SERVICE_MEMORY_LIMIT: 1Gi
 
+  # For jobs without a request-replayer: the test agent forwards /info to DD_TRACE_AGENT_URL and fails it if that host is missing.
+  test-agent-standalone:
+    <<: *test_agent_service
+    variables:
+      <<: *test_agent_variables
+      DD_TRACE_AGENT_URL: ""
+
   request-replayer:
-    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:4.0
+    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:6.0
     alias: request-replayer
     command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
     variables:

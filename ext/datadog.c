@@ -30,6 +30,7 @@
 #include "startup_logging.h"
 #include "telemetry.h"
 #include "zend_hrtime.h"
+#include <ext/date/php_date.h>
 #ifndef _WIN32
 #include <dlfcn.h>
 #include <limits.h>
@@ -255,6 +256,10 @@ static void dd_activate_once(void) {
 }
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
+#ifndef ZTS
+static zend_module_entry *dd_date_module;
+static void dd_clear_stale_date_tzcache(void);
+#endif
 #ifdef TRACER
 static pthread_once_t dd_tracer_first_rinit_control = PTHREAD_ONCE_INIT;
 #endif
@@ -272,6 +277,11 @@ static bool dd_is_cli_autodisabled(const char *arg) {
 }
 
 static void datadog_activate(void) {
+#ifndef ZTS
+    // Before anything that may log; see dd_clear_stale_date_tzcache().
+    dd_clear_stale_date_tzcache();
+#endif
+
     ddog_reset_logger();
 
     if (!datadog_disable && datadog_has_excluded_module == true) {
@@ -316,6 +326,37 @@ static void datadog_activate(void) {
 #endif
 }
 
+#ifndef ZTS
+// ext/date caches parsed timezones in a table at DATEG(tzcache), created by
+// the first timezone lookup. Date's RINIT sets the pointer to NULL without
+// freeing anything, and date's post-deactivate (RSHUTDOWN before PHP 7.4.23
+// and 8.0.10) frees the table.
+//
+// When error_log names a file, NTS builds timestamp every logged line in
+// local time, which looks the timezone up (ZTS builds use UTC until module
+// startup ends). A line logged during module startup, such as the SSI
+// loader's debug output, then creates the table on a heap that
+// php_module_startup() discards before it returns. The pointer dangles until
+// date's first RINIT, in the startup process and in every worker forked from
+// it. Any line logged in that first request before the module RINITs then
+// looks a timezone up in the freed table, a warning that the POST data
+// exceeds post_max_size for instance. If the request fails before
+// the RINITs, such as with a fatal while PHP parses its POST data, date's
+// post-deactivate also frees the table ("zend_mm_heap corrupted").
+//
+// This hook runs before PHP parses the request data and before any module
+// RINIT, so reset the pointer here, as date's RINIT would. A live table that
+// another zend_extension's activate hook created is merely left to the
+// end-of-request heap reset, as date's RINIT would leave it too.
+static void dd_clear_stale_date_tzcache(void) {
+    if (!dd_date_module) {
+        return;
+    }
+    zend_date_globals *globals = dd_date_module->globals_ptr;
+    globals->tzcache = NULL;
+}
+#endif
+
 static void datadog_deactivate(void) {
 #ifdef PROFILING
     if (datadog_profiling_initialized) {
@@ -330,35 +371,28 @@ static void datadog_deactivate(void) {
 #endif
 }
 
-static zend_extension dd_zend_extension_entry = {PHP_DDTRACE_EXTNAME,
-                                                  PHP_DDTRACE_VERSION,
-                                                  "Datadog",
-                                                  "https://github.com/DataDog/dd-trace-php",
-                                                  "Copyright Datadog",
-                                                  datadog_startup,
-                                                  datadog_shutdown,
-                                                  datadog_activate,
-                                                  datadog_deactivate,
-                                                  NULL,
+static zend_extension dd_zend_extension_entry = {
+    .name = PHP_DDTRACE_EXTNAME,
+    .version = PHP_DDTRACE_VERSION,
+    .author = "Datadog",
+    .URL = "https://github.com/DataDog/dd-trace-php",
+    .copyright = "Copyright Datadog",
+    .startup = datadog_startup,
+    .shutdown = datadog_shutdown,
+    .activate = datadog_activate,
+    .deactivate = datadog_deactivate,
 #if PHP_VERSION_ID < 80000 && defined(TRACER)
-                                                  zai_interceptor_op_array_pass_two,
-#else
-                                                  NULL,
+    .op_array_handler = zai_interceptor_op_array_pass_two,
+    .op_array_ctor = zai_interceptor_op_array_ctor,
 #endif
-                                                  NULL,
-                                                  NULL,
-                                                  NULL,
-#if PHP_VERSION_ID < 80000 && defined(TRACER)
-                                                  zai_interceptor_op_array_ctor,
-#else
-                                                  NULL,
+#if PHP_VERSION_ID >= 80100 && defined(TRACER)
+    .op_array_persist_calc = zai_hook_op_array_persist_calc,
 #endif
 #ifdef TRACER
-                                                  zai_hook_unresolve_op_array,
-#else
-                                                  NULL,
+    .op_array_dtor = zai_hook_unresolve_op_array,
 #endif
-                                                  STANDARD_ZEND_EXTENSION_PROPERTIES};
+    .resource_number = -1,
+};
 
 static void php_datadog_init_globals(zend_datadog_globals *ng) { memset(ng, 0, sizeof(zend_datadog_globals)); }
 
@@ -626,6 +660,10 @@ static int datadog_register_zend_extension(void) {
 
 static PHP_MINIT_FUNCTION(datadog) {
     UNUSED(type);
+#ifndef ZTS
+    // ext/date is always compiled in, so it is registered before ddtrace.
+    dd_date_module = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("date"));
+#endif
 #ifdef PROFILING
     datadog_profiling_initialized = false;
 #endif
@@ -856,7 +894,7 @@ static PHP_RINIT_FUNCTION(datadog) {
 
 #ifdef SIDECAR
     if (!DATADOG_G(remote_config_state) && datadog_endpoint) {
-        DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
+        DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_ffe_cdn_config(), ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
     }
 
     // We need to init RC for the sidecar to write to it immediately
@@ -1063,20 +1101,38 @@ zend_result datadog_post_deactivate(void) {
 }
 
 static PHP_MINFO_FUNCTION(datadog) {
-    UNUSED(zend_module);
-
-    datadog_phpinfo();
-
-    DISPLAY_INI_ENTRIES();
+    // One section per component, each followed by its own INI entries
+    unsigned tracer_groups = DATADOG_PHPINFO_INI_TRACER;
+    bool appsec_loaded = false, profiler_loaded = false;
 #ifdef APPSEC
+    appsec_loaded = datadog_appsec_initialized;
+#else
+    tracer_groups |= DATADOG_PHPINFO_INI_APPSEC; // no dedicated section, don't hide the entries
+#endif
+#ifdef PROFILING
+    profiler_loaded = datadog_profiling_initialized;
+#else
+    tracer_groups |= DATADOG_PHPINFO_INI_PROFILER;
+#endif
+
+    datadog_phpinfo(appsec_loaded, profiler_loaded);
+
+    datadog_phpinfo_tracer();
+    datadog_phpinfo_ini_entries(zend_module, tracer_groups);
+
+#ifdef APPSEC
+    datadog_phpinfo_section("Datadog Application Security");
     if (datadog_appsec_initialized) {
         dd_appsec_minfo();
     }
+    datadog_phpinfo_ini_entries(zend_module, DATADOG_PHPINFO_INI_APPSEC);
 #endif
 #ifdef PROFILING
+    datadog_phpinfo_section("Datadog Profiler");
     if (datadog_profiling_initialized) {
         ddog_php_prof_minfo(zend_module);
     }
+    datadog_phpinfo_ini_entries(zend_module, DATADOG_PHPINFO_INI_PROFILER);
 #endif
 }
 

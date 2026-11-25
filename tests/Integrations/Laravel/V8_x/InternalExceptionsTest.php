@@ -39,7 +39,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     'web',
                     'App\Http\Controllers\InternalErrorController@notImplemented not-implemented'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'laravel.route.name' => 'not-implemented',
                         'laravel.route.action' => 'App\Http\Controllers\InternalErrorController@notImplemented',
                         'http.method' => 'GET',
@@ -50,19 +50,16 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         TAG::COMPONENT => 'laravel',
                         '_dd.svc_src' => 'laravel',
                     ])
-                    ->withExactMetrics([
-                        '_sampling_priority_v1' => 1,
-                        'process_id' => getmypid(),
-                    ])
+                    ->samplingPriority(1)
                     ->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'not-implemented')
-                            ->withExactTags([
+                            ->withExactAttributes([
                                 TAG::COMPONENT => 'laravel',
                                 '_dd.svc_src' => 'laravel',
                                 'track_error' => 'false',
                             ])
                             ->setError('Symfony\Component\HttpKernel\Exception\HttpException')
-                            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+                            ->withExistingAttributeNames([Tag::ERROR_MSG, 'error.stack']),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
@@ -102,7 +99,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     'web',
                     'App\Http\Controllers\InternalErrorController@unauthorized unauthorized'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'laravel.route.name' => 'unauthorized',
                         'laravel.route.action' => 'App\Http\Controllers\InternalErrorController@unauthorized',
                         'http.method' => 'GET',
@@ -113,17 +110,14 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         TAG::COMPONENT => 'laravel',
                         '_dd.svc_src' => 'laravel',
                     ])
-                    ->withExactMetrics([
-                        '_sampling_priority_v1' => 1,
-                        'process_id' => getmypid(),
-                    ])
+                    ->samplingPriority(1)
                     ->withChildren([
                         SpanAssertion::build(
                             'laravel.view.render',
                             'laravel_test_app',
                             'web',
                             'errors::403'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             TAG::COMPONENT => 'laravel',
                             '_dd.svc_src' => 'laravel',
                         ])->withChildren([
@@ -134,13 +128,13 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laravel.event.handle'),
                         ]),
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'unauthorized')
-                            ->withExactTags([
+                            ->withExactAttributes([
                                 TAG::COMPONENT => 'laravel',
                                 '_dd.svc_src' => 'laravel',
                                 'track_error' => 'false',
                             ])
                             ->setError()
-                            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+                            ->withExistingAttributeNames([Tag::ERROR_MSG, 'error.stack']),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'

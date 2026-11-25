@@ -1,12 +1,17 @@
 use crate::bytes::MaybeOwnedZendString;
+use arc_swap::ArcSwapOption;
+use datadog_ffe::cdn::{CdnConfig, CdnEndpoint, EndpointError};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
-    EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
+    EvaluationError, ExpectedFlagType, Feature, FeatureValue, Str, UniversalFlagConfig,
 };
+use datadog_ffe::telemetry::exposures::{ExposureDeduplicator, FfeExposure};
+use datadog_ffe::telemetry::FfeTelemetryContext;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::debug;
 
 struct FfeState {
@@ -181,6 +186,103 @@ pub extern "C" fn ddog_ffe_config_version() -> u64 {
     FFE_STATE.with(|state| state.borrow().version)
 }
 
+/// The agentless (CDN) configuration source, fixed for the lifetime of the process.
+pub struct FfeCdnConfig(pub(crate) CdnConfig);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum FfeCdnConfigError {
+    MissingApiKey,
+    InvalidApiKey,
+    InvalidSite,
+    InvalidUrl,
+}
+
+/// A non-empty `base_url` is fetched as given and never receives the API key.
+/// Otherwise the managed endpoint of `site` is used, filtered to `env`.
+/// The intervals must already be within the ranges accepted by the sidecar.
+/// Requests send `service` in `DD-Service`. An empty `service` sends no header.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_cdn_config_new(
+    base_url: CharSlice,
+    site: CharSlice,
+    env: CharSlice,
+    api_key: CharSlice,
+    service: CharSlice,
+    poll_interval_secs: u32,
+    request_timeout_secs: u32,
+    error: &mut FfeCdnConfigError,
+) -> Option<Box<FfeCdnConfig>> {
+    let endpoint = CdnEndpoint::build(
+        &base_url.to_utf8_lossy(),
+        &site.to_utf8_lossy(),
+        &env.to_utf8_lossy(),
+        &api_key.to_utf8_lossy(),
+    )
+    .map_err(|e| {
+        *error = match e {
+            EndpointError::MissingApiKey => FfeCdnConfigError::MissingApiKey,
+            EndpointError::InvalidApiKey => FfeCdnConfigError::InvalidApiKey,
+            EndpointError::InvalidSite => FfeCdnConfigError::InvalidSite,
+            EndpointError::InvalidUrl
+            | EndpointError::UnsupportedScheme
+            | EndpointError::UrlContainsWhitespace => FfeCdnConfigError::InvalidUrl,
+        };
+    })
+    .ok()?;
+    Some(Box::new(FfeCdnConfig(CdnConfig {
+        endpoint,
+        poll_interval: Duration::from_secs(poll_interval_secs.into()),
+        request_timeout: Duration::from_secs(request_timeout_secs.into()),
+        language: "php".to_string(),
+        version: include_str!("../../VERSION").trim().into(),
+        service: Some(service.to_utf8_lossy().into_owned()).filter(|s| !s.is_empty()),
+    })))
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_cdn_config_drop(_: Box<FfeCdnConfig>) {}
+
+/// Build the authenticated EVP intake independently of any custom CDN URL.
+/// Missing credentials or an invalid destination leave local EVP discovery available.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_evp_endpoint_new(
+    site: CharSlice,
+    api_key: CharSlice,
+) -> Option<Box<libdd_common::Endpoint>> {
+    let site = site.try_to_utf8().ok()?.trim();
+    let site = if site.is_empty() {
+        "datadoghq.com"
+    } else {
+        site
+    };
+    // Validate the input before URI parsing, which can discard a fragment.
+    if !site
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'))
+    {
+        return None;
+    }
+    let endpoint = libdd_common::Endpoint {
+        url: format!(
+            "https://event-platform-intake.{}/",
+            site.to_ascii_lowercase()
+        )
+        .parse()
+        .ok()?,
+        api_key: Some(api_key.try_to_utf8().ok()?.to_owned().into()),
+        ..Default::default()
+    };
+    datadog_sidecar::service::EvpTransportConfig::prefer_local_then_direct(
+        libdd_common::Endpoint::default(),
+        Some(endpoint.clone()),
+        "event-platform-intake",
+    )
+    .validate()
+    .ok()?;
+    Some(Box::new(endpoint))
+}
+
 const REASON_STATIC: i32 = 0;
 const REASON_DEFAULT: i32 = 1;
 const REASON_TARGETING_MATCH: i32 = 2;
@@ -224,6 +326,153 @@ pub struct FfeResult {
     // Consent belongs to the configuration snapshot used for this evaluation.
     pub observe_full_evaluation_data: bool,
     pub valid: bool,
+    /// NULL when the selected split has no features. Release with ddog_ffe_features_drop.
+    pub features: Option<Box<FfeFeatures>>,
+}
+
+pub struct FfeFeatures(Arc<[Feature]>);
+
+#[repr(C)]
+pub struct FfeFeature<'a> {
+    pub key: CharSlice<'a>,
+    /// One of the ATTR_TYPE_* values: 0 string, 1 number, 2 boolean.
+    pub value_type: i32,
+    pub string_value: CharSlice<'a>,
+    pub number_value: f64,
+    pub bool_value: bool,
+    pub destinations_count: usize,
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_count(features: &FfeFeatures) -> usize {
+    features.0.len()
+}
+
+/// An out-of-range index returns a feature with an empty key and no destinations.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_get(features: &FfeFeatures, index: usize) -> FfeFeature<'_> {
+    let mut view = FfeFeature {
+        key: CharSlice::empty(),
+        value_type: ATTR_TYPE_STRING,
+        string_value: CharSlice::empty(),
+        number_value: 0.0,
+        bool_value: false,
+        destinations_count: 0,
+    };
+    let Some(feature) = features.0.get(index) else {
+        return view;
+    };
+    view.key = CharSlice::from(feature.key.as_str());
+    view.destinations_count = feature.destinations.len();
+    match &feature.value {
+        FeatureValue::String(value) => view.string_value = CharSlice::from(value.as_str()),
+        FeatureValue::Number(value) => {
+            view.value_type = ATTR_TYPE_NUMBER;
+            view.number_value = *value;
+        }
+        FeatureValue::Boolean(value) => {
+            view.value_type = ATTR_TYPE_BOOL;
+            view.bool_value = *value;
+        }
+    }
+    view
+}
+
+/// An out-of-range index returns an empty destination.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_destination(
+    features: &FfeFeatures,
+    index: usize,
+    destination: usize,
+) -> CharSlice<'_> {
+    features
+        .0
+        .get(index)
+        .and_then(|feature| feature.destinations.get(destination))
+        .map_or(CharSlice::from(""), |destination| {
+            CharSlice::from(destination.as_str())
+        })
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_features_drop(features: Option<Box<FfeFeatures>>) {
+    drop(features);
+}
+
+// Shared by every thread of the process. The sidecar deduplicates again
+// across processes before sending. Created on first use and swapped without
+// locks, so a forked child can start empty without waiting on a mutex or a
+// first initialization that another thread was running at fork time.
+static EXPOSURE_CACHE: ArcSwapOption<ExposureDeduplicator> = ArcSwapOption::const_empty();
+
+fn exposure_cache() -> Arc<ExposureDeduplicator> {
+    if let Some(cache) = EXPOSURE_CACHE.load_full() {
+        return cache;
+    }
+    let fresh = Arc::new(ExposureDeduplicator::default());
+    let previous = EXPOSURE_CACHE.compare_and_swap(&None::<Arc<_>>, Some(fresh.clone()));
+    match &*previous {
+        Some(winner) => winner.clone(),
+        None => fresh,
+    }
+}
+
+/// Gives the calling process an empty exposure cache. Call it in a forked child.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_exposure_cache_reset() {
+    EXPOSURE_CACHE.store(None);
+}
+
+#[repr(C)]
+pub struct FfeExposureKey<'a> {
+    /// Destinations, such as test agent sessions, that must not suppress each other's exposures.
+    pub scope: CharSlice<'a>,
+    pub service: CharSlice<'a>,
+    pub env: CharSlice<'a>,
+    pub version: CharSlice<'a>,
+    pub flag_key: CharSlice<'a>,
+    pub subject_id: CharSlice<'a>,
+    pub allocation_key: CharSlice<'a>,
+    pub variant: CharSlice<'a>,
+    pub serial_id: i32,
+    pub has_serial_id: bool,
+}
+
+/// Cache-key text for a PHP string: distinct byte strings give distinct text,
+/// including invalid UTF-8, which a lossy conversion would merge.
+fn cache_key_text(slice: CharSlice<'_>) -> String {
+    match slice.try_to_utf8() {
+        Ok(text) => format!("u{text}"),
+        Err(_) => {
+            let mut text = String::from("b");
+            for byte in slice.as_bytes() {
+                text.push_str(&format!("{byte:02x}"));
+            }
+            text
+        }
+    }
+}
+
+/// Records the exposure in the process exposure cache. Returns false when the
+/// subject was already exposed to the same allocation, variant and serial id.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_exposure_cache_record(key: &FfeExposureKey<'_>) -> bool {
+    let context = FfeTelemetryContext {
+        service: cache_key_text(key.service),
+        env: cache_key_text(key.env),
+        version: cache_key_text(key.version),
+    };
+    let exposure = FfeExposure {
+        timestamp_ms: 0,
+        flag_key: cache_key_text(key.flag_key),
+        subject_id: cache_key_text(key.subject_id),
+        subject_attributes_json: String::new(),
+        allocation_key: cache_key_text(key.allocation_key),
+        variant: cache_key_text(key.variant),
+        serial_id: key.has_serial_id.then_some(key.serial_id),
+        features_json: String::new(),
+    };
+    exposure_cache().should_send_in_scope(&cache_key_text(key.scope), &context, &exposure)
 }
 
 #[repr(C)]
@@ -380,6 +629,9 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 do_log: assignment.do_log,
                 observe_full_evaluation_data: false,
                 valid: true,
+                features: assignment
+                    .features
+                    .map(|features| Box::new(FfeFeatures(features))),
             }
         }
         Err(error) => {
@@ -413,6 +665,7 @@ fn error_result(error_code: i32, reason: i32) -> FfeResult {
         do_log: false,
         observe_full_evaluation_data: false,
         valid: true,
+        features: None,
     }
 }
 
@@ -428,6 +681,7 @@ fn invalid_result() -> FfeResult {
         do_log: false,
         observe_full_evaluation_data: false,
         valid: false,
+        features: None,
     }
 }
 
@@ -455,6 +709,48 @@ mod tests {
     use std::sync::Once;
 
     static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
+
+    #[test]
+    fn evp_endpoint_uses_canonical_https_intake() {
+        for (site, host) in [
+            ("datadoghq.eu", "event-platform-intake.datadoghq.eu"),
+            (
+                " US3.Datadoghq.com ",
+                "event-platform-intake.us3.datadoghq.com",
+            ),
+            ("", "event-platform-intake.datadoghq.com"),
+        ] {
+            let endpoint = ddog_ffe_evp_endpoint_new(site.into(), "test-key".into()).unwrap();
+            assert_eq!(endpoint.url.scheme_str(), Some("https"));
+            assert_eq!(endpoint.url.host(), Some(host));
+            assert_eq!(endpoint.url.path(), "/");
+            assert_eq!(endpoint.api_key.as_deref(), Some("test-key"));
+        }
+    }
+
+    #[test]
+    fn evp_endpoint_rejects_invalid_destinations_and_credentials() {
+        for site in [
+            "https://datadoghq.com",
+            "datadoghq.com:443",
+            "datadoghq.com/path",
+            "datadoghq.com?query",
+            "datadoghq.com#fragment",
+            "datadoghq.com@other.invalid",
+            "bad site",
+            "a..invalid",
+            "-bad.invalid",
+            "\u{212a}.com",
+        ] {
+            assert!(
+                ddog_ffe_evp_endpoint_new(site.into(), "test-key".into()).is_none(),
+                "{site}"
+            );
+        }
+        for key in ["", "key\r\nInjected: value"] {
+            assert!(ddog_ffe_evp_endpoint_new("datadoghq.com".into(), key.into()).is_none());
+        }
+    }
 
     fn setup_zend_string_functions() {
         INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {
@@ -643,6 +939,194 @@ mod tests {
             assert!(result.do_log, "{value}");
         }
         clear_config();
+    }
+
+    const FEATURES_CONFIG: &str = r#"{
+        "createdAt": "2026-05-22T00:00:00.000Z",
+        "environment": {"name": "Test"},
+        "flags": {
+            "with.features": {
+                "key": "with.features",
+                "enabled": true,
+                "variationType": "STRING",
+                "variations": {"on": {"key": "on", "value": "on"}},
+                "allocations": [{
+                    "key": "alloc",
+                    "rules": [],
+                    "splits": [{
+                        "variationKey": "on",
+                        "shards": [],
+                        "features": [
+                            {"key": "holdout.key", "value": "abc", "destinations": ["HOOK", "EXPOSURE"]},
+                            {"key": "holdout.fraction", "value": 0.5, "destinations": ["EVALUATION"]},
+                            {"key": "holdout.enabled", "value": false, "destinations": ["HOOK"]}
+                        ]
+                    }],
+                    "doLog": true
+                }]
+            },
+            "without.features": {
+                "key": "without.features",
+                "enabled": true,
+                "variationType": "STRING",
+                "variations": {"on": {"key": "on", "value": "on"}},
+                "allocations": [{
+                    "key": "alloc",
+                    "rules": [],
+                    "splits": [{"variationKey": "on", "shards": []}],
+                    "doLog": true
+                }]
+            }
+        }
+    }"#;
+
+    fn evaluate_string_flag(flag_key: &str, expected_type: i32) -> FfeResult {
+        let flag_key = CString::new(flag_key).unwrap();
+        ddog_ffe_evaluate(
+            char_slice(&flag_key),
+            expected_type,
+            CharSlice::from("user"),
+            std::ptr::null(),
+            0,
+        )
+    }
+
+    fn destinations(features: &FfeFeatures, index: usize) -> Vec<String> {
+        let count = ddog_ffe_features_get(features, index).destinations_count;
+        (0..count)
+            .map(|destination| {
+                let slice = ddog_ffe_features_destination(features, index, destination);
+                String::from_utf8(slice.as_bytes().to_vec()).unwrap()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn evaluation_exposes_the_selected_split_features() {
+        setup_zend_string_functions();
+        clear_config();
+        let config = CString::new(FEATURES_CONFIG).unwrap();
+        assert!(ddog_ffe_load_config(char_slice(&config)));
+
+        let result = evaluate_string_flag("with.features", TYPE_STRING);
+        let features = result.features.as_deref().expect("split has features");
+        assert_eq!(ddog_ffe_features_count(features), 3);
+
+        let string = ddog_ffe_features_get(features, 0);
+        assert_eq!(string.key.as_bytes(), b"holdout.key");
+        assert_eq!(string.value_type, ATTR_TYPE_STRING);
+        assert_eq!(string.string_value.as_bytes(), b"abc");
+        assert_eq!(destinations(features, 0), ["HOOK", "EXPOSURE"]);
+
+        let number = ddog_ffe_features_get(features, 1);
+        assert_eq!(number.key.as_bytes(), b"holdout.fraction");
+        assert_eq!(number.value_type, ATTR_TYPE_NUMBER);
+        assert_eq!(number.number_value, 0.5);
+        assert_eq!(destinations(features, 1), ["EVALUATION"]);
+
+        let boolean = ddog_ffe_features_get(features, 2);
+        assert_eq!(boolean.value_type, ATTR_TYPE_BOOL);
+        assert!(!boolean.bool_value);
+
+        let missing = ddog_ffe_features_get(features, 3);
+        assert_eq!(missing.key.as_bytes(), b"");
+        assert_eq!(missing.destinations_count, 0);
+        assert_eq!(
+            ddog_ffe_features_destination(features, 0, 2).as_bytes(),
+            b""
+        );
+        assert_eq!(
+            ddog_ffe_features_destination(features, 3, 0).as_bytes(),
+            b""
+        );
+        ddog_ffe_features_drop(result.features);
+
+        assert!(evaluate_string_flag("without.features", TYPE_STRING)
+            .features
+            .is_none());
+        assert!(evaluate_string_flag("with.features", TYPE_BOOLEAN)
+            .features
+            .is_none());
+        assert!(evaluate_string_flag("with.features", TYPE_OBJECT)
+            .features
+            .is_none());
+        clear_config();
+    }
+
+    #[test]
+    fn exposure_cache_reports_new_and_changed_exposures() {
+        // Invalid UTF-8 must not merge with its lossy replacement.
+        {
+            let record = |subject: &[u8]| {
+                ddog_ffe_exposure_cache_record(&FfeExposureKey {
+                    scope: CharSlice::from(""),
+                    service: CharSlice::from("service"),
+                    env: CharSlice::from("env"),
+                    version: CharSlice::from("1.0"),
+                    flag_key: CharSlice::from("exposure.cache.bytes.flag"),
+                    subject_id: CharSlice::from_bytes(subject),
+                    allocation_key: CharSlice::from("alloc"),
+                    variant: CharSlice::from("on"),
+                    serial_id: 1,
+                    has_serial_id: true,
+                })
+            };
+            assert!(record(b"invalid\xff"));
+            assert!(record(b"invalid\xef\xbf\xbd"));
+            assert!(!record(b"invalid\xff"));
+            assert!(!record(b"invalid\xef\xbf\xbd"));
+            // The hex text that encodes the invalid subject is a distinct valid subject.
+            assert!(record(b"b696e76616c6964ff"));
+        }
+        let record_in = |scope: &str, subject: &str, variant: &str, serial_id: Option<i32>| {
+            ddog_ffe_exposure_cache_record(&FfeExposureKey {
+                scope: CharSlice::from(scope),
+                service: CharSlice::from("service"),
+                env: CharSlice::from("env"),
+                version: CharSlice::from("1.0"),
+                flag_key: CharSlice::from("exposure.cache.flag"),
+                subject_id: CharSlice::from(subject),
+                allocation_key: CharSlice::from("alloc"),
+                variant: CharSlice::from(variant),
+                serial_id: serial_id.unwrap_or(0),
+                has_serial_id: serial_id.is_some(),
+            })
+        };
+        let record = |subject: &str, variant: &str, serial_id: Option<i32>| {
+            record_in("", subject, variant, serial_id)
+        };
+        assert!(record("user", "on", Some(1)));
+        assert!(!record("user", "on", Some(1)));
+        assert!(record_in("session", "user", "on", Some(1)));
+        assert!(!record_in("session", "user", "on", Some(1)));
+        assert!(record("other", "on", Some(1)));
+        assert!(record("user", "off", Some(1)));
+        assert!(record("user", "off", Some(2)));
+        assert!(record("user", "off", None));
+        assert!(record("user", "off", Some(0)));
+        assert!(!record("user", "off", Some(0)));
+        ddog_ffe_exposure_cache_reset();
+        assert!(record("user", "off", Some(0)));
+
+        // Threads that create the cache at the same time share one cache.
+        ddog_ffe_exposure_cache_reset();
+        let barrier = std::sync::Barrier::new(8);
+        let new_exposures = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..8)
+                .map(|_| {
+                    scope.spawn(|| {
+                        barrier.wait();
+                        record_in("race", "user", "on", Some(1))
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .filter(|&new| new)
+                .count()
+        });
+        assert_eq!(new_exposures, 1);
     }
 
     #[test]

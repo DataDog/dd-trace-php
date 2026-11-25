@@ -12,7 +12,6 @@ DD_APM_TRACING_ENABLED=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
-include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 $outer = DDTrace\start_span();
 $outer->name = 'outer';
@@ -22,87 +21,93 @@ $inner->name = 'inner';
 DDTrace\close_span();
 DDTrace\close_span();
 
-var_dump(dd_clean_spans());
+var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
 array(2) {
-  [0]=>
-  array(11) {
-    ["trace_id"]=>
-    string(2) "42"
-    ["span_id"]=>
-    string(%d) "%d"
-    ["parent_id"]=>
-    string(2) "10"
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(5) "outer"
-    ["resource"]=>
-    string(5) "outer"
-    ["service"]=>
-    string(39) "distributed_trace_asm_standalone_02.php"
-    ["type"]=>
-    string(3) "cli"
-    ["meta"]=>
-    array(4) {
-      ["_dd.origin"]=>
-      string(7) "datadog"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.ts"]=>
-      string(2) "02"
-      ["runtime-id"]=>
-      string(36) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
-      ["_dd.apm.enabled"]=>
-      float(0)
-      ["_sampling_priority_v1"]=>
-      float(3)
-      ["php.compilation.total_time_ms"]=>
-      float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
-      ["php.memory.peak_usage_bytes"]=>
-      float(%f)
-      ["process_id"]=>
-      float(%f)
-    }
+  ["attributes"]=>
+  array(2) {
+    ["_dd.sdk.otlp_export"]=>
+    string(5) "false"
+    ["_dd.tags.process"]=>
+    string(%d) "%s"
   }
-  [1]=>
-  array(11) {
-    ["trace_id"]=>
-    string(2) "42"
-    ["span_id"]=>
-    string(%d) "%d"
-    ["parent_id"]=>
-    string(%d) "%d"
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(5) "inner"
-    ["resource"]=>
-    string(5) "inner"
-    ["service"]=>
-    string(39) "distributed_trace_asm_standalone_02.php"
-    ["type"]=>
-    string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.origin"]=>
+  ["chunks"]=>
+  array(1) {
+    [0]=>
+    array(5) {
+      ["trace_id"]=>
+      string(%d) "%s"
+      ["priority"]=>
+      int(3)
+      ["origin"]=>
       string(7) "datadog"
-    }
-    ["metrics"]=>
-    array(1) {
-      ["_dd.apm.enabled"]=>
-      float(0)
+      ["sampling_mechanism"]=>
+      int(0)
+      ["spans"]=>
+      array(2) {
+        [0]=>
+        array(9) {
+          ["span_id"]=>
+          string(%d) "%d"
+          ["parent_id"]=>
+          string(2) "10"
+          ["start"]=>
+          int(%d)
+          ["duration"]=>
+          int(%d)
+          ["name"]=>
+          string(5) "outer"
+          ["resource"]=>
+          string(5) "outer"
+          ["service"]=>
+          string(39) "distributed_trace_asm_standalone_02.php"
+          ["type"]=>
+          string(3) "cli"
+          ["attributes"]=>
+          array(7) {
+            ["_dd.p.ts"]=>
+            string(2) "02"
+            ["runtime-id"]=>
+            string(36) "%s"
+            ["process_id"]=>
+            int(%d)
+            ["_dd.apm.enabled"]=>
+            float(0)
+            ["php.compilation.total_time_ms"]=>
+            float(%f)
+            ["php.memory.peak_usage_bytes"]=>
+            float(%f)
+            ["php.memory.peak_real_usage_bytes"]=>
+            float(%f)
+          }
+        }
+        [1]=>
+        array(9) {
+          ["span_id"]=>
+          string(%d) "%d"
+          ["parent_id"]=>
+          string(%d) "%d"
+          ["start"]=>
+          int(%d)
+          ["duration"]=>
+          int(%d)
+          ["name"]=>
+          string(5) "inner"
+          ["resource"]=>
+          string(5) "inner"
+          ["service"]=>
+          string(39) "distributed_trace_asm_standalone_02.php"
+          ["type"]=>
+          string(3) "cli"
+          ["attributes"]=>
+          array(1) {
+            ["_dd.apm.enabled"]=>
+            float(0)
+          }
+        }
+      }
     }
   }
 }

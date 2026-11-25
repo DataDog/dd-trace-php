@@ -219,7 +219,6 @@ pub struct TelemetryLog {
     pub is_sensitive: bool,
 }
 
-#[allow(dead_code)] // Used in TelemetryLogSubmitter impl
 const MAX_PENDING_LOGS: usize = 100;
 
 pub struct TelemetryLogsCollector {

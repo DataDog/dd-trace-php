@@ -22,12 +22,12 @@ class PcntlIntegration extends Integration
 
         $trace_fork = static function (SpanData $span, $args, $retval) {
             $span->name = $span->resource = 'pcntl_fork';
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            $span->component = self::NAME;
             if ($retval > 0) {
-                $span->meta["fork.pid"] = $retval;
+                $span->attributes["fork.pid"] = $retval;
             } else {
-                $span->meta["fork.errno"] = $errno = pcntl_get_last_error();
-                $span->meta["fork.error"] = pcntl_strerror($errno);
+                $span->attributes["fork.errno"] = $errno = pcntl_get_last_error();
+                $span->attributes["fork.error"] = pcntl_strerror($errno);
             }
         };
         \DDTrace\trace_function('pcntl_fork', $trace_fork);

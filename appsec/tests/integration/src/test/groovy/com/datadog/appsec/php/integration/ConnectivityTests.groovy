@@ -201,6 +201,9 @@ class ConnectivityTests {
                     'sh', '-c', 'kill -9 $(pgrep -f datadog-ipc-helper | head -1)')
             assert killResult.exitCode == 0: "sidecar kill failed: ${killResult.stderr}"
 
+            // Allow the subprocess connection cooldown to expire before reconnecting.
+            Thread.sleep(10_000)
+
             // Second blocking request: RINIT must retry the sidecar connection so the
             // WAF rules are reloaded and the request is blocked again.
             def trace2 = CONTAINER.traceFromRequest(blockingReq(), ofString(), { HttpResponse<String> resp ->

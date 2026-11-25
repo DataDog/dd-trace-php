@@ -32,7 +32,6 @@ static PHP_FUNCTION(datadog_appsec_testing_extract_ip_addr)
 // clang-format off
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(extract_ip_addr, 0, 1, IS_STRING, 1)
     ZEND_ARG_TYPE_INFO(0, headers, IS_ARRAY, 0)
-    ZEND_ARG_TYPE_INFO(1, , IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {

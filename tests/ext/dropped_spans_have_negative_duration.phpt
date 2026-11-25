@@ -10,7 +10,7 @@ $outerSpan = DDTrace\start_span();
 
 DDTrace\start_span();
 DDTrace\close_span();
-var_dump(count(dd_trace_serialize_closed_spans()));
+var_dump(count(dd_trace_serialize_closed_spans()['chunks'][0]['spans']));
 
 var_dump($outerSpan->getDuration());
 

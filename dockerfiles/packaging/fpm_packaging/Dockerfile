@@ -15,11 +15,15 @@ RUN (cd tar-1.35 && FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr && make i
 FROM base as final
 ADD fpm_apk_pax_header.patch /tmp
 ADD fpm_apk_alpine323.patch /tmp
+ADD fpm_apk_tar_headers.patch /tmp
+ADD fpm_apk_ustar.patch /tmp
 RUN sudo gem install fpm -v 1.17.0
 RUN (cd /usr/local/lib/ruby/gems/4.0.0/gems/fpm-1.17.0 && \
      patch -p1 < /tmp/fpm_apk_pax_header.patch && \
-     patch -p0 < /tmp/fpm_apk_alpine323.patch) && \
-    rm -f /tmp/fpm_apk_pax_header.patch /tmp/fpm_apk_alpine323.patch
+     patch -p0 < /tmp/fpm_apk_alpine323.patch && \
+     patch -p1 < /tmp/fpm_apk_tar_headers.patch && \
+     patch -p1 < /tmp/fpm_apk_ustar.patch) && \
+    rm -f /tmp/fpm_apk_pax_header.patch /tmp/fpm_apk_alpine323.patch /tmp/fpm_apk_tar_headers.patch /tmp/fpm_apk_ustar.patch
 
 COPY --from=compile-tar /usr/bin/tar /usr/bin/tar
 

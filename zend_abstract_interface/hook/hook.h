@@ -139,14 +139,16 @@ bool zai_hook_match_filepath(zend_string *file, zend_string *source);
 /* As zai_hook_match_filepath(), ignoring ASCII case. */
 bool zai_hook_match_filepath_ci(zend_string *file, zend_string *source);
 
-/* Filename -> declared user functions, including closures. Entries are removed when their op_array is destroyed. */
-typedef struct {
-    uint32_t ordered;
-    uint32_t size;
-    zend_string *filename; /* Borrowed from the location map's key. */
-    zend_function *functions[];
-} zai_function_location_entry;
-HashTable *zai_hook_function_location_map(void);
+/* Visit declarations matching a path suffix (case insensitive). The visitor may recurse into dynamic_func_defs.
+ * Returns the OR of the visitor's results. Immutable class declarations are read directly from OPcache. */
+bool zai_hook_visit_function_locations(zend_string *file, bool (*visitor)(zend_op_array *, void *), void *context);
+
+#if PHP_VERSION_ID >= 80100
+/* Allocated by zai_hook_minit() for op_array->reserved[]. Other reserved[] arrays,
+ * such as fiber contexts, can share the handle without sharing their storage. */
+extern int zai_hook_resource_handle;
+size_t zai_hook_op_array_persist_calc(zend_op_array *op_array);
+#endif
 
 /* The lexically enclosing op_array, or NULL if absent or its shared code has been freed. */
 zend_op_array *zai_hook_find_containing_op_array(const zend_op_array *op_array);
@@ -157,6 +159,7 @@ extern TSRM_TLS HashTable zai_hook_resolved;
 
 #if PHP_VERSION_ID >= 80000
 extern void (*zai_hook_on_update)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
+/* Resolves function attributes. The SHM fast path may skip methods without attributes. */
 extern void (*zai_hook_on_function_resolve)(zend_function *func);
 // Called from zai_hook_post_startup() for each preloaded user function, which zai_hook_on_function_resolve() never sees
 extern void (*zai_hook_on_preloaded_function)(zend_function *func);

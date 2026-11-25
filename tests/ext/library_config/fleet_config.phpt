@@ -24,6 +24,7 @@ DD_TRACE_RETRY_INTERVAL=1
 datadog.trace.agent_url="file://{PWD}/fleet-config-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 function to_str($val)
 {
@@ -42,30 +43,22 @@ dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 100; ++$i) {
     ("us" . "leep")(100000);
-    if (file_exists(__DIR__ . '/fleet-config-telemetry.out')) {
-        foreach (file(__DIR__ . '/fleet-config-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    if ($json["request_type"] == "app-client-configuration-change") {
-                        $cfg = $json["payload"]["configuration"];
+    foreach (read_telemetry_file(__DIR__ . '/fleet-config-telemetry.out') as $json) {
+        if ($json["request_type"] == "app-client-configuration-change") {
+            $cfg = $json["payload"]["configuration"];
 
-                        // Hack: On PHP <= 7.3, another PHP process is sending telemetry data
-                        // before the stable config file is taken into account.
-                        if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION <= 3) {
-                            if (strpos($l, '42_fleet_config') === false) {
-                                continue;
-                            }
-                        }
-
-                        var_dump(array_values(array_filter($cfg, function ($c) {
-                            return in_array($c["name"], ['DD_SERVICE', 'DD_ENV', 'DD_DYNAMIC_INSTRUMENTATION_ENABLED', 'DD_TRACE_SPANS_LIMIT', 'DD_TRACE_GENERATE_ROOT_SPAN']);
-                        })));
-                        break 3;
-                    }
-                }
+            // A PHP <= 7.3 helper can send configuration before the fleet file
+            // is applied. Wait for this configuration ID on every platform.
+            if (!array_filter($cfg, function ($c) {
+                return isset($c["config_id"]) && $c["config_id"] === '42_fleet_config';
+            })) {
+                continue;
             }
+
+            var_dump(array_values(array_filter($cfg, function ($c) {
+                return in_array($c["name"], ['DD_SERVICE', 'DD_ENV', 'DD_DYNAMIC_INSTRUMENTATION_ENABLED', 'DD_TRACE_SPANS_LIMIT', 'DD_TRACE_GENERATE_ROOT_SPAN']);
+            })));
+            break 2;
         }
     }
 }

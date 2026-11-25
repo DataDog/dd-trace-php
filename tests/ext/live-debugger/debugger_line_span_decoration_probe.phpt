@@ -19,7 +19,7 @@ reset_request_replayer();
 
 function decorated($arg) {
     $local = $arg * 3; // line:assign
-    return \DDTrace\active_span()->meta; // line:read
+    return \DDTrace\active_span()->attributes; // line:read
 }
 
 function tag($name) {
@@ -38,14 +38,14 @@ $span = await_probe_installation(function () {
     return \DDTrace\start_span(); // submit span data
 }, 3);
 
-function dump_tags($meta) {
-    $tags = array_intersect_key($meta, array_flip(["entry", "exit", "range", "_dd.di.range.evaluation_error"]));
+function dump_tags($attributes) {
+    $tags = array_intersect_key($attributes, array_flip(["entry", "exit", "range", "_dd.di.range.evaluation_error"]));
     ksort($tags);
     var_dump($tags);
 }
 
 dump_tags(decorated(2));
-dump_tags($span->meta);
+dump_tags($span->attributes);
 
 ?>
 --CLEAN--

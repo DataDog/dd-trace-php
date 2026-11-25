@@ -8,7 +8,6 @@
 #include <ext/standard/info.h>
 #include <php.h>
 
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -126,11 +125,7 @@ void dd_appsec_mshutdown(void)
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
-    dd_user_tracking_shutdown();
-    dd_trace_shutdown();
     dd_helper_shutdown();
-
-    dd_phpobj_shutdown();
 
     // The configuration is about to be destroyed; logging from GSHUTDOWN must
     // not read it anymore.
@@ -253,6 +248,16 @@ static PHP_FUNCTION(datadog_appsec_testing_rinit)
 
     mlog(dd_log_debug, "Running rinit actions");
     dd_req_lifecycle_rinit(true);
+    RETURN_TRUE;
+}
+
+static PHP_FUNCTION(datadog_appsec_testing_req_lifecycle_rinit)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    dd_req_lifecycle_rinit(false);
     RETURN_TRUE;
 }
 
@@ -464,6 +469,7 @@ static const zend_function_entry testing_request_control_functions[] = {
 static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "req_lifecycle_rinit", PHP_FN(datadog_appsec_testing_req_lifecycle_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_invalid_command_functions[] = {

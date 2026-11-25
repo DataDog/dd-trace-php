@@ -4,6 +4,7 @@ Client-side SHM span stats mask additional tag values of new keys past DD_TRACE_
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php
 if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip: valgrind is too slow for a sidecar starting with the test');
 if (PHP_VERSION_ID >= 80100) {
     echo "nocache\n";
 }
@@ -26,6 +27,7 @@ DD_TRACE_AGENT_FLUSH_INTERVAL=10000
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=1
+DD_TRACE_SIDECAR_CONNECTION_MODE=thread
 DD_TRACE_STATS_COMPUTATION_ENABLED=1
 DD_TRACE_STATS_ADDITIONAL_TAGS=tenant_id
 DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT=2
@@ -44,6 +46,10 @@ $rr = new RequestReplayer();
 dd_trace_internal_fn('await_agent_info');
 
 // The flush interval is long, so all spans land in one stats bucket, flushed by synchronous_flush.
+// The cardinality limit applies per bucket, and a synchronous flush drains the current bucket of
+// every concentrator of a sidecar. In thread mode, the sidecar is this process's own, so no
+// concurrently running test can flush between these spans. Valgrind is too slow for a sidecar
+// starting with the test, hence the skip there.
 $tenants = ['a', 'b', 'c', 'd', 'a', 'b'];
 foreach ($tenants as $tenant) {
     $root = \DDTrace\start_trace_span();

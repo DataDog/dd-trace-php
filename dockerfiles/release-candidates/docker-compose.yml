@@ -41,7 +41,7 @@ services:
       - 8080:80
 
   ddagent:
-    image: datadog/agent:latest
+    image: registry.datadoghq.com/agent:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc/:/host/proc/:ro

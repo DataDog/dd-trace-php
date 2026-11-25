@@ -12,7 +12,7 @@ if (PHP_VERSION_ID >= 80100) {
 //
 // Filters configured:
 //   filter_tags.require:        filter_required:yes
-//   filter_tags.reject:         filter_reject:yes
+//   filter_tags.reject:         filter_reject:yes, reject_struct (key presence)
 //   filter_tags_regex.require:  http.method matching G.* (GET passes, DELETE fails)
 //   filter_tags_regex.reject:   http.url matching .*\.internal\..*
 //   ignore_resources:           GET /healthcheck  (exact resource match)
@@ -27,8 +27,8 @@ $ctx = stream_context_create([
             'version' => '7.65.0',
             'client_drop_p0s' => true,
             'filter_tags' => [
-                'require' => ['filter_required:yes'],
-                'reject'  => ['filter_reject:yes'],
+                'require' => ['filter_required:yes', 'env:test-env', 'version:1.2.3-filters', 'span.kind:server', 'component:filter-test'],
+                'reject'  => ['filter_reject:yes', 'reject_struct'],
             ],
             'filter_tags_regex' => [
                 'require' => ['http.method:G.*'],
@@ -71,14 +71,26 @@ $rr->clearDumpedData();
 
 // Each test case is a separate root span (= separate trace), because trace filters are
 // evaluated per trace (root span properties / tags).
-function makeSpan(string $name, string $resource, array $meta): void {
+function makeSpan(string $name, string $resource, array $meta, ?string $env = null, ?string $version = null): void {
     $s = \DDTrace\start_trace_span();
     $s->name     = $name;
     $s->resource = $resource;
     $s->service  = 'filter-test-service';
+    $s->meta['span.kind'] = 'server';
+    $s->meta['component'] = 'filter-test';
+    if ($env !== null) $s->env = $env;
+    if ($version !== null) $s->version = $version;
     foreach ($meta as $k => $v) {
         $s->meta[$k] = $v;
     }
+    // Children inherit the root's filter decision, even with conflicting tags.
+    $child = \DDTrace\start_span();
+    $child->name = $name . '.child';
+    $child->service = 'filter-test-service';
+    $child->meta['http.method'] = 'DELETE';
+    $child->meta['filter_reject'] = 'yes';
+    $child->metrics['_dd.measured'] = 1;
+    \DDTrace\close_span();
     \DDTrace\close_span();
 }
 
@@ -126,6 +138,27 @@ makeSpan('GET /healthcheck', '', [
     'http.method'     => 'GET',
 ]);
 
+// Promoted fields must reach the platform filter through its dedicated getters.
+makeSpan('op.blocked.env', 'GET /other5', [
+    'filter_required' => 'yes', 'http.method' => 'GET',
+], 'other-env');
+makeSpan('op.blocked.version', 'GET /other6', [
+    'filter_required' => 'yes', 'http.method' => 'GET',
+], null, 'other-version');
+makeSpan('op.blocked.span_kind', 'GET /other7', [
+    'filter_required' => 'yes', 'http.method' => 'GET', 'span.kind' => 'client',
+]);
+makeSpan('op.blocked.component', 'GET /other8', [
+    'filter_required' => 'yes', 'http.method' => 'GET', 'component' => 'other-component',
+]);
+
+// 8. BLOCKED by filter_tags.reject — a composite attribute matches the key-only "reject_struct" by presence.
+makeSpan('op.blocked.reject_struct', 'GET /other9', [
+    'filter_required' => 'yes',
+    'http.method'     => 'GET',
+    'reject_struct'   => ['exploit' => [['id' => 1]]],
+]);
+
 // Submit all cases together so a filtered span cannot arrive in a later batch
 // after the trace assertion has already completed.
 \DDTrace\flush();
@@ -161,36 +194,26 @@ foreach (array_keys($namesInTraces) as $n) {
     echo "in traces: $n\n";
 }
 
-// Wait for a stats payload that contains our service.
-// Trace and stats requests can arrive independently.
-$statsRequest = $rr->waitForStats(function ($request) {
-    $payload = json_decode($request['body'], true);
-    foreach ($payload['Stats'] ?? [] as $bucket) {
+// A trace's stats can be split across payloads, and /replay-stats drops what it
+// returns: read every payload until each span in the traces has its stats.
+$ops = [];
+$rr->waitForStats(function ($request) use (&$ops, $namesInTraces) {
+    foreach (json_decode($request['body'], true)['Stats'] ?? [] as $bucket) {
         foreach ($bucket['Stats'] ?? [] as $group) {
             if ($group['Service'] === 'filter-test-service') {
-                return true;
+                $ops[] = $group['Name'];
             }
         }
     }
-    return false;
+    return !array_diff(array_keys($namesInTraces), $ops);
 });
 
 // Print which operation names appear in stats (sorted for determinism).
-// Only op.pass should survive all filters.
-$payload = json_decode($statsRequest['body'], true);
-$ops = [];
-foreach ($payload['Stats'] as $bucket) {
-    foreach ($bucket['Stats'] as $group) {
-        if ($group['Service'] === 'filter-test-service') {
-            $ops[] = $group['Name'];
-        }
-    }
-}
+// Only op.pass and its child should survive all filters.
 sort($ops);
 
 if (empty($ops)) {
     echo "ERROR: no filter-test-service stats groups found\n";
-    var_dump($payload);
 } else {
     foreach ($ops as $op) {
         echo "in stats: $op\n";
@@ -199,4 +222,6 @@ if (empty($ops)) {
 ?>
 --EXPECT--
 in traces: op.pass
+in traces: op.pass.child
 in stats: op.pass
+in stats: op.pass.child

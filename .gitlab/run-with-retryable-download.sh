@@ -2,6 +2,9 @@
 
 set -uo pipefail
 
+# shellcheck source-path=SCRIPTDIR source=transient-curl-error.sh
+. "$(dirname -- "$0")/transient-curl-error.sh" || exit 1
+
 build_log=$(mktemp)
 trap 'rm -f "$build_log"' EXIT
 
@@ -19,11 +22,21 @@ github_server_error='Failed to download archive from https://github\.com/'
 github_server_error+='.*: 5[0-9]{2} '
 transport_error='Failed to (download archive|write archive entry contents'
 transport_error+=' to file):.*reqwest::Error.*'
-transport_error+='(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage|UnexpectedEof)'
+transport_error+='(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage|UnexpectedEof|Temporary failure in name resolution)'
 if grep -Eq "$github_server_error|$transport_error" "$build_log"; then
     echo "Transient GitHub download failure; exiting 75 for GitLab retry." >&2
     exit 75
 fi
+
+# Composer reports a curl failure it gave up on as
+# "curl error N while downloading URL: TEXT".
+composer_curl_failures=$(sed -nE 's/.*curl error ([0-9]+) while downloading (.*)/\1 \2/p' "$build_log")
+while read -r curl_code curl_text; do
+    if is_transient_curl_error "$curl_code" "$curl_text"; then
+        echo "Transient composer download failure (curl error $curl_code); exiting 75 for GitLab retry." >&2
+        exit 75
+    fi
+done <<< "$composer_curl_failures"
 
 # CMake reports libcurl's partial-file and receive errors as status_code 18
 # and 56. Only match inside HTTP(S) download failure blocks; unrelated errors

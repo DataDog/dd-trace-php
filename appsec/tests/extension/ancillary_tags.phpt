@@ -107,7 +107,7 @@ Array
     [http.response.headers.content-length] => 42
     [http.response.headers.content-type] => application/json
     [http.status_code] => 404
-    [http.url] => https://myhost:8888/my/uri.php
+    [http.url] => https://myhost:8888/my/ur%69/
     [http.useragent] => my user agent
     [network.client.ip] => 7.7.7.12
 )

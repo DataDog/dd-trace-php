@@ -26,7 +26,7 @@ $exitedAt = null;
 $exitCode = null;
 $lastCaptureAt = 0;
 try {
-    $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10);
+    $deadline = microtime(true) + 10 + (getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10);
     do {
         $stdout .= ffeTestProcessRead($pipes[1]);
         $stderr .= ffeTestProcessRead($pipes[2]);
@@ -79,8 +79,9 @@ try {
     }
     $rows = array();
     $exposureCount = 0;
+    $featuredExposureFeatures = null;
     $identity = true;
-    $evaluationIdentityAbsent = true;
+    $evaluationRowService = true;
     $protectedBytesAbsent = true;
     foreach ($captures as $capture) {
         list($request, $headers, $payload) = $capture;
@@ -98,10 +99,14 @@ try {
             if (strpos($capture[3], 'ffe-error-pii-canary@example.test') !== false) {
                 throw new RuntimeException('raw error text reached the payload');
             }
-            // Application attribution is deferred to FFL-3438/FFL-3439.
-            $evaluationIdentityAbsent = $evaluationIdentityAbsent && $payload['context'] === array();
+            $context = $payload['context'];
+            ksort($context);
+            if ($context !== array('env' => 'test', 'service' => 'php-ffe-wire', 'version' => 'wire-version')) {
+                throw new RuntimeException('incorrect evaluation context: ' . json_encode($payload['context']));
+            }
             foreach ($payload['flagEvaluations'] as $row) {
-                $evaluationIdentityAbsent = $evaluationIdentityAbsent && !isset($row['context']['dd']);
+                $evaluationRowService = $evaluationRowService
+                    && isset($row['context']['dd']['service']) && $row['context']['dd']['service'] === 'php-ffe-wire';
                 $key = $row['flag']['key'];
                 if (isset($rows[$key])) {
                     $rows[$key]['evaluation_count'] += $row['evaluation_count'];
@@ -119,12 +124,26 @@ try {
                 throw new RuntimeException('incorrect exposure context: ' . json_encode($payload['context']));
             }
             $exposureCount += count($payload['exposures']);
+            foreach ($payload['exposures'] as $exposure) {
+                if ($exposure['flag']['key'] === 'featured') {
+                    $featuredExposureFeatures = isset($exposure['features']) ? $exposure['features'] : array();
+                }
+                if ($exposure['flag']['key'] === 'consented' && isset($exposure['features'])) {
+                    throw new RuntimeException('features on an exposure of a split without features');
+                }
+            }
         }
     }
-    echo 'exposure_service=php-ffe-wire', "\n";
+    echo 'service=php-ffe-wire', "\n";
     echo 'identity='; var_dump($identity);
-    echo 'evaluation_application_identity_absent='; var_dump($evaluationIdentityAbsent);
+    echo 'evaluation_row_service='; var_dump($evaluationRowService);
     echo 'exposures='; var_dump($exposureCount);
+    ksort($featuredExposureFeatures);
+    echo 'featured_exposure_features=', json_encode($featuredExposureFeatures), "\n";
+    $featuredEvaluationFeatures = isset($rows['featured']['features']) ? $rows['featured']['features'] : array();
+    ksort($featuredEvaluationFeatures);
+    echo 'featured_evaluation_features=', json_encode($featuredEvaluationFeatures, JSON_PRESERVE_ZERO_FRACTION), "\n";
+    echo 'unfeatured_rows_have_no_features='; var_dump(!isset($rows['consented']['features']));
     echo 'consented_count='; var_dump($rows['consented']['evaluation_count']);
     echo 'consented_subject='; var_dump($rows['consented']['targeting_key']);
     echo 'consented_context='; var_dump($rows['consented']['context']['evaluation']);
@@ -173,6 +192,7 @@ try {
             $terminalErrors = $terminalErrors && $row['evaluation_count'] === 1
                 && !isset($row['variant']) && !isset($row['allocation'])
                 && $row['runtime_default_used'] === true && $row['error']['message'] === 'GENERAL'
+                && !isset($row['features'])
                 && $row['targeting_key'] === 'sha256_2234a4963a43ffe952df4e09b1fd0d36f8b49216e5cba4182ae4d01e67cf112a'
                 && !isset($row['context']['evaluation']);
         }

@@ -10,11 +10,9 @@
 #include <zend_globals.h>
 #include <zend_ini.h>
 
-#define DD_APPSEC_NS "datadog\\appsec\\"
 #define DD_TESTING_NS "datadog\\appsec\\testing\\"
 
 void dd_phpobj_startup(int module_number);
 dd_result dd_phpobj_reg_funcs(const zend_function_entry *entries);
 void dd_phpobj_reg_long_const(
     const char *name, size_t name_len, zend_long value, int flags);
-void dd_phpobj_shutdown(void);

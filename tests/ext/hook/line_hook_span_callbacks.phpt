@@ -40,7 +40,7 @@ callback_range();
 DDTrace\remove_hook($id);
 verify($begins === 2 && $ends === 2 && DDTrace\active_span() === $root, 'false end drops and restores');
 DDTrace\close_span();
-$names = array_column(dd_trace_serialize_closed_spans(), 'name');
+$names = array_column(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans')), 'name');
 sort($names);
 verify($names === ['kept', 'root'], 'only retained spans serialized');
 $span = null;

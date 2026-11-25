@@ -3,18 +3,28 @@
 #include "components-rs/common.h"
 #include "span.h"
 
-int ddtrace_serialize_simple_array(zval *trace, zval *retval);
-int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p);
 
-// Returns false on allocation failure. A filtered span succeeds with a NULL result.
-// serialized_span is optional; callers must stop serializing on failure.
-bool ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, bool p0_trace, ddog_SpanBytes **serialized_span);
-zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces);
+// Returns the span's V1 builder node, or NULL when the span was dropped.
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace, bool keep_error_chunk);
+bool ddtrace_span_has_error(ddtrace_span_data *span);
+zval dd_serialize_rust_to_zval(struct ddog_TracerPayloadBytes *builder);
+
+// String span attribute setters shared with exception_serialize.c.
+void dd_span_attr_str(ddog_SpanBytes *span, const char *key, const char *val);
+void dd_span_attr_zstr(ddog_SpanBytes *span, const char *key, zend_string *val);
+
+// Normalizes a value written through SpanData::$meta (strings) or $metrics (doubles) into `dst`.
+void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric);
 
 void ddtrace_save_active_error_to_metadata(void);
 void ddtrace_set_global_span_properties(ddtrace_span_data *span);
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span);
 void ddtrace_update_root_id_properties(ddtrace_root_span_data *span);
+// Builds the http.url value from a $_SERVER-like array, with the query string
+// filtered/obfuscated. Returns an empty string if the URL can't be determined.
+zend_string *ddtrace_build_req_url(zend_array *_server);
+// The runtime id as a 36-char string (the root span's runtime-id tag).
+zend_string *ddtrace_formatted_runtime_id(bool persistent);
 void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent);
 zend_string *datadog_default_service_name(void);
 zend_string *ddtrace_active_service_name(void);

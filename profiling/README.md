@@ -20,12 +20,18 @@ variances in allocation size e.g. 32 bytes and 4,096 bytes.
 
 The profiler sets the Zend VM interrupt flag approximately every 10ms. The
 Zend Engine will handle this interrupt at the next place it's safe to do so.
-Notably, this waits until an internal function like `curl_exec` has been
-popped off the stack. This information is quite valuable, so this extension
-installs a `zend_execute_internal` hook which also checks the interrupt and
-handles the profiler's portion of the interrupt, but doesn't clear the
-interrupt. This allows interrupts to continue as normal for other extensions
-while allowing the profiler to see the internal function.
+
+On PHP versions before 8.4, this normally waits until an internal function
+like `curl_exec` has been popped off the stack. This information is quite
+valuable, so on these versions the extension installs a `zend_execute_internal`
+hook which also checks the interrupt and handles the profiler's portion of the
+interrupt, but doesn't clear the interrupt. This allows interrupts to continue
+as normal for other extensions while allowing the profiler to see the internal
+function.
+
+Starting with PHP 8.4, the Zend Engine handles interrupts while the internal
+function is still on the stack, so the profiler no longer installs this
+`zend_execute_internal` hook.
 
 When the interrupt handler runs, it collects the wall-time and cpu-time since
 the last run. This makes the cpu-time biased towards functions which do I/O,
@@ -50,6 +56,14 @@ These targets run phpize/configure/Make in isolated source copies. **Do not run
 the tracked Makefile. Manual phpize builds need a separate source/build copy.
 Both modes invoke the root Cargo package and its profiler build helper, which
 is how the profiler adapts to various PHP versions.
+
+SSI release builds compile the PHP-ABI archive and `datadog-php-common` in one
+Cargo invocation. Common owns profile construction, sample aggregation, compression,
+destruction and export behind a private Rust ABI. Capture, the collector and upload
+threads, queues and fork coordination remain in the extension. An owning profile
+wrapper forwards cleanup to common even when a queued upload is discarded. PHP 7.0 builds only the C tracer
+and common, never the PHP profiler. The same common DSO serves all PHP ABIs within
+an architecture/libc family; CI compares complete rebuilt DSOs before packaging.
 
 The combined product is shipped in release packages. Standalone profiling
 remains supported and is built and tested by CI, but is not shipped. Do not
@@ -78,7 +92,7 @@ PHP toolchain supplied explicitly:
 
 ```sh
 DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
-cargo test --no-default-features --features profiling
+cargo test --no-default-features --features profiling,profiling-runtime
 ```
 
 These tests do not substitute for the PHP engine. Stack walking and other
@@ -116,20 +130,22 @@ The `run-tests.php` version has to match the PHP version used to run the tests.
 
 The PHP timeline and exception workloads use `sirun` to compare profiling
 disabled, profiling enabled, and profiling with timeline enabled. Their
-definitions load the standalone development artifact, not a combined release
-build. Use PHP configuration that does not auto-load another tracer/profiler.
-Cargo features are fixed at configure time: if `tmp/build_profiler/` already
-exists with different features, remove that generated build directory before
-changing `PROFILER_FEATURES`. From the repository root:
+definitions load the combined development artifact, as shipped to users, with
+the tracer, AppSec, telemetry and the sidecar trace sender disabled. Use PHP
+configuration that does not auto-load another tracer/profiler. From the
+repository root:
 
 ```sh
-make compile_profiler PROFILER_FEATURES=trigger_time_sample
+make compile_combined
 cd profiling
 sirun benches/timeline.json
 sirun benches/exceptions.json
 ```
 
-The timeline workload needs `trigger_time_sample` to collect samples explicitly.
+The timeline workload needs `trigger_time_sample` to collect samples
+explicitly; `compile_combined` enables it. Cargo features are fixed at
+configure time: if `tmp/build_combined/` was configured without that feature,
+remove that generated build directory first.
 
 ## Troubleshooting
 

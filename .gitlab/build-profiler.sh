@@ -31,6 +31,14 @@ elif [ "$artifact_mode" = "ssi-combined" ]; then
     : "${SSI_EXTENSION_ARCHIVE:?The combined extension Rust archive must be built first}"
     configure_products="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec --enable-ddtrace-rust-library-split --with-ddtrace-rust-library=${SSI_COMMON_LIBRARY} --with-ddtrace-php-abi-rust-library=${SSI_EXTENSION_ARCHIVE}"
     extension_name="ddtrace"
+elif [ "$artifact_mode" = "ssi-tracer-only" ]; then
+    : "${SSI_COMMON_LIBRARY:?SSI common DSO must be built first}"
+    # No Rust archive is linked on PHP 7.0. Leave Rust imports unresolved for
+    # the loader preload; an explicit DSO input would add a DT_NEEDED edge.
+    # AppSec's Rust body parsers live in common's tracer-runtime; the SSI
+    # package marks every ddtrace.so, including PHP 7.0, as AppSec-capable.
+    configure_products="--enable-ddtrace-tracer --disable-ddtrace-profiling --enable-ddtrace-appsec --enable-ddtrace-rust-library-split"
+    extension_name="ddtrace"
 elif [ "$artifact_mode" = "tracer-only" ]; then
     # PHP 7.0 does not support profiling, but still ships the tracer and AppSec.
     configure_products="--enable-ddtrace-tracer --disable-ddtrace-profiling --enable-ddtrace-appsec"
@@ -106,6 +114,9 @@ tar -cf - --exclude=.git --exclude=tmp --exclude=target --exclude=target-common 
     "${root_excludes[@]}" . | tar -xf - -C "${build_dir}/src"
 cd "${build_dir}/src"
 phpize
+if [[ ${DD_RUST_BUILD_STD:-1} == 1 ]]; then
+    configure_products+=" --enable-ddtrace-rust-build-std"
+fi
 ./configure ${configure_products}
 # Make -s propagates via MAKEFLAGS. Keep libtool's own --silent setting local
 # to this generated PHP Makefile: a command-line LIBTOOL= override would also

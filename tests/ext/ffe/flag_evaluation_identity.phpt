@@ -1,5 +1,5 @@
 --TEST--
-FFE evaluations remain deliverable without application identity pending sidecar attribution
+FFE evaluations inherit the current application identity before sidecar aggregation
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
@@ -25,6 +25,10 @@ if (!$listener) throw new RuntimeException($error);
 putenv('DD_TRACE_AGENT_URL=http://' . stream_socket_get_name($listener, false));
 $process = ffeTestProcess(__DIR__ . '/stubs/flag_evaluation_identity_app.php', $pipes);
 $contexts = array();
+$expectedContexts = array(
+    'default' => array('service' => 'flag_evaluation_identity_app.php', 'env' => 'none'),
+    'configured' => array('service' => 'changed-service', 'env' => 'changed-env', 'version' => 'changed-version'),
+);
 $exitCode = null;
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
@@ -45,11 +49,16 @@ try {
             }
             if (strpos($request, '/flagevaluation ') !== false) {
                 $payload = json_decode($body, true);
-                // FFL-3438/FFL-3439 will replace these temporary expectations
-                // with identity supplied by the sidecar before aggregation.
                 foreach ($payload['flagEvaluations'] as $row) {
-                    $contexts[$row['flag']['key']] = $payload['context'] === array()
-                        && !isset($row['context']['dd']) && $row['evaluation_count'] === 1;
+                    $flag = $row['flag']['key'];
+                    $expected = $expectedContexts[$flag];
+                    if (isset($contexts[$flag]) || $payload['context'] != $expected
+                        || !isset($row['context']['dd']['service'])
+                        || $row['context']['dd']['service'] !== $expected['service']
+                        || $row['evaluation_count'] !== 1) {
+                        throw new RuntimeException('unexpected attributed evaluation: ' . json_encode($payload));
+                    }
+                    $contexts[$flag] = true;
                 }
             }
             fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");

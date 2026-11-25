@@ -1,7 +1,6 @@
 --TEST--
-Client-side stats: _dd.top_level metric is set on top-level spans
+Client-side stats: _dd.top_level metric is set on top-level spans by default
 --ENV--
-DD_TRACE_STATS_COMPUTATION_ENABLED=true
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
@@ -30,10 +29,10 @@ $child_diff->service = "other-service";
 
 \DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 
 foreach ($spans as $span) {
-    $has_top_level = isset($span["metrics"]["_dd.top_level"]);
+    $has_top_level = isset($span["attributes"]["_dd.top_level"]);
     echo $span["name"] . ": _dd.top_level=" . ($has_top_level ? "1" : "not set") . "\n";
 }
 

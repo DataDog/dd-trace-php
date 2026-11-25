@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Refresh the unmodified downstream packaging inputs, optionally at a commit.
+set -euo pipefail
+destination=$(cd "$(dirname "$0")/.."; pwd)/pecl-remi
+upstream=https://git.remirepo.net/cgit/rpms/php/pecl/php-pecl-datadog-trace.git
+temporary=$(mktemp -d)
+trap 'rm -rf "$temporary"' EXIT
+revision=${1:-}
+if [[ -z $revision ]]; then
+    curl --fail --silent --show-error --location "$upstream/patch/" -o "$temporary/latest.patch"
+    revision=$(sed -n '1s/^From \([a-f0-9]\{40\}\) .*/\1/p' "$temporary/latest.patch")
+fi
+[[ $revision =~ ^[a-f0-9]{40}$ ]]
+for file in makedeps.sh php-pecl-datadog-trace.spec; do
+    curl --fail --silent --show-error --location "$upstream/plain/$file?id=$revision" -o "$temporary/$file"
+done
+printf '%s\n' "$revision" > "$temporary/REVISION"
+# Fail before replacing the vendor files if upstream changed our patch context.
+patch --batch --fuzz=0 --dry-run -d "$temporary" -p1 < "$destination/parallel-build.patch"
+mkdir -p "$destination/upstream"
+cp "$temporary/"{makedeps.sh,php-pecl-datadog-trace.spec,REVISION} "$destination/upstream/"
+echo "Updated Remi packaging to $revision"

@@ -30,6 +30,8 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
     }
     if (DATADOG_G(reread_remote_configuration)) {
         DATADOG_G(reread_remote_configuration) = 0;
+        // SIGVTALRM also reports sidecar death. Standard signals coalesce and retain the first siginfo, so check on every wakeup without inspecting si_fd.
+        datadog_sidecar_check_liveness();
         if (DATADOG_G(request_initialized) && DATADOG_G(remote_config_state)) {
             LOG(INFO, "Rereading remote configurations after interrupt");
             ddog_process_remote_configs(DATADOG_G(remote_config_state));

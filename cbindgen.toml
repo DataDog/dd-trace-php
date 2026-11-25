@@ -46,6 +46,7 @@ rename_variants = "ScreamingSnakeCase"
 parse_deps = true
 include = [
     "libdd-common",
+    "libdd-networking",
     "libdd-telemetry",
     "libdd-telemetry-ffi",
     "libdd-common-ffi",

@@ -89,6 +89,44 @@ function system_tests_run_scenarios(string $scenarios): void
 <?php
 }
 
+// Files a PR branch changed since its merge-base with master, listed by generate-templates.
+// No list (master, releases, tags, schedules, web/api runs, or a git failure) means every job runs.
+$branch_changed_files = array_filter(explode("\n", (string)@file_get_contents(__DIR__ . "/changed-files.txt")));
+
+// A PR branch runs these job families only when it changes one of their paths; master and the rest run them always.
+// Generic build inputs (sources, config.m4, shared build scripts) stay out: the always-on compile and test jobs cover them.
+$generator_paths = [".gitlab/generate-package.php", ".gitlab/generate-common.php"];
+$ssi_test_paths = array_merge($generator_paths, ["libdatadog", "loader/*", ".gitlab/build-loader.sh", ".gitlab/build-sidecar.sh",
+    ".gitlab/build-ssi-combined-alpine.sh", "tooling/bin/build-ssi-common", "tooling/bin/build-xlang-lto",
+    "tooling/bin/build-ddtrace-php-abi-archive", "tooling/bin/generate-ssi-package.sh", ".gitlab/one-pipeline.locked.yml",
+    ".gitlab/prepare-oci-package.sh", "Cargo.lock"]);
+$installer_test_paths = array_merge($generator_paths, ["datadog-setup.php", "dockerfiles/verify_packages/*", "tooling/bin/*"]);
+$verify_paths = array_merge($installer_test_paths, ["package/*", "dockerfiles/packaging/*", ".gitlab/package-extension.sh", ".gitlab/link-tracing-extension.sh", ".gitlab/build-*.sh", ".gitlab/compile_extension.sh", "config.m4", "Makefile", "compile_rust.sh", "*.sym", "rust-toolchain*"]);
+
+/**
+ * Rules making a job manual on a PR branch that changes none of $globs (`*` also matches `/`).
+ * Empty without a changed-file list, so the job runs as before.
+ *
+ * @param string[] $never_if Conditions of the job's own `when: never` rules, kept ahead of the manual one.
+ */
+function manual_unless_changed(array $globs, array $never_if = []): string
+{
+    global $branch_changed_files;
+    if (!$branch_changed_files) {
+        return "";
+    }
+    foreach ($globs as $glob) {
+        if (preg_grep('(^' . str_replace('\*', '.*', preg_quote($glob)) . '$)', $branch_changed_files)) {
+            return "";
+        }
+    }
+    $rules = "  rules:\n";
+    foreach ($never_if as $condition) {
+        $rules .= "    - if: $condition\n      when: never\n";
+    }
+    return $rules . "    - when: manual\n      allow_failure: true\n";
+}
+
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
@@ -124,6 +162,7 @@ stages:
   - tracing
   - packaging
   - benchmarks
+  - benchmarks-report
   - gate
   - notify
   - verify
@@ -193,6 +232,13 @@ configure_system_tests:
   after_script:
     - test -f system_tests_pipeline.yml && cat .gitlab/green-ci-exclude-job.yml >> system_tests_pipeline.yml
 <?php endif; ?>
+<?php $ssi_test_rules = manual_unless_changed($ssi_test_paths, ['$SKIP_SHARED_PIPELINE == "true"', '$DANGEROUSLY_SKIP_SHARED_PIPELINE_TESTS == "true"']); ?>
+<?= $ssi_test_rules ?>
+<?php if ($ssi_test_rules): ?>
+
+system_tests:
+<?= $ssi_test_rules ?>
+<?php endif; ?>
 
 package-oci:
   # Linux only: prepare-oci-package.sh exits at once for other OSes, after downloading both loaders.
@@ -257,7 +303,7 @@ finished:
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
-      composer update --no-interaction
+      .gitlab/run-with-retryable-download.sh composer update --no-interaction
     # Compiling dd-tace-php files into single file
     - make generate
     # Showing folder containing generated files
@@ -341,6 +387,36 @@ foreach ($build_platforms as $platform) {
     paths:
       - pecl
 
+# Package sources, root-vendor dependencies, then build/install/test both PHP ABIs.
+"pecl offline vendored build":
+  stage: verify
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.4_bookworm-14"
+  tags: [ "arch:amd64" ]
+  services:
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
+  needs:
+    - job: "pecl build"
+      artifacts: true
+  variables:
+    MAKE_JOBS: 8
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - sudo apt-get update -qq
+    - sudo apt-get install -y --no-install-recommends gcc g++ rpm pigz
+  script:
+    - switch-php nts
+    - HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 tooling/bin/pecl-offline-vendored-build ./pecl/datadog_trace-*.tgz
+  artifacts:
+    when: always
+    paths:
+      - artifacts/pecl-offline/
+    reports:
+      junit: artifacts/pecl-offline/*-junit.xml
+
 <?php
 foreach ($build_platforms as $platform) {
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
@@ -356,6 +432,8 @@ foreach ($build_platforms as $platform) {
   tags: [ "arch:$ARCH" ]
   needs:
     - job: "prepare code"
+      artifacts: true
+    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
   variables:
     IMAGE: "<?= $image ?>"
@@ -375,18 +453,29 @@ foreach ($build_platforms as $platform) {
     # Load the function in this shell too, not just the build-tracing subprocess.
     - source "$BASH_ENV"
 <?php endif; ?>
-    # Replace the PHP 7.0 NTS/ZTS release extensions on both libc targets;
-    # Alpine's common archive now contains LLVM bitcode too. Debug stays non-LTO.
+    # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
+    # Every SSI common rebuild must match the canonical DSO, including DWARF.
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?><?= $suffix ?>.so"
+    - export CARGO_BUILD_JOBS=12
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/libdatadog_php.so"
     - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    - make -s build-ssi-ddtrace
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
+    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/libdatadog_php.so"
   artifacts:
+    when: always
     paths:
       - "extensions_*"
       - "standalone_*"
+      # Retain the candidate common DSO if its identity check failed.
+      - "tmp/release-variants/**/ssi/libdatadog_php.so"
       - "ddtrace_*-fat.ldflags"
       - "ddtrace_*-fat.sym"
 
@@ -490,7 +579,7 @@ foreach ($build_platforms as $platform) {
   script:
     - echo "" >> "$BASH_ENV"
     - mkdir -p "ssi_<?= $arch_dir ?>"
-    - cp "libdatadog_php_<?= $arch_dir . $suffix ?>.so" "ssi_<?= $arch_dir ?>/libdatadog_php.so"
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir . $suffix ?>.so"
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
     - switch-php "${PHP_VERSION}"
     - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
@@ -504,6 +593,7 @@ foreach ($build_platforms as $platform) {
     # The shared DSO is packaged from the single sidecar job, not each PHP job.
     - rm "ssi_<?= $arch_dir ?>/libdatadog_php.so"
   artifacts:
+    when: always
     paths:
       - "ssi_*"
 <?php
@@ -648,7 +738,7 @@ foreach ($windows_build_platforms as $platform) {
     $ntsCode = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
-    if ($ntsCode -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ntsCode } }
+    if ($ntsCode -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download','could not download file' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ntsCode } }
 
     # Reuse the common/tracer Cargo build (fail if move fails)
     docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target-common' 'app\\x64\\Release_TS\\target-common' -ErrorAction Stop"
@@ -662,7 +752,7 @@ foreach ($windows_build_platforms as $platform) {
     $ztsCode = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
-    if ($ztsCode -ne 0) { if (Select-String -Path zts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download' -Quiet) { Write-Host "Transient network failure during zts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ztsCode } }
+    if ($ztsCode -ne 0) { if (Select-String -Path zts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download','could not download file' -Quiet) { Write-Host "Transient network failure during zts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ztsCode } }
 
     # Try to stop the container, don't care if we fail
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
@@ -704,7 +794,7 @@ foreach ($build_platforms as $platform) {
 
 .package_extension_base:
   stage: packaging
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-2
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-5
   tags: [ "arch:amd64" ]
   after_script:
     - |
@@ -867,7 +957,7 @@ endforeach;
 
 "datadog-setup.php":
   stage: packaging
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-2
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php_fpm_packaging-5
   tags: [ "arch:amd64" ]
   script:
     - mkdir -p "build/packages"
@@ -1063,7 +1153,7 @@ endforeach;
     # The only two the official image lacks out of what composer.json and tests/composer.json ask
     # for (zip for the root install, sockets for tests/).
     - install-php-extensions sockets zip || exit 75
-    - php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+    - .gitlab/download-file.sh https://getcomposer.org/installer /tmp/composer-setup.php
     - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
@@ -1071,8 +1161,8 @@ endforeach;
     - tar -xzf packages/dd-library-php-*-aarch64-linux-musl.tar.gz
     - php_api=$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
     - cp "dd-library-php/trace/ext/${php_api}/ddtrace-zts.so" tmp/build_extension/modules/ddtrace.so
-    - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction
-    - make composer_tests_update
+    - COMPOSER_MEMORY_LIMIT=-1 .gitlab/run-with-retryable-download.sh composer update --no-interaction
+    - .gitlab/run-with-retryable-download.sh make composer_tests_update
     - .gitlab/wait-for-service-ready.sh
   script:
     # The Fabric proxy changes network failure semantics in integration tests.
@@ -1099,7 +1189,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - .gitlab/run-with-retryable-download.sh apt-get update
     - .gitlab/run-with-retryable-download.sh apt install -y php git make curl
-    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
+    - .gitlab/download-file.sh "${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME}" /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - docker network create randomized_tests_baseservices
@@ -1171,6 +1261,7 @@ endforeach;
   stage: verify
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
+<?= manual_unless_changed($installer_test_paths) ?>
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -1275,6 +1366,10 @@ endforeach;
       tests/ext/sandbox/fatal_errors_are_tracked_002.phpt
       tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt
     - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
+    # Ubuntu's PHP is GCC-built (HYBRID VM): the only place the JIT declare-handler register bugs can show up.
+    - phpenmod -v 8.1 -s cli opcache
+    - php -d opcache.enable_cli=1 -d opcache.jit_buffer_size=64M -r 'exit((int) !opcache_get_status()["jit"]["on"]);' || { echo "JIT is not enabled, the JIT tests would be meaningless"; exit 1; }
+    - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1 -d opcache.protect_memory=1" tests/opcache/resolver_jit.phpt tests/opcache/resolver_jit_function.phpt tests/opcache/override_argument_jit.phpt
 
 "framework test":
   stage: verify
@@ -1313,7 +1408,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - apt-get update
     - apt install -y make curl
-    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+    - .gitlab/download-file.sh "${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64" /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
@@ -1328,6 +1423,7 @@ endforeach;
   stage: verify
   image: "registry.ddbuild.io/images/mirror/$IMAGE"
   tags: [ "arch:amd64" ]
+<?= manual_unless_changed($verify_paths) ?>
   services:
     - !reference [.services, request-replayer]
   variables:
@@ -1361,7 +1457,7 @@ endforeach;
           - alpine:3.21
           - alpine:3.24
       # Pre-GA versions only exist as -rc tags on Docker Hub.
-      - IMAGE: <?= json_encode(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "php:$v-rc-fpm-alpine" : "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      - IMAGE: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*"php:$v-rc-fpm-alpine"*/ : "php:$v-fpm-alpine"; }, $all_minor_major_targets))), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1409,11 +1505,12 @@ endforeach;
     - mkdir build
     - mv packages build
     - '# Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore - https://serverfault.com/a/1161847'
-    - sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
+    - '# vault.centos.org is read through the depot cache: vault answers 403 for 20+ min windows under our parallel jobs'
+    - sed -i 's|http://mirror.centos.org|https://depot-read-api-bzl.us1.ddbuild.io/vault.centos.org|g' /etc/yum.repos.d/*.repo
     - sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
     - sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
     - |
-      # Retry yum update as vault.centos.org can be slow/unreliable
+      # Retry yum update as the CentOS vault can be slow/unreliable
       for i in 1 2 3; do
         if yum update -y; then
           echo "yum update succeeded on attempt $i"
@@ -1452,7 +1549,7 @@ endforeach;
     INSTALL_MODE: sury
   parallel:
     matrix:
-      - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
+      - PHP_VERSION: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*broken for PHP 8.6 currently*/ : $v; }, $all_minor_major_targets))), "\n" ?>
         IMAGE:
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
@@ -1470,6 +1567,8 @@ endforeach;
         sed -i -e 's|http://deb.debian.org/debian-security|http://snapshot.debian.org/archive/debian-security/20260901T000000Z|g' \
                -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
         echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+        # Keep the last Bullseye PHP builds; the live Sury pool returns 404.
+        export SURY_MIRROR="https://depot-read-api-bzl.us1.ddbuild.io/debian.octopuce.fr/snapshots/sury-php/20261111010406/"
       fi
     # Bound apt: a stalled deb.debian.org fetch otherwise hangs until the 1 h job timeout; 75 is retried.
     - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 update || exit 75
@@ -1524,6 +1623,7 @@ endforeach;
   stage: verify
   image: registry.ddbuild.io/images/mirror/debian:bookworm-slim
   tags: [ "arch:<?= $arch ?>" ]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
@@ -1546,6 +1646,7 @@ endforeach;
   stage: verify
   image: registry.ddbuild.io/images/mirror/alpine:3.12
   tags: [ "arch:amd64" ]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
@@ -1560,6 +1661,7 @@ endforeach;
 "verify windows":
   stage: verify
   tags: [ "windows-v2:2019"]
+<?= manual_unless_changed($verify_paths) ?>
   variables:
     GIT_STRATEGY: none
   needs:
@@ -1705,6 +1807,11 @@ endforeach;
     - source venv/bin/activate
     - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
     - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
+    # The mirror builder keeps another copy of the weblog layers and of the library bundle in its build context.
+    # The scenarios only run the loaded images: free that space for their services, RabbitMQ blocks publishers
+    # below 50 MB of free disk.
+    - docker buildx rm --force system-tests-mirror 2>/dev/null || true
+    - docker system df || true
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
@@ -1724,6 +1831,7 @@ endforeach;
   parallel:
     matrix:
       - TESTSUITE:
+        - APM_TRACING_EFFICIENT_PAYLOAD
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
@@ -1731,6 +1839,7 @@ endforeach;
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
+        - FEATURE_FLAGGING_AND_EXPERIMENTATION
         - "DEBUGGER_PROBES_SNAPSHOT_WITH_SCM DEBUGGER_EXPRESSION_LANGUAGE DEBUGGER_INPRODUCT_ENABLEMENT"
   script:
 <?php system_tests_run_scenarios('$TESTSUITE') ?>
@@ -2136,10 +2245,13 @@ foreach ($arch_targets as $arch) {
 
     apt-get update -qq && apt-get install -y -qq curl jq > /dev/null
 
-    STATUS=$(curl -s -o /tmp/pulls.json -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open")
+    STATUS=$(curl -s --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/pulls.json -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open") || true
+    # `|| true`: with no response, curl exits non-zero and writes 000, which must reach the retry mapping below (set -e)
     if [ "${STATUS}" != "200" ]; then
-      echo "ERROR: failed to check for an open PR on branch ${CI_COMMIT_BRANCH} (HTTP ${STATUS}):"; cat /tmp/pulls.json
+      echo "ERROR: failed to check for an open PR on branch ${CI_COMMIT_BRANCH} (HTTP ${STATUS}):"; cat /tmp/pulls.json || true
+      # 000 (no response after curl's retries) and 5xx are transient: exit 75 for GitLab's job retry
+      case "${STATUS}" in 000|5??) exit 75 ;; esac
       exit 1
     fi
     PR_COUNT=$(jq 'length' /tmp/pulls.json)
@@ -2152,7 +2264,7 @@ foreach ($arch_targets as $arch) {
     docker login ghcr.io -u DataDog --password-stdin < github_token_system_tests.txt
     echo "Docker login to ghcr.io succeeded"
 
-    gh_api() { curl -s -o /tmp/resp.json -w "%{http_code}" -X "$1" \
+    gh_api() { curl -s --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/resp.json -w "%{http_code}" -X "$1" \
         -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "$2"; }
 
     # delete any pre-existing image with the same tag so pushing with the same tag doesn't pile up untagged versions.
@@ -2280,7 +2392,7 @@ deploy_to_reliability_env:
     - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-publish-release > github_token.txt
     # Verify token works
     - export GITHUB_TOKEN=$(cat github_token.txt)
-    - 'curl -f -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/DataDog/dd-trace-php | jq -r .name'
+    - 'curl -f --retry 5 --retry-delay 2 --retry-connrefused -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/DataDog/dd-trace-php | jq -r .name'
     - echo "Token generated and verified successfully"
   artifacts:
     paths:

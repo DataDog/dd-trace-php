@@ -309,13 +309,13 @@ pub extern "C" fn ddog_php_prof_minit(_type: c_int, module_number: c_int) -> Zen
     // and SSL_CERT_DIR environment variables safely before any threads are
     // spawned, avoiding potential getenv/setenv race conditions.
     {
-        let _connector = libdd_common::connector::Connector::default();
+        let _connector = libdd_networking::connector::Connector::default();
     }
 
     // Initialize the lazy locks holding the env vars for new origin detection,
     // Azure App Services, and so on.
-    _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
-    _ = std::sync::LazyLock::force(&libdd_common::azure_app_services::AAS_METADATA);
+    _ = std::sync::LazyLock::force(&libdd_host_identity::entity_id::DD_EXTERNAL_ENV);
+    _ = std::sync::LazyLock::force(&libdd_host_identity::azure_app_services::AAS_METADATA);
 
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };

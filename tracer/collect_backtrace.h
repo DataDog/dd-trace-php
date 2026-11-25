@@ -8,6 +8,7 @@
 
 void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int options, int limit);
 void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool skip_args);
+void ddtrace_undef_unreceived_cvs(zend_execute_data *call);
 
 
 #endif // DD_COLLECT_BACKTRACE_H

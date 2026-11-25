@@ -28,7 +28,7 @@ if ! command -v jq > /dev/null 2>&1; then
 
   jq_path="/tmp/jq"
 
-  if ! curl -L --fail "${GITHUB_RELEASES_MIRROR}/jqlang/jq/releases/download/latest/jq-linux-${vault_arch}" \
+  if ! curl -L --fail --retry 5 --retry-delay 2 --retry-connrefused "${GITHUB_RELEASES_MIRROR}/jqlang/jq/releases/download/latest/jq-linux-${vault_arch}" \
       --output "${jq_path}"; then
     echo "Warning: Failed to download jq. Skipping Docker Hub authentication." >&2
     exit 0
@@ -65,7 +65,7 @@ if ! command -v vault > /dev/null 2>&1; then
   vault_path="/tmp/vault"
   vault_zip="${vault_path}.zip"
 
-  if ! curl -L --fail "https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${vault_arch}.zip" \
+  if ! curl -L --fail --retry 5 --retry-delay 2 --retry-connrefused "https://depot-read-api-bzl.us1.ddbuild.io/releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${vault_arch}.zip" \
       --output "${vault_zip}"; then
     echo "Warning: Failed to download Vault. Skipping Docker Hub authentication." >&2
     exit 0

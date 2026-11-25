@@ -17,6 +17,7 @@ DD_TRACE_RETRY_INTERVAL=1
 datadog.trace.agent_url="file://{PWD}/broken_pipe-telemetry.out"
 --FILE--
 <?php
+require __DIR__ . '/../includes/telemetry_file.inc';
 
 DDTrace\start_span();
 $root = DDTrace\root_span();
@@ -31,6 +32,8 @@ dd_trace_serialize_closed_spans();
 
 // force a reconnect, it needs to resubmit telemetry info
 dd_trace_internal_fn("break_sidecar_connection");
+// Allow the subprocess connection cooldown to expire before reconnecting.
+sleep(10);
 dd_trace_internal_fn("stats_sidecar"); // await connection breaking
 
 dd_trace_internal_fn("finalize_telemetry");
@@ -38,19 +41,9 @@ dd_trace_internal_fn("finalize_telemetry");
 for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/broken_pipe-telemetry.out')) {
-        $batches = [];
-        foreach (file(__DIR__ . '/broken_pipe-telemetry.out') as $l) {
-            if ($l && $l[0] == '{') {
-                $json = json_decode($l, true);
-                if (!is_array($json)) {
-                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
-                }
-                if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
-                    continue;
-                }
-                array_push($batches, ...($json["request_type"] == "message-batch" ? $json["payload"] : [$json]));
-            }
-        }
+        $batches = array_filter(read_telemetry_file(__DIR__ . '/broken_pipe-telemetry.out'), function ($json) {
+            return !in_array($json["application"]["service_name"], ["background_sender-php-service", "datadog-ipc-helper"], true);
+        });
         $found = array_filter($batches, function ($json) {
             return ($json["request_type"] == "app-started" && $json["application"]["service_name"] == "broken_pipe-telemetry-app")
                     || $json["request_type"] == "app-closing"
@@ -76,7 +69,7 @@ if ($i == 300) {
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %sbroken_pipe-telemetry.out%A
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %sbroken_pipe-telemetry.out%A
 [ddtrace] [datadog_sidecar::service::blocking] [%d] The sidecar transport is closed. Reconnecting... This generally indicates a problem with the sidecar, most likely a crash. Check the logs / core dump locations and possibly report a bug.
 string(11) "app-started"
 string(25) "broken_pipe-telemetry-app"

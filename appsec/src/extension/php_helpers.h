@@ -30,15 +30,6 @@ typedef enum {
 
 dd_php_array_type dd_php_determine_array_type(const zend_array *nonnull);
 
-#define ZEND_INI_MH_UNUSED()                                                   \
-    do {                                                                       \
-        (void)entry;                                                           \
-        (void)mh_arg1;                                                         \
-        (void)mh_arg2;                                                         \
-        (void)mh_arg3;                                                         \
-        (void)stage;                                                           \
-    } while (0)
-
 zval *nullable dd_php_get_autoglobal(
     int track_var, const char *nonnull name, size_t len);
 const zend_array *nonnull dd_get_superglob_or_equiv(const char *nonnull name,

@@ -4,6 +4,9 @@
 # After four attempts, exit 75 so GitLab's bounded job retry can take over.
 set -uo pipefail
 
+# shellcheck source-path=SCRIPTDIR source=transient-curl-error.sh
+. "$(dirname -- "$0")/transient-curl-error.sh" || exit 1
+
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 URL DESTINATION" >&2
     exit 64
@@ -31,28 +34,24 @@ for attempt in 1 2 3 4; do
     cat "$curl_log" >&2
 
     if [ "$status" -eq 0 ]; then
+        # mktemp creates 0600 files; give the file the mode `curl -o` would have (e.g. apt reads
+        # keyrings as the unprivileged _apt user, and fails with "not signed" on a 0600 key).
+        # The option terminator goes before the mode: BSD chmod (macOS) takes a `--` after it as a file
+        chmod -- "$(printf '%o' $((0666 & ~$(umask))))" "$partial" || exit 1
         mv -f -- "$partial" "$destination"
         exit $?
     fi
 
-    case "$status" in
-        # DNS/proxy resolution, connection, partial transfer, timeout, empty
-        # response, send/receive, and HTTP/2 framing/stream failures can be transient.
-        5|6|7|16|18|28|52|55|56|92) ;;
-        22)
-            case "$http_status" in
-                408|429|500|502|503|504) ;;
-                *) exit "$status" ;;
-            esac
-            ;;
-        35)
-            # SSL-connect errors are not all transient. Retry the observed peer
-            # reset, but preserve other TLS failures instead of retrying blindly.
-            if ! grep -Fq 'Connection reset by peer' "$curl_log"; then
+    # Judge HTTP errors by their status, not curl's code: curl 8.7.1 reports
+    # --fail errors over HTTP/2 as 56 (receive error) instead of 22.
+    case "$http_status" in
+        408|429|500|502|503|504) ;;
+        4??|5??) exit "$status" ;;
+        *)
+            if ! is_transient_curl_error "$status" "$(cat "$curl_log")"; then
                 exit "$status"
             fi
             ;;
-        *) exit "$status" ;;
     esac
 
     if [ "$attempt" -eq 4 ]; then

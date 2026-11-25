@@ -10,26 +10,72 @@ set -uo pipefail
 _vault_jwt() {
   local audience="$1"
   if [ -n "${VAULT_ADDR:-}" ]; then
-    curl -sf -H "X-Vault-Request: true" \
+    curl -sf --retry 5 --retry-delay 2 --retry-connrefused -H "X-Vault-Request: true" \
       "${VAULT_ADDR}/v1/identity/oidc/token/${audience}" | jq -r '.data.token' 2>/dev/null && return 0
   fi
   if [ -n "${DD_DATACENTER:-}" ]; then
-    curl -sf -H "X-Vault-Request: true" \
+    curl -sf --retry 5 --retry-delay 2 --retry-connrefused -H "X-Vault-Request: true" \
       "https://vault.${DD_DATACENTER}/v1/identity/oidc/token/${audience}" | jq -r '.data.token' 2>/dev/null && return 0
   fi
   return 1
 }
-BTI_JWT=$(_vault_jwt sdm) || { echo "ERROR: could not obtain a BTI JWT" >&2; exit 1; }
-GITLAB_TOKEN=$(curl -sf -H "Authorization: Bearer ${BTI_JWT}" \
+BTI_JWT=$(_vault_jwt sdm) || { echo "ERROR: could not obtain a BTI JWT" >&2; exit 75; }
+GITLAB_TOKEN=$(curl -sf --retry 5 --retry-delay 2 --retry-connrefused -H "Authorization: Bearer ${BTI_JWT}" \
   "https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=dd-trace-php" \
-  | jq -r '.token')
+  | jq -er '.token') || { echo "ERROR: could not obtain a GitLab token" >&2; exit 75; }
 GITLAB_API="https://gitlab.ddbuild.io/api/v4"
 AUTH="PRIVATE-TOKEN: ${GITLAB_TOKEN}"
 
+# A retried job hides its failed attempt from `scope[]=failed` until it finishes, so first wait
+# (bounded) until nothing but this job is in flight. API errors exit 75; a timeout exits 1.
+INFLIGHT_SCOPES="scope[]=created&scope[]=waiting_for_resource&scope[]=preparing&scope[]=pending&scope[]=running&scope[]=scheduled"
+INFLIGHT_POLL_SECONDS=30
+INFLIGHT_MAX_WAIT_SECONDS=3000  # the job runs under the 1 h project default timeout
+_gitlab_get() {
+  curl -g -sf --retry 5 --retry-delay 2 --retry-connrefused -H "${AUTH}" \
+    "${GITLAB_API}/projects/${CI_PROJECT_ID}/$1"
+}
+# Prints one line per in-flight job (parent + children) or parent bridge; fails on any API error.
+# One page per pipeline is enough: any hit means wait.
+_list_inflight() {
+  local data child pid pids=("${CI_PIPELINE_ID}")
+  data=$(_gitlab_get "pipelines/${CI_PIPELINE_ID}/bridges?per_page=100") || return 1
+  data=$(echo "${data}" | jq -r '.[] | select(.downstream_pipeline != null) | .downstream_pipeline.id') || return 1
+  while read -r child; do
+    [ -n "${child}" ] && pids+=("${child}")
+  done <<< "${data}"
+  data=$(_gitlab_get "pipelines/${CI_PIPELINE_ID}/bridges?${INFLIGHT_SCOPES}&per_page=100") || return 1
+  echo "${data}" | jq -r --arg p "${CI_PIPELINE_ID}" '.[] | "  … \(.status): \(.name) (pipeline \($p))"' || return 1
+  for pid in "${pids[@]}"; do
+    data=$(_gitlab_get "pipelines/${pid}/jobs?${INFLIGHT_SCOPES}&per_page=100") || return 1
+    echo "${data}" | jq -r --arg self "${CI_JOB_ID}" --arg p "${pid}" \
+      '.[] | select((.id | tostring) != $self) | "  … \(.status): \(.name) (pipeline \($p))"' || return 1
+  done
+}
+wait_start=${SECONDS}
+previous=""
+while :; do
+  inflight=$(_list_inflight) || { echo "ERROR: could not list in-flight jobs" >&2; exit 75; }
+  [ -z "${inflight}" ] && break
+  if [ $((SECONDS - wait_start)) -ge "${INFLIGHT_MAX_WAIT_SECONDS}" ]; then
+    echo "Merge gate FAILED — job(s) still in flight after $((SECONDS - wait_start))s; retry merge-gate once they finish:"
+    echo "${inflight}"
+    exit 1
+  fi
+  echo "Waiting for $(wc -l <<< "${inflight}") in-flight job(s), $((SECONDS - wait_start))s elapsed."
+  [ "${inflight}" != "${previous}" ] && echo "${inflight}"
+  previous=${inflight}
+  sleep "${INFLIGHT_POLL_SECONDS}"
+done
+[ -n "${previous}" ] && echo "Nothing in flight after $((SECONDS - wait_start))s."
+
 # Pipelines to inspect: this parent pipeline + every triggered child.
 pipelines=("${CI_PIPELINE_ID}")
-bridges=$(curl -sf -H "${AUTH}" \
-  "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/bridges?per_page=100" || echo "[]")
+# API errors fail the gate: treating them as "no failed jobs" would let a broken pipeline through.
+# They exit 75 (retried by the merge-gate job); exit 1 is reserved for a real blocking failure.
+bridges=$(curl -sf --retry 5 --retry-delay 2 --retry-connrefused -H "${AUTH}" \
+  "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/bridges?per_page=100") \
+  || { echo "ERROR: could not list child pipelines" >&2; exit 75; }
 while read -r child; do
   [ -n "${child}" ] && pipelines+=("${child}")
 done < <(echo "${bridges}" | jq -r '.[] | select(.downstream_pipeline != null) | .downstream_pipeline.id')
@@ -40,8 +86,9 @@ done < <(echo "${bridges}" | jq -r '.[] | select(.downstream_pipeline != null) |
 : > allowed_failures.txt
 for pid in "${pipelines[@]}"; do
   for page in 1 2 3 4 5; do
-    data=$(curl -g -sf -H "${AUTH}" \
-      "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${pid}/jobs?scope[]=failed&per_page=100&page=${page}" || echo "[]")
+    data=$(curl -g -sf --retry 5 --retry-delay 2 --retry-connrefused -H "${AUTH}" \
+      "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${pid}/jobs?scope[]=failed&per_page=100&page=${page}") \
+      || { echo "ERROR: could not list failed jobs of pipeline ${pid}" >&2; exit 75; }
     echo "${data}" | jq -r '.[] | select(.status == "failed" and .allow_failure != true) | .name' >> failed_jobs.txt
     echo "${data}" | jq -r '.[] | select(.status == "failed" and .allow_failure == true) | .name' >> allowed_failures.txt
     [ "$(echo "${data}" | jq 'length')" -lt 100 ] && break

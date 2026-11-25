@@ -46,7 +46,12 @@ void ddtrace_live_debugger_rshutdown(void);
 #ifdef TRACER
 ddog_DynamicInstrumentationConfigState ddtrace_dynamic_instrumentation_state(void);
 void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, zend_string **env, zend_string **version);
+const ddog_FfeCdnConfig *ddtrace_ffe_cdn_config(void);
 #else
+static inline const ddog_FfeCdnConfig *ddtrace_ffe_cdn_config(void) {
+    return NULL;
+}
+
 static inline void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, zend_string **env, zend_string **version) {
     *service = NULL;
     *env = NULL;

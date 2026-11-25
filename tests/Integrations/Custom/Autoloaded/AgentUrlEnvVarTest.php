@@ -28,6 +28,6 @@ final class AgentUrlEnvVarTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        self::assertSame('GET /simple', $traces[0][0]['resource']);
+        self::assertSame('GET /simple', $traces[0]['spans'][0]['resource']);
     }
 }

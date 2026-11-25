@@ -31,7 +31,7 @@ class HttpHideRouteTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('A simple GET request returning a string', '/simple'));
         });
 
-        foreach ($traces[0] as $span) {
+        foreach ($traces[0]['spans'] as $span) {
             if (empty($span["parent_id"])) {
                 $this->assertEquals("GET /simple", $span["resource"]);
             }
