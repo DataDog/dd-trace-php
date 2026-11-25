@@ -14,7 +14,8 @@ function ffeCaptureExposures($app, $barriers, $expectedCount) {
     $exitedAt = null;
     $lastCaptureAt = 0;
     try {
-        $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 20);
+        // Valgrind instruments the PHP producer and its sidecar before the first POST reaches the listener.
+        $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 240 : 20);
         do {
             $stdout .= ffeTestProcessRead($pipes[1]);
             $stderr .= ffeTestProcessRead($pipes[2]);

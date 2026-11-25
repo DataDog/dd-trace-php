@@ -11,15 +11,18 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_REMOTE_CONFIG_ENABLED=0
 DD_METRICS_OTEL_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_CLI_ENABLED=1
-DD_TRACE_AGENT_TIMEOUT=5000
-DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true
-DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess
-_DD_DEBUG_SIDECAR_IPC_MODE=instance_per_process
+DD_TRACE_CLI_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
 DD_SERVICE=php-ffe-pending-repeats
 --FILE--
 <?php
 require __DIR__ . '/stubs/exposure_capture.inc';
+// The producer gets its own sidecar extraction directory on Windows.
+putenv('DD_TRACE_CLI_ENABLED=1');
+putenv('DD_TRACE_AGENT_TIMEOUT=' . (getenv('USE_ZEND_ALLOC') === '0' ? '60000' : '5000'));
+putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true');
+putenv('DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess');
+putenv('_DD_DEBUG_SIDECAR_IPC_MODE=instance_per_process');
 $rows = ffeCaptureExposures(__DIR__ . '/stubs/exposure_pending_app.php', array(8 => 'handoff='), 8);
 foreach ($rows as $row) {
     echo json_encode(array($row['flag']['key'], $row['subject']['id'], $row['allocation']['key'], $row['variant']['key'],
