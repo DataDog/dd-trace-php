@@ -17,7 +17,7 @@ if (PHP_VERSION_ID < 80100 && in_array($arch, ['aarch64', 'arm64']))
 
 if (PHP_ZTS && PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
     && php_uname('m') === 'x86_64' && file_exists('/lib/ld-musl-x86_64.so.1')) {
-    echo "xfail PHP 8.0/8.1 lack the musl JIT TLS fix https://github.com/php/php-src/pull/13329", PHP_EOL;
+    die("skip: PHP 8.0/8.1 lack the musl JIT TLS fix https://github.com/php/php-src/pull/13329" . PHP_EOL);
 }
 ?>
 --ENV--

@@ -36,7 +36,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "prof-correctness":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   retry: 1
   needs:
     - job: "prof-correctness-analyzer"
@@ -62,7 +62,7 @@ foreach ($profiler_minor_major_targets as $version) {
     CACHE_COMPRESSION_LEVEL: fastest
   cache:
     key:
-      prefix: "prof-correctness-v5-bookworm14-${PHP_MAJOR_MINOR}-${FLAVOUR}"
+      prefix: "prof-correctness-v5-bookworm15-${PHP_MAJOR_MINOR}-${FLAVOUR}"
       files:
         - Cargo.lock
         - rust-toolchain.toml
@@ -100,6 +100,7 @@ foreach ($profiler_minor_major_targets as $version) {
       fi
     - php -v
     - php -d extension="${PROFILER_SO}" --ri "${profiler_ri}"
+    - ulimit -c unlimited
     - |
       export DD_PROFILING_ENABLED=Off
       export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
@@ -247,6 +248,7 @@ foreach ($profiler_minor_major_targets as $version) {
       check_correctness exceptions
       check_correctness allocation_upscaling_mixed_sizes
   after_script:
+    - .gitlab/collect-crashes.sh
     # Final archives are rebuilt for the checked-out PHP headers, not cached twice via hard links.
     - if [ -d tmp ]; then find tmp -path '*/target-common/*' -type f -name 'libdatadog_php.*' -delete; fi
     - |
@@ -260,6 +262,7 @@ foreach ($profiler_minor_major_targets as $version) {
   artifacts:
     when: always
     paths:
+      - artifacts/core-dumps/
       - artifacts/prof-correctness/
       - profiling/tests/correctness/*/test.pprof*
 
@@ -340,11 +343,11 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: amd64
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7-3
+        IMAGE_SUFFIX: _centos-7-4
       - PHP_MAJOR_MINOR: *arm64_latest_targets
         ARCH: arm64
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7-3
+        IMAGE_SUFFIX: _centos-7-4
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
     - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"; fi
@@ -366,13 +369,16 @@ foreach ($profiler_minor_major_targets as $version) {
     # against ordinary standalone profiling, without this suite's test features.
     # The suite remains compatible with a standalone build for local testing.
     - shopt -s expand_aliases # Alpine defines switch-php as an alias.
+    - ulimit -c unlimited
     - '# NTS combined (tracer + profiling in one ddtrace.so, as shipped)'
     - switch-php "${PHP_MAJOR_MINOR}"
+    - echo nts > /tmp/profiler-test-flavour
     - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
     - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-build-std && make -j$(nproc))
     - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
     - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-combined-results.xml" php profiling/tests/run-tests.php -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - bash "${CI_PROJECT_DIR}/.gitlab/collect-crashes.sh" --tag nts
 
     # Re-running configure/make below switches from NTS to ZTS PHP headers
     # while reusing the same checkout and CARGO_TARGET_DIR. `make`'s
@@ -385,6 +391,7 @@ foreach ($profiler_minor_major_targets as $version) {
     # combined ZTS build that segfaults immediately on load.
     - '# ZTS combined (tracer + profiling in one ddtrace.so, as shipped)'
     - switch-php "${PHP_MAJOR_MINOR}-zts"
+    - echo zts > /tmp/profiler-test-flavour
     - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
     - touch ../profiling/build.rs # regenerate PHP bindings after switching ABI
     - |
@@ -400,13 +407,19 @@ foreach ($profiler_minor_major_targets as $version) {
     - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-combined-results.xml" php profiling/tests/run-tests.php -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
+    - |
+      flavour="$(cat /tmp/profiler-test-flavour 2>/dev/null || echo "after")"
+      "${CI_PROJECT_DIR}/.gitlab/collect-crashes.sh" --tag "${flavour}"
     - if [ -d "${CARGO_TARGET_DIR}" ]; then find "${CARGO_TARGET_DIR}" -type f -name 'libdatadog_php.*' -delete; fi
     - |
-      if [ "${IMAGE_SUFFIX}" != "_centos-7-3" ]; then
-        .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
-      else
-        echo "Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)"
-      fi
+      case "${IMAGE_SUFFIX}" in
+        _centos-7*)
+          echo "Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)"
+          ;;
+        *)
+          .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
+          ;;
+      esac
   artifacts:
     reports:
       junit: "artifacts/profiler-tests/*.xml"
@@ -417,7 +430,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Clippy":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -463,7 +476,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Cargo test":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-15
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -495,7 +508,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "PHP language tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -567,52 +580,37 @@ foreach ($profiler_minor_major_targets as $version) {
     - ulimit -c unlimited
     - .gitlab/run_php_language_tests.sh
   after_script:
-    - |
-      output="${CI_PROJECT_DIR}/artifacts/php-language-tests"
-      mkdir -p "${output}"
-
-      # Core files are written relative to the crashing process's working
-      # directory when core_pattern is not absolute. PHPT processes run from
-      # their test directories, so looking only for /usr/local/src/php/core
-      # misses crashes such as ext/pcntl/tests/core. The pattern may also add
-      # the PID, producing core.<pid>.
-      core_pattern=$(cat /proc/sys/kernel/core_pattern 2>&1)
-      {
-        echo "core_pattern: ${core_pattern}"
-        echo "core ulimit: $(ulimit -c)"
-      } | tee "${output}/core-diagnostics.txt"
-
-      search_roots=(/usr/local/src/php "${CI_PROJECT_DIR}")
-      if [[ "${core_pattern}" == /* ]]; then
-        search_roots+=("$(dirname "${core_pattern}")")
-      fi
-
-      # Accommodate patterns such as core, core.%p, and core.%e.%p. Filtering
-      # with file avoids mistaking source files whose names begin with "core"
-      # for process core dumps.
-      mapfile -d '' cores < <(
-        while IFS= read -r -d '' candidate; do
-          if file -b "${candidate}" 2>/dev/null | grep -q 'core file'; then
-            printf '%s\0' "${candidate}"
-          fi
-        done < <(find "${search_roots[@]}" -type f -name 'core*' -print0 2>/dev/null)
-      )
-      echo "core files found: ${#cores[@]}" | tee -a "${output}/core-diagnostics.txt"
-
-      for i in "${!cores[@]}"; do
-        core="${cores[$i]}"
-        echo "core ${i}: ${core}" | tee -a "${output}/core-diagnostics.txt"
-        gdb --batch \
-          -ex "set pagination off" \
-          -ex "info threads" \
-          -ex "thread apply all bt full" \
-          -ex "thread apply all info registers" \
-          -ex "info sharedlibrary" \
-          /usr/local/bin/php "${core}" > "${output}/gdb-backtrace-${i}.txt" 2>&1 || true
-        mv "${core}" "${output}/core-${i}"
-      done
+    - .gitlab/collect-crashes.sh --search /usr/local/src/php
     - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
   artifacts:
-    when: on_failure
+    when: always
     paths:
-      - artifacts/php-language-tests/
+      - artifacts/core-dumps/
+
+"coredump-smoke":
+  stage: test
+  tags: [ "arch:${ARCH}" ]
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE}
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  parallel:
+    matrix:
+      - ARCH: *arch_targets
+        IMAGE:
+          - php-8.5_bookworm-15
+          - php-compile-extension-alpine-8.5
+          - php-8.5_centos-7-4
+  script:
+    - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
+    - if command -v switch-php >/dev/null 2>&1; then switch-php nts 2>/dev/null || switch-php 8.5; fi
+    - bash .gitlab/crash-collection-smoke.sh
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - artifacts/core-dumps/
