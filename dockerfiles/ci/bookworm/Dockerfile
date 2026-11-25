@@ -93,6 +93,7 @@ RUN set -eux; \
     \
 # Core Dumps
     ulimit -c unlimited; \
+    mkdir -p /var/crash && chmod 1777 /var/crash; \
     \
 # Ensure debug symbols are available
     echo "deb http://deb.debian.org/debian-debug/ bookworm-debug main" | \

@@ -45,6 +45,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetToMissingRoute()
     {
+        // symfony/routing isn't pinned and its patch releases keep moving the line the exception is thrown from
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(
@@ -52,7 +53,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     '/does_not_exist?key=value&pwd=should_redact'
                 )
             );
-        });
+        }, regexPlaceholders: ['line' => '(?<=CompiledUrlMatcherTrait\.php:)\d+']);
     }
 
     public function provideSpecs()

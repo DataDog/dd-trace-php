@@ -25,7 +25,7 @@ $build_platforms = [
     ],
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7-3",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7-4",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -36,7 +36,7 @@ $build_platforms = [
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7-3",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7-4",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -130,13 +130,13 @@ function manual_unless_changed(array $globs, array $never_if = []): string
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-14",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-15",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-14",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-15",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -377,7 +377,7 @@ foreach ($build_platforms as $platform) {
 
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-15"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -390,7 +390,7 @@ foreach ($build_platforms as $platform) {
 # Package sources, root-vendor dependencies, then build/install/test both PHP ABIs.
 "pecl offline vendored build":
   stage: verify
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.4_bookworm-14"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.4_bookworm-15"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -487,7 +487,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-15"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -604,7 +604,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate SSI combined extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-14"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-15"
   tags: [ "arch:amd64" ]
   variables:
     GIT_STRATEGY: none
@@ -975,7 +975,7 @@ endforeach;
 "profiler product-loading":
   stage: verify
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-15
   needs:
     - job: "compile combined extension: [8.5, amd64, x86_64-unknown-linux-gnu, nts]"
       artifacts: true
@@ -1021,6 +1021,7 @@ endforeach;
 <?php unset_dd_runner_env_vars(); ?>
   script:
     - switch-php "${FLAVOUR}"
+    - ulimit -c unlimited
     # Reuse combined NTS/ZTS artifacts from the release build. Only build the
     # standalone comparison product here, without extra profiler features.
     - make compile_profiler PROFILER_BUILD_SUFFIX=product_standalone PROFILER_FEATURES=
@@ -1046,11 +1047,14 @@ endforeach;
         php "$(php-config --prefix)/lib/php/build/run-tests.php" -q --show-diff \
           profiling/tests/phpt/standalone_conflict_ddtrace_first.phpt \
           profiling/tests/phpt/standalone_conflict_profiler_first.phpt
+  after_script:
+    - .gitlab/collect-crashes.sh
   artifacts:
     when: always
     reports:
       junit: artifacts/product-loading/*.xml
     paths:
+      - artifacts/core-dumps/
       - artifacts/product-loading/
       - profiling/tests/phpt/standalone_conflict_*.out
       - profiling/tests/phpt/standalone_conflict_*.diff
@@ -1074,8 +1078,15 @@ endforeach;
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
+    - ulimit -c unlimited
     # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
     - php run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+  after_script:
+    - .gitlab/collect-crashes.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/core-dumps/
 
 <?php foreach ($build_platforms as $platform): ?>
 <?php if ($platform['host_os'] !== 'linux-gnu') continue; ?>
@@ -1083,7 +1094,7 @@ endforeach;
 # pthread destructors that musl's no-op dlclose cannot catch (issue #4349).
 "frankenphp profiler shutdown: [<?= $platform['arch'] ?>]":
   stage: verify
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-15
   tags: [ "arch:<?= $platform['arch'] ?>" ]
   needs:
     - job: "package extension (per-api bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
@@ -1109,9 +1120,13 @@ endforeach;
     - sudo php packages/datadog-setup.php --php-bin php --enable-profiling --enable-appsec --file packages/dd-library-php-*-$(uname -m)-linux-gnu-<?= $php_versions_to_abi['8.5'] ?>-zts.tar.gz
     - "php --ri ddtrace | grep 'Profiling Enabled'"
   script:
-    - bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
+    - ulimit -c unlimited
+    - GOTRACEBACK=crash bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
+  after_script:
+    - .gitlab/collect-crashes.sh --fallback-exe "$(command -v frankenphp 2>/dev/null || true)"
   artifacts:
     paths:
+      - artifacts/core-dumps/
       - artifacts/frankenphp/
     when: always
 
@@ -1695,7 +1710,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-14"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-15"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1731,7 +1746,7 @@ endforeach;
 
 "min install tests":
   stage: verify
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-14
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-15
   tags: [ "arch:amd64" ]
   variables:
     MAX_TEST_PARALLELISM: 8
@@ -1981,7 +1996,7 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-14
+    CONTAINER_SUFFIX: bookworm-15
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"
@@ -2098,7 +2113,7 @@ $thread_context_sharing_weblogs = ["apache-mod-8.0", "apache-mod-8.2-zts", "php-
   tags: [ "arch:$ARCH" ]
   variables:
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-14
+    CONTAINER_SUFFIX: bookworm-15
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"

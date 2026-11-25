@@ -15,13 +15,16 @@ RUN set -eux; \
         centos-release-scl \
         curl \
         environment-modules \
+        file \
         gcc \
         gcc-c++ \
         git \
+        gmp-devel \
         help2man \
         libcurl-devel \
         libedit-devel \
         make \
+        mpfr-devel \
         openssl-devel \
 # data dumper needed for autoconf, apparently
         perl-Data-Dumper \
@@ -247,8 +250,21 @@ RUN yum install -y --nogpgcheck devtoolset-9 \
   && rm -rf /usr/local/lib/cmake/llvm /usr/local/lib/cmake/clang /usr/local/lib/cmake/lld \
   && cd - \
   && rm -fr llvm-project \
+  && GDB_VERSION="17.2" \
+  && GDB_SHA256="cb891b9a9f554cac972eea5368176b240640ae90b681aae84bf873a9501f0063" \
+  && cd /tmp \
+  && curl -fsSL --retry 5 --retry-delay 2 -O "https://mirrors.kernel.org/sourceware/gdb/releases/gdb-${GDB_VERSION}.tar.gz" \
+  && echo "${GDB_SHA256}  gdb-${GDB_VERSION}.tar.gz" | sha256sum -c - \
+  && mkdir gdb && cd gdb \
+  && tar -xf "../gdb-${GDB_VERSION}.tar.gz" --strip-components=1 \
+  && ./configure --disable-sim --disable-gdbserver --disable-tui \
+  && make -j "$(nproc)" \
+  && make install \
+  && ln -sf /usr/local/bin/gdb /opt/rh/devtoolset-7/root/usr/bin/gdb \
+  && cd / && rm -rf /tmp/gdb "/tmp/gdb-${GDB_VERSION}.tar.gz" \
   && yum remove -y python3 'devtoolset-9*' \
-  && yum clean all
+  && yum clean all \
+  && mkdir -p /var/crash && chmod 1777 /var/crash
 
 
 # rust sha256sum generated locally after verifying it with sha256
