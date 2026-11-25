@@ -52,7 +52,7 @@ try {
             }
         }
         // The sidecar can outlive PHP. Keep capturing until it is quiet.
-        if ($exitedAt !== null && microtime(true) - max($exitedAt, $lastCaptureAt) > 0.5) break;
+        if ($exitedAt !== null && count($allocations) >= 3 && microtime(true) - max($exitedAt, $lastCaptureAt) > 0.5) break;
         $connection = @stream_socket_accept($listener, 0.1);
         if (!$connection) continue;
         if ($read = ffeTestReadRequest($connection)) {
