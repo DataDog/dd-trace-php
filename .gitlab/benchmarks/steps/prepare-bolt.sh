@@ -19,8 +19,8 @@ mkdir -p "$BOLT_DIR"
 BOLT_DIR=$(realpath "$BOLT_DIR")
 BOLT_MODE=${BOLT_MODE:-align}
 case "$BOLT_MODE" in
-  align) BOLT_BIN=${BOLT_ALIGN_BIN:-llvm-bolt-align} ;;
-  plain) BOLT_BIN=${BOLT_BIN:-llvm-bolt} ;;
+  align) BOLT_BIN=llvm-bolt-align ;;
+  plain) BOLT_BIN=llvm-bolt ;;
   *) echo "Preparing BOLT modules requires BOLT_MODE=plain or align." >&2; exit 1 ;;
 esac
 if [ "$BOLT_MODE" = align ] && [ -z "$BASELINE_SRC" ]; then
@@ -45,6 +45,8 @@ for VARIANT in "${VARIANTS[@]}"; do
   if [ "$VARIANT" = candidate ]; then SRC=$CANDIDATE_SRC; else SRC=$BASELINE_SRC; fi
   rm -rf "$BUILD_ROOT"
   cp -a "$SRC" "$BUILD_ROOT"
+  # Never reuse a previous build (or a BOLT output) from a manually used tree.
+  rm -rf "$BUILD_ROOT/tmp"
   (cd "$BUILD_ROOT" && make -j"$(nproc)" compile_combined)
   cp "$BUILD_ROOT/tmp/build_combined/modules/ddtrace.so" "$BOLT_DIR/$VARIANT-natural.so"
 done
@@ -58,6 +60,10 @@ if [ "$BOLT_MODE" = align ]; then
     exit 1
   fi
   cat "$BOLT_DIR/alignment.log"
+  # Each of the two rewrites prints a "satisfied N of M layout constraints"
+  # summary, and a "missed offset" warning for every function that did not land
+  # at its agreed offset. Require exactly two summaries, each with all (and at
+  # least one) of the constraints met, and no misses.
   if grep -q 'missed offset' "$BOLT_DIR/alignment.log" || ! awk '
     /satisfied [0-9]+ of [0-9]+ layout constraints/ {
       for (i = 1; i <= NF; i++) {

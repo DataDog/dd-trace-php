@@ -48,7 +48,8 @@ Execution flow on each PR:
    runs. The PHP step resolves the PR's merge-target branch with
    `github-find-merge-into-branch` (or uses `BASELINE_BRANCH` when set), then
    takes its merge base with the exact candidate commit.
-   Both revisions are compiled and aligned before either is measured.
+   Unless `BOLT_MODE=off`, both revisions are compiled and BOLT-processed
+   (aligned as a pair by default) before either is measured.
    `benchmarks-tracer` is a matrix of three jobs, one per `TRACER_PART`
    (`phpbench`, `phpbench-opcache`, `tea`), and `runall.sh` runs only that
    part. A baseline whose `runall.sh` predates `TRACER_PART` runs the
@@ -89,6 +90,8 @@ Set the CI variable `BOLT_MODE` to choose the processing step:
 Explicit alignment fails when no baseline can be found. A failed baseline
 lookup also fails the job. The candidate-only default applies when the
 lookup succeeds and returns no target branch, as on master runs.
+Master runs have no baseline, so they use `plain` processing and their results
+are not directly comparable to the aligned comparisons on PRs.
 Both source revisions must contain the combined-extension harness from
 [#4520](https://github.com/DataDog/dd-trace-php/pull/4520); older harnesses
 are rejected because they rebuild separate modules.
@@ -247,10 +250,18 @@ variables the CI jobs set (`UNCONFIDENCE_THRESHOLD=2.0`, `CI_TYPE=theoretical`,
 significance threshold of 1.0 and prints the unchanged-results table:
 
 ```bash
-export ARTIFACTS_DIR="$(pwd)/reports"
+export ARTIFACTS_DIR="$(pwd)/reports" CI_PROJECT_DIR="$(pwd)"
+export CI_PROJECT_NAME=dd-trace-php CI_COMMIT_REF_NAME="$(git branch --show-current)" CI_COMMIT_SHA="$(git rev-parse HEAD)"
 export UNCONFIDENCE_THRESHOLD=2.0 CI_TYPE=theoretical MD_REPORT_ONLY_CHANGES=1
 SCENARIO=tracer BP_SCENARIO=tracer bp-runner .gitlab/benchmarks/bp-runner.yml --debug -t
 ```
+
+The job clones both revisions from GitHub, so the branch and commit must be
+pushed. Set `BASELINE_BRANCH` (e.g. `master`) to skip the baseline lookup.
+
+The steps expect a writable `/app` and root; to run them locally, use the CI
+image in a container (see `.claude/ci/benchmarks.md` § Full CI flow with BOLT
+alignment).
 
 Note that `bp-runner.yml` starts a real Datadog agent (the API key comes from
 AWS SSM in CI, set `DD_API_KEY` yourself locally), needs a GitHub token for

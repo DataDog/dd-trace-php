@@ -31,9 +31,7 @@ fetch_release() {
 # The shared analyzer reads Git metadata from these fixed checkout locations.
 # Keep the checkouts until analysis finishes; only BOLT's scratch files are
 # removed by this script's exit trap.
-SOURCE_ROOT=${BENCHMARK_SOURCE_ROOT:-/app}
-mkdir -p "$SOURCE_ROOT"
-CANDIDATE_SRC="$SOURCE_ROOT/candidate"
+CANDIDATE_SRC=/app/candidate
 BASELINE_SRC=
 fetch_release "$CANDIDATE_SRC" "$CI_COMMIT_REF_NAME" "$CI_COMMIT_SHA"
 
@@ -45,7 +43,7 @@ printf '%s\n' "$BASELINE_BRANCH" > "$ARTIFACTS_DIR/baseline_branch.txt"
 if [ -n "$BASELINE_BRANCH" ]; then
   BASELINE_SHA=$(git -C "$CANDIDATE_SRC" merge-base \
     "origin/$BASELINE_BRANCH" "$CI_COMMIT_SHA")
-  BASELINE_SRC="$SOURCE_ROOT/baseline"
+  BASELINE_SRC=/app/baseline
   fetch_release "$BASELINE_SRC" "$BASELINE_BRANCH" "$BASELINE_SHA"
 fi
 

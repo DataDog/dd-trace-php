@@ -17,6 +17,7 @@
 | `benchmarks-pr-comment-appsec` | same | Same flow for AppSec, with its own comment header; needs `benchmarks-appsec` |
 | `benchmarks-pr-comment-profiler` | same | Same flow for the profiler, with its own comment header; needs `benchmarks-profiler` |
 | `build-benchmark-ci-images` | (built in-repo from `.gitlab/benchmarks/container/`) | Manual job that builds the microbenchmark CI image from `.gitlab/benchmarks/container/`; described in `.gitlab/benchmarks/README.md` § How to rebuild the CI Docker image |
+| `build-llvm-bolt-align-image` | (built in-repo from `.gitlab/benchmarks/container/llvm-bolt-align/`) | Manual job that builds the static `llvm-bolt-align` tool image copied into the microbenchmark CI image; described in `.gitlab/benchmarks/README.md` § Rebuilding the `llvm-bolt-align` image |
 | `macrobenchmarks: [{PHP_VERSION}]` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld` | Runs a Laravel Realworld application under k6 load at three traffic levels; PHP 7.4 and 8.1 |
 | `check-big-regressions` | `registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:b682acae509fa391ac559705b66df07cac876e4c46641d2457077972a1c0bbb8` | Post-benchmark gate: fails if `benchmarks-tracer` results contain a regression above threshold, or if any part's candidate results (or baseline results, when there is a baseline branch) are missing |
 | `check-slo-breaches` | (benchmarking-platform-tools template) | Post-macrobenchmark gate: evaluates SLO breaches |
@@ -27,8 +28,9 @@ Runner: `runner:apm-k8s-tweaked-metal` (microbenchmarks); `runner:apm-k8s-same-c
 
 **Trigger rules:**
 - `benchmarks-tracer` — runs on every push; has an early-exit guard: if none of
-  `ext/`, `src/`, `components/`, `components-rs/`,
-  `zend_abstract_interface/`, `tests/Benchmarks/`, `benchmark/`, `tea/`
+  `ext/`, `tracer/`, `src/`, `components/`, `components-rs/`,
+  `zend_abstract_interface/`, `tests/Benchmarks/`, `benchmark/`, `tea/`,
+  `.gitlab/benchmarks/` or `.gitlab/benchmarks.yml`
   changed relative to `master`, exits 0 and `check-big-regressions`
   also skips.
 - `benchmarks-appsec` — auto-runs when `appsec/src/**/*` changed;
@@ -61,16 +63,20 @@ dev container.
 
 ### Running the benchmarks
 
-The `.gitlab/benchmarks/` directory is only the
-CI orchestrator — it calls `make benchmarks` and friends. You do not
-need `bp-runner` for local runs. Three approaches, from simplest to
-most flexible:
+The `.gitlab/benchmarks/` directory is the CI orchestrator: it checks out
+the candidate and baseline, builds and BOLT-aligns them, and runs
+`benchmark/runall.sh`, which calls `make benchmarks` and friends. You do not
+need `bp-runner` to run those targets locally. To run the whole flow, see
+"Full CI flow with BOLT alignment" below. Three approaches for the targets,
+from simplest to most flexible:
 
-**Approach 1 — `make benchmarks` (CI-like, clean cache)**
+**Approach 1 — `make benchmarks` (clean cache)**
 
-This matches what CI does: build + benchmark in one step from a clean
-overlay. The default autotools configure includes the Rust sidecar in
-the link, so no special handling is needed.
+Builds and benchmarks in one step from a clean overlay. The default autotools
+configure includes the Rust sidecar in the link, so no special handling is
+needed. It builds the default, tracer-only extension, not the combined
+tracer + profiler + AppSec extension that CI measures (see "Full CI flow with
+BOLT alignment" below), so its numbers are not comparable to CI's.
 
 ```bash
 .claude/ci/dockerh --cache bench-82 --clean-cache --overlayfs --root \
@@ -166,11 +172,67 @@ to run all suites. For OPcache benchmarks use `call_benchmarks_opcache`.
 Use separate `--cache` names (e.g. `bench-82-baseline` and
 `bench-82-candidate`) to avoid rebuilding when switching branches.
 
+### Full CI flow with BOLT alignment
+
+Runs `.gitlab/benchmarks/steps/run-benchmarks.sh` as the CI job does: clones
+the candidate and its merge-base with `master` into `/app`, builds both,
+aligns them with `llvm-bolt-align`, and runs both. The scripts write `/app`,
+`/etc/hosts` and a sysctl, so run them as root in the CI image
+(`$MICROBENCHMARKS_CI_IMAGE`, see `.gitlab/benchmarks.yml`) on an amd64 Linux
+machine. The registry may be unreachable from the machine you build on; copy
+the image over with `docker save | ssh ... docker load`.
+
+1. The scripts clone from GitHub, so push the branch, or point the clone at a
+   local checkout: mount it at `/src` with local branches `$BRANCH` and
+   `master`, and redirect the URL (see `drive.sh` below).
+2. `drive.sh`, mounted into the container (`BP_SCENARIO` is `profiler`,
+   `tracer` or `appsec`; `profiler` is the shortest):
+   ```bash
+   set -ex
+   git config --global --add safe.directory '*'
+   git config --global url."/src/".insteadOf \
+     https://github.com/DataDog/dd-trace-php/
+   # Fewer than 48 CPUs: run-revision.sh pins to 34-47; ignore the pinning.
+   mkdir -p /shim
+   printf '#!/bin/sh\nif [ "$1" = -c ]; then shift 2; fi\nexec "$@"\n' \
+     > /shim/taskset
+   chmod +x /shim/taskset
+   export PATH=/shim:$PATH
+   export CI_COMMIT_REF_NAME=$BRANCH CI_PROJECT_NAME=dd-trace-php
+   export CI_COMMIT_SHA=$(git -C /src rev-parse "$BRANCH")
+   export CI_PROJECT_DIR=/out ARTIFACTS_DIR=/out/artifacts
+   export BP_SCENARIO=profiler BASELINE_BRANCH=master
+   export COMPOSER_ALLOW_SUPERUSER=1 DD_TRACE_AUTOLOAD_NO_COMPILE=true
+   mkdir -p "$ARTIFACTS_DIR"
+   sysctl -w kernel.perf_event_paranoid=2 || true
+   /src/.gitlab/benchmarks/steps/run-benchmarks.sh
+   ```
+3. ```bash
+   docker run --rm --privileged -e BRANCH=my-branch \
+     -v /path/to/checkout:/src:ro -v /path/to/out:/out \
+     -v $PWD/drive.sh:/drive.sh:ro IMAGE bash /drive.sh
+   ```
+4. The aligned count is in the log (`BOLT-ALIGN: pinned N functions (100%)`;
+   anything well below 100% means the two builds name functions differently).
+   Results are in `/out/artifacts`: `candidate-*`, `baseline-*`,
+   `bolt-mode.txt` and `bolt/`. With fewer than 48 CPUs the timings only show
+   that the pipeline works.
+
+Verified for the `profiler` scenario only. The `tracer` and `appsec` scenarios
+also start mysql and redis, and the `bp-runner` form of the job additionally
+needs a Datadog agent and API key.
+
 ### Services needed by some benchmarks
 
 Some benchmark suites (e.g. `PDOBench`, `PHPRedisBench`) need MySQL
-and Redis. The CI image has them pre-installed. Add these to the
-`bash -c` script before running benchmarks:
+and Redis, and `make composer_tests_update` needs MySQL too: Laravel's
+post-install step creates a database on the `mysql-integration` host.
+
+The `datadog/dd-trace-ci` images used in the approaches above have neither
+server, so those commands fail in `composer_tests_update` there. The
+microbenchmark CI image (`$MICROBENCHMARKS_CI_IMAGE`) has both installed but
+not running. In it, start them before `composer_tests_update` and the
+benchmarks, as the job's setup step does:
 
 ```bash
 service mysql start
@@ -179,7 +241,8 @@ echo "127.0.0.1 mysql-integration" >> /etc/hosts
 echo "127.0.0.1 redis-integration" >> /etc/hosts
 ```
 
-Or filter them out:
+Or skip those two suites when running the benchmarks (this does not help
+`composer_tests_update`, which still needs MySQL):
 `make call_benchmarks FILTER='PDO(*SKIP)(*F)|Redis(*SKIP)(*F)|.'`
 
 ## Investigating a Regression
@@ -194,7 +257,7 @@ curl -s -H "PRIVATE-TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN" \
 
 ## Gotchas
 
-- If the job log says "No tracer-related file changes detected — skipping benchmark
+- If the job log says "No tracer-related file changes detected - skipping benchmark
   execution", `check-big-regressions` also skips. This is expected, not a failure.
 
 - `macrobenchmarks` has `allow_failure: true` — it will not block the pipeline.
