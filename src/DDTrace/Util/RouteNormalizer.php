@@ -408,6 +408,11 @@ class RouteNormalizer
                         // regexWrapperGroups() does not follow: the groups
                         // after it would be misnumbered, even inside a capture.
                         return false;
+                    } elseif (preg_match('/\G\(\?[A-Za-z^-]*n[A-Za-z-]*[):]/', $rule, $m, 0, $i) === 1) {
+                        // No-auto-capture mode ((?n), (?n:...)) makes the groups
+                        // after it non-capturing, which regexWrapperGroups()
+                        // does not follow: later groups would be misnumbered.
+                        return false;
                     } elseif ($captureDepth > 0) {
                         // The outer capture covers everything consumed by this group.
                         $capturing = false;
@@ -576,10 +581,17 @@ class RouteNormalizer
      * anything other than literal text outside captures, or an alternation
      * that is not inside an optional part (which branch matched is unknown).
      *
+     * The regex must pass regexHasOnlyCapturedDynamics() first: an optional
+     * part is left out without being read, so an inexpressible one, such as
+     * (?:/[^/]+)?, would otherwise be dropped instead of rejecting the route.
+     *
      * @return array|null
      */
     public static function regexFallbackElements(string $regex)
     {
+        if (!self::regexHasOnlyCapturedDynamics($regex)) {
+            return null;
+        }
         $i = 0;
         $elements = self::regexFallbackSequence($regex, $i);
         return $elements === null || $i !== strlen($regex) ? null : $elements;

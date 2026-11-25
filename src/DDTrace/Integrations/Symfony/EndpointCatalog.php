@@ -112,13 +112,27 @@ class EndpointCatalog
      */
     public static function opcacheMayServeScripts(): bool
     {
-        if (!extension_loaded('Zend OPcache')
-            || !filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOLEAN)) {
+        if (!extension_loaded('Zend OPcache') || !self::iniEnabled('opcache.enable')) {
             return false;
         }
 
         return (PHP_SAPI !== 'cli' && PHP_SAPI !== 'phpdbg')
-            || filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOLEAN);
+            || self::iniEnabled('opcache.enable_cli');
+    }
+
+    /**
+     * Whether a boolean INI setting is on, read as PHP reads it ("1", "on",
+     * "yes", "true", case-insensitively). ext/filter is optional and this
+     * runs before http.route is set, so filter_var() is not used.
+     *
+     * @internal
+     */
+    public static function iniEnabled(string $name): bool
+    {
+        $value = ini_get($name);
+
+        return $value !== false
+            && in_array(strtolower(trim($value)), ['1', 'on', 'yes', 'true'], true);
     }
 
     /**
@@ -141,6 +155,10 @@ class EndpointCatalog
             return null;
         }
 
+        // A long-running worker is one request, so PHP never clears its stat
+        // cache: is_file() and filemtime() would keep seeing a generator that
+        // has since been replaced.
+        clearstatcache();
         $genFile = self::findGeneratorFile($cacheDir);
         if ($genFile === null) {
             return null;

@@ -114,8 +114,15 @@ class EndpointCatalogTest extends BaseTestCase
             $this->assertNotSame($oldKey, EndpointCatalog::generatorFileCacheKey('other', 'en', $container));
 
             $this->writeGenerator($genFile . '.new', '/new-blog', time() - 3600);
-            rename($genFile . '.new', $genFile);
-            clearstatcache();
+            // Stat the old file again, so that PHP's stat cache holds it.
+            $this->assertSame($oldKey, EndpointCatalog::generatorFileCacheKey('blog', 'en', $container));
+            // Another process replaces the file: PHP's own rename() would
+            // clear the stat cache, which a deploy in another process does not.
+            if (!function_exists('exec')) {
+                $this->markTestSkipped('exec() is needed to replace the file from another process');
+            }
+            exec('mv ' . escapeshellarg($genFile . '.new') . ' ' . escapeshellarg($genFile), $output, $status);
+            $this->assertSame(0, $status);
             $newKey = EndpointCatalog::generatorFileCacheKey('blog', 'en', $container);
             $this->assertNotNull($newKey);
             $this->assertNotSame($oldKey, $newKey);
@@ -143,13 +150,33 @@ class EndpointCatalogTest extends BaseTestCase
         }
     }
 
+    public function testIniEnabledReadsBooleansAsPhpDoes()
+    {
+        // ini_set() keeps the raw string, so every spelling PHP accepts is seen.
+        $previous = ini_get('display_errors');
+        try {
+            foreach (['1', 'On', 'on', 'YES', 'true', ' On '] as $on) {
+                ini_set('display_errors', $on);
+                $this->assertTrue(EndpointCatalog::iniEnabled('display_errors'), var_export($on, true));
+            }
+            foreach (['0', '', 'Off', 'no', 'false'] as $off) {
+                ini_set('display_errors', $off);
+                $this->assertFalse(EndpointCatalog::iniEnabled('display_errors'), var_export($off, true));
+            }
+        } finally {
+            ini_set('display_errors', $previous);
+        }
+
+        $this->assertFalse(EndpointCatalog::iniEnabled('datadog.no_such_setting'));
+    }
+
     public function testOpcacheMayServeScriptsWhenItServesThem()
     {
         if (!extension_loaded('Zend OPcache')) {
             $this->assertFalse(EndpointCatalog::opcacheMayServeScripts());
         } elseif (self::opcacheServesScripts()) {
             $this->assertTrue(EndpointCatalog::opcacheMayServeScripts());
-        } elseif (PHP_SAPI === 'cli' && !filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOLEAN)) {
+        } elseif (PHP_SAPI === 'cli' && !EndpointCatalog::iniEnabled('opcache.enable_cli')) {
             // Long-running CLI servers: opcache.enable_cli is off by default.
             $this->assertFalse(EndpointCatalog::opcacheMayServeScripts());
         } else {

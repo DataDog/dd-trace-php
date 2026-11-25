@@ -617,6 +617,16 @@ class RouteNormalizerTest extends BaseTestCase
         }
     }
 
+    public function testRegexFallbackRejectsAnInexpressibleOptionalPart()
+    {
+        // The fallback leaves optional parts out without reading them, so an
+        // optional with uncaptured variable text must still reject the route
+        // (RFC-1125) instead of yielding /files for /files/customer-123.
+        foreach (['/files(?:/[^/]+)?', '/files(?:/.+)?', '/files(?:/\d+)?/x'] as $regex) {
+            $this->assertNull(RouteNormalizer::regexFallbackElements($regex), $regex);
+        }
+    }
+
     public function testBracesAroundAnInvalidVariableNameAreLiteralText()
     {
         // Symfony's RouteCompiler, which Laravel also uses, only takes word
@@ -665,6 +675,25 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics($rule));
         $this->assertNull(RouteNormalizer::normalizeFromWordPress($rule, 'a.txt/customer-123'));
         $this->assertNull(RouteNormalizer::normalizeFromWordPressRule($rule));
+    }
+
+    public function testRegexWithNoAutoCaptureModeIsRejected()
+    {
+        // (?n) makes (a)(b) non-capturing, so counting them as captures
+        // would misnumber every later group: here the last capture would be
+        // taken for the wrapper of ext and its value kept as text.
+        $rules = [
+            '^(?<kind>(?n)(a)(b))(\\.(?<ext>[^/]+))?/([^/]+)$',
+            '^(?<kind>(?n:(a)(b)))(\\.(?<ext>[^/]+))?/([^/]+)$',
+            '^(?<kind>(?in)(a)(b))(\\.(?<ext>[^/]+))?/([^/]+)$',
+        ];
+        foreach ($rules as $rule) {
+            $this->assertFalse(RouteNormalizer::regexHasOnlyCapturedDynamics($rule), $rule);
+            $this->assertNull(RouteNormalizer::normalizeFromWordPress($rule, 'ab.txt/customer-123'), $rule);
+            $this->assertNull(RouteNormalizer::normalizeFromWordPressRule($rule), $rule);
+        }
+        // Other inline options inside a capture are still accepted.
+        $this->assertTrue(RouteNormalizer::regexHasOnlyCapturedDynamics('^docs/((?i)[a-z]+)$'));
     }
 
     public function testWordPressRuleNotMatchingTheSubjectFallsBackToMandatoryParts()
