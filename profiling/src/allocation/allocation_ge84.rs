@@ -8,9 +8,6 @@ use log::{debug, trace, warn};
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::LazyLock;
 
-#[cfg(php_zts)]
-use crate::profiling::allocation::current_execute_data_from_cache;
-
 #[cfg(php_debug)]
 use libc::c_uint;
 
@@ -334,11 +331,6 @@ unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    #[cfg(php_zts)]
-    let ls_cache = module_globals::get_tsrm_ls_cache();
-    #[cfg(php_zts)]
-    let globals = module_globals::get_profiler_globals_from_cache(ls_cache);
-    #[cfg(not(php_zts))]
     let globals = module_globals::get_profiler_globals();
     let state = (*globals).zend_mm_state.get();
 
@@ -360,26 +352,11 @@ unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void
         ptr
     };
 
-    // during startup, minit, rinit, ... current_execute_data is null
-    // we are only interested in allocations during userland operations
-    #[cfg(php_zts)]
-    let execute_data = current_execute_data_from_cache(ls_cache);
-    #[cfg(not(php_zts))]
-    let execute_data = ptr::addr_of!(zend::executor_globals.current_execute_data).read();
-    if execute_data.is_null() {
-        return ptr;
-    }
-
     let Some(len) = allocation_size_class(len) else {
         return ptr;
     };
     if ProfilerGlobals::should_collect(globals, len) {
-        collect_allocation(
-            unsafe { &(*globals).interrupt_count },
-            execute_data,
-            ptr,
-            len,
-        );
+        collect_allocation(unsafe { &(*globals).interrupt_count }, ptr, len);
     }
 
     ptr
@@ -525,11 +502,6 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    #[cfg(php_zts)]
-    let ls_cache = module_globals::get_tsrm_ls_cache();
-    #[cfg(php_zts)]
-    let globals = module_globals::get_profiler_globals_from_cache(ls_cache);
-    #[cfg(not(php_zts))]
     let globals = module_globals::get_profiler_globals();
     let state = (*globals).zend_mm_state.get();
 
@@ -559,14 +531,7 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
         untrack_allocation(prev_ptr);
     }
 
-    #[cfg(php_zts)]
-    let execute_data = current_execute_data_from_cache(ls_cache);
-    #[cfg(not(php_zts))]
-    let execute_data = ptr::addr_of!(zend::executor_globals.current_execute_data).read();
-
-    // during startup, minit, rinit, ... current_execute_data is null
-    // we are only interested in allocations during userland operations
-    if execute_data.is_null() || ptr.is_null() {
+    if ptr.is_null() {
         return ptr;
     }
 
@@ -574,12 +539,7 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
         return ptr;
     };
     if ProfilerGlobals::should_collect(globals, len) {
-        collect_allocation(
-            unsafe { &(*globals).interrupt_count },
-            execute_data,
-            ptr,
-            len,
-        );
+        collect_allocation(unsafe { &(*globals).interrupt_count }, ptr, len);
     }
 
     ptr

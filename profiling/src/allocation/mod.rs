@@ -187,9 +187,14 @@ impl AllocationProfilingStats {
 
 /// Collect an allocation sample and optionally track it for live heap profiling.
 ///
+/// Reads `EG(current_execute_data)` on the cold sampling path rather than on
+/// every allocation. Exponential sampling is memoryless, so letting the small
+/// number of allocations outside userland execution decrement `next_sample`
+/// does not bias collected samples; we simply skip emitting if `execute_data`
+/// is null.
+///
 /// # Safety
-/// `execute_data` must be null or a valid pointer provided by the engine. The
-/// profiler may walk the execution frames reachable through it.
+/// Must be called on a PHP thread with initialized executor globals.
 ///
 /// # Arguments
 /// * `ptr` - The pointer returned by the allocator (used for live heap tracking)
@@ -197,10 +202,20 @@ impl AllocationProfilingStats {
 #[cold]
 pub unsafe fn collect_allocation(
     interrupt_count: &AtomicU32,
-    execute_data: *mut zend::zend_execute_data,
     ptr: *mut c_void,
     len: size_t,
 ) {
+    #[cfg(php_zts)]
+    let execute_data = {
+        let ls_cache = module_globals::get_tsrm_ls_cache();
+        current_execute_data_from_cache(ls_cache)
+    };
+    #[cfg(not(php_zts))]
+    let execute_data = ptr::addr_of!(zend::executor_globals.current_execute_data).read();
+    if execute_data.is_null() {
+        return;
+    }
+
     if let Some(profiler) = Profiler::get() {
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
