@@ -180,10 +180,19 @@ STEP;
     echo $result;
 });
 
+// Service containers are reached directly: through the Fabric egress proxy, their aliases
+// fail with "no healthy upstream" or 403.
+preg_match('(^\.services(.*?)\n(\S|\Z))ms', file_get_contents(__FILE__), $services_block);
+preg_match_all('(^ +alias: (\S+)$)m', $services_block[1], $service_aliases);
+$fabric_service_no_proxy = 'KUBERNETES_POD_ANNOTATIONS_SERVICE_NO_PROXY: "beta.fabric.datadoghq.com/no-proxy-additions=' . implode(',', array_unique($service_aliases[1])) . "\"\n";
+$fabric_service_no_proxy_job = "    $fabric_service_no_proxy";
+$fabric_service_no_proxy = "  $fabric_service_no_proxy";
+
 ?>
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+<?= $fabric_service_no_proxy ?>
 
 default:
   retry:

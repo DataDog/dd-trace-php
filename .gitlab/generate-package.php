@@ -425,6 +425,7 @@ foreach ($build_platforms as $platform) {
     - job: "pecl build"
       artifacts: true
   variables:
+<?= $fabric_service_no_proxy_job ?>
     MAKE_JOBS: 8
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 8Gi
@@ -1239,6 +1240,7 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   variables:
+<?= $fabric_service_no_proxy_job ?>
     KUBERNETES_CPU_REQUEST: 2 # one for PHP and one for the webserver
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
@@ -1535,6 +1537,7 @@ endforeach;
   services:
     - !reference [.services, request-replayer]
   variables:
+<?= $fabric_service_no_proxy_job ?>
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
@@ -1806,6 +1809,7 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   variables:
+<?= $fabric_service_no_proxy_job ?>
     CARGO_BUILD_JOBS: 4
     KUBERNETES_CPU_REQUEST: 4
     KUBERNETES_MEMORY_REQUEST: 4Gi
@@ -1839,6 +1843,7 @@ endforeach;
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-15
   tags: [ "arch:amd64" ]
   variables:
+<?= $fabric_service_no_proxy_job ?>
     MAX_TEST_PARALLELISM: 8
     DDAGENT_HOSTNAME: 127.0.0.1
     DD_AGENT_HOST: 127.0.0.1
