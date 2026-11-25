@@ -36,9 +36,26 @@ pub(crate) fn initialize_page_size() -> bool {
     true
 }
 
-pub(crate) fn allocation_size_class(raw_size: usize) -> Option<usize> {
+#[cold]
+fn huge_allocation_size_class(raw_size: usize) -> Option<usize> {
     // MINIT validates the OS page size before allocation hooks can run.
-    size_class::allocation_size(raw_size, OS_PAGE_SIZE.load(Ordering::Relaxed))
+    let os_page_size = OS_PAGE_SIZE.load(Ordering::Relaxed);
+    if raw_size <= usize::MAX - (os_page_size - 1) {
+        Some(size_class::huge_allocation_size(raw_size, os_page_size))
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+pub(crate) fn allocation_size_class(raw_size: usize) -> Option<usize> {
+    if raw_size <= size_class::SMALL_MAX {
+        Some(size_class::small_allocation_size(raw_size))
+    } else if raw_size <= size_class::LARGE_MAX {
+        Some(size_class::large_allocation_size(raw_size))
+    } else {
+        huge_allocation_size_class(raw_size)
+    }
 }
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
