@@ -13,16 +13,14 @@ function ffeCaptureExposures($app, $barriers, $expectedCount) {
     $exitCode = null;
     $exitedAt = null;
     $lastCaptureAt = 0;
-    $barrierCount = count($barriers);
     try {
         $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 20);
         do {
             $stdout .= ffeTestProcessRead($pipes[1]);
             $stderr .= ffeTestProcessRead($pipes[2]);
             // Release the next exposure only once the sidecar sent this one.
-            $released = $barrierCount - count($barriers);
-            if ($barriers && strpos($stdout, $barriers[0]) !== false && count($rows) > $released) {
-                array_shift($barriers);
+            if ($barriers && count($rows) >= key($barriers) && strpos($stdout, current($barriers)) !== false) {
+                unset($barriers[key($barriers)]);
                 fwrite($pipes[0], "next\n");
                 fflush($pipes[0]);
             }

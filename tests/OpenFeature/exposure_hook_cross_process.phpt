@@ -18,7 +18,7 @@ DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess
 --FILE--
 <?php
 require __DIR__ . '/../ext/ffe/stubs/exposure_capture.inc';
-$rows = ffeCaptureExposures(__DIR__ . '/../Common/FeatureFlags/exposure_hook_workers.php', ['first:', 'other_worker:'], 3);
+$rows = ffeCaptureExposures(__DIR__ . '/../Common/FeatureFlags/exposure_hook_workers.php', [1 => 'first:', 2 => 'other_worker:'], 3);
 echo 'exposures=', json_encode(array_column(array_column($rows, 'allocation'), 'key')), "\n";
 ?>
 --EXPECT--

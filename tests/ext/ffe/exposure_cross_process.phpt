@@ -20,7 +20,7 @@ DD_SERVICE=php-ffe-exposure-cross-process
 --FILE--
 <?php
 require __DIR__ . '/stubs/exposure_capture.inc';
-$rows = ffeCaptureExposures(__DIR__ . '/stubs/exposure_cross_process_app.php', array('first:', 'other_worker:'), 3);
+$rows = ffeCaptureExposures(__DIR__ . '/stubs/exposure_cross_process_app.php', array(1 => 'first:', 2 => 'other_worker:'), 3);
 foreach ($rows as $row) {
     if ($row['flag']['key'] !== 'flag' || $row['subject']['id'] !== 'user') throw new RuntimeException('unexpected exposure identity');
 }

@@ -36,5 +36,6 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
 
 void ddtrace_ffe_record_exposure(zend_string *flag_key, zend_string *targeting_key, zend_string *subject_attributes_json, zend_string *allocation_key, zend_string *variant, int32_t serial_id, bool has_serial_id, zend_string *features_json);
 bool ddtrace_ffe_flush_exposures(void);
+void ddtrace_ffe_discard_exposures(void);
 
 #endif // DDTRACE_FFE_H

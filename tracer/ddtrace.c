@@ -782,6 +782,7 @@ void ddtrace_internal_handle_fork() {
 #endif
     // Acquire the child's shared line-hook references and re-establish inherited trampolines.
     zai_line_hook_handle_fork();
+    ddtrace_ffe_discard_exposures();
     ddtrace_ffe_handle_fork();
 
     if (DATADOG_G(sidecar)) {
