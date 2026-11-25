@@ -129,9 +129,15 @@ def createVolumeTask = { String volumeName ->
     }
 }
 
+// Composer publishes composer.phar as a GitHub release asset, byte-identical to
+// getcomposer.org/download/<version>/. CI reads GitHub releases through the
+// Depot mirror instead of reaching out to getcomposer.org.
+def githubReleases = System.getenv('GITHUB_RELEASES_MIRROR') ?: 'https://github.com'
+
 task downloadComposerOld(type: Download) {
     def injected = project.objects.newInstance(InjectedExecOps)
-    src 'https://getcomposer.org/download/latest-2.2.x/composer.phar'
+    // 2.2.33 is the latest 2.2.x release
+    src "$githubReleases/composer/composer/releases/download/2.2.33/composer.phar"
     dest 'build/composer-2.2.x.phar'
     overwrite false
     doLast {
@@ -143,7 +149,7 @@ task downloadComposerOld(type: Download) {
 
 task downloadComposer(type: Download) {
     def injected = project.objects.newInstance(InjectedExecOps)
-    src 'https://getcomposer.org/download/2.8.6/composer.phar'
+    src "$githubReleases/composer/composer/releases/download/2.8.6/composer.phar"
     dest 'build/composer-2.8.6.phar'
     overwrite false
     doLast {
