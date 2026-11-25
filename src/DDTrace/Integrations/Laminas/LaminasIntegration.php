@@ -1835,6 +1835,7 @@ class LaminasIntegration extends Integration
     ): array {
         foreach ($parts as $part) {
             $nextStates = [];
+            $seenOptionalStates = [];
             foreach ($states as $state) {
                 if ($part[0] === 'literal') {
                     $literal = $part[1];
@@ -1865,10 +1866,24 @@ class LaminasIntegration extends Integration
                         $captures,
                         [$state]
                     );
+                    // Merged as they are added, not once the part is done:
+                    // nested optionals would otherwise pile up the results of
+                    // every parent state (a cross-product) before the merge
+                    // and the limit apply. A part is either optional for all
+                    // states or for none, so every state added in this step
+                    // goes through $seenOptionalStates.
+                    $optionalStates[] = $state;
                     foreach ($optionalStates as $optionalState) {
+                        $key = self::laminasReplayStateKey($optionalState);
+                        if (isset($seenOptionalStates[$key])) {
+                            continue;
+                        }
+                        if (count($nextStates) >= self::REPLAY_STATE_LIMIT) {
+                            throw new \OverflowException('Laminas Segment replay state limit exceeded');
+                        }
+                        $seenOptionalStates[$key] = true;
                         $nextStates[] = $optionalState;
                     }
-                    $nextStates[] = $state;
                 } else {
                     // Translated literals are literals by now (see
                     // laminasTranslatedSegmentRouteData()).
@@ -1901,9 +1916,7 @@ class LaminasIntegration extends Integration
     {
         $distinct = [];
         foreach ($states as $state) {
-            $indexes = $state['capture_indexes'];
-            ksort($indexes);
-            $key = $state['offset'] . "\0" . serialize($indexes);
+            $key = self::laminasReplayStateKey($state);
             if (!isset($distinct[$key])) {
                 $distinct[$key] = $state;
             }
@@ -1913,6 +1926,20 @@ class LaminasIntegration extends Integration
         }
 
         return array_values($distinct);
+    }
+
+    /**
+     * What identifies a replay state for merging: its offset and its capture
+     * indexes, which are all a state's future matching depends on. The
+     * indexes are sorted, as a parameter used in two optionals can be
+     * recorded in either order.
+     */
+    private static function laminasReplayStateKey(array $state): string
+    {
+        $indexes = $state['capture_indexes'];
+        ksort($indexes);
+
+        return $state['offset'] . "\0" . serialize($indexes);
     }
 
     /**

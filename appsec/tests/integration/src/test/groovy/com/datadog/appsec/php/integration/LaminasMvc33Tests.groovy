@@ -962,6 +962,20 @@ class LaminasMvc33Tests extends AbstractLaminasAppsecTests {
     }
 
     @Test
+    @Order(52)
+    void 'nested static optionals after repeated ones are replayed exactly'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-repeated-nested' + '/a' * 20 + '/b' * 20).GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'laminas.route.name' == 'normalized_repeated_nested'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-repeated-nested' + '/a' * 20 + '/b' * 20
+    }
+
+    @Test
     @Order(51)
     void 'a replay over the state limit falls back to the mandatory parts'() {
         // RFC-1125: never omit the tag because optional parts cannot be resolved.

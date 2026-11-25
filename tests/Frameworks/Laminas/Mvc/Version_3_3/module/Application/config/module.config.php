@@ -769,6 +769,20 @@ return [
                     ],
                 ],
             ],
+            // Repeated optionals followed by nested ones: each parent state's
+            // nested results are merged as they are added, not after the
+            // cross-product of parents and results has been built.
+            'normalized_repeated_nested' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-repeated-nested' . str_repeat('[/a]', 20)
+                        . str_repeat('[/b', 20) . str_repeat(']', 20),
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
             // Enough repeated optionals for the merged states to exceed
             // LaminasIntegration::REPLAY_STATE_LIMIT: the fallback is used.
             'normalized_repeated_many' => [
