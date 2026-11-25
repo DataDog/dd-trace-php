@@ -18,7 +18,6 @@ final class SplitFeatures
     const EVALUATION_PREFIX = '__dd_evaluation_feature.';
     const DO_LOG_KEY = '__dd_do_log';
     const SERIAL_ID_KEY = '__dd_split_serial_id';
-    const EXPOSURE_CACHE_HIT_KEY = '__dd_exposure_cache_hit';
 
     const WARNED_DESTINATIONS_LIMIT = 64;
 

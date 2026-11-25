@@ -30,6 +30,6 @@ foreach (array('first', 'repeat') as $label) {
 echo 'error=', json_encode($client->getBooleanDetails('flag', false, array('targetingKey' => 'user'))->getFlagMetadata()), "\n";
 ?>
 --EXPECT--
-first={"__dd_feature.holdout.key":"h1","__dd_feature.holdout.assignment_group":"status_quo","__dd_exposure_feature.holdout.assignment_group":"status_quo","__dd_evaluation_feature.weight":1.0,"__dd_do_log":true,"__dd_split_serial_id":9,"__dd_exposure_cache_hit":false}
-repeat={"__dd_feature.holdout.key":"h1","__dd_feature.holdout.assignment_group":"status_quo","__dd_exposure_feature.holdout.assignment_group":"status_quo","__dd_evaluation_feature.weight":1.0,"__dd_do_log":true,"__dd_split_serial_id":9,"__dd_exposure_cache_hit":true}
+first={"__dd_feature.holdout.key":"h1","__dd_feature.holdout.assignment_group":"status_quo","__dd_exposure_feature.holdout.assignment_group":"status_quo","__dd_evaluation_feature.weight":1.0,"__dd_do_log":true,"__dd_split_serial_id":9}
+repeat={"__dd_feature.holdout.key":"h1","__dd_feature.holdout.assignment_group":"status_quo","__dd_exposure_feature.holdout.assignment_group":"status_quo","__dd_evaluation_feature.weight":1.0,"__dd_do_log":true,"__dd_split_serial_id":9}
 error=[]

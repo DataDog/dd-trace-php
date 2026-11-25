@@ -70,8 +70,6 @@ namespace DDTrace {
         public ?int $serialId = null;
         /** @var array<int, array{key: string, value: string|float|bool, destinations: string[]}> */
         public array $features = [];
-        /** Null when the evaluation did not record an exposure. */
-        public ?bool $exposureCacheHit = null;
         public array $providerState = [];
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;
@@ -1140,14 +1138,8 @@ namespace DDTrace\Internal {
 
     function ffe_provider_state(): array {}
 
-    /**
-     * Record an exposure in the process exposure cache and, when it is new or
-     * changed, queue it for Datadog with its EXPOSURE features.
-     *
-     * @internal
-     * @return bool|null False for a repeated exposure, null when nothing was recorded.
-     */
-    function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId = null, array $features = []): ?bool {}
+    /** @internal Queue an eligible exposure for Datadog delivery when configured. */
+    function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId = null, array $features = []): void {}
 
     /** @internal Submit one final evaluation without waiting or reconnecting. */
     function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData, int $evaluationTimestampMs, bool $targetingKeyInvalid = false, array $features = []): bool {}

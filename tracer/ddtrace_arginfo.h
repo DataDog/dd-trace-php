@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: 809f37412cf568a5aa6432ca9aa3e0a0bdc78abd */
+ * Stub hash: cdf41b1ea570f2ba3b14560096c8b7882eb9ee4d */
 
 #include "zend_constants.h"
 
@@ -255,7 +255,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_ffe_provider_state arginfo_DDTrace_current_context
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_exposure, 0, 5, _IS_BOOL, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_exposure, 0, 5, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, targetingKey, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, attributes, IS_ARRAY, 0)
@@ -704,12 +704,6 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 	zend_string *property_features_name = zend_string_init("features", sizeof("features") - 1, true);
 	zend_declare_typed_property(class_entry, property_features_name, &property_features_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release_ex(property_features_name, true);
-
-	zval property_exposureCacheHit_default_value;
-	ZVAL_NULL(&property_exposureCacheHit_default_value);
-	zend_string *property_exposureCacheHit_name = zend_string_init("exposureCacheHit", sizeof("exposureCacheHit") - 1, true);
-	zend_declare_typed_property(class_entry, property_exposureCacheHit_name, &property_exposureCacheHit_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL|MAY_BE_NULL));
-	zend_string_release_ex(property_exposureCacheHit_name, true);
 
 	zval property_providerState_default_value;
 	ZVAL_EMPTY_ARRAY(&property_providerState_default_value);

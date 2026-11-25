@@ -8,11 +8,10 @@ use OpenFeature\implementation\flags\Attributes;
 use OpenFeature\implementation\flags\EvaluationContext as ImmutableEvaluationContext;
 use OpenFeature\interfaces\flags\EvaluationContext;
 
-/** A completed flag evaluation and its Datadog exposure decision, as given to an ExposureHook callback. */
+/** A completed Datadog flag evaluation, as given to an ExposureHook callback. */
 final class ExposureEvaluation
 {
     /**
-     * @param ?bool $cacheHit Null unless the evaluation is an exposure that the cache checked.
      * @param array<string, string|float|bool> $features
      * @internal Built by the Datadog provider and ExposureHook.
      */
@@ -20,7 +19,6 @@ final class ExposureEvaluation
         private string $flagKey,
         private EvaluationContext $evaluationContext,
         private bool $exposure = false,
-        private ?bool $cacheHit = null,
         private ?string $variant = null,
         private ?string $allocationKey = null,
         private ?int $splitSerialId = null,
@@ -83,17 +81,5 @@ final class ExposureEvaluation
     public function isExposure(): bool
     {
         return $this->exposure;
-    }
-
-    /** True when this subject was already exposed to the same allocation, variant and split. */
-    public function isCacheHit(): bool
-    {
-        return $this->cacheHit === true;
-    }
-
-    /** True for a new or changed exposure: what the provider sends to Datadog when Datadog logging is on. */
-    public function shouldSend(): bool
-    {
-        return $this->cacheHit === false;
     }
 }
