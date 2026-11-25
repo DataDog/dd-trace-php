@@ -31,13 +31,23 @@ var_dump(substr_count($logs, 'exposure not queued; DD_FEATURE_FLAGS_EXPOSURES_DA
 var_dump(strpos($logs, 'Feature Flags: exposure queued') === false);
 
 ini_set('datadog.feature_flags_exposures_datadog_logging_enabled', '1');
-DDTrace\Internal\record_ffe_exposure('flag', 'third', array(), 'allocation', 'on');
-var_dump(strpos(read_log_snapshot(__DIR__ . '/exposure_logging_disabled.log'), 'Feature Flags: exposure queued') !== false);
+DDTrace\Internal\record_ffe_exposure('', 'user', array(), 'allocation', 'on');
+DDTrace\Internal\record_ffe_exposure('flag', 'user', array(), 'allocation', '');
+$deferred = DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, 'third', array(), true, false);
+$logs = read_log_snapshot(__DIR__ . '/exposure_logging_disabled.log');
+var_dump(substr_count($logs, 'exposure suppressed; missing flag key or variant'));
+var_dump($deferred->doLog, $deferred->variant, strpos($logs, 'Feature Flags: exposure queued') === false);
+DDTrace\Internal\record_ffe_exposure('flag', 'third', array(), 'allocation', $deferred->variant);
+var_dump(substr_count(read_log_snapshot(__DIR__ . '/exposure_logging_disabled.log'), 'Feature Flags: exposure queued'));
 ?>
 --EXPECT--
 bool(false)
 int(3)
 bool(true)
+int(2)
 bool(true)
+string(2) "on"
+bool(true)
+int(1)
 --CLEAN--
 <?php @unlink(__DIR__ . '/exposure_logging_disabled.log'); ?>
