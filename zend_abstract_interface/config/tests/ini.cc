@@ -548,11 +548,12 @@ static char *second_consumer_sapi_getenv(const char *name, size_t name_len) {
 static char *second_consumer_sapi_getenv(char *name, size_t name_len) {
 #endif
     (void)name_len;
+    // The SAPI keeps ownership of the returned string; sapi_getenv() copies it.
     if (second_consumer_sapi_phase == 0) {
-        if (strcmp(name, "INI_FOO_STRING") == 0) return estrdup("sapi_val");
-        if (strcmp(name, "INI_FOO_INT") == 0) return estrdup("2");
+        if (strcmp(name, "INI_FOO_STRING") == 0) return (char *)"sapi_val";
+        if (strcmp(name, "INI_FOO_INT") == 0) return (char *)"2";
     } else if (second_consumer_sapi_phase == 1) {
-        if (strcmp(name, "INI_FOO_INT") == 0) return estrdup("3");
+        if (strcmp(name, "INI_FOO_INT") == 0) return (char *)"3";
     }
     return NULL;
 }
