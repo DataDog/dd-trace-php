@@ -1,5 +1,6 @@
-# Static LLVM 23.1.6 build with llvm-bolt-align (llvm-project#210634).
-FROM registry.ddbuild.io/ci/benchmarking-platform:php_llvm-bolt-align@sha256:405fea2c6a6f26870df3ef8cffdc24dce21f5c1a975624e96d99da5b814e6171 AS bolt-align
+# Static LLVM 23.1.6 build with llvm-bolt-align (llvm-project#210634), built by
+# the build-llvm-bolt-align-image job from container/llvm-bolt-align/.
+FROM registry.ddbuild.io/ci/benchmarking-platform:llvm-bolt-align-156483907@sha256:800c006534c5182a29fef46d6f963398606485194b924c7d5636fd06d155d7fb AS bolt-align
 
 FROM registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
 

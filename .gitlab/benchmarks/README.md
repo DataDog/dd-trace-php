@@ -12,6 +12,9 @@ This directory holds everything the microbenchmark jobs need:
   built in-repo via the
   [`build-ci-images.template.yml`](https://github.com/DataDog/benchmarking-platform-tools/blob/main/images/templates/gitlab/build-ci-images.template.yml)
   include (see [How to rebuild the CI Docker image](#how-to-rebuild-the-ci-docker-image)).
+- **`container/llvm-bolt-align/`**: Dockerfile, patch and smoke test for the
+  static `llvm-bolt-align` tool image that the CI image copies in (see
+  [Rebuilding the `llvm-bolt-align` image](#rebuilding-the-llvm-bolt-align-image)).
 - **`steps/`**: PHP checkout, BOLT preparation and execution scripts, plus
   the Datadog agent configuration script.
 - **`bp-runner.yml`**: [bp-runner](https://github.com/DataDog/benchmarking-platform-tools/tree/main/bp-runner)
@@ -207,6 +210,15 @@ or updating `sirun`).
 
 5. Push the update. The microbenchmarks now run against the rebuilt image.
    Verify a green benchmark pipeline before merging.
+
+### Rebuilding the `llvm-bolt-align` image
+
+The CI image copies `llvm-bolt` and `llvm-bolt-align` from a digest-pinned tool
+image (the first `FROM` in `container/Dockerfile`). Its sources are in
+`container/llvm-bolt-align/` (see its README). To change it, edit that
+directory, push, play the manual `build-llvm-bolt-align-image` job (up to two
+hours), repin the `FROM` to the tag and digest it pushed, and then rebuild and
+repin the CI image as above.
 
 ## How to run the suite locally
 

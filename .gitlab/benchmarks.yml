@@ -127,6 +127,18 @@ variables:
 build-benchmark-ci-images:
   stage: benchmarks
 
+# Static llvm-bolt-align tool image, copied into the image above. Its Dockerfile
+# is `.gitlab/benchmarks/container/llvm-bolt-align/Dockerfile`; after a rebuild,
+# repin the `FROM` of `.gitlab/benchmarks/container/Dockerfile`.
+build-llvm-bolt-align-image:
+  extends: build-benchmark-ci-images
+  needs: []
+  timeout: 2h
+  variables:
+    BASE_CI_IMAGE_SUFFIX: llvm-bolt-align-${CI_PIPELINE_ID}
+    BASE_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:$BASE_CI_IMAGE_SUFFIX
+    BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container/llvm-bolt-align
+
 workflow:
   auto_cancel:
     on_new_commit: interruptible
