@@ -1121,7 +1121,7 @@ endforeach;
     - "php --ri ddtrace | grep 'Profiling Enabled'"
   script:
     - ulimit -c unlimited
-    - bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
+    - GOTRACEBACK=crash bash profiling/tests/frankenphp/shutdown.sh artifacts/frankenphp
   after_script:
     - .gitlab/collect-crashes.sh --fallback-exe "$(command -v frankenphp 2>/dev/null || true)"
   artifacts:
