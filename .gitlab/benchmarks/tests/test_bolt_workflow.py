@@ -78,7 +78,9 @@ elif command == "make":
     assert "-fno-reorder-blocks-and-partition" in os.environ["CFLAGS"]
     revision = Path("revision").read_text()
     event("build:" + revision)
-    module = Path("tmp/build_combined/modules/ddtrace.so")
+    with Path(os.environ["TEST_BUILD_DIRS"]).open("a") as output:
+        output.write(str(Path.cwd().resolve()) + "\n")
+    module =Path("tmp/build_combined/modules/ddtrace.so")
     module.parent.mkdir(parents=True)
     module.write_text("original:" + revision)
 elif command in ["llvm-bolt", "llvm-bolt-align"]:
@@ -134,6 +136,7 @@ class BoltWorkflowTest(unittest.TestCase):
             "CI_COMMIT_SHA": "candidate-sha",
             "CI_PROJECT_NAME": "dd-trace-php",
             "TEST_TRACE": str(self.trace),
+            "TEST_BUILD_DIRS": str(self.root / "build-dirs"),
             "TEST_EXTENSION_DIR": str(self.extension_dir),
             "TEST_HARNESS": str(harness),
             "BP_SCENARIO": "tracer",
@@ -167,6 +170,21 @@ class BoltWorkflowTest(unittest.TestCase):
         self.assertFalse(list(self.artifacts.rglob("*.so")))
         self.assertFalse(list(self.artifacts.glob("tracer-*.csv")))
         self.assertFalse(list(self.artifacts.glob("appsec-*.csv")))
+
+    def test_both_revisions_are_built_at_the_same_path(self):
+        # Cargo hashes the absolute path of the out-of-workspace libdatadog
+        # crates into Rust symbol names; llvm-bolt-align matches by name.
+        result, _ = self.run_workflow()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        build_dirs = (self.root / "build-dirs").read_text().splitlines()
+        self.assertEqual(len(build_dirs), 2)
+        self.assertEqual(build_dirs[0], build_dirs[1])
+        for checkout in ["candidate", "baseline"]:
+            self.assertNotEqual(Path(build_dirs[0]), (self.root / "app" / checkout).resolve())
+            # The aligned module of each revision is installed in its checkout.
+            self.assertEqual(
+                (self.root / "app" / checkout / "tmp/build_combined/modules/ddtrace.so").read_text(),
+                f"aligned:original:{checkout}-sha")
 
     def test_plain_rewrites_both_before_any_timing(self):
         result, events = self.run_workflow(BOLT_MODE="plain")

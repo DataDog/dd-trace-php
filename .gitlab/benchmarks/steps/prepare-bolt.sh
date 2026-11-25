@@ -34,14 +34,24 @@ export CFLAGS="${CFLAGS:--O2 -falign-functions=64} -fno-reorder-blocks-and-parti
 export LDFLAGS="${LDFLAGS:+$LDFLAGS }-Wl,--emit-relocs"
 "$BOLT_BIN" --version
 
+# Cargo hashes the absolute path of path dependencies that lie outside the
+# workspace root (tmp/build_combined depends on ../../libdatadog), and rustc
+# derives Rust symbol names from that hash. Building the revisions in their own
+# checkouts would give all the Rust functions different names in each binary,
+# and llvm-bolt-align matches functions by name: it could align only the C code
+# (~60% of the functions). Build both revisions at the same path instead.
+BUILD_ROOT="$BOLT_DIR/build"
 for VARIANT in "${VARIANTS[@]}"; do
   if [ "$VARIANT" = candidate ]; then SRC=$CANDIDATE_SRC; else SRC=$BASELINE_SRC; fi
-  (cd "$SRC" && make -j"$(nproc)" compile_combined)
+  rm -rf "$BUILD_ROOT"
+  cp -a "$SRC" "$BUILD_ROOT"
+  (cd "$BUILD_ROOT" && make -j"$(nproc)" compile_combined)
+  cp "$BUILD_ROOT/tmp/build_combined/modules/ddtrace.so" "$BOLT_DIR/$VARIANT-natural.so"
 done
+rm -rf "$BUILD_ROOT"
 
 if [ "$BOLT_MODE" = align ]; then
-  if ! "$BOLT_BIN" "$BASELINE_SRC/tmp/build_combined/modules/ddtrace.so" \
-      "$CANDIDATE_SRC/tmp/build_combined/modules/ddtrace.so" \
+  if ! "$BOLT_BIN" "$BOLT_DIR/baseline-natural.so" "$BOLT_DIR/candidate-natural.so" \
       -o-a="$BOLT_DIR/baseline.so" -o-b="$BOLT_DIR/candidate.so" \
       > "$BOLT_DIR/alignment.log" 2>&1; then
     cat "$BOLT_DIR/alignment.log" >&2
@@ -65,7 +75,7 @@ if [ "$BOLT_MODE" = align ]; then
 else
   for VARIANT in "${VARIANTS[@]}"; do
     if [ "$VARIANT" = candidate ]; then SRC=$CANDIDATE_SRC; else SRC=$BASELINE_SRC; fi
-    if ! "$BOLT_BIN" "$SRC/tmp/build_combined/modules/ddtrace.so" \
+    if ! "$BOLT_BIN" "$BOLT_DIR/$VARIANT-natural.so" \
         -o="$BOLT_DIR/$VARIANT.so" > "$BOLT_DIR/$VARIANT.log" 2>&1; then
       cat "$BOLT_DIR/$VARIANT.log" >&2
       exit 1
@@ -77,5 +87,6 @@ for VARIANT in "${VARIANTS[@]}"; do
   if [ "$VARIANT" = candidate ]; then SRC=$CANDIDATE_SRC; else SRC=$BASELINE_SRC; fi
   # ASSUME_COMPILED makes the tracer Makefile install this module directly,
   # rather than using libtool's original copy in .libs/.
+  mkdir -p "$SRC/tmp/build_combined/modules"
   cp "$BOLT_DIR/$VARIANT.so" "$SRC/tmp/build_combined/modules/ddtrace.so"
 done

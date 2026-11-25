@@ -97,6 +97,13 @@ same executable, selecting their operation by the invocation name.
 The LLVM 16 packages in the PHP image serve the existing compiler/LTO
 toolchain; BOLT runs after linking.
 
+`llvm-bolt-align` pairs functions by symbol name, and Cargo derives the names
+of Rust symbols from the absolute path of the libdatadog crates. The step
+therefore builds both revisions in the same scratch directory, copies each
+module out, and installs the aligned module into its checkout. Building in
+`/app/candidate` and `/app/baseline` would leave about 40% of the functions
+(all the Rust ones) unmatched and unaligned.
+
 `DD_TRACE_ASSUME_COMPILED=1` prevents the benchmark harness from rebuilding
 the rewritten module. The installed and build-directory modules are
 checked against the selected BOLT output after each run. Unsatisfied
