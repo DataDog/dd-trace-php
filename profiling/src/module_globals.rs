@@ -4,6 +4,8 @@ use core::ffi::c_void;
 use core::mem::MaybeUninit;
 use core::ptr;
 use core::sync::atomic::AtomicU32;
+#[cfg(not(php_zts))]
+use core::sync::atomic::{AtomicPtr, Ordering};
 
 #[cfg(target_os = "linux")]
 use crate::profiling::process_context::ProcessContextCache;
@@ -95,12 +97,21 @@ pub unsafe fn get_tsrm_resource_from_cache(ls_cache: *mut c_void, id: i32) -> *m
 }
 
 #[cfg(php_zts)]
-#[inline]
-pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut ProfilerGlobals {
-    // Storage belongs to ext/datadog.c's shared `datadog_globals`.
-    // Its accessor uses PHP's static TSRMLS cache.
-    get_profiler_globals()
+#[inline(always)]
+pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut ProfilerGlobals {
+    unsafe extern "C" {
+        static datadog_globals_id: libc::c_int;
+        static datadog_php_profiling_globals_offset: usize;
+    }
+    let datadog_globals = zts::tsrmg_bulk(ls_cache, datadog_globals_id);
+    datadog_globals
+        .byte_add(datadog_php_profiling_globals_offset)
+        .cast::<*mut ProfilerGlobals>()
+        .read()
 }
+
+#[cfg(not(php_zts))]
+static NTS_PROFILER_GLOBALS: AtomicPtr<ProfilerGlobals> = AtomicPtr::new(ptr::null_mut());
 
 /// Returns a pointer to the profiler globals for the current thread.
 ///
@@ -110,12 +121,16 @@ pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut Pr
 /// - The current thread's globals must not have been destroyed. GSHUTDOWN
 ///   must use its supplied pointer: the allocation being destroyed can belong
 ///   to another thread, and the current thread's globals may already be freed.
-#[inline]
+#[inline(always)]
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
-    unsafe extern "C" {
-        fn datadog_php_profiling_globals() -> *mut c_void;
+    #[cfg(php_zts)]
+    {
+        get_profiler_globals_from_cache(zts::get_ls_cache())
     }
-    datadog_php_profiling_globals().cast()
+    #[cfg(not(php_zts))]
+    {
+        NTS_PROFILER_GLOBALS.load(Ordering::Relaxed)
+    }
 }
 
 /// Initializes the module globals. Called by PHP during thread initialization (GINIT).
@@ -125,6 +140,9 @@ pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
 #[export_name = "ddog_php_prof_ginit"]
 pub unsafe extern "C" fn ginit(globals_ptr: *mut c_void) {
     let globals = globals_ptr.cast::<ProfilerGlobals>();
+
+    #[cfg(not(php_zts))]
+    NTS_PROFILER_GLOBALS.store(globals, Ordering::Release);
 
     ptr::addr_of_mut!((*globals).thread_name).write(OnceCell::new());
     ptr::addr_of_mut!((*globals).thread_id).write(OnceCell::new());
@@ -180,6 +198,9 @@ pub unsafe extern "C" fn gshutdown(globals_ptr: *mut c_void) {
 
     ptr::drop_in_place(ptr::addr_of_mut!((*globals).request_locals));
     ptr::drop_in_place(ptr::addr_of_mut!((*globals).thread_name));
+
+    #[cfg(not(php_zts))]
+    NTS_PROFILER_GLOBALS.store(ptr::null_mut(), Ordering::Release);
 }
 
 #[no_mangle]
