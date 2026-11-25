@@ -369,14 +369,14 @@ foreach ($build_platforms as $platform) {
 <?php if ($flavour === 'nts'): ?>
     # CentOS 7 release artifacts use Clang/Rust ThinLTO for NTS and ZTS.
     - switch-php "${PHP_VERSION}"
-    - make -s xlang-lto
+    - .gitlab/run-with-retryable-download.sh make -s xlang-lto
     - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}.so"
     # The PHP debug ABI still uses the regular non-LTO build.
-    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "debug" "combined" "ddtrace-${ABI_NO}-debug.so"
+    - .gitlab/run-with-retryable-download.sh .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "debug" "combined" "ddtrace-${ABI_NO}-debug.so"
 <?php else: ?>
     - switch-php "${PHP_VERSION}-zts"
-    - make -s xlang-lto
+    - .gitlab/run-with-retryable-download.sh make -s xlang-lto
     - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-zts.so"
 <?php endif; ?>
@@ -385,7 +385,7 @@ foreach ($build_platforms as $platform) {
     # which the non-interactive runner shell does not expand.
     - source "$BASH_ENV"
     - switch_php "${PHP_VERSION}<?= $flavour === 'zts' ? '-zts' : '' ?>"
-    - make -s xlang-lto
+    - .gitlab/run-with-retryable-download.sh make -s xlang-lto
     - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine<?= $flavour === 'zts' ? '-zts' : '' ?>.so"
 <?php endif; ?>
@@ -509,7 +509,7 @@ foreach ($build_platforms as $platform) {
     - switch-php "${PHP_VERSION}<?= $zts_suffix ?>"
 <?php endif; ?>
     # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
-    - make -s xlang-lto
+    - .gitlab/run-with-retryable-download.sh make -s xlang-lto
     - mkdir -p "extensions_<?= $arch_dir ?>"
     - cp "tmp/release-variants/<?= $arch_dir ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?><?= $zts_suffix ?>.so"
   artifacts:
@@ -668,13 +668,13 @@ foreach ($build_platforms as $platform) {
     - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir . $suffix ?>.so"
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
     - switch-php "${PHP_VERSION}"
-    - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
+    - .gitlab/run-with-retryable-download.sh ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
     - mv "ssi_<?= $arch_dir ?>/ddtrace.so" "ssi_<?= $arch_dir ?>/ddtrace-${ABI_NO}.so"
     - switch-php "${PHP_VERSION}-zts"
-    - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
+    - .gitlab/run-with-retryable-download.sh ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
     - mv "ssi_<?= $arch_dir ?>/ddtrace.so" "ssi_<?= $arch_dir ?>/ddtrace-${ABI_NO}-zts.so"
 <?php else: ?>
-    - ./.gitlab/build-ssi-combined-alpine.sh "ssi_<?= $arch_dir ?>" "${ABI_NO}"
+    - .gitlab/run-with-retryable-download.sh ./.gitlab/build-ssi-combined-alpine.sh "ssi_<?= $arch_dir ?>" "${ABI_NO}"
 <?php endif; ?>
     # The shared DSO is packaged from the single sidecar job, not each PHP job.
     - rm "ssi_<?= $arch_dir ?>/libdatadog_php.so"

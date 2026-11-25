@@ -27,7 +27,7 @@ stages:
     - if [ -d "/opt/catch2" ]; then export CMAKE_PREFIX_PATH=/opt/catch2; fi
     - mkdir -p tmp/build_php_components_asan && cd tmp/build_php_components_asan
     - cmake $([ -f "/etc/debian_version" ] && echo "-DCMAKE_TOOLCHAIN_FILE=../../cmake/asan.cmake") -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON ../../components
-    - make -j all
+    - ../../.gitlab/run-with-retryable-download.sh make -j all
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - make test ARGS="--output-junit ${CI_PROJECT_DIR}/artifacts/components-asan-results.xml --output-on-failure"
   after_script:
@@ -51,7 +51,7 @@ stages:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
     - mkdir -p tmp/build_php_components_ubsan && cd tmp/build_php_components_ubsan
     - CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_TOOLCHAIN_FILE=../../cmake/ubsan.cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON ../../components
-    - make -j all
+    - ../../.gitlab/run-with-retryable-download.sh make -j all
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - make test ARGS="--output-junit ${CI_PROJECT_DIR}/artifacts/components-ubsan-results.xml --output-on-failure --repeat until-fail:10" # channel is non-deterministic, so run tests a few more times. At the moment, Catch2 tests are not automatically adding labels, so run all tests instead of just channel's: https://github.com/catchorg/Catch2/issues/1590
   after_script:
@@ -196,7 +196,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - switch-php "<?= $switch_php_version ?>"
     - mkdir -p tmp/build_zai && cd tmp/build_zai
     - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/<?= $switch_php_version ?> cmake <?= $toolchain ?> -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
-    - make -j all
+    - ../../.gitlab/run-with-retryable-download.sh make -j all
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - make test ARGS="--output-junit ${CI_PROJECT_DIR}/artifacts/zai-<?= $major_minor ?>-<?= $switch_php_version ?>-results.xml --output-on-failure"
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
@@ -226,7 +226,7 @@ foreach (["7.4", "8.0"] as $major_minor):
     - echo "extension=curl.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/curl.ini
     - mkdir -p tmp/build_zai && cd tmp/build_zai
     - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/nts cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DRUN_SHARED_EXTS_TESTS=1 -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
-    - make -j all
+    - ../../.gitlab/run-with-retryable-download.sh make -j all
     - TEA_INI_IGNORE=0 make test
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 <?php
