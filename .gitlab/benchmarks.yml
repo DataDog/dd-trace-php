@@ -423,7 +423,8 @@ check-big-regressions:
     else
       echo "Reports directory found with content - running regression check"
       sides=candidate
-      if [ -s reports/baseline_branch.txt ]; then sides="baseline candidate"; fi
+      # bp-runner writes a bare newline here when the branch has no PR.
+      if grep -q '[^[:space:]]' reports/baseline_branch.txt 2>/dev/null; then sides="baseline candidate"; fi
       for result in tracer-bench-results tracer-bench-results-opcache tracer-tea-bench-results; do
         for side in $sides; do
           if [ ! -f "reports/${side}-${result}.converted.json" ]; then
