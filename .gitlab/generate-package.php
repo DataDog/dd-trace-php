@@ -1809,9 +1809,18 @@ endforeach;
     - !reference [.services, httpbin-integration]
   variables:
     CARGO_BUILD_JOBS: 4
+    # lld can crash if the available CPUs change while linking (see llvm/llvm-project#208959).
+    # Keep requests equal to limits so k8s pins the CPUs.
+    # Remove this workaround once both ld and rust-lld use LLVM 23 or newer.
     KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_CPU_LIMIT: 4
+    KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   parallel:
     matrix:
       - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
