@@ -12,9 +12,9 @@ extern "C" {
 #define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len)
 #endif
 
-// Returns the name of the env var as the value (emalloc'd so efree inside zai_sapi_getenv works)
+// Returns the name of the env var as the value (SAPI-owned; sapi_getenv() copies it)
 TEA_SAPI_GETENV_FUNCTION(tea_sapi_getenv_non_empty) {
-    return estrdup(name);
+    return (char *)name;
 }
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "non-empty string", {
