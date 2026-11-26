@@ -110,7 +110,8 @@ variables:
   # Microbenchmarks CI image, consumed by the benchmark jobs below. Repin to the
   # tag pushed by a `build-benchmark-ci-images` run after changing anything in
   # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
-  MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-152770667
+  # Built here: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2300686392
+  MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-156499868
   # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
   BASE_CI_IMAGE_SUFFIX: dd-trace-php-${CI_PIPELINE_ID}
   BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container
@@ -125,6 +126,18 @@ variables:
 # benchmarks it builds for instead.
 build-benchmark-ci-images:
   stage: benchmarks
+
+# Static llvm-bolt-align tool image, copied into the image above. Its Dockerfile
+# is `.gitlab/benchmarks/container/llvm-bolt-align/Dockerfile`; after a rebuild,
+# repin the `FROM` of `.gitlab/benchmarks/container/Dockerfile`.
+build-llvm-bolt-align-image:
+  extends: build-benchmark-ci-images
+  needs: []
+  timeout: 2h
+  variables:
+    BASE_CI_IMAGE_SUFFIX: llvm-bolt-align-${CI_PIPELINE_ID}
+    BASE_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:$BASE_CI_IMAGE_SUFFIX
+    BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container/llvm-bolt-align
 
 workflow:
   auto_cancel:
@@ -230,7 +243,7 @@ workflow:
           echo "Could not diff against master - running benchmarks"
           CHANGED_FILES=benchmark/
         fi
-        if ! echo "$CHANGED_FILES" | grep -q -E "^(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/|\.gitlab/benchmarks\.yml|\.gitlab/benchmarks/)"; then
+        if ! echo "$CHANGED_FILES" | grep -q -E "^(ext/|tracer/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/|\.gitlab/benchmarks/|\.gitlab/benchmarks\.yml$)"; then
           echo "No tracer-related file changes detected - skipping benchmark execution"
           echo "Reports directory created but empty (no benchmarks needed)" > "${ARTIFACTS_DIR}/skip-reason.txt"
           exit 0
@@ -238,13 +251,14 @@ workflow:
         echo "Tracer-related file changes detected - proceeding with benchmarks"
       fi
     # Keep submodules at the selected candidate and baseline revisions. The
-    # whole flow (agent, one-time setup, run, analyze, S3) is driven by the
-    # bp-runner config; baseline resolution is bp-runner's auto lookup.
+    # whole flow (agent, one-time setup, paired run, analyze, S3) is driven by
+    # the in-repo bp-runner config and PHP step scripts.
     - >-
       GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=submodule.recurse GIT_CONFIG_VALUE_0=true
       BP_SCENARIO=$SCENARIO bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/bp-runner.yml" --debug -t
   artifacts:
     name: "reports"
+    when: always
     paths:
       - reports/
     expire_in: 3 months
@@ -256,6 +270,9 @@ workflow:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     DD_SIDECAR_DISABLE_DIRECT_EXEC: 1
+    # Empty selects align for comparisons, plain for candidate-only runs.
+    # Override with off/plain/align when comparing binary processing modes.
+    BOLT_MODE: ""
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     # Analyzer settings. Every bp-runner step inherits the CI process environment,
     # so the settings live here instead of the config.
