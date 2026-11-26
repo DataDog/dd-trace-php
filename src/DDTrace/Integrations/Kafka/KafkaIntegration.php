@@ -73,11 +73,14 @@ class KafkaIntegration extends Integration
         if ($inject) {
             $headers = \DDTrace\generate_distributed_tracing_headers();
         }
-        $context = self::setDataStreamsProduceCheckpoint($producerTopic, $hook->args, $headers);
+        $producer = ObjectKVStore::get($producerTopic, 'kafka');
+        $clusterId = self::produceClusterId($producer);
+        $context = self::setDataStreamsProduceCheckpoint($producerTopic, $hook->args, $headers, $clusterId);
         if ($context !== null) {
             $headers[self::DSM_CONTEXT_HEADER] = $context;
             $inject = true;
         }
+        self::addClientMetadataToSpan($span, $producer, $clusterId);
         if ($inject) {
             $hook->args = self::injectHeadersIntoArgs($hook->args, $headers);
             $hook->overrideArguments($hook->args);
@@ -85,9 +88,26 @@ class KafkaIntegration extends Integration
     }
 
     /**
+     * The cluster id for a produce, read once for its span and its checkpoint. With DSM on, a
+     * producer's first produce waits for it; waiting on every produce would hold up all of them
+     * for as long as the brokers do not answer. A span alone never waits.
+     */
+    private static function produceClusterId($producer)
+    {
+        $waitMs = 0;
+        if ($producer && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
+            && !ObjectKVStore::get($producer, 'dsm_cluster_id_waited', false)) {
+            ObjectKVStore::put($producer, 'dsm_cluster_id_waited', true);
+            $waitMs = self::DSM_CLUSTER_ID_WAIT_MS;
+        }
+        return self::clusterId($producer, $waitMs);
+    }
+
+    /**
+     * @param string|null $clusterId the id of the cluster the producer is connected to, if known
      * @return string|null the pathway context to send with the message, or null when DSM is off
      */
-    public static function setDataStreamsProduceCheckpoint(\RdKafka\ProducerTopic $producerTopic, array $args, array $headers)
+    public static function setDataStreamsProduceCheckpoint(\RdKafka\ProducerTopic $producerTopic, array $args, array $headers, $clusterId = null)
     {
         if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
             return null;
@@ -96,19 +116,11 @@ class KafkaIntegration extends Integration
         // The message as it is sent, but for the context header the checkpoint computes.
         $payloadSize = strlen($args[2] ?? '') + strlen($args[3] ?? '')
             + self::headersSize(array_merge($args[4] ?? [], $headers));
-        $producer = ObjectKVStore::get($producerTopic, 'kafka');
-        // Waiting on every produce would hold up all of them for as long as the brokers do not
-        // answer, so a producer waits once.
-        $waitMs = 0;
-        if ($producer && !ObjectKVStore::get($producer, 'dsm_cluster_id_waited', false)) {
-            ObjectKVStore::put($producer, 'dsm_cluster_id_waited', true);
-            $waitMs = self::DSM_CLUSTER_ID_WAIT_MS;
-        }
         return \DDTrace\Internal\dsm_set_checkpoint(array_merge([
             'direction:out',
             'topic:' . $producerTopic->getName(),
             'type:kafka',
-        ], self::clusterIdTags($producer, $waitMs)), null, $payloadSize);
+        ], self::clusterIdEdgeTags($clusterId)), null, $payloadSize);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
@@ -188,9 +200,11 @@ class KafkaIntegration extends Integration
                     }
 
                     $hook->data['span'] = $span;
-                    KafkaIntegration::setupKafkaConsumeSpan($hook, $hook->instance);
+                    // Read once, for the span and the checkpoint
+                    $clusterId = KafkaIntegration::clusterId(KafkaIntegration::consumerClient($hook->instance));
+                    KafkaIntegration::setupKafkaConsumeSpan($hook, $hook->instance, $clusterId);
                     if ($message) {
-                        KafkaIntegration::setDataStreamsConsumeCheckpoint($message, $hook->instance);
+                        KafkaIntegration::setDataStreamsConsumeCheckpoint($message, $hook->instance, $clusterId);
                     }
                     \DDTrace\collect_code_origins(1);
                     \DDTrace\close_span();
@@ -199,16 +213,25 @@ class KafkaIntegration extends Integration
         }
     }
 
-    public static function setupKafkaConsumeSpan(HookData $hook, $consumer)
+    /** @param string|null $clusterId the id of the cluster the consumer is connected to, if known */
+    public static function setupKafkaConsumeSpan(HookData $hook, $consumer, $clusterId = null)
     {
         $span = $hook->data['span'];
         self::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, SpanKind::CONSUMER, Tag::MQ_OPERATION_RECEIVE);
 
         $conf = ObjectKVStore::get($consumer, 'conf');
         self::addMetadataToSpan($span, $conf);
+        self::addClientMetadataToSpan($span, self::consumerClient($consumer), $clusterId);
     }
 
-    public static function setDataStreamsConsumeCheckpoint(\RdKafka\Message $message, $consumer)
+    // The client a KafkaConsumer or a low-level Consumer's Queue consumes from
+    public static function consumerClient($consumer)
+    {
+        return $consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : $consumer;
+    }
+
+    /** @param string|null $clusterId the id of the cluster the consumer is connected to, if known */
+    public static function setDataStreamsConsumeCheckpoint(\RdKafka\Message $message, $consumer, $clusterId = null)
     {
         if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED') || $message->err !== RD_KAFKA_RESP_ERR_NO_ERROR) {
             return;
@@ -221,8 +244,7 @@ class KafkaIntegration extends Integration
         }
         $edgeTags[] = 'topic:' . $message->topic_name;
         $edgeTags[] = 'type:kafka';
-        $kafka = $consumer instanceof \RdKafka\Queue ? ObjectKVStore::get($consumer, 'kafka') : $consumer;
-        $edgeTags = array_merge($edgeTags, self::clusterIdTags($kafka));
+        $edgeTags = array_merge($edgeTags, self::clusterIdEdgeTags($clusterId));
 
         \DDTrace\Internal\dsm_set_checkpoint(
             $edgeTags,
@@ -349,12 +371,56 @@ class KafkaIntegration extends Integration
      */
     private static function clusterIdTags($kafka, int $waitMs = 0): array
     {
-        if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
-            return [];
-        }
-        $conf = ObjectKVStore::get($kafka, 'conf');
-        $clusterId = \DDTrace\Internal\kafka_cluster_id($kafka, $conf['metadata.broker.list'] ?? null, $waitMs);
+        return self::clusterIdEdgeTags(self::clusterId($kafka, $waitMs));
+    }
+
+    private static function clusterIdEdgeTags($clusterId): array
+    {
         return $clusterId === null ? [] : ['kafka_cluster_id:' . $clusterId];
+    }
+
+    /** The id of the cluster `$kafka` is connected to, as clusterIdTags() reads it, or null. */
+    public static function clusterId($kafka, int $waitMs = 0)
+    {
+        if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
+            return null;
+        }
+        return \DDTrace\Internal\kafka_cluster_id($kafka, self::bootstrapServers($kafka), $waitMs);
+    }
+
+    /**
+     * The bootstrap servers of `$kafka`: those of its Conf and the ones added with addBrokers(),
+     * without duplicates, or null if it has none. They are the key the cluster id is shared under.
+     */
+    private static function bootstrapServers($kafka)
+    {
+        $brokers = ObjectKVStore::get($kafka, 'bootstrap_servers');
+        if ($brokers === null) {
+            $conf = ObjectKVStore::get($kafka, 'conf');
+            $brokers = $conf['metadata.broker.list'] ?? null;
+        }
+        return $brokers === '' ? null : $brokers;
+    }
+
+    /**
+     * Tag `$span` with what the client `$kafka` knows beyond its Conf: the brokers added with
+     * addBrokers(), and the id of the cluster it is connected to. A span never waits for the id:
+     * it has it if the client has had a metadata response, or another client with the same
+     * bootstrap servers has shared it, and goes without it otherwise.
+     */
+    private static function addClientMetadataToSpan($span, $kafka, $clusterId)
+    {
+        if (!$kafka instanceof \RdKafka && !$kafka instanceof \RdKafka\KafkaConsumer) {
+            return;
+        }
+        // Set when brokers were added with addBrokers(); the Conf's are tagged otherwise
+        $brokers = ObjectKVStore::get($kafka, 'bootstrap_servers');
+        if ($brokers !== null) {
+            $span->attributes[Tag::KAFKA_HOST_LIST] = $brokers;
+        }
+        if ($clusterId !== null) {
+            $span->attributes[Tag::KAFKA_CLUSTER_ID] = $clusterId;
+        }
     }
 
     private static function addMetadataToSpan($span, $conf)
@@ -380,8 +446,8 @@ class KafkaIntegration extends Integration
     {
         $configurationHooks = [
             'RdKafka\KafkaConsumer' => ['__construct'],
-            'RdKafka\Producer' => ['__construct', 'newTopic'],
-            'RdKafka\Consumer' => ['__construct', 'newQueue']
+            'RdKafka\Producer' => ['__construct', 'newTopic', 'addBrokers', 'flush'],
+            'RdKafka\Consumer' => ['__construct', 'newQueue', 'addBrokers']
         ];
 
         foreach ($configurationHooks as $class => $methods) {
@@ -423,6 +489,20 @@ class KafkaIntegration extends Integration
                     ObjectKVStore::put($hook->returned, 'conf', $conf);
                     // The client, for its cluster id
                     ObjectKVStore::put($hook->returned, 'kafka', $hook->instance);
+                } elseif ($method === 'addBrokers' && $hook->returned > 0 && is_string($hook->args[0] ?? null)) {
+                    // librdkafka counts a broker it already knows as added, so keep each once
+                    $conf = ObjectKVStore::get($hook->instance, 'conf');
+                    $known = ObjectKVStore::get($hook->instance, 'bootstrap_servers', $conf['metadata.broker.list'] ?? '');
+                    $all = preg_split('/[\s,]+/', "$known,{$hook->args[0]}", -1, PREG_SPLIT_NO_EMPTY);
+                    ObjectKVStore::put($hook->instance, 'bootstrap_servers', implode(',', array_unique($all)));
+                } elseif ($method === 'flush' && !ObjectKVStore::get($hook->instance, 'cluster_id_read', false)) {
+                    // A producer has its brokers' answer once a flush has delivered its messages.
+                    // Reading the id then shares it, so that producers created later, such as in
+                    // later requests, have it for their first produce. Until a read has it, each
+                    // flush reads again.
+                    if (KafkaIntegration::clusterId($hook->instance) !== null) {
+                        ObjectKVStore::put($hook->instance, 'cluster_id_read', true);
+                    }
                 }
             }
         );

@@ -14,7 +14,9 @@ class KafkaTest extends IntegrationTestCase
         'metrics.php.memory.peak_usage_bytes',
         'metrics.php.memory.peak_real_usage_bytes',
         'meta.error.stack',
-        'metrics.messaging.kafka.message_offset'
+        'metrics.messaging.kafka.message_offset',
+        // Kafka generates a cluster id for each new cluster
+        'meta.messaging.kafka.cluster_id',
     ];
 
     public static function getTestedLibrary()
@@ -118,6 +120,21 @@ class KafkaTest extends IntegrationTestCase
     }
 
     /**
+     * Without DSM, a producer shares the cluster id once a flush has delivered its messages, so
+     * that a producer created per request has it from its first produce on. The bootstrap
+     * servers, spelled with their protocol, are shared by no other test.
+     */
+    public function testClusterIdSharedAfterFlush()
+    {
+        $brokers = 'PLAINTEXT://kafka-integration:9092';
+        $env = ['DD_DATA_STREAMS_ENABLED' => 'false', 'DD_TRACE_CLI_ENABLED' => 'true'];
+        $flushed = $this->executeCli(__DIR__ . '/scripts/cluster-id-shared.php', $env, [], ['flush', $brokers], true);
+        $this->assertRegularExpression('/^flush: 0$/m', $flushed);
+        $read = $this->executeCli(__DIR__ . '/scripts/cluster-id-shared.php', $env, [], ['read', $brokers], true);
+        $this->assertRegularExpression("/^read: '[A-Za-z0-9_-]+'$/m", $read);
+    }
+
+    /**
      * A producer whose brokers never answer waits for the cluster id on its first produce only:
      * waiting on every produce would hold up all of them for as long as the brokers stay down.
      */
@@ -179,6 +196,54 @@ class KafkaTest extends IntegrationTestCase
                 $output
             );
         }
+    }
+
+    /**
+     * Produce and consume spans name the cluster their client is connected to, as soon as the
+     * client has it, without Data Streams Monitoring. Their bootstrap servers include the brokers
+     * added with addBrokers().
+     */
+    public function testClusterIdOnSpans()
+    {
+        list($traces, $output) = $this->inCli(
+            __DIR__ . '/scripts/cluster-id-spans.php',
+            [
+                'DD_DATA_STREAMS_ENABLED' => 'false',
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+            ],
+            [],
+            'test-cluster-id',
+            true
+        );
+        $this->assertRegularExpression('/^consumed$/m', $output);
+        $this->assertRegularExpression('/^consumed from queue$/m', $output);
+
+        $clusterIds = [];
+        foreach ($traces as $trace) {
+            foreach ($trace['spans'] as $span) {
+                if (!in_array($span['name'], ['kafka.produce', 'kafka.consume'], true)) {
+                    continue;
+                }
+                $attributes = $span['attributes'] ?? [];
+                $this->assertSame('kafka-integration:9092', $attributes['messaging.kafka.bootstrap.servers'] ?? null);
+                if (isset($attributes['messaging.kafka.cluster_id'])) {
+                    $clusterId = $attributes['messaging.kafka.cluster_id'];
+                    $this->assertTrue(is_string($clusterId), $output);
+                    $this->assertRegularExpression('/^[A-Za-z0-9_-]+$/', $clusterId);
+                    $clusterIds[$span['name'] . ' ' . ($attributes['messaging.kafka.group_id'] ?? '')][] = $clusterId;
+                }
+            }
+        }
+
+        foreach (['kafka.produce ', 'kafka.consume cluster-id-spans', 'kafka.consume cluster-id-spans-lowlevel'] as $client) {
+            $this->assertArrayHasKey($client, $clusterIds, $output);
+        }
+        // All the clients are connected to the same cluster
+        $this->assertCount(1, array_unique(call_user_func_array('array_merge', array_values($clusterIds))));
     }
 
     public function testDistributedTracingHighLevel()
