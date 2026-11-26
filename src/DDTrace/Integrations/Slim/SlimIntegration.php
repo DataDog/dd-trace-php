@@ -83,6 +83,16 @@ class SlimIntegration extends Integration
                             }
                         }
                     );
+
+                    // Slim 3: Route::prepare(ServerRequestInterface $request, array $arguments) receives the
+                    // URL-decoded arguments captured by the router for the matched route.
+                    \DDTrace\hook_method(
+                        'Slim\\Route',
+                        'prepare',
+                        static function ($route, $scope, $args) {
+                            SlimIntegration::pushPathParams($args[1] ?? null);
+                        }
+                    );
                 }
                 else if ('4' === $majorVersion) {
                     \DDTrace\hook_method(
@@ -93,6 +103,16 @@ class SlimIntegration extends Integration
                             /** @var \Slim\Interfaces\RouteInterface $route */
                             $route = $return;
                             $rootSpan->attributes[Tag::HTTP_ROUTE] = $route->getPattern();
+                        }
+                    );
+
+                    // Slim 4: Route::prepare(array $arguments) receives the URL-decoded arguments
+                    // captured by the routing results for the matched route.
+                    \DDTrace\hook_method(
+                        'Slim\\Routing\\Route',
+                        'prepare',
+                        static function ($route, $scope, $args) {
+                            SlimIntegration::pushPathParams($args[0] ?? null);
                         }
                     );
                 }
@@ -162,5 +182,19 @@ class SlimIntegration extends Integration
         );
 
         return Integration::LOADED;
+    }
+
+    /**
+     * Sends the route path parameters to the WAF. Static routes (no parameters) send nothing.
+     *
+     * @param mixed $arguments The arguments captured from the URL by the router.
+     */
+    public static function pushPathParams($arguments)
+    {
+        if (!\function_exists('datadog\appsec\push_addresses') || !\is_array($arguments) || empty($arguments)) {
+            return;
+        }
+
+        \datadog\appsec\push_addresses(["server.request.path_params" => $arguments]);
     }
 }

@@ -23,6 +23,17 @@ return function (App $app) {
         return $response;
     });
 
+    $app->get('/dynamic-path/{param01}', function (Request $request, Response $response, array $args) {
+        $response->getBody()->write("Dynamic path: " . $args['param01']);
+        return $response;
+    });
+
+    // The second group is optional so a request can omit it: only the parameters present in the URL are captured.
+    $app->get('/dynamic_route/{param01}[/static/{param02}]', function (Request $request, Response $response, array $args) {
+        $response->getBody()->write("Dynamic route: " . implode(',', $args));
+        return $response;
+    });
+
     $app->get('/[{name}]', function (Request $request, Response $response, array $args) use ($container) {
         // Sample log message
         $container->get('logger')->info("Slim-Skeleton '/' route");
