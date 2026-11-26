@@ -1,0 +1,59 @@
+# Manual, allowed-to-fail Speedlab macrobenchmarks measuring this pipeline's packages.
+include:
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-php-laravel-realworld.yml'
+    ref: 'fayssal/sdk-ci-dd-trace-php'
+    inputs:
+      stage: benchmarks
+      speedlab_ref: 'fayssal/sdk-ci-dd-trace-php'
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-php-symfony-realworld.yml'
+    ref: 'fayssal/sdk-ci-dd-trace-php'
+    inputs:
+      stage: benchmarks
+      speedlab_ref: 'fayssal/sdk-ci-dd-trace-php'
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-php-wordpress.yml'
+    ref: 'fayssal/sdk-ci-dd-trace-php'
+    inputs:
+      stage: benchmarks
+      speedlab_ref: 'fayssal/sdk-ci-dd-trace-php'
+
+# Exports the package job IDs the Speedlab jobs need, with the GitLab token path of .gitlab/merge-gate.sh.
+speedlab-php-package-job-ids:
+  stage: benchmarks
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: ["arch:amd64"]
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: false
+    - job: datadog-setup.php
+      artifacts: false
+  allow_failure: true
+  timeout: 10m
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - |
+      jwt=$(curl -sf --retry 5 --retry-connrefused -H "X-Vault-Request: true" \
+        "${VAULT_ADDR:-https://vault.${DD_DATACENTER}}/v1/identity/oidc/token/sdm" | jq -er '.data.token')
+      token=$(curl -sf --retry 5 --retry-connrefused -H "Authorization: Bearer ${jwt}" \
+        "https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=dd-trace-php" | jq -er '.token')
+      jobs='[]'
+      page=1
+      while :; do
+        data=$(curl -gsf --retry 5 --retry-connrefused -H "PRIVATE-TOKEN: ${token}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=success&per_page=100&page=${page}")
+        [ "$(printf '%s' "$data" | jq length)" -gt 0 ] || break
+        jobs=$(printf '%s' "$jobs" | jq -c --argjson more "$data" '. + $more')
+        page=$((page + 1))
+      done
+      job_id() {
+        printf '%s' "$jobs" | jq -er --arg name "$1" '[.[] | select(.name == $name) | .id] | max // error("no successful job " + $name)'
+      }
+      package=$(job_id "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]")
+      setup=$(job_id "datadog-setup.php")
+      printf 'SPEEDLAB_PHP_PACKAGE_JOB_ID=%s\nSPEEDLAB_PHP_SETUP_JOB_ID=%s\n' "$package" "$setup" | tee speedlab-php-package-job-ids.env
+  artifacts:
+    reports:
+      dotenv: speedlab-php-package-job-ids.env
