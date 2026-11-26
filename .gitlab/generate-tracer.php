@@ -7,7 +7,7 @@ preg_match('(^\.services(.*?)\n(\S|\Z))ms', file_get_contents(__DIR__ . "/genera
 preg_match_all('(^  (\S*):)m', $m[1], $m, PREG_PATTERN_ORDER);
 $services = array_combine($m[1], $m[1]);
 
-const ASSERT_NO_MEMLEAKS = ' 2>&1 | tee /dev/stderr | { ! grep -qE "=== Total [0-9]+ memory leaks detected ==="; }';
+const ASSERT_NO_MEMLEAKS = ' 2>&1 | tee /dev/stderr | { ! grep -E "=== Total [0-9]+ memory leaks detected ===" >/dev/null; }';
 
 const ZTS_MAKE_TARGETS = ['test_integrations_frankenphp'];
 
