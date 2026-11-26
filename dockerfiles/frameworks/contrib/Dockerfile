@@ -166,6 +166,7 @@ ADD flow/run.sh ./
 ADD flow/patch.patch ./
 ADD flow/tty.patch ./
 ADD flow/flaky-auth-date.patch ./
+ADD flow/neos-https-redirect.patch ./
 
 RUN set -xe; \
     git apply *.patch

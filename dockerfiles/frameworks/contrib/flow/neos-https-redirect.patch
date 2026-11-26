@@ -1,0 +1,25 @@
+From 1ee9de48e1a4441fb46bea16840703f4460d3317 Mon Sep 17 00:00:00 2001
+From: Patch Maker <example@example.com>
+Date: Thu, 26 Nov 2026 16:21:04 -0500
+Subject: [PATCH] Fetch www.neos.io over HTTPS in getRequestReturnsResponse
+
+---
+ .../Neos.Flow/Tests/Functional/Http/Client/CurlEngineTest.php   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Packages/Framework/Neos.Flow/Tests/Functional/Http/Client/CurlEngineTest.php b/Packages/Framework/Neos.Flow/Tests/Functional/Http/Client/CurlEngineTest.php
+index a6b41f9..cffeddd 100644
+--- a/Packages/Framework/Neos.Flow/Tests/Functional/Http/Client/CurlEngineTest.php
++++ b/Packages/Framework/Neos.Flow/Tests/Functional/Http/Client/CurlEngineTest.php
+@@ -56,7 +56,7 @@ class CurlEngineTest extends FunctionalTestCase
+      */
+     public function getRequestReturnsResponse()
+     {
+-        $response = $this->browser->request('http://www.neos.io');
++        $response = $this->browser->request('https://www.neos.io');
+         $this->assertContains('This website is powered by Neos', $response->getContent());
+     }
+ }
+-- 
+2.43.0
+
