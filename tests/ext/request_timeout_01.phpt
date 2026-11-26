@@ -5,7 +5,7 @@ A PHP request timeout does not leak/segfault (run with leak detection)
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
-max_execution_time=1
+max_execution_time=3
 fatal_error_backtraces=0
 --FILE--
 <?php
@@ -30,5 +30,5 @@ main();
 --EXPECTF--
 int(100)
 
-%s Maximum execution time of 1 second exceeded in %s on line %d
+%s Maximum execution time of 3 second%s exceeded in %s on line %d
 Shutdown

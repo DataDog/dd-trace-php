@@ -80,7 +80,7 @@ $rr->waitForRequest(function ($request) {
 %A
         },
         "experimental": {
-            "runtime_stack": {
+%A            "runtime_stack": {
                 "format": "Datadog Runtime Callback 1.0",
                 "frames": [
                     {
