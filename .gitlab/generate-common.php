@@ -180,18 +180,15 @@ STEP;
     echo $result;
 });
 
-// Service containers are reached by alias, not through the Fabric egress proxy, which
-// answers those requests with "no healthy upstream" or 403.
+// The runner only exempts the aliases of a job's own services from the Fabric egress proxy;
+// tests in jobs without them would otherwise get "no healthy upstream" or 403 from it.
 preg_match('(^\.services(.*?)\n(\S|\Z))ms', file_get_contents(__FILE__), $services_block);
 preg_match_all('(^ +alias: (\S+)$)m', $services_block[1], $service_aliases);
 define('SERVICE_ALIASES', implode(',', array_unique($service_aliases[1])));
 
 function service_no_proxy() {
 ?>
-    - echo "no_proxy before -> ${no_proxy:-<unset>} | NO_PROXY ${NO_PROXY:-<unset>} | HTTP_PROXY ${HTTP_PROXY:+set} | http_proxy ${http_proxy:+set}"
     - np="${no_proxy:-}${no_proxy:+${NO_PROXY:+,}}${NO_PROXY:-}"; export no_proxy="${np:+$np,}<?= SERVICE_ALIASES ?>" NO_PROXY="${np:+$np,}<?= SERVICE_ALIASES ?>"
-    - echo "no_proxy after -> $no_proxy"
-    - 'sa=/var/run/secrets/kubernetes.io/serviceaccount; curl -s --noproxy "*" --max-time 5 --cacert $sa/ca.crt -H "Authorization: Bearer $(cat $sa/token 2>/dev/null)" "https://kubernetes.default.svc/api/v1/namespaces/$(cat $sa/namespace 2>/dev/null)/pods/$HOSTNAME" | grep -o "\"beta.fabric.datadoghq.com/[a-z-]*\": *\"[^\"]*\"" || echo "pod annotations not readable"'
 <?php
 }
 
