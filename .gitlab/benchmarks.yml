@@ -291,7 +291,9 @@ benchmarks-tracer:
   rules: *benchmarks-tracer-rules
   parallel:
     matrix:
-      - TRACER_PART: [ phpbench, phpbench-opcache, tea ]
+      - TRACER_PART: [ phpbench, phpbench-opcache ]
+        PHPBENCH_SHARD: [ "1", "2" ]
+      - TRACER_PART: tea
   artifacts:
     name: "reports"
     when: always
@@ -442,7 +444,8 @@ check-big-regressions:
       sides=candidate
       # bp-runner writes a bare newline here when the branch has no PR.
       if grep -q '[^[:space:]]' reports/baseline_branch.txt 2>/dev/null; then sides="baseline candidate"; fi
-      for result in tracer-bench-results tracer-bench-results-opcache tracer-tea-bench-results; do
+      for result in tracer-bench-results-1 tracer-bench-results-2 \
+          tracer-bench-results-opcache-1 tracer-bench-results-opcache-2 tracer-tea-bench-results; do
         for side in $sides; do
           if [ ! -f "reports/${side}-${result}.converted.json" ]; then
             echo "ERROR: reports/${side}-${result}.converted.json is missing - a benchmarks-tracer shard had issues"
