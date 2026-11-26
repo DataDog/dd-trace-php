@@ -39,6 +39,7 @@ function sidecar_logs() {
 function before_script_steps($with_docker_auth = false) {
     if ($with_docker_auth) dockerhub_login();
     unset_dd_runner_env_vars();
+    service_no_proxy();
 ?>
 
     - switch-php "${SWITCH_PHP_VERSION}"

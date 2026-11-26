@@ -180,19 +180,25 @@ STEP;
     echo $result;
 });
 
-// Service containers are reached directly: through the Fabric egress proxy, their aliases
-// fail with "no healthy upstream" or 403.
+// Service containers are reached by alias, not through the Fabric egress proxy, which
+// answers those requests with "no healthy upstream" or 403.
 preg_match('(^\.services(.*?)\n(\S|\Z))ms', file_get_contents(__FILE__), $services_block);
 preg_match_all('(^ +alias: (\S+)$)m', $services_block[1], $service_aliases);
-$fabric_service_no_proxy = 'KUBERNETES_POD_ANNOTATIONS_SERVICE_NO_PROXY: "beta.fabric.datadoghq.com/no-proxy-additions=' . implode(',', array_unique($service_aliases[1])) . "\"\n";
-$fabric_service_no_proxy_job = "    $fabric_service_no_proxy";
-$fabric_service_no_proxy = "  $fabric_service_no_proxy";
+define('SERVICE_ALIASES', implode(',', array_unique($service_aliases[1])));
+
+function service_no_proxy() {
+?>
+    - echo "no_proxy before -> ${no_proxy:-<unset>} | NO_PROXY ${NO_PROXY:-<unset>} | HTTP_PROXY ${HTTP_PROXY:+set} | http_proxy ${http_proxy:+set}"
+    - np="${no_proxy:-}${no_proxy:+${NO_PROXY:+,}}${NO_PROXY:-}"; export no_proxy="${np:+$np,}<?= SERVICE_ALIASES ?>" NO_PROXY="${np:+$np,}<?= SERVICE_ALIASES ?>"
+    - echo "no_proxy after -> $no_proxy"
+    - 'sa=/var/run/secrets/kubernetes.io/serviceaccount; curl -s --noproxy "*" --max-time 5 --cacert $sa/ca.crt -H "Authorization: Bearer $(cat $sa/token 2>/dev/null)" "https://kubernetes.default.svc/api/v1/namespaces/$(cat $sa/namespace 2>/dev/null)/pods/$HOSTNAME" | grep -o "\"beta.fabric.datadoghq.com/[a-z-]*\": *\"[^\"]*\"" || echo "pod annotations not readable"'
+<?php
+}
 
 ?>
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
-<?= $fabric_service_no_proxy ?>
 
 default:
   retry:

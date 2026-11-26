@@ -425,12 +425,12 @@ foreach ($build_platforms as $platform) {
     - job: "pecl build"
       artifacts: true
   variables:
-<?= $fabric_service_no_proxy_job ?>
     MAKE_JOBS: 8
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
   before_script:
+<?php service_no_proxy() ?>
 <?php unset_dd_runner_env_vars() ?>
     - sudo apt-get update -qq
     - sudo apt-get install -y --no-install-recommends gcc g++ rpm pigz
@@ -1240,7 +1240,6 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   variables:
-<?= $fabric_service_no_proxy_job ?>
     KUBERNETES_CPU_REQUEST: 2 # one for PHP and one for the webserver
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
@@ -1252,6 +1251,7 @@ endforeach;
     HTTPBIN_PORT: 8080
     WAIT_FOR: test-agent:9126
   before_script:
+<?php service_no_proxy() ?>
 <?php unset_dd_runner_env_vars() ?>
     # coreutils/findutils/grep: the Makefile and the artifact-collection scripts rely on GNU flags
     # that BusyBox does not implement. Deliberately not apk's `composer`: that pulls in Alpine's
@@ -1537,7 +1537,6 @@ endforeach;
   services:
     - !reference [.services, request-replayer]
   variables:
-<?= $fabric_service_no_proxy_job ?>
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
@@ -1569,6 +1568,7 @@ endforeach;
           - alpine:3.24
       - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $verify_ga_minor_major_targets)), "\n" ?>
   before_script: &verify_alpine_before_script
+<?php service_no_proxy() ?>
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
@@ -1611,6 +1611,7 @@ endforeach;
           - 82
           - 83
   before_script:
+<?php service_no_proxy() ?>
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
@@ -1665,6 +1666,7 @@ endforeach;
           - "debian:bookworm-slim"
           - "debian:trixie-slim"
   before_script: &verify_debian_before_script
+<?php service_no_proxy() ?>
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
@@ -1809,7 +1811,6 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   variables:
-<?= $fabric_service_no_proxy_job ?>
     CARGO_BUILD_JOBS: 4
     KUBERNETES_CPU_REQUEST: 4
     KUBERNETES_MEMORY_REQUEST: 4Gi
@@ -1821,6 +1822,7 @@ endforeach;
     - job: "pecl build"
       artifacts: true
   before_script:
+<?php service_no_proxy() ?>
 <?php unset_dd_runner_env_vars() ?>
     - cp ./pecl/datadog_trace-*.tgz ./datadog_trace.tgz
   script:
@@ -1843,7 +1845,6 @@ endforeach;
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-15
   tags: [ "arch:amd64" ]
   variables:
-<?= $fabric_service_no_proxy_job ?>
     MAX_TEST_PARALLELISM: 8
     DDAGENT_HOSTNAME: 127.0.0.1
     DD_AGENT_HOST: 127.0.0.1
@@ -1857,6 +1858,7 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   before_script:
+<?php service_no_proxy() ?>
 <?php dockerhub_login() ?>
     - mkdir -p artifacts
     - switch-php debug
