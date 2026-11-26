@@ -369,14 +369,14 @@ foreach ($build_platforms as $platform) {
 <?php if ($flavour === 'nts'): ?>
     # CentOS 7 release artifacts use Clang/Rust ThinLTO for NTS and ZTS.
     - switch-php "${PHP_VERSION}"
-    - make -s xlang-lto
+    - .gitlab/run-with-retryable-download.sh make -s xlang-lto
     - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}.so"
     # The PHP debug ABI still uses the regular non-LTO build.
-    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "debug" "combined" "ddtrace-${ABI_NO}-debug.so"
+    - .gitlab/run-with-retryable-download.sh .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "debug" "combined" "ddtrace-${ABI_NO}-debug.so"
 <?php else: ?>
     - switch-php "${PHP_VERSION}-zts"
-    - make -s xlang-lto
+    - .gitlab/run-with-retryable-download.sh make -s xlang-lto
     - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-zts.so"
 <?php endif; ?>
@@ -385,7 +385,7 @@ foreach ($build_platforms as $platform) {
     # which the non-interactive runner shell does not expand.
     - source "$BASH_ENV"
     - switch_php "${PHP_VERSION}<?= $flavour === 'zts' ? '-zts' : '' ?>"
-    - make -s xlang-lto
+    - .gitlab/run-with-retryable-download.sh make -s xlang-lto
     - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine<?= $flavour === 'zts' ? '-zts' : '' ?>.so"
 <?php endif; ?>
@@ -509,7 +509,7 @@ foreach ($build_platforms as $platform) {
     - switch-php "${PHP_VERSION}<?= $zts_suffix ?>"
 <?php endif; ?>
     # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
-    - make -s xlang-lto
+    - .gitlab/run-with-retryable-download.sh make -s xlang-lto
     - mkdir -p "extensions_<?= $arch_dir ?>"
     - cp "tmp/release-variants/<?= $arch_dir ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?><?= $zts_suffix ?>.so"
   artifacts:
@@ -668,13 +668,13 @@ foreach ($build_platforms as $platform) {
     - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir . $suffix ?>.so"
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
     - switch-php "${PHP_VERSION}"
-    - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
+    - .gitlab/run-with-retryable-download.sh ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
     - mv "ssi_<?= $arch_dir ?>/ddtrace.so" "ssi_<?= $arch_dir ?>/ddtrace-${ABI_NO}.so"
     - switch-php "${PHP_VERSION}-zts"
-    - ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
+    - .gitlab/run-with-retryable-download.sh ./tooling/bin/build-xlang-lto ssi-combined "$PWD/ssi_<?= $arch_dir ?>"
     - mv "ssi_<?= $arch_dir ?>/ddtrace.so" "ssi_<?= $arch_dir ?>/ddtrace-${ABI_NO}-zts.so"
 <?php else: ?>
-    - ./.gitlab/build-ssi-combined-alpine.sh "ssi_<?= $arch_dir ?>" "${ABI_NO}"
+    - .gitlab/run-with-retryable-download.sh ./.gitlab/build-ssi-combined-alpine.sh "ssi_<?= $arch_dir ?>" "${ABI_NO}"
 <?php endif; ?>
     # The shared DSO is packaged from the single sidecar job, not each PHP job.
     - rm "ssi_<?= $arch_dir ?>/libdatadog_php.so"
@@ -819,6 +819,7 @@ foreach ($windows_build_platforms as $platform) {
 
     # Start the container
     docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    if ($LASTEXITCODE -ne 0) { Write-Host "docker run failed (exit $LASTEXITCODE); exiting 75 so GitLab retries"; exit 75 }
 
     # Build nts (fail fast on any step); capture combined output for failure classification.
     # ErrorActionPreference=Continue so the build's native stderr (e.g. cargo warnings) is not
@@ -1563,8 +1564,7 @@ endforeach;
           - alpine:3.16
           - alpine:3.21
           - alpine:3.24
-      # Pre-GA versions only exist as -rc tags on Docker Hub.
-      - IMAGE: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*"php:$v-rc-fpm-alpine"*/ : "php:$v-fpm-alpine"; }, $all_minor_major_targets))), "\n" ?>
+      - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $verify_ga_minor_major_targets)), "\n" ?>
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1656,7 +1656,7 @@ endforeach;
     INSTALL_MODE: sury
   parallel:
     matrix:
-      - PHP_VERSION: <?= json_encode(array_filter(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "" /*broken for PHP 8.6 currently*/ : $v; }, $all_minor_major_targets))), "\n" ?>
+      - PHP_VERSION: <?= json_encode($verify_ga_minor_major_targets), "\n" ?>
         IMAGE:
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
@@ -1674,8 +1674,6 @@ endforeach;
         sed -i -e 's|http://deb.debian.org/debian-security|http://snapshot.debian.org/archive/debian-security/20260901T000000Z|g' \
                -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
         echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
-        # Keep the last Bullseye PHP builds; the live Sury pool returns 404.
-        export SURY_MIRROR="https://depot-read-api-bzl.us1.ddbuild.io/debian.octopuce.fr/snapshots/sury-php/20261111010406/"
       fi
     # Bound apt: a stalled deb.debian.org fetch otherwise hangs until the 1 h job timeout; 75 is retried.
     - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 update || exit 75

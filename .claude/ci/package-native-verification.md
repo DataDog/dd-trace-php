@@ -21,8 +21,8 @@ in the `verify` stage of the **package-trigger** child pipeline and use native r
 |--------|-------|--------------|
 | `verify alpine: [{packages}, {image}, {install_type}]` | `alpine:{ver}` or `php:{ver}-fpm-alpine` | Installs ddtrace on Alpine via php_installer or native_package; verifies CLI + FPM produce traces |
 | `verify centos: [{php_ver}, {install_type}]` | `centos:7` | Installs ddtrace on CentOS 7 with remi PHP packages; verifies CLI + Apache produce traces |
-| `verify debian: [{php_ver}, {install_type}, {image}]` | `debian:{bullseye,bookworm}-slim` | Installs ddtrace on Debian with sury PHP packages; verifies CLI + FPM + Apache produce traces |
-| `verify .tar.gz: [{arch}]` | `debian:bullseye-slim` | Extracts `.tar.gz` package, verifies file ownership is root, runs `post-install.sh`, checks `php --ri=ddtrace` |
+| `verify debian: [{php_ver}, {install_type}, {image}]` | `debian:{bullseye,bookworm,trixie}-slim` | Installs ddtrace on Debian with sury PHP packages (dated snapshot); verifies CLI + FPM + Apache produce traces |
+| `verify .tar.gz: [{arch}]` | `debian:bookworm-slim` | Extracts `.tar.gz` package, verifies file ownership is root, runs `post-install.sh`, checks `php --ri=ddtrace` |
 | `verify no json ext` | `alpine:3.12` | Installs ddtrace on Alpine without the JSON PHP extension; verifies it still loads and works |
 | `verify windows` | Windows runner (no container image) | See [windows-tests.md](windows-tests.md) |
 | `Loader test on {arch} libc: [{ver}, {flavour}]` | `dd-trace-ci:php-{ver}_{suffix}` | Extracts SSI loader package, runs `loader/bin/test.sh` phpt tests; optionally runs `check_glibc_version.sh` |
@@ -45,7 +45,8 @@ Matrix: PHP 7.0--8.3 x {php_installer, native_package}
 
 **verify debian:**
 Runner: `arch:amd64`
-Matrix: PHP 7.0+ x {php_installer, native_package} x {bullseye-slim, bookworm-slim}
+Matrix: PHP 7.0 to `$latest_ga_minor_major` x {php_installer, native_package} x
+{bullseye-slim, bookworm-slim, trixie-slim}
 
 **verify .tar.gz:**
 Runner: `arch:{amd64,arm64}` (amd64 tests PHP 7.0 package, arm64 tests PHP 8.1 package)
@@ -335,9 +336,25 @@ extracts the SSI package in-place, and copies the musl loader `.so`.
 ## Gotchas
 
 - `verify centos` targets CentOS 7 which is **EOL**. The job contains
-  workarounds to use `vault.centos.org` instead of the defunct
-  `mirrorlist.centos.org`, with retry logic for the unreliable vault mirror.
-  These jobs may flake due to mirror issues.
+  workarounds to read `vault.centos.org` through the depot cache instead of
+  the defunct `mirrorlist.centos.org`, with retry logic for the unreliable
+  vault mirror. The CentOS CI image (`dockerfiles/ci/centos/7/base.Dockerfile`)
+  reads its yum repos through depot the same way.
+
+- The Debian verify scripts (`debian/install.sh`, `tar_gz/install.sh`) install
+  PHP from a dated Sury snapshot set in
+  `dockerfiles/verify_packages/apt_common.sh` (`SURY_MIRROR`), not from live
+  `packages.sury.org`. Before moving the date, check that the snapshot has
+  every PHP version the matrices install, for bullseye, bookworm and trixie.
+  A 404 from the snapshot fails the job at once instead of exiting 75.
+
+- `verify alpine` (`php:*-fpm-alpine`) and `verify debian` (Sury) only cover
+  GA PHP versions (`$verify_ga_minor_major_targets` in
+  `.gitlab/generate-common.php`). Third-party pre-release builds drift from
+  the RC our CI images compile against, so the extension fails to load on a
+  module API mismatch. Bumping `$latest_ga_minor_major` adds the new version.
+  Move `SURY_MIRROR` to a snapshot with the GA build at the same time, or
+  `verify debian` installs the RC the old snapshot still carries.
 
 - The `INSTALL_TYPE` dimension has two values: `php_installer` (uses
   `datadog-setup.php`, the recommended end-user path) and `native_package`

@@ -2,25 +2,7 @@
 
 set -e
 
-# Retry a command up to 3 times with 10s backoff before signaling infra failure.
-# All failures in this script are infrastructure failures (package downloads,
-# network), not test failures — so exhausted retries exit 75 (EX_TEMPFAIL)
-# to trigger GitLab's infra-retry rule rather than marking the job as failed.
-retry_or_tempfail() {
-    local n=1
-    until "$@"; do
-        if [ "$n" -ge 3 ]; then
-            echo "Infrastructure command failed after $n attempts, signaling retry (exit 75): $*" >&2
-            exit 75
-        fi
-        echo "Command failed (attempt $n/3): $* — retrying in 10s..." >&2
-        n=$((n + 1))
-        sleep 10
-    done
-}
-
-# Bound apt: a stalled mirror fetch otherwise hangs until the 1 h job timeout.
-apt_get() { timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 "$@"; }
+. "$(dirname "$0")/../apt_common.sh"
 
 # Common installations
 retry_or_tempfail apt_get update
@@ -42,10 +24,7 @@ sed -i 's/*:80/127.0.0.1:8081/' /etc/apache2/sites-enabled/000-default.conf
 if [ "${INSTALL_MODE}" = "native" ]; then
     retry_or_tempfail apt_get install -y ${PHP_PACKAGE}
 elif [ "${INSTALL_MODE}" = "sury" ]; then
-    retry_or_tempfail curl -sSfL -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-    printf 'deb %s %s main\n' \
-        "${SURY_MIRROR:-https://packages.sury.org/php/}" "$(lsb_release -sc)" \
-        > /etc/apt/sources.list.d/php.list
+    add_sury_repo
     retry_or_tempfail apt_get update
     retry_or_tempfail apt_get install -y \
         php${PHP_VERSION}-cli \

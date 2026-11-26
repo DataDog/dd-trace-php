@@ -18,13 +18,20 @@ fi
 # GitLab retries exit 75. Restrict this to errors that indicate a transient
 # download failure; missing releases and build errors should retain the
 # original status and fail immediately.
-github_server_error='Failed to download archive from https://github\.com/'
+github_server_error='Failed to download archive from https://(github\.com|depot-read-api-github-releases\.us1\.ddbuild\.io)/'
 github_server_error+='.*: 5[0-9]{2} '
 transport_error='Failed to (download archive|write archive entry contents'
 transport_error+=' to file):.*reqwest::Error.*'
-transport_error+='(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage|UnexpectedEof|Temporary failure in name resolution)'
+transport_error+='(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage|UnexpectedEof|Temporary failure in name resolution|failed to lookup address information: Try again)'
 if grep -Eq "$github_server_error|$transport_error" "$build_log"; then
     echo "Transient GitHub download failure; exiting 75 for GitLab retry." >&2
+    exit 75
+fi
+
+# Composer reports an HTTP error it gave up on as
+# 'The "URL" file could not be downloaded (HTTP/2 504 )'.
+if [[ " $* " == *composer* ]] && grep -Eq 'file could not be downloaded \(HTTP/[0-9.]+ (429|5[0-9]{2})' "$build_log"; then
+    echo "Transient composer download failure (HTTP 429/5xx); exiting 75 for GitLab retry." >&2
     exit 75
 fi
 
