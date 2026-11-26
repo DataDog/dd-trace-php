@@ -9,6 +9,7 @@
 #include "php_objects.h"
 #include "tracer_bridge.h"
 #include <alloc.h>
+#include <dlfcn.h>
 #include <ext/compatibility.h>
 
 struct _parser_alloc_context {
@@ -210,6 +211,18 @@ static PHP_FUNCTION(datadog_appsec_testing_body_parser_has_femalloc)
     RETURN_BOOL(zai_resolve__femalloc() != NULL);
 }
 
+// True on PHP builds carrying only the minimal fix of the EOL branches: any
+// allocation over memory_limit ends the process with _exit(1), so neither
+// PHP nor AppSec gets to recover from it.
+static PHP_FUNCTION(datadog_appsec_testing_memory_limit_exits_process)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(dlsym(RTLD_DEFAULT, "zend_mm_safe_error_ex") != NULL &&
+                zai_resolve__femalloc() == NULL);
+}
+
 // Configure persistent failure after N successful parser allocations. The
 // fatal variant exercises unexpected bailout after a successful preflight.
 // Return the previous call count to visit every allocation point.
@@ -239,6 +252,7 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "body_parser_has_femalloc", PHP_FN(datadog_appsec_testing_body_parser_has_femalloc), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "memory_limit_exits_process", PHP_FN(datadog_appsec_testing_memory_limit_exits_process), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "body_parser_fail_after", PHP_FN(datadog_appsec_testing_body_parser_fail_after), arginfo_body_parser_fail_after, 0, NULL, NULL)
     PHP_FE_END
 };
