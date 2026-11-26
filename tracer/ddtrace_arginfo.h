@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: cdf41b1ea570f2ba3b14560096c8b7882eb9ee4d */
+ * Stub hash: a89631d30c749df57685ad045262918a2aa05e32 */
 
 #include "zend_constants.h"
 
@@ -38,6 +38,15 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_set_user, 0, 1, IS_VOID,
 	ZEND_ARG_TYPE_INFO(0, userId, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, metadata, IS_ARRAY, 0, "[]")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, propagate, _IS_BOOL, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_DDTrace_routing_cache_get, 0, 1, MAY_BE_STRING|MAY_BE_FALSE)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_routing_cache_set, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_DDTrace_close_spans_until, 0, 1, MAY_BE_FALSE|MAY_BE_LONG)
@@ -405,6 +414,8 @@ ZEND_FUNCTION(DDTrace_hook_method);
 ZEND_FUNCTION(DDTrace_add_global_tag);
 ZEND_FUNCTION(DDTrace_add_distributed_tag);
 ZEND_FUNCTION(DDTrace_set_user);
+ZEND_FUNCTION(DDTrace_routing_cache_get);
+ZEND_FUNCTION(DDTrace_routing_cache_set);
 ZEND_FUNCTION(DDTrace_close_spans_until);
 ZEND_FUNCTION(DDTrace_active_span);
 ZEND_FUNCTION(DDTrace_root_span);
@@ -506,6 +517,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "add_global_tag"), zif_DDTrace_add_global_tag, arginfo_DDTrace_add_global_tag, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "add_distributed_tag"), zif_DDTrace_add_distributed_tag, arginfo_DDTrace_add_distributed_tag, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "set_user"), zif_DDTrace_set_user, arginfo_DDTrace_set_user, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "routing_cache_get"), zif_DDTrace_routing_cache_get, arginfo_DDTrace_routing_cache_get, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "routing_cache_set"), zif_DDTrace_routing_cache_set, arginfo_DDTrace_routing_cache_set, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "close_spans_until"), zif_DDTrace_close_spans_until, arginfo_DDTrace_close_spans_until, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "active_span"), zif_DDTrace_active_span, arginfo_DDTrace_active_span, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "root_span"), zif_DDTrace_root_span, arginfo_DDTrace_root_span, 0, NULL, NULL)
