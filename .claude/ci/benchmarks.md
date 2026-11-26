@@ -15,8 +15,10 @@
 | `benchmarks-profiler` | same | Runs profiler microbenchmarks |
 | `benchmarks-pr-comment` | `$BENCHMARKING_PLATFORM_TOOLS_IMAGE` (see `.gitlab/benchmarks.yml`) | Posts the tracer comparison as a PR comment (bp-runner config generated inline; no checkout); needs `benchmarks-tracer`; allow_failure |
 | `benchmarks-upload-bp-api` | same | Uploads the tracer results to the Benchmarking Platform API, in parallel with the comment; needs `benchmarks-tracer`; allow_failure |
-| `benchmarks-pr-comment-appsec`, `benchmarks-upload-bp-api-appsec` | same | Same flow for AppSec, with its own comment header; needs `benchmarks-appsec` |
-| `benchmarks-pr-comment-profiler`, `benchmarks-upload-bp-api-profiler` | same | Same flow for the profiler, with its own comment header; needs `benchmarks-profiler` |
+| `benchmarks-pr-comment-appsec` | same | Posts the AppSec comparison as a PR comment (bp-runner config generated inline; no checkout); needs `benchmarks-appsec`; allow_failure |
+| `benchmarks-upload-bp-api-appsec` | same | Uploads the AppSec results to the Benchmarking Platform API, in parallel with the comment; needs `benchmarks-appsec`; allow_failure |
+| `benchmarks-pr-comment-profiler` | same | Posts the profiler comparison as a PR comment (bp-runner config generated inline; no checkout); needs `benchmarks-profiler`; allow_failure |
+| `benchmarks-upload-bp-api-profiler` | same | Uploads the profiler results to the Benchmarking Platform API, in parallel with the comment; needs `benchmarks-profiler`; allow_failure |
 | `build-benchmark-ci-images` | (built in-repo from `.gitlab/benchmarks/container/`) | Manual job that builds the microbenchmark CI image from `.gitlab/benchmarks/container/`; described in `.gitlab/benchmarks/README.md` § How to rebuild the CI Docker image |
 | `build-llvm-bolt-align-image` | (built in-repo from `.gitlab/benchmarks/container/llvm-bolt-align/`) | Manual job that builds the static `llvm-bolt-align` tool image copied into the microbenchmark CI image; described in `.gitlab/benchmarks/README.md` § Rebuilding the `llvm-bolt-align` image |
 | `macrobenchmarks: [{PHP_VERSION}]` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld` | Runs a Laravel Realworld application under k6 load at three traffic levels; PHP 7.4 and 8.1 |

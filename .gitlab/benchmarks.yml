@@ -114,7 +114,7 @@ variables:
   MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-156499868
   # Benchmarking Platform tools image for the jobs that only read reports/.
   # Keep in sync with the FROM of .gitlab/benchmarks/container/Dockerfile.
-  BENCHMARKING_PLATFORM_TOOLS_IMAGE: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:c84f48353ba084394b62037c9bd8839721bd3b5c527cce142c3506ca1efaddd4
+  BENCHMARKING_PLATFORM_TOOLS_IMAGE: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:dbdd7f39672099fca20799a44b38e472a029376c98115b449debe68fb8f38856
   # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
   BASE_CI_IMAGE_SUFFIX: dd-trace-php-${CI_PIPELINE_ID}
   BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container
@@ -323,12 +323,13 @@ benchmarks-appsec:
   variables:
     SCENARIO: "appsec"
 
-# Reporting jobs: a PR comment and a parallel Benchmarking Platform API
-# upload. allow_failure preserves the old || : semantics, and separate jobs
-# avoid the parallel-teardown race with the S3 upload.
-# One pair per scenario: appsec and profiler benchmarks are manual, tracer is
-# not, and a need on an unplayed manual job makes GitLab skip the dependent.
-# Extending jobs must not set before_script: it holds the skip guard.
+.benchmarks-report-rules: &benchmarks-report-rules
+  - when: on_success
+
+# Reporting jobs: a PR comment plus a parallel Benchmarking Platform API
+# upload. allow_failure preserves the old || : semantics.
+# One pair per scenario: appsec and profiler benchmarks are manual, tracer
+# is not, and a need on an unplayed manual job makes GitLab skip the dependent.
 .benchmarks-report:
   stage: benchmarks-report
   allow_failure: true
@@ -336,7 +337,13 @@ benchmarks-appsec:
   tags: ["arch:amd64"]
   image: $BENCHMARKING_PLATFORM_TOOLS_IMAGE
   timeout: 30m
-  before_script:
+  variables:
+    GIT_STRATEGY: none
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
+
+.benchmarks-report-guard:
+  script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
     - |
       if [ -f "reports/skip-reason.txt" ] && ! ls reports/candidate*.converted.json >/dev/null 2>&1; then
@@ -346,18 +353,15 @@ benchmarks-appsec:
         echo "ERROR: Reports directory exists but is empty - benchmarks job had issues"
         exit 1
       fi
-  variables:
-    GIT_STRATEGY: none
-    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
-    FLAKY_BENCHMARKS_REGEX: ""
 
-.benchmarks-pr-comment:
+.benchmarks-report-pr-comment:
   extends: .benchmarks-report
   variables:
     # Analyzer settings the PR comment's comparison output depends on.
     SIGNIFICANT_IMPACT_THRESHOLD: "5.0"
     MD_REPORT_ONLY_CHANGES: "1"
   script:
+    - !reference [.benchmarks-report-guard, script]
     # pr-commenter identifies its comment by this header.
     - |
       cat > /tmp/bp-runner.pr-comment.yml <<EOF
@@ -376,9 +380,10 @@ benchmarks-appsec:
       - reports/
     expire_in: 3 months
 
-.benchmarks-upload-bp-api:
+.benchmarks-report-upload-bp-api:
   extends: .benchmarks-report
   script:
+    - !reference [.benchmarks-report-guard, script]
     - |
       cat > /tmp/bp-runner.upload-bp-api.yml <<EOF
       experiments:
@@ -402,43 +407,39 @@ benchmarks-appsec:
     expire_in: 3 months
 
 benchmarks-pr-comment:
-  extends: .benchmarks-pr-comment
+  extends: .benchmarks-report-pr-comment
   rules: *benchmarks-tracer-rules
   needs: [benchmarks-tracer]
   variables:
     BP_REPORT_SCENARIO: tracer
 
 benchmarks-upload-bp-api:
-  extends: .benchmarks-upload-bp-api
+  extends: .benchmarks-report-upload-bp-api
   rules: *benchmarks-tracer-rules
   needs: [benchmarks-tracer]
 
 benchmarks-pr-comment-appsec:
-  extends: .benchmarks-pr-comment
-  rules:
-    - when: on_success
+  extends: .benchmarks-report-pr-comment
+  rules: *benchmarks-report-rules
   needs: [benchmarks-appsec]
   variables:
     BP_REPORT_SCENARIO: appsec
 
 benchmarks-upload-bp-api-appsec:
-  extends: .benchmarks-upload-bp-api
-  rules:
-    - when: on_success
+  extends: .benchmarks-report-upload-bp-api
+  rules: *benchmarks-report-rules
   needs: [benchmarks-appsec]
 
 benchmarks-pr-comment-profiler:
-  extends: .benchmarks-pr-comment
-  rules:
-    - when: on_success
+  extends: .benchmarks-report-pr-comment
+  rules: *benchmarks-report-rules
   needs: [benchmarks-profiler]
   variables:
     BP_REPORT_SCENARIO: profiler
 
 benchmarks-upload-bp-api-profiler:
-  extends: .benchmarks-upload-bp-api
-  rules:
-    - when: on_success
+  extends: .benchmarks-report-upload-bp-api
+  rules: *benchmarks-report-rules
   needs: [benchmarks-profiler]
 
 # Kafka and RabbitMQ produce/consume throughput with Data Streams Monitoring

@@ -186,7 +186,7 @@ Open a ticket to fix or remove it. See
 The `MICROBENCHMARKS_CI_IMAGE` used by the microbenchmark jobs is built from
 `container/Dockerfile` in this directory. Rebuild and repin it whenever you
 change anything in that directory (e.g. bumping PHP, adding system packages,
-or updating `sirun`).
+updating `sirun`, or bumping the tools base digest).
 
 1. Edit the relevant file(s) under `.gitlab/benchmarks/container/`. Push the
    branch and open a PR.
@@ -213,9 +213,11 @@ or updating `sirun`).
    MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-<NEW_PIPELINE_ID>
    ```
 
-   If the rebuild picked up a newer `benchmarking-platform-tools-ubuntu`, repin
-   `BENCHMARKING_PLATFORM_TOOLS_IMAGE` to its digest too, so the reporting jobs
-   read the results with the same tools that wrote them.
+   The container builds `FROM` the digest pinned in
+   `BENCHMARKING_PLATFORM_TOOLS_IMAGE` (see `.gitlab/benchmarks.yml`), so a
+   rebuild can't silently pick up a newer tools base: to bump the tools, repin
+   the digest in both places together. This keeps the reporting jobs reading
+   the results with the same tools that wrote them.
 
 5. Push the update. The microbenchmarks now run against the rebuilt image.
    Verify a green benchmark pipeline before merging.
