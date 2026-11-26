@@ -45,7 +45,8 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
-        }
+        },
+        "files": ["../../../Appsec/Mock.php"]
     },
     "scripts": {
         "start": "php -S localhost:8080 -t public"
