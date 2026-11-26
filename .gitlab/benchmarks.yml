@@ -49,7 +49,8 @@ linux-php-laravel-realworld-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -60,7 +61,8 @@ linux-php-symfony-realworld-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -71,7 +73,8 @@ linux-php-wordpress-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -86,7 +89,8 @@ php-laravel-realworld-parallel-check-slo-breaches:
   rules: *macrobenchmarks-rules
 
 php-laravel-realworld-parallel-upload-results:
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
 
 php-symfony-realworld-parallel-generate-slos:
   rules: *macrobenchmarks-rules
@@ -95,7 +99,8 @@ php-symfony-realworld-parallel-check-slo-breaches:
   rules: *macrobenchmarks-rules
 
 php-symfony-realworld-parallel-upload-results:
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
 
 php-wordpress-parallel-generate-slos:
   rules: *macrobenchmarks-rules
@@ -104,7 +109,8 @@ php-wordpress-parallel-check-slo-breaches:
   rules: *macrobenchmarks-rules
 
 php-wordpress-parallel-upload-results:
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
 
 variables:
   # Microbenchmarks CI image, consumed by the benchmark jobs below. Repin to the
@@ -282,13 +288,15 @@ workflow:
 
 benchmarks-profiler:
   extends: .microbenchmarks
-  rules: *benchmarks-profiler-rules
+  rules:
+    - when: always
   variables:
     SCENARIO: "profiler"
 
 benchmarks-tracer:
   extends: .microbenchmarks
-  rules: *benchmarks-tracer-rules
+  rules:
+    - when: always
   parallel:
     matrix:
       - TRACER_PART: [ phpbench, phpbench-opcache, tea ]
@@ -304,7 +312,8 @@ benchmarks-tracer:
 
 benchmarks-appsec:
   extends: .microbenchmarks
-  rules: *benchmarks-appsec-rules
+  rules:
+    - when: always
   # reports/ feeds benchmarks-pr-comment (like the other scenarios);
   # the log tarballs are the scenario's own diagnostics.
   artifacts:
@@ -358,7 +367,8 @@ benchmarks-appsec:
 
 benchmarks-pr-comment:
   extends: .benchmarks-report
-  rules: *benchmarks-tracer-rules
+  rules:
+    - when: never
   needs: [benchmarks-tracer]
   variables:
     BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment.yml"
@@ -366,7 +376,7 @@ benchmarks-pr-comment:
 benchmarks-pr-comment-appsec:
   extends: .benchmarks-report
   rules:
-    - when: on_success
+    - when: never
   needs: [benchmarks-appsec]
   variables:
     BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment-appsec.yml"
@@ -374,7 +384,7 @@ benchmarks-pr-comment-appsec:
 benchmarks-pr-comment-profiler:
   extends: .benchmarks-report
   rules:
-    - when: on_success
+    - when: never
   needs: [benchmarks-profiler]
   variables:
     BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment-profiler.yml"
@@ -425,7 +435,8 @@ dsm-throughput:
     expire_in: 3 months
 
 check-big-regressions:
-  rules: *benchmarks-tracer-rules
+  rules:
+    - when: never
   stage: gate
   needs: [ "benchmarks-tracer" ]
   tags: [ "arch:amd64" ]
@@ -499,6 +510,8 @@ check-big-regressions:
   allow_failure: true
 
 macrobenchmarks:
+  rules:
+    - when: always
   extends: .macrobenchmarks
   parallel:
     matrix:
@@ -509,7 +522,8 @@ check-slo-breaches:
   extends: .check-slo-breaches
   stage: gate
   needs: ["macrobenchmarks"]
-  rules: *pre-release-performance-quality-gates-rules
+  rules:
+    - when: never
   artifacts:
     name: "artifacts"
     when: always
@@ -525,6 +539,7 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  rules: *notify-slo-breaches-rules
+  rules:
+    - when: never
   variables:
     CHANNEL: "guild-dd-php"
