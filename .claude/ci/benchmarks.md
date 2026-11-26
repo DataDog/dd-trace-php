@@ -13,13 +13,16 @@
 | `benchmarks-tracer` | `$MICROBENCHMARKS_CI_IMAGE` (see `.gitlab/benchmarks.yml`; built in-repo from `.gitlab/benchmarks/container/`) | Runs PHP tracer microbenchmarks via the Benchmarking Platform framework, one `TRACER_PART` (phpbench, phpbench-opcache, tea) and, for the phpbench parts, one `PHPBENCH_SHARD` (1, 2) per matrix job; skips automatically if no tracer-relevant files changed |
 | `benchmarks-appsec` | same | Runs appsec microbenchmarks; produces `candidate.tar.gz` and `baseline.tar.gz` artifacts |
 | `benchmarks-profiler` | same | Runs profiler microbenchmarks |
-| `benchmarks-pr-comment` | `$MICROBENCHMARKS_CI_IMAGE` (see `.gitlab/benchmarks.yml`; built in-repo from `.gitlab/benchmarks/container/`) | Runs `.gitlab/benchmarks/bp-runner.pr-comment.yml`: posts the tracer comparison as a PR comment and uploads the results to the Benchmarking Platform API; needs `benchmarks-tracer`; allow_failure |
-| `benchmarks-pr-comment-appsec` | same | Same flow for AppSec, with its own comment header; needs `benchmarks-appsec` |
-| `benchmarks-pr-comment-profiler` | same | Same flow for the profiler, with its own comment header; needs `benchmarks-profiler` |
+| `benchmarks-pr-comment` | `$BENCHMARKING_PLATFORM_TOOLS_IMAGE` (see `.gitlab/benchmarks.yml`) | Posts the tracer comparison as a PR comment (bp-runner config generated inline; no checkout); needs `benchmarks-tracer`; allow_failure |
+| `benchmarks-upload-bp-api` | same | Uploads the tracer results to the Benchmarking Platform API, in parallel with the comment; needs `benchmarks-tracer`; allow_failure |
+| `benchmarks-pr-comment-appsec` | same | Posts the AppSec comparison as a PR comment (bp-runner config generated inline; no checkout); needs `benchmarks-appsec`; allow_failure |
+| `benchmarks-upload-bp-api-appsec` | same | Uploads the AppSec results to the Benchmarking Platform API, in parallel with the comment; needs `benchmarks-appsec`; allow_failure |
+| `benchmarks-pr-comment-profiler` | same | Posts the profiler comparison as a PR comment (bp-runner config generated inline; no checkout); needs `benchmarks-profiler`; allow_failure |
+| `benchmarks-upload-bp-api-profiler` | same | Uploads the profiler results to the Benchmarking Platform API, in parallel with the comment; needs `benchmarks-profiler`; allow_failure |
 | `build-benchmark-ci-images` | (built in-repo from `.gitlab/benchmarks/container/`) | Manual job that builds the microbenchmark CI image from `.gitlab/benchmarks/container/`; described in `.gitlab/benchmarks/README.md` § How to rebuild the CI Docker image |
 | `build-llvm-bolt-align-image` | (built in-repo from `.gitlab/benchmarks/container/llvm-bolt-align/`) | Manual job that builds the static `llvm-bolt-align` tool image copied into the microbenchmark CI image; described in `.gitlab/benchmarks/README.md` § Rebuilding the `llvm-bolt-align` image |
 | `macrobenchmarks: [{PHP_VERSION}]` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld` | Runs a Laravel Realworld application under k6 load at three traffic levels; PHP 7.4 and 8.1 |
-| `check-big-regressions` | `registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:b682acae509fa391ac559705b66df07cac876e4c46641d2457077972a1c0bbb8` | Post-benchmark gate: fails if `benchmarks-tracer` results contain a regression above threshold, or if any part's candidate results (or baseline results, when there is a baseline branch) are missing |
+| `check-big-regressions` | `$BENCHMARKING_PLATFORM_TOOLS_IMAGE` | Post-benchmark gate: fails if `benchmarks-tracer` results contain a regression above threshold, or if any part's candidate results (or baseline results, when there is a baseline branch) are missing |
 | `check-slo-breaches` | (benchmarking-platform-tools template) | Post-macrobenchmark gate: evaluates SLO breaches |
 | `notify-slo-breaches` | (benchmarking-platform-tools template) | Posts SLO breach notifications to `#guild-dd-php` Slack channel |
 

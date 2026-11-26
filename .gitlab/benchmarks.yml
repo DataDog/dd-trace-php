@@ -112,6 +112,9 @@ variables:
   # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
   # Built here: https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/jobs/2300686392
   MICROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/ci/benchmarking-platform:dd-trace-php-156499868
+  # Benchmarking Platform tools image for the jobs that only read reports/.
+  # Keep in sync with the FROM of .gitlab/benchmarks/container/Dockerfile.
+  BENCHMARKING_PLATFORM_TOOLS_IMAGE: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:dbdd7f39672099fca20799a44b38e472a029376c98115b449debe68fb8f38856
   # The Dockerfile is located at: .gitlab/benchmarks/container/Dockerfile
   BASE_CI_IMAGE_SUFFIX: dd-trace-php-${CI_PIPELINE_ID}
   BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container
@@ -320,22 +323,28 @@ benchmarks-appsec:
   variables:
     SCENARIO: "appsec"
 
-# Posts the comparison and uploads results. allow_failure preserves the old || :
-# semantics, and a separate job avoids the parallel-teardown race with the S3
-# upload.
-# One reporting job per scenario: appsec and profiler benchmarks are manual,
-# tracer is not, and a need on an unplayed manual job makes GitLab skip the
-# dependent.
+.benchmarks-report-rules: &benchmarks-report-rules
+  - when: on_success
+
+# Reporting jobs: a PR comment plus a parallel Benchmarking Platform API
+# upload. allow_failure preserves the old || : semantics.
+# One pair per scenario: appsec and profiler benchmarks are manual, tracer
+# is not, and a need on an unplayed manual job makes GitLab skip the dependent.
 .benchmarks-report:
   stage: benchmarks-report
   allow_failure: true
   when: on_success
   tags: ["arch:amd64"]
-  image: $MICROBENCHMARKS_CI_IMAGE
+  image: $BENCHMARKING_PLATFORM_TOOLS_IMAGE
   timeout: 30m
+  variables:
+    GIT_STRATEGY: none
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
+
+.benchmarks-report-guard:
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
     - |
       if [ -f "reports/skip-reason.txt" ] && ! ls reports/candidate*.converted.json >/dev/null 2>&1; then
         echo "Benchmarks were skipped (no relevant file changes) - nothing to report"
@@ -344,42 +353,94 @@ benchmarks-appsec:
         echo "ERROR: Reports directory exists but is empty - benchmarks job had issues"
         exit 1
       fi
-    - bp-runner "${CI_PROJECT_DIR}/.gitlab/benchmarks/$BP_RUNNER_PR_COMMENT_CONFIG" --debug
+
+.benchmarks-report-pr-comment:
+  extends: .benchmarks-report
+  variables:
+    # Analyzer settings the PR comment's comparison output depends on.
+    SIGNIFICANT_IMPACT_THRESHOLD: "5.0"
+    MD_REPORT_ONLY_CHANGES: "1"
+  script:
+    - !reference [.benchmarks-report-guard, script]
+    # pr-commenter identifies its comment by this header.
+    - |
+      cat > /tmp/bp-runner.pr-comment.yml <<EOF
+      experiments:
+        - name: Post PR comment
+          steps:
+            - name: Post PR comment
+              run: post_pr_comment
+              header: Benchmarks [ ${BP_REPORT_SCENARIO:?} ]
+      EOF
+    - bp-runner /tmp/bp-runner.pr-comment.yml --debug
   artifacts:
     name: "reports"
     when: always
     paths:
       - reports/
     expire_in: 3 months
-  variables:
-    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
-    FLAKY_BENCHMARKS_REGEX: ""
-    # Analyzer settings the PR comment's comparison output depends on.
-    SIGNIFICANT_IMPACT_THRESHOLD: "5.0"
-    MD_REPORT_ONLY_CHANGES: "1"
+
+.benchmarks-report-upload-bp-api:
+  extends: .benchmarks-report
+  script:
+    - !reference [.benchmarks-report-guard, script]
+    - |
+      cat > /tmp/bp-runner.upload-bp-api.yml <<EOF
+      experiments:
+        - name: Upload to BP API
+          steps:
+            - name: No-op
+              run: shell
+              script: "true"
+      global_teardown:
+        - name: Upload to BP API
+          run: upload_to_bp_api
+          retries_on_failure: 3
+          project: dd-trace-php
+      EOF
+    - bp-runner /tmp/bp-runner.upload-bp-api.yml --debug
+  artifacts:
+    name: "bp-api-uploaded"
+    when: always
+    paths:
+      - reports/*.bp-api-uploaded.json
+    expire_in: 3 months
 
 benchmarks-pr-comment:
-  extends: .benchmarks-report
+  extends: .benchmarks-report-pr-comment
   rules: *benchmarks-tracer-rules
   needs: [benchmarks-tracer]
   variables:
-    BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment.yml"
+    BP_REPORT_SCENARIO: tracer
+
+benchmarks-upload-bp-api:
+  extends: .benchmarks-report-upload-bp-api
+  rules: *benchmarks-tracer-rules
+  needs: [benchmarks-tracer]
 
 benchmarks-pr-comment-appsec:
-  extends: .benchmarks-report
-  rules:
-    - when: on_success
+  extends: .benchmarks-report-pr-comment
+  rules: *benchmarks-report-rules
   needs: [benchmarks-appsec]
   variables:
-    BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment-appsec.yml"
+    BP_REPORT_SCENARIO: appsec
+
+benchmarks-upload-bp-api-appsec:
+  extends: .benchmarks-report-upload-bp-api
+  rules: *benchmarks-report-rules
+  needs: [benchmarks-appsec]
 
 benchmarks-pr-comment-profiler:
-  extends: .benchmarks-report
-  rules:
-    - when: on_success
+  extends: .benchmarks-report-pr-comment
+  rules: *benchmarks-report-rules
   needs: [benchmarks-profiler]
   variables:
-    BP_RUNNER_PR_COMMENT_CONFIG: "bp-runner.pr-comment-profiler.yml"
+    BP_REPORT_SCENARIO: profiler
+
+benchmarks-upload-bp-api-profiler:
+  extends: .benchmarks-report-upload-bp-api
+  rules: *benchmarks-report-rules
+  needs: [benchmarks-profiler]
 
 # Kafka and RabbitMQ produce/consume throughput with Data Streams Monitoring
 # off and on, against real brokers and agent; fails if DSM adds more than 3%
@@ -431,7 +492,7 @@ check-big-regressions:
   stage: gate
   needs: [ "benchmarks-tracer" ]
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:b682acae509fa391ac559705b66df07cac876e4c46641d2457077972a1c0bbb8
+  image: $BENCHMARKING_PLATFORM_TOOLS_IMAGE
   script: |
     if [ -f "reports/skip-reason.txt" ] && ! ls reports/candidate*.converted.json >/dev/null 2>&1; then
       echo "Benchmarks were skipped (no relevant file changes) - regression check not needed"

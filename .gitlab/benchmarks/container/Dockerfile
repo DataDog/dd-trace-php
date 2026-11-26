@@ -2,7 +2,9 @@
 # the build-llvm-bolt-align-image job from container/llvm-bolt-align/.
 FROM registry.ddbuild.io/ci/benchmarking-platform:llvm-bolt-align-156483907@sha256:800c006534c5182a29fef46d6f963398606485194b924c7d5636fd06d155d7fb AS bolt-align
 
-FROM registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+# Pinned by digest; keep in sync with BENCHMARKING_PLATFORM_TOOLS_IMAGE in
+# .gitlab/benchmarks.yml (see README § How to rebuild the CI Docker image).
+FROM registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:dbdd7f39672099fca20799a44b38e472a029376c98115b449debe68fb8f38856
 
 ARG CI_JOB_TOKEN
 ARG RUST_VERSION=1.91.1
