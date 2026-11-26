@@ -7,9 +7,6 @@ DDTRACE_TARGETS = ${YAMLS:.yml=}
 NO_DDTRACE_TARGETS := ${YAMLS:.yml=_no_ddtrace}
 TARGETS := $(DDTRACE_TARGETS) $(NO_DDTRACE_TARGETS)
 
-PULLED_DDTRACE_TARGETS := $(filter-out flow,$(DDTRACE_TARGETS))
-PULLED_NO_DDTRACE_TARGETS := $(filter-out flow_no_ddtrace,$(NO_DDTRACE_TARGETS))
-
 .PHONY: all
 all: help
 
@@ -42,25 +39,12 @@ clean:
 	test -e $(DDTRACE_DEB) && rm $(DDTRACE_DEB) || true
 
 .PHONY: $(TARGETS)
-
-flow: build_file_server
-	@echo Running $@
-	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/flow.yml pull mysql
-	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/flow.yml build flow
-	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/flow.yml run flow
-
-flow_no_ddtrace: build_file_server
-	@echo Running without ddtrace enabled flow
-	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/flow.yml pull mysql
-	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/flow.yml build flow
-	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/flow.yml run -e NO_DDTRACE=true flow
-
-$(PULLED_DDTRACE_TARGETS): build_file_server
+$(DDTRACE_TARGETS): build_file_server
 	@echo Running $@
 	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml pull
 	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml run $@
 
-$(PULLED_NO_DDTRACE_TARGETS): build_file_server
+$(NO_DDTRACE_TARGETS): build_file_server
 	@echo Running without ddtrace enabled $(@:_no_ddtrace=)
 	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$(@:_no_ddtrace=).yml pull
 	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$(@:_no_ddtrace=).yml run -e NO_DDTRACE=true $(@:_no_ddtrace=)

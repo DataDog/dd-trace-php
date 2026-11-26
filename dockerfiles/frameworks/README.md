@@ -43,3 +43,23 @@ $ make predis3
 # Without the tracer installed
 $ make predis3_no_ddtrace
 ```
+
+## Patches only take effect after publishing
+
+The framework Dockerfiles under `contrib/` apply the repository patches in the
+image's build directory at build time (`git apply *.patch`). The CI framework
+jobs pull the published framework images from Docker Hub (only the nginx file
+server is built locally), so a change to anything a Dockerfile bakes into an
+image - a patch under `contrib/<framework>/`, the Dockerfile itself, `run.sh`
+- only takes effect in CI once a maintainer with Docker Hub credentials runs
+the matching publish target:
+
+```
+$ make publish_framework_flow
+```
+
+Until that happens the framework jobs keep running the old image.
+`contrib/flow/flaky-auth-date.patch` (#4463) merged in 2026-11, but the
+`php-framework-flow` image was last published in 2025-05, so that patch has
+still never run in CI. If you change a patch, publish the image in the same
+PR or ask a maintainer to.
