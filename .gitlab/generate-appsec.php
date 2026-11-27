@@ -132,6 +132,11 @@ stages:
       done
       exit "${failed}"
 
+# G3.10: in the debug-zts and debug-zts-asan legs the native layer must be on:
+# curl_linkage_info.phpt fails (never skips) when it is off, which the other
+# curl phpts would otherwise hide by skipping. Its SKIPIF can still skip (no
+# testing functions, unknown platform) and run-tests exits 0 on a skip, so the
+# zts legs and the pinned leg also fail when the run lists it as SKIP.
 "test appsec extension":
   stage: test
   extends: .appsec_test
@@ -165,7 +170,88 @@ stages:
       -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++'
 	  -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
       -DENABLE_ASAN=$ASAN_FLAG || exit $?"
-    - ASAN_OPTIONS=malloc_context_size=0 ../../.gitlab/run-with-retryable-download.sh make -j 4 xtest || exit $?
+    # The C harnesses (linkage, collector, handle probe, calibration) are not dependencies of xtest: they are explicit steps on every leg.
+    - make -j 4 curl_linkage_test || exit $?
+    - make -j 4 curl_collect_test || exit $?
+    - make -j 4 curl_handle_validate_test || exit $?
+    - make -j 4 curl_calibrate_test || exit $?
+    - ASAN_OPTIONS=malloc_context_size=0 ../../.gitlab/run-with-retryable-download.sh make -j 4 xtest 2>&1 | tee xtest.log; test "${PIPESTATUS[0]}" -eq 0 || exit 1
+    - if [[ "$SWITCH_PHP_VERSION" == *zts* ]] && grep -E '^SKIP .*curl_linkage_info' xtest.log; then echo "curl_linkage_info.phpt skipped (G3.10)"; exit 1; fi
+
+<?php
+// G10.3, G10.4: one leg runs every curl phpt against a libcurl pinned below
+// 7.80, on every pipeline. The libcurl builds are in the image of
+// dockerfiles/ci/libcurl (built by the ci-images pipeline), which is not the
+// image the tests run in: a job running in it copies the lib/ directories to
+// an artifact, and the test job selects one with LD_LIBRARY_PATH, so PHP is not
+// rebuilt. The builds carry versioned symbols (as the distro's), so ld.so
+// prints no "no version information available" line into the phpt output
+// (Q10.1). The leg expects 7.79.1: curl_linkage_info.phpt compares that to
+// the libcurl the extension resolved and to curl_version().
+$pinnedLibcurl = "7.79.1";
+// the image tag comes from the .env that generate-ci-images.php builds it from
+preg_match('/^LIBCURL_IMAGE_VERSION=(\S+)/m',
+    file_get_contents(__DIR__ . "/../dockerfiles/ci/libcurl/.env"), $m);
+$libcurlImageTag = "libcurl-" . $m[1];
+foreach ($arch_targets as $arch_target):
+?>
+
+"appsec libcurl builds <?= $arch_target ?>":
+  stage: test
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:<?= $libcurlImageTag, "\n" ?>
+  tags: [ "arch:<?= $arch_target ?>" ]
+  interruptible: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_MEMORY_REQUEST: 1Gi
+  script:
+    - mkdir -p libcurl-builds
+    - cp -a /opt/libcurl/. libcurl-builds/
+    - ls libcurl-builds
+  artifacts:
+    paths:
+      - libcurl-builds/
+    expire_in: 1 day
+
+"test appsec extension libcurl <?= $pinnedLibcurl ?> <?= $arch_target ?>":
+  stage: test
+  extends: .appsec_test
+  needs:
+    - "appsec libcurl builds <?= $arch_target ?>"
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-14
+  variables:
+    ARCH: <?= $arch_target, "\n" ?>
+    SWITCH_PHP_VERSION: debug
+    KUBERNETES_CPU_REQUEST: 3
+    KUBERNETES_CPU_LIMIT: 3
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 3Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 3Gi
+    # the version curl_linkage_info.phpt expects the process to be bound to
+    DD_APPSEC_TEST_EXPECTED_LIBCURL: "<?= $pinnedLibcurl ?>"
+  script:
+    - switch-php $SWITCH_PHP_VERSION
+    - cd appsec/build
+    - "../../.gitlab/run-with-retryable-download.sh cmake .. -DCMAKE_BUILD_TYPE=Debug
+      -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++'
+      -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
+      -DENABLE_ASAN=OFF || exit $?"
+    # Build with the system libcurl (cmake and the compilers load it too); only
+    # the tests run against the pinned one.
+    - make -j 4 xtest-prepare ddtrace mock_helper || exit $?
+    # Every curl phpt (the below-7.80 tests included), and none other.
+    - export TESTS="$(cd ..; ls tests/extension/curl_*.phpt | tr '\n' ' ')"
+    - export LD_LIBRARY_PATH="$CI_PROJECT_DIR/libcurl-builds/$DD_APPSEC_TEST_EXPECTED_LIBCURL/lib"
+    - test -n "$DD_APPSEC_TEST_EXPECTED_LIBCURL" || exit 1
+    - ls "$LD_LIBRARY_PATH"
+    - make -j 4 xtest 2>&1 | tee xtest.log; test "${PIPESTATUS[0]}" -eq 0 || exit 1
+    - if grep -E '^SKIP .*curl_linkage_info' xtest.log; then echo "curl_linkage_info.phpt skipped (G10.4)"; exit 1; fi
+<?php
+endforeach;
+?>
 
 .appsec_integration_tests:
   stage: test

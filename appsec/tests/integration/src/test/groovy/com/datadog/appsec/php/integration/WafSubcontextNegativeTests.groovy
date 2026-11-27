@@ -7,6 +7,9 @@ import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.MountableFile
@@ -238,19 +241,7 @@ HTTP/1.1 200 OK'''
             assert resp.statusCode() == 200
             def expected = '''\
 Return from curl_exec:
-string(262) "<!DOCTYPE html>
-<html lang="en">
-<meta charset="UTF-8">
-<title>Page Title</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="">
-<style>
-</style>
-<script src=""></script>
-<body>
-This is an html
-</body>
-</html>"
+string(4) "GET:"
 '''
             assert resp.body().text == expected
         }
@@ -262,7 +253,7 @@ This is an html
     void 'curl_exec with URI no block'() {
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=uri_block') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
-            assert resp.body().text.contains('The requested URL was not found on this server.')
+            assert resp.body().text == 'Return from curl_exec:\nstring(4) "GET:"\n'
         }
 
         assert_no_blocking trace
@@ -444,19 +435,7 @@ GET:"
             assert resp.statusCode() == 200
             def expected = '''\
 Return from curl_exec:
-string(262) "<!DOCTYPE html>
-<html lang="en">
-<meta charset="UTF-8">
-<title>Page Title</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="">
-<style>
-</style>
-<script src=""></script>
-<body>
-This is an html
-</body>
-</html>"
+string(4) "GET:"
 '''
             assert resp.body().text == expected
         }
@@ -464,6 +443,115 @@ This is an html
         assert_no_blocking trace
     }
 
+
+    // Positive controls of the prevention tests of WafSubcontextTests (G10.10,
+    // G10.11): with no rule that matches, each of these requests delivers its
+    // body, and the downstream server's log has the line that the prevention
+    // tests do not find. The columns: how the body is framed, and its content.
+    @ParameterizedTest(name = '{0}')
+    @CsvSource(delimiter = '|', value = [
+            'simple_post_json             | length  | {"key":"blocked_request_body"}',
+            'simple_post_multipart        | length  |',
+            'infile_request               | length  | {"key": "blocked_request_body"}',
+            'infile_request_chunked       | chunked | {"key": "blocked_request_body"}',
+            'readfunction_request         | length  | {"key": "blocked_request_body"}',
+            'readfunction_request_chunked | chunked | {"key": "blocked_request_body"}',
+            'clone_with_stream_block      | chunked | {"key":"blocked_request_body"}',
+    ])
+    void 'request body is delivered when nothing blocks'(String variant, String framing, String content) {
+        WafSubContextTestServer.reset(CONTAINER)
+        Trace trace = CONTAINER.traceFromRequest("/curl_requests.php?variant=${variant}") { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert_no_blocking trace
+
+        def log = WafSubContextTestServer.receivedAfterSentinels(CONTAINER)
+        assert log.size() == 1 : "expected one request, got ${log*.uri}"
+        def entry = log[0]
+        assert entry.method == 'POST'
+        assert entry.body.contains('blocked_request_body')
+        if (content != null) {
+            assert entry.body == content
+        }
+        if (framing == 'chunked') {
+            assert entry.transfer_encoding == 'chunked'
+            assert entry.content_length == null
+        } else {
+            assert entry.transfer_encoding == null
+            assert entry.content_length == entry.body_length.toString()
+        }
+    }
+
+    // Controls for the variants over the limit and just under it
+    @ParameterizedTest(name = '{0}')
+    @ValueSource(strings = [
+            'request_body_under_limit_blocks',
+            'request_body_infile_under_limit_blocks',
+            'request_body_readfunction_under_limit_blocks',
+            'request_body_array_under_limit_blocks',
+    ])
+    void 'request body just under the limit is delivered when nothing blocks'(String variant) {
+        WafSubContextTestServer.reset(CONTAINER)
+        Trace trace = CONTAINER.traceFromRequest("/curl_requests.php?variant=${variant}") { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert_no_blocking trace
+
+        def log = WafSubContextTestServer.receivedAfterSentinels(CONTAINER)
+        assert log.size() == 1 : "expected one request, got ${log*.uri}"
+        assert log[0].method == 'POST'
+        assert log[0].body.contains('blocked_request_body')
+        assert log[0].body_length > 520000
+    }
+
+    // Positive controls of the W1 prevention tests of WafSubcontextTests (the
+    // request is blocked before any byte is sent): with no rule that matches,
+    // each of these requests reaches the downstream server. The columns: the
+    // number of requests the variant sends, the method of the one that
+    // carries the pattern, and the text of that request's URI or body.
+    @ParameterizedTest(name = '{0}')
+    @CsvSource(delimiter = '|', value = [
+            'query_block                  | 1 | GET | param=blocked_query_param',
+            'uri_block                    | 1 | GET | /blocked_uri_path',
+            'header_block                 | 1 | GET | variant=echo',
+            'cookie_block                 | 1 | GET | variant=echo',
+            'method_put_block             | 1 | PUT | variant=echo',
+            'method_put_block_curlopt_put | 1 | PUT | variant=echo',
+            'multi_exec_request_block     | 2 | POST | blocked_request_body',
+            'multi_exec_dynamic_add_block | 2 | POST | blocked_request_body',
+            'clone_block_request_body     | 1 | POST | blocked_request_body',
+            'clone_block_header           | 1 | GET | variant=echo',
+            'clone_block_query            | 1 | GET | param=blocked_query_param',
+    ])
+    void 'request blocked at W1 is delivered when nothing blocks'(String variant, int count, String method,
+                                                                 String text) {
+        WafSubContextTestServer.reset(CONTAINER)
+        CONTAINER.traceFromRequest("/curl_requests.php?variant=${variant}") { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        def log = WafSubContextTestServer.receivedAfterSentinels(CONTAINER)
+        assert log.size() == count : "expected ${count} requests, got ${log*.uri}"
+        assert log.any { it.method == method && (it.uri.contains(text) || it.body.contains(text)) } :
+                "no ${method} request with ${text} in ${log*.uri}"
+    }
+
+    // Positive control of the W1/W2 prevention tests: the header and the
+    // redirect target are delivered
+    @Test
+    void 'request header and redirect target are delivered when nothing blocks'() {
+        WafSubContextTestServer.reset(CONTAINER)
+        CONTAINER.traceFromRequest('/curl_requests.php?variant=header_block') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        CONTAINER.traceFromRequest('/curl_requests.php?variant=forward&code=302&hops=0&path_pattern=query_only') {
+            HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        def log = WafSubContextTestServer.receivedAfterSentinels(CONTAINER)
+        assert log*.variant == ['echo', 'forward', 'ping'] : "got ${log*.uri}"
+    }
 
     static void assert_no_blocking(Trace trace) {
         assert trace != null : "Trace is null"

@@ -86,6 +86,7 @@ $dirs = [
     "Bookworm" => "dockerfiles/ci/bookworm",
     "CentOS"   => "dockerfiles/ci/centos/7",
     "Alpine"   => "dockerfiles/ci/alpine_compile_extension",
+    "Libcurl"  => "dockerfiles/ci/libcurl",
     "Services" => "dockerfiles/services",
     "Packaging" => "dockerfiles/packaging/fpm_packaging",
     "Randomized" => "tests/randomized",

@@ -60,6 +60,12 @@ class TelemetryTests {
             }
 
     @BeforeAll
+    static void startTestServer() {
+        // the ddtrace-less server of the downstream curl requests
+        new WafSubContextTestServer(CONTAINER, 8899).start()
+    }
+
+    @BeforeAll
     static void beforeAll() {
         CONTAINER.flushProfilingData()
         org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
@@ -1209,6 +1215,124 @@ class TelemetryTests {
         }
     }
 
+
+    /**
+     * A downstream curl response larger than the body limit is cut for the
+     * WAF, but that is not the main request's input: the waf.requests metric
+     * of the main request has input_truncated:false (G10.22).
+     */
+    @Test
+    @Order(14)
+    void 'large downstream response does not set input_truncated'() {
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // let the metrics of the earlier tests be flushed (and consumed) first
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            messages.collectMany { it.series }.any { it.name == 'waf.requests' }
+        }
+
+        // the downstream body is over the limit (512 KiB): it is cut
+        CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_over_limit_no_block') {
+            HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            assert resp.body().text.contains('Return from curl_exec:')
+        }
+
+        // the metric of the request above must be flushed before the
+        // assertion: a series with input_truncated:false could also come from
+        // an earlier request. Since the baseline was drained, the requests
+        // that can be counted here are the curl request, the hello.php sent
+        // next, and the one the wait helper sends on its first iteration; the
+        // wait ends when the data points add up to these three.
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        def wafReqs = []
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            wafReqs = messages.collectMany { it.series }.findAll { it.name == 'waf.requests' }
+            wafReqs.sum(0.0d) { series -> series.points.sum(0.0d) { it[1] as double } } >= 3.0d
+        }
+
+        assert wafReqs.any { 'input_truncated:false' in it.tags }
+        assert !wafReqs.any { 'input_truncated:true' in it.tags } :
+                'a large downstream response must not set input_truncated on the main request'
+    }
+
+    /**
+     * A block of a downstream curl request counts like every other RASP block
+     * (G6.19): waf.requests carries request_blocked:true and block_failure:false
+     * but rule_triggered:false, and rasp.rule.match carries block:success. The
+     * SSRF rule is overridden to block; the request is blocked before the
+     * transfer (W1), so no server has to answer.
+     */
+    @Test
+    @Order(15)
+    void 'curl ssrf block counts request_blocked without rule_triggered'() {
+        try {
+            Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                    'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                            asm: [enabled: true]
+                    ],
+                    'datadog/2/ASM/rasp_ssrf_block_override/config': [
+                            rules_override: [[
+                                                     rules_target: [[rule_id: 'rasp-934-100']],
+                                                     on_match: ['block']
+                                             ]]
+                    ]
+            ])
+            assert requestSup.get() != null
+
+            HttpRequest req = CONTAINER.buildReq(
+                    '/curl_requests.php?variant=ssrf&domain=169.254.169.254')
+                    .GET().build()
+            Trace trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 403
+                assert resp.body().contains("You've been blocked")
+            }
+            assert trace != null
+
+            TelemetryHelpers.Metric wafReqBlocked
+            TelemetryHelpers.Metric ssrfMatchSuccess
+
+            TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+                def allSeries = messages.collectMany { it.series }
+                wafReqBlocked = wafReqBlocked ?: allSeries.find {
+                    it.name == 'waf.requests' &&
+                            'request_blocked:true' in it.tags &&
+                            'rule_triggered:false' in it.tags
+                }
+                ssrfMatchSuccess = ssrfMatchSuccess ?: allSeries.find {
+                    it.name == 'rasp.rule.match' &&
+                            'rule_type:ssrf' in it.tags &&
+                            'block:success' in it.tags
+                }
+                wafReqBlocked != null && ssrfMatchSuccess != null
+            }
+
+            assert wafReqBlocked != null :
+                    'waf.requests with request_blocked:true and rule_triggered:false not found'
+            assert wafReqBlocked.namespace == 'appsec'
+            assert wafReqBlocked.type == 'count'
+            assert 'block_failure:false' in wafReqBlocked.tags
+            assert ssrfMatchSuccess != null : 'rasp.rule.match with block:success for ssrf not found'
+        } finally {
+            CONTAINER.applyRemoteConfig(RC_TARGET, [
+                    'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                            asm: [enabled: true]
+                    ],
+                    'datadog/2/ASM/rasp_ssrf_block_override/config': null
+            ])
+        }
+    }
 
     /**
      * RFC-1012: appsec.waf.requests must include the rate_limited boolean tag.

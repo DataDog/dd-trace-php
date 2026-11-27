@@ -1,26 +1,6 @@
 <?php
 $variant = $_GET['variant'] ?? 'simple';
 
-// Hook for tracing WAF push_addresses calls
-if (isset($_GET['trace_waf_runs'])) {
-    \DDTrace\trace_function('datadog\appsec\push_addresses', function (\DDTrace\SpanData $span, array $args) {
-        $span->name = 'appsec.push_addresses';
-        $span->type = 'appsec';
-        $span->service = 'appsec-waf';
-        $span->resource = 'push_addresses';
-
-        // Serialize first argument (data) to JSON and add as tag
-        if (isset($args[0])) {
-            $span->meta['push_call.data'] = json_encode($args[0]);
-        }
-
-        // Serialize second argument (options) to JSON and add as tag
-        if (isset($args[1])) {
-            $span->meta['push_call.options'] = json_encode($args[1]);
-        }
-    });
-}
-
 function curl_ret_transfer_exec($ch)
 {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -69,10 +49,49 @@ function generate_body_over_limit($blocking_pattern = 'blocked_request_body') : 
     ));
 }
 
+// For the tests checking what the app's curl callbacks got: with
+// ?marker=<name>, app_saw() records each call in a file (it survives the
+// request being blocked), which ?variant=app_saw&marker=<name> prints and
+// removes.
+function app_saw_file() : string
+{
+    $marker = preg_replace('/[^a-z0-9_]/', '', $_GET['marker'] ?? '');
+    return $marker === '' ? '' : sys_get_temp_dir() . "/curl_app_saw_$marker.log";
+}
+function app_saw($kind, $data)
+{
+    $file = app_saw_file();
+    if ($file !== '') {
+        file_put_contents($file, sprintf("%s %d%s\n", $kind, strlen($data),
+            strpos($data, 'blocked_response') !== false ? ' blocked' : ''), FILE_APPEND);
+    }
+}
+if (app_saw_file() !== '' && $variant !== 'app_saw') {
+    @unlink(app_saw_file());
+}
+
 switch ($variant) {
+    case 'app_saw':
+        $lines = @file(app_saw_file(), FILE_IGNORE_NEW_LINES) ?: [];
+        @unlink(app_saw_file());
+        $bytes = 0;
+        $blocked = false;
+        foreach ($lines as $l) {
+            $parts = explode(' ', $l);
+            $bytes += (int)$parts[1];
+            $blocked = $blocked || isset($parts[2]);
+        }
+        echo 'calls: ', count($lines), ' bytes: ', $bytes, ' blocked data: ', $blocked ? 'yes' : 'no', "\n";
+        break;
     case 'simple':
         $url = 'http://localhost/example.json';
         $ch = curl_init($url);
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'ssrf':
+        // the host comes from the request (RASP SSRF detection, whose detector
+        // wants user input that is part of the URL, as in ssrf.php)
+        $ch = curl_init('http://' . ($_GET['domain'] ?? '') . '/somewhere/in/the/app');
         curl_ret_transfer_exec($ch);
         break;
     case 'simple_post_json':
@@ -167,6 +186,7 @@ switch ($variant) {
         $ch = curl_init($url);
         $responseData = '';
         curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$responseData) {
+            app_saw('write', $data);
             $responseData .= $data;
             return strlen($data);
         });
@@ -189,12 +209,12 @@ switch ($variant) {
         echo file_get_contents('/tmp/curl_header_response.txt');
         break;
     case 'query_block':
-        $url = 'http://localhost/example.html?param=blocked_query_param';
+        $url = endpoint_url('echo') . '&param=blocked_query_param';
         $ch = curl_init($url);
         curl_ret_transfer_exec($ch);
         break;
     case 'uri_block':
-        $url = 'http://localhost/blocked_uri_path/example.html';
+        $url = 'http://127.0.0.1:8899/curl_requests_endpoint.php/blocked_uri_path?variant=echo';
         $ch = curl_init($url);
         curl_ret_transfer_exec($ch);
         break;
@@ -234,6 +254,20 @@ switch ($variant) {
         $url = endpoint_url('header');
         $ch = curl_init($url);
         curl_ret_transfer_exec($ch);
+        break;
+    case 'response_header_block_headerfunction':
+        $url = endpoint_url('header');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $line) {
+            app_saw('header', $line);
+            return strlen($line);
+        });
+        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) {
+            app_saw('write', $data);
+            return strlen($data);
+        });
+        curl_exec($ch);
+        echo 'curl_errno: ', curl_errno($ch), "\n";
         break;
     case 'response_cookie_block':
         $url = endpoint_url('cookie');
@@ -281,13 +315,16 @@ switch ($variant) {
         // Test blocking when curl_multi_info_read returns blocking response
         $mh = curl_multi_init();
 
-        $ch1 = curl_init(endpoint_url('echo'));
+        // Both transfers start at the first exec, and only one body analysis
+        // per request is allowed (G8.1): the first handle added gets the
+        // slot, so it is the one with the matching JSON response.
+        $ch1 = curl_init('http://localhost/example.json');
         if ($variant !== 'multi_exec_response_block_noreturntransfer') {
             curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
         }
         curl_multi_add_handle($mh, $ch1);
 
-        $ch2 = curl_init('http://localhost/example.json');
+        $ch2 = curl_init(endpoint_url('echo'));
         if ($variant !== 'multi_exec_response_block_noreturntransfer') {
             curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
         }
@@ -330,31 +367,36 @@ switch ($variant) {
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
         curl_multi_add_handle($mh, $ch1);
 
+        // Only one body analysis per request is allowed (G8.1) and a slot is
+        // given back only when the transfer ends, so the second handle is
+        // added once the first is done; it starts at the next exec (G4.17).
+        // The output is buffered: the block of the second handle must come
+        // before anything is sent, or the status could no longer be a 403.
         $active = null;
-        $exec_count = 0;
         $ch2_added = false;
+        ob_start();
         do {
             curl_multi_exec($mh, $active);
-            $exec_count++;
-
-            if ($exec_count === 2 && !$ch2_added) {
-                $ch2 = curl_init($url);
-                curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch2, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-                curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode(array('key' => 'blocked_request_body')));
-                curl_multi_add_handle($mh, $ch2);
-                $ch2_added = true;
-            }
 
             while ($info = curl_multi_info_read($mh)) {
                 $data = curl_multi_getcontent($info['handle']);
                 echo "Handle completed with response:\n", $data, "\n";
             }
 
-            if ($active) {
+            if (!$ch2_added && !$active) {
+                $ch2 = curl_init($url);
+                curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch2, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+                curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode(array('key' => 'blocked_request_body')));
+                curl_multi_add_handle($mh, $ch2);
+                $ch2_added = true;
+                $active = 1;
+                curl_multi_select($mh, 0.1);
+            } elseif ($active) {
                 curl_multi_select($mh, 0.1);
             }
         } while ($active);
+        ob_end_flush();
 
         echo "Multi-exec dynamic add completed\n";
         curl_multi_remove_handle($mh, $ch1);
@@ -390,7 +432,7 @@ switch ($variant) {
         break;
     case 'clone_block_query':
         // Test cloning a handle with blocking query parameter
-        $url = 'http://localhost/example.html?param=blocked_query_param';
+        $url = endpoint_url('echo') . '&param=blocked_query_param';
         $ch1 = curl_init($url);
 
         $ch2 = curl_copy_handle($ch1);
@@ -398,11 +440,10 @@ switch ($variant) {
         curl_ret_transfer_exec($ch2);
         curl_close($ch1);
         break;
-    case 'clone_with_stream_no_block':
-        // Test technical limitation: when a handle with stream filter is cloned,
-        // the filter is removed (because shared streams can't track per-handle data)
-        // so blocking stops working
-        $url = 'http://localhost/example.html';
+    case 'clone_with_stream_block':
+        // The body is read from a stream shared by the original handle and its
+        // copy; the copy sends it, and the body as sent is analysed
+        $url = endpoint_url('echo');
         $ch1 = curl_init($url);
         curl_setopt($ch1, CURLOPT_POST, true);
 
@@ -416,11 +457,8 @@ switch ($variant) {
         curl_setopt($ch1, CURLOPT_INFILESIZE, $size);
         curl_setopt($ch1, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
 
-        // Clone the handle - this removes the stream filter
         $ch2 = curl_copy_handle($ch1);
 
-        // Execute the cloned handle - should NOT block due to technical limitation
-        // (filter was removed, body becomes noop)
         curl_ret_transfer_exec($ch2);
         fclose($fp);
         curl_close($ch1);
@@ -562,6 +600,10 @@ switch ($variant) {
         $ch = curl_init($url);
         curl_ret_transfer_exec($ch);
         break;
+    case 'response_status':
+        $ch = curl_init(endpoint_url('status') . '&code=418');
+        curl_ret_transfer_exec($ch);
+        break;
     case 'response_body_over_limit_no_block':
         $url = endpoint_url('large_response_over_limit');
         $ch = curl_init($url);
@@ -604,6 +646,7 @@ switch ($variant) {
         $ch = curl_init($url);
         $responseData = '';
         curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$responseData) {
+            app_saw('write', $data);
             $responseData .= $data;
             return strlen($data);
         });
@@ -620,6 +663,7 @@ switch ($variant) {
         $ch = curl_init($url);
         $responseData = '';
         curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$responseData) {
+            app_saw('write', $data);
             $responseData .= $data;
             return strlen($data);
         });
@@ -637,6 +681,7 @@ switch ($variant) {
         $ch = curl_init($url);
         $responseData = '';
         curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$responseData) {
+            app_saw('write', $data);
             $responseData .= $data;
             return strlen($data);
         });
@@ -692,6 +737,7 @@ switch ($variant) {
         break;
     case 'forward':
     case 'forward_auth':
+    case 'forward_hop_headers':
     case 'forward_postredir':
     case 'forward_post':
     case 'forward_post_postredir':
@@ -729,6 +775,12 @@ switch ($variant) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer test-token']);
             curl_setopt($ch, CURLOPT_COOKIE, 'session=test-session');
             curl_setopt($ch, CURLOPT_UNRESTRICTED_AUTH, true);
+        }
+
+        if ($variant === 'forward_hop_headers') {
+            // sent on the first hop only by the extension's request_exec
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-Hop-Check: hop_header']);
+            curl_setopt($ch, CURLOPT_COOKIE, 'session=hop_cookie');
         }
 
         if ($variant === 'forward_postredir') {

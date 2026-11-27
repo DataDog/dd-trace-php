@@ -7384,9 +7384,15 @@
         }
       ],
       "transformers": [],
-      "on_match": [
-        "block"
-      ]
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-002": {
+            "value": "matched"
+          }
+        }
+      }
     },
     {
       "id": "CUSTOM-003",
@@ -7464,9 +7470,15 @@
         }
       ],
       "transformers": [],
-      "on_match": [
-        "block"
-      ]
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-004": {
+            "value": "matched"
+          }
+        }
+      }
     },
     {
       "id": "CUSTOM-004b",
@@ -7490,9 +7502,15 @@
         }
       ],
       "transformers": [],
-      "on_match": [
-        "block"
-      ]
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-004b": {
+            "value": "matched"
+          }
+        }
+      }
     },
     {
       "id": "CUSTOM-005",
@@ -7570,6 +7588,470 @@
       "on_match": [
         "block"
       ]
+    },
+    {
+      "id": "CUSTOM-008",
+      "name": "Block resolved redirect targets",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "list": [
+              "http://127.0.0.1:8899/example.html?redirect_check=url",
+              "http://127.0.0.1:8899//example.html?redirect_check=url",
+              "http://127.0.0.1:8899/curl_requests_endpoint.php?variant=ping&redirect_check=url"
+            ]
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-009",
+      "name": "Block the method of the last redirect hop",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "^http://127\\.0\\.0\\.1:8899/example\\.html\\?redirect_check=method$"
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.method"
+              }
+            ],
+            "list": [
+              "GET",
+              "POST",
+              "PATCH"
+            ]
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-010",
+      "name": "Block credentials forwarded to the last redirect hop",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "^http://127\\.0\\.0\\.1:8899/example\\.html\\?redirect_check=auth$"
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.headers",
+                "key_path": [
+                  "authorization"
+                ]
+              }
+            ],
+            "regex": "^Bearer test-token$"
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.headers",
+                "key_path": [
+                  "cookie"
+                ]
+              }
+            ],
+            "regex": "^session=test-session$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-011",
+      "name": "Block a redirect response leaking into the next hop",
+      "tags": {
+        "type": "block_response",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "^http://127\\.0\\.0\\.1:8899/example\\.html\\?redirect_check=isolation$"
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.response.headers",
+                "key_path": [
+                  "location"
+                ]
+              }
+            ],
+            "regex": "."
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-011": {
+            "value": "matched"
+          }
+        }
+      }
+    },
+    {
+      "id": "CUSTOM-012",
+      "name": "Block the response of the last redirect hop",
+      "tags": {
+        "type": "block_response",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "^http://127\\.0\\.0\\.1:8899/example\\.html\\?redirect_check=isolation$"
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.response.headers",
+                "key_path": [
+                  "content-type"
+                ]
+              }
+            ],
+            "regex": "^text/html"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-012": {
+            "value": "matched"
+          }
+        }
+      }
+    },
+    {
+      "id": "CUSTOM-013",
+      "name": "Tag a downstream response whose status is the string 418",
+      "tags": {
+        "type": "tag_response",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.response.status"
+              }
+            ],
+            "type": "string",
+            "value": "418"
+          },
+          "operator": "equals"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-013": {
+            "value": "matched"
+          }
+        }
+      }
+    },
+    {
+      "id": "CUSTOM-014",
+      "name": "Tag a request header of the first hop",
+      "tags": {
+        "type": "tag_request_header",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.headers",
+                "key_path": [
+                  "x-hop-check"
+                ]
+              }
+            ],
+            "regex": "hop_header"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-014": {
+            "value": "matched"
+          }
+        }
+      }
+    },
+    {
+      "id": "CUSTOM-014b",
+      "name": "Tag a request header together with the last hop URL",
+      "tags": {
+        "type": "tag_request_header_and_url",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "^http://127\\.0\\.0\\.1:8899/example\\.html\\?redirect_check=hops$"
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.headers",
+                "key_path": [
+                  "x-hop-check"
+                ]
+              }
+            ],
+            "regex": "hop_header"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-014b": {
+            "value": "matched"
+          }
+        }
+      }
+    },
+    {
+      "id": "CUSTOM-014c",
+      "name": "Tag the last hop URL alone",
+      "tags": {
+        "type": "tag_request_url",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "^http://127\\.0\\.0\\.1:8899/example\\.html\\?redirect_check=hops$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-014c": {
+            "value": "matched"
+          }
+        }
+      }
+    },
+    {
+      "id": "CUSTOM-010c",
+      "name": "Tag the URL of the last hop of the credentials test alone",
+      "tags": {
+        "type": "tag_request_url",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "^http://127\\.0\\.0\\.1:8899/example\\.html\\?redirect_check=auth$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-010c": {
+            "value": "matched"
+          }
+        }
+      }
+    },
+    {
+      "id": "CUSTOM-015",
+      "name": "Tag a request cookie of the first hop",
+      "tags": {
+        "type": "tag_request_cookie",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.headers",
+                "key_path": [
+                  "cookie"
+                ]
+              }
+            ],
+            "regex": "hop_cookie"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-015": {
+            "value": "matched"
+          }
+        }
+      }
+    },
+    {
+      "id": "CUSTOM-015b",
+      "name": "Tag a request cookie together with the last hop URL",
+      "tags": {
+        "type": "tag_request_cookie_and_url",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "^http://127\\.0\\.0\\.1:8899/example\\.html\\?redirect_check=hops$"
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.headers",
+                "key_path": [
+                  "cookie"
+                ]
+              }
+            ],
+            "regex": "hop_cookie"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.tag.CUSTOM-015b": {
+            "value": "matched"
+          }
+        }
+      }
     }
   ],
   "rules_compat": [

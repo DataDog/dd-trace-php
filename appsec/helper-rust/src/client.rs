@@ -1568,6 +1568,70 @@ mod tests {
             assert_eq!(ctx.waf_metrics.rasp_rule_evals(), 0);
         }
 
+        // What the integration tests (Groovy) rely on: the response-stage
+        // rules of their ruleset are tag-only, and a rule that accepts only
+        // strings matches the status, which is sent as a string
+        mod tag_only_response_rules {
+            use super::*;
+            use crate::telemetry::{SpanMetaName, SpanMetricName, SpanMetricsGenerator};
+
+            #[derive(Default)]
+            struct Tags(Vec<(String, String)>);
+            impl crate::telemetry::SpanMetricsSubmitter for Tags {
+                fn submit_metric(&mut self, _: SpanMetricName, _: f64) {}
+                fn submit_meta(&mut self, _: SpanMetaName, _: String) {}
+                fn submit_meta_dyn_key(&mut self, key: String, value: String) {
+                    self.0.push((key, value));
+                }
+                fn submit_metric_dyn_key(&mut self, _: String, _: f64) {}
+            }
+
+            fn tagged(ctx: &ReqContext, rule: &str) -> bool {
+                let mut tags = Tags::default();
+                ctx.waf_attributes.generate_span_metrics(&mut tags);
+                let key = format!("_dd.appsec.test.tag.{rule}");
+                tags.0.iter().any(|(k, v)| *k == key && v == "matched")
+            }
+
+            fn ctx() -> ReqContext {
+                req_context_with(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../tests/integration/src/test/waf/recommended.json"
+                ))
+            }
+
+            #[test]
+            fn string_status_is_tagged_and_does_not_block() {
+                let mut ctx = ctx();
+                let data = libddwaf::waf_map! {("server.io.net.response.status", "418")};
+                let res = ctx.run_waf(data, &opts(true)).unwrap();
+                assert!(tagged(&ctx, "CUSTOM-013"));
+                assert!(res.triggers.is_empty(), "tag-only: no event");
+                assert!(res.actions.is_empty(), "tag-only: no action");
+                assert!(!res.waf_keep);
+            }
+
+            #[test]
+            fn integer_status_is_not_matched_by_a_string_rule() {
+                let mut ctx = ctx();
+                let data = libddwaf::waf_map! {("server.io.net.response.status", 418i64)};
+                ctx.run_waf(data, &opts(true)).unwrap();
+                assert!(!tagged(&ctx, "CUSTOM-013"));
+            }
+
+            #[test]
+            fn response_body_is_tagged_and_does_not_block() {
+                let mut ctx = ctx();
+                let data = libddwaf::waf_map! {
+                    ("server.io.net.response.body", "blocked_response_body")
+                };
+                let res = ctx.run_waf(data, &opts(true)).unwrap();
+                assert!(tagged(&ctx, "CUSTOM-002"));
+                assert!(res.triggers.is_empty());
+                assert!(res.actions.is_empty());
+            }
+        }
+
         #[test]
         fn last_call_with_data_runs_and_drops_subcontext() {
             let mut ctx = req_context();

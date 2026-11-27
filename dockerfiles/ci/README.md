@@ -88,6 +88,14 @@ anything. It is up to you to ensure the image you publish actually exists in
   a `php-<minor>/Dockerfile` (copy the previous minor's and adjust the
   `COPY php-<minor>/...` paths). The generator picks the new service up
   automatically — no pipeline edits needed.
+* **libcurl** (`dockerfiles/ci/libcurl/`): not a PHP image. It holds the
+  `lib/` of precompiled libcurl builds (7.79.1, 7.80.0, 7.88.1, 8.0.1, 8.1.0,
+  8.5.0, 8.18.0) under `/opt/libcurl/<version>/`, for the appsec curl tests.
+  Select one without rebuilding PHP with
+  `LD_LIBRARY_PATH=/opt/libcurl/<version>/lib`. To add a version, add a line
+  (version and sha256) to the `Dockerfile` and bump `LIBCURL_IMAGE_VERSION` in
+  its `.env`; the pinned leg of `.gitlab/generate-appsec.php` reads the tag
+  from there.
 
 ## Building locally
 

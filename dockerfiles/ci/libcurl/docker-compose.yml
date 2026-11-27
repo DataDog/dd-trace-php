@@ -1,0 +1,12 @@
+version: '3.7'
+
+services:
+
+  libcurl:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:libcurl-$LIBCURL_IMAGE_VERSION
+    build:
+      context: .
+      x-bake:
+        platforms:
+          - linux/arm64
+          - linux/amd64
