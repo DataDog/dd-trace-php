@@ -15,3 +15,7 @@ $info = \datadog\appsec\testing\curl_linkage_info();
 if (!$info['enabled']) {
     die('skip native layer disabled: ' . $info['reason']);
 }
+if (!$info['calibration_accepted']) {
+    die('skip native layer disabled: calibration refused: '
+        . $info['calibration_reason']);
+}

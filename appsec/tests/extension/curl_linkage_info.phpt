@@ -3,10 +3,12 @@ ext/curl's libcurl is detected as dynamically linked, resolved and calibrated
 --DESCRIPTION--
 The CI images link ext/curl (built into php) against the system libcurl, so
 the native downstream-request analysis must be available, with the libcurl
-functions resolved from the same libcurl instance ext/curl uses. In the
-debug-zts and debug-zts-asan legs this must pass, never skip (G10.5); the
-other curl tests skip when the linkage is not enabled
-(inc/curl_skipif.php), so this is the test that fails for any cause of "off".
+functions resolved from the same libcurl instance ext/curl uses and the offsets
+of the write, header and read callback slots calibrated (G5.1; below libcurl
+7.80 only the read slots, G3.4). In the debug-zts and debug-zts-asan legs this
+must pass, never skip (G10.5); the other curl tests skip when the linkage is
+not enabled (inc/curl_skipif.php), so this is the test that fails for any
+cause of "off".
 
 Identity (G10.13): the libcurl ext/curl is bound to is the one the leg selects.
 A leg that selects a libcurl with LD_LIBRARY_PATH (the images of
@@ -47,6 +49,26 @@ if ($expected !== false && $expected !== '') {
 } else {
     var_dump(true, true, true, true);
 }
+
+// calibration of the six callback slots (below 7.80 the two read slots, the
+// others 0): accepted, each at its own pointer-aligned offset
+var_dump($info['calibration_accepted']);
+$all = $info['libcurl_version_num'] >= 0x075000;
+var_dump($info['calibration_reason'] === ($all
+    ? 'write, header and read slots found once each, stable over two rounds'
+    : 'read slots found once each, stable over two rounds (below libcurl '
+        . '7.80 only the read slots are used)'));
+$offsets = $info['calibration_offsets'];
+var_dump(array_keys($offsets));
+$used = $all ? $offsets
+    : array_intersect_key($offsets, ['read_function' => 1, 'read_data' => 1]);
+var_dump(count(array_unique($used)) === count($used) && count($used) === ($all ? 6 : 2));
+var_dump(array_sum(array_diff_key($offsets, $used)) === 0);
+foreach ($used as $off) {
+    if (!is_int($off) || $off <= 0 || $off % PHP_INT_SIZE !== 0) {
+        echo "bad offset: ", var_export($off, true), "\n";
+    }
+}
 ?>
 --EXPECTF--
 bool(true)
@@ -58,5 +80,23 @@ bool(true)
 bool(true)
 bool(true)
 bool(true)
+bool(true)
+bool(true)
+bool(true)
+bool(true)
+array(6) {
+  [0]=>
+  string(14) "write_function"
+  [1]=>
+  string(10) "write_data"
+  [2]=>
+  string(15) "header_function"
+  [3]=>
+  string(11) "header_data"
+  [4]=>
+  string(13) "read_function"
+  [5]=>
+  string(9) "read_data"
+}
 bool(true)
 bool(true)

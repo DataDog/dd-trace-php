@@ -14,6 +14,11 @@
 static struct dd_curl_linkage _linkage = {
     .reason = "detection did not run",
 };
+static struct dd_curl_calibration _calibration = {
+    .reason = "calibration did not run",
+};
+
+static void _calibrate(void);
 
 #ifdef TESTING
 static void _register_testing_objects(void);
@@ -43,21 +48,70 @@ void dd_curl_linkage_startup(void)
     }
 
     if (!_linkage.enabled) {
+        memset(&_calibration, 0, sizeof(_calibration));
+        (void)snprintf(_calibration.reason, sizeof(_calibration.reason),
+            "linkage detection is off");
         mlog(dd_log_debug,
             "Downstream request analysis for ext/curl is unavailable: %s",
             _linkage.reason);
         return;
     }
 
+    // right after the detection, before any hook is installed, so that a
+    // refusal leaves the layer off (G5.1, G3.8)
+    _calibrate();
+    if (!_calibration.accepted) {
+        mlog(dd_log_debug,
+            "Downstream request analysis for ext/curl is unavailable: "
+            "calibration of libcurl %s at %s refused: %s",
+            _linkage.libcurl_version, _linkage.libcurl_path,
+            _calibration.reason);
+        return;
+    }
     mlog(dd_log_debug,
         "Downstream request analysis for ext/curl is available: %s "
-        "(libcurl %s at %s)",
-        _linkage.reason, _linkage.libcurl_version, _linkage.libcurl_path);
+        "(libcurl %s at %s; %s)",
+        _linkage.reason, _linkage.libcurl_version, _linkage.libcurl_path,
+        _calibration.reason);
+}
+
+// Zend extension startup runs once, before any request thread exists, and
+// ext/curl's MINIT has called curl_global_init.
+static void _calibrate(void)
+{
+    struct dd_curl_calibrate_api api = {
+        .easy_init = _linkage.funcs.curl_easy_init,
+        .easy_cleanup = _linkage.funcs.curl_easy_cleanup,
+        .easy_setopt = _linkage.funcs.curl_easy_setopt,
+        .usable_size = _linkage.malloc_usable_size,
+        .version_num = _linkage.libcurl_version_num,
+        .features = _linkage.libcurl_features,
+    };
+#ifdef TESTING
+    // forces a refusal (G3.8: no hook is installed then); read here, at
+    // startup, since the calibration runs only once
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    const char *refuse = getenv("_DD_APPSEC_TESTING_CURL_CALIBRATION_REFUSE");
+    if (get_global_DD_APPSEC_TESTING() && refuse && *refuse &&
+        strcmp(refuse, "0") != 0) {
+        memset(&_calibration, 0, sizeof(_calibration));
+        (void)snprintf(_calibration.reason, sizeof(_calibration.reason),
+            "refused for testing "
+            "(_DD_APPSEC_TESTING_CURL_CALIBRATION_REFUSE)");
+        return;
+    }
+#endif
+    dd_curl_calibrate(&api, &_calibration);
 }
 
 const struct dd_curl_linkage *nonnull dd_curl_linkage_get(void)
 {
     return &_linkage;
+}
+
+const struct dd_curl_calibration *nonnull dd_curl_calibration_get(void)
+{
+    return &_calibration;
 }
 
 const struct dd_curl_functions *nullable dd_curl_linkage_funcs(void)
@@ -79,12 +133,23 @@ static PHP_FUNCTION(datadog_appsec_testing_curl_linkage_info)
     add_assoc_long(return_value, "libcurl_version_num",
         (zend_long)_linkage.libcurl_version_num);
     add_assoc_string(return_value, "libcurl_path", _linkage.libcurl_path);
+
+    add_assoc_bool(return_value, "calibration_accepted", _calibration.accepted);
+    add_assoc_string(return_value, "calibration_reason", _calibration.reason);
+    zval offsets;
+    array_init(&offsets);
+    for (int i = 0; i < DD_CURL_SLOT_COUNT; i++) {
+        add_assoc_long(&offsets, dd_curl_slot_name((enum dd_curl_slot)i),
+            (zend_long)_calibration.offsets[i]);
+    }
+    add_assoc_zval(return_value, "calibration_offsets", &offsets);
 }
 
 // Overrides libcurl's version number (0xXXYYZZ) as the options recording
 // sees it, to reach the paths of older libcurls; returns the previous one.
 // Used by curl_eval_method_unsure.phpt for the method left unsure by
-// CURLOPT_UPLOAD before libcurl 8.1.0 (G6.3), on any libcurl.
+// CURLOPT_UPLOAD before libcurl 8.1.0 (G6.3), on any libcurl. Never changes
+// the calibration, which ran at startup with the real version.
 static PHP_FUNCTION(datadog_appsec_testing_curl_linkage_fake_version)
 {
     zend_long version;

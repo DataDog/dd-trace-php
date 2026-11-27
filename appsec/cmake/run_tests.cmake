@@ -56,6 +56,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             ${CMAKE_BINARY_DIR}/curl_linkage_test
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
+    # The calibration of libcurl's callback slots, against the system libcurl
+    # and a fake one. Not a dependency of xtest either: it belongs to the
+    # libcurl matrix job, which runs it against real libcurl builds.
+    add_custom_target(curl_calibrate_test
+        COMMAND ${CMAKE_COMMAND} -E env "CC=${CMAKE_C_COMPILER}"
+            ${CMAKE_SOURCE_DIR}/tests/curl_calibrate/run.sh
+            ${CMAKE_BINARY_DIR}/curl_calibrate_test
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
     # The fault-safe memory probe under seccomp filters and across fork. Not a
     # dependency of xtest: CI runs it as its own step ("make
     # curl_handle_validate_test").

@@ -102,6 +102,13 @@ ext/curl objects without PHP, is not part of `xtest` (Linux only). Run it with:
 ```
 make curl_linkage_test
 ```
+Nor is the harness of the calibration of libcurl's callback slots, which runs
+against the libcurl that `dlopen("libcurl.so.4")` finds (select another build
+with `LD_LIBRARY_PATH=<prefix>/lib`). CI runs it on every leg of the
+extension test job, with the libcurl of the image:
+```
+make curl_calibrate_test
+```
 #### Testing the helper
 
 The helper lives in the `helper-rust/` directory. See

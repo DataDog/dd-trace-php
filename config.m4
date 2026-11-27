@@ -335,10 +335,12 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/configuration.c \
     appsec/src/extension/ddappsec.c \
     appsec/src/extension/dddefs.c \
+    appsec/src/extension/downstream/curl_calibrate.c \
     appsec/src/extension/downstream/curl_handle.c \
     appsec/src/extension/downstream/curl_handle_validate.c \
     appsec/src/extension/downstream/curl_linkage.c \
     appsec/src/extension/downstream/curl_linkage_detect.c \
+    appsec/src/extension/downstream/curl_slots.c \
     appsec/src/extension/duration_acc.c \
     appsec/src/extension/entity_body.c \
     appsec/src/extension/helper_process.c \
