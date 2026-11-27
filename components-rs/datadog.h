@@ -9,6 +9,21 @@ struct _zend_string;
 #include "telemetry.h"
 #include "sidecar.h"
 
+/* These are [u8; 36] statics in Rust, with alignment 1. Without saying so,
+ * Clang applies the x86-64 psABI rule that arrays of 16 bytes or more are
+ * 16-byte aligned, and copies them with movaps, which faults. */
+#ifndef _MSC_VER
+extern _Alignas(1) uint8_t datadog_formatted_session_id[36];
+extern _Alignas(1) uint8_t datadog_formatted_root_session_id[36];
+extern _Alignas(1) uint8_t datadog_formatted_parent_session_id[36];
+#else
+/* MSVC has no _Alignas without /std:c11, and makes no such assumption. */
+extern uint8_t datadog_formatted_session_id[36];
+extern uint8_t datadog_formatted_root_session_id[36];
+extern uint8_t datadog_formatted_parent_session_id[36];
+#endif
+
+
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
 /**
@@ -26,12 +41,6 @@ extern const uint8_t *DDOG_PHP_FUNCTION;
 extern ddog_Uuid datadog_runtime_id;
 
 extern ddog_Uuid datadog_session_id;
-
-extern uint8_t datadog_formatted_session_id[36];
-
-extern uint8_t datadog_formatted_root_session_id[36];
-
-extern uint8_t datadog_formatted_parent_session_id[36];
 
 #if defined(DDTRACE_PROFILING)
 ddog_ZendResult ddog_php_prof_minit(int _type, int module_number);
