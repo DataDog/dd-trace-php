@@ -12,16 +12,11 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 /**
  * Shared AppSec tests for the Slim fixtures under {@code tests/Frameworks/Slim}.
  * Concrete subclasses supply the {@code @Container} static field and the
- * {@code expectedVersion} flag. Endpoint-collection tests come from
- * {@link AbstractFrameworkAppsecTests}.
- *
- * Endpoint collection is not implemented for Slim yet, so those tests are
- * skipped until it is.
+ * {@code expectedVersion} flag, and override {@link #getExpectedEndpoints} to
+ * enumerate every route their fixture ships. Endpoint-collection tests come
+ * from {@link AbstractFrameworkAppsecTests}.
  */
 abstract class AbstractSlimAppsecTests extends AbstractFrameworkAppsecTests {
-
-    @Override
-    boolean isEndpointsCollectionSupported() { false }
 
     /**
      * The WAF rule {@code path-params-tests} (src/test/waf/recommended.json)

@@ -36,4 +36,30 @@ class Slim312Tests extends AbstractSlimAppsecTests {
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
     }
+
+    // The 3.12 fixture routes "/" via GET /[{name}] (optional segment) rather
+    // than a literal "/", so the http.route literal differs from the v4 fixtures.
+    @Override
+    String getExpectedRootHttpRoute() { '/[{name}]' }
+
+    @Override
+    boolean isAllowUnenumeratedRoutes() { false }
+
+    // Mirrors tests/Frameworks/Slim/Version_3_12/src/routes.php.
+    @Override
+    List<List<String>> getExpectedEndpoints() {
+        [
+                ['/simple', 'GET', 'GET /simple'],
+                ['/simple_view', 'GET', 'GET /simple_view'],
+                ['/error', 'GET', 'GET /error'],
+                ['/parameterized/{value}', 'GET', 'GET /parameterized/{value}'],
+                ['/dynamic-path/{param01}', 'GET', 'GET /dynamic-path/{param01}'],
+                ['/dynamic_route/{param01}[/static/{param02}]', 'GET',
+                 'GET /dynamic_route/{param01}[/static/{param02}]'],
+                ['/multi-method', 'GET', 'GET /multi-method'],
+                ['/multi-method', 'POST', 'POST /multi-method'],
+                ['/telemetry', 'GET', 'GET /telemetry'],
+                ['/[{name}]', 'GET', 'GET /[{name}]'],
+        ]
+    }
 }

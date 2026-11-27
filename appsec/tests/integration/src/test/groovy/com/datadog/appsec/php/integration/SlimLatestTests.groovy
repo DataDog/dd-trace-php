@@ -36,4 +36,33 @@ class SlimLatestTests extends AbstractSlimAppsecTests {
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
     }
+
+    @Override
+    String getExpectedRootHttpRoute() { '/' }
+
+    @Override
+    boolean isAllowUnenumeratedRoutes() { false }
+
+    // Mirrors tests/Frameworks/Slim/Latest/app/routes.php. One row per
+    // (path, method): /multi-method expands to two entries, and the OPTIONS
+    // catch-all exercises non-GET verbs.
+    @Override
+    List<List<String>> getExpectedEndpoints() {
+        [
+                ['/{routes:.*}', 'OPTIONS', 'OPTIONS /{routes:.*}'],
+                ['/', 'GET', 'GET /'],
+                ['/users', 'GET', 'GET /users'],
+                ['/users/{id}', 'GET', 'GET /users/{id}'],
+                ['/simple', 'GET', 'GET /simple'],
+                ['/simple_view', 'GET', 'GET /simple_view'],
+                ['/error', 'GET', 'GET /error'],
+                ['/parameterized/{value}', 'GET', 'GET /parameterized/{value}'],
+                ['/dynamic-path/{param01}', 'GET', 'GET /dynamic-path/{param01}'],
+                ['/dynamic_route/{param01}[/static/{param02}]', 'GET',
+                 'GET /dynamic_route/{param01}[/static/{param02}]'],
+                ['/multi-method', 'GET', 'GET /multi-method'],
+                ['/multi-method', 'POST', 'POST /multi-method'],
+                ['/telemetry', 'GET', 'GET /telemetry'],
+        ]
+    }
 }
