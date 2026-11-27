@@ -98,10 +98,17 @@ static enum dd_url_scheme _url_scheme(zend_string *url,
 static bool _scheme_is_http(const char *scheme, size_t len);
 static bool _prereq_call(struct dd_curl_eval *ev, dd_curl_easy *cp);
 static void _advance(struct dd_curl_eval *ev, size_t hop);
+static void _resp_call(
+    struct dd_curl_eval *ev, const struct dd_curl_collect *c, bool last_hop);
 static void _send(
     struct dd_curl_eval *ev, zend_array *data, bool last, bool may_block);
 static void _send_raw(struct dd_curl_eval *ev, zend_array *data,
     struct dd_raw_body *nullable raw, bool last, bool may_block);
+static void _add_body(struct dd_curl_eval *ev, zend_array *data,
+    struct dd_raw_body *raw, const char *key, const struct dd_http_buf *buf,
+    zend_string *ct);
+static bool _resp_body_analysed(
+    const struct dd_curl_eval *ev, const struct dd_curl_collect *c);
 static void _presend_headers(
     const struct dd_curl_opts *opts, zend_string *url, zval *headers);
 static void _presend_body(struct dd_curl_eval *ev,
@@ -115,6 +122,9 @@ static void _header_line(zend_array *headers, const char *line, size_t len);
 static void _header_add(
     zend_array *headers, struct dd_http_slice name, struct dd_http_slice value);
 static zend_string *_last_value(const zend_array *headers, const char *name);
+static zend_string *_head_content_type(const struct dd_http_buf *head);
+static struct dd_http_slice _head_content_type_slice(
+    const struct dd_http_buf *head);
 static enum dd_body_kind _body_kind(zend_string *nullable ct, bool response);
 static enum dd_body_kind _body_kind_of(
     const char *ct, size_t len, bool response);
@@ -127,6 +137,7 @@ static struct dd_http_slice _trim(const char *p, const char *end);
 
 static zend_string *_ssrf_zstr;
 static zend_string *_request_zstr;
+static zend_string *_response_zstr;
 
 void dd_curl_eval_rinit(void)
 {
@@ -445,10 +456,13 @@ void dd_curl_headers_to_array(
     }
 }
 
-// The transfer is over: the last hop is finished now (the hops before it
-// were finished in their successor's PREREQ), which closes its subcontext.
-// Below libcurl 7.80 there is no PREREQ: hop 0 is closed by the call without
-// data and later hops make no call (G7.5, G10.1).
+// The transfer is over: the last hop's response call is made now (the hops
+// before it were finished in their successor's PREREQ), which closes its
+// subcontext. This is the only place that runs the WAF for the last hop:
+// nothing runs inside the interposed header and write functions (G9.1).
+// Below libcurl 7.80 there is no PREREQ: no response data is analysed, hop 0
+// is closed by the call without data and later hops make no call (G7.5,
+// G10.1).
 static void _flush(struct dd_curl_eval *ev, const struct dd_curl_collect *c)
 {
     if (dd_curl_linkage_version_num() < DD_CURL_PREREQ_MIN_VERSION) {
@@ -461,7 +475,7 @@ static void _flush(struct dd_curl_eval *ev, const struct dd_curl_collect *c)
 }
 
 // A PREREQ call, before the collector starts the hop it announces: the hop
-// that is over gets the call without data. Only this
+// that is over gets its response call, or the call without data. Only this
 // PREREQ proves that hop was intermediate, and its tags are then kept even if
 // the next hop's W2 blocks. Nothing for the first call: no hop is over then.
 static void _hop_over(struct dd_curl_eval *ev, const struct dd_curl_collect *c)
@@ -523,15 +537,25 @@ static bool _prereq_call(struct dd_curl_eval *ev, dd_curl_easy *cp)
     return ev->blocked;
 }
 
-// Closes the subcontext of the current hop without data if a call opened
-// it. last_hop: the hop is the last one of the transfer.
+// Makes the response call of the current hop if it got a response (it is the
+// last call of its subcontext), else closes the subcontext without data if a
+// call opened it. The collector holds the hop's head only while it is its
+// current hop (hop n is its (n+1)-th PREREQ) and it has not stopped (an
+// allocation refused, too many hops): otherwise the hop is closed. last_hop:
+// the hop is the last one of the transfer, the only one whose body is
+// analysed.
 static void _finish_hop(
     struct dd_curl_eval *ev, const struct dd_curl_collect *c, bool last_hop)
 {
     if (ev->closed || ev->hop_skipped) {
         return;
     }
-    _close_hop(ev);
+    bool held = !c->stopped && c->hops == ev->hop + 1;
+    if (held && c->head_complete) {
+        _resp_call(ev, c, last_hop);
+    } else {
+        _close_hop(ev);
+    }
 }
 
 // Closes the subcontext of the current hop with the call without data, if a
@@ -555,10 +579,49 @@ static void _advance(struct dd_curl_eval *ev, size_t hop)
     ev->hop_skipped = false;
 }
 
+// The response call, one per hop: status (a decimal string), headers and, for
+// the last hop, the body if it is analysed, as the collector holds them. It
+// carries no URL: the request call of the hop shares its subcontext. Being
+// made after the response is complete, a single WAF evaluation covers all of
+// it.
+static void _resp_call(
+    struct dd_curl_eval *ev, const struct dd_curl_collect *c, bool last_hop)
+{
+    zend_array *data = zend_new_array(3);
+    struct dd_raw_body raw = {0};
+    if (c->status > 0) {
+        zval status;
+        ZVAL_STR(&status, strpprintf(0, "%d", c->status));
+        zend_hash_str_update(
+            data, LSTRARG("server.io.net.response.status"), &status);
+    }
+    zval headers;
+    dd_curl_headers_to_array(c->head.ptr, c->head.len, &headers);
+    if (zend_hash_num_elements(Z_ARRVAL(headers)) > 0) {
+        zend_hash_str_update(
+            data, LSTRARG("server.io.net.response.headers"), &headers);
+    } else {
+        zval_ptr_dtor(&headers);
+    }
+    if (last_hop && _resp_body_analysed(ev, c)) {
+        zend_string *ct = _head_content_type(&c->head);
+        // the standard body sink: the bytes the write function delivered,
+        // up to the cap
+        _add_body(
+            ev, data, &raw, "server.io.net.response.body", &c->body.buf, ct);
+        if (ct) {
+            zend_string_release(ct);
+        }
+    }
+    _send_raw(ev, data, &raw, true, false);
+}
+
 // Runs the WAF on data (consumed) in the subcontext of the current hop. A
-// last call without data only closes the subcontext of a hop; the helper runs
-// no WAF for it. Only a request-stage call (may_block) records a blocking
-// verdict.
+// last call without data only closes the subcontext of a hop that ended
+// without a final response call; the helper runs no WAF for it. Only a
+// request-stage call (may_block) records a blocking verdict; for a
+// response-stage call it is ignored: the response stage only produces tags and
+// metrics.
 static void _send(
     struct dd_curl_eval *ev, zend_array *data, bool last, bool may_block)
 {
@@ -589,8 +652,12 @@ static void _send_raw(struct dd_curl_eval *ev, zend_array *data,
     dd_conn *conn =
         dd_req_lifecycle_is_active() ? dd_helper_mgr_cur_conn() : NULL;
     if (conn) {
+        zend_string *rule_variant = NULL;
+        if (!closing_only) {
+            rule_variant = may_block ? _request_zstr : _response_zstr;
+        }
         struct req_exec_opts opts = {.rasp_rule = _ssrf_zstr,
-            .rule_variant = closing_only ? NULL : _request_zstr,
+            .rule_variant = rule_variant,
             .subctx_id = ev->subctx_id,
             .subctx_last_call = last};
         dd_mpack_raw_entry raw_entry;
@@ -638,6 +705,41 @@ static void _send_raw(struct dd_curl_eval *ev, zend_array *data,
     } else {
         ev->opened = true;
     }
+}
+
+// Adds the parsed body under key if it is not empty after parsing (G7.18)
+static void _add_body(struct dd_curl_eval *ev, zend_array *data,
+    struct dd_raw_body *raw, const char *key, const struct dd_http_buf *buf,
+    zend_string *ct)
+{
+    if (!buf->ptr || buf->len == 0 || _body_kind(ct, true) == DD_BODY_NONE ||
+        !_sampled(ev)) {
+        return;
+    }
+    zval body;
+    if (!_parse_content(buf->ptr, buf->len, ct, true, &body, &raw->msgpack)) {
+        return;
+    }
+    if (raw->msgpack.ptr) {
+        raw->key = key;
+    } else {
+        zend_hash_str_update(data, key, strlen(key), &body);
+    }
+    _note_body_added(ev);
+}
+
+// Whether the response body is to be sent: a parsed content type, and sampled
+// (G8.9). Content-Encoding is not looked at: with CURLOPT_ACCEPT_ENCODING
+// libcurl decodes the bytes before the write function; without it they fail
+// to parse (G7.17).
+static bool _resp_body_analysed(
+    const struct dd_curl_eval *ev, const struct dd_curl_collect *c)
+{
+    struct dd_http_slice ct = _head_content_type_slice(&c->head);
+    if (!ct.ptr || _body_kind_of(ct.ptr, ct.len, true) == DD_BODY_NONE) {
+        return false;
+    }
+    return _sampled(ev);
 }
 
 // CURLOPT_HTTPHEADER lines and CURLOPT_COOKIE, plus Host from the URL and
@@ -928,6 +1030,34 @@ static zend_string *_last_value(const zend_array *headers, const char *name)
     return res;
 }
 
+static zend_string *_head_content_type(const struct dd_http_buf *head)
+{
+    struct dd_http_slice found = _head_content_type_slice(head);
+    return found.ptr ? zend_string_init(found.ptr, found.len, 0) : NULL;
+}
+
+// The last non-empty Content-Type value of a response head, into the head
+static struct dd_http_slice _head_content_type_slice(
+    const struct dd_http_buf *head)
+{
+    struct dd_http_slice found = {0};
+    if (!head || !head->ptr) {
+        return found;
+    }
+    struct dd_http_header_iter it;
+    struct dd_http_slice name;
+    struct dd_http_slice value;
+    dd_http_header_iter_init(&it, head->ptr, head->len);
+    while (dd_http_header_iter_next(&it, &name, &value)) {
+        if (name.len == LSTRLEN("content-type") &&
+            strncasecmp(name.ptr, LSTRARG("content-type")) == 0 &&
+            value.len > 0) {
+            found = value;
+        }
+    }
+    return found;
+}
+
 static enum dd_body_kind _body_kind(zend_string *nullable ct, bool response)
 {
     if (!ct) {
@@ -1047,4 +1177,5 @@ void dd_curl_eval_minit(void)
 {
     _ssrf_zstr = zend_string_init_interned(LSTRARG("ssrf"), 1);
     _request_zstr = zend_string_init_interned(LSTRARG("request"), 1);
+    _response_zstr = zend_string_init_interned(LSTRARG("response"), 1);
 }

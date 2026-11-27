@@ -28,20 +28,32 @@
 //    is sent: URL and method (CURLINFO_EFFECTIVE_URL/_METHOD), whatever the
 //    state of the collector (stopped included). A hop whose URL has a scheme
 //    other than http(s) gets no call at all;
-//  - each hop is closed by a last call without data, once it is over (in
-//    the next hop's PREREQ, or once the transfer is over).
+//  - the response, once the hop is over (in the next hop's PREREQ, before
+//    the collector is told the hop started, or once the transfer is over),
+//    if the collector (curl_collect.h) holds the hop with its complete head:
+//    status (a decimal string) and headers, with the body for the last hop
+//    only, if it is sampled and parseable. One call per hop, and the last
+//    call of the subcontext (no URL: it is in the request call of the same
+//    subcontext);
+//  - a hop that got no response is closed by a last call without data.
 // The subcontexts are named curl-<transfer>-<hop>. Hop n is the one started
 // by the (n+1)-th PREREQ call; proxy CONNECT heads are not hops (the
-// collector drops them).
+// collector drops them). The response data comes from the collector fed by
+// the interposed header and write functions, which run no WAF code (G9.1):
+// the body bytes are what libcurl's write function delivers (de-chunked,
+// and content-decoded with CURLOPT_ACCEPT_ENCODING), read through the
+// collector's body sink.
 //
-// Whether a transfer's request body is sent (sampling) is decided once, when
-// W1 runs. A sampled transfer holds a slot of the per-request limit, which
-// it gives back if it ends up sending no body.
+// Whether a transfer's bodies are sent (sampling) is decided once, when W1
+// runs, for both bodies (hop 0's request body and the last hop's response
+// body). A sampled transfer holds a slot of the per-request limit, which it
+// gives back if it ends up sending no body.
 //
-// The calls made from libcurl callbacks (W2) never block: a blocking verdict
-// is recorded (and further evaluation of the transfer stops). It is acted
-// upon once control is back in the PHP function hook that called libcurl
-// (dd_curl_eval_block): that is the first point where it is safe (G9.3).
+// The calls made from libcurl callbacks (W2, the intermediate response call)
+// never block: a blocking verdict is recorded (and further evaluation of the
+// transfer stops). It is acted upon once control is back in the PHP function
+// hook that called libcurl (dd_curl_eval_block): that is the first point
+// where it is safe (G9.3).
 // A hook entered inside libcurl (an app callback of another
 // transfer) does nothing at all (G4.3): no evaluation, nothing to defer.
 
@@ -126,14 +138,15 @@ bool dd_curl_eval_presend(
 // event (dd_curl_collect_prereq), which releases the previous hop's head and
 // body:
 // - before it: the hop that is over (none at the first call) gets its
-//   closing call without data;
+//   response call from what the collector holds, or the call without data;
 // - after it: the hop about to be sent is counted and, for hop > 0, gets W2.
 //   Returns whether the request must not be sent (blocked).
 void dd_curl_eval_prereq_hop_over(struct dd_curl_eval *nonnull ev,
     const struct dd_curl_collect *nonnull coll);
 bool dd_curl_eval_prereq_hop_start(
     struct dd_curl_eval *nonnull ev, dd_curl_easy *nonnull cp);
-// The transfer is over (from a PHP function hook): closes the last hop.
+// The transfer is over (from a PHP function hook): makes the response call of
+// the last hop if it got a response, or closes it.
 void dd_curl_eval_end(struct dd_curl_eval *nonnull ev,
     const struct dd_curl_collect *nonnull coll);
 // Whether the bodies of the transfer are sent (decided at W1)

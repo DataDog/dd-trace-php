@@ -86,8 +86,8 @@ void dd_curl_xfer_reassert_multi(uintptr_t multi);
 // curl_multi_close(): ends (and settles) the transfers of that multi
 void dd_curl_xfer_end_multi(uintptr_t multi);
 // curl_multi_exec() returned CURLM_OK with nothing running (G4.18): every
-// transfer of that multi still observed is over. Closes their last hop (with
-// the call without data) and settles them.
+// transfer of that multi still observed is over. Makes their response calls
+// (or the call without data if no response head arrived) and settles them.
 void dd_curl_xfer_flush_multi(uintptr_t multi);
 // curl_multi_add_handle() / curl_multi_remove_handle() succeeded: libcurl
 // has the handle in that multi now / no longer (whether its transfer is
