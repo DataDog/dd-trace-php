@@ -65,6 +65,19 @@ void _mlog_relay(dd_log_level_t level, const char *nonnull format,
         (const char *)__FILE__ + _dd_size_source_prefix, __func__, __LINE__,   \
         ##__VA_ARGS__)
 
+// Like mlog, but only to the log file or syslog: never through PHP's error
+// reporting (with DD_APPSEC_LOG_FILE=php_error_reporting, the default, the
+// message is not logged). For messages that must not be visible to the
+// application (error handlers, error_get_last(), display_errors), nor make
+// PHP run code where we are (e.g. inside a libcurl callback).
+void _mlog_relay_no_php(dd_log_level_t level, const char *nonnull format,
+    const char *nonnull file, const char *nonnull function, int line, ...)
+    ATTR_FORMAT(2, 6);
+#define mlog_no_php(level, format, ...)                                        \
+    _mlog_relay_no_php((level), (format),                                      \
+        (const char *)__FILE__ + _dd_size_source_prefix, __func__, __LINE__,   \
+        ##__VA_ARGS__)
+
 #define mlog_err(level, format, ...)                                           \
     do {                                                                       \
         int _orig_errno = errno;                                               \

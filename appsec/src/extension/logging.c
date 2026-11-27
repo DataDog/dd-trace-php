@@ -397,8 +397,9 @@ static void ATTR_FORMAT(2, 3)
 }
 
 // file reporting
+// php_allowed: a failure to write may be reported through PHP
 static void _mlog_file(dd_log_level_t level, const char *format, va_list args,
-    const char *file, const char *function, int line)
+    const char *file, const char *function, int line, bool php_allowed)
 {
     if (_mlog_fd == -1) {
         return;
@@ -439,6 +440,9 @@ static void _mlog_file(dd_log_level_t level, const char *format, va_list args,
     } while (written == -1 && errno == EINTR);
     efree(data);
 
+    if (!php_allowed) {
+        return;
+    }
     if (written == -1) {
         _mlog_php_varargs(dd_log_warning,
             "Failed writing to log file (errno %d: %s)", errno,
@@ -468,20 +472,19 @@ static void _format_time(
     buf[buf_size - 1] = '\0'; /* shouldn't be needed */
 }
 
-void _mlog_relay(dd_log_level_t level, const char *nonnull format,
-    const char *nonnull file, const char *nonnull function, int line, ...)
+static void _mlog_relay_va(dd_log_level_t level, bool php_allowed,
+    const char *nonnull format, const char *nonnull file,
+    const char *nonnull function, int line, va_list args)
 {
-    va_list args;
-
     if (dd_log_level() < level) {
         return;
     }
 
     _ensure_init();
 
-    va_start(args, line);
     /* Always show errors on PHP error reporting, regardless of settings */
-    if (_log_strategy != log_use_php_err_rep && level <= dd_log_error) {
+    if (php_allowed && _log_strategy != log_use_php_err_rep &&
+        level <= dd_log_error) {
         va_list args2;
         va_copy(args2, args);
         _mlog_php(level, format, args2);
@@ -493,17 +496,36 @@ void _mlog_relay(dd_log_level_t level, const char *nonnull format,
         _mlog_syslog(level, format, args, file, function, line);
         break;
     case log_use_php_err_rep: {
-        _mlog_php(level, format, args);
+        if (php_allowed) {
+            _mlog_php(level, format, args);
+        }
         break;
     }
     case log_use_file:
-        _mlog_file(level, format, args, file, function, line);
+        _mlog_file(level, format, args, file, function, line, php_allowed);
         break;
     case log_use_nothing:
     default:
         // nothing to do
         break;
     }
+}
+
+void _mlog_relay(dd_log_level_t level, const char *nonnull format,
+    const char *nonnull file, const char *nonnull function, int line, ...)
+{
+    va_list args;
+    va_start(args, line);
+    _mlog_relay_va(level, true, format, file, function, line, args);
+    va_end(args);
+}
+
+void _mlog_relay_no_php(dd_log_level_t level, const char *nonnull format,
+    const char *nonnull file, const char *nonnull function, int line, ...)
+{
+    va_list args;
+    va_start(args, line);
+    _mlog_relay_va(level, false, format, file, function, line, args);
     va_end(args);
 }
 

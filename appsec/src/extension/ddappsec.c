@@ -28,6 +28,7 @@
 #include "ddappsec_api.h"
 #include "ddappsec_arginfo.h"
 #include "dddefs.h"
+#include "downstream/curl_handle.h"
 #include "downstream/curl_linkage.h"
 #include "duration_acc.h"
 #include "entity_body.h"
@@ -122,6 +123,7 @@ void dd_appsec_minit(int module_number)
     dd_msgpack_helpers_startup();
     dd_telemetry_startup();
     dd_curl_linkage_minit();
+    dd_curl_handle_minit();
 }
 
 void dd_appsec_mshutdown(void)
@@ -148,6 +150,7 @@ void dd_appsec_zend_startup(void)
     dd_request_abort_zend_ext_startup();
     // after every module's MINIT: ext/curl's has called curl_global_init
     dd_curl_linkage_startup();
+    dd_curl_handle_startup();
 }
 
 static void _rinit_once(void) { _check_enabled(); }

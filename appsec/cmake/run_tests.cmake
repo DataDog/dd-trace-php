@@ -55,6 +55,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             ${CMAKE_SOURCE_DIR}/tests/curl_linkage/run.sh
             ${CMAKE_BINARY_DIR}/curl_linkage_test
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # The fault-safe memory probe under seccomp filters and across fork. Not a
+    # dependency of xtest: CI runs it as its own step ("make
+    # curl_handle_validate_test").
+    add_custom_target(curl_handle_validate_test
+        COMMAND ${CMAKE_COMMAND} -E env "CC=${CMAKE_C_COMPILER}"
+            ${CMAKE_SOURCE_DIR}/tests/curl_handle_validate/run.sh
+            ${CMAKE_BINARY_DIR}/curl_handle_validate_test
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()
 if(TARGET ddtrace)
     add_dependencies(xtest ddtrace)
