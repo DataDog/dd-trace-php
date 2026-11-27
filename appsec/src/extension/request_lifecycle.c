@@ -21,7 +21,13 @@
 
 #include <SAPI.h>
 #include <Zend/zend_exceptions.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "attributes.h"
 
@@ -62,10 +68,14 @@ static THREAD_LOCAL_ON_ZTS bool _request_blocked;
 enum { MAX_LENGTH_OF_REM_CFG_PATH = 31 };
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
-// downstream request bodies sent for analysis in the current request
+// downstream requests picked for body analysis in the current request
 static THREAD_LOCAL_ON_ZTS uint64_t _downstream_body_count_req;
-// downstream requests considered for body analysis in this thread
-static THREAD_LOCAL_ON_ZTS uint64_t _downstream_body_count_total;
+// a downstream request body was sent to the WAF in the current request
+static THREAD_LOCAL_ON_ZTS uint64_t _downstream_bodies_added;
+// the Appendix A sampler counter of this thread (never reset per request),
+// valid once _downstream_sampler_seeded
+static THREAD_LOCAL_ON_ZTS uint64_t _downstream_sampler_counter;
+static THREAD_LOCAL_ON_ZTS bool _downstream_sampler_seeded;
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
 bool dd_req_is_user_req(void) { return _enabled_user_req; }
@@ -210,6 +220,7 @@ static zend_array *nullable _do_request_begin(
     dd_telemetry_rinit();
 
     _downstream_body_count_req = 0;
+    _downstream_bodies_added = 0;
 
     zend_string *nullable rbe = NULL;
     if (rbe_zv) {
@@ -1279,60 +1290,191 @@ PHP_FUNCTION(datadog_appsec_testing_dump_req_lifecycle_state)
     }
 }
 
-// Whether the caller should send the bodies of a downstream request it is
-// about to make to the WAF (RFC-1062). At most
-// DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS requests per request
-// are analysed, and of the candidates only a fraction given by
-// DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE is picked. The pick is
-// deterministic (Knuth multiplicative hashing of a per-thread counter) rather
-// than random, so that it spreads evenly over consecutive candidates.
+// Testing only: runs the sampling decision of the native downstream request
+// analysis. A true return also counts as a body analysed (sets the span
+// metric), which the native code only does when it sends a body.
+static PHP_FUNCTION(datadog_appsec_testing_should_send_downstream_bodies)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    bool send = dd_should_send_downstream_bodies();
+    if (send) {
+        dd_downstream_body_analysed();
+    }
+    RETURN_BOOL(send);
+}
+
+// The readers of the raw configuration values of the downstream body
+// analysis; nothing else reads them. A rejected value is replaced by its
+// default: a negative limit would be cast to "unlimited" and a rate outside
+// [0, 1] to an undefined conversion. The _value() functions only sanitise:
+// they allocate nothing and log nothing, so they can be used from libcurl's
+// callbacks (the interposed write and header functions). The public readers
+// also log the rejection (once per process and variable) and must not be called
+// from a callback.
+static uint64_t _limit_value(bool *valid)
+{
+    zend_long limit =
+        get_DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS();
+    *valid = limit >= 0;
+    return *valid ? (uint64_t)limit : 1;
+}
+
+static double _rate_value(bool *valid)
+{
+    static const double default_rate = 0.5;
+    double rate = get_DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE();
+    *valid = rate >= 0.0 && rate <= 1.0; // false for NaN
+    return *valid ? rate : default_rate;
+}
+
+uint64_t dd_downstream_limit(void)
+{
+    static bool warned;
+    bool valid;
+    uint64_t limit = _limit_value(&valid);
+    if (!valid && !__atomic_exchange_n(&warned, true, __ATOMIC_RELAXED)) {
+        mlog_g(dd_log_warning,
+            "Invalid value " ZEND_LONG_FMT
+            " for DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS: it "
+            "must not be negative, using 1",
+            get_DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS());
+    }
+    return limit;
+}
+
+double dd_downstream_rate(void)
+{
+    static bool warned;
+    bool valid;
+    double rate = _rate_value(&valid);
+    if (!valid && !__atomic_exchange_n(&warned, true, __ATOMIC_RELAXED)) {
+        mlog_g(dd_log_warning,
+            "Invalid value %g for "
+            "DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE: it must be "
+            "between 0 and 1, using 0.5",
+            get_DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE());
+    }
+    return rate;
+}
+
+// A random 64-bit value from a source that raises nothing visible to PHP
+// (no warning, no exception, as php_random_bytes() may do).
+static uint64_t _random_seed(void)
+{
+    uint64_t seed = 0;
+    int fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+    if (fd >= 0) {
+        ssize_t n;
+        do {
+            n = read(fd, &seed, sizeof(seed));
+        } while (n < 0 && errno == EINTR);
+        close(fd);
+        if (n == (ssize_t)sizeof(seed)) {
+            return seed;
+        }
+    }
+    // no /dev/urandom (chroot): good enough to keep workers apart
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    static const uint64_t golden_ratio = 0x9E3779B97F4A7C15ULL;
+    static const unsigned pid_shift = 32;
+    seed = ((uint64_t)ts.tv_nsec * golden_ratio) ^ (uint64_t)ts.tv_sec ^
+           ((uint64_t)getpid() << pid_shift) ^ (uint64_t)(uintptr_t)&ts;
+    return seed;
+}
+
+// Appendix A of RFC-1062: sampled iff (count * KNUTH_FACTOR) % UINT64_MAX <=
+// round(rate * UINT64_MAX), rate strictly between 0 and 1. The product wraps
+// at 2^64. Converting UINT64_MAX to double gives 2^64, so as the Appendix
+// says, 2^64 - 2^11 (the largest double below it) is used in the threshold.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static bool _appendix_a_sampled(uint64_t count, double rate)
+{
+    static const uint64_t KNUTH_FACTOR = 11400714819323199488ULL;
+    static const double max_below_two_pow_64 = 18446744073709549568.0;
+    uint64_t threshold = (uint64_t)round(rate * max_below_two_pow_64);
+    return (count * KNUTH_FACTOR) % UINT64_MAX <= threshold;
+}
+
+// At most DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS requests per
+// request are picked, and of the candidates only a fraction given by
+// DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE (Appendix A). The
+// counter starts at a random value, drawn at the first decision in the worker
+// (not in MINIT) so that pre-forked workers do not run in lockstep.
+bool dd_should_send_downstream_bodies(void)
+{
+    if (!DDAPPSEC_G(active)) {
+        return false;
+    }
+
+    if (!_downstream_sampler_seeded) {
+        _downstream_sampler_counter = _random_seed();
+        _downstream_sampler_seeded = true;
+    }
+    uint64_t count = ++_downstream_sampler_counter;
+
+    if (_downstream_body_count_req >= dd_downstream_limit()) {
+        mlog_g(dd_log_debug,
+            "Downstream body analysis limit reached for this request (%" PRIu64
+            " analysed)",
+            _downstream_body_count_req);
+        return false;
+    }
+
+    // The endpoint rates are decided without the formula on purpose: rate 0
+    // (and limit 0) mean no bodies, and at rate 1 every transfer is picked
+    double rate = dd_downstream_rate();
+    bool sampled;
+    if (rate >= 1.0) {
+        sampled = true;
+    } else if (rate <= 0.0) {
+        sampled = false;
+    } else {
+        sampled = _appendix_a_sampled(count, rate);
+    }
+
+    if (!sampled) {
+        mlog_g(dd_log_debug, "Not sending downstream bodies for analysis");
+        return false;
+    }
+
+    // Log before taking the slot: mlog_g allocates and may bail out, which
+    // would leave a slot nobody releases. Nothing allocates after the increment
+    mlog_g(dd_log_debug, "Sending downstream bodies for analysis");
+    _downstream_body_count_req++;
+    return true;
+}
+
+void dd_downstream_release_slot(void)
+{
+    if (_downstream_body_count_req > 0) {
+        _downstream_body_count_req--;
+    }
+}
+
+void dd_downstream_body_analysed(void) { _downstream_bodies_added++; }
+
+// Transitional: CurlAppSec.php still asks the sampling decision from userland
+// until the native analysis replaces it. A body sent counts as analysed.
 PHP_FUNCTION(datadog_appsec_should_send_downstream_bodies)
 {
     if (zend_parse_parameters_none() == FAILURE) {
         RETURN_FALSE;
     }
 
-    if (!DDAPPSEC_G(active)) {
-        RETURN_FALSE;
+    bool send = dd_should_send_downstream_bodies();
+    if (send) {
+        dd_downstream_body_analysed();
     }
-
-    _downstream_body_count_total++;
-
-    if (_downstream_body_count_req >=
-        (uint64_t)get_DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS()) {
-        mlog_g(dd_log_debug,
-            "Downstream body analysis limit reached for this request (%" PRIu64
-            " analysed)",
-            _downstream_body_count_req);
-        RETURN_FALSE;
-    }
-
-    double sample_rate =
-        get_DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE();
-    bool sampled;
-    if (sample_rate >= 1.0) {
-        sampled = true;
-    } else if (sample_rate <= 0.0) {
-        sampled = false;
-    } else {
-        static const uint64_t KNUTH_FACTOR = 11400714819323198549ULL;
-        uint64_t threshold = (uint64_t)(sample_rate * (double)UINT64_MAX);
-        sampled = _downstream_body_count_total * KNUTH_FACTOR < threshold;
-    }
-
-    if (!sampled) {
-        mlog_g(dd_log_debug, "Not sending downstream bodies for analysis");
-        RETURN_FALSE;
-    }
-
-    _downstream_body_count_req++;
-    mlog_g(dd_log_debug, "Sending downstream bodies for analysis");
-    RETURN_TRUE;
+    RETURN_BOOL(send);
 }
 
 static void _set_downstream_request_metric(void)
 {
-    if (!_cur_req_span || _downstream_body_count_req == 0) {
+    if (!_cur_req_span || !_downstream_bodies_added) {
         return;
     }
     zval *metrics_zv = dd_trace_span_get_metrics(_cur_req_span);
@@ -1340,21 +1482,59 @@ static void _set_downstream_request_metric(void)
         return;
     }
     zval zv;
-    ZVAL_DOUBLE(&zv, 1.0);
+    ZVAL_DOUBLE(&zv, (double)_downstream_bodies_added);
     zend_hash_update(
         Z_ARRVAL_P(metrics_zv), _downstream_request_metric_zstr, &zv);
     mlog_g(dd_log_debug,
         "Set _dd.appsec.downstream_request metric (analysed %" PRIu64
         " downstream requests)",
-        _downstream_body_count_req);
+        _downstream_bodies_added);
+}
+
+// Testing only: sets the sampler counter (the next decision uses value + 1)
+static PHP_FUNCTION(datadog_appsec_testing_downstream_sampler_set_counter)
+{
+    zend_long value;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &value) == FAILURE) {
+        RETURN_FALSE;
+    }
+    _downstream_sampler_counter = (uint64_t)value;
+    _downstream_sampler_seeded = true;
+    RETURN_TRUE;
+}
+
+// Testing only: the sampler counter as a signed integer, null while not
+// seeded yet (does not seed)
+static PHP_FUNCTION(datadog_appsec_testing_downstream_sampler_get_counter)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    if (!_downstream_sampler_seeded) {
+        RETURN_NULL();
+    }
+    RETURN_LONG((zend_long)_downstream_sampler_counter);
 }
 
 // clang-format off
+ZEND_BEGIN_ARG_INFO_EX(sampler_set_arginfo, 0, 0, 1)
+ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(sampler_get_arginfo, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(dump_arginfo, 0, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(void_ret_bool_arginfo, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "dump_req_lifecycle_state", PHP_FN(datadog_appsec_testing_dump_req_lifecycle_state), dump_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "should_send_downstream_bodies", PHP_FN(datadog_appsec_testing_should_send_downstream_bodies), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "downstream_sampler_set_counter", PHP_FN(datadog_appsec_testing_downstream_sampler_set_counter), sampler_set_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "downstream_sampler_get_counter", PHP_FN(datadog_appsec_testing_downstream_sampler_get_counter), sampler_get_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

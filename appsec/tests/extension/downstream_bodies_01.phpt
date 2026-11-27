@@ -1,5 +1,5 @@
 --TEST--
-should_send_downstream_bodies honours the per-request limit and sets the span metric
+should_send_downstream_bodies honours the per-request limit and sets the span metric to the slot count
 --INI--
 datadog.appsec.enabled=1
 --ENV--
@@ -7,8 +7,7 @@ DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE=1
 DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS=2
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rshutdown,root_span_get_metrics};
-use function datadog\appsec\should_send_downstream_bodies;
+use function datadog\appsec\testing\{rinit,rshutdown,root_span_get_metrics,should_send_downstream_bodies};
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -30,4 +29,4 @@ bool(true)
 bool(true)
 bool(false)
 bool(true)
-float(1)
+float(2)

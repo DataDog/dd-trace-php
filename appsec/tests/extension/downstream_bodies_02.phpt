@@ -6,8 +6,7 @@ datadog.appsec.enabled=1
 DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE=0
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rshutdown,root_span_get_metrics};
-use function datadog\appsec\should_send_downstream_bodies;
+use function datadog\appsec\testing\{rinit,rshutdown,root_span_get_metrics,should_send_downstream_bodies};
 
 include __DIR__ . '/inc/mock_helper.php';
 
