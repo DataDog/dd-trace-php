@@ -35,7 +35,7 @@ $c = $helper->get_commands();
 print_r($c[0][1][0]);
 
 require __DIR__ . '/inc/logging.php';
-match_log("/Only UTF-8 is supported for XML parsing/");
+match_log("/Only UTF-8 and US-ASCII are supported for XML parsing/");
 
 ?>
 --EXPECT--
@@ -58,4 +58,4 @@ Array
         )
 
 )
-found message in log matching /Only UTF-8 is supported for XML parsing/
+found message in log matching /Only UTF-8 and US-ASCII are supported for XML parsing/

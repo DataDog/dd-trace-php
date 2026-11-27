@@ -1,7 +1,7 @@
 //! XML events and entity replacements feed the same MessagePack writer.
 //! The private allocator accounts for both parser state and output in Zend.
 
-use super::xml_dtd::Dtd;
+use super::xml_dtd::{split_doctype, Dtd};
 use super::{AppsecBodyMessagePack, MsgpackWriter};
 use quick_xml::errors::{Error, SyntaxError};
 use quick_xml::events::{BytesStart, Event};
@@ -12,7 +12,8 @@ use std::rc::Rc;
 
 /// Bound both bytes and work, including repeated expansion of empty entities.
 const MIN_EXPANSION_BUDGET: usize = 64 * 1024;
-pub(super) const MAX_ENTITY_DEPTH: usize = 32;
+/// libxml's limit on nested entities (inputs), so the same DTDs are read.
+pub(super) const MAX_ENTITY_DEPTH: usize = 40;
 
 pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyMessagePack {
     // The body API supports UTF-8 only. Keep the valid prefix on malformed or
@@ -34,19 +35,21 @@ pub(super) fn parse(input: &[u8], max_depth: u32) -> AppsecBodyMessagePack {
         Cow::Borrowed(input)
     };
     let input = normalized.as_ref();
-    let mut parser = XmlParser {
-        writer: MsgpackWriter::default(),
-        max_depth,
-        depth: 0,
-        suppressed: 0,
-        root_seen: false,
-        text: Vec::new(),
-        dtd: Dtd::default(),
-        active_entities: HashSet::new(),
-        expansion_budget: input.len().saturating_mul(4).max(MIN_EXPANSION_BUDGET),
+    let mut parser = XmlParser::new(input, max_depth);
+    let complete = parser.read(input, true);
+    let (mut parser, complete, valid_utf8) = match parser.ascii_end {
+        // A US-ASCII declaration was followed by a non-ASCII byte. The
+        // declaration comes first, so nothing has been recorded yet: restart
+        // on the ASCII prefix, as libxml's recovery does.
+        Some(end) => {
+            let input = &input[..end];
+            let mut parser = XmlParser::new(input, max_depth);
+            let complete = parser.read(input, true);
+            (parser, complete, false)
+        }
+        None => (parser, complete, valid_utf8),
     };
-    let complete =
-        parser.read(input, true) && valid_utf8 && parser.depth == 0 && parser.suppressed == 0;
+    let complete = complete && valid_utf8 && parser.depth == 0 && parser.suppressed == 0;
     parser.flush_text();
     parser.writer.finish(complete)
 }
@@ -59,35 +62,142 @@ struct XmlParser {
     /// Nesting level inside an element whose content is dropped.
     suppressed: u32,
     root_seen: bool,
+    standalone: bool,
     text: Vec<u8>,
+    preserve_text_whitespace: bool,
     dtd: Dtd,
     active_entities: HashSet<Vec<u8>>,
     expansion_budget: usize,
+    /// Document length up to the first non-ASCII byte after a US-ASCII
+    /// declaration.
+    ascii_end: Option<usize>,
 }
 
 impl XmlParser {
+    fn new(input: &[u8], max_depth: u32) -> Self {
+        XmlParser {
+            writer: MsgpackWriter::default(),
+            max_depth,
+            depth: 0,
+            suppressed: 0,
+            root_seen: false,
+            standalone: false,
+            text: Vec::new(),
+            preserve_text_whitespace: false,
+            dtd: Dtd::default(),
+            active_entities: HashSet::new(),
+            expansion_budget: input.len().saturating_mul(4).max(MIN_EXPANSION_BUDGET),
+            ascii_end: None,
+        }
+    }
+
     fn read(&mut self, input: &[u8], document: bool) -> bool {
-        let mut reader = Reader::from_reader(input);
-        reader.config_mut().check_end_names = false;
-        reader.config_mut().allow_unmatched_ends = true;
+        // An entity must balance its own elements, including those whose
+        // content is suppressed by the depth limit (XML 1.0 section 4.3.2).
+        let initial_depth = (self.depth, self.suppressed);
+        let document_len = input.len();
+        let mut input = if document {
+            // Strip the document BOM ourselves so buffer positions include
+            // exactly the bytes in `input` when intercepting the DOCTYPE.
+            input.strip_prefix(b"\xef\xbb\xbf").unwrap_or(input)
+        } else {
+            // An internal entity's initial U+FEFF is character data, not a
+            // BOM. Consume its leading text before starting a fresh reader,
+            // which would otherwise discard the first U+FEFF.
+            let end = input.iter().position(|&b| b == b'<').unwrap_or(input.len());
+            if !self.text(&input[..end]) {
+                return false;
+            }
+            &input[end..]
+        };
+        // A declaration is allowed only at the literal document start after
+        // one optional BOM. Inspect the bytes so the reader cannot hide an
+        // extra BOM and make a misplaced declaration appear to be first.
+        let mut declaration_allowed = document && input.starts_with(b"<?xml");
+        let mut doctype_seen = false;
+        let mut reader = xml_reader(input);
         loop {
+            let at_document_start = declaration_allowed;
+            declaration_allowed = false;
             let event_start = reader.buffer_position() as usize;
+            let remaining = &input[event_start..];
+            if remaining.starts_with(b"<!DOCTYPE") {
+                // The prolog permits one DOCTYPE before the root. Internal
+                // entities contain content, not another document prolog.
+                if !document || self.root_seen || doctype_seen {
+                    return false;
+                }
+                doctype_seen = true;
+                let Some((declaration, after)) = split_doctype(remaining) else {
+                    return false;
+                };
+                if !self
+                    .dtd
+                    .parse(declaration, &mut self.expansion_budget, self.standalone)
+                {
+                    return false;
+                }
+                input = after;
+                reader = xml_reader(input);
+                continue;
+            }
             match reader.read_event() {
                 Ok(Event::Start(e)) => self.open_element(e.name().as_ref(), Some(&e), false),
                 Ok(Event::Empty(e)) => self.open_element(e.name().as_ref(), Some(&e), true),
-                Ok(Event::End(_)) => self.end(),
-                Ok(Event::Text(e)) => self.text(&e),
+                Ok(Event::End(_)) => {
+                    // Never let an entity close an element opened by its
+                    // caller, even if it would reopen one before returning.
+                    if !document && (self.depth, self.suppressed) == initial_depth {
+                        return false;
+                    }
+                    self.end();
+                }
+                Ok(Event::Text(e)) => {
+                    if !self.text(&e) {
+                        return false;
+                    }
+                }
                 Ok(Event::CData(e)) => self.raw_text(&e),
-                Ok(Event::DocType(e)) if document => self.dtd.parse(&e, &mut self.expansion_budget),
-                Ok(Event::Decl(e)) if document => {
+                // PITarget excludes exactly "xml" in every letter case.
+                Ok(Event::PI(e)) if e.target().eq_ignore_ascii_case(b"xml") => return false,
+                Ok(Event::Decl(e)) => {
+                    // Reader restarts after a DOCTYPE or for an internal
+                    // entity do not create a new document prolog.
+                    if !at_document_start {
+                        return false;
+                    }
+                    // VersionInfo is required before the optional fields
+                    // (XML 1.0 section 2.8); the reader does not check it.
+                    if e.version().is_err() {
+                        return false;
+                    }
+                    self.standalone = match e.standalone() {
+                        None => false,
+                        Some(Ok(v)) if v.as_ref() == b"yes" => true,
+                        Some(Ok(v)) if v.as_ref() == b"no" => false,
+                        _ => return false,
+                    };
                     if let Some(encoding) = e.encoding() {
                         match encoding {
                             Ok(name) if name.eq_ignore_ascii_case(b"UTF-8") => {}
+                            // ASCII is a subset of UTF-8, so only the bytes
+                            // after the first non-ASCII one need dropping.
+                            Ok(name) if name.eq_ignore_ascii_case(b"US-ASCII") => {
+                                if let Some(i) = input.iter().position(|b| !b.is_ascii()) {
+                                    self.ascii_end = Some(document_len - input.len() + i);
+                                    return false;
+                                }
+                            }
                             _ => return false,
                         }
                     }
                 }
-                Ok(Event::Eof) => return true,
+                Ok(Event::Eof) => {
+                    return document || (self.depth, self.suppressed) == initial_depth;
+                }
+                // Supported DOCTYPEs are intercepted above. The event reader
+                // also recognizes invalid spellings and can hide a stray BOM.
+                Ok(Event::DocType(_)) => return false,
                 Ok(_) => {}
                 Err(Error::Syntax(SyntaxError::UnclosedTag)) => {
                     self.truncated_start(input.get(event_start..).unwrap_or_default());
@@ -157,8 +267,11 @@ impl XmlParser {
                 // document into unbounded MessagePack output.
                 if !seen.contains(name.as_slice())
                     && self.charge(name.len().saturating_add(value.len()))
+                    // libxml never applies an xmlns default as an attribute,
+                    // whether or not the prefix is valid.
+                    && !(name == b"xmlns" || name.starts_with(b"xmlns:"))
                 {
-                    self.attribute(name, value, defaults.cdata[name], &mut opened);
+                    self.attribute_value(name, value, &mut opened);
                 }
             }
         }
@@ -168,18 +281,18 @@ impl XmlParser {
     }
 
     fn attribute(&mut self, name: &[u8], raw: &[u8], cdata: bool, opened: &mut bool) {
-        if name == b"xmlns" || name.starts_with(b"xmlns:") {
+        if is_namespace_declaration(name) {
             return;
         }
         let mut value = Vec::new();
         self.attribute_text(raw, &mut value);
         if !cdata {
-            value = value
-                .split(|b| is_whitespace(&[*b]))
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-                .join(&b' ');
+            value = collapse_spaces(&value);
         }
+        self.attribute_value(name, &value, opened);
+    }
+
+    fn attribute_value(&mut self, name: &[u8], value: &[u8], opened: &mut bool) {
         if !*opened {
             self.writer.map_start();
             *opened = true;
@@ -188,7 +301,7 @@ impl XmlParser {
         key.push(b'@');
         key.extend_from_slice(name);
         self.writer.key(&key);
-        self.writer.str(&value);
+        self.writer.str(value);
     }
 
     fn end(&mut self) {
@@ -206,12 +319,19 @@ impl XmlParser {
         self.suppressed == 0 && self.depth > 0
     }
 
-    fn text(&mut self, mut raw: &[u8]) {
-        if !self.recording() || (self.active_entities.is_empty() && is_whitespace(raw)) {
-            return;
+    fn text(&mut self, mut raw: &[u8]) -> bool {
+        // CharData excludes literal "]]>" (XML 1.0 section 2.4). Check before
+        // reference expansion: escaped or separately parsed pieces may form
+        // this sequence. Keep only the prefix, even when text is suppressed.
+        let invalid = raw.windows(3).position(|w| w == b"]]>");
+        let complete = invalid.is_none();
+        raw = &raw[..invalid.unwrap_or(raw.len())];
+        if !self.recording() {
+            return complete;
         }
+        let preserve_whitespace = !self.active_entities.is_empty() || raw.contains(&b'&');
         while let Some(amp) = raw.iter().position(|&b| b == b'&') {
-            self.text.extend_from_slice(&raw[..amp]);
+            self.append_text(&raw[..amp], preserve_whitespace);
             raw = &raw[amp..];
             let Some((name, after)) = reference(raw) else {
                 self.text.push(b'&');
@@ -224,14 +344,18 @@ impl XmlParser {
             } else if let Some(value) = self.entity(name) {
                 // Replacement text can contain markup; use the same XML
                 // event handling rather than treating it as character data.
-                self.read(&value, false);
+                let complete = self.read(&value, false);
                 self.active_entities.remove(name);
+                if !complete {
+                    return false;
+                }
             } else {
                 self.text.extend_from_slice(&raw[..name.len() + 2]);
             }
             raw = after;
         }
-        self.text.extend_from_slice(raw);
+        self.append_text(raw, preserve_whitespace);
+        complete
     }
 
     fn attribute_text(&mut self, mut raw: &[u8], out: &mut Vec<u8>) {
@@ -278,16 +402,26 @@ impl XmlParser {
     }
 
     fn raw_text(&mut self, raw: &[u8]) {
-        if self.recording() && !is_whitespace(raw) {
-            self.text.extend_from_slice(raw);
+        // CDATA is explicit character data, including whitespace-only data.
+        if self.recording() {
+            self.append_text(raw, true);
         }
     }
 
+    fn append_text(&mut self, raw: &[u8], preserve_whitespace: bool) {
+        self.text.extend_from_slice(raw);
+        self.preserve_text_whitespace |= preserve_whitespace;
+    }
+
     fn flush_text(&mut self) {
-        if !self.text.is_empty() {
+        // Comments and PIs split reader events but not character data. Omit
+        // formatting-only whitespace only after collecting the whole run;
+        // CDATA and entity/character references explicitly preserve it.
+        if !self.text.is_empty() && (self.preserve_text_whitespace || !is_whitespace(&self.text)) {
             self.writer.str(&self.text);
-            self.text.clear();
         }
+        self.text.clear();
+        self.preserve_text_whitespace = false;
     }
 
     fn truncated_start(&mut self, tail: &[u8]) {
@@ -303,6 +437,14 @@ impl XmlParser {
             self.open_element(name, None, false);
         }
     }
+}
+
+fn xml_reader(input: &[u8]) -> Reader<&[u8]> {
+    let mut reader = Reader::from_reader(input);
+    reader.config_mut().check_comments = true;
+    reader.config_mut().check_end_names = false;
+    reader.config_mut().allow_unmatched_ends = true;
+    reader
 }
 
 pub(super) fn charge(budget: &mut usize, len: usize) -> bool {
@@ -337,7 +479,7 @@ pub(super) fn character_reference(name: &[u8]) -> Option<char> {
     matches!(c, '\t' | '\n' | '\r' | '\u{20}'..='\u{d7ff}' | '\u{e000}'..='\u{fffd}' | '\u{10000}'..='\u{10ffff}').then_some(c)
 }
 
-fn escaped_character(name: &[u8]) -> Option<char> {
+pub(super) fn escaped_character(name: &[u8]) -> Option<char> {
     match name {
         b"amp" => Some('&'),
         b"lt" => Some('<'),
@@ -345,6 +487,24 @@ fn escaped_character(name: &[u8]) -> Option<char> {
         b"apos" => Some('\''),
         b"quot" => Some('"'),
         _ => character_reference(name),
+    }
+}
+
+pub(super) fn collapse_spaces(value: &[u8]) -> Vec<u8> {
+    value
+        .split(|&b| b == b' ')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(&b' ')
+}
+
+// Like libxml, treat xmlns:prefix as a declaration only if the prefix can
+// start a name. Otherwise it is reported as an ordinary attribute.
+fn is_namespace_declaration(name: &[u8]) -> bool {
+    match name.strip_prefix(b"xmlns") {
+        Some([]) => true,
+        Some([b':', first, ..]) => first.is_ascii_alphabetic() || *first == b'_' || *first >= 0x80,
+        _ => false,
     }
 }
 
@@ -421,26 +581,8 @@ mod tests {
     #[test]
     fn normalized_whitespace() {
         assert_eq!(
-            complete("<r a=\"a\tb\nc\rd\">x\r\ny\rz</r>"),
-            r#"{"r":[{"@a":"a b c d"},"x\ny\nz"]}"#
-        );
-        assert_eq!(
             complete(r#"<!DOCTYPE r [<!ATTLIST r tokens NMTOKENS #IMPLIED>]><r tokens=" a  b "/>"#),
             r#"{"r":[{"@tokens":"a b"}]}"#
-        );
-        assert_eq!(
-            complete(r#"<!DOCTYPE r [<!ENTITY e " ">]><r>a&e;b</r>"#),
-            r#"{"r":["a b"]}"#
-        );
-    }
-
-    #[test]
-    fn parameter_entities_can_declare_entities_and_defaults() {
-        assert_eq!(
-            complete(
-                r#"<!DOCTYPE r [<!ENTITY % d "<!ENTITY e 'payload'><!ATTLIST r a CDATA 'default'>">%d;]><r>&e;</r>"#
-            ),
-            r#"{"r":[{"@a":"default"},"payload"]}"#
         );
     }
 
@@ -450,6 +592,106 @@ mod tests {
             complete("<a>x<!-- c -->y<![CDATA[<z>]]></a>"),
             r#"{"a":["xy<z>"]}"#
         );
+    }
+
+    #[test]
+    fn literal_cdata_close_keeps_only_the_preceding_text() {
+        for (text, expected) in [
+            ("before]]>after", r#"{"r":["before"]}"#),
+            ("before]]]]>after", r#"{"r":["before]]"]}"#),
+            ("]]>after", r#"{"r":[]}"#),
+            ("before&amp;]]>after", r#"{"r":["before&"]}"#),
+        ] {
+            assert_eq!(partial(&format!("<r>{text}<x>tail</x></r>")), expected);
+        }
+        assert_eq!(xml("]]><r/>", 30).0, AppsecBodyStatus::Empty);
+        assert_eq!(
+            xml("<r>before<x>]]></x><tail/></r>", 1),
+            (
+                AppsecBodyStatus::Partial,
+                r#"{"r":["before",{"x":[]}]}"#.to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn literal_cdata_close_in_entity_replacements_stops_the_document() {
+        // Literal and fully escaped forms: convert_xml_literal_cdata_close.phpt.
+        assert_eq!(
+            partial(
+                r#"<!DOCTYPE r [<!ENTITY e "prefix]&#93;>after">]><r>before&e;<x>tail</x></r>"#
+            ),
+            r#"{"r":["beforeprefix"]}"#
+        );
+        assert_eq!(
+            partial(
+                r#"<!DOCTYPE r [<!ENTITY e "<x/>prefix]]>after"><!ENTITY outer "&e;tail">]><r>before&outer;<tail/></r>"#
+            ),
+            r#"{"r":["before",{"x":[]},"prefix"]}"#
+        );
+    }
+
+    #[test]
+    fn cdata_close_from_separate_text_segments_is_allowed() {
+        // Other splits are in convert_xml_literal_cdata_close.phpt.
+        for (replacement, text) in [("]]", "&e;>"), ("]]>unused", "]]&gt;")] {
+            let input = format!(r#"<!DOCTYPE r [<!ENTITY e "{replacement}">]><r>{text}</r>"#);
+            assert_eq!(complete(&input), r#"{"r":["]]>"]}"#);
+        }
+    }
+
+    #[test]
+    fn malformed_comments_stop_at_the_parsed_prefix() {
+        // Other placements are in convert_xml_invalid_comment.phpt.
+        for input in [
+            "<r>before</r><!--a--->",
+            "<r>before<!--a<x>tail</x></r>",
+            "<r>before</r><!--a",
+            r#"<!DOCTYPE r [<!ENTITY e "<!--a<x>tail</x>">]><r>before&e;after</r>"#,
+        ] {
+            assert_eq!(partial(input), r#"{"r":["before"]}"#);
+        }
+        for comment in ["<!--a--b-->", "<!--a--->", "<!--a"] {
+            assert_eq!(
+                xml(&format!("<r>before<x>{comment}</x><tail/></r>"), 1),
+                (
+                    AppsecBodyStatus::Partial,
+                    r#"{"r":["before",{"x":[]}]}"#.to_owned()
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_comments_before_the_root_stop_the_document() {
+        // Other placements are in convert_xml_invalid_comment.phpt.
+        for input in [
+            "<!--a---><r>tail</r>",
+            "<!--a<r>tail</r>",
+            "<!DOCTYPE r [<!--a]><r>tail</r>",
+        ] {
+            assert_eq!(xml(input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn valid_comments_and_unused_comment_literals_are_preserved() {
+        for comment in ["<!---->", "<!---a-->", "<!--a-b-->", "<!-- ]>< -->"] {
+            for input in [
+                format!("<r>before{comment}after</r>"),
+                format!("<!DOCTYPE r [{comment}]><r>beforeafter</r>"),
+                format!(r#"<!DOCTYPE r [<!ENTITY % p "{comment}">%p;]><r>beforeafter</r>"#),
+                format!(r#"<!DOCTYPE r [<!ENTITY e "{comment}">]><r>before&e;after</r>"#),
+            ] {
+                assert_eq!(complete(&input), r#"{"r":["beforeafter"]}"#);
+            }
+        }
+        for comment in ["<!--a--b-->", "<!--a--->", "<!--a"] {
+            for marker in ["", "% "] {
+                let input = format!(r#"<!DOCTYPE r [<!ENTITY {marker}e "{comment}">]><r>tail</r>"#);
+                assert_eq!(complete(&input), r#"{"r":["tail"]}"#);
+            }
+        }
     }
 
     #[test]
@@ -464,10 +706,6 @@ mod tests {
         assert_eq!(
             complete(input),
             r#"{"test":[{"@a":"[test]"},"test&myentity;[test]&undeclared;&#xZZ; & x"]}"#
-        );
-        assert_eq!(
-            complete("<!DOCTYPE note SYSTEM \"http://example.com/note.dtd\">\n<test>&test;</test>"),
-            r#"{"test":["&test;"]}"#
         );
     }
 
@@ -488,30 +726,59 @@ mod tests {
     }
 
     #[test]
-    fn forward_references_and_entity_markup() {
+    fn entity_boundaries_keep_the_parsed_prefix() {
+        for (replacement, expected) in [
+            ("</r>", r#"{"r":["before"]}"#),
+            ("</r><r>", r#"{"r":["before"]}"#),
+            ("<a>ok</a></r>", r#"{"r":["before",{"a":["ok"]}]}"#),
+        ] {
+            let input = format!(
+                r#"<!DOCTYPE r [<!ENTITY e "{replacement}">]><r>before&e;after<tail/></r>"#
+            );
+            assert_eq!(partial(&input), expected, "{replacement}");
+        }
+    }
+
+    #[test]
+    fn nested_entity_failures_stop_the_document() {
+        // The failure at the start of the outer entity and a balanced nesting
+        // are in convert_xml_entity_boundaries.phpt.
         assert_eq!(
-            complete(r#"<!DOCTYPE r [<!ENTITY a "&b;"><!ENTITY b "attack">]><r>&a;</r>"#),
-            r#"{"r":["attack"]}"#
-        );
-        assert_eq!(
-            complete(
-                r#"<!DOCTYPE r [<!ENTITY e "<child key='v'>value</child>">]><r>before&e;after</r>"#
+            partial(
+                r#"<!DOCTYPE r [<!ENTITY inner "</r>"><!ENTITY e "<a/>&inner;<b/>">]><r>&e;after<tail/></r>"#
             ),
-            r#"{"r":["before",{"child":[{"@key":"v"},"value"]},"after"]}"#
+            r#"{"r":[{"a":[]}]}"#
         );
-        assert_eq!(
-            complete(r#"<!DOCTYPE r [<!ENTITY e "&#60;child/> &lt;text&gt;">]><r>&e;</r>"#),
-            r#"{"r":[{"child":[]}," <text>"]}"#
-        );
+    }
+
+    #[test]
+    fn entity_boundaries_include_suppressed_elements() {
+        for (replacement, status, expected) in [
+            ("<a>", AppsecBodyStatus::Partial, r#"{"r":[{"a":[]}]}"#),
+            (
+                "<a></a></r>",
+                AppsecBodyStatus::Partial,
+                r#"{"r":[{"a":[]}]}"#,
+            ),
+            (
+                "<a><b/></a>",
+                AppsecBodyStatus::Complete,
+                r#"{"r":[{"a":[]},"after",{"tail":[]}]}"#,
+            ),
+        ] {
+            let input =
+                format!(r#"<!DOCTYPE r [<!ENTITY e "{replacement}">]><r>&e;after<tail/></r>"#);
+            assert_eq!(xml(&input, 1), (status, expected.to_owned()));
+        }
     }
 
     #[test]
     fn dtd_default_attributes() {
         let dtd = r#"<!DOCTYPE r [
             <!-- <!ATTLIST r cmd CDATA "safe"> -->
+            <!ENTITY e "attack">
             <!ATTLIST r cmd CDATA "&e;" fixed CDATA #FIXED "v" required CDATA #REQUIRED implied CDATA #IMPLIED>
             <!ATTLIST r cmd CDATA "ignored">
-            <!ENTITY e "attack">
         ]>"#;
         assert_eq!(
             complete(&format!("{dtd}<r/>")),
@@ -520,6 +787,90 @@ mod tests {
         assert_eq!(
             complete(&format!(r#"{dtd}<r cmd="explicit"/>"#)),
             r#"{"r":[{"@cmd":"explicit","@fixed":"v"}]}"#
+        );
+    }
+
+    #[test]
+    fn invalid_defaults_stop_before_the_root() {
+        for declarations in [
+            r#"<!ATTLIST r a CDATA "&e;"><!ENTITY e "value">"#,
+            r#"<!ATTLIST unused a CDATA "&e;">"#,
+            r#"<!ATTLIST r a CDATA "first" a CDATA "&e;">"#,
+            r#"<!ENTITY e "&later;"><!ATTLIST r a CDATA "&e;"><!ENTITY later "v">"#,
+        ] {
+            let input = format!(r#"<!DOCTYPE r [{declarations}]><r a="explicit"/>"#);
+            assert_eq!(xml(&input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn default_expansion_limits_stop_before_the_root() {
+        // Recursion and excessive nesting are fatal errors, as in libxml.
+        let recursive = r#"<!DOCTYPE r [<!ENTITY e "&e;"><!ATTLIST r a CDATA "&e;">]><r/>"#;
+        assert_eq!(xml(recursive, 30).0, AppsecBodyStatus::Empty);
+        assert_eq!(
+            xml(&default_chain(super::MAX_ENTITY_DEPTH, 1), 30).0,
+            AppsecBodyStatus::Empty
+        );
+    }
+
+    #[test]
+    fn exhausted_expansion_budget_drops_only_the_default() {
+        // Running out of budget is not an XML error. Keep the document, as when
+        // content references stay unexpanded. A spent budget also stops later
+        // defaults from being applied.
+        assert_eq!(
+            complete(&default_chain(super::MAX_ENTITY_DEPTH / 2, 2)),
+            r#"{"r":[]}"#
+        );
+        let input = format!(
+            r#"<!DOCTYPE r [<!ENTITY a "{}"><!ATTLIST r d CDATA "{}" e CDATA "kept">]><r>text</r>"#,
+            "x".repeat(1000),
+            "&a;".repeat(66)
+        );
+        assert_eq!(complete(&input), r#"{"r":[{"@e":"kept"},"text"]}"#);
+    }
+
+    fn default_chain(levels: usize, repeat: usize) -> String {
+        let mut input = String::from(r#"<!DOCTYPE r [<!ENTITY e0 "x">"#);
+        for i in 1..=levels {
+            let refs = format!("&e{};", i - 1).repeat(repeat);
+            input.push_str(&format!(r#"<!ENTITY e{i} "{refs}">"#));
+        }
+        input.push_str(&format!(r#"<!ATTLIST r a CDATA "&e{levels};">]><r/>"#));
+        input
+    }
+
+    #[test]
+    fn parameter_entities_nest_as_deeply_as_in_libxml() {
+        // libxml accepts 40 nested parameter entities and rejects 41.
+        let chain = |levels: usize| {
+            let mut input = String::from(r#"<!DOCTYPE r [<!ENTITY % p0 "<!ENTITY e 'deep'>">"#);
+            for i in 1..levels {
+                input.push_str(&format!("<!ENTITY % p{i} '&#37;p{};'>", i - 1));
+            }
+            input.push_str(&format!("%p{};]><r>&e;</r>", levels - 1));
+            input
+        };
+        assert_eq!(complete(&chain(40)), r#"{"r":["deep"]}"#);
+        // Past the limit the entity is unread, so later declarations are ignored.
+        assert_eq!(complete(&chain(41)), r#"{"r":["&e;"]}"#);
+    }
+
+    #[test]
+    fn xmlns_with_an_invalid_prefix_is_an_attribute() {
+        // As in libxml, only a prefix that can start a name declares a
+        // namespace; anything else remains an ordinary attribute.
+        assert_eq!(
+            complete(
+                r#"<r xmlns:1="a" xmlns:-x="b" xmlns:="c" xmlns:p="d" xmlns:_q="e" xmlns="f" g="h"/>"#
+            ),
+            r#"{"r":[{"@xmlns:1":"a","@xmlns:-x":"b","@xmlns:":"c","@g":"h"}]}"#
+        );
+        // libxml never applies such a default as an attribute.
+        assert_eq!(
+            complete(r#"<!DOCTYPE r [<!ATTLIST r xmlns: CDATA "u" xmlns:1 CDATA "v">]><r/>"#),
+            r#"{"r":[]}"#
         );
     }
 
@@ -540,22 +891,114 @@ mod tests {
     }
 
     #[test]
-    fn encoding_is_validated() {
+    fn declaration_requires_version_first() {
+        // Without a BOM: convert_xml_declaration_version.phpt.
+        for declaration in [
+            r#"<?xml standalone="yes"?>"#,
+            "<?xml ?>",
+            r#"<?xml encoding="UTF-8" version="1.0"?>"#,
+            "<?xml version=1.0?>",
+        ] {
+            let input = format!("\u{feff}{declaration}<r>tail</r>");
+            assert_eq!(xml(&input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn misplaced_declarations_keep_only_the_preceding_data() {
+        // Other placements are in convert_xml_declaration_position.phpt.
         assert_eq!(
-            xml(
-                r#"<?xml version="1.0" encoding="ISO-8859-1"?><r>text</r>"#,
-                30
+            xml(r#"<r>before<x><?xml version="1.0"?></x><tail/></r>"#, 1),
+            (
+                AppsecBodyStatus::Partial,
+                r#"{"r":["before",{"x":[]}]}"#.to_owned()
             )
-            .0,
-            AppsecBodyStatus::Empty
         );
-        let (status, out) = render(super::parse(b"<r>ok<x>\xff</x></r>", 30));
-        assert_eq!(status, AppsecBodyStatus::Partial);
-        assert_eq!(out, r#"{"r":["ok",{"x":[]}]}"#);
+    }
+
+    #[test]
+    fn misplaced_declarations_stop_before_the_root() {
+        for input in [
+            r#" <?xml version="1.0"?><r/>"#,
+            r#"<!DOCTYPE r><?xml version="1.0"?><r/>"#,
+            r#"<?xml version="1.0"?><?xml version="1.0"?><r/>"#,
+            r#"<!DOCTYPE r [<?xml version="1.0"?>]><r/>"#,
+            r#"<!DOCTYPE r [<!ENTITY % p "<?xml version='1.0'?>">%p;]><r/>"#,
+            "\u{feff}\u{feff}<?xml version=\"1.0\"?><r/>",
+        ] {
+            assert_eq!(xml(input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn misplaced_doctypes_keep_only_the_preceding_data() {
+        for input in [
+            r#"<r>before<!DOCTYPE r [<!ENTITY e "after">]>&e;<tail/></r>"#,
+            r#"<!DOCTYPE r [<!ENTITY e "<!DOCTYPE r><tail/>">]><r>before&e;after</r>"#,
+        ] {
+            assert_eq!(partial(input), r#"{"r":["before"]}"#);
+        }
         assert_eq!(
-            complete(r#"<?xml version="1.0" encoding="UTF-8"?><r a="é">日本語</r>"#),
-            r#"{"r":[{"@a":"é"},"日本語"]}"#
+            xml("<r>before<x><!DOCTYPE r></x><tail/></r>", 1),
+            (
+                AppsecBodyStatus::Partial,
+                r#"{"r":["before",{"x":[]}]}"#.to_owned()
+            )
         );
+    }
+
+    #[test]
+    fn repeated_and_nested_doctypes_stop_before_the_root() {
+        for input in [
+            "<!DOCTYPE r><!DOCTYPE r><r/>",
+            "<!DOCTYPE r [<!DOCTYPE nested>]><r/>",
+            r#"<!DOCTYPE r [<!ENTITY % p "<!DOCTYPE nested>">%p;]><r/>"#,
+            "\u{feff}\u{feff}<!DOCTYPE r><r/>",
+        ] {
+            assert_eq!(xml(input, 30).0, AppsecBodyStatus::Empty, "{input}");
+        }
+    }
+
+    #[test]
+    fn reserved_pi_targets_keep_only_the_preceding_data() {
+        // Inside the root, and XML after it: convert_xml_reserved_pi_target.phpt.
+        for target in ["xml", "xmL", "xMl", "xML", "Xml", "XmL", "XMl"] {
+            let input = format!("<r>before</r><?{target} info?>");
+            assert_eq!(partial(&input), r#"{"r":["before"]}"#);
+        }
+        assert_eq!(
+            xml("<r>before<x><?XML info?></x><tail/></r>", 1),
+            (
+                AppsecBodyStatus::Partial,
+                r#"{"r":["before",{"x":[]}]}"#.to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn us_ascii_is_accepted_up_to_the_first_non_ascii_byte() {
+        for declaration in [
+            r#"<?xml version="1.0" encoding="US-ASCII"?>"#,
+            r#"<?xml version="1.0" encoding="us-ascii"?>"#,
+            "\u{feff}<?xml version=\"1.0\" encoding=\"US-ASCII\"?>",
+        ] {
+            assert_eq!(
+                complete(&format!("{declaration}<r a=\"x\">text</r>")),
+                r#"{"r":[{"@a":"x"},"text"]}"#
+            );
+            // Valid UTF-8 is still not ASCII. Like libxml's recovery, keep
+            // only the content before the first non-ASCII byte.
+            assert_eq!(
+                partial(&format!("{declaration}<r>ab<c/>café tail</r>")),
+                r#"{"r":["ab",{"c":[]},"caf"]}"#
+            );
+        }
+        let (status, out) = render(super::parse(
+            b"<?xml version=\"1.0\" encoding=\"US-ASCII\"?><r>caf\xe9</r>",
+            30,
+        ));
+        assert_eq!(status, AppsecBodyStatus::Partial);
+        assert_eq!(out, r#"{"r":["caf"]}"#);
     }
 
     #[test]
@@ -590,30 +1033,15 @@ mod tests {
 
     #[test]
     fn truncated() {
-        assert_eq!(
-            partial_or_complete("<root><item>content</item><other>trun"),
-            r#"{"root":[{"item":["content"]},{"other":["trun"]}]}"#
-        );
-        assert_eq!(
-            partial_or_complete("<root><a><b><c>text</c></b>"),
-            r#"{"root":[{"a":[{"b":[{"c":["text"]}]}]}]}"#
-        );
-        assert_eq!(partial(r#"<root attr="val"#), r#"{"root":[]}"#);
+        // More truncations are in convert_xml_truncated.phpt.
         assert_eq!(
             partial(r#"<root><child a="1" b"#),
             r#"{"root":[{"child":[]}]}"#
         );
-        assert_eq!(partial_or_complete("<root>"), r#"{"root":[]}"#);
-        assert_eq!(xml("<root>", 30).0, AppsecBodyStatus::Partial);
-        assert_eq!(xml("", 30), (AppsecBodyStatus::Empty, String::new()));
         assert_eq!(
             xml("just text", 30),
             (AppsecBodyStatus::Empty, String::new())
         );
-    }
-
-    fn partial_or_complete(input: &str) -> String {
-        xml(input, 30).1
     }
 
     #[test]
@@ -658,6 +1086,18 @@ mod tests {
         let input = r#"<?xml version="1.0"?><!DOCTYPE d [<!ENTITY e "v">]><d a="&e;"><!-- c --><x>&e;&amp;</x><![CDATA[y]]><z/></d>"#;
         for len in 0..=input.len() {
             xml(&input[..len], 30);
+        }
+    }
+
+    #[test]
+    fn doctype_delimiters_and_truncation() {
+        let input = "\u{feff}<?xml version=\"1.0\"?>\n<!DOCTYPE r [<!-- ]>< --><?p ]>< ?><!ENTITY e 'a]>b'><!ATTLIST r a CDATA ']>v'>]><r>&e;</r>";
+        assert_eq!(complete(input), r#"{"r":[{"@a":"]>v"},"a]>b"]}"#);
+        for len in 0..=input.len() {
+            let (status, _) = render(super::parse(&input.as_bytes()[..len], 30));
+            if len < input.find("<r>").unwrap() {
+                assert_eq!(status, AppsecBodyStatus::Empty, "{len}");
+            }
         }
     }
 }

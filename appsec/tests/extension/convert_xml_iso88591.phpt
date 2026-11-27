@@ -16,5 +16,5 @@ $result = datadog\appsec\convert_xml($entity, $content_type);
 var_dump($result);
 
 --EXPECTF--
-Notice: datadog\appsec\convert_xml(): [ddappsec] Only UTF-8 is supported for XML parsing in %s on line %d
+Notice: datadog\appsec\convert_xml(): [ddappsec] Only UTF-8 and US-ASCII are supported for XML parsing in %s on line %d
 NULL
