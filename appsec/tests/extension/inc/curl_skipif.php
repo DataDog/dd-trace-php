@@ -19,3 +19,9 @@ if (!$info['calibration_accepted']) {
     die('skip native layer disabled: calibration refused: '
         . $info['calibration_reason']);
 }
+// the final verdict (G10.5): also no hooks with RASP off or without the curl
+// handle type. curl_linkage_info.phpt fails instead of skipping.
+if (empty($curl_skipif_hooks_optional) && !$info['layer_enabled']) {
+    die('skip native layer disabled: hooks not installed (RASP off or no '
+        . 'curl handle type)');
+}

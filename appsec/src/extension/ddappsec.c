@@ -29,7 +29,9 @@
 #include "ddappsec_arginfo.h"
 #include "dddefs.h"
 #include "downstream/curl_handle.h"
+#include "downstream/curl_hooks.h"
 #include "downstream/curl_linkage.h"
+#include "downstream/curl_observe.h"
 #include "duration_acc.h"
 #include "entity_body.h"
 #include "helper_process.h"
@@ -124,6 +126,7 @@ void dd_appsec_minit(int module_number)
     dd_telemetry_startup();
     dd_curl_linkage_minit();
     dd_curl_handle_minit();
+    dd_curl_observe_minit();
 }
 
 void dd_appsec_mshutdown(void)
@@ -151,6 +154,8 @@ void dd_appsec_zend_startup(void)
     // after every module's MINIT: ext/curl's has called curl_global_init
     dd_curl_linkage_startup();
     dd_curl_handle_startup();
+    // after the tracer's startup, which replaced some of the same handlers
+    dd_curl_hooks_startup();
 }
 
 static void _rinit_once(void) { _check_enabled(); }
@@ -174,6 +179,7 @@ void dd_appsec_rinit(void)
     }
     DDAPPSEC_G(skip_rshutdown) = false;
     dd_msgpack_helpers_rinit();
+    dd_curl_observe_rinit();
 
     // Waf calls happen here. Not many rinits should go after this line.
     dd_req_lifecycle_rinit(false);
@@ -190,6 +196,10 @@ void dd_appsec_rinit(void)
 
 void dd_appsec_rshutdown_hook(void)
 {
+    // Before any curl handle is freed (shutdown_executor), restore the
+    // options of transfers still observed and free our per-handle state.
+    dd_curl_observe_rshutdown();
+
     // Here now we have to disconnect from the helper in all the cases but when
     // disabled by config
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED ||

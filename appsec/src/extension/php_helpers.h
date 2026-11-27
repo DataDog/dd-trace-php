@@ -23,6 +23,38 @@
 #    define TSRM_MUTEX_UNLOCK(x)
 #endif
 
+#include <Zend/zend_exceptions.h>
+
+// PHP 8.6 removed zend_exception_save()/zend_exception_restore() along with
+// EG(prev_exception). The pending exception is kept by the caller instead
+static inline void dd_exception_save(zend_object *nonnull *nonnull slot)
+{
+#if PHP_VERSION_ID >= 80600
+    *slot = EG(exception);
+    EG(exception) = NULL;
+#else
+    (void)slot;
+    zend_exception_save();
+#endif
+}
+
+static inline void dd_exception_restore(zend_object *nonnull *nonnull slot)
+{
+#if PHP_VERSION_ID >= 80600
+    if (*slot) {
+        if (EG(exception)) {
+            zend_exception_set_previous(EG(exception), *slot);
+        } else {
+            EG(exception) = *slot;
+        }
+        *slot = NULL;
+    }
+#else
+    (void)slot;
+    zend_exception_restore();
+#endif
+}
+
 typedef enum {
     php_array_type_sequential = 1,
     php_array_type_associative,

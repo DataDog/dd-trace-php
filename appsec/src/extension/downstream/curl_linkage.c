@@ -10,6 +10,10 @@
 #include "../configuration.h"
 #include "../logging.h"
 #include "../php_objects.h"
+#ifdef TESTING
+#    include "curl_handle.h"
+#    include "curl_hooks.h"
+#endif
 
 static struct dd_curl_linkage _linkage = {
     .reason = "detection did not run",
@@ -143,6 +147,11 @@ static PHP_FUNCTION(datadog_appsec_testing_curl_linkage_info)
             (zend_long)_calibration.offsets[i]);
     }
     add_assoc_zval(return_value, "calibration_offsets", &offsets);
+
+    // the final verdict: linkage, calibration, curl handle type and hooks
+    // (no hooks with RASP off)
+    add_assoc_bool(return_value, "layer_enabled",
+        dd_curl_downstream_enabled() && dd_curl_hooks_installed());
 }
 
 // Overrides libcurl's version number (0xXXYYZZ) as the options recording

@@ -3,12 +3,12 @@ ext/curl's libcurl is detected as dynamically linked, resolved and calibrated
 --DESCRIPTION--
 The CI images link ext/curl (built into php) against the system libcurl, so
 the native downstream-request analysis must be available, with the libcurl
-functions resolved from the same libcurl instance ext/curl uses and the offsets
+functions resolved from the same libcurl instance ext/curl uses, the offsets
 of the write, header and read callback slots calibrated (G5.1; below libcurl
-7.80 only the read slots, G3.4). In the debug-zts and debug-zts-asan legs this
-must pass, never skip (G10.5); the other curl tests skip when the linkage is
-not enabled (inc/curl_skipif.php), so this is the test that fails for any
-cause of "off".
+7.80 only the read slots, G3.4) and the hooks installed: the layer is on. In
+the debug-zts and debug-zts-asan legs this must pass, never skip (G10.5); the
+other curl tests skip on layer_enabled (inc/curl_skipif.php), so this is the
+test that fails for any cause of "off".
 
 Identity (G10.13): the libcurl ext/curl is bound to is the one the leg selects.
 A leg that selects a libcurl with LD_LIBRARY_PATH (the images of
@@ -69,6 +69,10 @@ foreach ($used as $off) {
         echo "bad offset: ", var_export($off, true), "\n";
     }
 }
+
+// the final verdict: also the hooks installed (RASP on, curl handle type
+// found)
+var_dump($info['layer_enabled']);
 ?>
 --EXPECTF--
 bool(true)
@@ -98,5 +102,6 @@ array(6) {
   [5]=>
   string(9) "read_data"
 }
+bool(true)
 bool(true)
 bool(true)
