@@ -27,5 +27,18 @@ RUN (cd /usr/local/lib/ruby/gems/4.0.0/gems/fpm-1.17.0 && \
 
 COPY --from=compile-tar /usr/bin/tar /usr/bin/tar
 
+# Follow the published internal client without introducing a Buildx version pin.
+COPY --from=registry.ddbuild.io/images/docker:27.3.1 /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+RUN selected_buildx="$(docker buildx version)" \
+    && case "$selected_buildx" in \
+      "github.com/docker/buildx v"*-dd.*" "*) printf '%s\n' "$selected_buildx" ;; \
+      *) echo "Expected internal Buildx: $selected_buildx" >&2; exit 1 ;; \
+    esac
+
 USER circleci
+RUN selected_buildx="$(docker buildx version)" \
+    && case "$selected_buildx" in \
+      "github.com/docker/buildx v"*-dd.*" "*) printf '%s\n' "$selected_buildx" ;; \
+      *) echo "Expected internal Buildx: $selected_buildx" >&2; exit 1 ;; \
+    esac
 ENTRYPOINT [ "bash" ]
