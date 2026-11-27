@@ -170,7 +170,8 @@ void dd_mpack_write_array(
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static void _mpack_write_array_lim(mpack_writer_t *nonnull w,
-    const zend_array *nonnull arr, dd_mpack_limits *limits)
+    const zend_array *nonnull arr, dd_mpack_limits *limits,
+    const dd_mpack_raw_entry *nullable raw, size_t raw_count)
 {
     if (limits->depth_remaining == 0 || limits->elements_remaining == 0) {
         data_truncated_ = true;
@@ -189,7 +190,7 @@ static void _mpack_write_array_lim(mpack_writer_t *nonnull w,
     }
 
     dd_php_array_type arr_type = dd_php_determine_array_type(arr);
-    if (arr_type == php_array_type_sequential) {
+    if (arr_type == php_array_type_sequential && raw_count == 0) {
         // don't take the penalty of dynamically allocating the array
         // i.e. no specification of the array upfront
         // Instead, if we exceed the limit, we'll start writing nil values
@@ -206,7 +207,7 @@ static void _mpack_write_array_lim(mpack_writer_t *nonnull w,
         ZEND_HASH_FOREACH_END();
         mpack_finish_array(w);
     } else {
-        mpack_start_map(w, elems_to_write);
+        mpack_start_map(w, elems_to_write + raw_count);
 
         zend_string *key_s;
         zend_ulong key_i;
@@ -226,6 +227,10 @@ static void _mpack_write_array_lim(mpack_writer_t *nonnull w,
             dd_mpack_write_zval_lim(w, val, limits);
         }
         ZEND_HASH_FOREACH_END();
+        for (size_t i = 0; raw && i < raw_count; i++) {
+            mpack_write_str(w, raw[i].name, raw[i].name_len);
+            mpack_write_object_bytes(w, raw[i].bytes, raw[i].len);
+        }
         mpack_finish_map(w);
     }
 
@@ -244,7 +249,17 @@ void dd_mpack_write_array_lim(mpack_writer_t *nonnull w,
         return;
     }
 
-    _mpack_write_array_lim(w, arr, limits);
+    _mpack_write_array_lim(w, arr, limits, NULL, 0);
+}
+
+void dd_mpack_write_map_lim_raw(mpack_writer_t *nonnull w,
+    const zend_array *nonnull arr, dd_mpack_limits *nonnull limits,
+    const dd_mpack_raw_entry *nullable raw, size_t raw_count)
+{
+    if (mpack_writer_error(w) != mpack_ok) {
+        return;
+    }
+    _mpack_write_array_lim(w, arr, limits, raw, raw_count);
 }
 
 // NOLINTNEXTLINE
@@ -350,7 +365,7 @@ static void _mpack_write_zval_lim(
         // no decrement of elements_remaining here because
         // _mpack_write_array_lim will do it
         zend_array *arr = Z_ARRVAL_P(zv);
-        _mpack_write_array_lim(w, arr, limits);
+        _mpack_write_array_lim(w, arr, limits, NULL, 0);
         break;
     }
 
@@ -690,3 +705,8 @@ void dd_msgpack_helpers_startup(void)
 void dd_msgpack_helpers_rinit(void) { data_truncated_ = false; }
 
 bool dd_msgpack_helpers_is_data_truncated(void) { return data_truncated_; }
+
+void dd_msgpack_helpers_set_data_truncated(bool truncated)
+{
+    data_truncated_ = truncated;
+}

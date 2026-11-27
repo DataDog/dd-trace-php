@@ -692,6 +692,21 @@ impl ReqContext {
     ) -> anyhow::Result<WafRunResult> {
         debug!("Running WAF with: {:?}, options: {:?}", data, options);
 
+        if let (Some(subctx_id), true, true) = (
+            &options.subctx_id,
+            options.subctx_last_call,
+            data.is_empty(),
+        ) {
+            // A data-less last call only closes the subcontext: no WAF run,
+            // no metric (downstream requests that end without a response).
+            self.waf_subctxs.remove(subctx_id);
+            return Ok(WafRunResult {
+                triggers: Vec::new(),
+                actions: Vec::new(),
+                waf_keep: false,
+            });
+        }
+
         let waf_timeout = self.waf_timeout;
         let mut ctx = self.get_waf_runnable(options)?;
         // Evaluation is CPU-bound and bounded by the WAF timeout. Running it directly avoids
@@ -1466,6 +1481,100 @@ mod tests {
                 "Cancellation should return CleanShutdown, got: {:?}",
                 err
             );
+        }
+    }
+
+    /// The last call of a subcontext may carry no data (downstream curl
+    /// requests that end without a response): it only drops the subcontext.
+    mod subctx_last_call {
+        use super::*;
+        use crate::telemetry::{MetricName, TelemetryMetricSubmitter, TelemetryTags};
+        use libddwaf::object::WafMap;
+
+        struct Noop;
+        impl TelemetryMetricSubmitter for Noop {
+            fn submit_metric(&mut self, _: MetricName, _: f64, _: TelemetryTags) {}
+        }
+
+        fn req_context() -> ReqContext {
+            req_context_with(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/service/testdata/minimal_rules.json"
+            ))
+        }
+
+        fn req_context_with(rules_file: &str) -> ReqContext {
+            let config = ServiceFixedConfig::new(
+                true,
+                protocol::WafSettings {
+                    rules_file: Some(rules_file.to_string()),
+                    waf_timeout_us: Some(10000),
+                    trace_rate_limit: 100,
+                    obfuscator_key_regex: None,
+                    obfuscator_value_regex: None,
+                    schema_extraction: protocol::SchemaExtraction {
+                        enabled: false,
+                        sampling_period: 1.0,
+                    },
+                },
+                protocol::RemoteConfigSettings::new(false, PathBuf::from("/tmp/test_u04")),
+                protocol::TelemetrySettings {
+                    service_name: "test_u04".to_string(),
+                    env_name: "test".to_string(),
+                },
+            );
+            let service = ServiceManager::new()
+                .get_service(&config, &mut Noop)
+                .unwrap();
+            ReqContext::new(&service, service.config_snapshot().clone())
+        }
+
+        fn opts(last: bool) -> RequestExecOptions {
+            RequestExecOptions {
+                run_type: WafRunType::RaspRule {
+                    rule_type: "ssrf".to_string(),
+                    rule_variant: Some("response".to_string()),
+                },
+                subctx_id: Some("curl-1-0".to_string()),
+                subctx_last_call: last,
+            }
+        }
+
+        fn some_data() -> WafMap {
+            libddwaf::waf_map! {("server.io.net.response.status", 200i64)}
+        }
+
+        #[test]
+        fn last_call_without_data_drops_subcontext_without_waf_run() {
+            let mut ctx = req_context();
+            ctx.run_waf(some_data(), &opts(false)).unwrap();
+            assert_eq!(ctx.waf_subctxs.len(), 1);
+            assert_eq!(ctx.waf_metrics.rasp_rule_evals(), 1);
+
+            let res = ctx.run_waf(WafMap::new(0).unwrap(), &opts(true)).unwrap();
+
+            assert!(ctx.waf_subctxs.is_empty());
+            assert_eq!(ctx.waf_metrics.rasp_rule_evals(), 1, "no RASP metric");
+            assert!(res.triggers.is_empty());
+            assert!(res.actions.is_empty());
+            assert!(!res.waf_keep);
+        }
+
+        #[test]
+        fn last_call_without_data_on_unknown_subcontext_is_harmless() {
+            let mut ctx = req_context();
+            ctx.run_waf(WafMap::new(0).unwrap(), &opts(true)).unwrap();
+            assert!(ctx.waf_subctxs.is_empty());
+            assert_eq!(ctx.waf_metrics.rasp_rule_evals(), 0);
+        }
+
+        #[test]
+        fn last_call_with_data_runs_and_drops_subcontext() {
+            let mut ctx = req_context();
+            ctx.run_waf(some_data(), &opts(false)).unwrap();
+            ctx.run_waf(some_data(), &opts(true)).unwrap();
+            assert!(ctx.waf_subctxs.is_empty());
+            assert_eq!(ctx.waf_metrics.rasp_rule_evals(), 2);
         }
     }
 }

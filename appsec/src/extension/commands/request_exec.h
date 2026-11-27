@@ -8,6 +8,7 @@
 #include <SAPI.h>
 #include <php.h>
 
+#include "../msgpack_helpers.h"
 #include "../network.h"
 #include "../request_abort.h"
 
@@ -16,6 +17,10 @@ struct req_exec_opts {
     zend_string *nullable rule_variant;
     zend_string *nullable subctx_id;
     bool subctx_last_call;
+    // entries that are already MessagePack (JSON and XML bodies); they are
+    // written after the data's, outside of the serialiser's limits
+    const dd_mpack_raw_entry *nullable raw;
+    size_t raw_count;
 };
 
 dd_result dd_request_exec(dd_conn *nonnull conn, zend_array *nonnull data,

@@ -127,6 +127,11 @@ impl WafMetrics {
         }
     }
 
+    #[cfg(test)]
+    pub fn rasp_rule_evals(&self) -> u32 {
+        self.rasp_rule_evals
+    }
+
     pub fn set_input_truncated(&mut self, input_truncated: bool) {
         self.input_truncated = input_truncated;
     }

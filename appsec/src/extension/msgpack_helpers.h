@@ -67,6 +67,21 @@ void dd_mpack_write_array(
     mpack_writer_t *nonnull w, const zend_array *nullable arr);
 void dd_mpack_write_array_lim(mpack_writer_t *nonnull w,
     const zend_array *nullable arr, dd_mpack_limits *nonnull limits);
+
+// An entry that is already MessagePack: the address name and the encoded value
+typedef struct dd_mpack_raw_entry {
+    const char *nonnull name;
+    size_t name_len;
+    const char *nonnull bytes;
+    size_t len;
+} dd_mpack_raw_entry;
+
+// Like dd_mpack_write_array_lim, but always a map, followed by the raw
+// entries. These are counted in the map header and written as they are: they
+// never pass through the limits, which apply to arr only.
+void dd_mpack_write_map_lim_raw(mpack_writer_t *nonnull w,
+    const zend_array *nonnull arr, dd_mpack_limits *nonnull limits,
+    const dd_mpack_raw_entry *nullable raw, size_t raw_count);
 void dd_mpack_write_zval_lim(mpack_writer_t *nonnull w, zval *nullable zv,
     dd_mpack_limits *nonnull limits);
 #ifdef TESTING
@@ -80,4 +95,5 @@ void dd_mpack_buffer_destroy(dd_mpack_buffer *nonnull buffer);
 void dd_msgpack_helpers_startup(void);
 void dd_msgpack_helpers_rinit(void);
 bool dd_msgpack_helpers_is_data_truncated(void);
+void dd_msgpack_helpers_set_data_truncated(bool truncated);
 #endif // DD_MSGPACK_HELPERS_H

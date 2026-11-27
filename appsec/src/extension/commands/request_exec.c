@@ -20,6 +20,8 @@ struct ctx {
     zend_string *nullable rule_variant;
     zend_string *nullable subctx_id;
     bool subctx_last_call;
+    const dd_mpack_raw_entry *nullable raw;
+    size_t raw_count;
     zend_array *nonnull data;
 };
 
@@ -38,7 +40,9 @@ dd_result dd_request_exec(dd_conn *nonnull conn, zend_array *nonnull data,
     const struct req_exec_opts *nonnull opts,
     struct block_params *nonnull block_params)
 {
-    if (zend_hash_num_elements(data) == 0) {
+    // a data-less call is meaningful only as the last call of a subcontext
+    if (zend_hash_num_elements(data) == 0 && opts->raw_count == 0 &&
+        !(opts->subctx_last_call && opts->subctx_id)) {
         mlog(dd_log_info, "Skipping request_exec with empty payload");
         return dd_error;
     }
@@ -47,7 +51,9 @@ dd_result dd_request_exec(dd_conn *nonnull conn, zend_array *nonnull data,
         .rasp_rule = opts->rasp_rule,
         .rule_variant = opts->rule_variant,
         .subctx_id = opts->subctx_id,
-        .subctx_last_call = opts->subctx_last_call};
+        .subctx_last_call = opts->subctx_last_call,
+        .raw = opts->raw,
+        .raw_count = opts->raw_count};
 
     dd_result res = dd_command_exec_req_info(conn, &_spec, &ctx.req_info);
 
@@ -62,7 +68,14 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
     struct ctx *ctx = _ctx;
 
     dd_mpack_limits limits = dd_mpack_def_limits;
-    dd_mpack_write_array_lim(w, ctx->data, &limits);
+    if (zend_hash_num_elements(ctx->data) == 0 && ctx->raw_count == 0) {
+        // always a map, so that the helper reads it as (empty) WAF data
+        mpack_start_map(w, 0);
+        mpack_finish_map(w);
+    } else {
+        dd_mpack_write_map_lim_raw(
+            w, ctx->data, &limits, ctx->raw, ctx->raw_count);
+    }
 
     bool has_rule_variant =
         ctx->rule_variant != NULL && ZSTR_LEN(ctx->rule_variant) > 0;
