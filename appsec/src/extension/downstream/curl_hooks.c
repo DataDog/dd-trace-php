@@ -326,6 +326,10 @@ static ZEND_FUNCTION(dd_curl_setopt_array)
 }
 
 // curl_exec(CurlHandle $handle): string|bool
+// A blocking verdict for the first request stops the transfer before it
+// starts; one recorded during the transfer (a request-stage call of a later
+// hop) blocks the request once libcurl is done. Responses never block: the
+// app's callbacks and curl_exec()'s return value are those of the transfer.
 // Entered inside libcurl (from an app callback), it does nothing (G4.3).
 static ZEND_FUNCTION(dd_curl_exec)
 {
@@ -342,6 +346,11 @@ static ZEND_FUNCTION(dd_curl_exec)
         }
         return;
     }
+    if (dd_curl_xfer_presend(hs)) {
+        dd_curl_xfer_end(hs, false);
+        dd_curl_xfer_settle(hs);
+        RETURN_FALSE; // if blocking returns (user request: blocking function)
+    }
 
     // the handle cannot go away while curl_exec() holds it as an argument
     dd_curl_xfer_set_in_exec(hs, true);
@@ -352,6 +361,12 @@ static ZEND_FUNCTION(dd_curl_exec)
     }
     // curl_exec() returns false on any error (CURLcode not CURLE_OK)
     dd_curl_xfer_end(hs, Z_TYPE_P(return_value) != IS_FALSE);
+    if (dd_curl_xfer_blocked(hs)) {
+        // whatever happens next, the app must not get the response
+        zval_ptr_dtor(return_value);
+        ZVAL_FALSE(return_value);
+    }
+    dd_curl_xfer_settle(hs);
 }
 
 // curl_multi_add_handle(CurlMultiHandle $multi_handle, CurlHandle $handle):
@@ -378,9 +393,10 @@ static ZEND_FUNCTION(dd_curl_multi_add_handle)
 }
 
 // curl_multi_exec(CurlMultiHandle $multi_handle, &$still_running): int
-// Entered inside libcurl it does nothing (G4.3), and the transfers added to
-// that multi handle that were not started are not observed anymore (G4.17,
-// G6.12).
+// Blocking verdicts recorded while libcurl ran block the request before the
+// app can look at any of the transfers. Entered inside libcurl it does
+// nothing (G4.3), and the transfers added to that multi handle that were not
+// started are not observed anymore (G4.17, G6.12).
 static ZEND_FUNCTION(dd_curl_multi_exec)
 {
     zval *zmh = _arg(execute_data, 1);
@@ -400,6 +416,7 @@ static ZEND_FUNCTION(dd_curl_multi_exec)
             _orig_curl_multi_exec, INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
         zend_bailout();
     }
+    dd_curl_xfer_settle_multi(multi);
     // CURLM_OK with nothing running: every transfer of the multi is over,
     // whether libcurl completed it or ended it with an error. A refused exec
     // (e.g. CURLM_RECURSIVE_API_CALL) leaves $still_running as it was and
@@ -414,7 +431,7 @@ static ZEND_FUNCTION(dd_curl_multi_exec)
 
 // curl_multi_info_read(CurlMultiHandle $multi_handle, &$queued_messages = null)
 //     : array|false
-// A transfer reported done is ended.
+// A transfer reported done is ended, and a verdict it got is acted upon.
 static ZEND_FUNCTION(dd_curl_multi_info_read)
 {
     _orig_curl_multi_info_read(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -437,6 +454,7 @@ static ZEND_FUNCTION(dd_curl_multi_info_read)
                          Z_LVAL_P(result) == 0; // CURLE_OK
         dd_curl_xfer_end_in_multi(
             zch, dd_curl_multi_key(zmh, false), completed);
+        dd_curl_xfer_settle_zch(zch);
     }
 }
 
@@ -471,6 +489,7 @@ static ZEND_FUNCTION(dd_curl_multi_remove_handle)
         }
         // whether libcurl completed it is not known here
         dd_curl_xfer_end_in_multi(zch, multi, false);
+        dd_curl_xfer_settle_zch(zch);
     }
 }
 

@@ -346,6 +346,7 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/downstream/curl_observe.c \
     appsec/src/extension/downstream/curl_opts.c \
     appsec/src/extension/downstream/curl_slots.c \
+    appsec/src/extension/downstream/form_urlencoded.c \
     appsec/src/extension/duration_acc.c \
     appsec/src/extension/entity_body.c \
     appsec/src/extension/helper_process.c \
@@ -357,7 +358,6 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/php_objects.c \
     appsec/src/extension/request_abort.c \
     appsec/src/extension/request_lifecycle.c \
-    appsec/src/extension/stdiocast.c \
     appsec/src/extension/string_helpers.c \
     appsec/src/extension/tags.c \
     appsec/src/extension/telemetry.c \

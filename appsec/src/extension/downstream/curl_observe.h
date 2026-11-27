@@ -60,19 +60,34 @@ uintptr_t dd_curl_multi_key(zval *nonnull zmh, bool create);
 // transfer with our functions installed, NULL otherwise.
 struct dd_curl_hstate *nullable dd_curl_xfer_begin(
     zval *nonnull zch, uintptr_t multi);
-// The transfer is over: restores the callback slots and options (if still
-// ours). completed: libcurl reported the
+// The transfer is over: makes the last WAF calls, then restores the callback
+// slots and options (if still ours). completed: libcurl reported the
 // transfer done without error (the body sink's framing-complete flag).
 void dd_curl_xfer_end(struct dd_curl_hstate *nonnull hs, bool completed);
+// Right after dd_curl_xfer_begin(): the WAF call for the first request, with
+// the data from curl_setopt. Returns whether the transfer must not start.
+bool dd_curl_xfer_presend(struct dd_curl_hstate *nonnull hs);
+// Whether the last transfer of the handle got a blocking verdict (not acted
+// upon yet)
+bool dd_curl_xfer_blocked(struct dd_curl_hstate *nonnull hs);
+// To be called once a hooked function has control again after libcurl ran
+// (or before it returns data of a transfer): blocks the request
+// (dd_req_lifecycle_abort) if the handle's transfer got a blocking verdict.
+// Usually does not return then.
+void dd_curl_xfer_settle(struct dd_curl_hstate *nonnull hs);
+void dd_curl_xfer_settle_zch(zval *nonnull zch);
+// the same for each transfer of that multi still running
+void dd_curl_xfer_settle_multi(uintptr_t multi);
 void dd_curl_xfer_set_in_exec(struct dd_curl_hstate *nonnull hs, bool in_exec);
 // curl_multi_exec(): re-installs our options on the transfers of that multi
 // (an app's curl_reset()/curl_setopt() between calls may have removed them),
 // or stops observing those whose options now say they must not be observed
 void dd_curl_xfer_reassert_multi(uintptr_t multi);
-// curl_multi_close(): ends the transfers of that multi
+// curl_multi_close(): ends (and settles) the transfers of that multi
 void dd_curl_xfer_end_multi(uintptr_t multi);
 // curl_multi_exec() returned CURLM_OK with nothing running (G4.18): every
-// transfer of that multi still observed is over. Ends them.
+// transfer of that multi still observed is over. Closes their last hop (with
+// the call without data) and settles them.
 void dd_curl_xfer_flush_multi(uintptr_t multi);
 // curl_multi_add_handle() / curl_multi_remove_handle() succeeded: libcurl
 // has the handle in that multi now / no longer (whether its transfer is
@@ -85,8 +100,9 @@ void dd_curl_xfer_added_to_multi(zval *nonnull zch, uintptr_t multi);
 // pending entry without starting the transfer.
 void dd_curl_xfer_add_failed(zval *nonnull zch, uintptr_t multi);
 // curl_multi_exec(), before libcurl runs: begins the transfer of each handle
-// pending in that multi. Returns whether the request is being blocked (the
-// transfers after the one that blocks it stay pending).
+// pending in that multi and makes W1 for it. Returns whether one of them got
+// a blocking verdict (the transfers after it stay pending, and the request is
+// being blocked unless that returns).
 bool dd_curl_xfer_start_pending(uintptr_t multi);
 // A curl_multi_exec() entered inside libcurl (G4.3): the transfers pending in
 // that multi are dropped, never started (G4.17, G6.12).

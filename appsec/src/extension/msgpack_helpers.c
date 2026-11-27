@@ -24,8 +24,6 @@ static THREAD_LOCAL_ON_ZTS bool data_truncated_ = false;
 static void _mpack_write_zval(
     mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth);
 
-#ifdef TESTING
-static const size_t MAX_DEPTH_READING = 32;
 static const size_t MAX_BODY_DEPTH_READING = 128;
 static bool parse_messagepack(const char *nonnull data, size_t length,
     bool php_array_semantics, size_t max_depth, zval *nonnull output);
@@ -36,7 +34,6 @@ bool dd_mpack_to_zval(
     return parse_messagepack(
         data, length, true, MAX_BODY_DEPTH_READING, output);
 }
-#endif
 
 void dd_mpack_write_nullable_cstr(
     mpack_writer_t *nonnull w, const char *nullable cstr)
@@ -534,7 +531,6 @@ static void _buffer_writer_teardown(mpack_writer_t *w)
     w->context = NULL;
 }
 
-#ifdef TESTING
 // NOLINTNEXTLINE(misc-no-recursion)
 static bool parse_element(mpack_reader_t *nonnull reader, size_t depth,
     size_t max_depth, bool php_array_semantics, zval *nonnull output)
@@ -661,6 +657,9 @@ static bool parse_messagepack(const char *nonnull data, size_t length,
     }
     return true;
 }
+
+#ifdef TESTING
+static const size_t MAX_DEPTH_READING = 32;
 
 static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
 {

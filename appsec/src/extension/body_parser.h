@@ -6,8 +6,8 @@
 #pragma once
 
 #include "attributes.h"
-#include "tracer_bridge.h"
 #include "msgpack_helpers.h"
+#include "tracer_bridge.h"
 
 void dd_body_parser_startup(void);
 
@@ -37,15 +37,15 @@ static inline bool dd_body_msgpack_has_value(ddog_AppsecBodyMessagePack body)
 {
     return (body.status == DDOG_APPSEC_BODY_STATUS_COMPLETE ||
                body.status == DDOG_APPSEC_BODY_STATUS_PARTIAL) &&
+           body.ptr != NULL && body.len > 0 &&
            !(body.len == 1 && body.ptr[0] == 0xc0);
 }
 
-#ifdef TESTING
-/** Decode finished MessagePack for PHP tests, then release the Rust buffer.
+/** Decode finished MessagePack into a zval (null if there is no value),
+ * then release the Rust buffer.
  */
 void dd_body_msgpack_to_zval(
     ddog_AppsecBodyMessagePack body, zval *nonnull result);
-#endif
 
 /** Write one MessagePack object. The caller retains ownership of its buffer.
  */

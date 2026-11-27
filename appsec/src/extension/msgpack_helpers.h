@@ -84,10 +84,10 @@ void dd_mpack_write_map_lim_raw(mpack_writer_t *nonnull w,
     const dd_mpack_raw_entry *nullable raw, size_t raw_count);
 void dd_mpack_write_zval_lim(mpack_writer_t *nonnull w, zval *nullable zv,
     dd_mpack_limits *nonnull limits);
-#ifdef TESTING
+// Decodes MessagePack into a zval (maps become PHP arrays); false and a null
+// output if the data is malformed or nested too deeply.
 bool dd_mpack_to_zval(
     const char *nonnull data, size_t length, zval *nonnull output);
-#endif
 void dd_mpack_writer_init_buffer(mpack_writer_t *nonnull writer,
     dd_mpack_buffer *nonnull buffer, size_t prefix_size);
 void dd_mpack_buffer_destroy(dd_mpack_buffer *nonnull buffer);

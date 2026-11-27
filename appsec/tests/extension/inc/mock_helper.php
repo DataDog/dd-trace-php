@@ -169,7 +169,7 @@ class Helper {
             }
             $msgs = explode("\0", rtrim($data, "\0"));
             return array_map(function ($it) {
-                return json_decode($it, true, 32, JSON_BIGINT_AS_STRING);
+                return json_decode($it, true, 128, JSON_BIGINT_AS_STRING);
             }, $msgs);
         }
     }

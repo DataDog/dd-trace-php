@@ -1457,21 +1457,6 @@ void dd_downstream_release_slot(void)
 
 void dd_downstream_body_analysed(void) { _downstream_bodies_added++; }
 
-// Transitional: CurlAppSec.php still asks the sampling decision from userland
-// until the native analysis replaces it. A body sent counts as analysed.
-PHP_FUNCTION(datadog_appsec_should_send_downstream_bodies)
-{
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_FALSE;
-    }
-
-    bool send = dd_should_send_downstream_bodies();
-    if (send) {
-        dd_downstream_body_analysed();
-    }
-    RETURN_BOOL(send);
-}
-
 static void _set_downstream_request_metric(void)
 {
     if (!_cur_req_span || !_downstream_bodies_added) {

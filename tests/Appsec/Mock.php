@@ -410,20 +410,13 @@ if (!function_exists('datadog\appsec\track_authenticated_user_event')) {
 if (!function_exists('datadog\appsec\push_addresses')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
-     * @param ?array|string $params keys: rasp_rule, subctx_id, subctx_last_call
+     * @param array $params
      */
-    function push_addresses($addresses, $params = '')
+    function push_addresses($addresses, $rasp = "")
     {
         if (!appsecMockEnabled()) {
             return;
         }
-        if (is_string($params)) {
-            $rasp_rule = $params;
-        } elseif (is_array($params)) {
-            $rasp_rule = $params['rasp_rule'] ?? '';
-        } else {
-            $rasp_rule = '';
-        }
-        AppsecStatus::getInstance()->addEvent(['rasp_rule' => $rasp_rule, $addresses], 'push_addresses');
+        AppsecStatus::getInstance()->addEvent(['rasp_rule' => $rasp, $addresses], 'push_addresses');
     }
 }

@@ -9,7 +9,9 @@
 #include "body_parser.h"
 #include "ddappsec.h"
 #include <ext/compatibility.h> // NOLINT (must come before entity_body_arginfo.h)
+#ifdef TESTING
 #include "entity_body_arginfo.h"
+#endif
 #include "logging.h"
 #include "php_objects.h"
 #include "string_helpers.h"
@@ -69,8 +71,11 @@ void dd_entity_body_startup(void)
     _json_decode_ex = php_json_decode_ex;
 #endif
 
-    // also used by the curl integration to parse downstream bodies
-    dd_phpobj_reg_funcs(ext_functions);
+#ifdef TESTING
+    if (get_global_DD_APPSEC_TESTING()) {
+        dd_phpobj_reg_funcs(ext_functions);
+    }
+#endif
 }
 
 void dd_entity_body_gshutdown(ddappsec_globals *nonnull globals)
@@ -243,6 +248,7 @@ static ddog_AppsecBodyMessagePack _convert_xml(const char *nonnull entity,
     return dd_parse_xml_truncated(entity, entity_len, MAX_XML_DEPTH);
 }
 
+#ifdef TESTING
 PHP_FUNCTION(datadog_appsec_convert_xml)
 {
     zend_string *entity;
@@ -272,3 +278,4 @@ PHP_FUNCTION(datadog_appsec_convert_json)
         ZSTR_VAL(entity), ZSTR_LEN(entity), (int)max_depth);
     dd_body_msgpack_to_zval(body, return_value);
 }
+#endif

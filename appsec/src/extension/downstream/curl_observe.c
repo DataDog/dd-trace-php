@@ -40,6 +40,7 @@ enum {
     DD_CURLE_OK = 0,
     DD_CURLINFO_EFFECTIVE_URL = 0x100001, // CURLINFO_STRING + 1
     DD_CURL_PREREQFUNC_OK = 0,
+    DD_CURL_PREREQFUNC_ABORT = 1,
 };
 // CURL_READFUNC_ABORT
 #define DD_CURL_READFUNC_ABORT ((size_t)0x10000000)
@@ -91,6 +92,7 @@ struct dd_curl_xfer {
     // what the interposed header and write functions and our PREREQ calls
     // collected: the head of the current hop and the last hop's body
     struct dd_curl_collect coll;
+    struct dd_curl_eval eval;
 };
 
 struct dd_curl_hstate {
@@ -208,6 +210,7 @@ static size_t _slot_taken(
 static void _set_prereq(struct dd_curl_xfer *x);
 static void _forget_prereq(struct dd_curl_xfer *x);
 static void _remove_prereq(dd_curl_easy *cp);
+static void _settle(struct dd_curl_hstate *hs);
 static void _unregister(struct dd_curl_xfer *x);
 // NOLINTBEGIN(bugprone-easily-swappable-parameters,readability-non-const-parameter)
 static int _prereq_cb(void *clientp, char *conn_primary_ip, char *conn_local_ip,
@@ -222,6 +225,7 @@ static void _register_testing_objects(void);
 
 void dd_curl_observe_minit(void)
 {
+    dd_curl_eval_minit();
 #ifdef TESTING
     _register_testing_objects();
 #endif
@@ -388,6 +392,7 @@ struct dd_curl_hstate *nullable dd_curl_hstate_create(zval *nonnull zch)
     struct dd_curl_hstate *hs = ecalloc(1, sizeof(*hs));
     hs->xfer.magic = DD_CURL_XFER_MAGIC;
     dd_curl_collect_init(&hs->xfer.coll, &_coll_alloc, 0);
+    dd_curl_eval_init(&hs->xfer.eval);
     dd_curl_opts_init(&hs->opts);
 
 #if PHP_VERSION_ID >= 80000
@@ -483,10 +488,13 @@ struct dd_curl_hstate *nullable dd_curl_xfer_begin(
         // its multi is gone (PHP 7: freed without curl_multi_close()): no
         // WAF call for what it left behind (G4.5)
         _release(hs);
+        dd_curl_eval_destroy(&x->eval);
     }
 
     dd_curl_collect_destroy(&x->coll);
     dd_curl_collect_init(&x->coll, &_coll_alloc, _body_cap());
+    // bodies are copied only once W1 decided the transfer is sampled
+    // (dd_curl_xfer_presend); testing keeps them all
     x->coll.sampled = _collect_all;
     memset(x->slot_calls, 0, sizeof(x->slot_calls));
     memset(x->slot_bytes, 0, sizeof(x->slot_bytes));
@@ -500,7 +508,13 @@ struct dd_curl_hstate *nullable dd_curl_xfer_begin(
     } else {
         reason = dd_curl_opts_skip_reason(&hs->opts);
     }
-    if (reason && strcmp(reason, "appsec_inactive") != 0) {
+    if (!reason && !_collect_all) {
+        // not http(s), or no request being analysed
+        reason = dd_curl_eval_skip_reason(&hs->opts);
+    }
+    if (reason && strcmp(reason, "appsec_inactive") != 0 &&
+        strcmp(reason, "not_evaluated") != 0) {
+        // the reasons of G3.9; the two above are not
         _log_skip(reason);
     }
     // Every transfer start normalises the handle, observed or not (G5.2).
@@ -535,6 +549,7 @@ struct dd_curl_hstate *nullable dd_curl_xfer_begin(
     x->reason = reason;
     x->observed = reason == NULL;
     if (x->installed) {
+        dd_curl_eval_start(&x->eval, &hs->opts, _body_cap());
         // the hops of the collector start at our PREREQ calls (G5.12), so
         // it is installed on every observed transfer (an app's own skips the
         // transfer, G5.13)
@@ -542,8 +557,58 @@ struct dd_curl_hstate *nullable dd_curl_xfer_begin(
             dd_curl_linkage_version_num() >= DD_CURL_PREREQ_MIN_VERSION) {
             _set_prereq(x);
         }
+    } else {
+        dd_curl_eval_destroy(&x->eval);
     }
     return x->installed ? hs : NULL;
+}
+
+bool dd_curl_xfer_presend(struct dd_curl_hstate *nonnull hs)
+{
+    struct dd_curl_xfer *x = &hs->xfer;
+    bool block = dd_curl_eval_presend(&x->eval, &hs->opts);
+    // the sampling decision is taken by W1; nothing has been written yet
+    x->coll.sampled = _collect_all || dd_curl_eval_sampled(&x->eval);
+    return block;
+}
+
+bool dd_curl_xfer_blocked(struct dd_curl_hstate *nonnull hs)
+{
+    return dd_curl_eval_blocked(&hs->xfer.eval);
+}
+
+void dd_curl_xfer_settle(struct dd_curl_hstate *nonnull hs) { _settle(hs); }
+
+void dd_curl_xfer_settle_zch(zval *nonnull zch)
+{
+    struct dd_curl_hstate *hs = dd_curl_hstate_find(zch);
+    if (hs) {
+        _settle(hs);
+    }
+}
+
+void dd_curl_xfer_settle_multi(uintptr_t multi)
+{
+    if (!multi) {
+        return;
+    }
+    // settling may not return; and if it does, _installed may have changed
+    while (_installed) {
+        struct dd_curl_xfer *found = NULL;
+        struct dd_curl_xfer *x;
+        ZEND_HASH_FOREACH_PTR(_installed, x)
+        {
+            if (x->multi == multi && dd_curl_eval_settleable(&x->eval)) {
+                found = x;
+                break;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+        if (!found) {
+            break;
+        }
+        _settle(_hstate_of(found));
+    }
 }
 
 void dd_curl_xfer_end(struct dd_curl_hstate *nonnull hs, bool completed)
@@ -562,11 +627,14 @@ void dd_curl_xfer_end(struct dd_curl_hstate *nonnull hs, bool completed)
         dd_curl_collect_stop(&x->coll);
     }
     dd_curl_collect_end(&x->coll, completed);
+    // the last WAF calls, before our functions go
+    dd_curl_eval_end(&x->eval, &x->coll);
     _release(hs);
 }
 
 // Ends the observation of a transfer without any WAF call: our functions go,
-// the collector's buffers are released (G4.5, G9.10).
+// the collector's buffers are released (G4.5, G9.10). The eval state is the
+// caller's: destroying it makes no call either
 static void _release(struct dd_curl_hstate *hs) { _release_with(hs, true); }
 
 // touch_libcurl false: the handle's options stay as they are
@@ -665,6 +733,7 @@ void dd_curl_xfer_flush_multi(uintptr_t multi)
     if (!multi) {
         return;
     }
+    // ending one may block (and not return), so one at a time
     while (_installed) {
         struct dd_curl_xfer *found = NULL;
         struct dd_curl_xfer *x;
@@ -681,6 +750,7 @@ void dd_curl_xfer_flush_multi(uintptr_t multi)
         }
         struct dd_curl_hstate *hs = _hstate_of(found);
         dd_curl_xfer_end(hs, false); // abandoned
+        _settle(hs);
     }
 }
 
@@ -707,6 +777,7 @@ void dd_curl_xfer_add_failed(zval *nonnull zch, uintptr_t multi)
 
 bool dd_curl_xfer_start_pending(uintptr_t multi)
 {
+    // a start may run app code or block: one at a time, scanning again
     struct dd_curl_hstate *hs;
     while (multi && _pending_count > 0 && (hs = _find_pending(multi))) {
         _set_pending(hs, 0);
@@ -719,7 +790,15 @@ bool dd_curl_xfer_start_pending(uintptr_t multi)
         }
         ZVAL_RES(&zch, hs->res);
 #endif
-        (void)dd_curl_xfer_begin(&zch, multi);
+        struct dd_curl_hstate *started = dd_curl_xfer_begin(&zch, multi);
+        if (started && dd_curl_xfer_presend(started)) {
+            dd_curl_xfer_end(started, false);
+            // if the request is not ended by the block, the handle must not
+            // run unevaluated by a later exec
+            _set_pending(started, multi);
+            dd_curl_xfer_settle(started);
+            return true;
+        }
     }
     return false;
 }
@@ -851,6 +930,7 @@ static void _hstate_free(struct dd_curl_hstate *hs)
     _unregister(&hs->xfer);
     hs->xfer.magic = 0;
     dd_curl_collect_destroy(&hs->xfer.coll);
+    dd_curl_eval_destroy(&hs->xfer.eval);
     dd_curl_opts_dtor(&hs->opts);
     efree(hs);
 }
@@ -911,6 +991,7 @@ static void _multi_dtor(zval *zv)
             break;
         }
         _release(_hstate_of(found));
+        dd_curl_eval_destroy(&_hstate_of(found)->xfer.eval);
     }
 }
 #endif
@@ -1131,6 +1212,13 @@ static void _remove_prereq(dd_curl_easy *cp)
     (void)funcs->curl_easy_setopt(cp, DD_CURLOPT_PREREQDATA, (void *)NULL);
 }
 
+// Back in a PHP function hook: blocks the request if the transfer got a
+// blocking verdict.
+static void _settle(struct dd_curl_hstate *hs)
+{
+    dd_curl_eval_block(&hs->xfer.eval);
+}
+
 static void _unregister(struct dd_curl_xfer *x)
 {
     // also for the state being freed
@@ -1153,7 +1241,9 @@ static void _unregister(struct dd_curl_xfer *x)
 // transfer is sent (after the connection is ready): a hop starts (G5.12).
 // clientp is our state if found in _prereqs (by id): we only set it on
 // transfers we registered, and remove it from the copies and clones we know
-// of. The collector starts the new hop (new head, previous body dropped).
+// of. The evaluator finishes the hop that is over from what the collector
+// holds, the collector then starts the new hop (new head, previous body
+// dropped), and the evaluator makes the new hop's W2.
 // the signature is libcurl's curl_prereq_callback
 // NOLINTBEGIN(bugprone-easily-swappable-parameters,readability-non-const-parameter)
 static int _prereq_cb(void *clientp, char *conn_primary_ip, char *conn_local_ip,
@@ -1177,8 +1267,10 @@ static int _prereq_cb(void *clientp, char *conn_primary_ip, char *conn_local_ip,
             x) {
         return DD_CURL_PREREQFUNC_OK;
     }
+    dd_curl_eval_prereq_hop_over(&x->eval, &x->coll);
     dd_curl_collect_prereq(&x->coll);
-    return DD_CURL_PREREQFUNC_OK;
+    bool abort = dd_curl_eval_prereq_hop_start(&x->eval, x->cp);
+    return abort ? DD_CURL_PREREQFUNC_ABORT : DD_CURL_PREREQFUNC_OK;
 }
 
 // Our write, header and read functions. They run inside libcurl, for any

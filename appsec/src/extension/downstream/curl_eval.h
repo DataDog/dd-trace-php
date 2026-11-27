@@ -5,15 +5,93 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+// WAF evaluation of the transfers observed by curl_observe.c (RFC-1062): the
+// server.io.net.* addresses are sent with dd_request_exec, one WAF
+// subcontext per hop.
+//
+// Transfers whose URL has the http or https scheme, as libcurl sees it (case
+// insensitively, or guessed for a URL without one) are evaluated. A transfer
+// whose URL is not known (never set, or not recorded exactly: unknown_option)
+// is not: nothing is read back from libcurl for hop 0.
+//
+// Per hop, the calls are (each one only if it has data):
+//  - hop 0, once, before libcurl runs (W1: the curl_exec pre-hook, or for a
+//    multi handle the curl_multi_exec pre-hook of the first exec after
+//    curl_multi_add_handle: libcurl reads the options then), entirely from
+//    the recorded options:
+//    URL, method (CURLOPT_CUSTOMREQUEST verbatim, else derived; omitted when
+//    it is not sure), headers and cookie from curl_setopt, and the
+//    CURLOPT_POSTFIELDS body if sampled and known (none for a body from
+//    CURLOPT_READFUNCTION/CURLOPT_INFILE). The request as sent is not
+//    observed;
+//  - hop > 0, from CURLOPT_PREREQFUNCTION (if installed), before its request
+//    is sent: URL and method (CURLINFO_EFFECTIVE_URL/_METHOD), whatever the
+//    state of the collector (stopped included). A hop whose URL has a scheme
+//    other than http(s) gets no call at all;
+//  - each hop is closed by a last call without data, once it is over (in
+//    the next hop's PREREQ, or once the transfer is over).
+// The subcontexts are named curl-<transfer>-<hop>. Hop n is the one started
+// by the (n+1)-th PREREQ call; proxy CONNECT heads are not hops (the
+// collector drops them).
+//
+// Whether a transfer's request body is sent (sampling) is decided once, when
+// W1 runs. A sampled transfer holds a slot of the per-request limit, which
+// it gives back if it ends up sending no body.
+//
+// The calls made from libcurl callbacks (W2) never block: a blocking verdict
+// is recorded (and further evaluation of the transfer stops). It is acted
+// upon once control is back in the PHP function hook that called libcurl
+// (dd_curl_eval_block): that is the first point where it is safe (G9.3).
 // A hook entered inside libcurl (an app callback of another
 // transfer) does nothing at all (G4.3): no evaluation, nothing to defer.
 
 #include <php.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "../attributes.h"
+#include "../dddefs.h"
+#include "../request_abort.h"
 #include "curl_collect.h"
+#include "curl_linkage_detect.h"
+#include "curl_opts.h"
 
+enum dd_curl_sampling {
+    DD_CURL_SAMPLING_UNDECIDED = 0,
+    DD_CURL_SAMPLING_YES, // its bodies are sent to the WAF
+    DD_CURL_SAMPLING_NO,
+};
+
+struct dd_curl_eval {
+    bool active; // this transfer is evaluated
+    // decided once, when W1 runs (dd_curl_eval_presend)
+    enum dd_curl_sampling sampling;
+    bool slot; // sampled, and the slot of the request limit is not given back
+    bool body_added; // a body was added to a WAF call
+    bool blocked;    // a blocking verdict was recorded
+    dd_result verdict;
+    struct block_params block_params;
+    uint64_t seq; // of the transfer in the request (subcontext ids)
+    size_t body_cap;
+    // CURLOPT_URL when the transfer started (with the scheme libcurl
+    // guesses, if it has none)
+    zend_string *nullable url;
+
+    // the hop being evaluated: the count of our PREREQ calls of the transfer
+    // less one (hop n starts at the (n+1)-th call), whatever the collector
+    // holds
+    size_t hop;
+    // our PREREQ calls of the transfer so far
+    size_t prereqs;
+    zend_string *nullable subctx_id;
+    bool opened; // a call without subctx_last_call was made
+    bool closed; // the last call was made
+    // the hop's URL has a scheme other than http(s): no call for it
+    bool hop_skipped;
+};
+
+// MINIT
+void dd_curl_eval_minit(void);
 // RINIT
 void dd_curl_eval_rinit(void);
 void dd_curl_eval_rshutdown(void);
@@ -26,6 +104,53 @@ void dd_curl_eval_rshutdown(void);
 void dd_curl_eval_libcurl_enter(void);
 void dd_curl_eval_libcurl_leave(void);
 bool dd_curl_eval_in_libcurl(void);
+
+void dd_curl_eval_init(struct dd_curl_eval *nonnull ev);
+void dd_curl_eval_destroy(struct dd_curl_eval *nonnull ev);
+
+// Why a transfer with these options would not be evaluated
+// (dd_curl_eval_start), without starting anything; NULL if it would.
+// "appsec_inactive" and "not_evaluated" (no request being analysed) are no
+// skip reasons of G3.9 and are not logged; "scheme" is one.
+const char *nullable dd_curl_eval_skip_reason(
+    const struct dd_curl_opts *nonnull opts);
+// A transfer with our functions installed starts: decides whether it is
+// evaluated and, if so, whether its bodies are sent.
+void dd_curl_eval_start(struct dd_curl_eval *nonnull ev,
+    const struct dd_curl_opts *nonnull opts, size_t body_cap);
+// W1: hop 0, before libcurl runs, from the recorded options. Returns whether
+// it must be blocked.
+bool dd_curl_eval_presend(
+    struct dd_curl_eval *nonnull ev, const struct dd_curl_opts *nonnull opts);
+// From CURLOPT_PREREQFUNCTION, in two steps around the collector's PREREQ
+// event (dd_curl_collect_prereq), which releases the previous hop's head and
+// body:
+// - before it: the hop that is over (none at the first call) gets its
+//   closing call without data;
+// - after it: the hop about to be sent is counted and, for hop > 0, gets W2.
+//   Returns whether the request must not be sent (blocked).
+void dd_curl_eval_prereq_hop_over(struct dd_curl_eval *nonnull ev,
+    const struct dd_curl_collect *nonnull coll);
+bool dd_curl_eval_prereq_hop_start(
+    struct dd_curl_eval *nonnull ev, dd_curl_easy *nonnull cp);
+// The transfer is over (from a PHP function hook): closes the last hop.
+void dd_curl_eval_end(struct dd_curl_eval *nonnull ev,
+    const struct dd_curl_collect *nonnull coll);
+// Whether the bodies of the transfer are sent (decided at W1)
+static inline bool dd_curl_eval_sampled(const struct dd_curl_eval *nonnull ev)
+{
+    return ev->sampling == DD_CURL_SAMPLING_YES;
+}
+
+// Whether dd_curl_eval_block() has something to do now: a verdict
+bool dd_curl_eval_settleable(const struct dd_curl_eval *nonnull ev);
+static inline bool dd_curl_eval_blocked(const struct dd_curl_eval *nonnull ev)
+{
+    return ev->blocked;
+}
+// Blocks the request with the recorded verdict (dd_req_lifecycle_abort);
+// usually does not return. Nothing happens if no verdict was recorded.
+void dd_curl_eval_block(struct dd_curl_eval *nonnull ev);
 
 // The headers of an HTTP head (start line first): lower-cased names, lists
 // of trimmed values, empty values dropped.

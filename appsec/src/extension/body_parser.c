@@ -78,7 +78,6 @@ ddog_AppsecBodyMessagePack dd_parse_xml_truncated(
     return body;
 }
 
-#ifdef TESTING
 void dd_body_msgpack_to_zval(
     ddog_AppsecBodyMessagePack body, zval *nonnull result)
 {
@@ -89,11 +88,9 @@ void dd_body_msgpack_to_zval(
         return;
     }
 
-    // Only the PHP testing entrypoints decode to zvals.
     dd_mpack_to_zval((const char *)body.ptr, body.len, result);
     dd_trace_drop_body_msgpack(body);
 }
-#endif
 
 bool dd_body_msgpack_write(mpack_writer_t *nonnull writer,
     const ddog_AppsecBodyMessagePack *nonnull body)
