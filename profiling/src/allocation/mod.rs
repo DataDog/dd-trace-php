@@ -10,7 +10,51 @@ use crate::profiling::profiler::Profiler;
 use crate::profiling::{sample_exponential_interval, RequestLocals};
 use core::cell::Cell;
 use core::ptr;
+#[cfg(php_debug)]
+use libc::{c_char, c_uint};
 use libc::size_t;
+
+#[cfg(not(php_debug))]
+pub(super) type ZendMmAllocFn =
+    unsafe extern "C" fn(heap: *mut zend::zend_mm_heap, size: size_t) -> *mut c_void;
+#[cfg(php_debug)]
+pub(super) type ZendMmAllocFn = unsafe extern "C" fn(
+    heap: *mut zend::zend_mm_heap,
+    size: size_t,
+    file: *const c_char,
+    line: c_uint,
+    orig_file: *const c_char,
+    orig_line: c_uint,
+) -> *mut c_void;
+
+#[cfg(not(php_debug))]
+pub(super) type ZendMmFreeFn = unsafe extern "C" fn(heap: *mut zend::zend_mm_heap, p: *mut c_void);
+#[cfg(php_debug)]
+pub(super) type ZendMmFreeFn = unsafe extern "C" fn(
+    heap: *mut zend::zend_mm_heap,
+    p: *mut c_void,
+    file: *const c_char,
+    line: c_uint,
+    orig_file: *const c_char,
+    orig_line: c_uint,
+);
+
+#[cfg(not(php_debug))]
+pub(super) type ZendMmReallocFn = unsafe extern "C" fn(
+    heap: *mut zend::zend_mm_heap,
+    p: *mut c_void,
+    size: size_t,
+) -> *mut c_void;
+#[cfg(php_debug)]
+pub(super) type ZendMmReallocFn = unsafe extern "C" fn(
+    heap: *mut zend::zend_mm_heap,
+    p: *mut c_void,
+    size: size_t,
+    file: *const c_char,
+    line: c_uint,
+    orig_file: *const c_char,
+    orig_line: c_uint,
+) -> *mut c_void;
 use log::{debug, trace};
 use rand::{rngs::StdRng, SeedableRng};
 use std::ffi::c_void;
@@ -36,9 +80,26 @@ pub(crate) fn initialize_page_size() -> bool {
     true
 }
 
-pub(crate) fn allocation_size_class(raw_size: usize) -> Option<usize> {
+#[cold]
+fn huge_allocation_size_class(raw_size: usize) -> Option<usize> {
     // MINIT validates the OS page size before allocation hooks can run.
-    size_class::allocation_size(raw_size, OS_PAGE_SIZE.load(Ordering::Relaxed))
+    let os_page_size = OS_PAGE_SIZE.load(Ordering::Relaxed);
+    if raw_size <= usize::MAX - (os_page_size - 1) {
+        Some(size_class::huge_allocation_size(raw_size, os_page_size))
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+pub(crate) fn allocation_size_class(raw_size: usize) -> Option<usize> {
+    if raw_size <= size_class::SMALL_MAX {
+        Some(size_class::small_allocation_size(raw_size))
+    } else if raw_size <= size_class::LARGE_MAX {
+        Some(size_class::large_allocation_size(raw_size))
+    } else {
+        huge_allocation_size_class(raw_size)
+    }
 }
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
@@ -136,8 +197,6 @@ pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
 pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub struct AllocationProfilingStats {
-    /// Number of bytes remaining until the next sample collection.
-    next_sample: i64,
     mean: f64,
     // GSHUTDOWN may destroy these globals on another thread. Own the RNG
     // instead of holding a ThreadRng handle into the creator's native TLS.
@@ -146,35 +205,40 @@ pub struct AllocationProfilingStats {
 
 impl AllocationProfilingStats {
     fn new(sampling_distance: NonZeroU64) -> AllocationProfilingStats {
-        let mut stats = AllocationProfilingStats {
-            next_sample: 0,
+        AllocationProfilingStats {
             mean: sampling_distance.get() as f64,
             rng: StdRng::from_os_rng(),
-        };
-        stats.next_sampling_interval();
-        stats
+        }
     }
 
-    fn next_sampling_interval(&mut self) {
-        self.next_sample = sample_exponential_interval(&mut self.rng, self.mean) as i64;
+    #[cold]
+    #[inline(never)]
+    pub(super) fn next_sampling_interval(&mut self) -> i64 {
+        sample_exponential_interval(&mut self.rng, self.mean) as i64
     }
 
-    fn should_collect_allocation(&mut self, len: size_t) -> bool {
-        self.next_sample -= len as i64;
-        if self.next_sample > 0 {
+    #[cfg(test)]
+    fn should_collect_allocation(&mut self, next_sample: &mut i64, len: size_t) -> bool {
+        *next_sample -= len as i64;
+        if *next_sample > 0 {
             return false;
         }
 
-        self.next_sampling_interval();
+        *next_sample = self.next_sampling_interval();
         true
     }
 }
 
 /// Collect an allocation sample and optionally track it for live heap profiling.
 ///
+/// Reads `EG(current_execute_data)` on the cold sampling path rather than on
+/// every allocation. Exponential sampling is memoryless, so letting the small
+/// number of allocations outside userland execution decrement `next_sample`
+/// does not bias collected samples; we simply skip emitting if `execute_data`
+/// is null.
+///
 /// # Safety
-/// `execute_data` must be null or a valid pointer provided by the engine. The
-/// profiler may walk the execution frames reachable through it.
+/// Must be called on a PHP thread with initialized executor globals.
 ///
 /// # Arguments
 /// * `ptr` - The pointer returned by the allocator (used for live heap tracking)
@@ -182,10 +246,20 @@ impl AllocationProfilingStats {
 #[cold]
 pub unsafe fn collect_allocation(
     interrupt_count: &AtomicU32,
-    execute_data: *mut zend::zend_execute_data,
     ptr: *mut c_void,
     len: size_t,
 ) {
+    #[cfg(php_zts)]
+    let execute_data = {
+        let ls_cache = module_globals::get_tsrm_ls_cache();
+        current_execute_data_from_cache(ls_cache)
+    };
+    #[cfg(not(php_zts))]
+    let execute_data = ptr::addr_of!(zend::executor_globals.current_execute_data).read();
+    if execute_data.is_null() {
+        return;
+    }
+
     if let Some(profiler) = Profiler::get() {
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
@@ -342,9 +416,9 @@ mod tests {
         ] {
             let mut stats = AllocationProfilingStats::new(NonZeroU64::new(mean as u64).unwrap());
             stats.rng = StdRng::seed_from_u64(42);
-            stats.next_sampling_interval();
+            let mut next_sample = stats.next_sampling_interval();
             let sampled = (0..trials)
-                .filter(|_| stats.should_collect_allocation(size))
+                .filter(|_| stats.should_collect_allocation(&mut next_sample, size))
                 .count();
             let probability = 1.0 - (-(size as f64) / mean).exp();
             let expected = trials as f64 * probability;

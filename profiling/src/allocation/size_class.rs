@@ -59,6 +59,7 @@ pub const fn huge_allocation_size(raw_size: usize, page_size: usize) -> usize {
 /// `os_page_size` is the OS page size used for huge allocations.
 /// Precondition: `os_page_size` is a nonzero power of two, for huge sizes.
 /// Returns `None` if rounding a huge allocation would overflow.
+#[cfg(test)]
 pub const fn allocation_size(raw_size: usize, os_page_size: usize) -> Option<usize> {
     if raw_size <= SMALL_MAX {
         Some(small_allocation_size(raw_size))

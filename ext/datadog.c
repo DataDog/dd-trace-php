@@ -420,10 +420,8 @@ static PHP_GINIT_FUNCTION(datadog) {
 #endif
 }
 
-#ifdef PROFILING
-void *datadog_php_profiling_globals(void) {
-    return DATADOG_G(profiling_globals);
-}
+#if defined(PROFILING) && defined(ZTS)
+const size_t datadog_php_profiling_globals_offset = offsetof(zend_datadog_globals, profiling_globals);
 #endif
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
