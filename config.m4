@@ -336,6 +336,7 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/ddappsec.c \
     appsec/src/extension/dddefs.c \
     appsec/src/extension/downstream/curl_calibrate.c \
+    appsec/src/extension/downstream/curl_collect.c \
     appsec/src/extension/downstream/curl_handle.c \
     appsec/src/extension/downstream/curl_handle_validate.c \
     appsec/src/extension/downstream/curl_linkage.c \

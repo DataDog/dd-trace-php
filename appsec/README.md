@@ -109,6 +109,13 @@ extension test job, with the libcurl of the image:
 ```
 make curl_calibrate_test
 ```
+The same goes for the harness of the PHP-agnostic core of the downstream curl
+collector (heads, hops, body sink) and the one of the fault-safe memory probe
+that validates `CURL *` handles:
+```
+make curl_collect_test
+make curl_handle_validate_test
+```
 #### Testing the helper
 
 The helper lives in the `helper-rust/` directory. See

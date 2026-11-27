@@ -65,6 +65,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             ${CMAKE_BINARY_DIR}/curl_calibrate_test
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
+    # The PHP-agnostic core of the downstream curl collector (heads, hops and
+    # the phase rule, the body sink). Not a dependency of xtest: CI runs it as
+    # its own step ("make curl_collect_test").
+    add_custom_target(curl_collect_test
+        COMMAND ${CMAKE_COMMAND} -E env "CC=${CMAKE_C_COMPILER}"
+            ${CMAKE_SOURCE_DIR}/tests/curl_collect/run.sh
+            ${CMAKE_BINARY_DIR}/curl_collect_test
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
     # The fault-safe memory probe under seccomp filters and across fork. Not a
     # dependency of xtest: CI runs it as its own step ("make
     # curl_handle_validate_test").
