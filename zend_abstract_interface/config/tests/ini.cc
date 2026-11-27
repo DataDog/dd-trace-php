@@ -558,6 +558,14 @@ static char *second_consumer_sapi_getenv(char *name, size_t name_len) {
     return NULL;
 }
 
+static PHP_MINIT_FUNCTION(zai_config_ini_after_second_consumer) {
+    zend_module_entry *second_consumer = (zend_module_entry *)zend_hash_str_find_ptr(&module_registry, ZEND_STRL("second_consumer"));
+    if (!second_consumer || zend_startup_module_ex(second_consumer) == FAILURE) {
+        return FAILURE;
+    }
+    return PHP_MINIT(zai_config_ini)(INIT_FUNC_ARGS_PASSTHRU);
+}
+
 // Verify three properties when a second extension has registered the same INI name (causing
 // original_on_modify to be set on INI_FOO_STRING):
 //   1. SAPI is consulted on every rinit, including the first; sys env cache (set at minit) is the
@@ -569,16 +577,21 @@ static char *second_consumer_sapi_getenv(char *name, size_t name_len) {
 TEA_TEST_CASE_BARE("config/ini", "second consumer extension causes original_on_modify to be set", {
     REQUIRE(tea_sapi_sinit());
     tea_sapi_module.getenv = second_consumer_sapi_getenv;
-    // second consumer must be loaded first so its zai_config_minit registers INI entries
+    // second consumer must be started first so its zai_config_minit registers INI entries
     // before the first consumer's zai_config_minit runs; zai_config_add_ini_entry will
     // then find the pre-existing entries and set original_on_modify.
-    // PHP loads the .so via extension= INI during php_module_startup and calls MINIT automatically.
+    // PHP loads the .so via extension= INI during php_module_startup.
     REQUIRE(tea_sapi_append_system_ini_entry("extension", SECOND_CONSUMER_SO_PATH));
-    ext_zai_config_ctor(PHP_MINIT(zai_config_ini));
+    ext_zai_config_ctor(PHP_MINIT(zai_config_ini_after_second_consumer));
     REQUIRE_SETENV("INI_FOO_STRING", "sys_val");
     REQUIRE_SETENV("INI_FOO_INT", "1");
     second_consumer_sapi_phase = 0;
     REQUIRE(tea_sapi_minit());
+
+    // extension= load failures only warn; assert the module actually loaded.
+    REQUIRE(zend_hash_str_exists(&module_registry, ZEND_STRL("second_consumer")));
+    REQUIRE(zai_config_memoized_entries[EXT_CFG_INI_FOO_STRING].original_on_modify != NULL);
+    REQUIRE(zai_config_memoized_entries[EXT_CFG_INI_FOO_INT].original_on_modify != NULL);
 
     // --- Request 1: SAPI consulted on first rinit; "sapi_val"/"2" win over sys cache "sys_val"/"1" ---
     REQUEST_BEGIN()
