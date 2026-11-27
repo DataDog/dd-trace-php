@@ -7,6 +7,17 @@
 //
 // Tests that run with an unavailable or reduced layer include
 // curl_skipif_testing.php instead. Every skip states its reason.
+//
+// A test that needs CURLOPT_PREREQFUNCTION (hops of 1 or more, W2, the
+// response stage) calls curl_skipif_needs_prereq('what it needs') after the
+// include: below libcurl 7.80 only the request side of hop 0 runs (G6.11,
+// G10.16).
+function curl_skipif_needs_prereq($what)
+{
+    if (\datadog\appsec\testing\curl_linkage_info()['libcurl_version_num'] < 0x075000) {
+        die("skip $what: needs CURLOPT_PREREQFUNCTION (libcurl 7.80.0+)");
+    }
+}
 include __DIR__ . '/curl_skipif_testing.php';
 if (!extension_loaded('curl')) {
     die('skip ext/curl not loaded');

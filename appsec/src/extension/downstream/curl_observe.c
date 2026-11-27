@@ -22,17 +22,34 @@
 #include "../configuration.h"
 #include "../ddappsec.h"
 #include "../logging.h"
+#include "../php_helpers.h"
 #include "../php_objects.h"
 #include "curl_eval.h"
 #include "curl_handle.h"
 #include "curl_hooks.h"
 #include "curl_linkage.h"
+#include "curl_slots.h"
 
 // libcurl option numbers and values (curl.h; stable public ABI):
+// CURLOPT_PREREQFUNCTION = CURLOPTTYPE_FUNCTIONPOINT + 312 and
+// CURLOPT_PREREQDATA = CURLOPTTYPE_CBPOINT + 313 (both since 7.80.0);
+// CURLE_OK = 0; CURL_PREREQFUNC_OK = 0, CURL_PREREQFUNC_ABORT = 1.
 enum {
+    DD_CURLOPT_PREREQFUNCTION = 20312,
+    DD_CURLOPT_PREREQDATA = 10313,
     DD_CURLE_OK = 0,
     DD_CURLINFO_EFFECTIVE_URL = 0x100001, // CURLINFO_STRING + 1
+    DD_CURL_PREREQFUNC_OK = 0,
 };
+// CURL_READFUNC_ABORT
+#define DD_CURL_READFUNC_ABORT ((size_t)0x10000000)
+
+// DD_APPSEC_MAX_BODY_BUFF_SIZE's default (configuration_table.h)
+enum { DD_DEFAULT_MAX_BODY_SIZE = 524288 };
+
+// curl_prereq_callback
+typedef int (*dd_curl_prereq_fn)(void *clientp, char *conn_primary_ip,
+    char *conn_local_ip, int conn_primary_port, int conn_local_port);
 
 // Something no pointer can be: not canonical on x86_64 or aarch64. Checked
 // on every state found through one of our tables before it is used.
@@ -51,9 +68,29 @@ struct dd_curl_xfer {
     uintptr_t pending_multi;
     uint64_t pending_seq; // order of the adds: the transfers start in it
     bool installed;
+    bool prereq_installed; // our PREREQFUNCTION too (libcurl 7.80+)
+    // our PREREQDATA while prereq_installed: a number never reused, not the
+    // address of this struct, which a later state may take over
+    uintptr_t prereq_id;
     bool in_exec;
     bool observed;               // our functions were installed for it
     const char *nullable reason; // why it was not observed
+    // our functions are in the callback slots of cp, and this transfer is
+    // registered in _slot_xfers under php_curl, the slots' data (G5.2)
+    bool slots_installed;
+    void *nullable php_curl;
+    // ours may be in the handle's slots (and our PREREQFUNCTION): they were
+    // installed on it, or it was copied from a handle that may hold them. The
+    // next transfer start normalises the handle then, observed or not.
+    bool may_hold_ours;
+    // calls of our slot functions that found this transfer, and the bytes
+    // they passed on (testing: curl_downstream_dump(); only counted with
+    // DD_APPSEC_TESTING, see _slot_counting)
+    uint64_t slot_calls[DD_CURL_ISLOT_COUNT];
+    uint64_t slot_bytes[DD_CURL_ISLOT_COUNT];
+    // what the interposed header and write functions and our PREREQ calls
+    // collected: the head of the current hop and the last hop's body
+    struct dd_curl_collect coll;
 };
 
 struct dd_curl_hstate {
@@ -77,6 +114,30 @@ static THREAD_LOCAL_ON_ZTS HashTable *_hstates;
 // CURL * -> struct dd_curl_xfer * for the transfers with our functions
 // installed.
 static THREAD_LOCAL_ON_ZTS HashTable *_installed;
+// prereq_id -> struct dd_curl_xfer *, for the transfers with our PREREQFUNCTION
+// installed. Its callback gets no CURL *, only PREREQDATA (the id), which it
+// only resolves here: a copy of a handle (libcurl's own, or one whose CURL *
+// we could not validate) may still carry the PREREQDATA of a state that is
+// gone. Ids are never reused, so it cannot resolve to another state.
+static THREAD_LOCAL_ON_ZTS HashTable *_prereqs;
+static THREAD_LOCAL_ON_ZTS uintptr_t _prereq_last_id;
+// php_curl * -> struct dd_curl_xfer *, for the transfers with our functions
+// in their callback slots. Those functions get the slot's data, the
+// php_curl * ext/curl set there, and use it only as a key into this table
+// (G5.4): a copy, a pushed handle or a DoH handle may carry our functions
+// with data that is not registered.
+static THREAD_LOCAL_ON_ZTS HashTable *_slot_xfers;
+// libcurl's slots and the functions of ext/curl found in them: one for the
+// process (set up at startup, which the engine serialises: it runs once per
+// process from the zend_startup hook, before any thread; ext/curl's functions
+// are the same in every thread)
+static struct dd_curl_slots _slots;
+static bool _slots_ready;
+// DD_APPSEC_TESTING: our slot functions count the calls and bytes of the
+// transfer they belong to (curl_downstream_dump()). It gates only those
+// counters: the write and header functions always look up their transfer,
+// to feed its collector.
+static bool _slot_counting;
 static THREAD_LOCAL_ON_ZTS bool _req_active;
 // the number of handles with pending_multi set: the exec of a multi need not
 // scan the handles when it is 0
@@ -85,6 +146,16 @@ static THREAD_LOCAL_ON_ZTS uint64_t _pending_last_seq;
 // Testing (curl_downstream_collect_all()): transfers are observed and their
 // bodies kept even when no WAF call needs them, for curl_downstream_dump()
 static THREAD_LOCAL_ON_ZTS bool _collect_all;
+#ifdef TESTING
+// curl_downstream_coll_refuse(): the collector's allocations are refused, as
+// at the memory limit
+static THREAD_LOCAL_ON_ZTS bool _coll_refuse;
+// curl_downstream_install_refuse(): libcurl refuses our functions for every
+// handle, as when it cannot be interposed
+static THREAD_LOCAL_ON_ZTS bool _install_refuse;
+// curl_downstream_coll_refusals(): collector allocations refused so far
+static THREAD_LOCAL_ON_ZTS zend_long _coll_refusals;
+#endif
 #if PHP_VERSION_ID >= 80000
 // CurlMultiHandle -> its key (a number never reused in the request). A weak
 // map: the transfers of a multi handle freed without curl_multi_close() are
@@ -98,6 +169,12 @@ static int _le_curl_multi;
 #endif
 
 static bool _tracking(void);
+static size_t _body_cap(void);
+static void *_coll_realloc(void *ptr, size_t size);
+static void _coll_free(void *ptr);
+// the collectors' allocator: their growth counts towards the memory limit,
+// and is refused rather than raising a fatal error (G9.5)
+static const struct dd_curl_alloc _coll_alloc = {_coll_realloc, _coll_free};
 static struct dd_curl_hstate *_hstate_of(struct dd_curl_xfer *x);
 static void _hstate_dtor(zval *zv);
 static void _hstate_free(struct dd_curl_hstate *hs);
@@ -115,8 +192,27 @@ static void _multi_emptied(uintptr_t multi);
 static void _set_pending(struct dd_curl_hstate *hs, uintptr_t multi);
 static struct dd_curl_hstate *_find_pending(uintptr_t multi);
 static void _log_skip(const char *reason);
-static void _install(struct dd_curl_xfer *x, dd_curl_easy *cp);
+static void _normalise(
+    struct dd_curl_xfer *x, const struct dd_curl_opts *opts, dd_curl_easy *cp);
+static bool _install(struct dd_curl_xfer *x, dd_curl_easy *cp, void *php_curl,
+    char why[DD_CURL_SLOTS_REASON_SIZE]);
+static bool _install_slots(struct dd_curl_xfer *x, dd_curl_easy *cp,
+    void *php_curl, char why[DD_CURL_SLOTS_REASON_SIZE]);
+static void _restore_slots(struct dd_curl_xfer *x);
+static void _unregister_slots(struct dd_curl_xfer *x);
+static size_t _write_cb(char *ptr, size_t size, size_t nmemb, void *userdata);
+static size_t _header_cb(char *ptr, size_t size, size_t nmemb, void *userdata);
+static size_t _read_cb(char *ptr, size_t size, size_t nmemb, void *userdata);
+static size_t _slot_taken(
+    enum dd_curl_islot slot, size_t ret, size_t size, size_t nmemb);
+static void _set_prereq(struct dd_curl_xfer *x);
+static void _forget_prereq(struct dd_curl_xfer *x);
+static void _remove_prereq(dd_curl_easy *cp);
 static void _unregister(struct dd_curl_xfer *x);
+// NOLINTBEGIN(bugprone-easily-swappable-parameters,readability-non-const-parameter)
+static int _prereq_cb(void *clientp, char *conn_primary_ip, char *conn_local_ip,
+    int conn_primary_port, int conn_local_port);
+// NOLINTEND(bugprone-easily-swappable-parameters,readability-non-const-parameter)
 
 static const char *_handle_status_reason(dd_curl_handle_status st);
 
@@ -145,6 +241,23 @@ bool dd_curl_observe_startup(void)
     }
 #endif
     dd_curl_opts_startup();
+    const struct dd_curl_functions *funcs = dd_curl_linkage_funcs();
+    if (!funcs) {
+        return false; // dd_curl_downstream_enabled() ruled it out
+    }
+    if (!_slots_ready) {
+        // once: the ext/curl functions learnt are kept (a second startup
+        // must not forget them while handles may still hold ours)
+        static const dd_curl_slot_fn ours[DD_CURL_ISLOT_COUNT] = {
+            [DD_CURL_ISLOT_WRITE] = _write_cb,
+            [DD_CURL_ISLOT_HEADER] = _header_cb,
+            [DD_CURL_ISLOT_READ] = _read_cb,
+        };
+        dd_curl_slots_init(&_slots, dd_curl_calibration_get(),
+            dd_curl_linkage_version_num(), funcs->curl_easy_setopt, ours);
+        _slots_ready = true;
+    }
+    _slot_counting = get_global_DD_APPSEC_TESTING();
     return true;
 }
 
@@ -167,6 +280,16 @@ void dd_curl_observe_rshutdown(void)
         struct dd_curl_xfer *x;
         ZEND_HASH_FOREACH_PTR(_installed, x)
         {
+            if (_hstate_alive(_hstate_of(x))) {
+                _restore_slots(x);
+                if (x->prereq_installed &&
+                    !_hstate_of(x)->opts.prereqfunction) {
+                    _remove_prereq(x->cp);
+                }
+            }
+            x->prereq_installed = false;
+            x->slots_installed = false;
+            x->php_curl = NULL;
             x->installed = false;
             x->cp = NULL;
         }
@@ -174,6 +297,16 @@ void dd_curl_observe_rshutdown(void)
         zend_hash_destroy(_installed);
         FREE_HASHTABLE(_installed);
         _installed = NULL;
+    }
+    if (_slot_xfers) {
+        zend_hash_destroy(_slot_xfers);
+        FREE_HASHTABLE(_slot_xfers);
+        _slot_xfers = NULL;
+    }
+    if (_prereqs) {
+        zend_hash_destroy(_prereqs);
+        FREE_HASHTABLE(_prereqs);
+        _prereqs = NULL;
     }
 #if PHP_VERSION_ID >= 80000
     if (_multis) {
@@ -254,6 +387,7 @@ struct dd_curl_hstate *nullable dd_curl_hstate_create(zval *nonnull zch)
 
     struct dd_curl_hstate *hs = ecalloc(1, sizeof(*hs));
     hs->xfer.magic = DD_CURL_XFER_MAGIC;
+    dd_curl_collect_init(&hs->xfer.coll, &_coll_alloc, 0);
     dd_curl_opts_init(&hs->opts);
 
 #if PHP_VERSION_ID >= 80000
@@ -351,6 +485,11 @@ struct dd_curl_hstate *nullable dd_curl_xfer_begin(
         _release(hs);
     }
 
+    dd_curl_collect_destroy(&x->coll);
+    dd_curl_collect_init(&x->coll, &_coll_alloc, _body_cap());
+    x->coll.sampled = _collect_all;
+    memset(x->slot_calls, 0, sizeof(x->slot_calls));
+    memset(x->slot_bytes, 0, sizeof(x->slot_bytes));
     x->multi = multi;
     x->observed = false;
     x->reason = NULL;
@@ -364,20 +503,46 @@ struct dd_curl_hstate *nullable dd_curl_xfer_begin(
     if (reason && strcmp(reason, "appsec_inactive") != 0) {
         _log_skip(reason);
     }
+    // Every transfer start normalises the handle, observed or not (G5.2).
+    // One that is skipped already needs it only if it may hold ours (a
+    // copy); its CURL * is then validated without a second log line.
     dd_curl_easy *cp = NULL;
     void *php_curl = NULL;
+    bool have_cp = false;
     if (!reason) {
         dd_curl_handle_status st =
             dd_curl_handle_get_ex(zch, &cp, &php_curl, true);
         if (st != DD_CURL_HANDLE_OK) {
             reason = _handle_status_reason(st);
+        } else {
+            have_cp = true;
         }
+    } else if (x->may_hold_ours) {
+        have_cp = dd_curl_handle_get_ex(zch, &cp, &php_curl, false) ==
+                  DD_CURL_HANDLE_OK;
     }
-    if (!reason) {
-        _install(x, cp);
+    if (have_cp) {
+        _normalise(x, &hs->opts, cp);
+    }
+    char why[DD_CURL_SLOTS_REASON_SIZE] = "";
+    if (!reason && !_install(x, cp, php_curl, why)) {
+        // the guard failed, or libcurl refused our functions: the handle
+        // cannot be interposed (G3.9, G5.2)
+        reason = "cannot_interpose";
+        mlog_no_php(dd_log_debug, "Not observing a curl transfer: %s (%s)",
+            reason, why);
     }
     x->reason = reason;
     x->observed = reason == NULL;
+    if (x->installed) {
+        // the hops of the collector start at our PREREQ calls (G5.12), so
+        // it is installed on every observed transfer (an app's own skips the
+        // transfer, G5.13)
+        if (!hs->opts.prereqfunction &&
+            dd_curl_linkage_version_num() >= DD_CURL_PREREQ_MIN_VERSION) {
+            _set_prereq(x);
+        }
+    }
     return x->installed ? hs : NULL;
 }
 
@@ -388,18 +553,39 @@ void dd_curl_xfer_end(struct dd_curl_hstate *nonnull hs, bool completed)
     if (!x->installed) {
         return;
     }
-    (void)completed;
+    if (x->prereq_installed && hs->opts.prereqfunction) {
+        // The app replaced our PREREQ during the transfer (from a callback,
+        // or between two curl_multi_exec calls): the hops after it started
+        // none of ours (G5.12, G5.13), so what the collector holds may mix
+        // the current hop's head with a later hop's body. The current hop
+        // is closed without data instead.
+        dd_curl_collect_stop(&x->coll);
+    }
+    dd_curl_collect_end(&x->coll, completed);
     _release(hs);
 }
 
-// Ends the observation of a transfer: our functions go (G4.5).
+// Ends the observation of a transfer without any WAF call: our functions go,
+// the collector's buffers are released (G4.5, G9.10).
 static void _release(struct dd_curl_hstate *hs) { _release_with(hs, true); }
 
 // touch_libcurl false: the handle's options stay as they are
 static void _release_with(struct dd_curl_hstate *hs, bool touch_libcurl)
 {
     struct dd_curl_xfer *x = &hs->xfer;
-    (void)touch_libcurl;
+    bool alive = touch_libcurl && _hstate_alive(hs);
+    if (!_collect_all) {
+        // the buffers are released; what is known of the hops stays
+        dd_curl_collect_destroy(&x->coll);
+    }
+    if (alive) {
+        _restore_slots(x);
+        // unless the app has set its own since
+        if (x->prereq_installed && !hs->opts.prereqfunction) {
+            _remove_prereq(x->cp);
+        }
+    }
+    _forget_prereq(x);
     _unregister(x);
     x->multi = 0;
 }
@@ -455,6 +641,11 @@ void dd_curl_xfer_reassert_multi(uintptr_t multi)
         if (!_hstate_alive(hs)) {
             _unregister(x); // the handle is gone; so is its CURL *
             continue;
+        }
+        // one whose app set its own PREREQ was ended by the scan above (skip
+        // reason prereqfunction)
+        if (x->prereq_installed) {
+            _set_prereq(x);
         }
     }
     ZEND_HASH_FOREACH_END();
@@ -568,6 +759,32 @@ void dd_curl_xfer_end_in_multi(
     }
 }
 
+void dd_curl_xfer_after_copy(struct dd_curl_hstate *nonnull src,
+    zval *nonnull zcopy, struct dd_curl_hstate *nullable copy)
+{
+    // The callback slots are not touched (G4.14, G5.2): a copy made while
+    // ours are installed carries our functions, with its own php_curl * as
+    // their data. They forward its calls (G5.4), and its first transfer
+    // start puts ext/curl's back.
+    if (copy) {
+        copy->xfer.may_hold_ours =
+            src->xfer.may_hold_ours || src->xfer.slots_installed;
+    }
+    if (!src->xfer.prereq_installed || src->opts.prereqfunction) {
+        return;
+    }
+    // curl_easy_duphandle() copied our PREREQFUNCTION/PREREQDATA, which
+    // ext/curl leaves alone unless the app has its own. A copy whose CURL *
+    // is not validated (the analysis was disabled since, or the probe is
+    // refused) keeps them until its next transfer start normalises it
+    // (may_hold_ours); once the source's transfer is over, its PREREQDATA
+    // resolves to nothing.
+    dd_curl_easy *cp;
+    if (dd_curl_handle_get(zcopy, &cp) == DD_CURL_HANDLE_OK) {
+        _remove_prereq(cp);
+    }
+}
+
 bool dd_curl_has_effective_url(zval *nonnull zch)
 {
     const struct dd_curl_functions *funcs = dd_curl_linkage_funcs();
@@ -588,6 +805,34 @@ static bool _tracking(void)
     return _req_active && dd_curl_downstream_enabled();
 }
 
+static size_t _body_cap(void)
+{
+    zend_long size = get_DD_APPSEC_MAX_BODY_BUFF_SIZE();
+    return size > 0 ? (size_t)size : DD_DEFAULT_MAX_BODY_SIZE;
+}
+
+// NULL (the collector stops: the transfer is no longer analysed) rather than
+// a fatal error at the memory limit, which would end a request that would
+// have gone on without us, possibly from inside libcurl
+static void *_coll_realloc(void *ptr, size_t size)
+{
+#ifdef TESTING
+    if (_coll_refuse) {
+        _coll_refusals++;
+        return NULL;
+    }
+#endif
+    if (!dd_emalloc_fits(size)) {
+#ifdef TESTING
+        _coll_refusals++;
+#endif
+        return NULL;
+    }
+    return erealloc(ptr, size);
+}
+
+static void _coll_free(void *ptr) { efree(ptr); }
+
 static struct dd_curl_hstate *_hstate_of(struct dd_curl_xfer *x)
 {
     _Static_assert(offsetof(struct dd_curl_hstate, xfer) == 0,
@@ -605,6 +850,7 @@ static void _hstate_free(struct dd_curl_hstate *hs)
     _set_pending(hs, 0);
     _unregister(&hs->xfer);
     hs->xfer.magic = 0;
+    dd_curl_collect_destroy(&hs->xfer.coll);
     dd_curl_opts_dtor(&hs->opts);
     efree(hs);
 }
@@ -738,7 +984,30 @@ static void _log_skip(const char *reason)
     mlog_no_php(dd_log_debug, "Not observing a curl transfer: %s", reason);
 }
 
-static void _install(struct dd_curl_xfer *x, dd_curl_easy *cp)
+// A transfer start, observed or not (G5.2): a slot that holds our function
+// gets ext/curl's back, and our PREREQFUNCTION/PREREQDATA go (unless the app
+// has its own, which the transfer is skipped for). A copy made while ours
+// were installed carries them, and its PREREQ calls would come with the
+// source's PREREQDATA.
+static void _normalise(
+    struct dd_curl_xfer *x, const struct dd_curl_opts *opts, dd_curl_easy *cp)
+{
+    bool slots_ok = dd_curl_slots_normalise(&_slots, cp);
+    if (!slots_ok) {
+        // ours stay in that slot; they only forward (G5.4). Still flagged,
+        // so that the next transfer start tries again even if it is skipped.
+        mlog_no_php(dd_log_debug,
+            "libcurl refused to put ext/curl's callback functions back");
+    }
+    if (x->may_hold_ours && !opts->prereqfunction &&
+        dd_curl_linkage_version_num() >= DD_CURL_PREREQ_MIN_VERSION) {
+        _remove_prereq(cp);
+    }
+    x->may_hold_ours = !slots_ok;
+}
+
+static bool _install(struct dd_curl_xfer *x, dd_curl_easy *cp, void *php_curl,
+    char why[DD_CURL_SLOTS_REASON_SIZE])
 {
     if (!_installed) {
         ALLOC_HASHTABLE(_installed);
@@ -747,10 +1016,126 @@ static void _install(struct dd_curl_xfer *x, dd_curl_easy *cp)
     x->cp = cp;
     x->installed = true;
     zend_hash_index_update_ptr(_installed, (zend_ulong)(uintptr_t)cp, x);
+
+    if (!_install_slots(x, cp, php_curl, why)) {
+        _unregister(x);
+        return false;
+    }
+    return true;
+}
+
+// The guard, then our functions in the slots, before the first perform: the
+// read slot is copied into libcurl's transfer state once, when the transfer
+// starts (G5.2)
+static bool _install_slots(struct dd_curl_xfer *x, dd_curl_easy *cp,
+    void *php_curl, char why[DD_CURL_SLOTS_REASON_SIZE])
+{
+    if (!dd_curl_slots_guard(&_slots, cp, php_curl, why)) {
+        return false;
+    }
+    // registered first: libcurl may call them as soon as they are set
+    if (!_slot_xfers) {
+        ALLOC_HASHTABLE(_slot_xfers);
+        zend_hash_init(_slot_xfers, 8, NULL, NULL, 0);
+    }
+    zend_hash_index_update_ptr(_slot_xfers, (zend_ulong)(uintptr_t)php_curl, x);
+    x->php_curl = php_curl;
+    x->slots_installed = true;
+    bool refuse = false;
+#ifdef TESTING
+    refuse = _install_refuse;
+#endif
+    if (refuse || !dd_curl_slots_install(&_slots, cp)) {
+        (void)snprintf(why, DD_CURL_SLOTS_REASON_SIZE,
+            "libcurl refused our slot functions");
+        _unregister_slots(x);
+        return false;
+    }
+    x->may_hold_ours = true;
+    return true;
+}
+
+// The end of the transfer: ext/curl's functions back where ours still are
+// (a curl_reset() in flight has put them back already)
+static void _restore_slots(struct dd_curl_xfer *x)
+{
+    if (x->slots_installed && x->cp) {
+        dd_curl_slots_restore(&_slots, x->cp);
+    }
+    _unregister_slots(x);
+}
+
+static void _unregister_slots(struct dd_curl_xfer *x)
+{
+    if (!x->slots_installed) {
+        return;
+    }
+    if (_slot_xfers) {
+        zend_ulong key = (zend_ulong)(uintptr_t)x->php_curl;
+        if (zend_hash_index_find_ptr(_slot_xfers, key) == x) {
+            zend_hash_index_del(_slot_xfers, key);
+        }
+    }
+    x->slots_installed = false;
+    x->php_curl = NULL;
+}
+
+// PREREQDATA first: our function is useless without it. The function has
+// no CURL * argument, so the callback finds the transfer only via PREREQDATA.
+static void _set_prereq(struct dd_curl_xfer *x)
+{
+    const struct dd_curl_functions *funcs = dd_curl_linkage_funcs();
+    if (!funcs) {
+        return;
+    }
+    // registered first: libcurl may call it as soon as it is set
+    if (!_prereqs) {
+        ALLOC_HASHTABLE(_prereqs);
+        zend_hash_init(_prereqs, 8, NULL, NULL, 0);
+    }
+    if (!x->prereq_id) {
+        if (!++_prereq_last_id) {
+            ++_prereq_last_id; // wrapped around
+        }
+        x->prereq_id = _prereq_last_id;
+    }
+    zend_hash_index_update_ptr(_prereqs, (zend_ulong)x->prereq_id, x);
+    x->prereq_installed =
+        funcs->curl_easy_setopt(x->cp, DD_CURLOPT_PREREQDATA,
+            (void *)x->prereq_id) == DD_CURLE_OK &&
+        funcs->curl_easy_setopt(x->cp, DD_CURLOPT_PREREQFUNCTION,
+            (dd_curl_prereq_fn)_prereq_cb) == DD_CURLE_OK;
+    if (!x->prereq_installed) {
+        _remove_prereq(x->cp);
+        _forget_prereq(x);
+    }
+}
+
+// Our PREREQFUNCTION is no longer (or was never) installed for x
+static void _forget_prereq(struct dd_curl_xfer *x)
+{
+    x->prereq_installed = false;
+    if (_prereqs && x->prereq_id) {
+        zend_hash_index_del(_prereqs, (zend_ulong)x->prereq_id);
+    }
+}
+
+static void _remove_prereq(dd_curl_easy *cp)
+{
+    const struct dd_curl_functions *funcs = dd_curl_linkage_funcs();
+    if (!funcs || !cp) {
+        return;
+    }
+    (void)funcs->curl_easy_setopt(
+        cp, DD_CURLOPT_PREREQFUNCTION, (dd_curl_prereq_fn)NULL);
+    (void)funcs->curl_easy_setopt(cp, DD_CURLOPT_PREREQDATA, (void *)NULL);
 }
 
 static void _unregister(struct dd_curl_xfer *x)
 {
+    // also for the state being freed
+    _forget_prereq(x);
+    _unregister_slots(x);
     if (!x->installed) {
         return;
     }
@@ -762,6 +1147,162 @@ static void _unregister(struct dd_curl_xfer *x)
     }
     x->installed = false;
     x->cp = NULL;
+}
+
+// CURLOPT_PREREQFUNCTION: runs inside libcurl before each request of the
+// transfer is sent (after the connection is ready): a hop starts (G5.12).
+// clientp is our state if found in _prereqs (by id): we only set it on
+// transfers we registered, and remove it from the copies and clones we know
+// of. The collector starts the new hop (new head, previous body dropped).
+// the signature is libcurl's curl_prereq_callback
+// NOLINTBEGIN(bugprone-easily-swappable-parameters,readability-non-const-parameter)
+static int _prereq_cb(void *clientp, char *conn_primary_ip, char *conn_local_ip,
+    int conn_primary_port, int conn_local_port)
+// NOLINTEND(bugprone-easily-swappable-parameters,readability-non-const-parameter)
+{
+    (void)conn_primary_ip;
+    (void)conn_local_ip;
+    (void)conn_primary_port;
+    (void)conn_local_port;
+    HashTable *installed = _installed;
+    HashTable *prereqs = _prereqs;
+    if (!installed || !prereqs || !clientp) {
+        return DD_CURL_PREREQFUNC_OK;
+    }
+    // clientp is an id, not a pointer: live state if found
+    struct dd_curl_xfer *x =
+        zend_hash_index_find_ptr(prereqs, (zend_ulong)(uintptr_t)clientp);
+    if (!x || x->magic != DD_CURL_XFER_MAGIC || !x->installed ||
+        zend_hash_index_find_ptr(installed, (zend_ulong)(uintptr_t)x->cp) !=
+            x) {
+        return DD_CURL_PREREQFUNC_OK;
+    }
+    dd_curl_collect_prereq(&x->coll);
+    return DD_CURL_PREREQFUNC_OK;
+}
+
+// Our write, header and read functions. They run inside libcurl, for any
+// handle that carries them: one observed now (found by its php_curl *), or a
+// copy, a pushed handle, a handle whose transfer is over. userdata is only
+// a key until found (G5.4); an unregistered call is only forwarded. Nothing
+// is held back or altered, and no PHP code or WAF call of ours runs here.
+static struct dd_curl_xfer *_slot_xfer(void *userdata)
+{
+    HashTable *xfers = _slot_xfers;
+    if (!xfers || !userdata) {
+        return NULL;
+    }
+    struct dd_curl_xfer *x =
+        zend_hash_index_find_ptr(xfers, (zend_ulong)(uintptr_t)userdata);
+    if (!x || x->magic != DD_CURL_XFER_MAGIC || !x->slots_installed ||
+        x->php_curl != userdata) {
+        return NULL;
+    }
+#if PHP_VERSION_ID < 80000
+    // The state of a freed resource is dropped lazily (its own lookup, a
+    // sweep, rshutdown): its transfer may still be registered under its
+    // freed php_curl *, which a new handle can have now (a copy carrying
+    // ours, never normalised when run from a callback, G4.3). Dropping the
+    // registration only removes a hash entry: nothing is allocated.
+    if (!_hstate_alive(_hstate_of(x))) {
+        _unregister_slots(x);
+        return NULL;
+    }
+#endif
+    return x;
+}
+
+static void _collect(enum dd_curl_islot slot, struct dd_curl_xfer *x,
+    const char *ptr, size_t len);
+
+// Every call goes at once, with the same arguments, to ext/curl's function,
+// whose return value is returned unchanged (G5.3). What it took is then
+// appended to the transfer's collector (write and header) and counted
+// (testing). The state is found again after the original function: the app's
+// callback, which it may have run, may have ended the transfer (curl_reset(),
+// a freed handle on PHP 7).
+static size_t _forward(enum dd_curl_islot slot, char *ptr, size_t size,
+    size_t nmemb, void *userdata)
+{
+    dd_curl_slot_fn orig = dd_curl_slots_pristine(&_slots, slot);
+    if (UNEXPECTED(!orig)) {
+        // never: ours are installed only once ext/curl's are known
+        return slot == DD_CURL_ISLOT_READ ? DD_CURL_READFUNC_ABORT : 0;
+    }
+    if (slot == DD_CURL_ISLOT_READ && EXPECTED(!_slot_counting)) {
+        return orig(ptr, size, nmemb, userdata); // reads are not counted
+    }
+    struct dd_curl_xfer *x = _slot_xfer(userdata);
+    size_t ret = orig(ptr, size, nmemb, userdata);
+    if (x && _slot_xfer(userdata) == x) {
+        size_t taken = _slot_taken(slot, ret, size, nmemb);
+        if (_slot_counting) {
+            x->slot_calls[slot]++;
+            x->slot_bytes[slot] += taken;
+        }
+        if (taken > 0) {
+            _collect(slot, x, ptr, taken);
+        }
+    }
+    return ret;
+}
+
+// Pure C, no PHP code, no WAF call, no zend_try (G9.1): the collector only
+// appends to its capped buffers, through the fit-checked allocator, which
+// refuses instead of raising a fatal error (G9.5). A header call is one
+// line, as libcurl delivers it.
+static void _collect(enum dd_curl_islot slot, struct dd_curl_xfer *x,
+    const char *ptr, size_t len)
+{
+    switch (slot) {
+    case DD_CURL_ISLOT_WRITE:
+        dd_curl_collect_write(&x->coll, ptr, len);
+        break;
+    case DD_CURL_ISLOT_HEADER:
+        dd_curl_collect_header_line(&x->coll, ptr, len);
+        break;
+    case DD_CURL_ISLOT_READ:
+    case DD_CURL_ISLOT_COUNT:
+    default:
+        break;
+    }
+}
+
+// The bytes of a call that were taken, given what ext/curl's function
+// returned. A write or header call counts only if all its data was taken: a
+// short return aborts the transfer, and CURL_WRITEFUNC_PAUSE (0x10000001)
+// makes libcurl deliver the same data again once unpaused. A read call
+// passed on what it returned, unless that is CURL_READFUNC_ABORT or
+// CURL_READFUNC_PAUSE (both larger than the buffer).
+static size_t _slot_taken(
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    enum dd_curl_islot slot, size_t ret, size_t size, size_t nmemb)
+{
+    // libcurl always passes size == 1 to these slots; a product that would
+    // wrap is not a length it delivered
+    if (size != 0 && nmemb > SIZE_MAX / size) {
+        return 0;
+    }
+    size_t len = size * nmemb;
+    if (slot == DD_CURL_ISLOT_READ) {
+        return ret <= len ? ret : 0;
+    }
+    return ret == len ? len : 0;
+}
+
+static size_t _write_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    return _forward(DD_CURL_ISLOT_WRITE, ptr, size, nmemb, userdata);
+}
+
+static size_t _header_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    return _forward(DD_CURL_ISLOT_HEADER, ptr, size, nmemb, userdata);
+}
+
+static size_t _read_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    return _forward(DD_CURL_ISLOT_READ, ptr, size, nmemb, userdata);
 }
 
 static const char *_handle_status_reason(dd_curl_handle_status st)
@@ -786,8 +1327,37 @@ static const char *_handle_status_reason(dd_curl_handle_status st)
 }
 
 #ifdef TESTING
+// What the collector holds: the head of its current hop (the last hop once
+// the transfer is over) and the last hop's body copy
+static void _coll_to_array(const struct dd_curl_collect *c, zval *arr)
+{
+    array_init(arr);
+    if (c->status > 0) {
+        add_assoc_long(arr, "status", c->status);
+    } else {
+        add_assoc_null(arr, "status");
+    }
+    zval headers;
+    dd_curl_headers_to_array(c->head.ptr, c->head.len, &headers);
+    add_assoc_zval(arr, "headers", &headers);
+    add_assoc_bool(arr, "head_complete", c->head_complete);
+    add_assoc_bool(arr, "head_truncated", c->head_truncated);
+    add_assoc_long(arr, "interim_responses", (zend_long)c->interim);
+    if (c->sampled) {
+        add_assoc_stringl(arr, "body", c->body.buf.ptr ? c->body.buf.ptr : "",
+            c->body.buf.len);
+    } else {
+        add_assoc_null(arr, "body"); // nothing is copied
+    }
+    add_assoc_bool(arr, "body_truncated", c->body.truncated);
+    add_assoc_bool(
+        arr, "body_complete", c->body.ended && c->body.framing_complete);
+}
+
 // curl_downstream_dump(CurlHandle|resource $ch): ?array
 // What was collected for the last transfer of $ch; null if $ch isn't tracked.
+// "response" (null before hop 0's PREREQ): the collector's head of the last
+// hop and its body copy (null if bodies are not copied: not sampled).
 static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_dump)
 {
     zval *zch;
@@ -807,9 +1377,71 @@ static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_dump)
         add_assoc_null(return_value, "reason");
     }
     add_assoc_bool(return_value, "installed", x->installed);
+    zval calls;
+    zval bytes;
+    array_init(&calls);
+    array_init(&bytes);
+    for (int i = 0; i < DD_CURL_ISLOT_COUNT; i++) {
+        const char *name = dd_curl_islot_name((enum dd_curl_islot)i);
+        add_assoc_long(&calls, name, (zend_long)x->slot_calls[i]);
+        add_assoc_long(&bytes, name, (zend_long)x->slot_bytes[i]);
+    }
+    add_assoc_zval(return_value, "slot_calls", &calls);
+    add_assoc_zval(return_value, "slot_bytes", &bytes);
     zval opts;
     dd_curl_opts_to_array(&hs->opts, &opts);
     add_assoc_zval(return_value, "options", &opts);
+    // the PREREQ calls seen: hop n is the one started by the (n+1)-th
+    add_assoc_long(return_value, "hops", (zend_long)x->coll.hops);
+    add_assoc_bool(return_value, "hops_truncated", x->coll.hops_truncated);
+    add_assoc_bool(return_value, "oom", x->coll.oom);
+    if (x->coll.hops > 0) {
+        zval resp;
+        _coll_to_array(&x->coll, &resp);
+        add_assoc_zval(return_value, "response", &resp);
+    } else {
+        add_assoc_null(return_value, "response");
+    }
+}
+
+// curl_downstream_slots(CurlHandle|resource $ch): ?array
+// What the callback slots of $ch's CURL * hold: for "write", "header" and
+// "read", "ours", "pristine" (ext/curl's function, once learnt), "other" or
+// "unused" (below libcurl 7.80, write and header); "data": "own" if the data
+// of each used slot is $ch's php_curl *, else "other". Null if $ch's CURL *
+// is not a validated libcurl handle.
+static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_slots)
+{
+    zval *zch;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zch) == FAILURE) {
+        RETURN_FALSE;
+    }
+    dd_curl_easy *cp;
+    void *php_curl;
+    if (!_slots_ready || dd_curl_handle_get_ex(zch, &cp, &php_curl, false) !=
+                             DD_CURL_HANDLE_OK) {
+        RETURN_NULL();
+    }
+    static const char *const names[] = {
+        [DD_CURL_SLOT_UNUSED] = "unused",
+        [DD_CURL_SLOT_OURS] = "ours",
+        [DD_CURL_SLOT_PRISTINE] = "pristine",
+        [DD_CURL_SLOT_OTHER] = "other",
+    };
+    array_init(return_value);
+    bool own = true;
+    for (int i = 0; i < DD_CURL_ISLOT_COUNT; i++) {
+        enum dd_curl_slot_state st =
+            dd_curl_slots_state(&_slots, cp, (enum dd_curl_islot)i);
+        add_assoc_string(return_value,
+            dd_curl_islot_name((enum dd_curl_islot)i), (char *)names[st]);
+        if (st != DD_CURL_SLOT_UNUSED &&
+            dd_curl_slots_data(&_slots, cp, (enum dd_curl_islot)i) !=
+                php_curl) {
+            own = false;
+        }
+    }
+    add_assoc_string(return_value, "data", own ? "own" : "other");
 }
 
 // curl_downstream_collect_all(bool $on): void
@@ -838,6 +1470,40 @@ static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_tracking)
     _req_active = on;
 }
 
+// curl_downstream_coll_refuse(bool $on): void
+// While on, every allocation of a collector is refused (as when it would
+// reach the memory limit): the collector stops.
+static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_coll_refuse)
+{
+    zend_bool on;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "b", &on) == FAILURE) {
+        RETURN_FALSE;
+    }
+    _coll_refuse = on;
+}
+
+// curl_downstream_coll_refusals(): int
+// How many collector allocations were refused (G9.5) in the process so far.
+static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_coll_refusals)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    RETURN_LONG(_coll_refusals);
+}
+
+// curl_downstream_install_refuse(bool $on): void
+// While on, libcurl refuses our functions for every transfer started: the
+// handle cannot be interposed (G3.9).
+static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_install_refuse)
+{
+    zend_bool on;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "b", &on) == FAILURE) {
+        RETURN_FALSE;
+    }
+    _install_refuse = on;
+}
+
 // curl_downstream_installed_count(): int
 // Number of transfers with our functions currently installed.
 static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_installed_count)
@@ -846,6 +1512,18 @@ static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_installed_count)
         RETURN_FALSE;
     }
     RETURN_LONG(_installed ? (zend_long)zend_hash_num_elements(_installed) : 0);
+}
+
+// curl_downstream_slot_registered_count(): int
+// Number of transfers registered for our slot functions (by php_curl *).
+static PHP_FUNCTION(
+    datadog_appsec_testing_curl_downstream_slot_registered_count)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    RETURN_LONG(
+        _slot_xfers ? (zend_long)zend_hash_num_elements(_slot_xfers) : 0);
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(dump_arginfo, 0, 1, IS_ARRAY, 1)
@@ -868,8 +1546,13 @@ ZEND_END_ARG_INFO()
 static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_dump", PHP_FN(datadog_appsec_testing_curl_downstream_dump), dump_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_installed_count", PHP_FN(datadog_appsec_testing_curl_downstream_installed_count), installed_count_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_slot_registered_count", PHP_FN(datadog_appsec_testing_curl_downstream_slot_registered_count), installed_count_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_slots",PHP_FN(datadog_appsec_testing_curl_downstream_slots), dump_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_collect_all", PHP_FN(datadog_appsec_testing_curl_downstream_collect_all), collect_all_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_tracking", PHP_FN(datadog_appsec_testing_curl_downstream_tracking), tracking_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_install_refuse", PHP_FN(datadog_appsec_testing_curl_downstream_install_refuse), tracking_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_coll_refuse", PHP_FN(datadog_appsec_testing_curl_downstream_coll_refuse), tracking_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_coll_refusals", PHP_FN(datadog_appsec_testing_curl_downstream_coll_refusals), installed_count_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

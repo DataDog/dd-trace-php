@@ -6,7 +6,11 @@
 #pragma once
 
 // Observation of the transfers of PHP curl handles: per-handle state
-// (tracked options, last transfer).
+// (tracked options, last transfer); for the duration of a transfer, our
+// write, header and read functions in libcurl's callback slots (normalised
+// at each transfer start, guarded, restored at its end; G5.2), which forward
+// every call to ext/curl's and feed the transfer's collector
+// (curl_collect.h), and our CURLOPT_PREREQFUNCTION, which marks the hops.
 //
 // The ext/curl function hooks (curl_hooks.c) drive this module; the WAF
 // evaluation of the transfers is in curl_eval.c.
@@ -15,6 +19,7 @@
 #include <stdbool.h>
 
 #include "../attributes.h"
+#include "curl_collect.h"
 #include "curl_eval.h"
 #include "curl_opts.h"
 
@@ -94,6 +99,11 @@ void dd_curl_xfer_removed_from_multi(zval *nonnull zch, uintptr_t multi);
 // handle's transfer if it is one of that multi
 void dd_curl_xfer_end_in_multi(
     zval *nonnull zch, uintptr_t multi, bool completed);
+// curl_copy_handle() and PHP 8 clones: libcurl copied our options onto the
+// copy if the source is being observed right now; remove them from the copy
 // Whether libcurl has a current URL for the handle (CURLINFO_EFFECTIVE_URL
 // is not empty); false if it has none or it cannot be read
 bool dd_curl_has_effective_url(zval *nonnull zch);
+// (copy: the copy's state, if it is tracked)
+void dd_curl_xfer_after_copy(struct dd_curl_hstate *nonnull src,
+    zval *nonnull zcopy, struct dd_curl_hstate *nullable copy);

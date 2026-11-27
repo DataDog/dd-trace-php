@@ -70,3 +70,8 @@ zend_string *nullable dd_php_get_string_elem(
     const zend_array *nullable arr, zend_string *nonnull zstr);
 zend_string *nullable dd_php_get_string_elem_cstr(
     const zend_array *nullable arr, const char *nonnull name, size_t len);
+
+// Conservative memory-limit check: whether emalloc(size) cannot exceed the
+// memory limit (and bail out), if nothing else is allocated in between. Does
+// not predict underlying OS allocation failure.
+bool dd_emalloc_fits(size_t size);

@@ -6,6 +6,7 @@
 #include "body_parser.h"
 #include "ddappsec.h"
 #include "logging.h"
+#include "php_helpers.h"
 #include "php_objects.h"
 #include "tracer_bridge.h"
 #include <alloc.h>
@@ -19,7 +20,6 @@ struct _parser_alloc_context {
 static void _log_result(const char *nonnull kind, ddog_AppsecBodyStatus status);
 static uint8_t *nullable _parser_allocate(void *nonnull context, size_t size);
 static void _parser_free(uint8_t *nonnull ptr);
-static bool _emalloc_fits(size_t size);
 #ifdef TESTING
 static THREAD_LOCAL_ON_ZTS zend_long _parser_fail_after = -1;
 static THREAD_LOCAL_ON_ZTS zend_long _parser_allocation_calls;
@@ -141,7 +141,7 @@ static uint8_t *nullable _parser_allocate(void *nonnull context, size_t size)
         }
     }
 #endif
-    if (!zai_resolve__femalloc() && !_emalloc_fits(size)) {
+    if (!zai_resolve__femalloc() && !dd_emalloc_fits(size)) {
         ctx->limit_exceeded = true;
         return NULL;
     }
@@ -165,41 +165,6 @@ static uint8_t *nullable _parser_allocate(void *nonnull context, size_t size)
 }
 
 static void _parser_free(uint8_t *nonnull ptr) { efree(ptr); }
-
-// Conservative memory-limit check for parser allocations on PHP without
-// fallible allocation APIs. Does not predict underlying OS allocation failure.
-static bool _emalloc_fits(size_t size)
-{
-    // Account for alignment and debug-build metadata before deciding which
-    // Zend allocation path the request takes. Reject arithmetic overflow.
-    if (size > SIZE_MAX - (ZEND_MM_ALIGNMENT - 1) - ZEND_MM_OVERHEAD) {
-        return false;
-    }
-    size = ZEND_MM_ALIGNED_SIZE(MAX(size, 1)) + ZEND_MM_OVERHEAD;
-
-    // Small/large runs may need a whole new chunk even for a tiny request.
-    size_t growth = ZEND_MM_CHUNK_SIZE;
-    if (size > ZEND_MM_MAX_LARGE_SIZE) {
-        // Huge runs have a separate mapping and a small tracking allocation.
-        // Round to chunks to cover page rounding (and Windows' chunk
-        // rounding), then reserve a chunk for the tracking allocation.
-        if (size > SIZE_MAX - (ZEND_MM_CHUNK_SIZE - 1) - ZEND_MM_CHUNK_SIZE) {
-            return false;
-        }
-        growth = ZEND_MM_ALIGNED_SIZE_EX(size, ZEND_MM_CHUNK_SIZE) +
-                 ZEND_MM_CHUNK_SIZE;
-    }
-
-    if (PG(memory_limit) < 0) {
-        return true;
-    }
-    size_t limit = (size_t)PG(memory_limit);
-    size_t used = zend_memory_usage(true);
-    // No PHP callbacks or allocations may intervene between this check and
-    // emalloc. The request heap is local to this thread. Refusing potentially
-    // reusable space is deliberate: its fragmentation is not exposed here.
-    return used <= limit && growth <= limit - used;
-}
 
 #ifdef TESTING
 static PHP_FUNCTION(datadog_appsec_testing_body_parser_has_femalloc)

@@ -11,6 +11,9 @@
 #include <php.h>
 #include <stdbool.h>
 
+#include "../attributes.h"
+#include "curl_collect.h"
+
 // RINIT
 void dd_curl_eval_rinit(void);
 void dd_curl_eval_rshutdown(void);
@@ -23,3 +26,8 @@ void dd_curl_eval_rshutdown(void);
 void dd_curl_eval_libcurl_enter(void);
 void dd_curl_eval_libcurl_leave(void);
 bool dd_curl_eval_in_libcurl(void);
+
+// The headers of an HTTP head (start line first): lower-cased names, lists
+// of trimmed values, empty values dropped.
+void dd_curl_headers_to_array(
+    const char *nullable head, size_t len, zval *nonnull arr);

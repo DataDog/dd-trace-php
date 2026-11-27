@@ -14,6 +14,9 @@
 // makes the others' hooks nested too.
 static THREAD_LOCAL_ON_ZTS unsigned _libcurl_depth;
 
+static void _header_add(
+    zend_array *headers, struct dd_http_slice name, struct dd_http_slice value);
+
 void dd_curl_eval_rinit(void) { _libcurl_depth = 0; }
 
 void dd_curl_eval_rshutdown(void) { _libcurl_depth = 0; }
@@ -28,3 +31,37 @@ void dd_curl_eval_libcurl_leave(void)
 }
 
 bool dd_curl_eval_in_libcurl(void) { return _libcurl_depth > 0; }
+
+void dd_curl_headers_to_array(
+    const char *nullable head, size_t len, zval *nonnull arr)
+{
+    array_init(arr);
+    if (!head) {
+        return;
+    }
+    struct dd_http_header_iter it;
+    struct dd_http_slice name;
+    struct dd_http_slice value;
+    dd_http_header_iter_init(&it, head, len);
+    while (dd_http_header_iter_next(&it, &name, &value)) {
+        _header_add(Z_ARRVAL_P(arr), name, value);
+    }
+}
+
+static void _header_add(
+    zend_array *headers, struct dd_http_slice name, struct dd_http_slice value)
+{
+    if (name.len == 0 || value.len == 0) {
+        return;
+    }
+    zend_string *lname = zend_string_init(name.ptr, name.len, 0);
+    zend_str_tolower(ZSTR_VAL(lname), ZSTR_LEN(lname));
+    zval *list = zend_symtable_find(headers, lname);
+    if (!list) {
+        zval new_list;
+        array_init(&new_list);
+        list = zend_symtable_update(headers, lname, &new_list);
+    }
+    add_next_index_stringl(list, value.ptr, value.len);
+    zend_string_release(lname);
+}

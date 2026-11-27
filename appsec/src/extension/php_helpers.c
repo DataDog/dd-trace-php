@@ -115,3 +115,36 @@ zend_string *nullable dd_php_get_string_elem(
 
     return Z_STR_P(zresult);
 }
+
+bool dd_emalloc_fits(size_t size)
+{
+    // Account for alignment and debug-build metadata before deciding which
+    // Zend allocation path the request takes. Reject arithmetic overflow.
+    if (size > SIZE_MAX - (ZEND_MM_ALIGNMENT - 1) - ZEND_MM_OVERHEAD) {
+        return false;
+    }
+    size = ZEND_MM_ALIGNED_SIZE(MAX(size, 1)) + ZEND_MM_OVERHEAD;
+
+    // Small/large runs may need a whole new chunk even for a tiny request.
+    size_t growth = ZEND_MM_CHUNK_SIZE;
+    if (size > ZEND_MM_MAX_LARGE_SIZE) {
+        // Huge runs have a separate mapping and a small tracking allocation.
+        // Round to chunks to cover page rounding (and Windows' chunk
+        // rounding), then reserve a chunk for the tracking allocation.
+        if (size > SIZE_MAX - (ZEND_MM_CHUNK_SIZE - 1) - ZEND_MM_CHUNK_SIZE) {
+            return false;
+        }
+        growth = ZEND_MM_ALIGNED_SIZE_EX(size, ZEND_MM_CHUNK_SIZE) +
+                 ZEND_MM_CHUNK_SIZE;
+    }
+
+    if (PG(memory_limit) < 0) {
+        return true;
+    }
+    size_t limit = (size_t)PG(memory_limit);
+    size_t used = zend_memory_usage(true);
+    // No PHP callbacks or allocations may intervene between this check and
+    // emalloc. The request heap is local to this thread. Refusing potentially
+    // reusable space is deliberate: its fragmentation is not exposed here.
+    return used <= limit && growth <= limit - used;
+}

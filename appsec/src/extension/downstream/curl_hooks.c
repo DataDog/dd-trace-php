@@ -196,7 +196,8 @@ static void _wrap_clone_obj(zval *zch)
 #endif
 
 // After a copy of zsrc (zcopy, which is false if curl_copy_handle() failed):
-// if zsrc is tracked, the copy is tracked too, with zsrc's options
+// if zsrc is tracked, the copy is tracked too, with zsrc's options, and does
+// not keep ours
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static void _after_copy(zval *zsrc, zval *zcopy)
 {
@@ -205,6 +206,7 @@ static void _after_copy(zval *zsrc, zval *zcopy)
         return;
     }
     struct dd_curl_hstate *copy = dd_curl_hstate_create(zcopy);
+    dd_curl_xfer_after_copy(src, zcopy, copy);
     if (copy) {
         dd_curl_opts_copy(dd_curl_hstate_opts(copy), dd_curl_hstate_opts(src));
     }
