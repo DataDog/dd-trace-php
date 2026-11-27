@@ -1,3 +1,4 @@
+#include "normalized_route_cache.h"
 #include "routing_cache.h"
 #include "components-rs/common.h"
 #include "components-rs/sidecar.h"
@@ -249,12 +250,11 @@ void ddtrace_activate_late(void) {
 void ddtrace_ginit(zend_datadog_globals *ddtrace_globals) {
 #if PHP_VERSION_ID < 70100
     zai_vm_interrupt = &ddtrace_globals->zai_vm_interrupt;
-#else
-    UNUSED(ddtrace_globals);
 #endif
     zai_hook_ginit();
     zai_line_hook_ginit();
     ddtrace_routing_cache_ginit(&ddtrace_globals->ddtrace.rcache);
+    ddtrace_normalized_route_cache_ginit(&ddtrace_globals->ddtrace.nrcache_participant);
 }
 
 void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
@@ -265,6 +265,7 @@ void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
         ddog_agent_remote_config_reader_drop(datadog_globals->ddtrace.agent_config_reader);
     }
     ddtrace_routing_cache_gshutdown(&datadog_globals->ddtrace.rcache);
+    ddtrace_normalized_route_cache_gshutdown(&datadog_globals->ddtrace.nrcache_participant);
 }
 
 
@@ -359,6 +360,12 @@ void ddtrace_minit_late() {
 
     atomic_init(&ddtrace_warn_legacy_api, 1);
 
+    /* Install the shared normalized-route cache before the SAPI forks pool
+     * workers. MINIT runs in the master, so every worker inherits one
+     * mapping; a failure disables the cache (every lookup returns false,
+     * every insert is a no-op) without failing tracer startup. */
+    ddtrace_normalized_route_cache_minit();
+
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
     ddtrace_standalone_limiter_create();
@@ -429,6 +436,16 @@ void ddtrace_mshutdown() {
     ddtrace_standalone_limiter_destroy();
 
     ddtrace_user_req_shutdown();
+
+    /* Participants must be released while the cache is still mapped. PHP
+     * calls MSHUTDOWN before GSHUTDOWN for the module's own thread (and for
+     * every thread in NTS), so release this thread's participant here and
+     * let ginit/gshutdown handle other ZTS threads (whose GSHUTDOWN runs
+     * before this MSHUTDOWN, so they are already out). Only then free the
+     * mapping; pool workers that MSHUTDOWN first keep the mapping alive for
+     * their siblings via the kernel's reference count. */
+    ddtrace_normalized_route_cache_gshutdown(&DDTRACE_G(nrcache_participant));
+    ddtrace_normalized_route_cache_mshutdown();
 }
 
 bool dd_rinit_once_done = false;

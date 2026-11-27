@@ -161,14 +161,14 @@ class LaravelIntegration extends Integration
                             $matchedParams = $allParams;
                             $cacheKey = "laravel\0" . $httpRoute;
                         }
-                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                        $normalizedRoute = \DDTrace\normalized_route_cache_get($cacheKey);
                         if ($normalizedRoute === false) {
                             $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel(
                                 $httpRoute,
                                 $matchedParams
                             );
                             if ($normalizedRoute !== null) {
-                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                                \DDTrace\normalized_route_cache_set($cacheKey, $normalizedRoute);
                             }
                         }
                         if ($normalizedRoute !== null && $normalizedRoute !== false) {

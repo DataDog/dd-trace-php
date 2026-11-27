@@ -47,6 +47,7 @@ tracer-runtime = [
   "dep:libdd-live-debugger", "dep:libdd-live-debugger-ffi",
   "dep:libdd-data-pipeline", "dep:datadog-ffe", "dep:itertools",
   "dep:regex", "dep:regex-automata", "dep:serde", "dep:base64",
+  "dep:shm_generational_cache",
 ]
 otel-context = ["dep:libdd-library-config", "dep:libdd-trace-protobuf"]
 # build.rs compiles them as the separate components-rs/appsec_body crate.
@@ -120,6 +121,10 @@ libdd-profiling = { workspace = true, optional = true }
 rand = { version = "0.9.4", optional = true }
 rand_distr = { workspace = true, optional = true }
 rustc-hash = { version = "2.1.3", optional = true }
+# Process-shared routing cache. Pinned to an exact version: the mapping layout
+# is stamped with LAYOUT_VERSION and sharing across pools requires every worker
+# to see the same layout. Must match the root manifest.
+shm_generational_cache = { version = "=0.0.1", optional = true, default-features = true }
 thiserror = { version = "2", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
