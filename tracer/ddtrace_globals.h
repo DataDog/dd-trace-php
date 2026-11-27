@@ -21,6 +21,11 @@ typedef struct datadog_git_metadata datadog_git_metadata;
 
 typedef struct dd_refcounted_linked dd_refcounted_linked;
 
+/* Opaque handle from shm_generational_cache; the full type lives in
+ * components-rs/shm_generational_cache.h. Forward-declared here so this
+ * header does not transitively drag that in. */
+struct ddog_sgc_Participant;
+
 typedef struct {
     zend_arena *arena;
     dd_refcounted_linked *ephemerals;
@@ -128,6 +133,14 @@ typedef struct {
     dtor_func_t resource_dtor_func;
 
     HashTable rcache;
+
+    /* Per-thread handle on the process-wide normalized-route cache;
+     * registered on first use, released on gshutdown. The PID is recorded at
+     * registration and compared on every subsequent call so a participant
+     * inherited by pcntl_fork (unusable per the crate's contract) is
+     * replaced in the child. See normalized_route_cache.h. */
+    struct ddog_sgc_Participant *nrcache_participant;
+    pid_t nrcache_participant_pid;
 
     void *ffe_exposure_buffer;
     size_t ffe_exposure_buffer_len;

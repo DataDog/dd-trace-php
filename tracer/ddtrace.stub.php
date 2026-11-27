@@ -632,6 +632,29 @@ namespace DDTrace {
     function routing_cache_set(string $key, string $value): void {}
 
     /**
+     * Get a normalized route from the process-shared cache. The cache is
+     * backed by shm_generational_cache and shared across FPM pool workers
+     * (and ZTS threads) of the same master, so a value set in one worker is
+     * visible to the others.
+     *
+     * @internal
+     * @param string $key The cache key
+     * @return string|false The cached value, or 'false' when the key is not cached
+     */
+    function normalized_route_cache_get(string $key): string|false {}
+
+    /**
+     * Store a normalized route in the process-shared cache. Over capacity,
+     * the approximate-LRU generational policy of shm_generational_cache
+     * drops the oldest generation; there is no per-entry FIFO guarantee.
+     *
+     * @internal
+     * @param string $key The cache key
+     * @param string $value The value to cache
+     */
+    function normalized_route_cache_set(string $key, string $value): void {}
+
+    /**
      * Close child spans of a parent span if a non-internal span is given,
      * else if 'null' is given, close active, non-internal spans
      *

@@ -337,7 +337,7 @@ class LaminasIntegration extends Integration
                                 // a key.
                                 $cacheKey = "laminas\0" . \strlen((string) $routeName) . ':' . $routeName
                                     . \strlen($httpRoute) . ':' . $httpRoute . $_signature;
-                                $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                                $normalizedRoute = \DDTrace\normalized_route_cache_get($cacheKey);
                                 if ($normalizedRoute === false) {
                                     try {
                                         $_elements = LaminasIntegration::replayRouteMatch($_records);
@@ -350,7 +350,7 @@ class LaminasIntegration extends Integration
                                         : \DDTrace\Util\RouteNormalizer::normalizeElements($_elements);
                                     unset($_elements);
                                     if ($normalizedRoute !== null) {
-                                        \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                                        \DDTrace\normalized_route_cache_set($cacheKey, $normalizedRoute);
                                     }
                                 }
                             } else {

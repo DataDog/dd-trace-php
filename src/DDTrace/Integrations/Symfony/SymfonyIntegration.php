@@ -458,7 +458,7 @@ class SymfonyIntegration extends Integration
                 } else {
                     $cacheKey = EndpointCatalog::generatorFileCacheKey($route_name, $locale, $container);
                 }
-                $entry = $cacheKey === null ? false : \DDTrace\routing_cache_get($cacheKey);
+                $entry = $cacheKey === null ? false : \DDTrace\normalized_route_cache_get($cacheKey);
                 if ($entry === false || ($apiSecurity && strpos($entry, "\0") === false)) {
                     if ($routeData === null) {
                         $routeData = EndpointCatalog::matchedRouteData($route_name, $locale, $container);
@@ -474,7 +474,7 @@ class SymfonyIntegration extends Integration
                         return;
                     }
                     if ($cacheKey !== null) {
-                        \DDTrace\routing_cache_set($cacheKey, $entry);
+                        \DDTrace\normalized_route_cache_set($cacheKey, $entry);
                     }
                 }
 

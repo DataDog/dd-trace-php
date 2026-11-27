@@ -67,6 +67,41 @@ pub use tracer_runtime::{
 #[cfg(all(feature = "appsec", unix))]
 pub mod appsec_body;
 
+// Route the crate's FFI through this cdylib. `pub use ...::*` does not bring in
+// `#[no_mangle]` free functions, so the symbols must be explicitly referenced
+// for `-Wl,--gc-sections` to keep them in the final archive. tracer/routing_cache.c
+// calls these through the ddog_sgc_* names.
+#[cfg(feature = "tracer-runtime")]
+pub mod routing_cache {
+    use shm_generational_cache::ffi;
+
+    // `#[used]` keeps the pointer table in the compile unit, so the linker cannot
+    // strip the functions it points to (gc-sections would otherwise drop them:
+    // no Rust caller references them inside this cdylib, and routing_cache.c
+    // reaches them only through the C symbol).
+    #[repr(transparent)]
+    struct Keep(unsafe extern "C" fn());
+    unsafe impl Sync for Keep {}
+
+    macro_rules! keep {
+        ($name:ident, $f:path) => {
+            #[used]
+            static $name: Keep = Keep(unsafe {
+                core::mem::transmute::<*const (), unsafe extern "C" fn()>($f as *const ())
+            });
+        };
+    }
+
+    keep!(KEEP_NEW, ffi::ddog_sgc_cache_new);
+    keep!(KEEP_FREE, ffi::ddog_sgc_cache_free);
+    keep!(KEEP_INIT_IN, ffi::ddog_sgc_cache_init_in);
+    keep!(KEEP_MAPPING_SIZE, ffi::ddog_sgc_cache_mapping_size);
+    keep!(KEEP_REGISTER, ffi::ddog_sgc_participant_register);
+    keep!(KEEP_UNREGISTER, ffi::ddog_sgc_participant_unregister);
+    keep!(KEEP_LOOKUP, ffi::ddog_sgc_lookup);
+    keep!(KEEP_INSERT, ffi::ddog_sgc_insert);
+}
+
 #[cfg(feature = "sidecar")]
 #[rustfmt::skip]
 mod common_exports {

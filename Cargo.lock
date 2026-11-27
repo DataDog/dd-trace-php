@@ -1247,6 +1247,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "shm_generational_cache",
  "spawn_worker",
  "static_assertions",
  "tempfile",
@@ -1316,6 +1317,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "shm_generational_cache",
  "spawn_worker",
  "thiserror 2.0.18",
  "tracing",
@@ -5730,6 +5732,16 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "shm_generational_cache"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6ffc95bdda3d4d654b4f2ef39d2e7b3cf95f7eaef6502bf1d223c6d0deb55d4"
+dependencies = [
+ "libc",
+ "windows-sys 0.52.0",
+]
 
 [[package]]
 name = "sidecar_mockgen"
