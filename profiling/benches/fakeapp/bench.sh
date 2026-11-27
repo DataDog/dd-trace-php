@@ -10,7 +10,7 @@ rm -v trigger-{0..2}.txt
 
 set -eu
 
-make -C ../../.. compile_profiler PROFILER_FEATURES=trigger_time_sample
+make -C ../../.. compile_profiler
 
 RUST_LOG=trace php -c . -dextension="$PWD/../../../tmp/build_profiler/modules/datadog-profiling.so" -S 0.0.0.0:8080 -t public &> output.txt &
 pid=$!

@@ -443,7 +443,7 @@ PROFILER_FEATURES ?=
 # standalone profiler below (compile_profiler/install_profiler) is only for
 # testing the legacy standalone artifact itself, not a general substitute.
 compile_combined:
-	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec" all
+	$(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-appsec" all
 
 # Linux release CI alias for the self-contained, non-SSI ddtrace.so.
 # Both names use the same build and output directory. Switch to the desired

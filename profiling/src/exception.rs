@@ -185,6 +185,12 @@ pub fn exception_profiling_mshutdown() {
     }
 }
 
+fn should_collect_exception() -> bool {
+    EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) <= 1
+        || EXCEPTION_PROFILING_STATS
+            .borrow_mut_or_false(|exceptions| exceptions.should_collect_exception())
+}
+
 unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(php7)] exception: *mut zend::zval,
     #[cfg(php8)] exception: *mut zend::zend_object,
@@ -200,11 +206,7 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     // This process involved calling this hook for each stack frame or try...catch block it
     // traversed. Fortunately, this behavior can be easily identified by checking for a NULL
     // pointer.
-    if exception_enabled
-        && !exception.is_null()
-        && EXCEPTION_PROFILING_STATS
-            .borrow_mut_or_false(|exceptions| exceptions.should_collect_exception())
-    {
+    if exception_enabled && !exception.is_null() && should_collect_exception() {
         collect_exception(exception);
     }
 

@@ -8,9 +8,6 @@ make_combined() {
 }
 
 # Measure the same combined extension that is shipped to users in every scenario.
-# The profiler feature is fixed at configure time, so it is enabled for every
-# scenario: a build directory shared between scenarios must not lack it.
-export DDTRACE_PROFILING_FEATURES=trigger_time_sample
 # The benchmark platform runs a real agent: keep remote configuration it could
 # deliver from changing the behaviour being measured.
 export DD_REMOTE_CONFIG_ENABLED=false
@@ -41,10 +38,6 @@ fi
 
 if [ "$SCENARIO" = "profiler" ]; then
   # Run Profiling Benchmarks
-  # timeline.php needs trigger_time_sample; a module configured without it would
-  # only fail inside sirun.
-  php -n -d extension="$COMBINED_SO" \
-    -r 'exit(function_exists("Datadog\\Profiling\\trigger_time_sample") ? 0 : 1);'
   cd profiling/
 
   sirun benches/timeline.json > "$ARTIFACTS_DIR/sirun_timeline.ndjson"

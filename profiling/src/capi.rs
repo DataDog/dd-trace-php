@@ -35,31 +35,6 @@ pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
     Uuid(runtime_id())
 }
 
-#[cfg(feature = "trigger_time_sample")]
-#[no_mangle]
-extern "C" fn ddog_php_prof_trigger_time_sample() {
-    use log::error;
-    use std::sync::atomic::Ordering;
-
-    // SAFETY: This callback runs on the active PHP request thread with live globals.
-    let result = unsafe { super::RequestLocals::from_module_globals() }.try_with_borrow(|locals| {
-        if locals.system_settings().profiling_enabled {
-            // Safety: only vm interrupts are stored there, or possibly null (edges only).
-            if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
-                // SAFETY: this callback runs on an initialized PHP request thread.
-                let globals = unsafe { crate::profiling::module_globals::get_profiler_globals() };
-                // SAFETY: the current thread's module globals are valid through GSHUTDOWN.
-                unsafe { (*globals).interrupt_count.fetch_add(1, Ordering::Relaxed) };
-                vm_interrupt.store(true, Ordering::SeqCst);
-            }
-        }
-    });
-
-    if let Err(err) = result {
-        error!("ddog_php_prof_trigger_time_sample failed to borrow request locals: {err}");
-    }
-}
-
 pub use crate::profiling::wall_time::ddog_php_prof_interrupt_function;
 
 #[cfg(test)]

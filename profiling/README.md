@@ -142,11 +142,6 @@ sirun benches/timeline.json
 sirun benches/exceptions.json
 ```
 
-The timeline workload needs `trigger_time_sample` to collect samples
-explicitly; `compile_combined` enables it. Cargo features are fixed at
-configure time: if `tmp/build_combined/` was configured without that feature,
-remove that generated build directory first.
-
 ## Troubleshooting
 
 #### Can't find the profiler library on macOS

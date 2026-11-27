@@ -41,7 +41,6 @@ pub fn build() {
     let fibers = cfg_fibers(vernum);
     let frameless = cfg_frameless(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
-    let trigger_time_sample = cfg_trigger_time_sample();
     let zend_error_observer = cfg_zend_error_observer(vernum);
 
     generate_bindings(&php_includes, fibers, zend_error_observer);
@@ -54,7 +53,6 @@ pub fn build() {
         run_time_cache,
         fibers,
         frameless,
-        trigger_time_sample,
         zend_error_observer,
     );
 
@@ -106,7 +104,6 @@ fn build_zend_php_ffis(
     run_time_cache: bool,
     fibers: bool,
     frameless: bool,
-    trigger_time_sample: bool,
     zend_error_observer: bool,
 ) {
     println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
@@ -117,7 +114,6 @@ fn build_zend_php_ffis(
     let fibers = if fibers { "1" } else { "0" };
     let frameless = if frameless { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
-    let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
     let zend_error_observer = if zend_error_observer { "1" } else { "0" };
 
     let combined = env::var_os("CARGO_FEATURE_PROFILING_EMBEDDED").is_some();
@@ -129,7 +125,6 @@ fn build_zend_php_ffis(
         .define("CFG_FIBERS", fibers)
         .define("CFG_FRAMELESS", frameless)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
-        .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
         .define("PROFILING", None)
         .includes(["ext", "zend_abstract_interface", "."])
@@ -306,10 +301,6 @@ fn cfg_run_time_cache(vernum: u64) -> bool {
     } else {
         false
     }
-}
-
-fn cfg_trigger_time_sample() -> bool {
-    env::var("CARGO_FEATURE_TRIGGER_TIME_SAMPLE").is_ok()
 }
 
 fn cfg_zend_error_observer(vernum: u64) -> bool {

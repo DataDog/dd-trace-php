@@ -96,7 +96,7 @@ foreach ($profiler_minor_major_targets as $version) {
         make compile_combined
       else
         profiler_ri=datadog-profiling
-        make compile_profiler PROFILER_FEATURES=trigger_time_sample
+        make compile_profiler
       fi
     - php -v
     - php -d extension="${PROFILER_SO}" --ri "${profiler_ri}"
@@ -374,7 +374,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - switch-php "${PHP_MAJOR_MINOR}"
     - echo nts > /tmp/profiler-test-flavour
     - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
-    - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-build-std && make -j$(nproc))
+    - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-build-std && make -j$(nproc))
     - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
     - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-combined-results.xml" php profiling/tests/run-tests.php -P ${run_tests_jobs} -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
@@ -401,7 +401,7 @@ foreach ($profiler_minor_major_targets as $version) {
         mv "${CARGO_TARGET_DIR}" "${cache_keep}"
         make distclean || true
         mv "${cache_keep}" "${CARGO_TARGET_DIR}"
-        phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-build-std && make -j$(nproc)
+        phpize && DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-build-std && make -j$(nproc)
       )
     - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined ZTS build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
     - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
@@ -499,11 +499,11 @@ foreach ($profiler_minor_major_targets as $version) {
   script:
     - switch-php nts
     - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
-    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,profiling-runtime,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,profiling-runtime,test,debug_stats,tracing,tracing-subscriber
     - switch-php zts
     - php -r 'exit((int) !PHP_ZTS);' || { echo 'ERROR expected ZTS PHP'; exit 1; }
     - touch profiling/build.rs # make sure the build helper runs after switch-php
-    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,profiling-runtime,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,profiling-runtime,test,debug_stats,tracing,tracing-subscriber
 
 "PHP language tests":
   stage: test

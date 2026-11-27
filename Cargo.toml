@@ -98,7 +98,6 @@ io_profiling = ["profiling"]
 test = ["profiling"]
 tracing = ["profiling"]
 tracing-subscriber = ["tracing"]
-trigger_time_sample = ["profiling"]
 
 [dependencies]
 libdd-common = { workspace = true }

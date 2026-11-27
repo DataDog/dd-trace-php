@@ -44,6 +44,7 @@ function about_us(string $http_method, string $uri): Response
     return Response::new($status, $headers, $body);
 }
 
-if (\function_exists('Datadog\\Profiling\\trigger_time_sample')) {
-    \Datadog\Profiling\trigger_time_sample();
+try {
+    throw new \RuntimeException();
+} catch (\RuntimeException) {
 }
