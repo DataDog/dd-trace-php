@@ -62,4 +62,16 @@ return function (App $app) {
         $response->getBody()->write("Dynamic route: " . implode(',', $args));
         return $response;
     });
+
+    // Multi-verb route: the endpoint collector must emit one entry per method.
+    $app->map(['GET', 'POST'], '/multi-method', function (Request $request, Response $response) {
+        $response->getBody()->write('multi-method:' . $request->getMethod());
+        return $response;
+    });
+
+    $app->get('/telemetry', function (Request $request, Response $response) {
+        \dd_trace_internal_fn('finalize_telemetry');
+        $response->getBody()->write('Done');
+        return $response;
+    });
 };

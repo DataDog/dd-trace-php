@@ -34,6 +34,18 @@ return function (App $app) {
         return $response;
     });
 
+    // Multi-verb route: the endpoint collector must emit one entry per method.
+    $app->map(['GET', 'POST'], '/multi-method', function (Request $request, Response $response) {
+        $response->getBody()->write('multi-method:' . $request->getMethod());
+        return $response;
+    });
+
+    $app->get('/telemetry', function (Request $request, Response $response) {
+        \dd_trace_internal_fn('finalize_telemetry');
+        $response->getBody()->write('Done');
+        return $response;
+    });
+
     $app->get('/[{name}]', function (Request $request, Response $response, array $args) use ($container) {
         // Sample log message
         $container->get('logger')->info("Slim-Skeleton '/' route");

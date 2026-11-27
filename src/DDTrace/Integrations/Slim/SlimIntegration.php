@@ -81,6 +81,8 @@ class SlimIntegration extends Integration
                                 $rootSpan->resource =
                                     $_SERVER['REQUEST_METHOD'] . ' ' . ($return->getName() ?: $return->getPattern());
                             }
+
+                            SlimIntegration::registerSlimEndpoints($router);
                         }
                     );
 
@@ -103,6 +105,8 @@ class SlimIntegration extends Integration
                             /** @var \Slim\Interfaces\RouteInterface $route */
                             $route = $return;
                             $rootSpan->attributes[Tag::HTTP_ROUTE] = $route->getPattern();
+
+                            SlimIntegration::registerSlimEndpoints($router);
                         }
                     );
 
@@ -196,5 +200,29 @@ class SlimIntegration extends Integration
         }
 
         \datadog\appsec\push_addresses(["server.request.path_params" => $arguments]);
+    }
+
+    /**
+     * Publishes every registered route to telemetry as an app-endpoint. Both
+     * Slim 3 (Slim\Router) and Slim 4 (Slim\Routing\RouteCollector) expose a
+     * matching getRoutes()/getPattern()/getMethods() shape; group prefixes are
+     * already folded into getPattern() by Slim at registration time.
+     *
+     * @param \Slim\Router|\Slim\Routing\RouteCollector $router
+     */
+    public static function registerSlimEndpoints($router)
+    {
+        if (\DDTrace\are_endpoints_collected()) {
+            return;
+        }
+
+        foreach ($router->getRoutes() as $route) {
+            $pattern = $route->getPattern();
+            foreach ($route->getMethods() as $method) {
+                \DDTrace\add_endpoint($pattern, 'http.request', $method . ' ' . $pattern, $method);
+            }
+        }
+
+        \DDTrace\flush_endpoints();
     }
 }
