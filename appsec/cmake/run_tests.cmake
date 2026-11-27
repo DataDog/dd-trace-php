@@ -44,6 +44,18 @@ if(DD_APPSEC_ENABLE_COVERAGE)
 endif()
 
 add_dependencies(xtest xtest-prepare)
+
+# The libcurl linkage detection, against fake libcurl/ext/curl objects linked
+# in ways the CI PHP builds don't exercise (static libcurl, preloads, ...).
+# Not a dependency of xtest: CI runs it as its own step ("make
+# curl_linkage_test").
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_custom_target(curl_linkage_test
+        COMMAND ${CMAKE_COMMAND} -E env "CC=${CMAKE_C_COMPILER}"
+            ${CMAKE_SOURCE_DIR}/tests/curl_linkage/run.sh
+            ${CMAKE_BINARY_DIR}/curl_linkage_test
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
 if(TARGET ddtrace)
     add_dependencies(xtest ddtrace)
 endif()

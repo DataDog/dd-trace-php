@@ -335,6 +335,8 @@ if test "$PHP_DDTRACE" != "no"; then
     appsec/src/extension/configuration.c \
     appsec/src/extension/ddappsec.c \
     appsec/src/extension/dddefs.c \
+    appsec/src/extension/downstream/curl_linkage.c \
+    appsec/src/extension/downstream/curl_linkage_detect.c \
     appsec/src/extension/duration_acc.c \
     appsec/src/extension/entity_body.c \
     appsec/src/extension/helper_process.c \
@@ -599,6 +601,7 @@ EOT
   dnl their names collide with the ones in ext/.
   PHP_ADD_BUILD_DIR([$ext_builddir/appsec/src/extension])
   PHP_ADD_BUILD_DIR([$ext_builddir/appsec/src/extension/commands])
+  PHP_ADD_BUILD_DIR([$ext_builddir/appsec/src/extension/downstream])
 
   cat <<'EOT' >> Makefile.fragments
 ./modules/ddtrace.a: $(shared_objects_ddtrace) $(DDTRACE_SHARED_DEPENDENCIES)

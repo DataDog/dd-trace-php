@@ -20,6 +20,8 @@ Notice: %s: [ddappsec] Skipping automatic request shutdown in testing in Unknown
 
 Notice: PHP Startup: [ddappsec] Request lifecycle matches PHP's in Unknown on line %d
 
+Notice: PHP Startup: [ddappsec] Downstream request analysis for ext/curl is %s in Unknown on line %d
+
 Notice: PHP Shutdown: [ddappsec] Not connected; nothing to do in dd_helper_gshutdown in Unknown on line %d
 
 Notice: PHP Shutdown: [ddappsec] Finished GSHUTDOWN actions (thread %s) in Unknown on line %d

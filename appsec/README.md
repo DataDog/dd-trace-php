@@ -97,6 +97,11 @@ To execute the tests with memcheck (requires valgrind), use the following comman
 ```
 make xtest TESTS="--show-diff --show-mem -m"
 ```
+The harness of the libcurl linkage detection, which builds fake libcurl and
+ext/curl objects without PHP, is not part of `xtest` (Linux only). Run it with:
+```
+make curl_linkage_test
+```
 #### Testing the helper
 
 The helper lives in the `helper-rust/` directory. See
