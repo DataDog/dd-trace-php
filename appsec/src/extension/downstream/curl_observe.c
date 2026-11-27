@@ -138,7 +138,7 @@ static bool _slots_ready;
 // DD_APPSEC_TESTING: our slot functions count the calls and bytes of the
 // transfer they belong to (curl_downstream_dump()). It gates only those
 // counters: the write and header functions always look up their transfer,
-// to feed its collector.
+// to feed its collector, and the read function, for its gate (G6.7).
 static bool _slot_counting;
 static THREAD_LOCAL_ON_ZTS bool _req_active;
 // the number of handles with pending_multi set: the exec of a multi need not
@@ -205,6 +205,8 @@ static void _unregister_slots(struct dd_curl_xfer *x);
 static size_t _write_cb(char *ptr, size_t size, size_t nmemb, void *userdata);
 static size_t _header_cb(char *ptr, size_t size, size_t nmemb, void *userdata);
 static size_t _read_cb(char *ptr, size_t size, size_t nmemb, void *userdata);
+static size_t _gate_read(struct dd_curl_xfer *x, char *ptr, size_t size,
+    size_t nmemb, void *userdata);
 static size_t _slot_taken(
     enum dd_curl_islot slot, size_t ret, size_t size, size_t nmemb);
 static void _set_prereq(struct dd_curl_xfer *x);
@@ -1322,7 +1324,7 @@ static size_t _forward(enum dd_curl_islot slot, char *ptr, size_t size,
         return slot == DD_CURL_ISLOT_READ ? DD_CURL_READFUNC_ABORT : 0;
     }
     if (slot == DD_CURL_ISLOT_READ && EXPECTED(!_slot_counting)) {
-        return orig(ptr, size, nmemb, userdata); // reads are not counted
+        return orig(ptr, size, nmemb, userdata); // the gate is not armed
     }
     struct dd_curl_xfer *x = _slot_xfer(userdata);
     size_t ret = orig(ptr, size, nmemb, userdata);
@@ -1392,9 +1394,72 @@ static size_t _header_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
     return _forward(DD_CURL_ISLOT_HEADER, ptr, size, nmemb, userdata);
 }
 
+// The read function: through the transfer's read-function gate while it is
+// armed (G6.7), else straight to ext/curl's
 static size_t _read_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
 {
-    return _forward(DD_CURL_ISLOT_READ, ptr, size, nmemb, userdata);
+    struct dd_curl_xfer *x = _slot_xfer(userdata);
+    if (!x || !dd_curl_eval_gate_armed(&x->eval)) {
+        return _forward(DD_CURL_ISLOT_READ, ptr, size, nmemb, userdata);
+    }
+    size_t ret = _gate_read(x, ptr, size, nmemb, userdata);
+    if (_slot_counting && _slot_xfer(userdata) == x) {
+        x->slot_calls[DD_CURL_ISLOT_READ]++;
+        x->slot_bytes[DD_CURL_ISLOT_READ] +=
+            _slot_taken(DD_CURL_ISLOT_READ, ret, size, nmemb);
+    }
+    return ret;
+}
+
+// The read-function gate (G6.7, G7.15): while it fills, the original read
+// function (ext/curl's curl_read: the app's READFUNCTION, or fread() on the
+// INFILE's FILE *) is called into libcurl's buffer, with libcurl's length
+// (less, never past the upload size libcurl sends), and what it returns is
+// held, until EOF, the body cap or the upload size; the gate then makes its
+// WAF call (W3b) and the held bytes are served, then the rest of the body
+// comes straight from the original function. Nothing reaches libcurl before
+// W3b: a block returns CURL_READFUNC_ABORT, applied once libcurl has returned
+// to the hook (G7.16). ABORT, PAUSE
+// and other values above the length asked are returned at once (but see
+// dd_curl_eval_gate_take for one within libcurl's length).
+static size_t _gate_read(struct dd_curl_xfer *x, char *ptr, size_t size,
+    size_t nmemb, void *userdata)
+{
+    dd_curl_slot_fn orig = dd_curl_slots_pristine(&_slots, DD_CURL_ISLOT_READ);
+    if (UNEXPECTED(!orig)) {
+        return DD_CURL_READFUNC_ABORT; // never: see _forward
+    }
+    struct dd_curl_eval *ev = &x->eval;
+    if (size != 0 && nmemb > SIZE_MAX / size) {
+        return orig(ptr, size, nmemb, userdata); // not a length libcurl passes
+    }
+    size_t len = size * nmemb;
+    while (dd_curl_eval_gate_filling(ev)) {
+        size_t ask = dd_curl_eval_gate_ask(ev, x->cp, len);
+        size_t ret = 0;
+        if (ask > 0) {
+            // the same arguments as libcurl's, unless less is left to read
+            ret = ask == len ? orig(ptr, size, nmemb, userdata)
+                             : orig(ptr, 1, ask, userdata);
+            if (_slot_xfer(userdata) != x) {
+                return ret; // the transfer's state is gone (cannot happen)
+            }
+        }
+        enum dd_curl_gate_step step =
+            dd_curl_eval_gate_take(ev, ptr, ret, ask, len);
+        if (step == DD_CURL_GATE_STEP_PASS) {
+            return ret;
+        }
+        if (step == DD_CURL_GATE_STEP_ABORT) {
+            return DD_CURL_READFUNC_ABORT;
+        }
+        if (step == DD_CURL_GATE_STEP_READY && dd_curl_eval_gate_aborts(ev)) {
+            return DD_CURL_READFUNC_ABORT;
+        }
+    }
+    bool forward = false;
+    size_t n = dd_curl_eval_gate_serve(ev, ptr, len, &forward);
+    return forward ? orig(ptr, size, nmemb, userdata) : n;
 }
 
 static const char *_handle_status_reason(dd_curl_handle_status st)
@@ -1483,6 +1548,9 @@ static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_dump)
     zval opts;
     dd_curl_opts_to_array(&hs->opts, &opts);
     add_assoc_zval(return_value, "options", &opts);
+    // the read-function gate: "off", "filling" or "serving" (G6.7)
+    add_assoc_string(
+        return_value, "gate", (char *)dd_curl_eval_gate_state_name(&x->eval));
     // the PREREQ calls seen: hop n is the one started by the (n+1)-th
     add_assoc_long(return_value, "hops", (zend_long)x->coll.hops);
     add_assoc_bool(return_value, "hops_truncated", x->coll.hops_truncated);

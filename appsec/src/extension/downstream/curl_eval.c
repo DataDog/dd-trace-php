@@ -25,11 +25,19 @@
 // CURLINFO_EFFECTIVE_URL = CURLINFO_STRING + 1, CURLINFO_EFFECTIVE_METHOD =
 // CURLINFO_STRING + 58 (since 7.72.0, so always there when the PREREQ
 // callback, 7.80.0+, asks for it); CURLE_OK = 0.
+// CURLINFO_CONTENT_LENGTH_UPLOAD_T = CURLINFO_OFF_T (0x600000) + 16 (since
+// 7.55.0), CURLINFO_CONTENT_LENGTH_UPLOAD = CURLINFO_DOUBLE (0x300000) + 16
+// before; CURL_READFUNC_ABORT = 0x10000000, CURL_READFUNC_PAUSE = 0x10000001.
 enum {
     DD_CURLINFO_EFFECTIVE_URL = 0x100001,
     DD_CURLINFO_EFFECTIVE_METHOD = 0x100000 + 58,
+    DD_CURLINFO_CONTENT_LENGTH_UPLOAD = 0x300000 + 16,
+    DD_CURLINFO_CONTENT_LENGTH_UPLOAD_T = 0x600000 + 16,
+    DD_CURL_UPLOAD_T_MIN_VERSION = 0x073700, // 7.55.0
     DD_CURLE_OK = 0,
 };
+#define DD_CURL_READFUNC_ABORT ((size_t)0x10000000)
+#define DD_CURL_READFUNC_PAUSE ((size_t)0x10000001)
 
 enum {
     HTTP_FINAL_MIN = 200,
@@ -131,6 +139,14 @@ static enum dd_body_kind _body_kind_of(
 static bool _parse_content(const char *data, size_t len,
     zend_string *nullable ct, bool response, zval *out,
     ddog_AppsecBodyMessagePack *raw);
+static void _gate_arm(struct dd_curl_eval *ev, const struct dd_curl_opts *opts,
+    const zend_array *headers);
+static void _gate_off(struct dd_curl_eval *ev);
+static void *_gate_realloc(void *ptr, size_t size);
+static void _gate_free(void *ptr);
+static void _gate_hold(struct dd_curl_gate *g, const char *ptr, size_t n);
+static void _gate_call(struct dd_curl_eval *ev);
+static int64_t _upload_size(dd_curl_easy *cp);
 static zend_string *_getinfo_str(dd_curl_easy *cp, int info);
 static void _add_str(zend_array *data, const char *key, zend_string *s);
 static struct dd_http_slice _trim(const char *p, const char *end);
@@ -171,6 +187,7 @@ void dd_curl_eval_init(struct dd_curl_eval *nonnull ev)
 
 void dd_curl_eval_destroy(struct dd_curl_eval *nonnull ev)
 {
+    _gate_off(ev);
     _release_slot(ev);
     _advance(ev, 0);
     if (ev->url) {
@@ -377,6 +394,7 @@ bool dd_curl_eval_presend(
     zval headers;
     _presend_headers(opts, ev->url, &headers);
     _presend_body(ev, opts, Z_ARRVAL(headers), data, &raw);
+    _gate_arm(ev, opts, Z_ARRVAL(headers));
     if (zend_hash_num_elements(Z_ARRVAL(headers)) > 0) {
         zend_hash_str_update(
             data, LSTRARG("server.io.net.request.headers"), &headers);
@@ -412,11 +430,273 @@ bool dd_curl_eval_prereq_hop_start(
 void dd_curl_eval_end(
     struct dd_curl_eval *nonnull ev, const struct dd_curl_collect *nonnull coll)
 {
+    _gate_off(ev);
     if (ev->active && !ev->blocked) {
         _flush(ev, coll);
     }
     _release_slot(ev);
     ev->active = false;
+}
+
+size_t dd_curl_eval_gate_ask(
+    struct dd_curl_eval *nonnull ev, dd_curl_easy *nonnull cp, size_t len)
+{
+    struct dd_curl_gate *g = &ev->gate;
+    if (!g->total_read) {
+        // known once libcurl prepared the request, before the first read
+        g->total_read = true;
+        g->total = _upload_size(cp);
+    }
+    if (g->total < 0) {
+        return len; // chunked: the body ends at EOF
+    }
+    // libcurl reads no more than the size it sends (8.7+ asks for at most
+    // what is left; up to 8.6 the upload is done once it is reached)
+    if ((uint64_t)g->total <= g->got) {
+        return 0;
+    }
+    uint64_t left = (uint64_t)g->total - g->got;
+    return left < len ? (size_t)left : len;
+}
+
+enum dd_curl_gate_step dd_curl_eval_gate_take(struct dd_curl_eval *nonnull ev,
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    const char *nullable ptr, size_t ret, size_t ask, size_t len)
+{
+    struct dd_curl_gate *g = &ev->gate;
+    if (g->state != DD_CURL_GATE_FILLING) {
+        // turned off while the original function ran: nothing to hold into
+        return DD_CURL_GATE_STEP_PASS;
+    }
+    if (ret > ask) {
+        // CURL_READFUNC_ABORT and CURL_READFUNC_PAUSE return at once, with no
+        // WAF call (G6.7); after PAUSE, libcurl reads again once unpaused and
+        // the gate goes on with what it holds.
+        if (ret == DD_CURL_READFUNC_PAUSE) {
+            return DD_CURL_GATE_STEP_PASS;
+        }
+        // Not stated by the report (implementation-defined): any other value
+        // above libcurl's length is an error for libcurl (CURLE_READ_ERROR),
+        // passed on unchanged, and nothing is analysed; so is one above the
+        // ask but within libcurl's length (up to 8.6, the ask can be the
+        // smaller one) while nothing is held, as libcurl would then get it
+        // without the gate. With bytes held, libcurl would take that many
+        // bytes of its buffer in their place: abort rather than send a body
+        // the gate changed.
+        bool held = g->got > 0;
+        _gate_off(ev);
+        return ret <= len && held ? DD_CURL_GATE_STEP_ABORT
+                                  : DD_CURL_GATE_STEP_PASS;
+    }
+    // ask 0: the upload size is reached, the original function is not
+    // called again (it has not returned EOF)
+    bool ready = ret == 0;
+    if (ret > 0 && ptr) {
+        _gate_hold(g, ptr, ret);
+    }
+    g->eof = ret == 0 && ask > 0;
+    if (!ready) {
+        ready = g->got >= g->body.cap ||
+                (g->total >= 0 && (uint64_t)g->total <= g->got);
+    }
+    if (!ready) {
+        return DD_CURL_GATE_STEP_MORE;
+    }
+    g->state = DD_CURL_GATE_SERVING;
+    _gate_call(ev);
+    if (ev->blocked) {
+        _gate_off(ev);
+    }
+    return DD_CURL_GATE_STEP_READY;
+}
+
+bool dd_curl_eval_gate_aborts(const struct dd_curl_eval *nonnull ev)
+{
+    return ev->blocked;
+}
+
+size_t dd_curl_eval_gate_serve(struct dd_curl_eval *nonnull ev,
+    char *nonnull ptr, size_t len, bool *nonnull forward)
+{
+    struct dd_curl_gate *g = &ev->gate;
+    *forward = false;
+    if (g->state != DD_CURL_GATE_SERVING) {
+        *forward = true;
+        return 0;
+    }
+    size_t n = 0;
+    const struct dd_http_buf *bufs[] = {&g->body.buf, &g->over};
+    size_t off = g->served;
+    for (size_t i = 0; i < sizeof(bufs) / sizeof(bufs[0]) && n < len; i++) {
+        const struct dd_http_buf *b = bufs[i];
+        if (off >= b->len) {
+            off -= b->len;
+            continue;
+        }
+        size_t take = MIN(b->len - off, len - n);
+        memcpy(ptr + n, b->ptr + off, take);
+        n += take;
+        off = 0;
+    }
+    g->served += n;
+    if (g->served >= g->body.buf.len + g->over.len) {
+        // all served: an EOF the original function returned is returned
+        // once, by this call or (if it served bytes) the next one; without
+        // one, the rest of the body comes from the original function
+        bool eof = g->eof;
+        if (n == 0 || !eof) {
+            _gate_off(ev);
+            *forward = !eof && n == 0;
+        }
+    }
+    return n;
+}
+
+#ifdef TESTING
+const char *nonnull dd_curl_eval_gate_state_name(
+    const struct dd_curl_eval *nonnull ev)
+{
+    switch (ev->gate.state) {
+    case DD_CURL_GATE_FILLING:
+        return "filling";
+    case DD_CURL_GATE_SERVING:
+        return "serving";
+    case DD_CURL_GATE_OFF:
+    default:
+        return "off";
+    }
+}
+#endif
+
+// Arms the read-function gate (G6.7) at W1: the transfer is sampled, its body
+// comes from CURLOPT_READFUNCTION or CURLOPT_INFILE, no CURLOPT_POSTFIELDS is
+// set and W1's Content-Type is one a body is analysed for (JSON, XML or
+// urlencoded). Otherwise nothing is armed and the reads go straight through:
+// a body that can never be analysed is not held up to the cap nor read ahead.
+// The transfer's slot is not the gate's: it covers the response body too
+// (G8.9) and is given back at the end if no body was added (G8.11).
+static void _gate_arm(struct dd_curl_eval *ev, const struct dd_curl_opts *opts,
+    const zend_array *headers)
+{
+    if (!_sampled(ev) || !(opts->readfunction || opts->infile) ||
+        Z_TYPE(opts->postfields) != IS_UNDEF) {
+        return;
+    }
+    zend_string *ct = _last_value(headers, "content-type");
+    if (_body_kind(ct, false) == DD_BODY_NONE) {
+        if (ct) {
+            zend_string_release(ct);
+        }
+        return;
+    }
+    // the gate's buffer belongs to the gate and has no guard (G5.18, G9.6)
+    static const struct dd_curl_alloc gate_alloc = {_gate_realloc, _gate_free};
+    struct dd_curl_gate *g = &ev->gate;
+    _gate_off(ev);
+    dd_body_buf_init(&g->body, &gate_alloc, ev->body_cap);
+    g->total = -1;
+    g->ct = ct;
+    g->state = DD_CURL_GATE_FILLING;
+}
+
+// Releases what the gate holds; reads go straight through from now on
+static void _gate_off(struct dd_curl_eval *ev)
+{
+    struct dd_curl_gate *g = &ev->gate;
+    if (g->state == DD_CURL_GATE_OFF && !g->body.alloc) {
+        return; // never armed
+    }
+    if (g->body.alloc) {
+        dd_body_buf_release(&g->body);
+    }
+    if (g->over.ptr) {
+        efree(g->over.ptr);
+    }
+    if (g->ct) {
+        zend_string_release(g->ct);
+    }
+    memset(g, 0, sizeof(*g));
+}
+
+static void *_gate_realloc(void *ptr, size_t size)
+{
+    return erealloc(ptr, size);
+}
+
+static void _gate_free(void *ptr) { efree(ptr); }
+
+// Holds n bytes the original read function returned: those up to the cap go
+// to the body sink (what W3b analyses), the rest of this read, past the cap,
+// is only held to be served
+static void _gate_hold(struct dd_curl_gate *g, const char *ptr, size_t n)
+{
+    size_t room =
+        g->body.cap > g->body.buf.len ? g->body.cap - g->body.buf.len : 0;
+    size_t in = MIN(n, room);
+    // the gate's sink only fails if its allocator does, which raises instead
+    (void)g->body.sink.chunk(&g->body.sink, ptr, in);
+    if (n > in) {
+        size_t more = n - in;
+        g->over.ptr = _gate_realloc(g->over.ptr, g->over.len + more);
+        memcpy(g->over.ptr + g->over.len, ptr + in, more);
+        g->over.len += more;
+        g->over.cap = g->over.len;
+    }
+    g->got += n;
+}
+
+// W3b: the request-stage call of hop 0 with the body the gate read (up to the
+// cap), parsed by the content type of CURLOPT_HTTPHEADER, in hop 0's
+// subcontext. No call if the body is empty after parsing (G7.18).
+static void _gate_call(struct dd_curl_eval *ev)
+{
+    struct dd_curl_gate *g = &ev->gate;
+    if (!ev->active || ev->blocked || ev->hop != 0 || ev->closed) {
+        return;
+    }
+    const struct dd_http_buf *buf = &g->body.buf;
+    zval body;
+    struct dd_raw_body raw = {0};
+    if (!buf->ptr || buf->len == 0 ||
+        _body_kind(g->ct, false) == DD_BODY_NONE ||
+        !_parse_content(
+            buf->ptr, buf->len, g->ct, false, &body, &raw.msgpack)) {
+        return;
+    }
+    zend_array *data = zend_new_array(1);
+    if (raw.msgpack.ptr) {
+        raw.key = "server.io.net.request.body";
+    } else {
+        zend_hash_str_update(
+            data, LSTRARG("server.io.net.request.body"), &body);
+    }
+    _note_body_added(ev);
+    _send_raw(ev, data, &raw, false, true);
+}
+
+// The size of the upload libcurl sends, or -1 if it is not known (chunked)
+static int64_t _upload_size(dd_curl_easy *cp)
+{
+    const struct dd_curl_functions *funcs = dd_curl_linkage_funcs();
+    if (!funcs) {
+        return -1;
+    }
+    if (dd_curl_linkage_version_num() >= DD_CURL_UPLOAD_T_MIN_VERSION) {
+        int64_t size = -1; // curl_off_t
+        if (funcs->curl_easy_getinfo(cp, DD_CURLINFO_CONTENT_LENGTH_UPLOAD_T,
+                &size) != DD_CURLE_OK) {
+            return -1;
+        }
+        return size;
+    }
+    static const double two_pow_63 = 9223372036854775808.0;
+    double size = -1;
+    if (funcs->curl_easy_getinfo(
+            cp, DD_CURLINFO_CONTENT_LENGTH_UPLOAD, &size) != DD_CURLE_OK ||
+        size < 0 || !(size < two_pow_63)) { // also NaN
+        return -1;
+    }
+    return (int64_t)size;
 }
 
 bool dd_curl_eval_settleable(const struct dd_curl_eval *nonnull ev)
@@ -500,6 +780,9 @@ static bool _hop_start(struct dd_curl_eval *ev, dd_curl_easy *cp)
     if (hop == 0) {
         return false;
     }
+    // the gate covers hop 0 only: a later hop's body (a 307/308 resend, an
+    // authentication retry) goes straight through (G6.7)
+    _gate_off(ev);
     _advance(ev, hop);
     return _prereq_call(ev, cp);
 }
@@ -787,8 +1070,8 @@ static void _presend_headers(
 // CURLOPT_POSTFIELDS, if sampled and libcurl is to send it: a string is
 // parsed by content type, an array is sent as the multipart fields. A body
 // that libcurl takes from CURLOPT_READFUNCTION or CURLOPT_INFILE has no source
-// in the options: none is sent here.
-// An object was recorded as a string (PHP 8,
+// in the options: none is sent here (the read-function gate reads it,
+// _gate_arm). An object was recorded as a string (PHP 8,
 // converted once by the curl_setopt() hook) or as the array of its
 // properties (PHP 7).
 static void _presend_body(struct dd_curl_eval *ev,
