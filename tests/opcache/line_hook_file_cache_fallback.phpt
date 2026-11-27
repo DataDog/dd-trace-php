@@ -17,7 +17,7 @@ DD_APPSEC_ENABLED=0
 --INI--
 opcache.enable=1
 opcache.enable_cli=1
-opcache.file_cache={PWD}/line_hook_file_cache
+opcache.file_cache={PWD}/line_hook_file_cache_fallback
 opcache.file_update_protection=0
 opcache.protect_memory=1
 --FILE--
@@ -41,7 +41,7 @@ echo "Done.\n";
 ?>
 --CLEAN--
 <?php
-$dir = __DIR__ . '/line_hook_file_cache';
+$dir = __DIR__ . '/line_hook_file_cache_fallback';
 if (is_dir($dir)) {
     $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
                                         RecursiveIteratorIterator::CHILD_FIRST);
