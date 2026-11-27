@@ -344,6 +344,7 @@ static ZEND_FUNCTION(dd_curl_exec)
         if (_into_libcurl(_orig_curl_exec, INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
             zend_bailout();
         }
+        dd_curl_eval_reraise_pending();
         return;
     }
     if (dd_curl_xfer_presend(hs)) {
@@ -357,6 +358,9 @@ static ZEND_FUNCTION(dd_curl_exec)
     bool bailout =
         _into_libcurl(_orig_curl_exec, INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (bailout) {
+        // no more WAF calls on the way out, nor calls into libcurl: the
+        // transfer was cut short by a longjmp and the request is ending
+        dd_curl_xfer_end_bailout(hs);
         zend_bailout();
     }
     // curl_exec() returns false on any error (CURLcode not CURLE_OK)
@@ -367,6 +371,7 @@ static ZEND_FUNCTION(dd_curl_exec)
         ZVAL_FALSE(return_value);
     }
     dd_curl_xfer_settle(hs);
+    dd_curl_eval_reraise_pending();
 }
 
 // curl_multi_add_handle(CurlMultiHandle $multi_handle, CurlHandle $handle):
@@ -427,6 +432,7 @@ static ZEND_FUNCTION(dd_curl_multi_exec)
         running && Z_TYPE_P(running) == IS_LONG && Z_LVAL_P(running) == 0) {
         dd_curl_xfer_flush_multi(multi);
     }
+    dd_curl_eval_reraise_pending();
 }
 
 // curl_multi_info_read(CurlMultiHandle $multi_handle, &$queued_messages = null)
@@ -491,6 +497,7 @@ static ZEND_FUNCTION(dd_curl_multi_remove_handle)
         dd_curl_xfer_end_in_multi(zch, multi, false);
         dd_curl_xfer_settle_zch(zch);
     }
+    dd_curl_eval_reraise_pending();
 }
 
 // curl_multi_close(CurlMultiHandle $multi_handle): void
@@ -509,6 +516,7 @@ static ZEND_FUNCTION(dd_curl_multi_close)
     }
 
     dd_curl_xfer_end_multi(multi);
+    dd_curl_eval_reraise_pending();
 }
 
 // Calls the original handler of a function that runs libcurl transfers, and

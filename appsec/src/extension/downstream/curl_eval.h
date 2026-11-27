@@ -53,11 +53,14 @@
 // gives back if it ends up sending no body.
 //
 // The calls made from libcurl callbacks (W2, the intermediate response call,
-// W3b) never block: a blocking verdict is recorded (and further evaluation
-// of the transfer stops). It is acted upon once control is back in the PHP
-// function hook that called libcurl (dd_curl_eval_block): that is the first
-// point where it is safe (G9.3).
-// A hook entered inside libcurl (an app callback of another
+// W3b) never block nor unwind through
+// libcurl: a blocking verdict is recorded (and further evaluation of the
+// transfer stops); a bailout is caught and recorded. Both are acted upon
+// once control is back in the PHP function hook that called libcurl
+// (dd_curl_eval_reraise, dd_curl_eval_block): that is the first point where
+// it is safe (G9.3). Nothing else re-raises (no VM interrupt handler), and a
+// tracer sandbox around the hook swallows the bailout as it does any other
+// fatal error. A hook entered inside libcurl (an app callback of another
 // transfer) does nothing at all (G4.3): no evaluation, nothing to defer.
 
 #include <php.h>
@@ -95,7 +98,8 @@ struct dd_curl_gate {
     enum dd_curl_gate_state state;
     // the body read, up to the body cap: what W3b analyses, through the body
     // sink interface (G5.18). Its allocations, like the WAF call's, have no
-    // memory guard (G9.6).
+    // memory guard (G9.6): a memory-limit fatal is caught by the read
+    // callback's zend_try.
     struct dd_body_buf body;
     // the bytes of the read that crossed the cap, past it: served, not
     // analysed
@@ -124,6 +128,7 @@ struct dd_curl_eval {
     bool slot; // sampled, and the slot of the request limit is not given back
     bool body_added; // a body was added to a WAF call
     bool blocked;    // a blocking verdict was recorded
+    bool bailout;    // a bailout was caught in a libcurl callback
     dd_result verdict;
     struct block_params block_params;
     uint64_t seq; // of the transfer in the request (subcontext ids)
@@ -146,7 +151,7 @@ struct dd_curl_eval {
     struct dd_curl_gate gate;
 };
 
-// MINIT
+// MINIT: testing functions
 void dd_curl_eval_minit(void);
 // RINIT
 void dd_curl_eval_rinit(void);
@@ -158,8 +163,14 @@ void dd_curl_eval_rshutdown(void);
 // for another handle). While one is in progress, the curl hooks that observe
 // do nothing (dd_curl_eval_in_libcurl).
 void dd_curl_eval_libcurl_enter(void);
+// puts back a truncation flag that a fatal error swallowed by a sandbox left
+// saved (to be called when a curl hook is entered)
+void dd_curl_eval_hook_enter(void);
 void dd_curl_eval_libcurl_leave(void);
 bool dd_curl_eval_in_libcurl(void);
+// From a hook, once out of libcurl: re-raises a bailout caught in a libcurl
+// callback and not re-raised yet (does not return then).
+void dd_curl_eval_reraise_pending(void);
 
 void dd_curl_eval_init(struct dd_curl_eval *nonnull ev);
 void dd_curl_eval_destroy(struct dd_curl_eval *nonnull ev);
@@ -184,7 +195,8 @@ bool dd_curl_eval_presend(
 // - before it: the hop that is over (none at the first call) gets its
 //   response call from what the collector holds, or the call without data;
 // - after it: the hop about to be sent is counted and, for hop > 0, gets W2.
-//   Returns whether the request must not be sent (blocked).
+//   Returns whether the request must not be sent (blocked, or a bailout was
+//   caught).
 void dd_curl_eval_prereq_hop_over(struct dd_curl_eval *nonnull ev,
     const struct dd_curl_collect *nonnull coll);
 bool dd_curl_eval_prereq_hop_start(
@@ -219,7 +231,7 @@ size_t dd_curl_eval_gate_ask(
     struct dd_curl_eval *nonnull ev, dd_curl_easy *nonnull cp, size_t len);
 // While filling: the original read function returned ret for an ask of
 // `ask` bytes into ptr, for a libcurl read of len bytes. Bytes are held; at
-// EOF, the cap or the upload size, W3b is made.
+// EOF, the cap or the upload size, W3b is made (under zend_try).
 // CURL_READFUNC_ABORT, CURL_READFUNC_PAUSE or another value above ask is
 // returned with no WAF call: passed on unchanged (ABORT or another value
 // turn the gate off; after PAUSE it goes on filling), except a value within
@@ -228,7 +240,8 @@ size_t dd_curl_eval_gate_ask(
 enum dd_curl_gate_step dd_curl_eval_gate_take(struct dd_curl_eval *nonnull ev,
     const char *nullable ptr, size_t ret, size_t ask, size_t len);
 // Once ready: whether the read must return CURL_READFUNC_ABORT (W3b gave a
-// blocking verdict; applied once libcurl has returned, G7.16)
+// blocking verdict, or a bailout was caught; applied or re-raised once
+// libcurl has returned, G7.16)
 bool dd_curl_eval_gate_aborts(const struct dd_curl_eval *nonnull ev);
 // Serving: copies held bytes into ptr (at most len) and returns their
 // count. *forward: nothing is held anymore and the body did not end (EOF):
@@ -240,8 +253,15 @@ const char *nonnull dd_curl_eval_gate_state_name(
     const struct dd_curl_eval *nonnull ev);
 #endif
 
-// Whether dd_curl_eval_block() has something to do now: a verdict
+// If a bailout was caught in a libcurl callback of the transfer: re-raises it
+// (does not return)
+void dd_curl_eval_reraise(struct dd_curl_eval *nonnull ev);
+// Whether dd_curl_eval_reraise() or dd_curl_eval_block() has something to do
+// now: a verdict, or a bailout to re-raise
 bool dd_curl_eval_settleable(const struct dd_curl_eval *nonnull ev);
+// A bailout was caught in a libcurl callback, outside the evaluation (e.g.
+// the memory limit while collecting the data)
+void dd_curl_eval_caught_bailout(struct dd_curl_eval *nonnull ev);
 static inline bool dd_curl_eval_blocked(const struct dd_curl_eval *nonnull ev)
 {
     return ev->blocked;

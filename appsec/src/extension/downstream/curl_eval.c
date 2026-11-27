@@ -5,9 +5,11 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "curl_eval.h"
 
+#include <Zend/zend_exceptions.h>
 #include <ctype.h>
 
 #include "../commands/request_exec.h"
+#include "../configuration.h"
 #include "../ddappsec.h"
 #include "../duration_acc.h"
 #include "../entity_body.h"
@@ -15,6 +17,7 @@
 #include "../logging.h"
 #include "../msgpack_helpers.h"
 #include "../php_helpers.h"
+#include "../php_objects.h"
 #include "../request_lifecycle.h"
 #include "../string_helpers.h"
 #include "../telemetry.h"
@@ -83,12 +86,37 @@ static THREAD_LOCAL_ON_ZTS uint64_t _seq;
 // (G4.3, G9.9). One depth for the thread: a fiber suspended inside libcurl
 // makes the others' hooks nested too.
 static THREAD_LOCAL_ON_ZTS unsigned _libcurl_depth;
+// A bailout was caught in one of our libcurl callbacks and not re-raised
+// yet: it is re-raised by the hook that called libcurl, once back from it
+// (G9.3), and by nothing else
+static THREAD_LOCAL_ON_ZTS bool _fatal_pending;
 // the request's own data_truncated flag, while a downstream WAF call runs
 // (its truncation is not the request's, G6.18): put back when the call is
 // done, or when a bailout cut it short
 static THREAD_LOCAL_ON_ZTS bool _truncation_saved;
 static THREAD_LOCAL_ON_ZTS bool _truncation_before;
+// the pending exception of a callback that threw, saved while a downstream
+// WAF call runs (G9.12): put back when the call is done, or when a bailout
+// cut it short
+static THREAD_LOCAL_ON_ZTS bool _exception_saved;
+static THREAD_LOCAL_ON_ZTS zend_object *_saved_exception;
+#ifdef TESTING
+// curl_eval_fatal_after(): WAF calls left until one raises a fatal error
+static THREAD_LOCAL_ON_ZTS zend_long _fatal_after;
+static THREAD_LOCAL_ON_ZTS bool _fatal_after_armed;
+// the fatal error is raised once the WAF call is done, not before it
+static THREAD_LOCAL_ON_ZTS bool _fatal_after_late;
+// curl_eval_gate_fatal_after_alloc(): read-function gate allocations left
+// until one raises a fatal error
+static THREAD_LOCAL_ON_ZTS zend_long _gate_fatal_alloc;
+// curl_eval_pending_exception_calls(): WAF calls made with an exception pending
+static THREAD_LOCAL_ON_ZTS zend_long _calls_with_exception;
+#endif
+
+static void _caught_bailout(struct dd_curl_eval *ev);
 static void _restore_truncation(void);
+static void _restore_exception(void);
+static ZEND_NORETURN void _reraise(void);
 
 static void _flush(struct dd_curl_eval *ev, const struct dd_curl_collect *c);
 static void _hop_over(struct dd_curl_eval *ev, const struct dd_curl_collect *c);
@@ -159,17 +187,42 @@ void dd_curl_eval_rinit(void)
 {
     _seq = 0;
     _libcurl_depth = 0;
+    _fatal_pending = false;
+#ifdef TESTING
+    _fatal_after = 0;
+    _fatal_after_armed = false;
+    _fatal_after_late = false;
+    _gate_fatal_alloc = 0;
+#endif
     _truncation_saved = false;
+    _exception_saved = false;
 }
 
 void dd_curl_eval_rshutdown(void)
 {
     // a fatal error that cut a downstream WAF call short
     _restore_truncation();
+    // a fatal outside zend_try can leave the flag set. The saved exception
+    // is not restored: raising during shutdown after a fatal is riskier
+    // than dropping the flag
+    _exception_saved = false;
     _libcurl_depth = 0;
+    _fatal_pending = false;
 }
 
-void dd_curl_eval_libcurl_enter(void) { _libcurl_depth++; }
+void dd_curl_eval_libcurl_enter(void)
+{
+    // a fatal error swallowed by a sandbox may have skipped the restore
+    _restore_truncation();
+    _restore_exception();
+    _libcurl_depth++;
+}
+
+void dd_curl_eval_hook_enter(void)
+{
+    _restore_truncation();
+    _restore_exception();
+}
 
 void dd_curl_eval_libcurl_leave(void)
 {
@@ -179,6 +232,14 @@ void dd_curl_eval_libcurl_leave(void)
 }
 
 bool dd_curl_eval_in_libcurl(void) { return _libcurl_depth > 0; }
+
+void dd_curl_eval_reraise_pending(void)
+{
+    // only from hooks that do something, so never inside libcurl (G4.3)
+    if (_fatal_pending) {
+        _reraise();
+    }
+}
 
 void dd_curl_eval_init(struct dd_curl_eval *nonnull ev)
 {
@@ -406,33 +467,65 @@ bool dd_curl_eval_presend(
     return ev->blocked;
 }
 
+void dd_curl_eval_caught_bailout(struct dd_curl_eval *nonnull ev)
+{
+    _caught_bailout(ev);
+}
+
 void dd_curl_eval_prereq_hop_over(
     struct dd_curl_eval *nonnull ev, const struct dd_curl_collect *nonnull coll)
 {
-    if (!ev->active || ev->blocked) {
+    if (!ev->active || ev->blocked || ev->bailout) {
         return;
     }
-    _hop_over(ev, coll);
+    // zend_bailout() clears it: the frame libcurl was called from stays
+    zend_execute_data *volatile saved_frame = EG(current_execute_data);
+    zend_try { _hop_over(ev, coll); }
+    zend_catch
+    {
+        EG(current_execute_data) = saved_frame;
+        _caught_bailout(ev);
+    }
+    zend_end_try();
 }
 
 bool dd_curl_eval_prereq_hop_start(
     struct dd_curl_eval *nonnull ev, dd_curl_easy *nonnull cp)
 {
-    if (ev->blocked) {
+    if (ev->blocked || ev->bailout) {
         return true;
     }
     if (!ev->active) {
         return false;
     }
-    return _hop_start(ev, cp);
+    volatile bool abort = false;
+    zend_execute_data *volatile saved_frame = EG(current_execute_data);
+    zend_try { abort = _hop_start(ev, cp); }
+    zend_catch
+    {
+        EG(current_execute_data) = saved_frame;
+        _caught_bailout(ev);
+        abort = true;
+    }
+    zend_end_try();
+    return abort;
 }
 
 void dd_curl_eval_end(
     struct dd_curl_eval *nonnull ev, const struct dd_curl_collect *nonnull coll)
 {
     _gate_off(ev);
-    if (ev->active && !ev->blocked) {
-        _flush(ev, coll);
+    if (ev->active && !ev->blocked && !ev->bailout) {
+        // a fatal error in the closing WAF call must not skip the release
+        // below: the hook raises it once back (G9.3)
+        zend_execute_data *volatile saved_frame = EG(current_execute_data);
+        zend_try { _flush(ev, coll); }
+        zend_catch
+        {
+            EG(current_execute_data) = saved_frame;
+            _caught_bailout(ev);
+        }
+        zend_end_try();
     }
     _release_slot(ev);
     ev->active = false;
@@ -492,7 +585,22 @@ enum dd_curl_gate_step dd_curl_eval_gate_take(struct dd_curl_eval *nonnull ev,
     // called again (it has not returned EOF)
     bool ready = ret == 0;
     if (ret > 0 && ptr) {
-        _gate_hold(g, ptr, ret);
+        // no memory guard (G9.6): a fatal error at the memory limit is caught
+        // and re-raised once libcurl has returned (G9.2, G9.3)
+        volatile bool caught = false;
+        zend_execute_data *volatile saved_frame = EG(current_execute_data);
+        zend_try { _gate_hold(g, ptr, ret); }
+        zend_catch
+        {
+            EG(current_execute_data) = saved_frame;
+            _caught_bailout(ev);
+            caught = true;
+        }
+        zend_end_try();
+        if (caught) {
+            _gate_off(ev);
+            return DD_CURL_GATE_STEP_READY;
+        }
     }
     g->eof = ret == 0 && ask > 0;
     if (!ready) {
@@ -503,8 +611,15 @@ enum dd_curl_gate_step dd_curl_eval_gate_take(struct dd_curl_eval *nonnull ev,
         return DD_CURL_GATE_STEP_MORE;
     }
     g->state = DD_CURL_GATE_SERVING;
-    _gate_call(ev);
-    if (ev->blocked) {
+    zend_execute_data *volatile saved_frame = EG(current_execute_data);
+    zend_try { _gate_call(ev); }
+    zend_catch
+    {
+        EG(current_execute_data) = saved_frame;
+        _caught_bailout(ev);
+    }
+    zend_end_try();
+    if (ev->blocked || ev->bailout) {
         _gate_off(ev);
     }
     return DD_CURL_GATE_STEP_READY;
@@ -512,7 +627,7 @@ enum dd_curl_gate_step dd_curl_eval_gate_take(struct dd_curl_eval *nonnull ev,
 
 bool dd_curl_eval_gate_aborts(const struct dd_curl_eval *nonnull ev)
 {
-    return ev->blocked;
+    return ev->blocked || ev->bailout;
 }
 
 size_t dd_curl_eval_gate_serve(struct dd_curl_eval *nonnull ev,
@@ -620,6 +735,15 @@ static void _gate_off(struct dd_curl_eval *ev)
 
 static void *_gate_realloc(void *ptr, size_t size)
 {
+#ifdef TESTING
+    if (_gate_fatal_alloc > 0) {
+        _gate_fatal_alloc--;
+        if (_gate_fatal_alloc == 0) {
+            zend_error(E_ERROR, "Injected fatal error in downstream request "
+                                "analysis");
+        }
+    }
+#endif
     return erealloc(ptr, size);
 }
 
@@ -651,7 +775,8 @@ static void _gate_hold(struct dd_curl_gate *g, const char *ptr, size_t n)
 static void _gate_call(struct dd_curl_eval *ev)
 {
     struct dd_curl_gate *g = &ev->gate;
-    if (!ev->active || ev->blocked || ev->hop != 0 || ev->closed) {
+    if (!ev->active || ev->blocked || ev->bailout || ev->hop != 0 ||
+        ev->closed) {
         return;
     }
     const struct dd_http_buf *buf = &g->body.buf;
@@ -699,9 +824,21 @@ static int64_t _upload_size(dd_curl_easy *cp)
     return (int64_t)size;
 }
 
+void dd_curl_eval_reraise(struct dd_curl_eval *nonnull ev)
+{
+    if (!ev->bailout) {
+        return;
+    }
+    // raised once; the transfer gets no WAF call after it either, not even
+    // the closing call when a later hook ends it (G9.7)
+    ev->bailout = false;
+    ev->active = false;
+    _reraise();
+}
+
 bool dd_curl_eval_settleable(const struct dd_curl_eval *nonnull ev)
 {
-    return ev->blocked;
+    return ev->blocked || ev->bailout;
 }
 
 void dd_curl_eval_block(struct dd_curl_eval *nonnull ev)
@@ -929,6 +1066,21 @@ static void _send_raw(struct dd_curl_eval *ev, zend_array *data,
         ev->subctx_id = strpprintf(0, "curl-" ZEND_ULONG_FMT "-" ZEND_ULONG_FMT,
             (zend_ulong)ev->seq, (zend_ulong)ev->hop);
     }
+#ifdef TESTING
+    if (_fatal_after > 0) {
+        _fatal_after--;
+    }
+    if (_fatal_after == 0 && _fatal_after_armed && !_fatal_after_late) {
+        _fatal_after_armed = false;
+        zend_array_destroy(data);
+        if (has_raw) {
+            dd_trace_drop_body_msgpack(raw->msgpack);
+        }
+        zend_error(E_ERROR, "Injected fatal error in downstream request "
+                            "analysis");
+        return;
+    }
+#endif
     // the closing call without data: the helper runs no WAF and records no
     // metric for it, so neither does the extension
     bool closing_only = zend_hash_num_elements(data) == 0 && !has_raw;
@@ -956,10 +1108,34 @@ static void _send_raw(struct dd_curl_eval *ev, zend_array *data,
         struct timespec start = dd_monotime_start();
         // the truncation of downstream data is not the request's
         bool was_truncated = dd_msgpack_helpers_is_data_truncated();
+        // the exception of a callback that threw (G9.12) is not the WAF
+        // call's: it is saved around it
+        _exception_saved = EG(exception) != NULL;
+        if (_exception_saved) {
+            dd_exception_save(&_saved_exception);
+        }
+#ifdef TESTING
+        if (EG(exception)) {
+            _calls_with_exception++;
+        }
+#endif
         _truncation_saved = true;
         _truncation_before = was_truncated;
         dd_result res = dd_request_exec(conn, data, &opts, &block_params);
+#ifdef TESTING
+        if (_fatal_after == 0 && _fatal_after_armed && _fatal_after_late) {
+            _fatal_after_armed = false;
+            zend_array_destroy(data);
+            if (has_raw) {
+                dd_trace_drop_body_msgpack(raw->msgpack);
+            }
+            zend_error(E_ERROR, "Injected fatal error in downstream request "
+                                "analysis");
+            return;
+        }
+#endif
         _restore_truncation();
+        _restore_exception();
         if (!closing_only) {
             dd_duration_rasp_ext_account(&start);
         }
@@ -1448,6 +1624,30 @@ static struct dd_http_slice _trim(const char *p, const char *end)
     return (struct dd_http_slice){.ptr = p, .len = (size_t)(end - p)};
 }
 
+// A bailout (fatal error) was caught in one of our libcurl callbacks: the
+// transfer gets no more WAF calls, and the bailout is re-raised by the hook
+// that called libcurl (dd_curl_eval_reraise, dd_curl_eval_reraise_pending)
+// once back from it, before the tracer's end hook (G9.3). Nothing else raises
+// it: the app's callbacks that run before it keep running (the longjmp must
+// not cross their libcurl frames, G9.2).
+static void _caught_bailout(struct dd_curl_eval *ev)
+{
+    _restore_truncation();
+    _restore_exception();
+    if (ev) {
+        ev->bailout = true;
+    }
+    _fatal_pending = true;
+}
+
+static void _restore_exception(void)
+{
+    if (_exception_saved) {
+        _exception_saved = false;
+        dd_exception_restore(&_saved_exception);
+    }
+}
+
 static void _restore_truncation(void)
 {
     if (_truncation_saved) {
@@ -1456,9 +1656,114 @@ static void _restore_truncation(void)
     }
 }
 
+// Re-raises the bailout caught in our callback. Inside a tracer sandbox the
+// sandbox swallows it, as it does any fatal error of a hook closure (G9.3).
+static ZEND_NORETURN void _reraise(void)
+{
+    _fatal_pending = false;
+    zend_bailout();
+}
+
+#ifdef TESTING
+// curl_eval_fatal_after(int $calls, bool $late = false): void
+// The $calls-th WAF call for downstream requests from now on raises a fatal
+// error instead (as the memory limit would), wherever it is made; with $late,
+// once the call is done (as for an allocation while handling its reply).
+static PHP_FUNCTION(datadog_appsec_testing_curl_eval_fatal_after)
+{
+    zend_long calls;
+    zend_bool late = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|b", &calls, &late) ==
+        FAILURE) {
+        RETURN_FALSE;
+    }
+    _fatal_after = calls;
+    _fatal_after_armed = calls > 0;
+    _fatal_after_late = late;
+}
+
+// curl_eval_gate_fatal_after_alloc(int $allocs): void
+// The $allocs-th allocation of a read-function gate's buffers from now on
+// raises a fatal error instead (as the memory limit would).
+static PHP_FUNCTION(datadog_appsec_testing_curl_eval_gate_fatal_after_alloc)
+{
+    zend_long allocs;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &allocs) == FAILURE) {
+        RETURN_FALSE;
+    }
+    _gate_fatal_alloc = allocs;
+}
+
+// curl_eval_pending_exception_calls(): int
+// How many WAF calls for downstream requests were made while an exception was
+// pending (G9.12: none, they run with it saved).
+static PHP_FUNCTION(datadog_appsec_testing_curl_eval_pending_exception_calls)
+{
+    RETURN_LONG(_calls_with_exception);
+}
+
+// curl_eval_catch_fatal(): void
+// Leaves the state of a bailout caught in one of our libcurl callbacks (the
+// fatal error to be re-raised by the next hook), without one.
+static PHP_FUNCTION(datadog_appsec_testing_curl_eval_catch_fatal)
+{
+    zend_try
+    {
+        zend_error(E_ERROR, "Injected fatal error in downstream request "
+                            "analysis");
+    }
+    zend_catch { _caught_bailout(NULL); }
+    zend_end_try();
+}
+
+// curl_eval_data_truncated(): bool
+// The request's data_truncated flag (the one request_shutdown reports).
+static PHP_FUNCTION(datadog_appsec_testing_curl_eval_data_truncated)
+{
+    RETURN_BOOL(dd_msgpack_helpers_is_data_truncated());
+}
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(fatal_after_arginfo, 0, 1, IS_VOID, 0)
+ZEND_ARG_TYPE_INFO(0, calls, IS_LONG, 0)
+ZEND_ARG_TYPE_INFO(0, late, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    gate_fatal_after_alloc_arginfo, 0, 1, IS_VOID, 0)
+ZEND_ARG_TYPE_INFO(0, allocs, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(catch_fatal_arginfo, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    data_truncated_arginfo, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    pending_exception_calls_arginfo, 0, 0, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+// clang-format off
+static const zend_function_entry testing_functions[] = {
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_eval_fatal_after", PHP_FN(datadog_appsec_testing_curl_eval_fatal_after), fatal_after_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_eval_gate_fatal_after_alloc", PHP_FN(datadog_appsec_testing_curl_eval_gate_fatal_after_alloc), gate_fatal_after_alloc_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_eval_catch_fatal", PHP_FN(datadog_appsec_testing_curl_eval_catch_fatal), catch_fatal_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_eval_data_truncated", PHP_FN(datadog_appsec_testing_curl_eval_data_truncated), data_truncated_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_eval_pending_exception_calls", PHP_FN(datadog_appsec_testing_curl_eval_pending_exception_calls), pending_exception_calls_arginfo, 0, NULL, NULL)
+    PHP_FE_END
+};
+// clang-format on
+#endif
+
 void dd_curl_eval_minit(void)
 {
     _ssrf_zstr = zend_string_init_interned(LSTRARG("ssrf"), 1);
     _request_zstr = zend_string_init_interned(LSTRARG("request"), 1);
     _response_zstr = zend_string_init_interned(LSTRARG("response"), 1);
+#ifdef TESTING
+    if (get_global_DD_APPSEC_TESTING()) {
+        dd_phpobj_reg_funcs(testing_functions);
+    }
+#endif
 }

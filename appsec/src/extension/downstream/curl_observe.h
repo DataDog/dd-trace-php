@@ -67,13 +67,17 @@ void dd_curl_xfer_end(struct dd_curl_hstate *nonnull hs, bool completed);
 // Right after dd_curl_xfer_begin(): the WAF call for the first request, with
 // the data from curl_setopt. Returns whether the transfer must not start.
 bool dd_curl_xfer_presend(struct dd_curl_hstate *nonnull hs);
+// The transfer was interrupted by a bailout: no more WAF calls and no calls
+// into libcurl (the options are left on the handle, the request is ending);
+// only what the transfer holds is released
+void dd_curl_xfer_end_bailout(struct dd_curl_hstate *nonnull hs);
 // Whether the last transfer of the handle got a blocking verdict (not acted
 // upon yet)
 bool dd_curl_xfer_blocked(struct dd_curl_hstate *nonnull hs);
 // To be called once a hooked function has control again after libcurl ran
-// (or before it returns data of a transfer): blocks the request
-// (dd_req_lifecycle_abort) if the handle's transfer got a blocking verdict.
-// Usually does not return then.
+// (or before it returns data of a transfer): re-raises a bailout caught in
+// our libcurl callbacks, or blocks the request (dd_req_lifecycle_abort) if
+// the handle's transfer got a blocking verdict. Usually does not return then.
 void dd_curl_xfer_settle(struct dd_curl_hstate *nonnull hs);
 void dd_curl_xfer_settle_zch(zval *nonnull zch);
 // the same for each transfer of that multi still running

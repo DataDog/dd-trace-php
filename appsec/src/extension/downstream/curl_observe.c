@@ -16,6 +16,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#if defined(TESTING) && defined(__GLIBC__)
+#    include <malloc.h>
+#endif
 
 #include <ext/compatibility.h>
 
@@ -462,6 +465,7 @@ uintptr_t dd_curl_multi_key(zval *nonnull zmh, bool create)
 struct dd_curl_hstate *nullable dd_curl_xfer_begin(
     zval *nonnull zch, uintptr_t multi)
 {
+    dd_curl_eval_hook_enter();
     if (!_tracking()) {
         return NULL;
     }
@@ -572,6 +576,17 @@ bool dd_curl_xfer_presend(struct dd_curl_hstate *nonnull hs)
     // the sampling decision is taken by W1; nothing has been written yet
     x->coll.sampled = _collect_all || dd_curl_eval_sampled(&x->eval);
     return block;
+}
+
+void dd_curl_xfer_end_bailout(struct dd_curl_hstate *nonnull hs)
+{
+    struct dd_curl_xfer *x = &hs->xfer;
+    x->in_exec = false;
+    x->eval.active = false;
+    if (!x->installed) {
+        return;
+    }
+    _release_with(hs, false);
 }
 
 bool dd_curl_xfer_blocked(struct dd_curl_hstate *nonnull hs)
@@ -1214,10 +1229,12 @@ static void _remove_prereq(dd_curl_easy *cp)
     (void)funcs->curl_easy_setopt(cp, DD_CURLOPT_PREREQDATA, (void *)NULL);
 }
 
-// Back in a PHP function hook: blocks the request if the transfer got a
-// blocking verdict.
+// Back in a PHP function hook: re-raises a bailout caught in one of our
+// libcurl callbacks, or blocks the request if the transfer got a blocking
+// verdict.
 static void _settle(struct dd_curl_hstate *hs)
 {
+    dd_curl_eval_reraise(&hs->xfer.eval);
     dd_curl_eval_block(&hs->xfer.eval);
 }
 
@@ -1418,8 +1435,8 @@ static size_t _read_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
 // held, until EOF, the body cap or the upload size; the gate then makes its
 // WAF call (W3b) and the held bytes are served, then the rest of the body
 // comes straight from the original function. Nothing reaches libcurl before
-// W3b: a block returns CURL_READFUNC_ABORT, applied once libcurl has returned
-// to the hook (G7.16). ABORT, PAUSE
+// W3b: a block (or a caught bailout) returns CURL_READFUNC_ABORT, applied
+// (re-raised) once libcurl has returned to the hook (G7.16). ABORT, PAUSE
 // and other values above the length asked are returned at once (but see
 // dd_curl_eval_gate_take for one within libcurl's length).
 static size_t _gate_read(struct dd_curl_xfer *x, char *ptr, size_t size,
@@ -1652,6 +1669,33 @@ static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_coll_refusals)
     RETURN_LONG(_coll_refusals);
 }
 
+// curl_downstream_malloc_in_use(): int
+// Bytes of the C heap (malloc) in use, libcurl's included and PHP's own heap
+// excluded (it maps its chunks directly); -1 where glibc's mallinfo is
+// missing. For tests that a torn transfer leaks nothing of libcurl's.
+static PHP_FUNCTION(datadog_appsec_testing_curl_downstream_malloc_in_use)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+#    ifdef __GLIBC__
+    // summed in 64 bits and clamped: on a 32-bit build zend_long is 32 bits,
+    // and a sum past ZEND_LONG_MAX would come out negative (read as "no
+    // mallinfo" by the tests, which would then skip instead of measuring)
+#        if __GLIBC_PREREQ(2, 33)
+    struct mallinfo2 mi = mallinfo2();
+    uint64_t in_use = (uint64_t)mi.uordblks + (uint64_t)mi.hblkhd;
+#        else
+    struct mallinfo mi = mallinfo();
+    uint64_t in_use = (uint64_t)(unsigned)mi.uordblks + (unsigned)mi.hblkhd;
+#        endif
+    RETURN_LONG(
+        in_use > (uint64_t)ZEND_LONG_MAX ? ZEND_LONG_MAX : (zend_long)in_use);
+#    else
+    RETURN_LONG(-1);
+#    endif
+}
+
 // curl_downstream_install_refuse(bool $on): void
 // While on, libcurl refuses our functions for every transfer started: the
 // handle cannot be interposed (G3.9).
@@ -1713,6 +1757,7 @@ static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_install_refuse", PHP_FN(datadog_appsec_testing_curl_downstream_install_refuse), tracking_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_coll_refuse", PHP_FN(datadog_appsec_testing_curl_downstream_coll_refuse), tracking_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_coll_refusals", PHP_FN(datadog_appsec_testing_curl_downstream_coll_refusals), installed_count_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "curl_downstream_malloc_in_use", PHP_FN(datadog_appsec_testing_curl_downstream_malloc_in_use), installed_count_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on
