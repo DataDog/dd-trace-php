@@ -13,15 +13,8 @@ use OpenFeature\interfaces\hooks\HookHints;
 use OpenFeature\interfaces\provider\ResolutionDetails;
 
 /**
- * Hands each completed flag evaluation to a callback with the Datadog exposure
- * decision, so an application can record exposures in its own data store.
- *
- * Register it on the OpenFeature API or a client. The callback runs for every
- * evaluation by the Datadog provider, including errors and repeats;
- * ExposureEvaluation::shouldSend() selects the new or changed exposures. It is
- * skipped, with one warning, for any other provider, including a MultiProvider. It runs on the evaluating thread, so it
- * must not do I/O. An exception from the callback does not affect the
- * evaluation: the first one is logged as a warning, later ones at debug level.
+ * Passes every completed Datadog evaluation, including repeats, to an inline callback.
+ * Use ExposureEvaluation::isExposure() to select observations for your own buffer.
  */
 final class ExposureHook implements Hook
 {

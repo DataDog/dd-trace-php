@@ -93,6 +93,10 @@ function system_tests_run_scenarios(string $scenarios): void
 // No list (master, releases, tags, schedules, web/api runs, or a git failure) means every job runs.
 $branch_changed_files = array_filter(explode("\n", (string)@file_get_contents(__DIR__ . "/changed-files.txt")));
 
+// Shipping builds keep tracer-release's single codegen unit (#2696).
+$pr_branch_build = (string)getenv('CI_COMMIT_TAG') === ''
+    && !preg_match('(^(master|ddtrace-.*|release-.*)$)', (string)getenv('CI_COMMIT_BRANCH'));
+
 // A PR branch runs these job families only when it changes one of their paths; master and the rest run them always.
 // Generic build inputs (sources, config.m4, shared build scripts) stay out: the always-on compile and test jobs cover them.
 $generator_paths = [".gitlab/generate-package.php", ".gitlab/generate-common.php"];
@@ -156,6 +160,19 @@ $windows_build_platforms = [
 
 ?>
 
+<?php
+function alpine_mimalloc(array $platform): void
+{
+    if ($platform['host_os'] !== 'linux-musl') {
+        return;
+    }
+?>
+    # Installed by dockerfiles/ci/alpine_compile_extension/base.Dockerfile; nodes with a stale cached image fall back to apk.
+    - test -f /usr/lib/libmimalloc-insecure.so.2 || apk add -q --no-cache mimalloc2-insecure || exit 75
+    - export LD_PRELOAD=/usr/lib/libmimalloc-insecure.so.2
+<?php
+}
+?>
 stages:
   - prepare
   - combined
@@ -187,6 +204,9 @@ variables:
   RELIABILITY_ENV_BRANCH: "master"
   SYSTEM_TESTS_LIBRARY: php
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
+<?php if ($pr_branch_build): ?>
+  CARGO_PROFILE_TRACER_RELEASE_CODEGEN_UNITS: "16"
+<?php endif; ?>
 
   # One pipeline injection package size ratchet.
   # LIB_INJECTION_IMAGE_MAX_SIZE_BYTES was set to 210M in April as a tightening
@@ -312,6 +332,11 @@ finished:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+      - .gitlab/dockerhub-login.sh
+      - .gitlab/silent-upload-junit-to-datadog.sh
+      - .gitlab/upload-junit-to-datadog.sh
+      - .gitlab/download-file.sh
+      - .gitlab/transient-curl-error.sh
     reports:
       dotenv: system-tests.env
 
@@ -339,6 +364,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
+<?php alpine_mimalloc($platform) ?>
 <?php if ($platform['host_os'] === 'linux-gnu'): ?>
 <?php if ($flavour === 'nts'): ?>
     # CentOS 7 release artifacts use Clang/Rust ThinLTO for NTS and ZTS.
@@ -425,8 +451,73 @@ foreach ($build_platforms as $platform) {
         }
         $image = sprintf($platform['image_template'], $major_minor);
         $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
+        $arch_dir = $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64';
 ?>
 "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+<?php alpine_mimalloc($platform) ?>
+    # Fix for $BASH_ENV not having a newline at the end of the file
+    - echo "" >> "$BASH_ENV"
+    - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
+  artifacts:
+    paths:
+      - "extensions_*"
+      - "ddtrace_*-fat.ldflags"
+      - "ddtrace_*-fat.sym"
+
+<?php foreach (["nts" => "", "zts" => "-zts"] as $flavour => $zts_suffix): ?>
+"compile tracing extension LTO: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
+    CARGO_BUILD_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+<?php alpine_mimalloc($platform) ?>
+<?php if ($platform['host_os'] === 'linux-musl'): ?>
+    - source "$BASH_ENV"
+    - switch_php "${PHP_VERSION}<?= $zts_suffix ?>"
+<?php else: ?>
+    - switch-php "${PHP_VERSION}<?= $zts_suffix ?>"
+<?php endif; ?>
+    # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
+    - make -s xlang-lto
+    - mkdir -p "extensions_<?= $arch_dir ?>"
+    - cp "tmp/release-variants/<?= $arch_dir ?>/php-${PHP_VERSION}/<?= $flavour ?>/combined/ddtrace.so" "extensions_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?><?= $zts_suffix ?>.so"
+  artifacts:
+    paths:
+      - "extensions_*"
+
+<?php endforeach; ?>
+"compile tracing extension SSI: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: tracing
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
@@ -442,42 +533,35 @@ foreach ($build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     MAKE_JOBS: 12
+    CARGO_BUILD_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
-    # Fix for $BASH_ENV not having a newline at the end of the file
-    - echo "" >> "$BASH_ENV"
-    - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
+<?php alpine_mimalloc($platform) ?>
 <?php if ($platform['host_os'] === 'linux-musl'): ?>
-    # Load the function in this shell too, not just the build-tracing subprocess.
     - source "$BASH_ENV"
 <?php endif; ?>
-    # PHP 7.0 remains tracer-only in both self-contained and SSI builds.
     # Every SSI common rebuild must match the canonical DSO, including DWARF.
-    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?><?= $suffix ?>.so"
-    - export CARGO_BUILD_JOBS=12
-    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}"
-    - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
+    - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir ?><?= $suffix ?>.so"
+    - mkdir -p "standalone_<?= $arch_dir ?>"
+<?php foreach (["nts" => "", "zts" => "-zts"] as $flavour => $zts_suffix): ?>
+<?php if ($platform['host_os'] === 'linux-musl'): ?>
+    - switch_php "${PHP_VERSION}<?= $zts_suffix ?>"
+<?php else: ?>
+    - switch-php "${PHP_VERSION}<?= $zts_suffix ?>"
+<?php endif; ?>
     - make -s build-ssi-ddtrace
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
-    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/ssi/libdatadog_php.so"
-    - <?= $platform['host_os'] === 'linux-musl' ? 'switch_php' : 'switch-php' ?> "${PHP_VERSION}-zts"
-    - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
-    - make -s build-ssi-ddtrace
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/ddtrace.so" "standalone_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
-    - rm "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/ssi/libdatadog_php.so"
+    - cp "tmp/release-variants/<?= $arch_dir ?>/php-${PHP_VERSION}/<?= $flavour ?>/ssi/ddtrace.so" "standalone_<?= $arch_dir ?>/ddtrace-${ABI_NO}<?= $suffix ?><?= $zts_suffix ?>.so"
+    - rm "tmp/release-variants/<?= $arch_dir ?>/php-${PHP_VERSION}/<?= $flavour ?>/ssi/libdatadog_php.so"
+<?php endforeach; ?>
   artifacts:
     when: always
     paths:
-      - "extensions_*"
       - "standalone_*"
       # Retain the candidate common DSO if its identity check failed.
       - "tmp/release-variants/**/ssi/libdatadog_php.so"
-      - "ddtrace_*-fat.ldflags"
-      - "ddtrace_*-fat.sym"
+
 
 <?php
     }
@@ -538,6 +622,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 5Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
+<?php alpine_mimalloc($platform) ?>
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
   artifacts:
@@ -577,6 +662,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 5Gi
     KUBERNETES_MEMORY_LIMIT: 10Gi
   script:
+<?php alpine_mimalloc($platform) ?>
     - echo "" >> "$BASH_ENV"
     - mkdir -p "ssi_<?= $arch_dir ?>"
     - export SSI_COMMON_REFERENCE="$PWD/libdatadog_php_<?= $arch_dir . $suffix ?>.so"
@@ -640,6 +726,10 @@ foreach ($build_platforms as $platform) {
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing extension: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: "compile tracing extension LTO: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
+      artifacts: true
+    - job: "compile tracing extension LTO: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
       artifacts: true
 <?php
 foreach ($profiler_minor_major_targets as $major_minor) {
@@ -945,7 +1035,7 @@ foreach ($windows_minor_major_targets as $major_minor) {
         if ($platform["arch"] == $arch):
 ?>
     # PHP 7.0 still uses the split SSI extension (tracer and AppSec only).
-    - job: "compile tracing extension: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile tracing extension SSI: [7.0, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
@@ -1297,9 +1387,11 @@ endforeach;
     INSTALLER_ARTIFACT_SERVER: installer-artifacts
     INSTALLER_DOCKER_NETWORK: installer-tests
     INSTALLER_REPOSITORY_URL: http://installer-artifacts
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 2Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    # Expand the DinD loopback volume to avoid running out of disk space.
+    DOCKER_LOOPBACK_SIZE: 50G
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
     RUST_BACKTRACE: 1
   before_script:
 <?php dockerhub_login() ?>
@@ -1347,7 +1439,7 @@ endforeach;
         sleep 1
       done
   script:
-    - make -C dockerfiles/verify_packages test_installer
+    - make -C dockerfiles/verify_packages -j 8 --output-sync=target test_installer
   after_script:
     - docker rm --force "$INSTALLER_ARTIFACT_SERVER" || true
     - docker network rm "$INSTALLER_DOCKER_NETWORK" || true
@@ -1717,9 +1809,18 @@ endforeach;
     - !reference [.services, httpbin-integration]
   variables:
     CARGO_BUILD_JOBS: 4
+    # lld can crash if the available CPUs change while linking (see llvm/llvm-project#208959).
+    # Keep requests equal to limits so k8s pins the CPUs.
+    # Remove this workaround once both ld and rust-lld use LLVM 23 or newer.
     KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_CPU_LIMIT: 4
+    KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   parallel:
     matrix:
       - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
@@ -1781,6 +1882,7 @@ endforeach;
   image: $SYSTEM_TESTS_CI_IMAGE
   tags: [ "docker-in-docker:amd64" ]
   variables:
+    GIT_STRATEGY: none
     GIT_SUBMODULE_STRATEGY: none
     TEST_LIBRARY: php
     KUBERNETES_CPU_REQUEST: 8
@@ -1821,11 +1923,19 @@ endforeach;
     - ln -sf /system-tests/venv venv
     - source venv/bin/activate
     - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
-    - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
-    # The mirror builder keeps another copy of the weblog layers and of the library bundle in its build context.
+    - |
+      if [ -n "$BUILD_SH_ARGS" ]; then
+        weblog=$(echo " $BUILD_SH_ARGS " | sed -n 's/.* -w \([^ ]*\) .*/\1/p')
+        contexts=$(python3 utils/scripts/resolve-base-images-contexts.py --build-contexts "utils/build/docker/php/${weblog:-apache-mod-8.0}.Dockerfile") || exit 1
+        for image in $(printf '%s\n' "$contexts" | sed 's|^[^=]*=docker-image://||'); do
+          { docker pull -q "registry.ddbuild.io/system-tests/mirror/$image" && docker tag "registry.ddbuild.io/system-tests/mirror/$image" "$image"; } || exit 75
+        done
+        USE_IMAGE_MIRROR=0 ./build.sh $BUILD_SH_ARGS
+      fi
+    # The build cache keeps another copy of the weblog layers and of the library bundle in its build context.
     # The scenarios only run the loaded images: free that space for their services, RabbitMQ blocks publishers
     # below 50 MB of free disk.
-    - docker buildx rm --force system-tests-mirror 2>/dev/null || true
+    - docker builder prune -af 2>/dev/null || true
     - docker system df || true
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
@@ -1907,7 +2017,7 @@ $system_tests_weblogs = [
 
 // Pack the tracer-release scenarios longest-first into the least-loaded shard, from measured durations
 // (refresh them with .gitlab/refresh-system-tests-durations.py). Every weblog takes ~the same time per scenario.
-$system_tests_shard_count = 4;
+$system_tests_shard_count = 8;
 $system_tests_durations = json_decode(file_get_contents(__DIR__ . "/system-tests-durations.json"), true)["scenarios"];
 arsort($system_tests_durations);
 $system_tests_shards = array_fill(0, $system_tests_shard_count, []);
@@ -1929,8 +2039,8 @@ foreach ($system_tests_durations as $scenario => $seconds) {
 "System Tests: [<?= $weblog ?>, tracer-release]":
   extends: [ .system_tests, .system_tests_tracer_release_shards ]
   parallel: <?= $system_tests_shard_count, "\n" ?>
-  # ~2x the expected worst shard (~52 min), so a hung DinD job is retried sooner.
-  timeout: 1h 45m
+  # ~2x the expected worst shard (~27 min), so a hung DinD job is retried sooner.
+  timeout: 55m
   variables:
     BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
     # Expand the DinD loopback volume to avoid running out of disk space.

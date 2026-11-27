@@ -378,6 +378,11 @@ typedef struct {
     zend_string *features_json;
 } dd_ffe_exposure;
 
+typedef struct {
+    HashTable latest_by_flag;
+    dd_ffe_exposure rows[];
+} dd_ffe_exposure_buffer;
+
 static void dd_ffe_release_metric(dd_ffe_metric *metric) {
     zend_string_release(metric->flag_key);
     zend_string_release(metric->variant);
@@ -503,12 +508,13 @@ static void dd_ffe_release_exposure(dd_ffe_exposure *exposure) {
     }
 }
 
-static void dd_ffe_clear_exposures(void) {
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
-    for (size_t i = 0; i < DDTRACE_G(ffe_exposure_buffer_len); i++) {
-        dd_ffe_release_exposure(&buffer[i]);
-    }
+void ddtrace_ffe_discard_exposures(void) {
+    dd_ffe_exposure_buffer *buffer = DDTRACE_G(ffe_exposure_buffer);
     if (buffer) {
+        for (size_t i = 0; i < DDTRACE_G(ffe_exposure_buffer_len); i++) {
+            dd_ffe_release_exposure(&buffer->rows[i]);
+        }
+        zend_hash_destroy(&buffer->latest_by_flag);
         efree(buffer);
     }
     DDTRACE_G(ffe_exposure_buffer) = NULL;
@@ -517,7 +523,7 @@ static void dd_ffe_clear_exposures(void) {
     DDTRACE_G(ffe_exposures_dropped) = 0;
 }
 
-int ddtrace_ffe_record_exposure(
+void ddtrace_ffe_record_exposure(
     zend_string *flag_key,
     zend_string *targeting_key,
     zend_string *subject_attributes_json,
@@ -529,35 +535,30 @@ int ddtrace_ffe_record_exposure(
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
         LOG(DEBUG, "Feature Flags: exposure suppressed; missing flag key or variant");
-        return -1;
-    }
-
-    ddog_FfeExposureKey key = {
-        .scope = dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()),
-        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
-        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
-        .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
-        .flag_key = dd_zend_string_to_CharSlice(flag_key),
-        .subject_id = dd_zend_string_to_CharSlice(targeting_key),
-        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
-        .variant = dd_zend_string_to_CharSlice(variant),
-        .serial_id = serial_id,
-        .has_serial_id = has_serial_id,
-    };
-    if (!ddog_ffe_exposure_cache_record(&key)) {
-        LOG(DEBUG, "Feature Flags: exposure not queued; subject already exposed to this allocation, variant and serial id");
-        return 0;
+        return;
     }
 
     if (!get_DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED()) {
         LOG(DEBUG, "Feature Flags: exposure not queued; DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false");
-        return 1;
+        return;
+    }
+
+    dd_ffe_exposure_buffer *buffer = DDTRACE_G(ffe_exposure_buffer);
+    zend_string *subject = targeting_key ? targeting_key : ZSTR_EMPTY_ALLOC();
+    zval *subjects = buffer ? zend_hash_find(&buffer->latest_by_flag, flag_key) : NULL;
+    zval *last = subjects ? zend_hash_find(Z_ARRVAL_P(subjects), subject) : NULL;
+    if (last) {
+        dd_ffe_exposure *previous = &buffer->rows[Z_LVAL_P(last)];
+        if (zend_string_equals(previous->allocation_key, allocation_key) && zend_string_equals(previous->variant, variant)
+            && previous->has_serial_id == has_serial_id && (!has_serial_id || previous->serial_id == serial_id)) {
+            return;
+        }
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
         // Reported once per flush rather than per dropped exposure.
         DDTRACE_G(ffe_exposures_dropped)++;
-        return 1;
+        return;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) == DDTRACE_G(ffe_exposure_buffer_cap)) {
@@ -565,20 +566,27 @@ int ddtrace_ffe_record_exposure(
         if (new_cap > DD_FFE_EXPOSURE_BUFFER_LIMIT) {
             new_cap = DD_FFE_EXPOSURE_BUFFER_LIMIT;
         }
-        DDTRACE_G(ffe_exposure_buffer) = safe_erealloc(
-            DDTRACE_G(ffe_exposure_buffer),
-            new_cap,
-            sizeof(dd_ffe_exposure),
-            0
-        );
+        buffer = safe_erealloc(buffer, new_cap, sizeof(dd_ffe_exposure), sizeof(*buffer));
+        if (DDTRACE_G(ffe_exposure_buffer_cap) == 0) {
+            zend_hash_init(&buffer->latest_by_flag, 8, NULL, ZVAL_PTR_DTOR, 0);
+        }
+        DDTRACE_G(ffe_exposure_buffer) = buffer;
         DDTRACE_G(ffe_exposure_buffer_cap) = new_cap;
     }
 
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
-    dd_ffe_exposure *exposure = &buffer[DDTRACE_G(ffe_exposure_buffer_len)++];
+    if (!subjects) {
+        zval entries;
+        array_init(&entries);
+        subjects = zend_hash_add(&buffer->latest_by_flag, flag_key, &entries);
+    }
+    // Row offsets survive buffer growth. Keep the first payload of each run of equal assignments.
+    zval offset;
+    ZVAL_LONG(&offset, (zend_long)DDTRACE_G(ffe_exposure_buffer_len));
+    zend_hash_update(Z_ARRVAL_P(subjects), subject, &offset);
+    dd_ffe_exposure *exposure = &buffer->rows[DDTRACE_G(ffe_exposure_buffer_len)++];
     exposure->timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000;
     exposure->flag_key = zend_string_copy(flag_key);
-    exposure->subject_id = targeting_key ? zend_string_copy(targeting_key) : ZSTR_EMPTY_ALLOC();
+    exposure->subject_id = zend_string_copy(subject);
     exposure->subject_attributes_json = zend_string_copy(subject_attributes_json);
     exposure->allocation_key = zend_string_copy(allocation_key);
     exposure->variant = zend_string_copy(variant);
@@ -586,14 +594,13 @@ int ddtrace_ffe_record_exposure(
     exposure->has_serial_id = has_serial_id;
     exposure->features_json = features_json ? zend_string_copy(features_json) : NULL;
     LOG(DEBUG, "Feature Flags: exposure queued (pending=%zu); delivery awaits sidecar handoff", DDTRACE_G(ffe_exposure_buffer_len));
-    return 1;
 }
 
 bool ddtrace_ffe_flush_exposures(void) {
     size_t exposure_count = DDTRACE_G(ffe_exposure_buffer_len);
-    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
+    dd_ffe_exposure_buffer *pending = DDTRACE_G(ffe_exposure_buffer);
 
-    if (exposure_count == 0 || !buffer) {
+    if (exposure_count == 0 || !pending) {
         if (get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
             LOG(DEBUG, "Feature Flags: exposure flush complete; empty queue (0 exposures)");
         }
@@ -609,10 +616,11 @@ bool ddtrace_ffe_flush_exposures(void) {
 
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         LOG(DEBUG, "Feature Flags: dropping %zu exposure(s); sidecar or request is not initialized", exposure_count);
-        dd_ffe_clear_exposures();
+        ddtrace_ffe_discard_exposures();
         return false;
     }
 
+    dd_ffe_exposure *buffer = pending->rows;
     ddog_FfeExposure *ffi_exposures = safe_emalloc(exposure_count, sizeof(ddog_FfeExposure), 0);
     for (size_t i = 0; i < exposure_count; i++) {
         ffi_exposures[i] = (ddog_FfeExposure) {
@@ -654,6 +662,6 @@ bool ddtrace_ffe_flush_exposures(void) {
     }
 
     efree(ffi_exposures);
-    dd_ffe_clear_exposures();
+    ddtrace_ffe_discard_exposures();
     return flushed;
 }

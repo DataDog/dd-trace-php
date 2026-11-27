@@ -1,3 +1,4 @@
+#include "routing_cache.h"
 #include "components-rs/common.h"
 #include "components-rs/sidecar.h"
 #include "zend_API.h"
@@ -253,6 +254,7 @@ void ddtrace_ginit(zend_datadog_globals *ddtrace_globals) {
 #endif
     zai_hook_ginit();
     zai_line_hook_ginit();
+    ddtrace_routing_cache_ginit(&ddtrace_globals->ddtrace.rcache);
 }
 
 void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
@@ -262,6 +264,7 @@ void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
     if (datadog_globals->ddtrace.agent_config_reader) {
         ddog_agent_remote_config_reader_drop(datadog_globals->ddtrace.agent_config_reader);
     }
+    ddtrace_routing_cache_gshutdown(&datadog_globals->ddtrace.rcache);
 }
 
 
@@ -776,13 +779,13 @@ void ddtrace_internal_handle_postfork(void) {
 void ddtrace_internal_handle_fork() {
     // The parent owns its already-recorded losses; the child starts fresh.
     memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
-    ddog_ffe_exposure_cache_reset();
 #ifdef __linux__
     ddtrace_otel_detach();
     ddtrace_otel_tid_fork_handler();
 #endif
     // Acquire the child's shared line-hook references and re-establish inherited trampolines.
     zai_line_hook_handle_fork();
+    ddtrace_ffe_discard_exposures();
     ddtrace_ffe_handle_fork();
 
     if (DATADOG_G(sidecar)) {

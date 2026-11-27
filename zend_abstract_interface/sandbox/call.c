@@ -149,6 +149,13 @@ static bool zai_sandbox_unwind(zai_sandbox *sandbox) {
 
 bool zai_sandbox_call(zai_sandbox *sandbox, zend_fcall_info *fci, zend_fcall_info_cache *fcc) {
 #if PHP_VERSION_ID >= 80200
+    // zend_call_function() would raise a pending OOM in the sandbox: let the VM raise it at its next safe point instead.
+    // A pending OOM always sets vm_interrupt, so the common path is a single load.
+    if (UNEXPECTED(zend_atomic_bool_load_ex(&EG(vm_interrupt))) && zai_sandbox_oom_state() == ZAI_OOM_STATE_PENDING && EG(current_execute_data)) {
+        ZVAL_UNDEF(fci->retval);
+        return false;
+    }
+
     zai_sandbox_observer observer = {
         .boundary = EG(current_execute_data),
         .head = zai_set_observed_frame(NULL),

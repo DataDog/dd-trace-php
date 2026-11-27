@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace DDTrace\OpenFeature;
 
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
-use DDTrace\FeatureFlags\Internal\SplitFeatures;
 use OpenFeature\interfaces\flags\EvaluationContext;
 use OpenFeature\interfaces\hooks\Hook;
 use OpenFeature\interfaces\hooks\HookContext;
@@ -22,11 +21,10 @@ final class FlagEvaluationHook implements Hook
     private ?self $previous = null;
     private ?array $observation = null;
     private ?array $exposure = null;
-    private ?ResolutionDetails $details = null;
+    private bool $successful = false;
     private int $startedAtMs;
     private static ?\WeakMap $exposureEvaluations = null;
 
-    /** @param callable|null $exposureRecorder Returns false for a repeat, null when nothing was recorded. */
     public function __construct(object $scope, ?callable $exposureRecorder = null)
     {
         $this->scope = $scope;
@@ -85,7 +83,7 @@ final class FlagEvaluationHook implements Hook
         }
         // Later after hooks can still fail the evaluation, so the exposure
         // is decided in finally.
-        $this->details = $details;
+        $this->successful = true;
     }
 
     public function error(HookContext $context, \Throwable $error, HookHints $hints): void
@@ -99,7 +97,7 @@ final class FlagEvaluationHook implements Hook
             ? $error->getResolutionError()->getResolutionErrorCode()->getValue() : 'GENERAL';
         $this->observation[6] = true;
         $this->observation[10] = [];
-        $this->details = null;
+        $this->successful = false;
     }
 
     public function finally(HookContext $context, HookHints $hints): void
@@ -113,18 +111,17 @@ final class FlagEvaluationHook implements Hook
             $this->claim();
             $this->observation = null;
             $this->exposure = null;
-            $this->details = null;
+            $this->successful = false;
         }
     }
 
     private function decideExposure(HookContext $context): void
     {
         try {
-            $exposure = $this->details !== null ? $this->exposure : null;
-            $cacheHit = null;
+            $exposure = $this->successful ? $this->exposure : null;
             if ($exposure !== null && $exposure['isExposure'] && $this->exposureRecorder !== null) {
                 try {
-                    $recorded = ($this->exposureRecorder)(
+                    ($this->exposureRecorder)(
                         $exposure['flagKey'],
                         $exposure['targetingKey'],
                         $exposure['attributes'],
@@ -133,21 +130,14 @@ final class FlagEvaluationHook implements Hook
                         $exposure['serialId'],
                         $exposure['exposureFeatures']
                     );
-                    $cacheHit = is_bool($recorded) ? !$recorded : null;
                 } catch (\Throwable $ignored) {
                 }
-            }
-            if ($cacheHit !== null && method_exists($this->details, 'setMetadata')) {
-                $this->details->setMetadata(
-                    [SplitFeatures::EXPOSURE_CACHE_HIT_KEY => $cacheHit] + ($this->details->getMetadata() ?? [])
-                );
             }
             self::$exposureEvaluations ??= new \WeakMap();
             self::$exposureEvaluations[$context] = new ExposureEvaluation(
                 $context->getFlagKey(),
                 $this->exposure['context'] ?? ExposureEvaluation::copyContext($context->getEvaluationContext()),
                 $exposure !== null && $exposure['isExposure'],
-                $cacheHit,
                 $exposure['variant'] ?? null,
                 $exposure['allocationKey'] ?? null,
                 $exposure['serialId'] ?? null,

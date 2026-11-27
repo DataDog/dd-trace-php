@@ -2131,7 +2131,8 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     // We just save the error for later handling by sandbox error reporting functionality.
     // On fatal error we explicitly bail out.
     bool is_fatal_error = orig_type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
-    if (zai_sandbox_active && !zai_sandbox_timed_out()) {
+    // An OOM ends the request even if raised in the sandbox: report it like PHP does
+    if (zai_sandbox_active && !zai_sandbox_timed_out() && !(is_fatal_error && zai_sandbox_oom_state() == ZAI_OOM_STATE_HANDLING)) {
         // Do not track silenced errors like via @ operator
         if (!is_fatal_error && (orig_type & EG(error_reporting)) == 0) {
             return;

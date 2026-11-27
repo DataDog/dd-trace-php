@@ -45,6 +45,10 @@ RUN apk add --no-cache llvm21-libs clang21-dev lld llvm21 rust-stdlib rust-src c
 
 RUN cargo install --force --locked bindgen-cli && mv /root/.cargo/bin/bindgen /usr/local/bin/ && rm -rf /root/.cargo
 
+# The musl compile jobs LD_PRELOAD mimalloc: Alpine's rustc links scudo and
+# clang/lld use musl's malloc, which spend much of a parallel build in the kernel.
+RUN apk add --no-cache mimalloc2-insecure
+
 RUN set -eux; \
     mkdir -p /var/crash && chmod 1777 /var/crash; \
     GDB_VERSION="17.2"; \

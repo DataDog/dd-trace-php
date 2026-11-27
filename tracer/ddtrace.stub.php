@@ -70,8 +70,6 @@ namespace DDTrace {
         public ?int $serialId = null;
         /** @var array<int, array{key: string, value: string|float|bool, destinations: string[]}> */
         public array $features = [];
-        /** Null when the evaluation did not record an exposure. */
-        public ?bool $exposureCacheHit = null;
         public array $providerState = [];
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;
@@ -614,6 +612,26 @@ namespace DDTrace {
     function set_user(string $userId, array $metadata = [], bool|null $propagate = null): void {}
 
     /**
+     * Get a value from the process-lifetime routing cache, used by the
+     * integrations to cache normalized routes.
+     *
+     * @internal
+     * @param string $key The cache key
+     * @return string|false The cached value, or 'false' when the key is not cached
+     */
+    function routing_cache_get(string $key): string|false {}
+
+    /**
+     * Store a value in the process-lifetime routing cache. Once the cache is
+     * full, inserting a new key evicts the oldest one.
+     *
+     * @internal
+     * @param string $key The cache key
+     * @param string $value The value to cache
+     */
+    function routing_cache_set(string $key, string $value): void {}
+
+    /**
      * Close child spans of a parent span if a non-internal span is given,
      * else if 'null' is given, close active, non-internal spans
      *
@@ -1140,14 +1158,8 @@ namespace DDTrace\Internal {
 
     function ffe_provider_state(): array {}
 
-    /**
-     * Record an exposure in the process exposure cache and, when it is new or
-     * changed, queue it for Datadog with its EXPOSURE features.
-     *
-     * @internal
-     * @return bool|null False for a repeated exposure, null when nothing was recorded.
-     */
-    function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId = null, array $features = []): ?bool {}
+    /** @internal Queue an eligible exposure for Datadog delivery when configured. */
+    function record_ffe_exposure(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId = null, array $features = []): void {}
 
     /** @internal Submit one final evaluation without waiting or reconnecting. */
     function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData, int $evaluationTimestampMs, bool $targetingKeyInvalid = false, array $features = []): bool {}

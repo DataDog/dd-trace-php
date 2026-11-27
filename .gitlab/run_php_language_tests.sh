@@ -38,6 +38,13 @@ if [[ ${PHP_MAJOR_MINOR} == 7.* && -f $socket_test ]]; then
   sed -Ei 's#udp://0\.0\.0\.0:[0-9]+#udp://0.0.0.0:0#g' "$socket_test"
 fi
 
+# The PHP < 7.4 test assumes stderr data arrives before stdout EOF.
+# Use the PHP 8.0 version: https://github.com/php/php-src/commit/3852a35fdb
+proc_open_test=ext/standard/tests/streams/proc_open_bug60120.phpt
+if [[ ${PHP_MAJOR_MINOR} =~ ^7\.[0-3]$ && -f $proc_open_test ]]; then
+  cp "${CI_PROJECT_DIR}/.gitlab/patches/php-7-proc_open_bug60120.phpt" "$proc_open_test"
+fi
+
 if [[ ${PHP_MAJOR_MINOR} == 8.* ]]; then
   curl_patch="${CI_PROJECT_DIR}/.gitlab/patches/php-8-curl-server-startup.patch"
   if ! patch -p1 --reverse --force --dry-run --fuzz=0 < "$curl_patch" > /dev/null; then
@@ -134,7 +141,7 @@ parallelize=()
 test_paths=()
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) ]]; then
   extra_args="-j$(nproc)"
-elif [[ ${PHP_MAJOR_MINOR} =~ ^7\.[123]$ && $(nproc) -gt 1 ]]; then
+elif [[ ${PHP_MAJOR_MINOR} =~ ^7\.[0-3]$ && $(nproc) -gt 1 ]]; then
   parallelize=("${CI_PROJECT_DIR}/tooling/parallelize-run-tests.sh" "-j$(nproc)")
   # Old suites share files and ports across directories; keep them in one ordered batch.
   for suite in tests/{basic,security} sapi/cli/tests \

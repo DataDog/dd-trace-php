@@ -81,7 +81,7 @@ stages:
     - cd tmp/build-tea-${SWITCH_PHP_VERSION}
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - make test ARGS="--output-junit ${CI_PROJECT_DIR}/artifacts/tea-${SWITCH_PHP_VERSION}-results.xml --output-on-failure"
-    - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+    - grep -E "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
   after_script:
     - mkdir -p tmp/artifacts/
     - cp tmp/build-tea-${SWITCH_PHP_VERSION}/Testing/Temporary/LastTest.log tmp/artifacts/LastTest.log
@@ -199,7 +199,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - make -j all
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - make test ARGS="--output-junit ${CI_PROJECT_DIR}/artifacts/zai-<?= $major_minor ?>-<?= $switch_php_version ?>-results.xml --output-on-failure"
-    - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+    - grep -E "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 <?php
     endforeach;
 endforeach;
@@ -228,7 +228,7 @@ foreach (["7.4", "8.0"] as $major_minor):
     - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/nts cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DRUN_SHARED_EXTS_TESTS=1 -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
     - make -j all
     - TEA_INI_IGNORE=0 make test
-    - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+    - grep -E "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 <?php
 endforeach;
 ?>
@@ -258,7 +258,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/<?= $switch_php_version ?> cmake <?= $toolchain ?> -DCMAKE_BUILD_TYPE=Debug -S ../../tests/tea
     - cmake --build . --parallel
     - make test ARGS="--output-on-failure"
-    - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+    - grep -E "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 <?php
     endforeach;
 endforeach;

@@ -305,11 +305,6 @@ final class ResultMapper
             }
         }
 
-        $cacheHit = $this->read($rawResult, array('exposure_cache_hit', 'exposureCacheHit'), null);
-        if (is_bool($cacheHit)) {
-            $metadata[SplitFeatures::EXPOSURE_CACHE_HIT_KEY] = $cacheHit;
-        }
-
         return $metadata;
     }
 

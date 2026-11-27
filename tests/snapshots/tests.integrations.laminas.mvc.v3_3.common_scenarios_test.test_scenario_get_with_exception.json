@@ -153,7 +153,7 @@
               {
                 "name": "laminas.route.match",
                 "service": "test_laminas_mvc_latest",
-                "resource": "Laminas\\Router\\Http\\TreeRouteStack@match",
+                "resource": "Laminas\\Router\\Http\\TranslatorAwareTreeRouteStack@match",
                 "trace_id": 0,
                 "span_id": 18,
                 "parent_id": 12,

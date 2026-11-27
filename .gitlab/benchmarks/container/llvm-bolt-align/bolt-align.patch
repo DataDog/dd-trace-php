@@ -1,0 +1,1413 @@
+diff --git a/bolt/include/bolt/Core/BinaryContext.h b/bolt/include/bolt/Core/BinaryContext.h
+index 73ccb911039d..c6a6b9510305 100644
+--- a/bolt/include/bolt/Core/BinaryContext.h
++++ b/bolt/include/bolt/Core/BinaryContext.h
+@@ -1408,9 +1408,10 @@ public:
+   }
+ 
+   /// Register dynamic relocation at \p Address.
+-  void addDynamicRelocation(uint64_t Address, MCSymbol *Symbol, uint32_t Type,
+-                            uint64_t Addend, uint64_t Value = 0,
+-                            bool IsRELR = false);
++  void addDynamicRelocation(
++      uint64_t Address, MCSymbol *Symbol, uint32_t Type, uint64_t Addend,
++      uint64_t Value = 0, bool IsRELR = false,
++      uint32_t JmpRelocationIndex = Relocation::NoJmpRelocationIndex);
+ 
+   /// Return a dynamic relocation registered at a given \p Address, or nullptr
+   /// if there is no dynamic relocation at such address.
+diff --git a/bolt/include/bolt/Core/BinaryFunction.h b/bolt/include/bolt/Core/BinaryFunction.h
+index b3af846c4eb5..53479cbdd8b3 100644
+--- a/bolt/include/bolt/Core/BinaryFunction.h
++++ b/bolt/include/bolt/Core/BinaryFunction.h
+@@ -271,6 +271,10 @@ private:
+   /// Maximum number of bytes used for alignment of cold part of the function.
+   uint16_t MaxColdAlignmentBytes{0};
+ 
++  /// The desired output offset of the function's main fragment in bytes
++  /// relative to its code section.
++  std::optional<uint64_t> DesiredOffset;
++
+   const MCSymbol *PersonalityFunction{nullptr};
+   uint8_t PersonalityEncoding{dwarf::DW_EH_PE_sdata4 | dwarf::DW_EH_PE_pcrel};
+ 
+@@ -1954,6 +1958,13 @@ public:
+ 
+   uint16_t getMaxColdAlignmentBytes() const { return MaxColdAlignmentBytes; }
+ 
++  BinaryFunction &setDesiredOffset(uint64_t Offset) {
++    DesiredOffset = Offset;
++    return *this;
++  }
++
++  std::optional<uint64_t> getDesiredOffset() const { return DesiredOffset; }
++
+   BinaryFunction &setImageAddress(uint64_t Address) {
+     getLayout().getMainFragment().setImageAddress(Address);
+     return *this;
+diff --git a/bolt/include/bolt/Core/BinarySection.h b/bolt/include/bolt/Core/BinarySection.h
+index 69da629c7395..75744f93d010 100644
+--- a/bolt/include/bolt/Core/BinarySection.h
++++ b/bolt/include/bolt/Core/BinarySection.h
+@@ -365,11 +365,12 @@ public:
+   }
+ 
+   /// Add a dynamic relocation at the given /p Offset.
+-  void addDynamicRelocation(uint64_t Offset, MCSymbol *Symbol, uint32_t Type,
+-                            uint64_t Addend, uint64_t Value = 0,
+-                            bool IsRELR = false) {
+-    addDynamicRelocation(
+-        Relocation{Offset, Symbol, Type, Addend, Value, IsRELR});
++  void addDynamicRelocation(
++      uint64_t Offset, MCSymbol *Symbol, uint32_t Type, uint64_t Addend,
++      uint64_t Value = 0, bool IsRELR = false,
++      uint32_t JmpRelocationIndex = Relocation::NoJmpRelocationIndex) {
++    addDynamicRelocation(Relocation{Offset, Symbol, Type, Addend, Value, IsRELR,
++                                    JmpRelocationIndex});
+   }
+ 
+   void addDynamicRelocation(const Relocation &Reloc) {
+diff --git a/bolt/include/bolt/Core/Relocation.h b/bolt/include/bolt/Core/Relocation.h
+index 9bc94d6484b7..02d18ff97cf9 100644
+--- a/bolt/include/bolt/Core/Relocation.h
++++ b/bolt/include/bolt/Core/Relocation.h
+@@ -37,17 +37,21 @@ namespace bolt {
+ /// Relocation class.
+ class Relocation {
+ public:
++  static constexpr uint32_t NoJmpRelocationIndex = (1u << 30) - 1;
++
+   Relocation(uint64_t Offset, MCSymbol *Symbol, uint32_t Type, uint64_t Addend,
+-             uint64_t Value, bool IsRELR = false)
+-      : Offset(Offset), Symbol(Symbol), Type(Type), Optional(false),
+-        IsRELR(IsRELR), Addend(Addend), Value(Value) {
++             uint64_t Value, bool IsRELR = false,
++             uint32_t JmpRelocationIndex = NoJmpRelocationIndex)
++      : Offset(Offset), Symbol(Symbol), Addend(Addend), Value(Value),
++        Type(Type), JmpRelocationIndex(JmpRelocationIndex), Optional(false),
++        IsRELR(IsRELR) {
+     assert((isRelative() || !isRELR()) &&
+            "Only relative relocations can be relr.");
+   }
+ 
+   Relocation()
+-      : Offset(0), Symbol(0), Type(0), Optional(0), IsRELR(0), Addend(0),
+-        Value(0) {}
++      : Offset(0), Symbol(0), Addend(0), Value(0), Type(0),
++        JmpRelocationIndex(NoJmpRelocationIndex), Optional(0), IsRELR(0) {}
+ 
+   static Triple::ArchType Arch; /// set by BinaryContext ctor.
+ 
+@@ -57,27 +61,40 @@ public:
+   /// The symbol this relocation is referring to.
+   MCSymbol *Symbol;
+ 
++  /// The offset from the \p Symbol base used to compute the final
++  /// value of this relocation.
++  uint64_t Addend;
++
++  /// The computed relocation value extracted from the binary file.
++  /// Used to validate relocation correctness.
++  uint64_t Value;
++
+   /// Relocation type.
+   uint32_t Type;
+ 
+ private:
++  /// Original index in DT_JMPREL, or NoJmpRelocationIndex for relocations
++  /// originating from other relocation tables.
++  uint32_t JmpRelocationIndex : 30;
++
+   /// Relocations added by optimizations can be optional, meaning they can be
+   /// omitted under certain circumstances.
+-  bool Optional = false;
++  uint32_t Optional : 1;
+ 
+   /// Track which relocations originate from a relr section. Emit these
+   /// exclusively into the relr section and do not accidentally promote relative
+   /// rela entries, because that would require growing the relr section.
+-  bool IsRELR = false;
++  uint32_t IsRELR : 1;
+ 
+ public:
+-  /// The offset from the \p Symbol base used to compute the final
+-  /// value of this relocation.
+-  uint64_t Addend;
++  bool isJmpRelocation() const {
++    return JmpRelocationIndex != NoJmpRelocationIndex;
++  }
+ 
+-  /// The computed relocation value extracted from the binary file.
+-  /// Used to validate relocation correctness.
+-  uint64_t Value;
++  uint32_t getJmpRelocationIndex() const {
++    assert(isJmpRelocation() && "not a DT_JMPREL relocation");
++    return JmpRelocationIndex;
++  }
+ 
+   /// Return size in bytes of the given relocation \p Type.
+   static size_t getSizeForType(uint32_t Type);
+diff --git a/bolt/include/bolt/Passes/AssignDesiredFunctionOffset.h b/bolt/include/bolt/Passes/AssignDesiredFunctionOffset.h
+new file mode 100644
+index 000000000000..0950ccd0edc4
+--- /dev/null
++++ b/bolt/include/bolt/Passes/AssignDesiredFunctionOffset.h
+@@ -0,0 +1,41 @@
++//===- bolt/Passes/AssignDesiredFunctionOffset.h ----------------*- C++ -*-===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++//
++// Pass to assign the desired output offsets from --function-layout-file to the
++// corresponding functions.
++//
++//===----------------------------------------------------------------------===//
++
++#ifndef BOLT_PASSES_ASSIGNDESIREDFUNCTIONOFFSET_H
++#define BOLT_PASSES_ASSIGNDESIREDFUNCTIONOFFSET_H
++
++#include "bolt/Passes/BinaryPasses.h"
++#include "llvm/Support/CommandLine.h"
++
++using namespace llvm;
++
++namespace opts {
++extern cl::opt<std::string> FunctionLayoutFile;
++} // namespace opts
++
++namespace llvm {
++namespace bolt {
++
++class AssignDesiredFunctionOffset : public BinaryFunctionPass {
++public:
++  explicit AssignDesiredFunctionOffset() : BinaryFunctionPass(false) {}
++
++  const char *getName() const override { return "apply-function-layout"; }
++
++  Error runOnFunctions(BinaryContext &BC) override;
++};
++
++} // namespace bolt
++} // namespace llvm
++
++#endif
+diff --git a/bolt/include/bolt/Rewrite/MergeFunctionLayouts.h b/bolt/include/bolt/Rewrite/MergeFunctionLayouts.h
+new file mode 100644
+index 000000000000..0e902466fabb
+--- /dev/null
++++ b/bolt/include/bolt/Rewrite/MergeFunctionLayouts.h
+@@ -0,0 +1,29 @@
++//===- bolt/Rewrite/MergeFunctionLayouts.h ----------------------*- C++ -*-===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++
++#ifndef BOLT_REWRITE_MERGEFUNCTIONLAYOUTS_H
++#define BOLT_REWRITE_MERGEFUNCTIONLAYOUTS_H
++
++#include "llvm/ADT/StringRef.h"
++#include "llvm/Support/Error.h"
++
++namespace llvm {
++class raw_ostream;
++
++namespace bolt {
++
++/// Merge two layout files \p PathA and \p PathB into an aligned layout stored
++/// to \p OutputPath. Only common functions that occur in the same relative
++/// order are included.
++Error mergeFunctionLayouts(StringRef PathA, StringRef PathB,
++                           StringRef OutputPath, raw_ostream &Log);
++
++} // namespace bolt
++} // namespace llvm
++
++#endif
+diff --git a/bolt/include/bolt/Rewrite/RewriteInstance.h b/bolt/include/bolt/Rewrite/RewriteInstance.h
+index 2e63ca93c3e5..7af4a4503825 100644
+--- a/bolt/include/bolt/Rewrite/RewriteInstance.h
++++ b/bolt/include/bolt/Rewrite/RewriteInstance.h
+@@ -516,8 +516,8 @@ private:
+   std::optional<uint64_t> PLTRelocationsAddress;
+   uint64_t PLTRelocationsSize{0};
+ 
+-  /// True if relocation of specified type came from .rela.plt
+-  DenseMap<uint64_t, bool> IsJmpRelocation;
++  /// Number of relocations read from DT_JMPREL.
++  uint32_t NumJmpRelocations{0};
+ 
+   /// Index of specified symbol in the dynamic symbol table. NOTE Currently it
+   /// is filled and used only with the relocations-related symbols.
+diff --git a/bolt/lib/Core/BinaryContext.cpp b/bolt/lib/Core/BinaryContext.cpp
+index 130c523bcda5..3ec22329841b 100644
+--- a/bolt/lib/Core/BinaryContext.cpp
++++ b/bolt/lib/Core/BinaryContext.cpp
+@@ -2462,11 +2462,12 @@ void BinaryContext::addRelocation(uint64_t Address, MCSymbol *Symbol,
+ 
+ void BinaryContext::addDynamicRelocation(uint64_t Address, MCSymbol *Symbol,
+                                          uint32_t Type, uint64_t Addend,
+-                                         uint64_t Value, bool IsRELR) {
++                                         uint64_t Value, bool IsRELR,
++                                         uint32_t JmpRelocationIndex) {
+   ErrorOr<BinarySection &> Section = getSectionForAddress(Address);
+   assert(Section && "cannot find section for address");
+   Section->addDynamicRelocation(Address - Section->getAddress(), Symbol, Type,
+-                                Addend, Value, IsRELR);
++                                Addend, Value, IsRELR, JmpRelocationIndex);
+ }
+ 
+ bool BinaryContext::removeRelocationAt(uint64_t Address) {
+diff --git a/bolt/lib/Core/BinaryEmitter.cpp b/bolt/lib/Core/BinaryEmitter.cpp
+index a555c7185448..d7c37ec1502b 100644
+--- a/bolt/lib/Core/BinaryEmitter.cpp
++++ b/bolt/lib/Core/BinaryEmitter.cpp
+@@ -19,6 +19,8 @@
+ #include "bolt/Utils/CommandLineOpts.h"
+ #include "bolt/Utils/Utils.h"
+ #include "llvm/DebugInfo/DWARF/DWARFCompileUnit.h"
++#include "llvm/MC/MCExpr.h"
++#include "llvm/MC/MCObjectStreamer.h"
+ #include "llvm/MC/MCSection.h"
+ #include "llvm/MC/MCStreamer.h"
+ #include "llvm/Support/CommandLine.h"
+@@ -309,12 +311,24 @@ bool BinaryEmitter::emitFunction(BinaryFunction &Function,
+     // tentative layout.
+     Section->ensureMinAlignment(Align(BC.AlignFunctions));
+ 
+-    Streamer.emitCodeAlignment(Function.getMinAlign(), *BC.STI);
+-    uint16_t MaxAlignBytes = FF.isSplitFragment()
+-                                 ? Function.getMaxColdAlignmentBytes()
+-                                 : Function.getMaxAlignmentBytes();
+-    if (MaxAlignBytes > 0)
+-      Streamer.emitCodeAlignment(Function.getAlign(), *BC.STI, MaxAlignBytes);
++    std::optional<uint64_t> DesiredOffset;
++    if (FF.isMainFragment())
++      DesiredOffset = Function.getDesiredOffset();
++
++    if (DesiredOffset) {
++      const MCExpr *OffsetExpr =
++          MCConstantExpr::create(*DesiredOffset, *BC.Ctx);
++      const unsigned FillValue = BC.Ctx->getAsmInfo().getTextAlignFillValue();
++      static_cast<MCObjectStreamer &>(Streamer).emitValueToOffset(
++          OffsetExpr, FillValue, SMLoc(), /*AllowOmission=*/true);
++    } else {
++      Streamer.emitCodeAlignment(Function.getMinAlign(), *BC.STI);
++      uint16_t MaxAlignBytes = FF.isSplitFragment()
++                                   ? Function.getMaxColdAlignmentBytes()
++                                   : Function.getMaxAlignmentBytes();
++      if (MaxAlignBytes > 0)
++        Streamer.emitCodeAlignment(Function.getAlign(), *BC.STI, MaxAlignBytes);
++    }
+   } else {
+     Streamer.emitCodeAlignment(Function.getAlign(), *BC.STI);
+   }
+diff --git a/bolt/lib/Passes/AssignDesiredFunctionOffset.cpp b/bolt/lib/Passes/AssignDesiredFunctionOffset.cpp
+new file mode 100644
+index 000000000000..70e803dc7a0e
+--- /dev/null
++++ b/bolt/lib/Passes/AssignDesiredFunctionOffset.cpp
+@@ -0,0 +1,131 @@
++//===- bolt/Passes/AssignDesiredFunctionOffset.cpp ------------------------===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++//
++// This file implements the AssignDesiredFunctionOffset pass.
++//
++//===----------------------------------------------------------------------===//
++
++#include "bolt/Passes/AssignDesiredFunctionOffset.h"
++#include "bolt/Core/BinaryContext.h"
++#include "bolt/Core/BinaryData.h"
++#include "bolt/Core/BinaryFunction.h"
++#include "bolt/Utils/CommandLineOpts.h"
++#include "llvm/Support/CommandLine.h"
++#include "llvm/Support/LineIterator.h"
++#include "llvm/Support/MemoryBuffer.h"
++
++using namespace llvm;
++using namespace bolt;
++
++namespace opts {
++
++extern cl::OptionCategory BoltCategory;
++
++cl::opt<std::string> FunctionLayoutFile(
++    "function-layout-file",
++    cl::desc("file populating the functions' desired output offset. Requires "
++             "relocation mode."),
++    cl::value_desc("filename"), cl::Hidden, cl::cat(BoltCategory));
++
++} // namespace opts
++
++namespace llvm {
++namespace bolt {
++
++/// Mirror the lookup in ReorderFunctions.
++static BinaryFunction *lookupFunction(BinaryContext &BC, StringRef Name) {
++  BinaryData *BD = BC.getBinaryDataByName(Name);
++  if (!BD) {
++    for (uint32_t LocalID = 1;; ++LocalID) {
++      BD = BC.getBinaryDataByName((Name + "/" + Twine(LocalID)).str());
++      if (!BD)
++        break;
++      if (BinaryFunction *BF = BC.getFunctionForSymbol(BD->getSymbol()))
++        return BF;
++    }
++    return nullptr;
++  }
++  return BC.getFunctionForSymbol(BD->getSymbol());
++}
++
++Error AssignDesiredFunctionOffset::runOnFunctions(BinaryContext &BC) {
++  if (opts::FunctionLayoutFile.empty())
++    return Error::success();
++
++  if (!BC.HasRelocations) {
++    BC.errs() << "BOLT-ERROR: --function-layout-file is not supported in "
++                 "non-relocation mode\n";
++    exit(1);
++  }
++
++  ErrorOr<std::unique_ptr<MemoryBuffer>> MB =
++      MemoryBuffer::getFile(opts::FunctionLayoutFile);
++  if (std::error_code EC = MB.getError())
++    return createStringError(EC, Twine("cannot open function layout file '") +
++                                     opts::FunctionLayoutFile +
++                                     "': " + EC.message());
++
++  uint64_t Applied = 0;
++  uint64_t NotFound = 0;
++  uint64_t Malformed = 0;
++  for (line_iterator LI(*MB.get(), /*SkipBlanks=*/true, /*CommentMarker=*/'#');
++       !LI.is_at_eof(); ++LI) {
++    StringRef Line = LI->trim();
++    if (Line.empty())
++      continue;
++
++    StringRef Name, OffsetStr;
++    std::tie(Name, OffsetStr) = Line.split(' ');
++    Name = Name.trim();
++    OffsetStr = OffsetStr.trim();
++
++    uint64_t Offset;
++    if (Name.empty() || OffsetStr.empty() ||
++        OffsetStr.getAsInteger(/*Radix=*/0, Offset)) {
++      BC.errs() << "BOLT-WARNING: --function-layout-file: malformed entry at "
++                << opts::FunctionLayoutFile << ":" << LI.line_number() << "\n";
++      ++Malformed;
++      continue;
++    }
++
++    BinaryFunction *BF = lookupFunction(BC, Name);
++    if (!BF) {
++      if (opts::Verbosity >= 1)
++        BC.errs() << "BOLT-WARNING: --function-layout-file: cannot find "
++                     "function '"
++                  << Name << "'\n";
++      ++NotFound;
++      continue;
++    }
++
++    if (!isAligned(BF->getMinAlign(), Offset)) {
++      BC.errs() << "BOLT-WARNING: --function-layout-file: offset " << Offset
++                << " for function '" << Name
++                << "' is not aligned by the minimum function alignment ("
++                << BF->getMinAlign().value() << "), skipping\n";
++      ++Malformed;
++      continue;
++    }
++
++    BF->setDesiredOffset(Offset);
++    ++Applied;
++  }
++
++  BC.outs() << "BOLT-INFO: --function-layout-file: pinned " << Applied
++            << " functions";
++  if (NotFound)
++    BC.outs() << ", " << NotFound << " not found";
++  if (Malformed)
++    BC.outs() << ", " << Malformed << " malformed/skipped";
++  BC.outs() << "\n";
++
++  return Error::success();
++}
++
++} // namespace bolt
++} // namespace llvm
+diff --git a/bolt/lib/Passes/CMakeLists.txt b/bolt/lib/Passes/CMakeLists.txt
+index ec012f05cc49..616b269880d7 100644
+--- a/bolt/lib/Passes/CMakeLists.txt
++++ b/bolt/lib/Passes/CMakeLists.txt
+@@ -3,6 +3,7 @@ add_llvm_library(LLVMBOLTPasses
+   Aligner.cpp
+   AllocCombiner.cpp
+   AsmDump.cpp
++  AssignDesiredFunctionOffset.cpp
+   BinaryPasses.cpp
+   CMOVConversion.cpp
+   CacheMetrics.cpp
+diff --git a/bolt/lib/Rewrite/BinaryPassManager.cpp b/bolt/lib/Rewrite/BinaryPassManager.cpp
+index 6e3022c491a7..c61c404c6736 100644
+--- a/bolt/lib/Rewrite/BinaryPassManager.cpp
++++ b/bolt/lib/Rewrite/BinaryPassManager.cpp
+@@ -11,6 +11,7 @@
+ #include "bolt/Passes/Aligner.h"
+ #include "bolt/Passes/AllocCombiner.h"
+ #include "bolt/Passes/AsmDump.h"
++#include "bolt/Passes/AssignDesiredFunctionOffset.h"
+ #include "bolt/Passes/CMOVConversion.h"
+ #include "bolt/Passes/FixRISCVCallsPass.h"
+ #include "bolt/Passes/FixRelaxationPass.h"
+@@ -525,6 +526,8 @@ Error BinaryFunctionPassManager::runAllPasses(BinaryContext &BC) {
+ 
+   Manager.registerPass(std::make_unique<AlignerPass>());
+ 
++  Manager.registerPass(std::make_unique<AssignDesiredFunctionOffset>());
++
+   // Perform reordering on data contained in one or more sections using
+   // memory profiling data.
+   Manager.registerPass(std::make_unique<ReorderData>());
+diff --git a/bolt/lib/Rewrite/CMakeLists.txt b/bolt/lib/Rewrite/CMakeLists.txt
+index bc1b2ed3c2e3..a8a22bc6c468 100644
+--- a/bolt/lib/Rewrite/CMakeLists.txt
++++ b/bolt/lib/Rewrite/CMakeLists.txt
+@@ -20,6 +20,7 @@ add_llvm_library(LLVMBOLTRewrite
+   JITLinkLinker.cpp
+   LinuxKernelRewriter.cpp
+   MachORewriteInstance.cpp
++  MergeFunctionLayouts.cpp
+   MetadataManager.cpp
+   BuildIDRewriter.cpp
+   PseudoProbeRewriter.cpp
+diff --git a/bolt/lib/Rewrite/MergeFunctionLayouts.cpp b/bolt/lib/Rewrite/MergeFunctionLayouts.cpp
+new file mode 100644
+index 000000000000..ce7561e5746c
+--- /dev/null
++++ b/bolt/lib/Rewrite/MergeFunctionLayouts.cpp
+@@ -0,0 +1,195 @@
++//===- bolt/Rewrite/MergeFunctionLayouts.cpp - Merge two function layouts -===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++//
++// This file implements mergeFunctionLayouts() for llvm-bolt-align.
++//
++//===----------------------------------------------------------------------===//
++
++#include "bolt/Rewrite/MergeFunctionLayouts.h"
++#include "bolt/Utils/Utils.h"
++#include "llvm/ADT/StringMap.h"
++#include "llvm/Support/FileSystem.h"
++#include "llvm/Support/LineIterator.h"
++#include "llvm/Support/MathExtras.h"
++#include "llvm/Support/MemoryBuffer.h"
++#include "llvm/Support/raw_ostream.h"
++#include <algorithm>
++#include <limits>
++#include <vector>
++
++using namespace llvm;
++using namespace bolt;
++
++namespace {
++
++struct Entry {
++  std::string Name;
++  uint64_t Offset;
++};
++
++using Match = std::pair<const Entry *, const Entry *>;
++
++/// Keep some spare space between functions. This absorbs small layout changes
++/// in the final rewrite.
++constexpr uint64_t LayoutSlack = 64;
++constexpr uint64_t LayoutAlignment = 64;
++
++static Expected<std::vector<Entry>> parseFile(StringRef Path) {
++  ErrorOr<std::unique_ptr<MemoryBuffer>> MB = MemoryBuffer::getFile(Path);
++  if (std::error_code EC = MB.getError())
++    return createStringError(EC, Twine("cannot open layout file '") + Path +
++                                     "': " + EC.message());
++
++  std::vector<Entry> Entries;
++  for (line_iterator LI(*MB.get(), /*SkipBlanks=*/true, /*CommentMarker=*/'#');
++       !LI.is_at_eof(); ++LI) {
++    StringRef Line = LI->trim();
++    if (Line.empty())
++      continue;
++
++    StringRef Name, OffsetStr;
++    std::tie(Name, OffsetStr) = Line.split(' ');
++    Name = Name.trim();
++    OffsetStr = OffsetStr.trim();
++
++    uint64_t Offset;
++    if (Name.empty() || OffsetStr.empty() ||
++        OffsetStr.getAsInteger(/*Radix=*/0, Offset))
++      return createStringError(inconvertibleErrorCode(),
++                               Twine("malformed entry at ") + Path + ":" +
++                                   Twine(LI.line_number()));
++
++    Entries.push_back({Name.str(), Offset});
++  }
++  return Entries;
++}
++
++/// Return all entries in both \p EntriesA and \p EntriesB in A's order.
++static std::vector<Match> findMatches(ArrayRef<Entry> EntriesA,
++                                      ArrayRef<Entry> EntriesB) {
++  StringMap<const Entry *> ExactB;
++  StringMap<const Entry *> CommonB;
++  StringMap<unsigned> CommonCountA;
++  StringMap<unsigned> CommonCountB;
++
++  for (const Entry &E : EntriesA)
++    if (std::optional<StringRef> Common = getLTOCommonName(E.Name))
++      ++CommonCountA[*Common];
++
++  for (const Entry &E : EntriesB) {
++    ExactB[E.Name] = &E;
++    if (std::optional<StringRef> Common = getLTOCommonName(E.Name)) {
++      ++CommonCountB[*Common];
++      CommonB[*Common] = &E;
++    }
++  }
++
++  std::vector<Match> Matches;
++  for (const Entry &E : EntriesA) {
++    const Entry *Match = ExactB.lookup(E.Name);
++    if (!Match) {
++      std::optional<StringRef> Common = getLTOCommonName(E.Name);
++      if (Common && CommonCountA.lookup(*Common) == 1 &&
++          CommonCountB.lookup(*Common) == 1)
++        Match = CommonB.lookup(*Common);
++    }
++    if (Match)
++      Matches.emplace_back(&E, Match);
++  }
++  return Matches;
++}
++
++static std::vector<Match>
++findLongestIncreasingSubsequence(ArrayRef<Match> Matches) {
++  if (Matches.empty())
++    return {};
++
++  const size_t NoIndex = std::numeric_limits<size_t>::max();
++  std::vector<size_t> Tails;
++  std::vector<size_t> Previous(Matches.size(), NoIndex);
++
++  for (size_t I = 0; I != Matches.size(); ++I) {
++    const uint64_t Offset = Matches[I].second->Offset;
++    auto It = std::lower_bound(Tails.begin(), Tails.end(), Offset,
++                               [&](size_t Index, uint64_t Key) {
++                                 return Matches[Index].second->Offset < Key;
++                               });
++    if (It != Tails.begin())
++      Previous[I] = It[-1];
++
++    if (It == Tails.end())
++      Tails.push_back(I);
++    else
++      *It = I;
++  }
++
++  std::vector<Match> Result;
++  for (size_t I = Tails.back(); I != NoIndex; I = Previous[I])
++    Result.push_back(Matches[I]);
++  std::reverse(Result.begin(), Result.end());
++  return Result;
++}
++
++} // namespace
++
++Error bolt::mergeFunctionLayouts(StringRef PathA, StringRef PathB,
++                                 StringRef OutputPath, raw_ostream &Log) {
++  Expected<std::vector<Entry>> EntriesA = parseFile(PathA);
++  if (!EntriesA)
++    return EntriesA.takeError();
++
++  Expected<std::vector<Entry>> EntriesB = parseFile(PathB);
++  if (!EntriesB)
++    return EntriesB.takeError();
++
++  const std::vector<Match> Matches =
++      findLongestIncreasingSubsequence(findMatches(*EntriesA, *EntriesB));
++
++  std::error_code EC;
++  raw_fd_ostream OS(OutputPath, EC, sys::fs::OpenFlags::OF_None);
++  if (EC)
++    return createStringError(EC, Twine("cannot open output layout file '") +
++                                     OutputPath + "': " + EC.message());
++
++  uint64_t Matched = 0;
++  bool First = true;
++  uint64_t PrevMergedOff = 0, PrevAOff = 0, PrevBOff = 0;
++  for (const Match &MatchPair : Matches) {
++    const Entry &A = *MatchPair.first;
++    const Entry &B = *MatchPair.second;
++    const uint64_t AOff = A.Offset;
++    const uint64_t BOff = B.Offset;
++
++    uint64_t MergedOff;
++    if (First) {
++      MergedOff = alignTo(std::max(AOff, BOff), LayoutAlignment);
++    } else {
++      const uint64_t RequiredGap = std::max(AOff - PrevAOff, BOff - PrevBOff);
++      MergedOff =
++          alignTo(PrevMergedOff + RequiredGap + LayoutSlack, LayoutAlignment);
++    }
++
++    OS << A.Name << " 0x" << Twine::utohexstr(MergedOff) << "\n";
++    if (B.Name != A.Name)
++      OS << B.Name << " 0x" << Twine::utohexstr(MergedOff) << "\n";
++
++    ++Matched;
++    PrevMergedOff = MergedOff;
++    PrevAOff = AOff;
++    PrevBOff = BOff;
++    First = false;
++  }
++
++  const uint64_t PossibleMatches = std::min(EntriesA->size(), EntriesB->size());
++  const uint64_t MatchedPercent =
++      PossibleMatches ? Matched * 100 / PossibleMatches : 0;
++  Log << "BOLT-ALIGN: pinned " << Matched << " functions (" << MatchedPercent
++      << "%)\n";
++
++  return Error::success();
++}
+diff --git a/bolt/lib/Rewrite/RewriteInstance.cpp b/bolt/lib/Rewrite/RewriteInstance.cpp
+index a12b83859669..1bfed17372c9 100644
+--- a/bolt/lib/Rewrite/RewriteInstance.cpp
++++ b/bolt/lib/Rewrite/RewriteInstance.cpp
+@@ -17,6 +17,7 @@
+ #include "bolt/Core/MCPlusBuilder.h"
+ #include "bolt/Core/ParallelUtilities.h"
+ #include "bolt/Core/Relocation.h"
++#include "bolt/Passes/AssignDesiredFunctionOffset.h"
+ #include "bolt/Passes/BinaryPasses.h"
+ #include "bolt/Passes/CacheMetrics.h"
+ #include "bolt/Passes/IdenticalCodeFolding.h"
+@@ -173,6 +174,12 @@ static cl::opt<std::string> FunctionNamesFileNR(
+     cl::desc("file with list of functions to optimize (non-regex)"), cl::Hidden,
+     cl::cat(BoltCategory));
+ 
++static cl::opt<std::string> GenerateFunctionLayoutFile(
++    "generate-function-layout-file",
++    cl::desc("write a file mapping each emitted function to its finalized byte "
++             "offset within its output code section."),
++    cl::value_desc("filename"), cl::Hidden, cl::cat(BoltCategory));
++
+ cl::opt<bool>
+ KeepTmp("keep-tmp",
+   cl::desc("preserve intermediate .o file"),
+@@ -2771,6 +2778,13 @@ void RewriteInstance::readDynamicRelocations(const SectionRef &Section,
+   });
+ 
+   for (const RelocationRef &Rel : Section.relocations()) {
++    uint32_t JmpRelocationIndex = Relocation::NoJmpRelocationIndex;
++    if (IsJmpRel) {
++      assert(NumJmpRelocations < Relocation::NoJmpRelocationIndex &&
++             "too many DT_JMPREL relocations");
++      JmpRelocationIndex = NumJmpRelocations++;
++    }
++
+     const uint32_t RType = Relocation::getType(Rel);
+     if (Relocation::isNone(RType))
+       continue;
+@@ -2790,17 +2804,13 @@ void RewriteInstance::readDynamicRelocations(const SectionRef &Section,
+       (void)SymbolAddress;
+     }
+ 
+-    LLVM_DEBUG(
+-      SmallString<16> TypeName;
+-      Rel.getTypeName(TypeName);
+-      dbgs() << "BOLT-DEBUG: dynamic relocation at 0x"
+-             << Twine::utohexstr(Rel.getOffset()) << " : " << TypeName
+-             << " : " << SymbolName << " : " <<  Twine::utohexstr(SymbolAddress)
+-             << " : + 0x" << Twine::utohexstr(Addend) << '\n'
+-    );
+-
+-    if (IsJmpRel)
+-      IsJmpRelocation[RType] = true;
++    const uint64_t RelOffset = Rel.getOffset();
++    LLVM_DEBUG(SmallString<16> TypeName; Rel.getTypeName(TypeName);
++               dbgs() << "BOLT-DEBUG: dynamic relocation at 0x"
++                      << Twine::utohexstr(RelOffset) << " : " << TypeName
++                      << " : " << SymbolName << " : "
++                      << Twine::utohexstr(SymbolAddress) << " : + 0x"
++                      << Twine::utohexstr(Addend) << '\n');
+ 
+     if (Symbol)
+       SymbolIndex[Symbol] = getRelocationSymbol(InputFile, Rel);
+@@ -2814,10 +2824,11 @@ void RewriteInstance::readDynamicRelocations(const SectionRef &Section,
+                       "relocation type\n";
+         exit(1);
+       }
+-      handleRelativeDynamicRelocation(Rel.getOffset(), ReferencedAddress);
++      handleRelativeDynamicRelocation(RelOffset, ReferencedAddress);
+     }
+ 
+-    BC->addDynamicRelocation(Rel.getOffset(), Symbol, RType, Addend);
++    BC->addDynamicRelocation(RelOffset, Symbol, RType, Addend,
++                             /*Value=*/0, /*IsRELR=*/false, JmpRelocationIndex);
+   }
+ }
+ 
+@@ -4003,6 +4014,76 @@ void RewriteInstance::preregisterSections() {
+                               ELF::SHT_PROGBITS, ROFlags);
+ }
+ 
++static void printFunctionLayoutStats(BinaryContext &BC) {
++  uint64_t LayoutConstraints = 0;
++  uint64_t SatisfiedLayoutConstraints = 0;
++  for (const BinaryFunction *Function : BC.getAllBinaryFunctions()) {
++    const std::optional<uint64_t> DesiredOffset = Function->getDesiredOffset();
++
++    if (!DesiredOffset || !Function->isEmitted())
++      continue;
++
++    ErrorOr<BinarySection &> Section = Function->getCodeSection();
++    if (!Section)
++      continue;
++
++    ++LayoutConstraints;
++
++    const uint64_t ActualOffset =
++        Function->getOutputAddress() - Section->getOutputAddress();
++    if (ActualOffset == *DesiredOffset) {
++      ++SatisfiedLayoutConstraints;
++      continue;
++    }
++
++    BC.errs() << "BOLT-WARNING: --function-layout-file: missed offset 0x"
++              << Twine::utohexstr(*DesiredOffset) << " for function '"
++              << Function->getOneName() << "' (emitted at 0x"
++              << Twine::utohexstr(ActualOffset) << ")\n";
++  }
++  if (LayoutConstraints)
++    BC.outs() << "BOLT-INFO: --function-layout-file: satisfied "
++              << SatisfiedLayoutConstraints << " of " << LayoutConstraints
++              << " layout constraints\n";
++}
++
++static void generateFunctionLayoutFile(BinaryContext &BC) {
++  std::error_code EC;
++  raw_fd_ostream OS(opts::GenerateFunctionLayoutFile, EC,
++                    sys::fs::OpenFlags::OF_None);
++  if (EC) {
++    BC.errs() << "BOLT-ERROR: cannot open --generate-function-layout-file '"
++              << opts::GenerateFunctionLayoutFile << "': " << EC.message()
++              << "\n";
++    exit(1);
++  }
++
++  std::vector<std::pair<uint64_t, const BinaryFunction *>> Functions;
++  for (const BinaryFunction *Function : BC.getAllBinaryFunctions()) {
++    if (!Function->isEmitted())
++      continue;
++    ErrorOr<BinarySection &> Section = Function->getCodeSection();
++    if (!Section)
++      continue;
++    Functions.emplace_back(Function->getOutputAddress(), Function);
++  }
++
++  llvm::sort(Functions, llvm::less_first());
++
++  for (const auto &[OutputAddress, Function] : Functions) {
++    const uint64_t SectionAddress =
++        Function->getCodeSection()->getOutputAddress();
++    assert(OutputAddress >= SectionAddress &&
++           "function output address precedes its section");
++    const uint64_t Offset = OutputAddress - SectionAddress;
++    OS << Function->getOneName() << " 0x" << Twine::utohexstr(Offset) << "\n";
++  }
++
++  BC.outs() << "BOLT-INFO: --generate-function-layout-file: wrote "
++            << Functions.size() << " functions to "
++            << opts::GenerateFunctionLayoutFile << "\n";
++}
++
+ void RewriteInstance::emitAndLink() {
+   NamedRegionTimer T("emitAndLink", "emit and link", TimerGroupName,
+                      TimerGroupDesc, opts::TimeRewrite);
+@@ -4073,6 +4154,12 @@ void RewriteInstance::emitAndLink() {
+   // layout. Only do this for the object created by ourselves.
+   updateOutputValues(*Linker);
+ 
++  if (!opts::FunctionLayoutFile.empty())
++    printFunctionLayoutStats(*BC);
++
++  if (!opts::GenerateFunctionLayoutFile.empty())
++    generateFunctionLayoutFile(*BC);
++
+   if (opts::UpdateDebugSections) {
+     DebugInfoRewriter->updateLineTableOffsets(
+         static_cast<MCObjectStreamer &>(*Streamer).getAssembler());
+@@ -5893,72 +5980,75 @@ RewriteInstance::patchELFAllocatableRelaSections(ELFObjectFile<ELFT> *File) {
+ 
+   DynamicRelativeRelocationsCount = 0;
+ 
+-  auto writeRela = [&OS](const Elf_Rela *RelA, uint64_t &Offset) {
++  auto writeRela = [&OS](const Elf_Rela *RelA, uint64_t Offset) {
+     OS.pwrite(reinterpret_cast<const char *>(RelA), sizeof(*RelA), Offset);
+-    Offset += sizeof(*RelA);
+   };
+ 
+-  auto writeRelocations = [&](bool PatchRelative) {
+-    for (BinarySection &Section : BC->allocatableSections()) {
+-      const uint64_t SectionInputAddress = Section.getAddress();
+-      uint64_t SectionAddress = Section.getOutputAddress();
+-      if (!SectionAddress)
+-        SectionAddress = SectionInputAddress;
++  auto writeRelocation = [&](BinarySection &Section, const Relocation &Rel,
++                             uint64_t Offset, uint64_t EndOffset) {
++    const uint64_t SectionInputAddress = Section.getAddress();
++    uint64_t SectionAddress = Section.getOutputAddress();
++    if (!SectionAddress)
++      SectionAddress = SectionInputAddress;
+ 
+-      for (const Relocation &Rel : Section.dynamicRelocations()) {
+-        const bool IsRelative = Rel.isRelative();
+-        if (PatchRelative != IsRelative || Rel.isRELR())
+-          continue;
++    Elf_Rela NewRelA;
++    MCSymbol *Symbol = Rel.Symbol;
++    uint32_t SymbolIdx = 0;
++    uint64_t Addend = Rel.Addend;
++    uint64_t RelOffset =
++        getNewFunctionOrDataAddress(SectionInputAddress + Rel.Offset);
+ 
+-        if (IsRelative)
+-          ++DynamicRelativeRelocationsCount;
++    RelOffset = RelOffset == 0 ? SectionAddress + Rel.Offset : RelOffset;
++    if (Rel.Symbol) {
++      SymbolIdx = getOutputDynamicSymbolIndex(Symbol);
++    } else {
++      // Usually this case is used for R_*_(I)RELATIVE relocations
++      const uint64_t Address = getNewFunctionOrDataAddress(Addend);
++      if (Address)
++        Addend = Address;
++    }
+ 
+-        Elf_Rela NewRelA;
+-        MCSymbol *Symbol = Rel.Symbol;
+-        uint32_t SymbolIdx = 0;
+-        uint64_t Addend = Rel.Addend;
+-        uint64_t RelOffset =
+-            getNewFunctionOrDataAddress(SectionInputAddress + Rel.Offset);
++    NewRelA.setSymbolAndType(SymbolIdx, Rel.Type, EF.isMips64EL());
++    NewRelA.r_offset = RelOffset;
++    NewRelA.r_addend = Addend;
+ 
+-        RelOffset = RelOffset == 0 ? SectionAddress + Rel.Offset : RelOffset;
+-        if (Rel.Symbol) {
+-          SymbolIdx = getOutputDynamicSymbolIndex(Symbol);
+-        } else {
+-          // Usually this case is used for R_*_(I)RELATIVE relocations
+-          const uint64_t Address = getNewFunctionOrDataAddress(Addend);
+-          if (Address)
+-            Addend = Address;
+-        }
++    if (!Offset || !EndOffset) {
++      BC->errs() << "BOLT-ERROR: Invalid offsets for dynamic relocation\n";
++      exit(1);
++    }
+ 
+-        NewRelA.setSymbolAndType(SymbolIdx, Rel.Type, EF.isMips64EL());
+-        NewRelA.r_offset = RelOffset;
+-        NewRelA.r_addend = Addend;
++    if (Offset > EndOffset || EndOffset - Offset < sizeof(NewRelA)) {
++      BC->errs() << "BOLT-ERROR: Offset overflow for dynamic relocation\n";
++      exit(1);
++    }
+ 
+-        const bool IsJmpRel = IsJmpRelocation.contains(Rel.Type);
+-        uint64_t &Offset = IsJmpRel ? RelPltOffset : RelDynOffset;
+-        const uint64_t &EndOffset =
+-            IsJmpRel ? RelPltEndOffset : RelDynEndOffset;
+-        if (!Offset || !EndOffset) {
+-          BC->errs() << "BOLT-ERROR: Invalid offsets for dynamic relocation\n";
+-          exit(1);
+-        }
++    writeRela(&NewRelA, Offset);
++  };
+ 
+-        if (Offset + sizeof(NewRelA) > EndOffset) {
+-          BC->errs() << "BOLT-ERROR: Offset overflow for dynamic relocation\n";
+-          exit(1);
+-        }
++  auto writeDynRelocations = [&](bool PatchRelative) {
++    for (BinarySection &Section : BC->allocatableSections()) {
++      for (const Relocation &Rel : Section.dynamicRelocations()) {
++        if (Rel.isJmpRelocation())
++          continue;
++
++        const bool IsRelative = Rel.isRelative();
++        if (PatchRelative != IsRelative || Rel.isRELR())
++          continue;
+ 
+-        writeRela(&NewRelA, Offset);
++        if (IsRelative)
++          ++DynamicRelativeRelocationsCount;
++        writeRelocation(Section, Rel, RelDynOffset, RelDynEndOffset);
++        RelDynOffset += sizeof(Elf_Rela);
+       }
+     }
+   };
+ 
+   // The dynamic linker expects all R_*_RELATIVE relocations in RELA
+   // to be emitted first.
+-  writeRelocations(/* PatchRelative */ true);
+-  writeRelocations(/* PatchRelative */ false);
++  writeDynRelocations(/* PatchRelative */ true);
++  writeDynRelocations(/* PatchRelative */ false);
+ 
+-  auto fillNone = [&](uint64_t &Offset, uint64_t EndOffset) {
++  auto fillNone = [&](uint64_t Offset, uint64_t EndOffset) {
+     if (!Offset)
+       return;
+ 
+@@ -5966,15 +6056,32 @@ RewriteInstance::patchELFAllocatableRelaSections(ELFObjectFile<ELFT> *File) {
+     RelA.setSymbolAndType(0, Relocation::getNone(), EF.isMips64EL());
+     RelA.r_offset = 0;
+     RelA.r_addend = 0;
+-    while (Offset < EndOffset)
++    while (Offset < EndOffset) {
+       writeRela(&RelA, Offset);
++      Offset += sizeof(Elf_Rela);
++    }
+ 
+     assert(Offset == EndOffset && "Unexpected section overflow");
+   };
+ 
+-  // Fill the rest of the sections with R_*_NONE relocations
+   fillNone(RelDynOffset, RelDynEndOffset);
++
++  // Start with an empty DT_JMPREL table and patch relocations
++  // back into their original slots.
+   fillNone(RelPltOffset, RelPltEndOffset);
++
++  for (BinarySection &Section : BC->allocatableSections()) {
++    for (const Relocation &Rel : Section.dynamicRelocations()) {
++      if (!Rel.isJmpRelocation())
++        continue;
++      assert(!Rel.isRELR() && "RELR relocation cannot belong to DT_JMPREL");
++
++      const uint64_t Offset =
++          RelPltOffset + Rel.getJmpRelocationIndex() * sizeof(Elf_Rela);
++
++      writeRelocation(Section, Rel, Offset, RelPltEndOffset);
++    }
++  }
+ }
+ 
+ template <typename ELFT>
+diff --git a/bolt/test/X86/llvm-bolt-align.s b/bolt/test/X86/llvm-bolt-align.s
+new file mode 100644
+index 000000000000..abca06d59e10
+--- /dev/null
++++ b/bolt/test/X86/llvm-bolt-align.s
+@@ -0,0 +1,85 @@
++# RUN: llvm-mc -filetype=obj -triple x86_64-unknown-unknown \
++# RUN:   --defsym VARIATION=0 %s -o %t.a.o
++# RUN: llvm-mc -filetype=obj -triple x86_64-unknown-unknown \
++# RUN:   --defsym VARIATION=1 %s -o %t.b.o
++# RUN: %clang %cflags %t.a.o -o %t.a.exe -Wl,-q
++# RUN: %clang %cflags %t.b.o -o %t.b.exe -Wl,-q
++# RUN: llvm-bolt-align %t.a.exe %t.b.exe -o-a=%t.a -o-b=%t.b 2>&1 | FileCheck %s
++# RUN: llvm-nm -n --defined-only %t.a \
++# RUN:   | awk '$3 ~ /^(main|funcb|funce)$/ { print $1, $3 }' > %t.a.nm
++# RUN: llvm-nm -n --defined-only %t.b \
++# RUN:   | awk '$3 ~ /^(main|funcb|funce)$/ { print $1, $3 }' > %t.b.nm
++# RUN: diff -u %t.a.nm %t.b.nm
++
++# CHECK: BOLT-ALIGN: pinned 3 functions (60%)
++# CHECK: BOLT-ALIGN: wrote aligned binaries
++
++  .macro emit_main
++  .globl main
++  .type main, %function
++main:
++  callq funca
++  callq funcb
++  callq funce
++  retq
++.size main, .-main
++  .endm
++
++  .macro emit_funca
++  .globl funca
++  .type funca, %function
++funca:
++.if VARIATION==1
++  .rept 32
++  nop
++  .endr
++.endif
++  retq
++.size funca, .-funca
++  .endm
++
++  .macro emit_funcb
++  .globl funcb
++  .type funcb, %function
++funcb:
++  retq
++.size funcb, .-funcb
++  .endm
++
++  .macro emit_funcc
++  .globl funcc
++  .type funcc, %function
++funcc:
++  retq
++.size funcc, .-funcc
++  .endm
++
++  .macro emit_funcd
++  .globl funcd
++  .type funcd, %function
++funcd:
++  retq
++.size funcd, .-funcd
++  .endm
++
++  .macro emit_funce
++  .globl funce
++  .type funce, %function
++funce:
++  retq
++.size funce, .-funce
++  .endm
++
++.if VARIATION==0
++  emit_main
++  emit_funca
++  emit_funcb
++  emit_funcc
++  emit_funce
++.else
++  emit_main
++  emit_funcb
++  emit_funca
++  emit_funcd
++  emit_funce
++.endif
+diff --git a/bolt/test/runtime/X86/rela-plt-order.c b/bolt/test/runtime/X86/rela-plt-order.c
+new file mode 100644
+index 000000000000..4a894ba8f6f6
+--- /dev/null
++++ b/bolt/test/runtime/X86/rela-plt-order.c
+@@ -0,0 +1,37 @@
++// REQUIRES: x86_64-linux, gnu_ld
++//
++// RUN: split-file %s %t
++// RUN: %clang %cflags -fPIC -shared -o %t/libexample.so \
++// RUN:   %t/example.c
++// RUN: %clang %cflags -fno-pie -no-pie -fuse-ld=bfd \
++// RUN:   -Wl,--emit-relocs -Wl,-rpath,\$ORIGIN -o %t/main %t/main.c \
++// RUN:   -L%t -lexample
++// RUN: llvm-readelf --dyn-relocations %t/main | \
++// RUN:   sed -n "/'PLT' relocation section/,/^$/p" | \
++// RUN:   awk '/^0/ { print $3, $5 }' > %t/main.plt
++// RUN: FileCheck %s --check-prefix=PLT-KINDS < %t/main.plt
++// RUN: llvm-bolt %t/main -o %t/main.bolt
++// RUN: llvm-readelf --dyn-relocations %t/main.bolt | \
++// RUN:   sed -n "/'PLT' relocation section/,/^$/p" | \
++// RUN:   awk '/^0/ { print $3, $5 }' > %t/main.bolt.plt
++// RUN: diff %t/main.plt %t/main.bolt.plt
++// RUN: %t/main.bolt
++
++// PLT-KINDS-DAG: R_X86_64_JUMP_SLOT long_name
++// PLT-KINDS-DAG: R_X86_64_IRELATIVE
++
++//--- main.c
++extern int long_name(void);
++
++__attribute__((target_clones("default,avx2"))) int foo(int x) { return x + 1; }
++
++int main(void) {
++  if (foo(1) != 2)
++    return 1;
++  if (long_name() != 0)
++    return 1;
++  return 0;
++}
++
++//--- example.c
++int long_name(void) { return 0; }
+diff --git a/bolt/tools/driver/CMakeLists.txt b/bolt/tools/driver/CMakeLists.txt
+index 4b3c7416de97..7505a1da5f3b 100644
+--- a/bolt/tools/driver/CMakeLists.txt
++++ b/bolt/tools/driver/CMakeLists.txt
+@@ -29,6 +29,7 @@ target_link_libraries(llvm-bolt
+ 
+ add_bolt_tool_symlink(perf2bolt llvm-bolt)
+ add_bolt_tool_symlink(llvm-boltdiff llvm-bolt)
++add_bolt_tool_symlink(llvm-bolt-align llvm-bolt)
+ 
+ add_dependencies(bolt llvm-bolt)
+ 
+diff --git a/bolt/tools/driver/llvm-bolt.cpp b/bolt/tools/driver/llvm-bolt.cpp
+index cc8e6d70001e..7f606dd07a28 100644
+--- a/bolt/tools/driver/llvm-bolt.cpp
++++ b/bolt/tools/driver/llvm-bolt.cpp
+@@ -14,6 +14,7 @@
+ 
+ #include "bolt/Profile/DataAggregator.h"
+ #include "bolt/Rewrite/MachORewriteInstance.h"
++#include "bolt/Rewrite/MergeFunctionLayouts.h"
+ #include "bolt/Rewrite/RewriteInstance.h"
+ #include "bolt/Utils/CommandLineOpts.h"
+ #include "llvm/MC/TargetRegistry.h"
+@@ -21,14 +22,23 @@
+ #include "llvm/Support/CommandLine.h"
+ #include "llvm/Support/Errc.h"
+ #include "llvm/Support/Error.h"
++#include "llvm/Support/FileUtilities.h"
+ #include "llvm/Support/ManagedStatic.h"
+ #include "llvm/Support/Path.h"
+ #include "llvm/Support/PrettyStackTrace.h"
++#include "llvm/Support/Program.h"
+ #include "llvm/Support/Signals.h"
+ #include "llvm/Support/TargetSelect.h"
+ 
+ #define DEBUG_TYPE "bolt"
+ 
++// FIXME: Is this portable enough?
++#if defined(_WIN32) || defined(_WIN64)
++#define NULL_FILE "nul"
++#else
++#define NULL_FILE "/dev/null"
++#endif
++
+ using namespace llvm;
+ using namespace object;
+ using namespace bolt;
+@@ -81,6 +91,18 @@ InputFilename2(
+   cl::Optional,
+   cl::cat(BoltDiffCategory));
+ 
++static cl::OptionCategory BoltAlignCategory("BOLT align options");
++
++static cl::OptionCategory *BoltAlignCategories[] = {&BoltAlignCategory};
++
++static cl::opt<std::string>
++    AlignOutputA("o-a", cl::desc("output path for aligned binary A"),
++                 cl::value_desc("filename"), cl::cat(BoltAlignCategory));
++
++static cl::opt<std::string>
++    AlignOutputB("o-b", cl::desc("output path for aligned binary B"),
++                 cl::value_desc("filename"), cl::cat(BoltAlignCategory));
++
+ } // namespace opts
+ 
+ static StringRef ToolName;
+@@ -147,6 +169,111 @@ void boltDiffMode(int argc, char **argv) {
+   opts::DiffOnly = true;
+ }
+ 
++static Error runBoltAlignCommand(StringRef ToolPath, StringRef Input,
++                                 StringRef Output, StringRef LayoutOption) {
++  std::string OutputArg = (Twine("-o=") + Output).str();
++  SmallVector<StringRef, 16> Args;
++  // Select normal BOLT mode even when the binary was copied as llvm-bolt-align.
++  Args.push_back("llvm-bolt");
++  Args.push_back(Input);
++  Args.push_back(OutputArg);
++  Args.push_back(LayoutOption);
++
++  outs().flush();
++  errs().flush();
++  std::string ErrMsg;
++  const int Result =
++      sys::ExecuteAndWait(ToolPath, Args, std::nullopt, {}, 0, 0, &ErrMsg);
++  if (Result < 0)
++    return createStringError(inconvertibleErrorCode(),
++                             Twine("failed to execute llvm-bolt-align: ") +
++                                 ErrMsg);
++  if (Result != 0)
++    return createStringError(inconvertibleErrorCode(),
++                             Twine("llvm-bolt-align exited with status ") +
++                                 Twine(Result));
++  return Error::success();
++}
++
++static Expected<std::string> createAlignTempFile(StringRef Label) {
++  SmallString<128> Path;
++  if (std::error_code EC = sys::fs::createTemporaryFile(
++          Twine("llvm-bolt-align-") + Label, "layout", Path))
++    return createStringError(EC, "cannot create temporary layout file");
++
++  return Path.str().str();
++}
++
++static int boltAlignMode(int argc, char **argv, StringRef ToolPath) {
++  cl::HideUnrelatedOptions(ArrayRef(opts::BoltAlignCategories));
++  cl::AddExtraVersionPrinter(printBoltRevision);
++  cl::ParseCommandLineOptions(
++      argc, argv,
++      "llvm-bolt-align - align the function layouts of two binaries\n"
++      "\nEXAMPLE: llvm-bolt-align a.out b.out -o-a=a.aligned -o-b=b.aligned\n");
++  if (opts::InputFilename2.empty()) {
++    errs() << ToolName << ": expected two input binaries.\n";
++    return EXIT_FAILURE;
++  }
++  if (opts::AlignOutputA.empty() || opts::AlignOutputB.empty()) {
++    errs() << ToolName << ": expected -o-a=<file> and -o-b=<file>.\n";
++    return EXIT_FAILURE;
++  }
++
++  Expected<std::string> NaturalLayoutAOrErr = createAlignTempFile("natural-a");
++  if (!NaturalLayoutAOrErr)
++    report_error("llvm-bolt-align", NaturalLayoutAOrErr.takeError());
++  const std::string NaturalLayoutA = std::move(*NaturalLayoutAOrErr);
++  FileRemover RemoveNaturalLayoutA(NaturalLayoutA);
++
++  Expected<std::string> NaturalLayoutBOrErr = createAlignTempFile("natural-b");
++  if (!NaturalLayoutBOrErr)
++    report_error("llvm-bolt-align", NaturalLayoutBOrErr.takeError());
++  const std::string NaturalLayoutB = std::move(*NaturalLayoutBOrErr);
++  FileRemover RemoveNaturalLayoutB(NaturalLayoutB);
++
++  Expected<std::string> MergedOrErr = createAlignTempFile("merged");
++  if (!MergedOrErr)
++    report_error("llvm-bolt-align", MergedOrErr.takeError());
++  const std::string Merged = std::move(*MergedOrErr);
++  FileRemover RemoveMerged(Merged);
++
++  // FIXME: The FileRemovers will not run on exit(1).
++
++  outs() << "BOLT-ALIGN: measuring natural binary A layout\n";
++  if (Error E = runBoltAlignCommand(
++          ToolPath, opts::InputFilename, NULL_FILE,
++          (Twine("--generate-function-layout-file=") + NaturalLayoutA).str()))
++    report_error(opts::InputFilename, std::move(E));
++
++  outs() << "BOLT-ALIGN: measuring natural binary B layout\n";
++  if (Error E = runBoltAlignCommand(
++          ToolPath, opts::InputFilename2, NULL_FILE,
++          (Twine("--generate-function-layout-file=") + NaturalLayoutB).str()))
++    report_error(opts::InputFilename2, std::move(E));
++
++  if (Error E = bolt::mergeFunctionLayouts(NaturalLayoutA, NaturalLayoutB,
++                                           Merged, outs()))
++    report_error("llvm-bolt-align", std::move(E));
++
++  outs() << "BOLT-ALIGN: rewriting binary A\n";
++  if (Error E = runBoltAlignCommand(
++          ToolPath, opts::InputFilename, opts::AlignOutputA,
++          (Twine("--function-layout-file=") + Merged).str()))
++    report_error(opts::InputFilename, std::move(E));
++
++  outs() << "BOLT-ALIGN: rewriting binary B\n";
++  if (Error E = runBoltAlignCommand(
++          ToolPath, opts::InputFilename2, opts::AlignOutputB,
++          (Twine("--function-layout-file=") + Merged).str()))
++    report_error(opts::InputFilename2, std::move(E));
++
++  outs() << "BOLT-ALIGN: wrote aligned binaries to " << opts::AlignOutputA
++         << " and " << opts::AlignOutputB << "\n";
++
++  return EXIT_SUCCESS;
++}
++
+ void boltMode(int argc, char **argv) {
+   cl::HideUnrelatedOptions(ArrayRef(opts::BoltCategories));
+   // Register the target printer for --version.
+@@ -188,6 +315,8 @@ int main(int argc, char **argv) {
+     perf2boltMode(argc, argv);
+   else if (llvm::sys::path::filename(ToolName).starts_with("llvm-boltdiff"))
+     boltDiffMode(argc, argv);
++  else if (llvm::sys::path::filename(ToolName).starts_with("llvm-bolt-align"))
++    return boltAlignMode(argc, argv, ToolPath);
+   else
+     boltMode(argc, argv);
+ 
+diff --git a/llvm/include/llvm/MC/MCObjectStreamer.h b/llvm/include/llvm/MC/MCObjectStreamer.h
+index 003f6106d15b..3a5961581f40 100644
+--- a/llvm/include/llvm/MC/MCObjectStreamer.h
++++ b/llvm/include/llvm/MC/MCObjectStreamer.h
+@@ -143,6 +143,8 @@ public:
+                      uint8_t Fill, const MCSubtargetInfo &STI) override;
+   void emitValueToOffset(const MCExpr *Offset, unsigned char Value,
+                          SMLoc Loc) override;
++  void emitValueToOffset(const MCExpr *Offset, unsigned char Value, SMLoc Loc,
++                         bool AllowOmission);
+   void emitDwarfLocDirective(unsigned FileNo, unsigned Line, unsigned Column,
+                              unsigned Flags, unsigned Isa,
+                              unsigned Discriminator, StringRef FileName,
+diff --git a/llvm/include/llvm/MC/MCSection.h b/llvm/include/llvm/MC/MCSection.h
+index 239a9654a410..76b4731f70b7 100644
+--- a/llvm/include/llvm/MC/MCSection.h
++++ b/llvm/include/llvm/MC/MCSection.h
+@@ -449,14 +449,20 @@ class MCOrgFragment : public MCFragment {
+   /// Source location of the directive that this fragment was created for.
+   SMLoc Loc;
+ 
++  /// Whether the fragment may be omitted if we missed the target offset.
++  bool AllowOmission = false;
++
+ public:
+-  MCOrgFragment(const MCExpr &Offset, int8_t Value, SMLoc Loc)
+-      : MCFragment(FT_Org), Value(Value), Offset(&Offset), Loc(Loc) {}
++  MCOrgFragment(const MCExpr &Offset, int8_t Value, SMLoc Loc,
++                bool AllowOmission = false)
++      : MCFragment(FT_Org), Value(Value), Offset(&Offset), Loc(Loc),
++        AllowOmission(AllowOmission) {}
+ 
+   const MCExpr &getOffset() const { return *Offset; }
+   uint8_t getValue() const { return Value; }
+ 
+   SMLoc getLoc() const { return Loc; }
++  bool getAllowOmission() const { return AllowOmission; }
+ 
+   static bool classof(const MCFragment *F) {
+     return F->getKind() == MCFragment::FT_Org;
+diff --git a/llvm/lib/MC/MCAssembler.cpp b/llvm/lib/MC/MCAssembler.cpp
+index 85463fc2d56e..c5f26f15cc4a 100644
+--- a/llvm/lib/MC/MCAssembler.cpp
++++ b/llvm/lib/MC/MCAssembler.cpp
+@@ -263,6 +263,8 @@ uint64_t MCAssembler::computeFragmentSize(const MCFragment &F) const {
+       TargetLocation += Val;
+     }
+     int64_t Size = TargetLocation - FragmentOffset;
++    if (Size < 0 && OF.getAllowOmission())
++      return 0;
+     if (Size < 0 || Size >= 0x40000000) {
+       recordError(OF.getLoc(), "invalid .org offset '" + Twine(TargetLocation) +
+                                    "' (at offset '" + Twine(FragmentOffset) +
+diff --git a/llvm/lib/MC/MCObjectStreamer.cpp b/llvm/lib/MC/MCObjectStreamer.cpp
+index d89e5df706b2..a54a0311aaca 100644
+--- a/llvm/lib/MC/MCObjectStreamer.cpp
++++ b/llvm/lib/MC/MCObjectStreamer.cpp
+@@ -704,7 +704,13 @@ void MCObjectStreamer::emitPrefAlign(Align Alignment, const MCSymbol &End,
+ void MCObjectStreamer::emitValueToOffset(const MCExpr *Offset,
+                                          unsigned char Value,
+                                          SMLoc Loc) {
+-  newSpecialFragment<MCOrgFragment>(*Offset, Value, Loc);
++  emitValueToOffset(Offset, Value, Loc, /*AllowOmission=*/false);
++}
++
++void MCObjectStreamer::emitValueToOffset(const MCExpr *Offset,
++                                         unsigned char Value, SMLoc Loc,
++                                         bool AllowOmission) {
++  newSpecialFragment<MCOrgFragment>(*Offset, Value, Loc, AllowOmission);
+ }
+ 
+ void MCObjectStreamer::emitRelocDirective(const MCExpr &Offset, StringRef Name,

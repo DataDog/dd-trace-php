@@ -27,21 +27,21 @@ use PHPUnit\Framework\TestCase;
 final class ExposureHookTest extends TestCase
 {
     private ExposureTestEvaluator $evaluator;
-    private ExposureTestCache $cache;
+    private ExposureTestRecorder $recorder;
     /** @var list<ExposureEvaluation> */
     private array $evaluations = [];
 
     protected function setUp(): void
     {
         $this->evaluator = new ExposureTestEvaluator();
-        $this->cache = new ExposureTestCache();
+        $this->recorder = new ExposureTestRecorder();
         $api = OpenFeatureAPI::getInstance();
         $api->clearHooks();
         $api->setProvider(DataDogProvider::createWithDependencies(
             $this->evaluator,
             new NullLogger(LogLevel::EMERGENCY),
             null,
-            [$this->cache, 'record']
+            [$this->recorder, 'record']
         ));
         $api->addHooks(new ExposureHook(function (ExposureEvaluation $evaluation): void {
             $this->evaluations[] = $evaluation;
@@ -54,7 +54,7 @@ final class ExposureHookTest extends TestCase
         Logger::reset();
     }
 
-    public function testFirstEvaluationIsANewExposureAndARepeatIsACacheHit(): void
+    public function testCallbackReceivesRepeatExposures(): void
     {
         $this->evaluator->exposure('flag', 'on', 7);
 
@@ -63,11 +63,9 @@ final class ExposureHookTest extends TestCase
 
         [$first, $repeat] = $this->evaluations;
         self::assertTrue($first->isExposure());
-        self::assertFalse($first->isCacheHit());
-        self::assertTrue($first->shouldSend());
+
         self::assertTrue($repeat->isExposure());
-        self::assertTrue($repeat->isCacheHit());
-        self::assertFalse($repeat->shouldSend());
+
         self::assertSame('flag', $first->getFlagKey());
         self::assertSame('on', $first->getVariant());
         self::assertSame('alloc', $first->getAllocationKey());
@@ -75,11 +73,11 @@ final class ExposureHookTest extends TestCase
         self::assertSame('user-1', $first->getTargetingKey());
         self::assertSame(
             [['flag', 'user-1', ['plan' => 'pro'], 'alloc', 'on', 7], ['flag', 'user-1', ['plan' => 'pro'], 'alloc', 'on', 7]],
-            $this->cache->calls
+            $this->recorder->calls
         );
     }
 
-    public function testVariantAndSerialIdChangesAreNewExposures(): void
+    public function testReportsSplitSerialIdChanges(): void
     {
         $this->evaluator->exposure('flag', 'on', 1);
         $this->evaluate('flag');
@@ -90,7 +88,7 @@ final class ExposureHookTest extends TestCase
         $this->evaluator->exposure('flag', 'off', null);
         $this->evaluate('flag');
 
-        self::assertSame([true, true, true, true], array_map(fn ($e) => $e->shouldSend(), $this->evaluations));
+        self::assertSame([1, 1, 2, null], array_map(fn ($e) => $e->getSplitSerialId(), $this->evaluations));
     }
 
     public function testFailedEvaluationRecordsNothing(): void
@@ -99,10 +97,9 @@ final class ExposureHookTest extends TestCase
 
         self::assertSame('default', $this->evaluate('flag'));
 
-        self::assertSame([], $this->cache->calls);
+        self::assertSame([], $this->recorder->calls);
         self::assertCount(1, $this->evaluations);
         self::assertFalse($this->evaluations[0]->isExposure());
-        self::assertFalse($this->evaluations[0]->shouldSend());
         self::assertNull($this->evaluations[0]->getVariant());
     }
 
@@ -121,7 +118,7 @@ final class ExposureHookTest extends TestCase
 
         $this->evaluate('flag');
 
-        self::assertSame([], $this->cache->calls);
+        self::assertSame([], $this->recorder->calls);
         self::assertFalse($this->evaluations[0]->isExposure());
     }
 
@@ -132,7 +129,7 @@ final class ExposureHookTest extends TestCase
 
         $this->evaluate('flag');
 
-        self::assertSame([], $this->cache->calls);
+        self::assertSame([], $this->recorder->calls);
         self::assertFalse($this->evaluations[0]->isExposure());
     }
 
@@ -169,7 +166,7 @@ final class ExposureHookTest extends TestCase
         $client->getStringValue('flag', 'default', new EvaluationContext('user-1', new Attributes(['plan' => 'pro'])));
 
         self::assertSame('user-1', $this->evaluations[0]->getTargetingKey());
-        self::assertSame('user-1', $this->cache->calls[0][1]);
+        self::assertSame('user-1', $this->recorder->calls[0][1]);
         self::assertSame(['plan' => 'pro'], $this->evaluations[0]->getEvaluationContext()->getAttributes()->toArray());
     }
 
@@ -179,7 +176,7 @@ final class ExposureHookTest extends TestCase
 
         $this->evaluate('flag');
 
-        self::assertSame([], $this->cache->calls);
+        self::assertSame([], $this->recorder->calls);
         self::assertFalse($this->evaluations[0]->isExposure());
         self::assertSame('on', $this->evaluations[0]->getVariant());
     }
@@ -214,20 +211,8 @@ final class ExposureHookTest extends TestCase
 
         self::assertSame('default', $this->evaluate('flag'));
 
-        self::assertSame([], $this->cache->calls);
+        self::assertSame([], $this->recorder->calls);
         self::assertFalse($this->evaluations[0]->isExposure());
-    }
-
-    public function testRecorderUnavailableIsAnExposureWithoutAVerdict(): void
-    {
-        $this->evaluator->exposure('flag', 'on', 1);
-        $this->cache->verdict = null;
-
-        $this->evaluate('flag');
-
-        self::assertTrue($this->evaluations[0]->isExposure());
-        self::assertFalse($this->evaluations[0]->isCacheHit());
-        self::assertFalse($this->evaluations[0]->shouldSend());
     }
 
     public function testCallbackFailureDoesNotAffectTheEvaluation(): void
@@ -295,7 +280,7 @@ final class ExposureHookTest extends TestCase
         self::assertNotSame($context, $evaluation->getEvaluationContext());
         self::assertSame('user-1', $evaluation->getEvaluationContext()->getTargetingKey());
         self::assertSame(['plan' => 'pro'], $evaluation->getEvaluationContext()->getAttributes()->toArray());
-        self::assertSame([['holdout.assignment_group' => 'status_quo']], $this->cache->features);
+        self::assertSame([['holdout.assignment_group' => 'status_quo']], $this->recorder->features);
     }
 
     public function testSplitWithoutFeaturesHasNoFeatures(): void
@@ -307,7 +292,7 @@ final class ExposureHookTest extends TestCase
         self::assertSame([], $this->evaluations[0]->getFeatures());
     }
 
-    public function testMetadataCarriesHookFeaturesAndTheFinalVerdict(): void
+    public function testMetadataCarriesHookFeatures(): void
     {
         if (!method_exists(ResolutionDetails::class, 'getMetadata')) {
             self::markTestSkipped('open-feature/sdk before 2.4.0 has no flag metadata');
@@ -315,33 +300,6 @@ final class ExposureHookTest extends TestCase
         $this->evaluator->exposure('flag', 'on', 3, true, [
             ['key' => 'holdout.key', 'value' => 'h1', 'destinations' => ['HOOK']],
         ]);
-        $capture = new class extends AbstractHook {
-            public ?ResolutionDetails $details = null;
-
-            public function supportsFlagValueType(string $flagValueType): bool
-            {
-                return true;
-            }
-
-            public function before(HookContext $context, HookHints $hints): ?\OpenFeature\interfaces\flags\EvaluationContext
-            {
-                return null;
-            }
-
-            public function after(HookContext $context, ResolutionDetails $details, HookHints $hints): void
-            {
-                $this->details = $details;
-            }
-
-            public function error(HookContext $context, \Throwable $error, HookHints $hints): void
-            {
-            }
-
-            public function finally(HookContext $context, HookHints $hints): void
-            {
-            }
-        };
-        OpenFeatureAPI::getInstance()->addHooks($capture);
 
         $details = OpenFeatureAPI::getInstance()->getClient()->getStringDetails(
             'flag',
@@ -353,10 +311,7 @@ final class ExposureHookTest extends TestCase
             ['__dd_feature.holdout.key' => 'h1', '__dd_do_log' => true, '__dd_split_serial_id' => 3],
             $details->getMetadata()
         );
-        self::assertSame(
-            ['__dd_exposure_cache_hit' => false, '__dd_feature.holdout.key' => 'h1', '__dd_do_log' => true, '__dd_split_serial_id' => 3],
-            $capture->details->getMetadata()
-        );
+
     }
 
     public function testOtherProvidersSkipTheCallbackWithOneWarning(): void
@@ -380,7 +335,7 @@ final class ExposureHookTest extends TestCase
         }
         $this->evaluator->exposure('flag', 'on', 1);
         $providerLogger = new ExposureTestLogger();
-        $provider = DataDogProvider::createWithDependencies($this->evaluator, $providerLogger, null, [$this->cache, 'record']);
+        $provider = DataDogProvider::createWithDependencies($this->evaluator, $providerLogger, null, [$this->recorder, 'record']);
         OpenFeatureAPI::getInstance()->setProvider(new \OpenFeature\implementation\multiprovider\MultiProvider([
             ['name' => 'datadog', 'provider' => $provider],
         ]));
@@ -388,7 +343,7 @@ final class ExposureHookTest extends TestCase
         self::assertSame('on', $this->evaluate('flag'));
         self::assertSame('on', $this->evaluate('flag'));
 
-        self::assertSame([], $this->cache->calls);
+        self::assertSame([], $this->recorder->calls);
         self::assertSame([], $this->evaluations);
         self::assertCount(1, $providerLogger->warnings);
         self::assertStringContainsString('inside a MultiProvider', $providerLogger->warnings[0]);
@@ -400,7 +355,7 @@ final class ExposureHookTest extends TestCase
 
         OpenFeatureAPI::getInstance()->getProvider()->resolveStringValue('flag', 'default', new EvaluationContext('user-1'));
 
-        self::assertSame([], $this->cache->calls);
+        self::assertSame([], $this->recorder->calls);
     }
 
     private function evaluate(string $flagKey): string
@@ -456,27 +411,17 @@ final class ExposureTestEvaluator implements Evaluator
     }
 }
 
-final class ExposureTestCache
+final class ExposureTestRecorder
 {
     public array $calls = [];
     public array $features = [];
-    /** @var array<string, array> */
-    private array $entries = [];
-    public bool|null|string $verdict = 'cache';
 
-    public function record(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId, array $features = []): ?bool
+
+    public function record(string $flagKey, ?string $targetingKey, array $attributes, string $allocationKey, string $variant, ?int $serialId, array $features = []): void
     {
         $this->calls[] = [$flagKey, $targetingKey, $attributes, $allocationKey, $variant, $serialId];
         $this->features[] = $features;
-        if ($this->verdict !== 'cache') {
-            return $this->verdict;
-        }
-        $key = $flagKey . "\0" . $targetingKey;
-        $value = [$allocationKey, $variant, $serialId];
-        $new = ($this->entries[$key] ?? null) !== $value;
-        $this->entries[$key] = $value;
 
-        return $new;
     }
 }
 

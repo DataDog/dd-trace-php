@@ -1,9 +1,9 @@
 # Exposures in your own data store (OpenFeature)
 
-The Datadog OpenFeature provider sends exposures to Datadog. To also record
-exposures in your own data store, register `DDTrace\OpenFeature\ExposureHook`.
-It receives every completed evaluation with the same exposure decision that
-the provider uses for Datadog.
+To also record exposures in your own data store, register
+`DDTrace\OpenFeature\ExposureHook` on your OpenFeature client or API.
+For delivery exclusively to your own store, set
+`DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false`.
 
 ```php
 use DDTrace\OpenFeature\ExposureEvaluation;
@@ -12,12 +12,14 @@ use OpenFeature\OpenFeatureAPI;
 
 OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
     function (ExposureEvaluation $evaluation) use ($buffer): void {
-        if (!$evaluation->shouldSend()) {
+        if (!$evaluation->isExposure()) {
             return;
         }
         $features = $evaluation->getFeatures();
         $buffer->add([
             'flag' => $evaluation->getFlagKey(),
+            'allocation' => $evaluation->getAllocationKey(),
+            'split_serial_id' => $evaluation->getSplitSerialId(),
             'variant' => $evaluation->getVariant(),
             'subject' => $evaluation->getTargetingKey(),
             'holdout_key' => $features['holdout.key'] ?? null,
@@ -30,12 +32,8 @@ OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
 
 - The callback runs during the evaluation. Do not do I/O in it: copy what you
   need and write it later, for example after the response is sent.
-- `shouldSend()` is true for a successful evaluation of an allocation that logs
-  exposures, for a subject not yet exposed to the same allocation, variant and
-  split serial id in this PHP process. These are the exposures that the
-  provider sends to Datadog when Datadog logging is on.
 - `isExposure()` is true for every successful evaluation of an allocation that
-  logs exposures, including repeats. `isCacheHit()` tells repeats apart.
+  logs exposures, including repeats.
 - An evaluation that fails, including one that a later `after` hook fails, is
   not an exposure and records nothing.
 - Exposures are decided in the provider's own hook, so set the Datadog provider
@@ -48,9 +46,9 @@ OpenFeatureAPI::getInstance()->addHooks(new ExposureHook(
 - An exception from the callback does not affect the evaluation. The first one
   is logged as a warning, later ones at debug level.
 
-The exposure cache holds 65,536 entries per PHP process. A child created with
-`pcntl_fork()` starts with an empty cache. The Datadog sidecar deduplicates
-again across processes before it sends exposures to Datadog.
+Your consumer owns delivery and deduplication. To keep assignment changes, compare
+`(allocation, variant, split_serial_id)` with the last assignment for each `(flag, subject)`
+in your event stream. For example, `A → B → A → A` records `A, B, A`.
 
 ## Features
 
@@ -81,7 +79,12 @@ entries into `EvaluationDetails::getFlagMetadata()`.
 DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 ```
 
-The tracer then sends no exposures to Datadog. `ExposureHook` callbacks still
-receive every evaluation, and `shouldSend()` gives the same result as before.
-The default is `true`. This setting stops exposures only; evaluation counts
-have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`.
+With the default `true`, workers buffer assignment changes for the sidecar,
+which deduplicates across connected workers before sending to Datadog. Each
+pending batch keeps up to 1,000 rows and coalesces repeats per flag and subject.
+Delivery is best effort: a full buffer drops additional changes, and the transport
+drops batches above its encoded-size limit (4 MiB by default).
+
+The hook receives every completed evaluation with either setting; `isExposure()`
+selects eligible observations, including repeats. Evaluation counts use their
+own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`.

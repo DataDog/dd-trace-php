@@ -132,7 +132,7 @@ CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/debug \
   ../../zend_abstract_interface
 make -j$(nproc) all
 make test ARGS="--output-on-failure"
-grep -e "=== Total [0-9]+ memory leaks detected ===" \
+grep -E "=== Total [0-9]+ memory leaks detected ===" \
   Testing/Temporary/LastTest.log && exit 1 || true
 '
 ```
@@ -166,7 +166,7 @@ CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/debug \
   cmake -DCMAKE_BUILD_TYPE=Debug -S ../../tests/tea
 cmake --build . --parallel
 make test ARGS="--output-on-failure"
-grep -e "=== Total [0-9]+ memory leaks detected ===" \
+grep -E "=== Total [0-9]+ memory leaks detected ===" \
   Testing/Temporary/LastTest.log && exit 1 || true
 '
 ```
